@@ -39,12 +39,12 @@ func (h *HUOBI) Run() {
 		log.Errorf("%s Failed to get available symbols.\n", h.GetName())
 	} else {
 		forceUpgrade := false
-		if common.StringDataContains(h.EnabledPairs.String(), "CNY") ||
-			common.StringDataContains(h.AvailablePairs.String(), "CNY") {
+		if common.StringDataContains(h.EnabledPairs.Strings(), "CNY") ||
+			common.StringDataContains(h.AvailablePairs.Strings(), "CNY") {
 			forceUpgrade = true
 		}
 
-		if common.StringDataContains(h.BaseCurrencies.String(), "CNY") {
+		if common.StringDataContains(h.BaseCurrencies.Strings(), "CNY") {
 			cfg := config.GetConfig()
 			exchCfg, errCNY := cfg.GetExchangeConfig(h.Name)
 			if err != nil {
@@ -85,7 +85,7 @@ func (h *HUOBI) Run() {
 		var newCurrencies currency.Pairs
 		for _, p := range currencies {
 			newCurrencies = append(newCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = h.UpdateCurrencies(newCurrencies, false, forceUpgrade)
@@ -216,7 +216,7 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 
 			var updated bool
 			for i := range currencyDetails {
-				if currencyDetails[i].CurrencyName == balance.Currency {
+				if currencyDetails[i].CurrencyName == currency.NewCurrencyCode(balance.Currency) {
 					if frozen {
 						currencyDetails[i].Hold = balance.Balance
 					} else {
@@ -233,13 +233,13 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 			if frozen {
 				currencyDetails = append(currencyDetails,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: balance.Currency,
+						CurrencyName: currency.NewCurrencyCode(balance.Currency),
 						Hold:         balance.Balance,
 					})
 			} else {
 				currencyDetails = append(currencyDetails,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: balance.Currency,
+						CurrencyName: currency.NewCurrencyCode(balance.Currency),
 						TotalValue:   balance.Balance,
 					})
 			}
@@ -416,7 +416,7 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(order.Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(order.CreatedAt, 0)
 
@@ -464,7 +464,7 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(order.Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(order.CreatedAt, 0)
 

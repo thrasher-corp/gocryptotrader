@@ -157,7 +157,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 					Timestamp:  time.Unix(0, kline.Timestamp),
 					Exchange:   h.GetName(),
 					AssetType:  "SPOT",
-					Pair:       currency.NewCurrencyPairFromString(data[1]),
+					Pair:       currency.NewPairFromString(data[1]),
 					OpenPrice:  kline.Tick.Open,
 					ClosePrice: kline.Tick.Close,
 					HighPrice:  kline.Tick.High,
@@ -178,7 +178,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 				h.Websocket.DataHandler <- exchange.TradeData{
 					Exchange:     h.GetName(),
 					AssetType:    "SPOT",
-					CurrencyPair: currency.NewCurrencyPairFromString(data[1]),
+					CurrencyPair: currency.NewPairFromString(data[1]),
 					Timestamp:    time.Unix(0, trade.Tick.Timestamp),
 				}
 			}
@@ -202,7 +202,7 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob WsDepth, symbol string) error {
 			Amount: askLevel[0].(float64)})
 	}
 
-	p := currency.NewCurrencyPairFromString(symbol)
+	p := currency.NewPairFromString(symbol)
 
 	var newOrderbook orderbook.Base
 	newOrderbook.Asks = asks

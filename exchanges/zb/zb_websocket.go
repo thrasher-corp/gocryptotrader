@@ -186,7 +186,7 @@ func (z *ZB) WsHandleData() {
 
 				z.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Unix(0, ticker.Date),
-					Pair:       currency.NewCurrencyPairFromString(cPair[0]),
+					Pair:       currency.NewPairFromString(cPair[0]),
 					AssetType:  "SPOT",
 					Exchange:   z.GetName(),
 					ClosePrice: ticker.Data.Last,
@@ -221,7 +221,7 @@ func (z *ZB) WsHandleData() {
 				}
 
 				channelInfo := common.SplitStrings(result.Channel, "_")
-				cPair := currency.NewCurrencyPairFromString(channelInfo[0])
+				cPair := currency.NewPairFromString(channelInfo[0])
 
 				var newOrderbook orderbook.Base
 				newOrderbook.Asks = asks
@@ -255,7 +255,7 @@ func (z *ZB) WsHandleData() {
 				t := trades.Data[len(trades.Data)-1]
 
 				channelInfo := common.SplitStrings(result.Channel, "_")
-				cPair := currency.NewCurrencyPairFromString(channelInfo[0])
+				cPair := currency.NewPairFromString(channelInfo[0])
 
 				z.Websocket.DataHandler <- exchange.TradeData{
 					Timestamp:    time.Unix(0, t.Date),

@@ -40,7 +40,7 @@ func (b *Bithumb) Run() {
 		var newExchangeProducts currency.Pairs
 		for _, p := range exchangeProducts {
 			newExchangeProducts = append(newExchangeProducts,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = b.UpdateCurrencies(newExchangeProducts, false, false)
@@ -154,7 +154,7 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: currency.NewCurrencyCode(key),
 			TotalValue:   totalAmount,
 			Hold:         hold,
 		})
@@ -347,7 +347,7 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 			Price:           order.Price,
 			RemainingAmount: order.UnitsRemaining,
 			Status:          string(exchange.ActiveOrderStatus),
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.OrderCurrency,
+			CurrencyPair: currency.NewPairWithDelimiter(order.OrderCurrency,
 				order.PaymentCurrency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
@@ -391,7 +391,7 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 			OrderDate:       orderDate,
 			Price:           order.Price,
 			RemainingAmount: order.UnitsRemaining,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.OrderCurrency,
+			CurrencyPair: currency.NewPairWithDelimiter(order.OrderCurrency,
 				order.PaymentCurrency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}

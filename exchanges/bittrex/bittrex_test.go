@@ -320,7 +320,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewCurrencyPair(currency.LTC,
+		Currencies: []currency.Pair{currency.NewPairFromCodes(currency.LTC,
 			currency.BTC)},
 	}
 
@@ -389,7 +389,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -415,7 +415,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

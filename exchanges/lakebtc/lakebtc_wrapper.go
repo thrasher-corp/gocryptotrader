@@ -39,7 +39,7 @@ func (l *LakeBTC) Run() {
 		var newExchangeProducts currency.Pairs
 		for _, p := range exchangeProducts {
 			newExchangeProducts = append(newExchangeProducts,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = l.UpdateCurrencies(newExchangeProducts, false, false)
@@ -134,7 +134,7 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 				continue
 			}
 			var exchangeCurrency exchange.AccountCurrencyInfo
-			exchangeCurrency.CurrencyName = common.StringToUpper(x)
+			exchangeCurrency.CurrencyName = currency.NewCurrencyCode(x)
 			exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 			exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
 			currencies = append(currencies, exchangeCurrency)
@@ -284,7 +284,7 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(order.At, 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 
@@ -320,7 +320,7 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 			continue
 		}
 
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(order.Symbol,
 			l.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(order.At, 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))

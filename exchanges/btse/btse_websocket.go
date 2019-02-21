@@ -28,11 +28,11 @@ func (b *BTSE) WebsocketSubscriber() error {
 		Channels: []websocketChannel{
 			{
 				Name:       "snapshot",
-				ProductIDs: b.EnabledPairs.String(),
+				ProductIDs: b.EnabledPairs.Strings(),
 			},
 			{
 				Name:       "ticker",
-				ProductIDs: b.EnabledPairs.String(),
+				ProductIDs: b.EnabledPairs.Strings(),
 			},
 		},
 	}
@@ -146,7 +146,7 @@ func (b *BTSE) WsHandleData() {
 
 				b.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp: time.Now(),
-					Pair:      currency.NewCurrencyPairDelimiter(t.ProductID, "-"),
+					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
 					AssetType: "SPOT",
 					Exchange:  b.GetName(),
 					OpenPrice: price,
@@ -206,7 +206,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot websocketOrderbookSnapshot) error {
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	p := currency.NewCurrencyPairDelimiter(snapshot.ProductID, "-")
+	p := currency.NewPairDelimiter(snapshot.ProductID, "-")
 	base.AssetType = "SPOT"
 	base.Pair = p
 	base.LastUpdated = time.Now()

@@ -306,7 +306,7 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 
 							if len(newOrderbook) > 1 {
-								err := b.WsInsertSnapshot(currency.NewCurrencyPairFromString(chanInfo.Pair),
+								err := b.WsInsertSnapshot(currency.NewPairFromString(chanInfo.Pair),
 									"SPOT",
 									newOrderbook)
 
@@ -317,7 +317,7 @@ func (b *Bitfinex) WsDataHandler() {
 								continue
 							}
 
-							err := b.WsUpdateOrderbook(currency.NewCurrencyPairFromString(chanInfo.Pair),
+							err := b.WsUpdateOrderbook(currency.NewPairFromString(chanInfo.Pair),
 								"SPOT",
 								newOrderbook[0])
 
@@ -332,7 +332,7 @@ func (b *Bitfinex) WsDataHandler() {
 								ClosePrice: chanData[7].(float64),
 								HighPrice:  chanData[9].(float64),
 								LowPrice:   chanData[10].(float64),
-								Pair:       currency.NewCurrencyPairFromString(chanInfo.Pair),
+								Pair:       currency.NewPairFromString(chanInfo.Pair),
 								Exchange:   b.GetName(),
 								AssetType:  "SPOT",
 							}
@@ -485,7 +485,7 @@ func (b *Bitfinex) WsDataHandler() {
 								}
 
 								b.Websocket.DataHandler <- exchange.TradeData{
-									CurrencyPair: currency.NewCurrencyPairFromString(chanInfo.Pair),
+									CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
 									Timestamp:    time.Unix(trades[0].Timestamp, 0),
 									Price:        trades[0].Price,
 									Amount:       newAmount,

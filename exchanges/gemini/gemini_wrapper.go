@@ -40,7 +40,7 @@ func (g *Gemini) Run() {
 		var newExchangeProducts currency.Pairs
 		for _, p := range exchangeProducts {
 			newExchangeProducts = append(newExchangeProducts,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = g.UpdateCurrencies(newExchangeProducts, false, false)
@@ -63,7 +63,7 @@ func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
 		currencies = append(currencies, exchangeCurrency)
@@ -267,7 +267,7 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(order.Symbol,
 			g.ConfigCurrencyPairFormat.Delimiter)
 		var orderType exchange.OrderType
 		if order.Type == "exchange limit" {
@@ -337,7 +337,7 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			OrderSide: side,
 			Fee:       trade.FeeAmount,
 			Price:     trade.Price,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(trade.BaseCurrency,
+			CurrencyPair: currency.NewPairWithDelimiter(trade.BaseCurrency,
 				trade.QuoteCurrency,
 				g.ConfigCurrencyPairFormat.Delimiter),
 		})

@@ -36,8 +36,8 @@ func (k *Kraken) Run() {
 		log.Errorf("%s Failed to get available symbols.\n", k.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(k.EnabledPairs.String(), "-") ||
-			!common.StringDataContains(k.AvailablePairs.String(), "-") {
+		if !common.StringDataContains(k.EnabledPairs.Strings(), "-") ||
+			!common.StringDataContains(k.AvailablePairs.Strings(), "-") {
 			forceUpgrade = true
 		}
 
@@ -72,7 +72,7 @@ func (k *Kraken) Run() {
 		var newExchangeProducts currency.Pairs
 		for _, p := range exchangeProducts {
 			newExchangeProducts = append(newExchangeProducts,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = k.UpdateCurrencies(newExchangeProducts, false, forceUpgrade)
@@ -171,7 +171,7 @@ func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balances []exchange.AccountCurrencyInfo
 	for key, data := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: currency.NewCurrencyCode(key),
 			TotalValue:   data,
 		})
 	}
@@ -320,7 +320,7 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for ID, order := range resp.Open {
-		symbol := currency.NewCurrencyPairDelimiter(order.Descr.Pair,
+		symbol := currency.NewPairDelimiter(order.Descr.Pair,
 			k.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.StartTm), 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
@@ -364,7 +364,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for ID, order := range resp.Closed {
-		symbol := currency.NewCurrencyPairDelimiter(order.Descr.Pair,
+		symbol := currency.NewPairDelimiter(order.Descr.Pair,
 			k.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.StartTm), 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))

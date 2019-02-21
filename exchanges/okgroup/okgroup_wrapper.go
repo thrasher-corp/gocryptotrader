@@ -43,7 +43,7 @@ func (o *OKGroup) Run() {
 
 	var pairs currency.Pairs
 	for x := range prods {
-		pairs = append(pairs, currency.NewCurrencyPairFromString(prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency))
+		pairs = append(pairs, currency.NewPairFromString(prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency))
 	}
 
 	err = o.UpdateCurrencies(pairs, false, false)
@@ -60,18 +60,17 @@ func (o *OKGroup) UpdateTicker(p currency.Pair, assetType string) (tickerData ti
 		return
 	}
 	tickerData = ticker.Price{
-		Ask:          resp.BestAsk,
-		Bid:          resp.BestBid,
-		CurrencyPair: exchange.FormatExchangeCurrency(o.Name, p).String(),
-		High:         resp.High24h,
-		Last:         resp.Last,
-		LastUpdated:  resp.Timestamp,
-		Low:          resp.Low24h,
-		Pair:         p,
-		Volume:       resp.BaseVolume24h,
+		Ask:         resp.BestAsk,
+		Bid:         resp.BestBid,
+		High:        resp.High24h,
+		Last:        resp.Last,
+		LastUpdated: resp.Timestamp,
+		Low:         resp.Low24h,
+		Pair:        exchange.FormatExchangeCurrency(o.Name, p),
+		Volume:      resp.BaseVolume24h,
 	}
 
-	ticker.ProcessTicker(o.Name, p, tickerData, assetType)
+	err = ticker.ProcessTicker(o.Name, tickerData, assetType)
 	return
 }
 
@@ -157,7 +156,7 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 			log.Errorf("Could not convert %v to float64", curr.Balance)
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies, exchange.AccountCurrencyInfo{
-			CurrencyName: curr.ID,
+			CurrencyName: currency.NewCurrencyCode(curr.ID),
 			Hold:         hold,
 			TotalValue:   totalValue,
 		})
@@ -297,8 +296,9 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err e
 		return
 	}
 	resp = exchange.OrderDetail{
-		Amount:         order.Size,
-		CurrencyPair:   currency.NewCurrencyPairDelimiter(order.InstrumentID, o.ConfigCurrencyPairFormat.Delimiter),
+		Amount: order.Size,
+		CurrencyPair: currency.NewPairDelimiter(order.InstrumentID,
+			o.ConfigCurrencyPairFormat.Delimiter),
 		Exchange:       o.Name,
 		OrderDate:      order.Timestamp,
 		ExecutedAmount: order.FilledSize,

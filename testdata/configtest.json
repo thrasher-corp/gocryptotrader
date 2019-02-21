@@ -1307,5 +1307,6 @@
    "supportedCurrencies": "USD",
    "supportedExchanges": "ANX,Kraken"
   }
- ]
+ ],
+ "fiatDispayCurrency": ""
 }

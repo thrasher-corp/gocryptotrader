@@ -304,8 +304,8 @@ func TestCheckPairConsistency(t *testing.T) {
 	cfg.Exchanges = append(cfg.Exchanges, ExchangeConfig{
 		Name:           "TestExchange",
 		Enabled:        true,
-		AvailablePairs: currency.NewCurrencyPairListFromString([]string{"DOGE_USD,DOGE_AUD"}),
-		EnabledPairs:   currency.NewCurrencyPairListFromString([]string{"DOGE_USD,DOGE_AUD,DOGE_BTC"}),
+		AvailablePairs: currency.NewPairsFromStrings([]string{"DOGE_USD,DOGE_AUD"}),
+		EnabledPairs:   currency.NewPairsFromStrings([]string{"DOGE_USD,DOGE_AUD,DOGE_BTC"}),
 		ConfigCurrencyPairFormat: &CurrencyPairFormatConfig{
 			Uppercase: true,
 			Delimiter: "_",
@@ -326,7 +326,7 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("Test failed. CheckPairConsistency error:", err)
 	}
 
-	tec.EnabledPairs = currency.NewCurrencyPairListFromString([]string{"DOGE_LTC,BTC_LTC"})
+	tec.EnabledPairs = currency.NewPairsFromStrings([]string{"DOGE_LTC,BTC_LTC"})
 	err = cfg.UpdateExchangeConfig(&tec)
 	if err != nil {
 		t.Error("Test failed. CheckPairConsistency Update config failed, error:", err)
@@ -347,14 +347,14 @@ func TestSupportsPair(t *testing.T) {
 		)
 	}
 
-	_, err = cfg.SupportsPair("asdf", currency.NewCurrencyPair("BTC", "USD"))
+	_, err = cfg.SupportsPair("asdf", currency.NewPair("BTC", "USD"))
 	if err == nil {
 		t.Error(
 			"Test failed. TestSupportsPair. Non-existent exchange returned nil error",
 		)
 	}
 
-	_, err = cfg.SupportsPair("Bitfinex", currency.NewCurrencyPair("BTC", "USD"))
+	_, err = cfg.SupportsPair("Bitfinex", currency.NewPair("BTC", "USD"))
 	if err != nil {
 		t.Errorf(
 			"Test failed. TestSupportsPair. Incorrect values. Err: %s", err,
@@ -687,7 +687,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
-	checkExchangeConfigValues.Exchanges[0].BaseCurrencies = currency.NewCurrencyListFromCurrencies([]string{""})
+	checkExchangeConfigValues.Exchanges[0].BaseCurrencies = currency.NewCurrenciesFromStrings([]string{""})
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(
@@ -695,7 +695,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
-	checkExchangeConfigValues.Exchanges[0].EnabledPairs = currency.NewCurrencyPairListFromString([]string{""})
+	checkExchangeConfigValues.Exchanges[0].EnabledPairs = currency.NewPairsFromStrings([]string{""})
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(
@@ -703,7 +703,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
-	checkExchangeConfigValues.Exchanges[0].AvailablePairs = currency.NewCurrencyPairListFromString([]string{""})
+	checkExchangeConfigValues.Exchanges[0].AvailablePairs = currency.NewPairsFromStrings([]string{""})
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(
@@ -719,7 +719,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
-	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrencyListFromCurrencies([]string{""})
+	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrenciesFromStrings([]string{""})
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(
@@ -728,7 +728,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	checkExchangeConfigValues.Exchanges = checkExchangeConfigValues.Exchanges[:0]
-	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrencyListFromCurrencies([]string{"TESTYTEST"})
+	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrenciesFromStrings([]string{"TESTYTEST"})
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(
@@ -924,7 +924,7 @@ func TestUpdateConfig(t *testing.T) {
 		t.Fatalf("Test failed. Error should of been thrown for invalid path")
 	}
 
-	newCfg.Currency.Cryptocurrencies = currency.NewCurrencyListFromCurrencies([]string{""})
+	newCfg.Currency.Cryptocurrencies = currency.NewCurrenciesFromStrings([]string{""})
 	err = c.UpdateConfig(ConfigTestFile, newCfg)
 	if err != nil {
 		t.Errorf("Test failed. %s", err)

@@ -123,7 +123,7 @@ func TestGetExchangeStatus(t *testing.T) {
 
 func TestCheckFXString(t *testing.T) {
 	t.Parallel()
-	p := currency.NewCurrencyPairDelimiter("FXBTC_JPY", "_")
+	p := currency.NewPairDelimiter("FXBTC_JPY", "_")
 	p = b.CheckFXString(p)
 	if p.Base.String() != "FX_BTC" {
 		t.Error("test failed - Bitflyer - CheckFXString() error")
@@ -313,7 +313,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -336,7 +336,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",

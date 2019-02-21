@@ -40,7 +40,7 @@ func (g *Gateio) Run() {
 		var newCurrencies currency.Pairs
 		for _, p := range symbols {
 			newCurrencies = append(newCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = g.UpdateCurrencies(newCurrencies, false, false)
@@ -147,7 +147,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: currency.NewCurrencyCode(key),
 			Hold:         lockedF,
 		})
 	}
@@ -160,7 +160,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 
 		var updated bool
 		for i := range balances {
-			if balances[i].CurrencyName == key {
+			if balances[i].CurrencyName == currency.NewCurrencyCode(key) {
 				balances[i].TotalValue = balances[i].Hold + availAmount
 				updated = true
 				break
@@ -169,7 +169,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 
 		if !updated {
 			balances = append(balances, exchange.AccountCurrencyInfo{
-				CurrencyName: key,
+				CurrencyName: currency.NewCurrencyCode(key),
 				TotalValue:   availAmount,
 			})
 		}
@@ -349,7 +349,7 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			continue
 		}
 
-		symbol := currency.NewCurrencyPairDelimiter(order.CurrencyPair,
+		symbol := currency.NewPairDelimiter(order.CurrencyPair,
 			g.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 		orderDate := time.Unix(order.Timestamp, 0)
@@ -386,7 +386,7 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for _, trade := range trades {
-		symbol := currency.NewCurrencyPairDelimiter(trade.Pair,
+		symbol := currency.NewPairDelimiter(trade.Pair,
 			g.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(trade.Type))
 		orderDate := time.Unix(trade.TimeUnix, 0)

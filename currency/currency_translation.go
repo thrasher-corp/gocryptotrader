@@ -20,7 +20,7 @@ func GetTranslation(currency Code) (Code, error) {
 			return k, nil
 		}
 	}
-	return "", errors.New("no translation found for specified currency")
+	return Code{}, errors.New("no translation found for specified currency")
 }
 
 // HasTranslation returns whether or not a particular currency has a translation

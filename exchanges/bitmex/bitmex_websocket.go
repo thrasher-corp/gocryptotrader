@@ -236,7 +236,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 						continue
 					}
 
-					p := currency.NewCurrencyPairFromString(orderbooks.Data[0].Symbol)
+					p := currency.NewPairFromString(orderbooks.Data[0].Symbol)
 					// TODO: update this to support multiple asset types
 					err = b.processOrderbook(orderbooks.Data, orderbooks.Action, p, "CONTRACT")
 					if err != nil {
@@ -269,7 +269,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 							Timestamp:    timestamp,
 							Price:        trade.Price,
 							Amount:       float64(trade.Size),
-							CurrencyPair: currency.NewCurrencyPairFromString(trade.Symbol),
+							CurrencyPair: currency.NewPairFromString(trade.Symbol),
 							Exchange:     b.GetName(),
 							AssetType:    "CONTRACT",
 							Side:         trade.Side,

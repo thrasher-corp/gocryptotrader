@@ -36,8 +36,8 @@ func (b *Bittrex) Run() {
 		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(b.EnabledPairs.String(), "-") ||
-			!common.StringDataContains(b.AvailablePairs.String(), "-") {
+		if !common.StringDataContains(b.EnabledPairs.Strings(), "-") ||
+			!common.StringDataContains(b.AvailablePairs.Strings(), "-") {
 			forceUpgrade = true
 		}
 		var currencies []string
@@ -64,7 +64,7 @@ func (b *Bittrex) Run() {
 		var newCurrencies currency.Pairs
 		for _, p := range currencies {
 			newCurrencies = append(newCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = b.UpdateCurrencies(newCurrencies, false, forceUpgrade)
@@ -87,7 +87,7 @@ func (b *Bittrex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance.Result); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance.Result[i].Currency
+		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(accountBalance.Result[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance.Result[i].Balance
 		exchangeCurrency.Hold = accountBalance.Result[i].Balance - accountBalance.Result[i].Available
 		currencies = append(currencies, exchangeCurrency)
@@ -320,7 +320,7 @@ func (b *Bittrex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 				b.Name, "GetActiveOrders", order.OrderUUID, order.Opened)
 		}
 
-		pair := currency.NewCurrencyPairDelimiter(order.Exchange,
+		pair := currency.NewPairDelimiter(order.Exchange,
 			b.ConfigCurrencyPairFormat.Delimiter)
 		orderType := exchange.OrderType(strings.ToUpper(order.Type))
 
@@ -365,7 +365,7 @@ func (b *Bittrex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 				b.Name, "GetActiveOrders", order.OrderUUID, order.Opened)
 		}
 
-		pair := currency.NewCurrencyPairDelimiter(order.Exchange,
+		pair := currency.NewPairDelimiter(order.Exchange,
 			b.ConfigCurrencyPairFormat.Delimiter)
 		orderType := exchange.OrderType(strings.ToUpper(order.Type))
 

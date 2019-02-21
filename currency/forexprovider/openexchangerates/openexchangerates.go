@@ -14,9 +14,11 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 )
 
 // These consts contain endpoint information
@@ -33,6 +35,9 @@ const (
 	APIEndpointConvert    = "convert/%s/%s/%s"
 	APIEndpointOHLC       = "ohlc.json"
 	APIEndpointUsage      = "usage.json"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // OXR is a foreign exchange rate provider at https://openexchangerates.org/
@@ -40,6 +45,7 @@ const (
 // DOCs : https://docs.openexchangerates.org/docs
 type OXR struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets values for the OXR object
@@ -51,6 +57,10 @@ func (o *OXR) Setup(config base.Settings) {
 	o.RESTPollingDelay = config.RESTPollingDelay
 	o.Verbose = config.Verbose
 	o.PrimaryProvider = config.PrimaryProvider
+	o.Requester = request.New(o.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 }
 
 // GetRates is a wrapper function to return rates
@@ -223,9 +233,11 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 	headers["Authorization"] = "Token " + o.APIKey
 	path := APIURL + endpoint + "?" + values.Encode()
 
-	resp, err := common.SendHTTPRequest(http.MethodGet, path, headers, nil)
-	if err != nil {
-		return err
-	}
-	return common.JSONDecode([]byte(resp), result)
+	return o.Requester.SendPayload(http.MethodGet,
+		path,
+		headers,
+		nil,
+		result,
+		false,
+		o.Verbose)
 }

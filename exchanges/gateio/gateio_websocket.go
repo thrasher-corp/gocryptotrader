@@ -170,7 +170,7 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Now(),
-					Pair:       currency.NewCurrencyPairFromString(c),
+					Pair:       currency.NewPairFromString(c),
 					AssetType:  "SPOT",
 					Exchange:   g.GetName(),
 					ClosePrice: ticker.Close,
@@ -198,7 +198,7 @@ func (g *Gateio) WsHandleData() {
 				for _, trade := range trades {
 					g.Websocket.DataHandler <- exchange.TradeData{
 						Timestamp:    time.Now(),
-						CurrencyPair: currency.NewCurrencyPairFromString(c),
+						CurrencyPair: currency.NewPairFromString(c),
 						AssetType:    "SPOT",
 						Exchange:     g.GetName(),
 						Price:        trade.Price,
@@ -268,7 +268,7 @@ func (g *Gateio) WsHandleData() {
 					newOrderbook.Asks = asks
 					newOrderbook.Bids = bids
 					newOrderbook.AssetType = "SPOT"
-					newOrderbook.Pair = currency.NewCurrencyPairFromString(c)
+					newOrderbook.Pair = currency.NewPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(newOrderbook,
 						g.GetName(),
@@ -279,7 +279,7 @@ func (g *Gateio) WsHandleData() {
 				} else {
 					err = g.Websocket.Orderbook.Update(asks,
 						bids,
-						currency.NewCurrencyPairFromString(c),
+						currency.NewPairFromString(c),
 						time.Now(),
 						g.GetName(),
 						"SPOT")
@@ -289,7 +289,7 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-					Pair:     currency.NewCurrencyPairFromString(c),
+					Pair:     currency.NewPairFromString(c),
 					Asset:    "SPOT",
 					Exchange: g.GetName(),
 				}
@@ -310,7 +310,7 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- exchange.KlineData{
 					Timestamp:  time.Now(),
-					Pair:       currency.NewCurrencyPairFromString(data[7].(string)),
+					Pair:       currency.NewPairFromString(data[7].(string)),
 					AssetType:  "SPOT",
 					Exchange:   g.GetName(),
 					OpenPrice:  open,

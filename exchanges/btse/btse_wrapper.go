@@ -40,7 +40,7 @@ func (b *BTSE) Run() {
 		for _, m := range *markets {
 			currencies = append(currencies, m.ID)
 		}
-		err = b.UpdateCurrencies(currency.NewCurrencyPairListFromString(currencies),
+		err = b.UpdateCurrencies(currency.NewPairsFromStrings(currencies),
 			false,
 			false)
 		if err != nil {
@@ -72,7 +72,11 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, er
 	tickerPrice.Last = t.Price
 	tickerPrice.Volume = s.Volume
 	tickerPrice.High = s.High
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
@@ -112,7 +116,7 @@ func (b *BTSE) GetAccountInfo() (exchange.AccountInfo, error) {
 	for _, b := range *balance {
 		currencies = append(currencies,
 			exchange.AccountCurrencyInfo{
-				CurrencyName: b.Currency,
+				CurrencyName: currency.NewCurrencyCode(b.Currency),
 				TotalValue:   b.Total,
 				Hold:         b.Available,
 			},
@@ -222,7 +226,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 			side = exchange.SellOrderSide
 		}
 
-		od.CurrencyPair = currency.NewCurrencyPairDelimiter(o.ProductID,
+		od.CurrencyPair = currency.NewPairDelimiter(o.ProductID,
 			b.ConfigCurrencyPairFormat.Delimiter)
 		od.Exchange = b.Name
 		od.Amount = o.Amount
@@ -297,7 +301,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 		}
 
 		openOrder := exchange.OrderDetail{
-			CurrencyPair: currency.NewCurrencyPairDelimiter(order.ProductID,
+			CurrencyPair: currency.NewPairDelimiter(order.ProductID,
 				b.ConfigCurrencyPairFormat.Delimiter),
 			Exchange:  b.Name,
 			Amount:    order.Amount,

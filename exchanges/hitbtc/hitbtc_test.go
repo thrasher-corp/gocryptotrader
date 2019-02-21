@@ -125,7 +125,7 @@ func TestGetFee(t *testing.T) {
 
 		// CryptocurrencyWithdrawalFee Invalid currency
 		feeBuilder = setFeeBuilder()
-		feeBuilder.BaseCurrency = "hello"
+		feeBuilder.BaseCurrency = currency.NewCurrencyCode("hello")
 		feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 		if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err == nil {
 			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
@@ -178,7 +178,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType:  exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewCurrencyPair(currency.ETH, currency.BTC)},
+		Currencies: []currency.Pair{currency.NewPairFromCodes(currency.ETH, currency.BTC)},
 	}
 
 	_, err := h.GetActiveOrders(getOrdersRequest)
@@ -195,7 +195,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType:  exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewCurrencyPair(currency.ETH, currency.BTC)},
+		Currencies: []currency.Pair{currency.NewPairFromCodes(currency.ETH, currency.BTC)},
 	}
 
 	_, err := h.GetOrderHistory(getOrdersRequest)
@@ -245,7 +245,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -271,7 +271,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

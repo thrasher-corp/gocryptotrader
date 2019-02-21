@@ -502,7 +502,7 @@ func logDataResponse(response *WebsocketDataResponse) {
 // wsProcessTickers converts ticker data and sends it to the datahandler
 func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for _, tickerData := range response.Data {
-		instrument := currency.NewCurrencyPairDelimiter(tickerData.InstrumentID, "-")
+		instrument := currency.NewPairDelimiter(tickerData.InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TickerData{
 			Timestamp:  tickerData.Timestamp,
 			Exchange:   o.GetName(),
@@ -518,7 +518,7 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 	for _, trade := range response.Data {
-		instrument := currency.NewCurrencyPairDelimiter(trade.InstrumentID, "-")
+		instrument := currency.NewPairDelimiter(trade.InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TradeData{
 			Amount:       trade.Qty,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
@@ -535,7 +535,7 @@ func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 // wsProcessCandles converts candle data and sends it to the data handler
 func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 	for _, candle := range response.Data {
-		instrument := currency.NewCurrencyPairDelimiter(candle.InstrumentID, "-")
+		instrument := currency.NewPairDelimiter(candle.InstrumentID, "-")
 		timeData, err := time.Parse(time.RFC3339Nano, candle.WebsocketCandleResponse.Candle[0])
 		if err != nil {
 			log.Warnf("%v Time data could not be parsed: %v", o.GetName(), candle.Candle[0])
@@ -568,7 +568,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 // WsProcessOrderBook Validates the checksum and updates internal orderbook values
 func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) (err error) {
 	for i := range response.Data {
-		instrument := currency.NewCurrencyPairDelimiter(response.Data[i].InstrumentID, "-")
+		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
 		if response.Action == okGroupWsOrderbookPartial {
 			err = o.WsProcessPartialOrderBook(&response.Data[i], instrument, response.Table)
 		} else if response.Action == okGroupWsOrderbookUpdate {

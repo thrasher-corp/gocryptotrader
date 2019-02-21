@@ -47,7 +47,7 @@ func (l *LocalBitcoins) Run() {
 	var newExchangeProducts currency.Pairs
 	for _, p := range pairs {
 		newExchangeProducts = append(newExchangeProducts,
-			currency.NewCurrencyPairFromString(p))
+			currency.NewPairFromString(p))
 	}
 
 	err = l.UpdateCurrencies(newExchangeProducts, false, false)
@@ -135,7 +135,7 @@ func (l *LocalBitcoins) GetAccountInfo() (exchange.AccountInfo, error) {
 		return response, err
 	}
 	var exchangeCurrency exchange.AccountCurrencyInfo
-	exchangeCurrency.CurrencyName = "BTC"
+	exchangeCurrency.CurrencyName = currency.BTC
 	exchangeCurrency.TotalValue = accountBalance.Total.Balance
 
 	response.Accounts = append(response.Accounts, exchange.Account{
@@ -334,7 +334,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest exchange.GetOrdersReque
 			OrderDate: orderDate,
 			Fee:       trade.Data.FeeBTC,
 			OrderSide: side,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(currency.BTC.String(),
+			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				trade.Data.Currency,
 				l.ConfigCurrencyPairFormat.Delimiter),
 			Exchange: l.Name,
@@ -407,7 +407,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersReque
 			Fee:       trade.Data.FeeBTC,
 			OrderSide: side,
 			Status:    status,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(currency.BTC.String(),
+			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				trade.Data.Currency,
 				l.ConfigCurrencyPairFormat.Delimiter),
 			Exchange: l.Name,

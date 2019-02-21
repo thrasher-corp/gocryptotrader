@@ -36,8 +36,8 @@ func (a *ANX) Run() {
 		log.Debugf("%s Failed to get available symbols.\n", a.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(a.EnabledPairs.String(), "_") ||
-			!common.StringDataContains(a.AvailablePairs.String(), "_") {
+		if !common.StringDataContains(a.EnabledPairs.Strings(), "_") ||
+			!common.StringDataContains(a.AvailablePairs.Strings(), "_") {
 			forceUpgrade = true
 		}
 
@@ -46,8 +46,8 @@ func (a *ANX) Run() {
 
 			var enabledPairs currency.Pairs
 			for _, p := range newPairs {
-				enabledPairs = append(enabledPairs,
-					currency.NewCurrencyPairDelimiter(p, "_"))
+				enabledPairs = append(enabledPairs, 
+					currency.NewPairDelimiter(p, "_"))
 			}
 
 			log.Warn("Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
@@ -61,7 +61,7 @@ func (a *ANX) Run() {
 		var exchangeProducts currency.Pairs
 		for _, p := range tradablePairs {
 			exchangeProducts = append(exchangeProducts,
-				currency.NewCurrencyPairDelimiter(p, "_"))
+				currency.NewPairDelimiter(p, "_"))
 		}
 
 		err = a.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
@@ -217,9 +217,9 @@ func (a *ANX) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var balance []exchange.AccountCurrencyInfo
-	for currency, info := range raw.Wallets {
+	for c, info := range raw.Wallets {
 		balance = append(balance, exchange.AccountCurrencyInfo{
-			CurrencyName: currency,
+			CurrencyName: currency.NewCurrencyCode(c),
 			TotalValue:   info.AvailableBalance.Value,
 			Hold:         info.Balance.Value,
 		})
@@ -381,7 +381,7 @@ func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 
 		orderDetail := exchange.OrderDetail{
 			Amount: order.TradedCurrencyAmount,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.TradedCurrency,
+			CurrencyPair: currency.NewPairWithDelimiter(order.TradedCurrency,
 				order.SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),
 			OrderDate: orderDate,
 			Exchange:  a.Name,
@@ -423,7 +423,7 @@ func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 			OrderType: orderType,
 			Price:     order.SettlementCurrencyAmount,
 			Status:    order.OrderStatus,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.TradedCurrency,
+			CurrencyPair: currency.NewPairWithDelimiter(order.TradedCurrency,
 				order.SettlementCurrency,
 				a.ConfigCurrencyPairFormat.Delimiter),
 		}

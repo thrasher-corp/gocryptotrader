@@ -44,8 +44,8 @@ func (b *Binance) Run() {
 		log.Errorf("%s Failed to get exchange info.\n", b.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(b.EnabledPairs.String(), "-") ||
-			!common.StringDataContains(b.AvailablePairs.String(), "-") {
+		if !common.StringDataContains(b.EnabledPairs.Strings(), "-") ||
+			!common.StringDataContains(b.AvailablePairs.Strings(), "-") {
 			forceUpgrade = true
 		}
 
@@ -67,7 +67,7 @@ func (b *Binance) Run() {
 		var newSymbols currency.Pairs
 		for _, p := range symbols {
 			newSymbols = append(newSymbols,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = b.UpdateCurrencies(newSymbols, false, forceUpgrade)
@@ -170,7 +170,7 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		currencyBalance = append(currencyBalance, exchange.AccountCurrencyInfo{
-			CurrencyName: balance.Asset,
+			CurrencyName: currency.NewCurrencyCode(balance.Asset),
 			TotalValue:   freeCurrency + lockedCurrency,
 			Hold:         freeCurrency,
 		})
@@ -349,7 +349,7 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 				OrderType:    orderType,
 				Price:        order.Price,
 				Status:       order.Status,
-				CurrencyPair: currency.NewCurrencyPairFromString(order.Symbol),
+				CurrencyPair: currency.NewPairFromString(order.Symbol),
 			})
 		}
 	}
@@ -392,7 +392,7 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 				OrderSide:    orderSide,
 				OrderType:    orderType,
 				Price:        order.Price,
-				CurrencyPair: currency.NewCurrencyPairFromString(order.Symbol),
+				CurrencyPair: currency.NewPairFromString(order.Symbol),
 				Status:       order.Status,
 			})
 		}

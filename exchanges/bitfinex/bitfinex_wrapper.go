@@ -41,7 +41,7 @@ func (b *Bitfinex) Run() {
 		var newExchangeProducts currency.Pairs
 		for _, p := range exchangeProducts {
 			newExchangeProducts = append(newExchangeProducts,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = b.UpdateCurrencies(newExchangeProducts, false, false)
@@ -67,8 +67,8 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 	}
 
 	for x := range tickerNew {
-		newP := currency.NewCurrencyPair(currency.Code(tickerNew[x].Symbol[1:4]),
-			currency.Code(tickerNew[x].Symbol[4:]))
+		newP := currency.NewPair(tickerNew[x].Symbol[1:4],
+			tickerNew[x].Symbol[4:])
 
 		var tick ticker.Price
 		tick.Pair = newP
@@ -153,7 +153,7 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 			if Accounts[i].ID == bal.Type {
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: bal.Currency,
+						CurrencyName: currency.NewCurrencyCode(bal.Currency),
 						TotalValue:   bal.Amount,
 						Hold:         bal.Amount - bal.Available,
 					})
@@ -354,7 +354,7 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 			OrderSide:       orderSide,
 			Price:           order.Price,
 			RemainingAmount: order.RemainingAmount,
-			CurrencyPair:    currency.NewCurrencyPairFromString(order.Symbol),
+			CurrencyPair:    currency.NewPairFromString(order.Symbol),
 			ExecutedAmount:  order.ExecutedAmount,
 		}
 
@@ -415,7 +415,7 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 			Price:           order.Price,
 			RemainingAmount: order.RemainingAmount,
 			ExecutedAmount:  order.ExecutedAmount,
-			CurrencyPair:    currency.NewCurrencyPairFromString(order.Symbol),
+			CurrencyPair:    currency.NewPairFromString(order.Symbol),
 		}
 
 		switch {

@@ -1,81 +1,8 @@
 package currency
 
 import (
-	"math/rand"
-	"strings"
-
 	"github.com/thrasher-/gocryptotrader/common"
 )
-
-// Pairs defines a list of pairs
-type Pairs []Pair
-
-// String returns a slice of strings refering to each currency pair
-func (p Pairs) String() []string {
-	var list []string
-	for _, pair := range p {
-		list = append(list, pair.String())
-	}
-	return list
-}
-
-// Join returns a comma separated list of currency pairs
-func (p Pairs) Join() string {
-	return common.JoinStrings(p.String(), ",")
-}
-
-// Format formats the pair list to the exchange format configuration
-func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
-	var pairs Pairs
-	for _, data := range p {
-		var formattedPair Pair
-		formattedPair.Delimiter = delimiter
-		formattedPair.Base = data.Base
-		formattedPair.Quote = data.Quote
-
-		if index != "" {
-			formattedPair.Quote = Code(index)
-		}
-
-		if uppercase {
-			pairs = append(pairs, formattedPair.Upper())
-		} else {
-			pairs = append(pairs, formattedPair)
-		}
-	}
-	return pairs
-}
-
-// UnmarshalJSON comforms type to the umarshaler interface
-func (p *Pairs) UnmarshalJSON(d []byte) error {
-	var pairs string
-	err := common.JSONDecode(d, &pairs)
-	if err != nil {
-		return err
-	}
-
-	var allThePairs Pairs
-	for _, data := range common.SplitStrings(pairs, ",") {
-		allThePairs = append(allThePairs, NewCurrencyPairFromString(data))
-	}
-
-	*p = allThePairs
-	return nil
-}
-
-// MarshalJSON conforms type to the marshaler interface
-func (p Pairs) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(p.Join())
-}
-
-// Upper returns an upper formatted pair list
-func (p Pairs) Upper() Pairs {
-	var upper Pairs
-	for _, data := range p {
-		upper = append(upper, data.Upper())
-	}
-	return upper
-}
 
 // Pair holds currency pair information
 type Pair struct {
@@ -115,7 +42,7 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 		return err
 	}
 
-	*p = NewCurrencyPairFromString(pair)
+	*p = NewPairFromString(pair)
 	return nil
 }
 
@@ -156,6 +83,30 @@ func (p Pair) EqualIncludeReciprocal(cPair Pair) bool {
 	return false
 }
 
+// IsCrypto checks to see if the pair is a crypto pair e.g. BTCLTC
+func (p Pair) IsCrypto() bool {
+	return system.IsCryptocurrency(p.Base) &&
+		system.IsCryptocurrency(p.Quote)
+}
+
+// IsCryptoFiat checks to see if the pair is a crypto fiat pair e.g. BTCUSD
+func (p Pair) IsCryptoFiat() bool {
+	return system.IsCryptocurrency(p.Base) &&
+		system.IsFiatCurrency(p.Quote) ||
+		system.IsFiatCurrency(p.Base) &&
+			system.IsCryptocurrency(p.Quote)
+}
+
+// IsFiat checks to see if the pair is a fiat pair e.g. EURUSD
+func (p Pair) IsFiat() bool {
+	return system.IsFiatCurrency(p.Base) && system.IsFiatCurrency(p.Quote)
+}
+
+// IsInvalid checks invalid pair if base and quote are the same
+func (p Pair) IsInvalid() bool {
+	return p.Base.C.name == p.Quote.C.name
+}
+
 // Swap turns the currency pair into its reciprocal
 func (p Pair) Swap() Pair {
 	b := p.Base
@@ -164,194 +115,14 @@ func (p Pair) Swap() Pair {
 	return p
 }
 
-// Empty returns whether or not the pair is empty or is missing a currency code
-func (p Pair) Empty() bool {
-	if p.Base == "" || p.Quote == "" {
-		return true
-	}
-	return false
-}
-
-// NewCurrencyPairListFromString takes in currency pair strings and returns a
-// currency pair list
-func NewCurrencyPairListFromString(pairs []string) Pairs {
-	var ps Pairs
-	for _, p := range pairs {
-		if p == "" {
-			continue
-		}
-
-		ps = append(ps, NewCurrencyPairFromString(p))
-	}
-	return ps
-}
-
-// NewCurrencyPairDelimiter splits the desired currency string at delimeter,
-// the returns a CurrencyPair struct
-func NewCurrencyPairDelimiter(currencyPair, delimiter string) Pair {
-	result := strings.Split(currencyPair, delimiter)
-	return Pair{
-		Delimiter: delimiter,
-		Base:      Code(result[0]),
-		Quote:     Code(result[1]),
-	}
-}
-
-// NewCurrencyPair returns a CurrencyPair without a delimiter
-func NewCurrencyPair(BaseCurrency, QuoteCurrency Code) Pair {
-	return Pair{
-		Base:  BaseCurrency,
-		Quote: QuoteCurrency,
-	}
-}
-
-// NewCurrencyPairWithDelimiter returns a CurrencyPair with a delimiter
-func NewCurrencyPairWithDelimiter(base, quote, delimiter string) Pair {
-	return Pair{
-		Base:      Code(base),
-		Quote:     Code(quote),
-		Delimiter: delimiter,
-	}
-}
-
-// NewCurrencyPairFromIndex returns a CurrencyPair via a currency string and
-// specific index
-func NewCurrencyPairFromIndex(currencyPair, index string) Pair {
-	i := strings.Index(currencyPair, index)
-	if i == 0 {
-		return NewCurrencyPair(Code(currencyPair[0:len(index)]),
-			Code(currencyPair[len(index):]))
-	}
-	return NewCurrencyPair(Code(currencyPair[0:i]), Code(currencyPair[i:]))
-}
-
-// NewCurrencyPairFromString converts currency string into a new CurrencyPair
-// with or without delimeter
-func NewCurrencyPairFromString(currencyPair string) Pair {
-	delimiters := []string{"_", "-"}
-	var delimiter string
-	for _, x := range delimiters {
-		if strings.Contains(currencyPair, x) {
-			delimiter = x
-			return NewCurrencyPairDelimiter(currencyPair, delimiter)
-		}
-	}
-	return NewCurrencyPair(Code(currencyPair[0:3]), Code(currencyPair[3:]))
-}
-
-// PairsContain checks to see if a specified pair exists inside a currency pair
-// array
-func PairsContain(pairs []Pair, p Pair, exact bool) bool {
-	for x := range pairs {
-		if exact {
-			if pairs[x].Equal(p) {
-				return true
-			}
-		}
-		if pairs[x].EqualIncludeReciprocal(p) {
-			return true
-		}
-	}
-	return false
+// IsEmpty returns whether or not the pair is empty or is missing a currency
+// code
+func (p Pair) IsEmpty() bool {
+	return p.Base.IsEmpty() || p.Quote.IsEmpty()
 }
 
 // ContainsCurrency checks to see if a pair contains a specific currency
-func ContainsCurrency(p Pair, c string) bool {
-	return p.Base.Upper().String() == common.StringToUpper(c) ||
-		p.Quote.Upper().String() == common.StringToUpper(c)
-}
-
-// RemovePairsByFilter checks to see if a pair contains a specific currency
-// and removes it from the list of pairs
-func RemovePairsByFilter(p []Pair, filter string) []Pair {
-	var pairs []Pair
-	for x := range p {
-		if ContainsCurrency(p[x], filter) {
-			continue
-		}
-		pairs = append(pairs, p[x])
-	}
-	return pairs
-}
-
-// FormatPairs formats a string array to a list of currency pairs with the
-// supplied currency pair format
-func FormatPairs(pairs []string, delimiter, index string) []Pair {
-	var result []Pair
-	for x := range pairs {
-		if pairs[x] == "" {
-			continue
-		}
-		var p Pair
-		if delimiter != "" {
-			p = NewCurrencyPairDelimiter(pairs[x], delimiter)
-		} else {
-			if index != "" {
-				p = NewCurrencyPairFromIndex(pairs[x], index)
-			} else {
-				p = NewCurrencyPair(Code(pairs[x][0:3]), Code(pairs[x][3:]))
-			}
-		}
-		result = append(result, p)
-	}
-	return result
-}
-
-// CopyPairFormat copies the pair format from a list of pairs once matched
-func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
-	for x := range pairs {
-		if exact {
-			if p.Equal(pairs[x]) {
-				return pairs[x]
-			}
-		}
-		if p.EqualIncludeReciprocal(pairs[x]) {
-			return pairs[x]
-		}
-	}
-	return Pair{}
-}
-
-// FindPairDifferences returns pairs which are new or have been removed
-func FindPairDifferences(oldPairs, newPairs Pairs) (Pairs, Pairs) {
-	var newPs, removedPs Pairs
-	for x := range newPairs {
-		if newPairs[x].String() == "" {
-			continue
-		}
-		if !common.StringDataCompareUpper(oldPairs.String(),
-			newPairs[x].String()) {
-			newPs = append(newPs, newPairs[x])
-		}
-	}
-	for x := range oldPairs {
-		if oldPairs[x].String() == "" {
-			continue
-		}
-		if !common.StringDataCompareUpper(newPairs.String(),
-			oldPairs[x].String()) {
-			removedPs = append(removedPs, oldPairs[x])
-		}
-	}
-	return newPs, removedPs
-}
-
-// PairsToStringArray returns a list of pairs as a string array
-func PairsToStringArray(pairs []Pair) []string {
-	var p []string
-	for x := range pairs {
-		p = append(p, pairs[x].String())
-	}
-	return p
-}
-
-// RandomPairFromPairs returns a random pair from a list of pairs
-func RandomPairFromPairs(pairs Pairs) Pair {
-	pairsLen := len(pairs)
-
-	if pairsLen == 0 {
-		return Pair{}
-	}
-
-	return pairs[rand.Intn(pairsLen)]
+func (p Pair) ContainsCurrency(c Code) bool {
+	return p.Base.Upper().String() == c.Upper().String() ||
+		p.Quote.Upper().String() == c.Upper().String()
 }

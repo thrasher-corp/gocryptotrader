@@ -23,7 +23,7 @@ const (
 
 var o = OKCoin{}
 var testSetupRan bool
-var spotCurrency = currency.NewCurrencyPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Lower().String()
+var spotCurrency = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Lower().String()
 
 // TestSetDefaults Sets standard default settings for running a test
 func TestSetDefaults(t *testing.T) {
@@ -396,13 +396,13 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 		order,
 	}
 
-	order.InstrumentID = currency.NewCurrencyPairWithDelimiter(currency.LTC.String(), currency.USD.String(), "-").Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.LTC.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = currency.NewCurrencyPairWithDelimiter(currency.DOGE.String(), currency.USD.String(), "-").Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.DOGE.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = currency.NewCurrencyPairWithDelimiter(currency.XMR.String(), currency.USD.String(), "-").Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.XMR.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = currency.NewCurrencyPairWithDelimiter(currency.BCH.String(), currency.USD.String(), "-").Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.BCH.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -480,7 +480,7 @@ func TestGetSpotOrder(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      "-1234",
-		InstrumentID: currency.NewCurrencyPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Upper().String(),
+		InstrumentID: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Upper().String(),
 	}
 	_, err := o.GetSpotOrder(request)
 	testStandardErrorHandling(t, err)
@@ -723,13 +723,13 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 		order,
 	}
 
-	order.InstrumentID = currency.NewCurrencyPairWithDelimiter(currency.LTC.String(), currency.USD.String(), "-").Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.LTC.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = currency.NewCurrencyPairWithDelimiter(currency.DOGE.String(), currency.USD.String(), "-").Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.DOGE.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = currency.NewCurrencyPairWithDelimiter(currency.XMR.String(), currency.USD.String(), "-").Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.XMR.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = currency.NewCurrencyPairWithDelimiter(currency.BCH.String(), currency.USD.String(), "-").Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.BCH.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -802,7 +802,7 @@ func TestGetMarginOrder(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      "1234",
-		InstrumentID: currency.NewCurrencyPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Upper().String(),
+		InstrumentID: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Upper().String(),
 	}
 	_, err := o.GetMarginOrder(request)
 	testStandardErrorHandling(t, err)
@@ -1138,7 +1138,7 @@ func TestSubmitOrder(t *testing.T) {
 // TestCancelExchangeOrder Wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -1154,7 +1154,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 // TestCancelAllExchangeOrders Wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",

@@ -151,7 +151,7 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for key, data := range amounts {
 		fullBalance = append(fullBalance, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: currency.NewCurrencyCode(key),
 			TotalValue:   data.TotalValue,
 			Hold:         data.Hold,
 		})
@@ -316,7 +316,7 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Instrument,
+		symbol := currency.NewPairDelimiter(order.Instrument,
 			i.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(order.Side))
 		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
@@ -368,7 +368,7 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 			continue
 		}
 
-		symbol := currency.NewCurrencyPairDelimiter(order.Instrument,
+		symbol := currency.NewPairDelimiter(order.Instrument,
 			i.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(order.Side))
 		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)

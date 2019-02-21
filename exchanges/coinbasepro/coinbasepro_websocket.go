@@ -23,7 +23,7 @@ const (
 // currencies
 func (c *CoinbasePro) WebsocketSubscriber() error {
 	currencies := []string{}
-	for _, x := range c.EnabledPairs.String() {
+	for _, x := range c.EnabledPairs.Strings() {
 		currency := x[0:3] + "-" + x[3:]
 		currencies = append(currencies, currency)
 	}
@@ -156,7 +156,7 @@ func (c *CoinbasePro) WsHandleData() {
 
 				c.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp: time.Now(),
-					Pair:      currency.NewCurrencyPairFromString(ticker.ProductID),
+					Pair:      currency.NewPairFromString(ticker.ProductID),
 					AssetType: "SPOT",
 					Exchange:  c.GetName(),
 					OpenPrice: ticker.Price,
@@ -230,7 +230,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookSnapshot) error
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	pair := currency.NewCurrencyPairFromString(snapshot.ProductID)
+	pair := currency.NewPairFromString(snapshot.ProductID)
 	base.AssetType = "SPOT"
 	base.Pair = pair
 
@@ -267,7 +267,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 		return errors.New("coibasepro_websocket.go error - no data in websocket update")
 	}
 
-	p := currency.NewCurrencyPairFromString(update.ProductID)
+	p := currency.NewPairFromString(update.ProductID)
 
 	err := c.Websocket.Orderbook.Update(Bids, Asks, p, time.Now(), c.GetName(), "SPOT")
 	if err != nil {

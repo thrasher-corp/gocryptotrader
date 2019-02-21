@@ -6,109 +6,11 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 )
 
-func TestPairsString(t *testing.T) {
-	pairs := NewCurrencyPairListFromString([]string{"btc_usd", "btc_aud", "btc_ltc"})
-	expected := []string{"btc_usd", "btc_aud", "btc_ltc"}
-
-	for i, p := range pairs {
-		if p.String() != expected[i] {
-			t.Errorf("Test Failed - Pairs String() error expected %s but received %s",
-				expected, p.String())
-		}
-	}
-}
-
-func TestPairsJoin(t *testing.T) {
-	pairs := NewCurrencyPairListFromString([]string{"btc_usd", "btc_aud", "btc_ltc"})
-	expected := "btc_usd,btc_aud,btc_ltc"
-
-	if pairs.Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
-			expected, pairs.Join())
-	}
-}
-
-func TestPairsFormat(t *testing.T) {
-	pairs := NewCurrencyPairListFromString([]string{"btc_usd", "btc_aud", "btc_ltc"})
-
-	expected := "BTC-USD,BTC-AUD,BTC-LTC"
-	if pairs.Format("-", "", true).Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
-			expected, pairs.Format("-", "", true).Join())
-	}
-
-	expected = "btc:usd,btc:aud,btc:ltc"
-	if pairs.Format(":", "", false).Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
-			expected, pairs.Format("-", "", true).Join())
-	}
-
-	expected = "btc:krw,btc:krw,btc:krw"
-	if pairs.Format(":", "krw", false).Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
-			expected, pairs.Format("-", "", true).Join())
-	}
-}
-
-func TestPairsUnmarshalJSON(t *testing.T) {
-	var unmarshalHere Pairs
-	configPairs := "btc_usd,btc_aud,btc_ltc"
-
-	encoded, err := common.JSONEncode(configPairs)
-	if err != nil {
-		t.Fatal("Test Failed - Pairs UnmarshalJSON() error", err)
-	}
-
-	err = common.JSONDecode(encoded, &unmarshalHere)
-	if err != nil {
-		t.Fatal("Test Failed - Pairs UnmarshalJSON() error", err)
-	}
-
-	err = common.JSONDecode(encoded, &unmarshalHere)
-	if err != nil {
-		t.Fatal("Test Failed - Pairs UnmarshalJSON() error", err)
-	}
-
-	if unmarshalHere.Join() != configPairs {
-		t.Errorf("Test Failed - Pairs UnmarshalJSON() error expected %s but received %s",
-			configPairs, unmarshalHere.Join())
-	}
-}
-
-func TestPairsMarshalJSON(t *testing.T) {
-	quickstruct := struct {
-		Pairs Pairs `json:"soManyPairs"`
-	}{
-		Pairs: NewCurrencyPairListFromString([]string{"btc_usd", "btc_aud", "btc_ltc"}),
-	}
-
-	encoded, err := common.JSONEncode(quickstruct)
-	if err != nil {
-		t.Fatal("Test Failed - Pairs MarshalJSON() error", err)
-	}
-
-	expected := `{"soManyPairs":"btc_usd,btc_aud,btc_ltc"}`
-	if string(encoded) != expected {
-		t.Errorf("Test Failed - Pairs MarshalJSON() error expected %s but received %s",
-			expected, string(encoded))
-	}
-}
-
-func TestPairsUpper(t *testing.T) {
-	pairs := NewCurrencyPairListFromString([]string{"btc_usd", "btc_aud", "btc_ltc"})
-	expected := "BTC_USD,BTC_AUD,BTC_LTC"
-
-	if pairs.Upper().Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
-			expected, pairs.Join())
-	}
-}
-
 func TestLower(t *testing.T) {
 	t.Parallel()
-	pair := Code("BTCUSD")
+	pair := NewPairFromString("BTCUSD")
 	actual := pair.Lower()
-	expected := Code("btcusd")
+	expected := NewPairFromString("btcusd").Lower()
 	if actual != expected {
 		t.Errorf("Test failed. Lower(): %s was not equal to expected value: %s",
 			actual, expected)
@@ -117,9 +19,9 @@ func TestLower(t *testing.T) {
 
 func TestUpper(t *testing.T) {
 	t.Parallel()
-	pair := Code("btcusd")
+	pair := NewPairFromString("btcusd")
 	actual := pair.Upper()
-	expected := Code("BTCUSD")
+	expected := NewPairFromString("BTCUSD")
 	if actual != expected {
 		t.Errorf("Test failed. Upper(): %s was not equal to expected value: %s",
 			actual, expected)
@@ -128,7 +30,7 @@ func TestUpper(t *testing.T) {
 
 func TestPairUnmarshalJSON(t *testing.T) {
 	var unmarshalHere Pair
-	configPair := "btc_usd"
+	configPair := NewPairDelimiter("btc_usd", "_")
 
 	encoded, err := common.JSONEncode(configPair)
 	if err != nil {
@@ -145,7 +47,7 @@ func TestPairUnmarshalJSON(t *testing.T) {
 		t.Fatal("Test Failed - Pair UnmarshalJSON() error", err)
 	}
 
-	if unmarshalHere.String() != configPair {
+	if !unmarshalHere.Equal(configPair) {
 		t.Errorf("Test Failed - Pairs UnmarshalJSON() error expected %s but received %s",
 			configPair, unmarshalHere)
 	}
@@ -170,9 +72,39 @@ func TestPairMarshalJSON(t *testing.T) {
 	}
 }
 
+func TestIsCryptoPair(t *testing.T) {
+	if !NewPair("BTC", "LTC").IsCrypto() {
+		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
+	}
+
+	if NewPair("BTC", "USD").IsCrypto() {
+		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
+	}
+}
+
+func TestIsCryptoFiatPair(t *testing.T) {
+	if !NewPair("BTC", "USD").IsCryptoFiat() {
+		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
+	}
+
+	if NewPair("BTC", "LTC").IsCryptoFiat() {
+		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
+	}
+}
+
+func TestIsFiatPair(t *testing.T) {
+	if !NewPair("AUD", "USD").IsFiat() {
+		t.Error("Test Failed. TestIsFiatPair. Expected true result")
+	}
+
+	if NewPair("BTC", "AUD").IsFiat() {
+		t.Error("Test Failed. TestIsFiatPair. Expected false result")
+	}
+}
+
 func TestString(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
+	pair := NewPair("BTC", "USD")
 	actual := "BTCUSD"
 	expected := pair.String()
 	if actual != expected {
@@ -183,9 +115,9 @@ func TestString(t *testing.T) {
 
 func TestFirstCurrency(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
+	pair := NewPair("BTC", "USD")
 	actual := pair.Base
-	expected := Code("BTC")
+	expected := NewCurrencyCode("BTC")
 	if actual != expected {
 		t.Errorf(
 			"Test failed. GetFirstCurrency(): %s was not equal to expected value: %s",
@@ -196,9 +128,9 @@ func TestFirstCurrency(t *testing.T) {
 
 func TestSecondCurrency(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
+	pair := NewPair("BTC", "USD")
 	actual := pair.Quote
-	expected := Code("USD")
+	expected := NewCurrencyCode("USD")
 	if actual != expected {
 		t.Errorf(
 			"Test failed. GetSecondCurrency(): %s was not equal to expected value: %s",
@@ -209,7 +141,7 @@ func TestSecondCurrency(t *testing.T) {
 
 func TestPair(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
+	pair := NewPair("BTC", "USD")
 	actual := pair.String()
 	expected := "BTCUSD"
 	if actual != expected {
@@ -222,7 +154,7 @@ func TestPair(t *testing.T) {
 
 func TestDisplay(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPairDelimiter("BTC-USD", "-")
+	pair := NewPairDelimiter("BTC-USD", "-")
 	actual := pair.String()
 	expected := "BTC-USD"
 	if actual != expected {
@@ -253,8 +185,8 @@ func TestDisplay(t *testing.T) {
 
 func TestEquall(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
-	secondPair := NewCurrencyPair("btc", "uSd")
+	pair := NewPair("BTC", "USD")
+	secondPair := NewPair("btc", "uSd")
 	actual := pair.Equal(secondPair)
 	expected := true
 	if actual != expected {
@@ -264,7 +196,7 @@ func TestEquall(t *testing.T) {
 		)
 	}
 
-	secondPair.Quote = "ETH"
+	secondPair.Quote = ETH
 	actual = pair.Equal(secondPair)
 	expected = false
 	if actual != expected {
@@ -274,7 +206,7 @@ func TestEquall(t *testing.T) {
 		)
 	}
 
-	secondPair = NewCurrencyPair("USD", "BTC")
+	secondPair = NewPair("USD", "BTC")
 	actual = pair.Equal(secondPair)
 	expected = false
 	if actual != expected {
@@ -287,8 +219,8 @@ func TestEquall(t *testing.T) {
 
 func TestEqualIncludeReciprocal(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
-	secondPair := NewCurrencyPair("btc", "uSd")
+	pair := NewPair("BTC", "USD")
+	secondPair := NewPair("btc", "uSd")
 	actual := pair.EqualIncludeReciprocal(secondPair)
 	expected := true
 	if actual != expected {
@@ -298,7 +230,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 		)
 	}
 
-	secondPair.Quote = "ETH"
+	secondPair.Quote = ETH
 	actual = pair.EqualIncludeReciprocal(secondPair)
 	expected = false
 	if actual != expected {
@@ -308,7 +240,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 		)
 	}
 
-	secondPair = NewCurrencyPair("USD", "BTC")
+	secondPair = NewPair("USD", "BTC")
 	actual = pair.EqualIncludeReciprocal(secondPair)
 	expected = true
 	if actual != expected {
@@ -321,7 +253,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 
 func TestSwap(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
+	pair := NewPair("BTC", "USD")
 	actual := pair.Swap().String()
 	expected := "USDBTC"
 	if actual != expected {
@@ -334,20 +266,20 @@ func TestSwap(t *testing.T) {
 
 func TestEmpty(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
-	if pair.Empty() {
+	pair := NewPair("BTC", "USD")
+	if pair.IsEmpty() {
 		t.Error("Test failed. Empty() returned true when the pair was initialised")
 	}
 
-	var p Pair
-	if !p.Empty() {
+	p := NewPair("", "")
+	if !p.IsEmpty() {
 		t.Error("Test failed. Empty() returned true when the pair wasn't initialised")
 	}
 }
 
-func TestNewCurrencyPair(t *testing.T) {
+func TestNewPair(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPair("BTC", "USD")
+	pair := NewPair("BTC", "USD")
 	actual := pair.String()
 	expected := "BTCUSD"
 	if actual != expected {
@@ -358,9 +290,9 @@ func TestNewCurrencyPair(t *testing.T) {
 	}
 }
 
-func TestNewCurrencyPairWithDelimiter(t *testing.T) {
+func TestNewPairWithDelimiter(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPairWithDelimiter("BTC", "USD", "-test-")
+	pair := NewPairWithDelimiter("BTC", "USD", "-test-")
 	actual := pair.String()
 	expected := "BTC-test-USD"
 	if actual != expected {
@@ -370,7 +302,7 @@ func TestNewCurrencyPairWithDelimiter(t *testing.T) {
 		)
 	}
 
-	pair = NewCurrencyPairWithDelimiter("BTC", "USD", "")
+	pair = NewPairWithDelimiter("BTC", "USD", "")
 	actual = pair.String()
 	expected = "BTCUSD"
 	if actual != expected {
@@ -381,9 +313,9 @@ func TestNewCurrencyPairWithDelimiter(t *testing.T) {
 	}
 }
 
-func TestNewCurrencyPairDelimiter(t *testing.T) {
+func TestNewPairDelimiter(t *testing.T) {
 	t.Parallel()
-	pair := NewCurrencyPairDelimiter("BTC-USD", "-")
+	pair := NewPairDelimiter("BTC-USD", "-")
 	actual := pair.String()
 	expected := "BTC-USD"
 	if actual != expected {
@@ -403,14 +335,14 @@ func TestNewCurrencyPairDelimiter(t *testing.T) {
 	}
 }
 
-// TestNewCurrencyPairFromIndex returns a CurrencyPair via a currency string and
+// TestNewPairFromIndex returns a CurrencyPair via a currency string and
 // specific index
-func TestNewCurrencyPairFromIndex(t *testing.T) {
+func TestNewPairFromIndex(t *testing.T) {
 	t.Parallel()
 	currency := "BTCUSD"
 	index := "BTC"
 
-	pair := NewCurrencyPairFromIndex(currency, index)
+	pair := NewPairFromIndex(currency, index)
 	pair.Delimiter = "-"
 	actual := pair.String()
 
@@ -424,7 +356,7 @@ func TestNewCurrencyPairFromIndex(t *testing.T) {
 
 	currency = "DOGEBTC"
 
-	pair = NewCurrencyPairFromIndex(currency, index)
+	pair = NewPairFromIndex(currency, index)
 	pair.Delimiter = "-"
 	actual = pair.String()
 
@@ -437,10 +369,10 @@ func TestNewCurrencyPairFromIndex(t *testing.T) {
 	}
 }
 
-func TestNewCurrencyPairFromString(t *testing.T) {
+func TestNewPairFromString(t *testing.T) {
 	t.Parallel()
 	pairStr := "BTC-USD"
-	pair := NewCurrencyPairFromString(pairStr)
+	pair := NewPairFromString(pairStr)
 	actual := pair.String()
 	expected := "BTC-USD"
 	if actual != expected {
@@ -451,7 +383,7 @@ func TestNewCurrencyPairFromString(t *testing.T) {
 	}
 
 	pairStr = "BTCUSD"
-	pair = NewCurrencyPairFromString(pairStr)
+	pair = NewPairFromString(pairStr)
 	actual = pair.String()
 	expected = "BTCUSD"
 	if actual != expected {
@@ -462,42 +394,15 @@ func TestNewCurrencyPairFromString(t *testing.T) {
 	}
 }
 
-func TestContains(t *testing.T) {
-	pairOne := NewCurrencyPair("BTC", "USD")
-
-	var pairs []Pair
-	pairs = append(pairs, pairOne, NewCurrencyPair("LTC", "USD"))
-
-	if !PairsContain(pairs, pairOne, true) {
-		t.Errorf("Test failed. TestContains: Expected pair was not found")
-	}
-
-	if PairsContain(pairs, NewCurrencyPair("ETH", "USD"), false) {
-		t.Errorf("Test failed. TestContains: Non-existent pair was found")
-	}
-}
-
 func TestContainsCurrency(t *testing.T) {
-	p := NewCurrencyPair("BTC", "USD")
+	p := NewPair("BTC", "USD")
 
-	if !ContainsCurrency(p, "BTC") {
+	if !p.ContainsCurrency(BTC) {
 		t.Error("Test failed. TestContainsCurrency: Expected currency was not found")
 	}
 
-	if ContainsCurrency(p, "ETH") {
+	if p.ContainsCurrency(ETH) {
 		t.Error("Test failed. TestContainsCurrency: Non-existent currency was found")
-	}
-}
-
-func TestRemovePairsByFilter(t *testing.T) {
-	var pairs []Pair
-	pairs = append(pairs, NewCurrencyPair("BTC", "USD"),
-		NewCurrencyPair("LTC", "USD"),
-		NewCurrencyPair("LTC", "USDT"))
-
-	pairs = RemovePairsByFilter(pairs, "USDT")
-	if PairsContain(pairs, NewCurrencyPair("LTC", "USDT"), true) {
-		t.Error("Test failed. TestRemovePairsByFilter unexpected result")
 	}
 }
 
@@ -520,13 +425,13 @@ func TestFormatPairs(t *testing.T) {
 }
 
 func TestCopyPairFormat(t *testing.T) {
-	pairOne := NewCurrencyPair("BTC", "USD")
+	pairOne := NewPair("BTC", "USD")
 	pairOne.Delimiter = "-"
 
 	var pairs []Pair
-	pairs = append(pairs, pairOne, NewCurrencyPair("LTC", "USD"))
+	pairs = append(pairs, pairOne, NewPair("LTC", "USD"))
 
-	testPair := NewCurrencyPair("BTC", "USD")
+	testPair := NewPair("BTC", "USD")
 	testPair.Delimiter = "~"
 
 	result := CopyPairFormat(testPair, pairs, false)
@@ -534,50 +439,47 @@ func TestCopyPairFormat(t *testing.T) {
 		t.Error("Test failed. TestCopyPairFormat: Expected pair was not found")
 	}
 
-	result = CopyPairFormat(NewCurrencyPair("ETH", "USD"), pairs, true)
+	result = CopyPairFormat(NewPair("ETH", "USD"), pairs, true)
 	if result.String() != "" {
 		t.Error("Test failed. TestCopyPairFormat: Unexpected non empty pair returned")
 	}
 }
 
 func TestFindPairDifferences(t *testing.T) {
-	pairList := NewCurrencyPairListFromString([]string{"BTC-USD", "ETH-USD", "LTC-USD"})
+	pairList := NewPairsFromStrings([]string{"BTC-USD", "ETH-USD", "LTC-USD"})
 
 	// Test new pair update
-	newPairs, removedPairs := FindPairDifferences(pairList,
-		NewCurrencyPairListFromString([]string{"DASH-USD"}))
+	newPairs, removedPairs := pairList.FindDifferences(NewPairsFromStrings([]string{"DASH-USD"}))
 	if len(newPairs) != 1 && len(removedPairs) != 3 {
 		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that we don't allow empty strings for new pairs
-	newPairs, removedPairs = FindPairDifferences(pairList,
-		NewCurrencyPairListFromString([]string{""}))
+	newPairs, removedPairs = pairList.FindDifferences(NewPairsFromStrings([]string{""}))
 	if len(newPairs) != 0 && len(removedPairs) != 3 {
 		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that we don't allow empty strings for new pairs
-	newPairs, removedPairs = FindPairDifferences(NewCurrencyPairListFromString([]string{""}),
-		pairList)
+	newPairs, removedPairs = NewPairsFromStrings([]string{""}).FindDifferences(pairList)
 	if len(newPairs) != 3 && len(removedPairs) != 0 {
 		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that the supplied pair lists are the same, so
 	// no newPairs or removedPairs
-	newPairs, removedPairs = FindPairDifferences(pairList, pairList)
+	newPairs, removedPairs = pairList.FindDifferences(pairList)
 	if len(newPairs) != 0 && len(removedPairs) != 0 {
 		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
 	}
 }
 
 func TestPairsToStringArray(t *testing.T) {
-	var pairs []Pair
-	pairs = append(pairs, NewCurrencyPair("BTC", "USD"))
+	var pairs Pairs
+	pairs = append(pairs, NewPair("BTC", "USD"))
 
 	expected := []string{"BTCUSD"}
-	actual := PairsToStringArray(pairs)
+	actual := pairs.Strings()
 
 	if actual[0] != expected[0] {
 		t.Error("Test failed. TestPairsToStringArray: Unexpected values")
@@ -586,26 +488,27 @@ func TestPairsToStringArray(t *testing.T) {
 
 func TestRandomPairFromPairs(t *testing.T) {
 	// Test that an empty pairs array returns an empty currency pair
-	result := RandomPairFromPairs([]Pair{})
-	if !result.Empty() {
+	var emptyPairs Pairs
+	result := emptyPairs.GetRandomPair()
+	if !result.IsEmpty() {
 		t.Error("Test failed. TestRandomPairFromPairs: Unexpected values")
 	}
 
 	// Test that a populated pairs array returns a non-empty currency pair
-	var pairs []Pair
-	pairs = append(pairs, NewCurrencyPair("BTC", "USD"))
-	result = RandomPairFromPairs(pairs)
+	var pairs Pairs
+	pairs = append(pairs, NewPair("BTC", "USD"))
+	result = pairs.GetRandomPair()
 
-	if result.Empty() {
+	if result.IsEmpty() {
 		t.Error("Test failed. TestRandomPairFromPairs: Unexpected values")
 	}
 
 	// Test that a populated pairs array over a number of attempts returns ALL
 	// currency pairs
-	pairs = append(pairs, NewCurrencyPair("ETH", "USD"))
+	pairs = append(pairs, NewPair("ETH", "USD"))
 	expectedResults := make(map[string]bool)
 	for i := 0; i < 50; i++ {
-		p := RandomPairFromPairs(pairs).String()
+		p := pairs.GetRandomPair().String()
 		_, ok := expectedResults[p]
 		if !ok {
 			expectedResults[p] = true

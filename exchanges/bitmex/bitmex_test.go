@@ -478,7 +478,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewCurrencyPair(currency.LTC,
+		Currencies: []currency.Pair{currency.NewPairFromCodes(currency.LTC,
 			currency.BTC)},
 	}
 
@@ -529,7 +529,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "123456789012345678901234567890123456",
@@ -555,7 +555,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "123456789012345678901234567890123456",
@@ -604,7 +604,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetup(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:          100,
-		Currency:        "XBt",
+		Currency:        currency.XBT,
 		Address:         "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description:     "WITHDRAW IT ALL",
 		OneTimePassword: 000000,

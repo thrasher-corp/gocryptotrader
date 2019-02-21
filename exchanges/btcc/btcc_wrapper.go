@@ -29,9 +29,9 @@ func (b *BTCC) Run() {
 		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	if common.StringDataContains(b.EnabledPairs.String(), "CNY") ||
-		common.StringDataContains(b.AvailablePairs.String(), "CNY") ||
-		common.StringDataContains(b.BaseCurrencies.String(), "CNY") {
+	if common.StringDataContains(b.EnabledPairs.Strings(), "CNY") ||
+		common.StringDataContains(b.AvailablePairs.Strings(), "CNY") ||
+		common.StringDataContains(b.BaseCurrencies.Strings(), "CNY") {
 		log.Warn("BTCC only supports BTCUSD now, upgrading available, enabled and base currencies to BTCUSD/USD")
 		pairs := currency.Pairs{currency.Pair{Base: currency.BTC,
 			Quote: currency.USD}}

@@ -35,9 +35,9 @@ func getDefaultConfig() config.ExchangeConfig {
 		APIKey:                  "",
 		APISecret:               "",
 		ClientID:                "",
-		AvailablePairs:          currency.NewCurrencyPairListFromString([]string{"BTC-USDT", "BCH-USDT"}),
-		EnabledPairs:            currency.NewCurrencyPairListFromString([]string{"BTC-USDT"}),
-		BaseCurrencies:          currency.NewCurrencyListFromCurrencies([]string{"USD"}),
+		AvailablePairs:          currency.NewPairsFromStrings([]string{"BTC-USDT", "BCH-USDT"}),
+		EnabledPairs:            currency.NewPairsFromStrings([]string{"BTC-USDT"}),
+		BaseCurrencies:          currency.NewCurrenciesFromStrings([]string{"USD"}),
 		AssetTypes:              "SPOT",
 		SupportsAutoPairUpdates: false,
 		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{
@@ -329,7 +329,7 @@ func TestGetFee(t *testing.T) {
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
-	feeBuilder.BaseCurrency = "hello"
+	feeBuilder.BaseCurrency = currency.NewCurrencyCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
@@ -379,7 +379,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType:  exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewCurrencyPair(currency.BTC, currency.USDT)},
+		Currencies: []currency.Pair{currency.NewPairFromCodes(currency.BTC, currency.USDT)},
 	}
 
 	_, err := h.GetActiveOrders(getOrdersRequest)
@@ -396,7 +396,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType:  exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewCurrencyPair(currency.BTC, currency.USDT)},
+		Currencies: []currency.Pair{currency.NewPairFromCodes(currency.BTC, currency.USDT)},
 	}
 
 	_, err := h.GetOrderHistory(getOrdersRequest)
@@ -457,7 +457,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -483,7 +483,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

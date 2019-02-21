@@ -37,16 +37,16 @@ func (b *BTCMarkets) Run() {
 		log.Errorf("%s failed to get active market. Err: %s", b.Name, err)
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(b.EnabledPairs.String(), "-") ||
-			!common.StringDataContains(b.AvailablePairs.String(), "-") {
+		if !common.StringDataContains(b.EnabledPairs.Strings(), "-") ||
+			!common.StringDataContains(b.AvailablePairs.Strings(), "-") {
 			forceUpgrade = true
 		}
 
 		var currencies currency.Pairs
 		for x := range markets {
 			currencies = append(currencies,
-				currency.Pair{Base: currency.Code(markets[x].Instrument),
-					Quote: currency.Code(markets[x].Currency), Delimiter: "-"})
+				currency.NewPairWithDelimiter(markets[x].Instrument,
+					markets[x].Currency, "-"))
 		}
 
 		if forceUpgrade {
@@ -146,7 +146,7 @@ func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Balance
 		exchangeCurrency.Hold = accountBalance[i].PendingFunds
 
@@ -288,7 +288,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (exchange.OrderDetail, error) 
 		OrderDetail.OrderType = orderType
 		OrderDetail.Price = order.Price
 		OrderDetail.Status = order.Status
-		OrderDetail.CurrencyPair = currency.NewCurrencyPairWithDelimiter(order.Instrument,
+		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(order.Instrument,
 			order.Currency,
 			b.ConfigCurrencyPairFormat.Delimiter)
 	}
@@ -359,7 +359,7 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 			OrderType:       orderType,
 			Price:           order.Price,
 			Status:          order.Status,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.Instrument,
+			CurrencyPair: currency.NewPairWithDelimiter(order.Instrument,
 				order.Currency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
@@ -429,7 +429,7 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 			OrderType:       orderType,
 			Price:           order.Price,
 			Status:          order.Status,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.Instrument,
+			CurrencyPair: currency.NewPairWithDelimiter(order.Instrument,
 				order.Currency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}

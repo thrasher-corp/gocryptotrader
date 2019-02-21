@@ -44,7 +44,7 @@ func (e *EXMO) Run() {
 		var newCurrencies currency.Pairs
 		for _, p := range currencies {
 			newCurrencies = append(newCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = e.UpdateCurrencies(newCurrencies, false, false)
@@ -165,7 +165,7 @@ func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range result.Balances {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(x)
+		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(x)
 		for z, w := range result.Reserved {
 			if z == x {
 				avail, _ := strconv.ParseFloat(y, 64)
@@ -324,7 +324,7 @@ func (e *EXMO) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 	}
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		symbol := currency.NewCurrencyPairDelimiter(order.Pair, "_")
+		symbol := currency.NewPairDelimiter(order.Pair, "_")
 		orderDate := time.Unix(order.Created, 0)
 		orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
 		orders = append(orders, exchange.OrderDetail{
@@ -365,7 +365,7 @@ func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 
 	var orders []exchange.OrderDetail
 	for _, order := range allTrades {
-		symbol := currency.NewCurrencyPairDelimiter(order.Pair, "_")
+		symbol := currency.NewPairDelimiter(order.Pair, "_")
 		orderDate := time.Unix(order.Date, 0)
 		orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
 		orders = append(orders, exchange.OrderDetail{

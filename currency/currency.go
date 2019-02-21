@@ -1,379 +1,241 @@
 package currency
 
 import (
-	"errors"
-	"fmt"
-	"time"
-
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"strings"
 )
 
-const (
-	// DefaultBaseCurrency is the base currency used for conversion
-	DefaultBaseCurrency = USD
-)
+func init() {
+	system.SetDefaults()
+}
 
-// Manager is the overarching type across this package
-var (
-	// DefaultCurrencies has the default minimum of FIAT values
-	DefaultCurrencies = Currencies{USD, AUD, EUR, CNY}
+// NewCurrencyCode returns a new currency registered code
+func NewCurrencyCode(c string) Code {
+	return system.NewCurrencyCode(c)
+}
 
-	// DefaultCryptoCurrencies has the default minimum of crytpocurrency values
-	DefaultCryptoCurrencies = Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR}
+// NewConversionFromString splits a string from a foreign exchange provider
+func NewConversionFromString(p string) Conversion {
+	return NewConversion(p[:3], p[3:])
+}
 
-	FXRates map[string]float64
+// NewConversion assigns or finds a new conversion unit
+func NewConversion(from, to string) Conversion {
+	return Conversion{
+		From: NewCurrencyCode(from),
+		To:   NewCurrencyCode(to),
+	}
+}
 
-	FiatCurrencies   Currencies
-	CryptoCurrencies Currencies
-
-	BaseCurrency Code
-	FXProviders  *forexprovider.ForexProviders
-
-	CryptocurrencyProvider *coinmarketcap.Coinmarketcap
-	TotalCryptocurrencies  []Data
-	TotalExchanges         []Data
-)
-
-// Currencies define a range of supported currency codes
-type Currencies []Code
-
-// NewCurrencyListFromCurrencies returns a Currencies object from strings
-// NOTE: need to add lookup table
-func NewCurrencyListFromCurrencies(currencies []string) Currencies {
+// NewCurrenciesFromStrings returns a Currencies object from strings
+func NewCurrenciesFromStrings(currencies []string) Currencies {
 	var list Currencies
 	for _, c := range currencies {
 		if c == "" {
 			continue
 		}
-		list = append(list, Code(c))
+		list = append(list, NewCurrencyCode(c))
 	}
 	return list
 }
 
-// String returns an array of currency strings
-func (c Currencies) String() []string {
-	var list []string
-	for _, d := range c {
-		list = append(list, d.String())
+// NewPairsFromStrings takes in currency pair strings and returns a
+// currency pair list
+func NewPairsFromStrings(pairs []string) Pairs {
+	var ps Pairs
+	for _, p := range pairs {
+		if p == "" {
+			continue
+		}
+
+		ps = append(ps, NewPairFromString(p))
 	}
-	return list
+	return ps
 }
 
-// Join returns a comma serparated string
-func (c Currencies) Join() string {
-	return common.JoinStrings(c.String(), ",")
-}
-
-// UnmarshalJSON comforms type to the umarshaler interface
-func (c *Currencies) UnmarshalJSON(d []byte) error {
-	var configCurrencies string
-	err := common.JSONDecode(d, &configCurrencies)
-	if err != nil {
-		return err
+// NewPairDelimiter splits the desired currency string at delimeter, the returns
+// a Pair struct
+func NewPairDelimiter(currencyPair, delimiter string) Pair {
+	result := strings.Split(currencyPair, delimiter)
+	return Pair{
+		Delimiter: delimiter,
+		Base:      NewCurrencyCode(result[0]),
+		Quote:     NewCurrencyCode(result[1]),
 	}
+}
 
-	var allTheCurrencies Currencies
-	for _, data := range common.SplitStrings(configCurrencies, ",") {
-		allTheCurrencies = append(allTheCurrencies, Code(data))
+// NewPair returns a CurrencyPair without a delimiter
+func NewPair(baseCurrency, quoteCurrency string) Pair {
+	return Pair{
+		Base:  NewCurrencyCode(baseCurrency),
+		Quote: NewCurrencyCode(quoteCurrency),
 	}
-
-	*c = allTheCurrencies
-	return nil
 }
 
-// MarshalJSON conforms type to the marshaler interface
-func (c Currencies) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(c.Join())
+// NewPairFromCodes returns a currency pair from currency codes
+func NewPairFromCodes(baseCurrency, quoteCurrency Code) Pair {
+	return Pair{
+		Base:  baseCurrency,
+		Quote: quoteCurrency,
+	}
 }
 
-// SetDefaults sets the default currency provider and settings for
-// currency conversion used outside of the bot setting
-func SetDefaults() {
-	FXRates = make(map[string]float64)
-	BaseCurrency = DefaultBaseCurrency
+// NewPairWithDelimiter returns a CurrencyPair with a delimiter
+func NewPairWithDelimiter(base, quote, delimiter string) Pair {
+	return Pair{
+		Base:      NewCurrencyCode(base),
+		Quote:     NewCurrencyCode(quote),
+		Delimiter: delimiter,
+	}
+}
 
-	FXProviders = forexprovider.NewDefaultFXProvider()
-	err := SeedCurrencyData(DefaultCurrencies.Join())
-	if err != nil {
-		log.Errorf("Failed to seed currency data. Err: %s", err)
+// NewPairFromIndex returns a CurrencyPair via a currency string and specific
+// index
+func NewPairFromIndex(currencyPair, index string) Pair {
+	i := strings.Index(currencyPair, index)
+	if i == 0 {
+		return NewPair(currencyPair[0:len(index)], currencyPair[len(index):])
+	}
+	return NewPair(currencyPair[0:i], currencyPair[i:])
+}
+
+// NewPairFromString converts currency string into a new CurrencyPair
+// with or without delimeter
+func NewPairFromString(currencyPair string) Pair {
+	delimiters := []string{"_", "-"}
+	var delimiter string
+	for _, x := range delimiters {
+		if strings.Contains(currencyPair, x) {
+			delimiter = x
+			return NewPairDelimiter(currencyPair, delimiter)
+		}
+	}
+	return NewPair(currencyPair[0:3], currencyPair[3:])
+}
+
+// NewConversionFromCode returns a conversion rate abject that allows for
+// obtaining efficient rate values when needed
+func NewConversionFromCode(from, to Code) (Conversion, error) {
+	return system.NewConversion(from, to)
+}
+
+// GetDefaultExchangeRates returns the currency exchange rates based off the
+// default fiat values
+func GetDefaultExchangeRates() (Conversions, error) {
+	return system.GetDefaultForeignExchangeRates()
+}
+
+// GetSystemExchangeRates returns the full fiat currency exchange rates base off
+// configuration parameters supplied to the system
+func GetSystemExchangeRates() (Conversions, error) {
+	return system.GetSystemExchangeRates()
+}
+
+// UpdateBaseCurrency updates system base currency
+func UpdateBaseCurrency(c Code) error {
+	return system.UpdateBaseCurrency(c)
+}
+
+// GetBaseCurrency returns the system base currency
+func GetBaseCurrency() Code {
+	return system.GetBaseCurrency()
+}
+
+// GetDefaultBaseCurrency returns system defauly base currency
+func GetDefaultBaseCurrency() Code {
+	return system.GetDefaultBaseCurrency()
+}
+
+// GetSystemCryptoCurrencies returns the system enabled cryptocurrencies
+func GetSystemCryptoCurrencies() Currencies {
+	return system.GetCryptocurrencies()
+}
+
+// GetDefaultCryptocurrencies returns a list of default cryptocurrencies
+func GetDefaultCryptocurrencies() Currencies {
+	return system.GetDefaultCryptocurrencies()
+}
+
+// GetSystemFiatCurrencies returns the system enabled fiat currencies
+func GetSystemFiatCurrencies() Currencies {
+	return system.GetFiatCurrencies()
+}
+
+// GetDefaultFiatCurrencies returns a list of default fiat currencies
+func GetDefaultFiatCurrencies() Currencies {
+	return system.GetDefaultFiatCurrencies()
+}
+
+// UpdateCurrencies updates the local cryptocurrency or fiat currency store
+func UpdateCurrencies(c Currencies, cryptos bool) {
+	if cryptos {
+		system.UpdateEnabledCryptoCurrencies(c)
 		return
 	}
+	system.UpdateEnabledFiatCurrencies(c)
 }
 
-// SeedCurrencyData returns rates correlated with suported currencies
-func SeedCurrencyData(currencies string) error {
-	if FXRates == nil {
-		FXRates = make(map[string]float64)
-	}
-
-	if FXProviders == nil {
-		FXProviders = forexprovider.NewDefaultFXProvider()
-	}
-
-	newRates, err := FXProviders.GetCurrencyData(BaseCurrency.String(), currencies)
-	if err != nil {
-		return err
-	}
-
-	for key, value := range newRates {
-		FXRates[key] = value
-	}
-
-	return nil
+// ConvertCurrency converts an amount from one currency to another
+func ConvertCurrency(amount float64, from, to Code) (float64, error) {
+	return system.ConvertCurrency(amount, from, to)
 }
 
-// GetExchangeRates returns the currency exchange rates
-func GetExchangeRates() map[string]float64 {
-	return FXRates
+// SeedForiegnExchangeData seeds FX data with the currencies supplied
+func SeedForiegnExchangeData(c Currencies) error {
+	return system.SeedForeignExchangeRatesByCurrencies(c)
 }
 
-// IsDefaultCurrency checks if the currency passed in matches the default fiat
-// currency
-func IsDefaultCurrency(currency string) bool {
-	return common.StringDataCompare(DefaultCurrencies.String(),
-		common.StringToUpper(currency))
+// GetTotalMarketCryptocurrencies returns the full market cryptocurrencies
+func GetTotalMarketCryptocurrencies() ([]Code, error) {
+	return system.GetTotalMarketCryptocurrencies()
 }
 
-// IsDefaultCryptocurrency checks if the currency passed in matches the default
-// cryptocurrency
-func IsDefaultCryptocurrency(currency string) bool {
-	return common.StringDataCompare(DefaultCryptoCurrencies.String(),
-		common.StringToUpper(currency))
+// // GetTotalMarketExchanges returns the full market exchange participation data
+// func GetTotalMarketExchanges() []Data {
+// 	return system.GetTotalMarketExchanges()
+// }
+
+// RunUpdaterSystem runs sets up and runs a new foreign exchange updater
+// instance
+func RunUpdaterSystem(o BotOverrides, m MainConfiguration, filepath string, v bool) error {
+	return system.RunUpdater(o, m, filepath, v)
 }
 
-// IsFiatCurrency checks if the currency passed is an enabled fiat currency
-func IsFiatCurrency(currency string) bool {
-	return common.StringDataCompare(FiatCurrencies.String(),
-		common.StringToUpper(currency))
-}
-
-// IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
-func IsCryptocurrency(currency string) bool {
-	return common.StringDataCompare(CryptoCurrencies.String(),
-		common.StringToUpper(currency))
-}
-
-// IsCryptoPair checks to see if the pair is a crypto pair e.g. BTCLTC
-func IsCryptoPair(p Pair) bool {
-	return IsCryptocurrency(p.Base.String()) &&
-		IsCryptocurrency(p.Quote.String())
-}
-
-// IsCryptoFiatPair checks to see if the pair is a crypto fiat pair e.g. BTCUSD
-func IsCryptoFiatPair(p Pair) bool {
-	return IsCryptocurrency(p.Base.String()) &&
-		!IsCryptocurrency(p.Quote.String()) ||
-		!IsCryptocurrency(p.Base.String()) &&
-			IsCryptocurrency(p.Quote.String())
-}
-
-// IsFiatPair checks to see if the pair is a fiat pair e.g. EURUSD
-func IsFiatPair(p Pair) bool {
-	return IsFiatCurrency(p.Base.String()) &&
-		IsFiatCurrency(p.Quote.String())
-}
-
-// Update updates the local crypto currency or base currency store
-func Update(input []string, cryptos bool) {
-	for x := range input {
-		if cryptos {
-			if !common.StringDataCompare(CryptoCurrencies.String(), input[x]) {
-				CryptoCurrencies = append(CryptoCurrencies,
-					Code(common.StringToUpper(input[x])))
+// CopyPairFormat copies the pair format from a list of pairs once matched
+// NOTE: Unused in codebase
+func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
+	for x := range pairs {
+		if exact {
+			if p.Equal(pairs[x]) {
+				return pairs[x]
 			}
+		}
+		if p.EqualIncludeReciprocal(pairs[x]) {
+			return pairs[x]
+		}
+	}
+	return Pair{Base: NewCurrencyCode(""), Quote: NewCurrencyCode("")}
+}
+
+// FormatPairs formats a string array to a list of currency pairs with the
+// supplied currency pair format
+// NOTE: Unused in codebase
+func FormatPairs(pairs []string, delimiter, index string) Pairs {
+	var result Pairs
+	for x := range pairs {
+		if pairs[x] == "" {
+			continue
+		}
+		var p Pair
+		if delimiter != "" {
+			p = NewPairDelimiter(pairs[x], delimiter)
 		} else {
-			if !common.StringDataCompare(FiatCurrencies.String(), input[x]) {
-				FiatCurrencies = append(FiatCurrencies,
-					Code(common.StringToUpper(input[x])))
+			if index != "" {
+				p = NewPairFromIndex(pairs[x], index)
+			} else {
+				p = NewPair(pairs[x][0:3], pairs[x][3:])
 			}
 		}
+		result = append(result, p)
 	}
-}
-
-func extractBaseCurrency() string {
-	for k := range FXRates {
-		return k[0:3]
-	}
-	return ""
-}
-
-// ConvertCurrency for example converts $1 USD to the equivalent Japanese Yen
-// or vice versa.
-func ConvertCurrency(amount float64, from, to string) (float64, error) {
-	if FXProviders == nil {
-		SetDefaults()
-	}
-
-	from = common.StringToUpper(from)
-	to = common.StringToUpper(to)
-
-	if from == to {
-		return amount, nil
-	}
-
-	if from == "RUR" {
-		from = "RUB"
-	}
-
-	if to == "RUR" {
-		to = "RUB"
-	}
-
-	if len(FXRates) == 0 {
-		SeedCurrencyData(from + "," + to)
-	}
-
-	// Need to extract the base currency to see if we actually got it from the Forex API
-	// Fixer free API sets the base currency to EUR
-	baseCurr := extractBaseCurrency()
-
-	var resultFrom float64
-	var resultTo float64
-
-	// check to see if we're converting from the base currency
-	if to == baseCurr {
-		var ok bool
-		resultFrom, ok = FXRates[baseCurr+from]
-		if !ok {
-			return 0, fmt.Errorf("currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
-		}
-		return amount / resultFrom, nil
-	}
-
-	// Check to see if we're converting from the base currency
-	if from == baseCurr {
-		var ok bool
-		resultTo, ok = FXRates[baseCurr+to]
-		if !ok {
-			return 0, fmt.Errorf("currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
-		}
-		return resultTo * amount, nil
-	}
-
-	// Otherwise convert to base currency, then to the target currency
-	resultFrom, ok := FXRates[baseCurr+from]
-	if !ok {
-		return 0, fmt.Errorf("currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
-	}
-
-	converted := amount / resultFrom
-	resultTo, ok = FXRates[baseCurr+to]
-	if !ok {
-		return 0, fmt.Errorf("currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
-	}
-
-	return converted * resultTo, nil
-}
-
-// Data defines information pertaining to exchange or a cryptocurrency from
-// coinmarketcap
-type Data struct {
-	ID          int
-	Name        string
-	Symbol      string `json:",omitempty"`
-	Slug        string
-	Active      bool
-	LastUpdated time.Time
-}
-
-// SeedCryptocurrencyMarketData seeds cryptocurrency market data
-func SeedCryptocurrencyMarketData(settings coinmarketcap.Settings) error {
-	if !settings.Enabled {
-		return errors.New("not enabled please set in config.json with apikey and account levels")
-	}
-
-	if CryptocurrencyProvider == nil {
-		err := setupCryptoProvider(settings)
-		if err != nil {
-			return err
-		}
-	}
-
-	cryptoData, err := CryptocurrencyProvider.GetCryptocurrencyIDMap()
-	if err != nil {
-		return err
-	}
-
-	for x := range cryptoData {
-		var active bool
-		if cryptoData[x].IsActive == 1 {
-			active = true
-		}
-
-		TotalCryptocurrencies = append(TotalCryptocurrencies, Data{
-			ID:          cryptoData[x].ID,
-			Name:        cryptoData[x].Name,
-			Symbol:      cryptoData[x].Symbol,
-			Slug:        cryptoData[x].Slug,
-			Active:      active,
-			LastUpdated: time.Now(),
-		})
-	}
-
-	return nil
-}
-
-// SeedExchangeMarketData seeds exchange market data
-func SeedExchangeMarketData(settings coinmarketcap.Settings) error {
-	if !settings.Enabled {
-		return errors.New("not enabled please set in config.json with apikey and account levels")
-	}
-
-	if CryptocurrencyProvider == nil {
-		err := setupCryptoProvider(settings)
-		if err != nil {
-			return err
-		}
-	}
-
-	exchangeData, err := CryptocurrencyProvider.GetExchangeMap(0, 0)
-	if err != nil {
-		return err
-	}
-
-	for _, data := range exchangeData {
-		var active bool
-		if data.IsActive == 1 {
-			active = true
-		}
-
-		TotalExchanges = append(TotalExchanges, Data{
-			ID:          data.ID,
-			Name:        data.Name,
-			Slug:        data.Slug,
-			Active:      active,
-			LastUpdated: time.Now(),
-		})
-	}
-
-	return nil
-}
-
-func setupCryptoProvider(settings coinmarketcap.Settings) error {
-	if settings.APIkey == "" ||
-		settings.APIkey == "key" ||
-		settings.AccountPlan == "" ||
-		settings.AccountPlan == "accountPlan" {
-		return errors.New("currencyprovider error api key or plan not set in config.json")
-	}
-
-	CryptocurrencyProvider = new(coinmarketcap.Coinmarketcap)
-	CryptocurrencyProvider.SetDefaults()
-	CryptocurrencyProvider.Setup(settings)
-
-	return nil
-}
-
-// GetTotalMarketCryptocurrencies returns the total seeded market
-// cryptocurrencies
-func GetTotalMarketCryptocurrencies() []Data {
-	return TotalCryptocurrencies
-}
-
-// GetTotalMarketExchanges returns the total seeded market exchanges
-func GetTotalMarketExchanges() []Data {
-	return TotalExchanges
+	return result
 }

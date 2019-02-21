@@ -54,18 +54,18 @@ func Add(exchange string, p currency.Pair, assetType string, price, volume float
 		assetType == "" ||
 		price == 0 ||
 		volume == 0 ||
-		p.Base == "" ||
-		p.Quote == "" {
+		p.Base.IsEmpty() ||
+		p.Quote.IsEmpty() {
 		return
 	}
 
-	if p.Base == "XBT" {
-		newPair := currency.NewCurrencyPair(currency.BTC, p.Quote)
+	if p.Base == currency.XBT {
+		newPair := currency.NewPair(currency.BTC.String(), p.Quote.String())
 		Append(exchange, newPair, assetType, price, volume)
 	}
 
-	if p.Quote == "USDT" {
-		newPair := currency.NewCurrencyPair(p.Base, currency.USD)
+	if p.Quote == currency.USDT {
+		newPair := currency.NewPair(p.Base.String(), currency.USD.String())
 		Append(exchange, newPair, assetType, price, volume)
 	}
 

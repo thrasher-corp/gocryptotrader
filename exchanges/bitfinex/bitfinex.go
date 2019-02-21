@@ -1050,8 +1050,6 @@ func (b *Bitfinex) ConvertSymbolToWithdrawalType(c currency.Code) string {
 		return "ethereumc"
 	case currency.USDT:
 		return "tetheruso"
-	case "Wire":
-		return "wire"
 	case currency.ZEC:
 		return "zcash"
 	case currency.XMR:

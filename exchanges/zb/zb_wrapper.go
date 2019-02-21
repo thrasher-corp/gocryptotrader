@@ -44,7 +44,7 @@ func (z *ZB) Run() {
 		var newCurrencies currency.Pairs
 		for _, p := range currencies {
 			newCurrencies = append(newCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = z.UpdateCurrencies(newCurrencies, false, false)
@@ -153,7 +153,7 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: data.EnName,
+			CurrencyName: currency.NewCurrencyCode(data.EnName),
 			TotalValue:   hold + avail,
 			Hold:         hold,
 		})
@@ -329,7 +329,7 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Currency,
+		symbol := currency.NewPairDelimiter(order.Currency,
 			z.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]
@@ -386,7 +386,7 @@ func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Currency,
+		symbol := currency.NewPairDelimiter(order.Currency,
 			z.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]

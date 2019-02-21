@@ -170,7 +170,7 @@ func (h *HitBTC) WsHandleData() {
 				h.Websocket.DataHandler <- exchange.TickerData{
 					Exchange:  h.GetName(),
 					AssetType: "SPOT",
-					Pair:      currency.NewCurrencyPairFromString(ticker.Params.Symbol),
+					Pair:      currency.NewPairFromString(ticker.Params.Symbol),
 					Quantity:  ticker.Params.Volume,
 					Timestamp: ts,
 					OpenPrice: ticker.Params.Open,
@@ -238,7 +238,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		asks = append(asks, orderbook.Item{Amount: ask.Size, Price: ask.Price})
 	}
 
-	p := currency.NewCurrencyPairFromString(ob.Params.Symbol)
+	p := currency.NewPairFromString(ob.Params.Symbol)
 
 	var newOrderbook orderbook.Base
 	newOrderbook.Asks = asks
@@ -275,7 +275,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 		asks = append(asks, orderbook.Item{Price: ask.Price, Amount: ask.Size})
 	}
 
-	p := currency.NewCurrencyPairFromString(ob.Params.Symbol)
+	p := currency.NewPairFromString(ob.Params.Symbol)
 
 	err := h.Websocket.Orderbook.Update(bids, asks, p, time.Now(), h.GetName(), "SPOT")
 	if err != nil {

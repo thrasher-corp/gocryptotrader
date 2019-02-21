@@ -221,7 +221,7 @@ func (b *BTCC) WsHandleData() {
 				tick.HighPrice = ticker.High
 				tick.LowPrice = ticker.Low
 				tick.OpenPrice = ticker.Open
-				tick.Pair = currency.NewCurrencyPairFromString(ticker.Symbol)
+				tick.Pair = currency.NewPairFromString(ticker.Symbol)
 				tick.Quantity = ticker.Volume
 				timestamp := time.Unix(ticker.Timestamp, 0)
 				tick.Timestamp = timestamp
@@ -303,7 +303,7 @@ func (b *BTCC) WsUpdateCurrencyPairs() error {
 			var availableTickers currency.Pairs
 			for _, tickerData := range tickers {
 				availableTickers = append(availableTickers,
-					currency.NewCurrencyPairFromString(tickerData.Symbol))
+					currency.NewPairFromString(tickerData.Symbol))
 			}
 
 			err = b.UpdateCurrencies(availableTickers, false, true)
@@ -408,7 +408,7 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	newOrderbook.Asks = asks
 	newOrderbook.AssetType = "SPOT"
 	newOrderbook.Bids = bids
-	newOrderbook.Pair = currency.NewCurrencyPairFromString(ob.Symbol)
+	newOrderbook.Pair = currency.NewPairFromString(ob.Symbol)
 
 	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
 	if err != nil {
@@ -418,7 +418,7 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: b.GetName(),
 		Asset:    "SPOT",
-		Pair:     currency.NewCurrencyPairFromString(ob.Symbol),
+		Pair:     currency.NewPairFromString(ob.Symbol),
 	}
 
 	return nil
@@ -457,7 +457,7 @@ func (b *BTCC) WsProcessOrderbookUpdate(ob WsOrderbookSnapshot) error {
 		bids = append(bids, orderbook.Item{Price: data.Price, Amount: newSize})
 	}
 
-	p := currency.NewCurrencyPairFromString(ob.Symbol)
+	p := currency.NewPairFromString(ob.Symbol)
 
 	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), "SPOT")
 	if err != nil {
@@ -467,7 +467,7 @@ func (b *BTCC) WsProcessOrderbookUpdate(ob WsOrderbookSnapshot) error {
 	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: b.GetName(),
 		Asset:    "SPOT",
-		Pair:     currency.NewCurrencyPairFromString(ob.Symbol),
+		Pair:     currency.NewPairFromString(ob.Symbol),
 	}
 
 	return nil
@@ -544,7 +544,7 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 		})
 	}
 
-	p := currency.NewCurrencyPairFromString(symbol)
+	p := currency.NewPairFromString(symbol)
 
 	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), "SPOT")
 	if err != nil {

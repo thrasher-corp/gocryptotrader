@@ -124,7 +124,7 @@ func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.FundsInclOrders {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(x)
+		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(x)
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
 		for z, w := range accountBalance.Funds {
@@ -290,7 +290,7 @@ func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		}
 
 		for ID, order := range resp {
-			symbol := currency.NewCurrencyPairDelimiter(order.Pair,
+			symbol := currency.NewPairDelimiter(order.Pair,
 				y.ConfigCurrencyPairFormat.Delimiter)
 			orderDate := time.Unix(int64(order.TimestampCreated), 0)
 			side := exchange.OrderSide(strings.ToUpper(order.Type))
@@ -336,7 +336,7 @@ func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Pair,
+		symbol := currency.NewPairDelimiter(order.Pair,
 			y.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.Timestamp), 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))

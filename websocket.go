@@ -438,7 +438,13 @@ func wsGetExchangeRates(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetExchangeRates",
 	}
-	wsResp.Data = currency.GetExchangeRates()
+
+	var err error
+	wsResp.Data, err = currency.GetSystemExchangeRates()
+	if err != nil {
+		return err
+	}
+
 	return client.SendWebsocketMessage(wsResp)
 }
 

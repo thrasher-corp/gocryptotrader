@@ -201,7 +201,7 @@ type Account struct {
 
 // AccountCurrencyInfo is a sub type to store currency name and value
 type AccountCurrencyInfo struct {
-	CurrencyName string
+	CurrencyName currency.Code
 	TotalValue   float64
 	Hold         float64
 }
@@ -607,9 +607,9 @@ func (e *Base) GetAvailableCurrencies() currency.Pairs {
 // exchange available currencies or not
 func (e *Base) SupportsCurrency(p currency.Pair, enabledPairs bool) bool {
 	if enabledPairs {
-		return currency.PairsContain(e.GetEnabledCurrencies(), p, false)
+		return e.GetEnabledCurrencies().Contain(p, false)
 	}
-	return currency.PairsContain(e.GetAvailableCurrencies(), p, false)
+	return e.GetAvailableCurrencies().Contain(p, false)
 }
 
 // GetExchangeFormatCurrencySeperator returns whether or not a specific
@@ -747,12 +747,10 @@ func (e *Base) UpdateCurrencies(exchangeProducts currency.Pairs, enabled, force 
 	var updateType string
 
 	if enabled {
-		newPairs, removedPairs = currency.FindPairDifferences(e.EnabledPairs,
-			products)
+		newPairs, removedPairs = e.EnabledPairs.FindDifferences(products)
 		updateType = "enabled"
 	} else {
-		newPairs, removedPairs = currency.FindPairDifferences(e.AvailablePairs,
-			products)
+		newPairs, removedPairs = e.AvailablePairs.FindDifferences(products)
 		updateType = "available"
 	}
 

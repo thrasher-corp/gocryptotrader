@@ -37,7 +37,7 @@ func (p *Poloniex) Run() {
 		log.Errorf("%s Failed to get available symbols.\n", p.GetName())
 	} else {
 		forceUpdate := false
-		if common.StringDataCompare(p.AvailablePairs.String(), "BTC_USDT") {
+		if common.StringDataCompare(p.AvailablePairs.Strings(), "BTC_USDT") {
 			log.Warnf("%s contains invalid pair, forcing upgrade of available currencies.\n",
 				p.GetName())
 			forceUpdate = true
@@ -46,7 +46,7 @@ func (p *Poloniex) Run() {
 		var newExchangeCurrencies currency.Pairs
 		for _, p := range exchangeCurrencies {
 			newExchangeCurrencies = append(newExchangeCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = p.UpdateCurrencies(newExchangeCurrencies, false, forceUpdate)
@@ -154,7 +154,7 @@ func (p *Poloniex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.Currency {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = x
+		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(x)
 		exchangeCurrency.TotalValue = y
 		currencies = append(currencies, exchangeCurrency)
 	}
@@ -319,7 +319,7 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 
 	var orders []exchange.OrderDetail
 	for currencyPair, openOrders := range resp.Data {
-		symbol := currency.NewCurrencyPairDelimiter(currencyPair,
+		symbol := currency.NewPairDelimiter(currencyPair,
 			p.ConfigCurrencyPairFormat.Delimiter)
 
 		for _, order := range openOrders {
@@ -361,7 +361,7 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 
 	var orders []exchange.OrderDetail
 	for currencyPair, historicOrders := range resp.Data {
-		symbol := currency.NewCurrencyPairDelimiter(currencyPair,
+		symbol := currency.NewPairDelimiter(currencyPair,
 			p.ConfigCurrencyPairFormat.Delimiter)
 
 		for _, order := range historicOrders {

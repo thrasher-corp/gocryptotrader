@@ -541,7 +541,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 	var pairs, pairsRemoved currency.Pairs
 	update := false
 	for x := range enabledPairs {
-		if !currency.PairsContain(availPairs, enabledPairs[x], true) {
+		if !availPairs.Contain(enabledPairs[x], true) {
 			update = true
 			pairsRemoved = append(pairsRemoved, enabledPairs[x])
 			continue
@@ -560,7 +560,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 	if len(pairs) == 0 {
 		exchCfg.EnabledPairs = append(exchCfg.EnabledPairs,
-			currency.RandomPairFromPairs(availPairs))
+			availPairs.GetRandomPair())
 		log.Debugf("Exchange %s: No enabled pairs found in available pairs, randomly added %v\n",
 			exchName,
 			exchCfg.EnabledPairs)
@@ -575,7 +575,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 	log.Debugf("Exchange %s: Removing enabled pair(s) %v from enabled pairs as it isn't an available pair",
 		exchName,
-		currency.PairsToStringArray(pairsRemoved))
+		pairsRemoved.Strings())
 	return nil
 }
 
@@ -586,7 +586,7 @@ func (c *Config) SupportsPair(exchName string, p currency.Pair) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return currency.PairsContain(pairs, p, false), nil
+	return pairs.Contain(p, false), nil
 }
 
 // GetAvailablePairs returns a list of currency pairs for a specifc exchange
@@ -969,7 +969,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			c.Currency.Cryptocurrencies = c.Cryptocurrencies
 			c.Cryptocurrencies = nil
 		} else {
-			c.Currency.Cryptocurrencies = currency.DefaultCryptoCurrencies
+			c.Currency.Cryptocurrencies = currency.GetDefaultCryptocurrencies()
 		}
 	}
 
@@ -985,12 +985,12 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		}
 	}
 
-	if c.Currency.FiatDisplayCurrency == "" {
-		if c.FiatDisplayCurrency != "" {
+	if c.Currency.FiatDisplayCurrency.IsEmpty() {
+		if c.FiatDisplayCurrency.IsEmpty() {
 			c.Currency.FiatDisplayCurrency = c.FiatDisplayCurrency
-			c.FiatDisplayCurrency = ""
+			c.FiatDisplayCurrency = currency.NewCurrencyCode("")
 		} else {
-			c.Currency.FiatDisplayCurrency = "USD"
+			c.Currency.FiatDisplayCurrency = currency.USD
 		}
 	}
 	return nil
@@ -999,18 +999,18 @@ func (c *Config) CheckCurrencyConfigValues() error {
 // RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
 // pairs either cryptoCurrencies or fiatCurrencies
 func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
-	cryptoCurrencies := c.Currency.Cryptocurrencies.String()
-	fiatCurrencies := currency.DefaultCurrencies.String()
+	cryptoCurrencies := c.Currency.Cryptocurrencies
+	fiatCurrencies := currency.GetDefaultCryptocurrencies()
 
 	for x := range c.Exchanges {
 		if !c.Exchanges[x].Enabled && enabledOnly {
 			continue
 		}
 
-		baseCurrencies := c.Exchanges[x].BaseCurrencies.String()
+		baseCurrencies := c.Exchanges[x].BaseCurrencies
 		for y := range baseCurrencies {
-			if !common.StringDataCompare(fiatCurrencies, common.StringToUpper(baseCurrencies[y])) {
-				fiatCurrencies = append(fiatCurrencies, common.StringToUpper(baseCurrencies[y]))
+			if !fiatCurrencies.Contains(baseCurrencies[y]) {
+				fiatCurrencies = append(fiatCurrencies, baseCurrencies[y])
 			}
 		}
 	}
@@ -1029,20 +1029,20 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 		}
 
 		for y := range pairs {
-			if !common.StringDataCompare(fiatCurrencies, pairs[y].Base.Upper().String()) &&
-				!common.StringDataCompare(cryptoCurrencies, pairs[y].Base.Upper().String()) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Base.Upper().String())
+			if !fiatCurrencies.Contains(pairs[y].Base) &&
+				!cryptoCurrencies.Contains(pairs[y].Base) {
+				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Base)
 			}
 
-			if !common.StringDataCompare(fiatCurrencies, pairs[y].Quote.Upper().String()) &&
-				!common.StringDataCompare(cryptoCurrencies, pairs[y].Quote.Upper().String()) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Quote.Upper().String())
+			if !fiatCurrencies.Contains(pairs[y].Quote) &&
+				!cryptoCurrencies.Contains(pairs[y].Quote) {
+				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Quote)
 			}
 		}
 	}
 
-	currency.Update(fiatCurrencies, false)
-	currency.Update(cryptoCurrencies, true)
+	currency.UpdateCurrencies(fiatCurrencies, false)
+	currency.UpdateCurrencies(cryptoCurrencies, true)
 	return nil
 }
 

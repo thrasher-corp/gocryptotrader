@@ -41,7 +41,7 @@ type Base struct {
 
 // Orderbook holds the orderbook information for a currency pair and type
 type Orderbook struct {
-	Orderbook    map[currency.Code]map[currency.Code]map[string]Base
+	Orderbook    map[string]map[string]map[string]Base
 	ExchangeName string
 }
 
@@ -88,7 +88,7 @@ func GetOrderbook(exchange string, p currency.Pair, orderbookType string) (Base,
 		return Base{}, errors.New(ErrSecondaryCurrencyNotFound)
 	}
 
-	return orderbook.Orderbook[p.Base][p.Quote][orderbookType], nil
+	return orderbook.Orderbook[p.Base.String()][p.Quote.String()][orderbookType], nil
 }
 
 // GetOrderbookByExchange returns an exchange orderbook
@@ -110,7 +110,7 @@ func FirstCurrencyExists(exchange string, currency currency.Code) bool {
 	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[currency]; ok {
+			if _, ok := y.Orderbook[currency.String()]; ok {
 				return true
 			}
 		}
@@ -125,8 +125,8 @@ func SecondCurrencyExists(exchange string, p currency.Pair) bool {
 	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[p.Base]; ok {
-				if _, ok := y.Orderbook[p.Base][p.Quote]; ok {
+			if _, ok := y.Orderbook[p.Base.String()]; ok {
+				if _, ok := y.Orderbook[p.Base.String()][p.Quote.String()]; ok {
 					return true
 				}
 			}
@@ -141,12 +141,12 @@ func CreateNewOrderbook(exchangeName string, orderbookNew Base, orderbookType st
 	defer m.Unlock()
 	orderbook := Orderbook{}
 	orderbook.ExchangeName = exchangeName
-	orderbook.Orderbook = make(map[currency.Code]map[currency.Code]map[string]Base)
-	a := make(map[currency.Code]map[string]Base)
+	orderbook.Orderbook = make(map[string]map[string]map[string]Base)
+	a := make(map[string]map[string]Base)
 	b := make(map[string]Base)
 	b[orderbookType] = orderbookNew
-	a[orderbookNew.Pair.Quote] = b
-	orderbook.Orderbook[orderbookNew.Pair.Base] = a
+	a[orderbookNew.Pair.Quote.String()] = b
+	orderbook.Orderbook[orderbookNew.Pair.Base.String()] = a
 	Orderbooks = append(Orderbooks, orderbook)
 	return &orderbook
 }
@@ -172,17 +172,17 @@ func ProcessOrderbook(exchangeName string, orderbookNew Base, orderbookType stri
 		m.Lock()
 		a := make(map[string]Base)
 		a[orderbookType] = orderbookNew
-		orderbook.Orderbook[orderbookNew.Pair.Base][orderbookNew.Pair.Quote] = a
+		orderbook.Orderbook[orderbookNew.Pair.Base.String()][orderbookNew.Pair.Quote.String()] = a
 		m.Unlock()
 		return nil
 	}
 
 	m.Lock()
-	a := make(map[currency.Code]map[string]Base)
+	a := make(map[string]map[string]Base)
 	b := make(map[string]Base)
 	b[orderbookType] = orderbookNew
-	a[orderbookNew.Pair.Quote] = b
-	orderbook.Orderbook[orderbookNew.Pair.Base] = a
+	a[orderbookNew.Pair.Quote.String()] = b
+	orderbook.Orderbook[orderbookNew.Pair.Base.String()] = a
 	m.Unlock()
 	return nil
 }

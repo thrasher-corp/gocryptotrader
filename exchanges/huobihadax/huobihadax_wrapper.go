@@ -39,11 +39,10 @@ func (h *HUOBIHADAX) Run() {
 	} else {
 		var currencies currency.Pairs
 		for x := range exchangeProducts {
-			currencies = append(currencies, currency.Pair{
-				Base:      currency.Code(exchangeProducts[x].BaseCurrency),
-				Quote:     currency.Code(exchangeProducts[x].QuoteCurrency),
-				Delimiter: "-",
-			})
+			currencies = append(currencies,
+				currency.NewPairWithDelimiter(exchangeProducts[x].BaseCurrency,
+					exchangeProducts[x].QuoteCurrency,
+					"-"))
 		}
 
 		err = h.UpdateCurrencies(currencies, false, false)
@@ -171,7 +170,7 @@ func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
 
 			var updated bool
 			for i := range currencyDetails {
-				if currencyDetails[i].CurrencyName == balance.Currency {
+				if currencyDetails[i].CurrencyName == currency.NewCurrencyCode(balance.Currency) {
 					if frozen {
 						currencyDetails[i].Hold = balance.Balance
 					} else {
@@ -188,13 +187,13 @@ func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
 			if frozen {
 				currencyDetails = append(currencyDetails,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: balance.Currency,
+						CurrencyName: currency.NewCurrencyCode(balance.Currency),
 						Hold:         balance.Balance,
 					})
 			} else {
 				currencyDetails = append(currencyDetails,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: balance.Currency,
+						CurrencyName: currency.NewCurrencyCode(balance.Currency),
 						TotalValue:   balance.Balance,
 					})
 			}
@@ -376,7 +375,7 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(order.Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(order.CreatedAt, 0)
 
@@ -424,7 +423,7 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(order.Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(order.CreatedAt, 0)
 

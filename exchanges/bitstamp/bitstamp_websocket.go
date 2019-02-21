@@ -192,7 +192,7 @@ func (b *Bitstamp) WsReadData() {
 			}
 
 			currencyPair := common.SplitStrings(data.Channel, "_")
-			p := currency.NewCurrencyPairFromString(common.StringToUpper(currencyPair[3]))
+			p := currency.NewPairFromString(common.StringToUpper(currencyPair[3]))
 
 			err = b.WsUpdateOrderbook(result, p, "SPOT")
 			if err != nil {
@@ -215,7 +215,7 @@ func (b *Bitstamp) WsReadData() {
 			b.Websocket.DataHandler <- exchange.TradeData{
 				Price:        result.Price,
 				Amount:       result.Amount,
-				CurrencyPair: currency.NewCurrencyPairFromString(currencyPair[2]),
+				CurrencyPair: currency.NewPairFromString(currencyPair[2]),
 				Exchange:     b.GetName(),
 				AssetType:    "SPOT",
 			}

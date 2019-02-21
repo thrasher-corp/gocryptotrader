@@ -3,10 +3,13 @@ package currencyconverter
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -22,11 +25,15 @@ const (
 	APIEndpointUsage      = "usage"
 
 	defaultAPIKey = "Key"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // CurrencyConverter stores the struct for the CurrencyConverter API
 type CurrencyConverter struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets appropriate values for CurrencyLayer
@@ -38,6 +45,10 @@ func (c *CurrencyConverter) Setup(config base.Settings) {
 	c.RESTPollingDelay = config.RESTPollingDelay
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
+	c.Requester = request.New(c.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 }
 
 // GetRates is a wrapper function to return rates
@@ -157,16 +168,23 @@ func (c *CurrencyConverter) GetCountries() (map[string]CountryItem, error) {
 // upgrades request to SSL.
 func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
 	var path string
-
+	var auth bool
 	if c.APIKey == "" || c.APIKey == defaultAPIKey {
 		path = fmt.Sprintf("%s%s/%s?", APIEndpointFreeURL, APIEndpointVersion, endPoint)
+		auth = true
 	} else {
 		path = fmt.Sprintf("%s%s%s?", APIEndpointURL, APIEndpointVersion, endPoint)
 		values.Set("apiKey", c.APIKey)
 	}
 	path += values.Encode()
 
-	err := common.SendHTTPGetRequest(path, true, c.Verbose, &result)
+	err := c.Requester.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		&result,
+		auth,
+		c.Verbose)
 	if err != nil {
 		return fmt.Errorf("currency converter API SendHTTPRequest error %s with path %s",
 			err,

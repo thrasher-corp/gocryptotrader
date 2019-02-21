@@ -49,7 +49,7 @@ func (b *Bitstamp) Run() {
 		var newCurrencies currency.Pairs
 		for _, p := range currencies {
 			newCurrencies = append(newCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = b.UpdateCurrencies(newCurrencies, false, false)
@@ -145,22 +145,22 @@ func (b *Bitstamp) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	var currencies = []exchange.AccountCurrencyInfo{
 		{
-			CurrencyName: "BTC",
+			CurrencyName: currency.BTC,
 			TotalValue:   accountBalance.BTCAvailable,
 			Hold:         accountBalance.BTCReserved,
 		},
 		{
-			CurrencyName: "XRP",
+			CurrencyName: currency.XRP,
 			TotalValue:   accountBalance.XRPAvailable,
 			Hold:         accountBalance.XRPReserved,
 		},
 		{
-			CurrencyName: "USD",
+			CurrencyName: currency.USD,
 			TotalValue:   accountBalance.USDAvailable,
 			Hold:         accountBalance.USDReserved,
 		},
 		{
-			CurrencyName: "EUR",
+			CurrencyName: currency.EUR,
 			TotalValue:   accountBalance.EURAvailable,
 			Hold:         accountBalance.EURReserved,
 		},
@@ -314,17 +314,15 @@ func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 	}
 
 	for _, order := range resp {
-		symbolOne := currency.Code(order.Currency[0:3])
-		symbolTwo := currency.Code(order.Currency[len(order.Currency)-3:])
 		orderDate := time.Unix(order.Date, 0)
-
 		orders = append(orders, exchange.OrderDetail{
-			Amount:       order.Amount,
-			ID:           fmt.Sprintf("%v", order.ID),
-			Price:        order.Price,
-			OrderDate:    orderDate,
-			CurrencyPair: currency.NewCurrencyPair(symbolOne, symbolTwo),
-			Exchange:     b.Name,
+			Amount:    order.Amount,
+			ID:        fmt.Sprintf("%v", order.ID),
+			Price:     order.Price,
+			OrderDate: orderDate,
+			CurrencyPair: currency.NewPair(order.Currency[0:3],
+				order.Currency[len(order.Currency)-3:]),
+			Exchange: b.Name,
 		})
 	}
 
@@ -373,7 +371,7 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 
 		var currPair currency.Pair
 		if quoteCurrency.String() != "" && baseCurrency.String() != "" {
-			currPair = currency.NewCurrencyPairWithDelimiter(baseCurrency.String(),
+			currPair = currency.NewPairWithDelimiter(baseCurrency.String(),
 				quoteCurrency.String(),
 				b.ConfigCurrencyPairFormat.Delimiter)
 		}

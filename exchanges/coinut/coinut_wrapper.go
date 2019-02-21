@@ -49,7 +49,7 @@ func (c *COINUT) Run() {
 	var newCurrencies currency.Pairs
 	for _, p := range currencies {
 		newCurrencies = append(newCurrencies,
-			currency.NewCurrencyPairFromString(p))
+			currency.NewPairFromString(p))
 	}
 
 	err = c.UpdateCurrencies(newCurrencies, false, false)
@@ -69,59 +69,59 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	var balances = []exchange.AccountCurrencyInfo{
 		{
-			CurrencyName: currency.BCH.String(),
+			CurrencyName: currency.BCH,
 			TotalValue:   bal.BCH,
 		},
 		{
-			CurrencyName: currency.BTC.String(),
+			CurrencyName: currency.BTC,
 			TotalValue:   bal.BTC,
 		},
 		{
-			CurrencyName: currency.BTG.String(),
+			CurrencyName: currency.BTG,
 			TotalValue:   bal.BTG,
 		},
 		{
-			CurrencyName: currency.CAD.String(),
+			CurrencyName: currency.CAD,
 			TotalValue:   bal.CAD,
 		},
 		{
-			CurrencyName: currency.ETC.String(),
+			CurrencyName: currency.ETC,
 			TotalValue:   bal.ETC,
 		},
 		{
-			CurrencyName: currency.ETH.String(),
+			CurrencyName: currency.ETH,
 			TotalValue:   bal.ETH,
 		},
 		{
-			CurrencyName: currency.LCH.String(),
+			CurrencyName: currency.LCH,
 			TotalValue:   bal.LCH,
 		},
 		{
-			CurrencyName: currency.LTC.String(),
+			CurrencyName: currency.LTC,
 			TotalValue:   bal.LTC,
 		},
 		{
-			CurrencyName: currency.MYR.String(),
+			CurrencyName: currency.MYR,
 			TotalValue:   bal.MYR,
 		},
 		{
-			CurrencyName: currency.SGD.String(),
+			CurrencyName: currency.SGD,
 			TotalValue:   bal.SGD,
 		},
 		{
-			CurrencyName: currency.USD.String(),
+			CurrencyName: currency.USD,
 			TotalValue:   bal.USD,
 		},
 		{
-			CurrencyName: currency.USDT.String(),
+			CurrencyName: currency.USDT,
 			TotalValue:   bal.USDT,
 		},
 		{
-			CurrencyName: currency.XMR.String(),
+			CurrencyName: currency.XMR,
 			TotalValue:   bal.XMR,
 		},
 		{
-			CurrencyName: currency.ZEC.String(),
+			CurrencyName: currency.ZEC,
 			TotalValue:   bal.ZEC,
 		},
 	}
@@ -415,7 +415,7 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		for instrument, allInstrumentData := range instruments.Instruments {
 			for _, instrumentData := range allInstrumentData {
 				if instrumentData.InstID == int(order.InstrumentID) {
-					currPair := currency.NewCurrencyPairDelimiter(instrument, "")
+					currPair := currency.NewPairDelimiter(instrument, "")
 					orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
 					orderDate := time.Unix(order.Timestamp, 0)
 					orders = append(orders, exchange.OrderDetail{
@@ -472,7 +472,7 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		for instrument, allInstrumentData := range instruments.Instruments {
 			for _, instrumentData := range allInstrumentData {
 				if instrumentData.InstID == int(order.Order.InstrumentID) {
-					currPair := currency.NewCurrencyPairDelimiter(instrument, "")
+					currPair := currency.NewPairDelimiter(instrument, "")
 					orderSide := exchange.OrderSide(strings.ToUpper(order.Order.Side))
 					orderDate := time.Unix(order.Order.Timestamp, 0)
 					orders = append(orders, exchange.OrderDetail{

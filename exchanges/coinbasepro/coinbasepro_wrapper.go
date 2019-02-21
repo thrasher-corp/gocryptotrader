@@ -46,7 +46,7 @@ func (c *CoinbasePro) Run() {
 		var newCurrencies currency.Pairs
 		for _, p := range currencies {
 			newCurrencies = append(newCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = c.UpdateCurrencies(newCurrencies, false, false)
@@ -69,7 +69,7 @@ func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Hold
 
@@ -301,7 +301,7 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 
 	var orders []exchange.OrderDetail
 	for _, order := range respOrders {
-		currency := currency.NewCurrencyPairDelimiter(order.ProductID,
+		currency := currency.NewPairDelimiter(order.ProductID,
 			c.ConfigCurrencyPairFormat.Delimiter)
 		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
 		orderType := exchange.OrderType(strings.ToUpper(order.Type))
@@ -345,7 +345,7 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest
 
 	var orders []exchange.OrderDetail
 	for _, order := range respOrders {
-		currency := currency.NewCurrencyPairDelimiter(order.ProductID,
+		currency := currency.NewPairDelimiter(order.ProductID,
 			c.ConfigCurrencyPairFormat.Delimiter)
 		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
 		orderType := exchange.OrderType(strings.ToUpper(order.Type))

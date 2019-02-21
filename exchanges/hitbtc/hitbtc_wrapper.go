@@ -39,8 +39,8 @@ func (h *HitBTC) Run() {
 		log.Errorf("%s Failed to get available symbols.\n", h.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(h.EnabledPairs.String(), "-") ||
-			!common.StringDataContains(h.AvailablePairs.String(), "-") {
+		if !common.StringDataContains(h.EnabledPairs.Strings(), "-") ||
+			!common.StringDataContains(h.AvailablePairs.Strings(), "-") {
 			forceUpgrade = true
 		}
 		var currencies []string
@@ -63,7 +63,7 @@ func (h *HitBTC) Run() {
 		var newCurrencies currency.Pairs
 		for _, p := range currencies {
 			newCurrencies = append(newCurrencies,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = h.UpdateCurrencies(newCurrencies, false, forceUpgrade)
@@ -156,7 +156,7 @@ func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for _, item := range accountBalance {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = item.Currency
+		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(item.Currency)
 		exchangeCurrency.TotalValue = item.Available
 		exchangeCurrency.Hold = item.Reserved
 		currencies = append(currencies, exchangeCurrency)
@@ -302,7 +302,7 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(order.Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(order.Side))
 		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
@@ -347,7 +347,7 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(order.Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(order.Side))
 		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)

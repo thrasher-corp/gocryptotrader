@@ -45,7 +45,7 @@ func (b *Bitmex) Run() {
 		var NewExchangeProducts currency.Pairs
 		for _, p := range exchangeProducts {
 			NewExchangeProducts = append(NewExchangeProducts,
-				currency.NewCurrencyPairFromString(p))
+				currency.NewPairFromString(p))
 		}
 
 		err = b.UpdateCurrencies(NewExchangeProducts, false, false)
@@ -143,7 +143,7 @@ func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balances []exchange.AccountCurrencyInfo
 	for _, data := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: data.Currency,
+			CurrencyName: currency.NewCurrencyCode(data.Currency),
 			TotalValue:   float64(data.WalletBalance),
 		})
 	}
@@ -331,7 +331,7 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			OrderSide: orderSide,
 			OrderType: orderType,
 			Status:    order.OrdStatus,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.Symbol,
+			CurrencyPair: currency.NewPairWithDelimiter(order.Symbol,
 				order.SettlCurrency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
@@ -374,7 +374,7 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			OrderSide: orderSide,
 			OrderType: orderType,
 			Status:    order.OrdStatus,
-			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.Symbol,
+			CurrencyPair: currency.NewPairWithDelimiter(order.Symbol,
 				order.SettlCurrency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}

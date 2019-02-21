@@ -317,7 +317,7 @@ func TestCalculateTradingFee(t *testing.T) {
 		},
 	}
 
-	if resp := c.calculateTradingFee(volume, "btc", "usd", "_", 1, 1, false); resp != float64(0.003) {
+	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
 	}
 
@@ -329,7 +329,7 @@ func TestCalculateTradingFee(t *testing.T) {
 		},
 	}
 
-	if resp := c.calculateTradingFee(volume, "btc", "usd", "_", 1, 1, false); resp != float64(0.003) {
+	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
 	}
 
@@ -341,7 +341,7 @@ func TestCalculateTradingFee(t *testing.T) {
 		},
 	}
 
-	if resp := c.calculateTradingFee(volume, "btc", "usd", "_", 1, 1, false); resp != float64(0.003) {
+	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
 	}
 
@@ -353,7 +353,7 @@ func TestCalculateTradingFee(t *testing.T) {
 		},
 	}
 
-	if resp := c.calculateTradingFee(volume, "btc", "usd", "_", 1, 1, false); resp != float64(0.002) {
+	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.002) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 	}
 
@@ -365,7 +365,7 @@ func TestCalculateTradingFee(t *testing.T) {
 		},
 	}
 
-	if resp := c.calculateTradingFee(volume, "btc", "usd", "_", 1, 1, false); resp != float64(0.001) {
+	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.001) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 	}
 
@@ -377,7 +377,7 @@ func TestCalculateTradingFee(t *testing.T) {
 		},
 	}
 
-	if resp := c.calculateTradingFee(volume, "btc", "usd", "_", 1, 1, false); resp != float64(0) {
+	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 	}
 
@@ -389,7 +389,7 @@ func TestCalculateTradingFee(t *testing.T) {
 		},
 	}
 
-	if resp := c.calculateTradingFee(volume, "btc", "usd", "_", 1, 1, true); resp != float64(0) {
+	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, true); resp != float64(0) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 	}
 }
@@ -412,7 +412,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewCurrencyPair(currency.BTC,
+		Currencies: []currency.Pair{currency.NewPairFromCodes(currency.BTC,
 			currency.LTC)},
 	}
 
@@ -430,7 +430,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewCurrencyPair(currency.BTC,
+		Currencies: []currency.Pair{currency.NewPairFromCodes(currency.BTC,
 			currency.LTC)},
 	}
 
@@ -482,7 +482,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -509,7 +509,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

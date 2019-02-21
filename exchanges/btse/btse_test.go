@@ -247,7 +247,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPairWithDelimiter(currency.BTC.String(),
+	currencyPair := currency.NewPairWithDelimiter(currency.BTC.String(),
 		currency.USD.String(),
 		"-")
 
@@ -275,7 +275,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewCurrencyPairWithDelimiter(currency.BTC.String(),
+	currencyPair := currency.NewPairWithDelimiter(currency.BTC.String(),
 		currency.USD.String(),
 		"-")
 
