@@ -134,7 +134,7 @@ func TestGetAccountWalletInformationForCurrency(t *testing.T) {
 	testStandardErrorHandling(t, err)
 
 	if areTestAPIKeysSet() && len(resp) != 1 {
-		t.Errorf("Error recieving wallet information for currency: %v", symbol.BTC)
+		t.Errorf("Error receiving wallet information for currency: %v", symbol.BTC)
 	}
 }
 
@@ -269,7 +269,7 @@ func TestGetSpotBillDetailsForCurrency(t *testing.T) {
 func TestPlaceSpotOrderLimit(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "limit",
 		Side:          "buy",
 		MarginTrading: "1",
@@ -285,7 +285,7 @@ func TestPlaceSpotOrderLimit(t *testing.T) {
 func TestPlaceSpotOrderMarket(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "market",
 		Side:          "buy",
 		MarginTrading: "1",
@@ -301,7 +301,7 @@ func TestPlaceSpotOrderMarket(t *testing.T) {
 func TestPlaceMultipleSpotOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "market",
 		Side:          "buy",
 		MarginTrading: "1",
@@ -323,7 +323,7 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
 	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "market",
 		Side:          "buy",
 		MarginTrading: "1",
@@ -349,7 +349,7 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	TestSetDefaults(t)
 	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "market",
 		Side:          "buy",
 		MarginTrading: "1",
@@ -361,13 +361,13 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 		order,
 	}
 
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USD, "-").Pair().Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USD, "-").Pair().Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USD, "-").Pair().Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USD, "-").Pair().Lower().String()
 	request = append(request, order)
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -380,7 +380,7 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 func TestCancelSpotOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.CancelSpotOrderRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		OrderID:      1234,
 	}
 
@@ -392,7 +392,7 @@ func TestCancelSpotOrder(t *testing.T) {
 func TestCancelMultipleSpotOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.CancelMultipleSpotOrdersRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		OrderIDs:     []int64{1, 2, 3, 4},
 	}
 
@@ -406,7 +406,7 @@ func TestCancelMultipleSpotOrders(t *testing.T) {
 func TestCancelMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.CancelMultipleSpotOrdersRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		OrderIDs:     []int64{1, 2, 3, 4, 5},
 	}
 
@@ -420,7 +420,7 @@ func TestCancelMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 func TestGetSpotOrders(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrdersRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Status:       "all",
 	}
 	_, err := o.GetSpotOrders(request)
@@ -440,7 +440,7 @@ func TestGetSpotOrder(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      -1234,
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Upper().String(),
 	}
 	_, err := o.GetSpotOrder(request)
 	testStandardErrorHandling(t, err)
@@ -451,7 +451,7 @@ func TestGetSpotTransactionDetails(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotTransactionDetailsRequest{
 		OrderID:      1234,
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 	}
 	_, err := o.GetSpotTransactionDetails(request)
 	testStandardErrorHandling(t, err)
@@ -468,7 +468,7 @@ func TestGetSpotTokenPairDetails(t *testing.T) {
 func TestGetSpotOrderBook(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderBookRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 	}
 	_, err := o.GetSpotOrderBook(request)
 	testStandardErrorHandling(t, err)
@@ -484,7 +484,7 @@ func TestGetSpotAllTokenPairsInformation(t *testing.T) {
 // TestGetSpotAllTokenPairsInformationForCurrency API endpoint test
 func TestGetSpotAllTokenPairsInformationForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	_, err := o.GetSpotAllTokenPairsInformationForCurrency(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	_, err := o.GetSpotAllTokenPairsInformationForCurrency(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -492,7 +492,7 @@ func TestGetSpotAllTokenPairsInformationForCurrency(t *testing.T) {
 func TestGetSpotFilledOrdersInformation(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotFilledOrdersInformationRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 	}
 	_, err := o.GetSpotFilledOrdersInformation(request)
 	testStandardErrorHandling(t, err)
@@ -502,7 +502,7 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 func TestGetSpotMarketData(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotMarketDataRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Granularity:  604800,
 	}
 	_, err := o.GetSpotMarketData(request)
@@ -519,18 +519,17 @@ func TestGetMarginTradingAccounts(t *testing.T) {
 // TestGetMarginTradingAccountsForCurrency API endpoint test
 func TestGetMarginTradingAccountsForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	_, err := o.GetMarginTradingAccountsForCurrency(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	_, err := o.GetMarginTradingAccountsForCurrency(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String())
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetMarginBillDetails API endpoint test
 func TestGetMarginBillDetails(t *testing.T) {
 	TestSetDefaults(t)
-	request := okgroup.GetAccountBillDetailsRequest{
-		Currency: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
-		Limit:    100,
+	request := okgroup.GetMarginBillDetailsRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
+		Limit:        100,
 	}
-
 	_, err := o.GetMarginBillDetails(request)
 	testStandardErrorHandling(t, err)
 }
@@ -545,7 +544,7 @@ func TestGetMarginAccountSettings(t *testing.T) {
 // TestGetMarginAccountSettingsForCurrency API endpoint test
 func TestGetMarginAccountSettingsForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	_, err := o.GetMarginAccountSettings(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	_, err := o.GetMarginAccountSettings(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -554,8 +553,8 @@ func TestOpenMarginLoan(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.OpenMarginLoanRequest{
 		Amount:        100,
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
-		QuoteCurrency: symbol.USDT,
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
+		QuoteCurrency: symbol.USD,
 	}
 
 	_, err := o.OpenMarginLoan(request)
@@ -567,8 +566,8 @@ func TestRepayMarginLoan(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.RepayMarginLoanRequest{
 		Amount:        100,
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
-		QuoteCurrency: symbol.USDT,
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
+		QuoteCurrency: symbol.USD,
 		BorrowID:      1,
 	}
 
@@ -580,7 +579,7 @@ func TestRepayMarginLoan(t *testing.T) {
 func TestPlaceMarginOrderLimit(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "limit",
 		Side:          "buy",
 		MarginTrading: "2",
@@ -596,7 +595,7 @@ func TestPlaceMarginOrderLimit(t *testing.T) {
 func TestPlaceMarginOrderMarket(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "market",
 		Side:          "buy",
 		MarginTrading: "2",
@@ -612,7 +611,7 @@ func TestPlaceMarginOrderMarket(t *testing.T) {
 func TestPlaceMultipleMarginOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "market",
 		Side:          "buy",
 		MarginTrading: "1",
@@ -635,7 +634,7 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
 	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "market",
 		Side:          "buy",
 		MarginTrading: "1",
@@ -661,7 +660,7 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	TestSetDefaults(t)
 	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Type:          "market",
 		Side:          "buy",
 		MarginTrading: "1",
@@ -673,13 +672,13 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 		order,
 	}
 
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USD, "-").Pair().Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USD, "-").Pair().Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USD, "-").Pair().Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USD, "-").Pair().Lower().String()
 	request = append(request, order)
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -692,7 +691,7 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 func TestCancelMarginOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.CancelSpotOrderRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		OrderID:      1234,
 	}
 
@@ -704,7 +703,7 @@ func TestCancelMarginOrder(t *testing.T) {
 func TestCancelMultipleMarginOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.CancelMultipleSpotOrdersRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		OrderIDs:     []int64{1, 2, 3, 4},
 	}
 
@@ -718,7 +717,7 @@ func TestCancelMultipleMarginOrders(t *testing.T) {
 func TestCancelMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.CancelMultipleSpotOrdersRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		OrderIDs:     []int64{1, 2, 3, 4, 5},
 	}
 
@@ -732,7 +731,7 @@ func TestCancelMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 func TestGetMarginOrders(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrdersRequest{
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 		Status:       "all",
 	}
 	_, err := o.GetMarginOrders(request)
@@ -752,7 +751,7 @@ func TestGetMarginOrder(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      1234,
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Upper().String(),
 	}
 	_, err := o.GetMarginOrder(request)
 	testStandardErrorHandling(t, err)
@@ -763,7 +762,7 @@ func TestGetMarginTransactionDetails(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotTransactionDetailsRequest{
 		OrderID:      1234,
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String(),
 	}
 	_, err := o.GetMarginTransactionDetails(request)
 	testStandardErrorHandling(t, err)

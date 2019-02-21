@@ -135,7 +135,7 @@ func TestGetAccountWalletInformationForCurrency(t *testing.T) {
 	testStandardErrorHandling(t, err)
 
 	if areTestAPIKeysSet() && len(resp) != 1 {
-		t.Errorf("Error recieving wallet information for currency: %v", symbol.BTC)
+		t.Errorf("Error receiving wallet information for currency: %v", symbol.BTC)
 	}
 }
 
@@ -423,6 +423,7 @@ func TestGetSpotOrders(t *testing.T) {
 	request := okgroup.GetSpotOrdersRequest{
 		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
 		Status:       "all",
+		Limit:        1,
 	}
 	_, err := o.GetSpotOrders(request)
 	testStandardErrorHandling(t, err)
@@ -527,9 +528,9 @@ func TestGetMarginTradingAccountsForCurrency(t *testing.T) {
 // TestGetMarginBillDetails API endpoint test
 func TestGetMarginBillDetails(t *testing.T) {
 	TestSetDefaults(t)
-	request := okgroup.GetAccountBillDetailsRequest{
-		Currency: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
-		Limit:    100,
+	request := okgroup.GetMarginBillDetailsRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Limit:        100,
 	}
 
 	_, err := o.GetMarginBillDetails(request)
@@ -1040,8 +1041,6 @@ func TestGetFuturesTagPrice(t *testing.T) {
 	testStandardErrorHandling(t, err)
 }
 
-// -------------------------------------------------------------------------------------------------------
-
 // TestGetSwapPostions API endpoint test
 func TestGetSwapPostions(t *testing.T) {
 	TestSetDefaults(t)
@@ -1299,8 +1298,6 @@ func TestGetSwapFundingRateHistory(t *testing.T) {
 	testStandardErrorHandling(t, err)
 }
 
-// -------------------------------------------------------------------------------------------------------
-
 // TestGetETT API endpoint test
 func TestGetETT(t *testing.T) {
 	TestSetDefaults(t)
@@ -1399,7 +1396,6 @@ func TestSubscribeToPewDiePie(t *testing.T) {
 	disconnectFromWS()
 }
 */
-// -------------------------------------------------------------------------------------------------------
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{

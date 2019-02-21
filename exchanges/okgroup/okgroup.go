@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/go-querystring/query"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -23,34 +24,50 @@ import (
 )
 
 const (
-	// just your average return type from okex
-	returnTypeOne     = "map[string]interface {}"
 	okGroupAuthRate   = 0
 	okGroupUnauthRate = 0
-	// OkGroupAPIPath const to help with api url formatting
-	OkGroupAPIPath = "api/"
+	// OKGroupAPIPath const to help with api url formatting
+	OKGroupAPIPath = "api/"
 	// API subsections
 	okGroupAccountSubsection       = "account"
 	okGroupTokenSubsection         = "spot"
 	okGroupMarginTradingSubsection = "margin"
-	okGroupFuturesSubsection       = "futures"
-	okGroupSwapSubsection          = "swap"
-	okGroupETTSubsection           = "ett"
-	// Common endpoints
-	okGroupAccounts                 = "accounts"
-	okGroupLedger                   = "ledger"
-	okGroupOrders                   = "orders"
-	okGroupBatchOrders              = "batch_orders"
-	okGroupCancelOrders             = "cancel_orders"
-	okGroupCancelOrder              = "cancel_order"
-	okGroupCancelBatchOrders        = "cancel_batch_orders"
-	okGroupPendingOrders            = "orders_pending"
-	okGroupTrades                   = "trades"
-	okGroupTicker                   = "ticker"
-	okGroupInstruments              = "instruments"
-	okGroupLiquidation              = "liquidation"
-	okGroupMarkPrice                = "mark_price"
-	okGroupGetAccountDepositHistory = "deposit/history"
+	// OKGroupAccounts common api endpoint
+	OKGroupAccounts = "accounts"
+	// OKGroupLedger common api endpoint
+	OKGroupLedger = "ledger"
+	// OKGroupOrders common api endpoint
+	OKGroupOrders = "orders"
+	// OKGroupBatchOrders common api endpoint
+	OKGroupBatchOrders = "batch_orders"
+	// OKGroupCancelOrders common api endpoint
+	OKGroupCancelOrders = "cancel_orders"
+	// OKGroupCancelOrder common api endpoint
+	OKGroupCancelOrder = "cancel_order"
+	// OKGroupCancelBatchOrders common api endpoint
+	OKGroupCancelBatchOrders = "cancel_batch_orders"
+	// OKGroupPendingOrders common api endpoint
+	OKGroupPendingOrders = "orders_pending"
+	// OKGroupTrades common api endpoint
+	OKGroupTrades = "trades"
+	// OKGroupTicker common api endpoint
+	OKGroupTicker = "ticker"
+	// OKGroupInstruments common api endpoint
+	OKGroupInstruments = "instruments"
+	// OKGroupLiquidation common api endpoint
+	OKGroupLiquidation = "liquidation"
+	// OKGroupMarkPrice common api endpoint
+	OKGroupMarkPrice = "mark_price"
+	// OKGroupGetAccountDepositHistory common api endpoint
+	OKGroupGetAccountDepositHistory = "deposit/history"
+	// OKGroupGetSpotTransactionDetails common api endpoint
+	OKGroupGetSpotTransactionDetails = "fills"
+	// OKGroupGetSpotOrderBook common api endpoint
+	OKGroupGetSpotOrderBook = "book"
+	// OKGroupGetSpotMarketData common api endpoint
+	OKGroupGetSpotMarketData = "candles"
+	// OKGroupPriceLimit common api endpoint
+	OKGroupPriceLimit = "price_limit"
 	// Account based endpoints
 	okGroupGetAccountCurrencies        = "currencies"
 	okGroupGetAccountWalletInformation = "wallet"
@@ -59,33 +76,11 @@ const (
 	okGroupGetWithdrawalFees           = "withdrawal/fee"
 	okGroupGetWithdrawalHistory        = "withdrawal/history"
 	okGroupGetDepositAddress           = "deposit/address"
-	okGroupPriceLimit                  = "price_limit"
-	// Token based endpoints
-	okGroupGetSpotTransactionDetails = "fills"
-	okGroupGetSpotOrderBook          = "book"
-	okGroupGetSpotMarketData         = "candles"
 	// Margin based endpoints
 	okGroupGetMarketAvailability = "availability"
 	okGroupGetLoanHistory        = "borrowed"
 	okGroupGetLoan               = "borrow"
 	okGroupGetRepayment          = "repayment"
-	// Futures based endpoints
-	okGroupFuturePosition = "position"
-	okGroupFutureLeverage = "leverage"
-	okGroupFutureOrder    = "order"
-	okGroupFutureHolds    = "holds"
-	okGroupIndices        = "index"
-	okGroupRate           = "rate"
-	okGroupEsimtatedPrice = "estimated_price"
-	okGroupOpenInterest   = "open_interest"
-	// Perpetual swap based endpoints
-	okGroupSettings              = "settings"
-	okGroupDepth                 = "depth"
-	okGroupFundingTime           = "funding_time"
-	okGroupHistoricalFundingRate = "historical_funding_rate"
-	// ETT endpoints
-	okGroupConstituents = "constituents"
-	okGroupDefinePrice  = "define-price"
 )
 
 var errMissValue = errors.New("warning - resp value is missing from exchange")
@@ -96,16 +91,13 @@ type OKGroup struct {
 	ExchangeName  string
 	WebsocketConn *websocket.Conn
 	mu            sync.Mutex
-
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
-
 	// Stores for corresponding variable checks
 	ContractTypes    []string
 	CurrencyPairs    []string
 	ContractPosition []string
 	Types            []string
-
 	// URLs to be overridden by implementations of OKGroup
 	APIURL       string
 	APIVersion   string
@@ -182,15 +174,13 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 		err = o.WebsocketSetup(o.WsConnect,
 			exch.Name,
 			exch.Websocket,
-			okexDefaultWebsocketURL,
+			"okexDefaultWebsocketURL",
 			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 }
-
-// -------------------------------------Account------------------------------------------
 
 // GetAccountCurrencies returns a list of tradable spot instruments and their properties
 func (o *OKGroup) GetAccountCurrencies() (resp []GetAccountCurrenciesResponse, _ error) {
@@ -246,25 +236,7 @@ func (o *OKGroup) GetAccountWithdrawalHistory(currency string) (resp []Withdrawa
 // which means the latest will be at the top. Please refer to the pagination section for additional records after the first page.
 // 3 months recent records will be returned at maximum
 func (o *OKGroup) GetAccountBillDetails(request GetAccountBillDetailsRequest) (resp []GetAccountBillDetailsResponse, _ error) {
-	urlValues := url.Values{}
-	if request.Type > 0 {
-		urlValues.Set("type", strconv.FormatInt(request.Type, 10))
-	}
-	if len(request.Currency) > 0 {
-		urlValues.Set("currency", request.Currency)
-	}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v%v", okGroupLedger, parameters)
+	requestURL := fmt.Sprintf("%v%v", OKGroupLedger, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, requestURL, nil, &resp, true)
 }
 
@@ -280,47 +252,35 @@ func (o *OKGroup) GetAccountDepositAddressForCurrency(currency string) (resp []G
 func (o *OKGroup) GetAccountDepositHistory(currency string) (resp []GetAccountDepositHistoryResponse, _ error) {
 	var requestURL string
 	if len(currency) > 0 {
-		requestURL = fmt.Sprintf("%v/%v", okGroupGetAccountDepositHistory, currency)
+		requestURL = fmt.Sprintf("%v/%v", OKGroupGetAccountDepositHistory, currency)
 	} else {
 		requestURL = okGroupGetWithdrawalHistory
 	}
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, requestURL, nil, &resp, true)
 }
 
-// -------------------------------------Spot------------------------------------------
-
 // GetSpotTradingAccounts retrieves the list of assets(only show pairs with balance larger than 0), the balances, amount available/on hold in spot accounts.
 func (o *OKGroup) GetSpotTradingAccounts() (resp []GetSpotTradingAccountResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, okGroupAccounts, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, OKGroupAccounts, nil, &resp, true)
 }
 
 // GetSpotTradingAccountForCurrency This endpoint supports getting the balance, amount available/on hold of a token in spot account.
 func (o *OKGroup) GetSpotTradingAccountForCurrency(currency string) (resp GetSpotTradingAccountResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, currency)
+	requestURL := fmt.Sprintf("%v/%v", OKGroupAccounts, currency)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
 // GetSpotBillDetailsForCurrency This endpoint supports getting the balance, amount available/on hold of a token in spot account.
 func (o *OKGroup) GetSpotBillDetailsForCurrency(request GetSpotBillDetailsForCurrencyRequest) (resp []GetSpotBillDetailsForCurrencyResponse, _ error) {
-	urlValues := url.Values{}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v/%v/%v?%v", okGroupAccounts, request.Currency, okGroupLedger, urlValues.Encode())
+	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupAccounts, request.Currency, OKGroupLedger, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
-// PlaceSpotOrder token trading only supports limit and market orders (more order types will become available in the future). You can place an order only if you have enough funds.
+// PlaceSpotOrder token trading only supports limit and market orders (more order types will become available in the future).
+// You can place an order only if you have enough funds.
 // Once your order is placed, the amount will be put on hold.
 func (o *OKGroup) PlaceSpotOrder(request PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, okGroupOrders, request, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupOrders, request, &resp, true)
 }
 
 // PlaceMultipleSpotOrders supports placing multiple orders for specific trading pairs
@@ -340,7 +300,7 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[
 		}
 	}
 
-	err := o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, okGroupBatchOrders, request, &resp, true)
+	err := o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupBatchOrders, request, &resp, true)
 	if err != nil {
 		return resp, []error{err}
 	}
@@ -362,7 +322,7 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[
 
 // CancelSpotOrder Cancelling an unfilled order.
 func (o *OKGroup) CancelSpotOrder(request CancelSpotOrderRequest) (resp CancelSpotOrderResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupCancelOrders, request.OrderID)
+	requestURL := fmt.Sprintf("%v/%v", OKGroupCancelOrders, request.OrderID)
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, requestURL, request, &resp, true)
 }
 
@@ -373,7 +333,7 @@ func (o *OKGroup) CancelMultipleSpotOrders(request CancelMultipleSpotOrdersReque
 		return resp, []error{errors.New("maximum 4 order cancellations for each pair")}
 	}
 
-	err := o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, okGroupCancelBatchOrders, []CancelMultipleSpotOrdersRequest{request}, &resp, true)
+	err := o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupCancelBatchOrders, []CancelMultipleSpotOrdersRequest{request}, &resp, true)
 	if err != nil {
 		return resp, []error{err}
 	}
@@ -393,219 +353,131 @@ func (o *OKGroup) CancelMultipleSpotOrders(request CancelMultipleSpotOrdersReque
 	return resp, orderErrors
 }
 
-// GetSpotOrders List your orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
+// GetSpotOrders List your orders. Cursor pagination is used.
+// All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetSpotOrders(request GetSpotOrdersRequest) (resp []GetSpotOrderResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("instrument_id", request.InstrumentID)
-	urlValues.Set("status", request.Status)
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v?%v", okGroupOrders, urlValues.Encode())
+	requestURL := fmt.Sprintf("%v%v", OKGroupOrders, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
-// GetSpotOpenOrders List all your current open orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
+// GetSpotOpenOrders List all your current open orders. Cursor pagination is used.
+// All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetSpotOpenOrders(request GetSpotOpenOrdersRequest) (resp []GetSpotOrderResponse, _ error) {
-	urlValues := url.Values{}
-	if len(request.InstrumentID) > 0 {
-		urlValues.Set("instrument_id", request.InstrumentID)
-	}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v%v", okGroupPendingOrders, parameters)
+	requestURL := fmt.Sprintf("%v%v", OKGroupPendingOrders, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
 // GetSpotOrder Get order details by order ID.
 func (o *OKGroup) GetSpotOrder(request GetSpotOrderRequest) (resp GetSpotOrderResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("instrument_id", request.InstrumentID)
-	requestURL := fmt.Sprintf("%v/%v?%v", okGroupOrders, request.OrderID, urlValues.Encode())
+	requestURL := fmt.Sprintf("%v/%v%v", OKGroupOrders, request.OrderID, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, request, &resp, true)
 }
 
-// GetSpotTransactionDetails Get details of the recent filled orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
+// GetSpotTransactionDetails Get details of the recent filled orders. Cursor pagination is used.
+// All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetSpotTransactionDetails(request GetSpotTransactionDetailsRequest) (resp []GetSpotTransactionDetailsResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("order_id", strconv.FormatInt(request.OrderID, 10))
-	urlValues.Set("instrument_id", request.InstrumentID)
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v?%v", okGroupGetSpotTransactionDetails, urlValues.Encode())
+	requestURL := fmt.Sprintf("%v%v", OKGroupGetSpotTransactionDetails, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
 // GetSpotTokenPairDetails Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
 // List trading pairs and get the trading limit, price, and more information of different trading pairs.
 func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, okGroupInstruments, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, OKGroupInstruments, nil, &resp, true)
 }
 
-// GetSpotOrderBook Getting the order book of a trading pair. Pagination is not supported here. The whole book will be returned for one request. WebSocket is recommended here.
+// GetSpotOrderBook Getting the order book of a trading pair. Pagination is not supported here.
+// The whole book will be returned for one request. WebSocket is recommended here.
 func (o *OKGroup) GetSpotOrderBook(request GetSpotOrderBookRequest) (resp GetSpotOrderBookResponse, _ error) {
-	urlValues := url.Values{}
-	if request.Depth > 0 {
-		urlValues.Set("depth", fmt.Sprintf("%v", request.Depth))
-	}
-	if request.Size > 0 {
-		urlValues.Set("size", strconv.FormatInt(request.Size, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupGetSpotOrderBook, parameters)
+	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotOrderBook, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
 // GetSpotAllTokenPairsInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all trading pairs.
 func (o *OKGroup) GetSpotAllTokenPairsInformation() (resp []GetSpotTokenPairsInformationResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupInstruments, okGroupTicker)
+	requestURL := fmt.Sprintf("%v/%v", OKGroupInstruments, OKGroupTicker)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
 // GetSpotAllTokenPairsInformationForCurrency Get the last traded price, best bid/ask price, 24 hour trading volume and more info of a currency
 func (o *OKGroup) GetSpotAllTokenPairsInformationForCurrency(currency string) (resp GetSpotTokenPairsInformationResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, currency, okGroupTicker)
+	requestURL := fmt.Sprintf("%v/%v/%v", OKGroupInstruments, currency, OKGroupTicker)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
-// GetSpotFilledOrdersInformation Get the recent 60 transactions of all trading pairs. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
+// GetSpotFilledOrdersInformation Get the recent 60 transactions of all trading pairs.
+// Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetSpotFilledOrdersInformation(request GetSpotFilledOrdersInformationRequest) (resp []GetSpotFilledOrdersInformationResponse, _ error) {
-	urlValues := url.Values{}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupTrades, parameters)
+	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupTrades, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
 // GetSpotMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
 func (o *OKGroup) GetSpotMarketData(request GetSpotMarketDataRequest) (resp GetSpotMarketDataResponse, _ error) {
-	urlValues := url.Values{}
-	if len(request.Start) > 0 {
-		urlValues.Set("start", request.Start)
-	}
-	if len(request.End) > 0 {
-		urlValues.Set("end", request.End)
-	}
-	if request.Granularity > 0 {
-		urlValues.Set("granularity", strconv.FormatInt(request.Granularity, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupGetSpotMarketData, parameters)
+	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotMarketData, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
-// -------------------------------------Margin------------------------------------------
-
 // GetMarginTradingAccounts List all assets under token margin trading account, including information such as balance, amount on hold and more.
 func (o *OKGroup) GetMarginTradingAccounts() (resp []GetMarginAccountsResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, okGroupAccounts, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, OKGroupAccounts, nil, &resp, true)
 }
 
 // GetMarginTradingAccountsForCurrency Get the balance, amount on hold and more useful information.
 func (o *OKGroup) GetMarginTradingAccountsForCurrency(currency string) (resp GetMarginAccountsResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, currency)
+	requestURL := fmt.Sprintf("%v/%v", OKGroupAccounts, currency)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
-// GetMarginBillDetails List all bill details. Pagination is used here. before and after cursor arguments should not be confused with before and after in chronological time.
+// GetMarginBillDetails List all bill details. Pagination is used here.
+// before and after cursor arguments should not be confused with before and after in chronological time.
 // Most paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
-func (o *OKGroup) GetMarginBillDetails(request GetAccountBillDetailsRequest) (resp []GetSpotBillDetailsForCurrencyResponse, _ error) {
-	urlValues := url.Values{}
-	if request.Type > 0 {
-		urlValues.Set("type", strconv.FormatInt(request.Type, 10))
-	}
-	if len(request.Currency) > 0 {
-		urlValues.Set("currency", request.Currency)
-	}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupAccounts, request.Currency, okGroupLedger, parameters)
+func (o *OKGroup) GetMarginBillDetails(request GetMarginBillDetailsRequest) (resp []GetSpotBillDetailsForCurrencyResponse, _ error) {
+	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupAccounts, request.InstrumentID, OKGroupLedger, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
-// GetMarginAccountSettings Get all information of the margin trading account, including the maximum loan amount, interest rate, and maximum leverage.
+// GetMarginAccountSettings Get all information of the margin trading account,
+// including the maximum loan amount, interest rate, and maximum leverage.
 func (o *OKGroup) GetMarginAccountSettings(currency string) (resp []GetMarginAccountSettingsResponse, _ error) {
 	var requestURL string
 	if len(currency) > 0 {
-		requestURL = fmt.Sprintf("%v/%v/%v", okGroupAccounts, currency, okGroupGetMarketAvailability)
+		requestURL = fmt.Sprintf("%v/%v/%v", OKGroupAccounts, currency, okGroupGetMarketAvailability)
 	} else {
-		requestURL = fmt.Sprintf("%v/%v", okGroupAccounts, okGroupGetMarketAvailability)
+		requestURL = fmt.Sprintf("%v/%v", OKGroupAccounts, okGroupGetMarketAvailability)
 	}
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
-// GetMarginLoanHistory Get loan history of the margin trading account. Pagination is used here. before and after cursor arguments should not be confused with before and after in chronological time.
+// GetMarginLoanHistory Get loan history of the margin trading account.
+// Pagination is used here. before and after cursor arguments should not be confused with before and after in chronological time.
 // Most paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetMarginLoanHistory(request GetMarginLoanHistoryRequest) (resp []GetMarginLoanHistoryResponse, _ error) {
 	var requestURL string
 	if len(request.InstrumentID) > 0 {
-		requestURL = fmt.Sprintf("%v/%v/%v", okGroupAccounts, request.InstrumentID, okGroupGetLoan)
+		requestURL = fmt.Sprintf("%v/%v/%v", OKGroupAccounts, request.InstrumentID, okGroupGetLoan)
 	} else {
-		requestURL = fmt.Sprintf("%v/%v", okGroupAccounts, okGroupGetLoan)
+		requestURL = fmt.Sprintf("%v/%v", OKGroupAccounts, okGroupGetLoan)
 	}
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
 // OpenMarginLoan Borrowing tokens in a margin trading account.
 func (o *OKGroup) OpenMarginLoan(request OpenMarginLoanRequest) (resp OpenMarginLoanResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, okGroupGetLoan)
+	requestURL := fmt.Sprintf("%v/%v", OKGroupAccounts, okGroupGetLoan)
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, requestURL, request, &resp, true)
 }
 
 // RepayMarginLoan Repaying tokens in a margin trading account.
 func (o *OKGroup) RepayMarginLoan(request RepayMarginLoanRequest) (resp RepayMarginLoanResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, okGroupGetRepayment)
+	requestURL := fmt.Sprintf("%v/%v", OKGroupAccounts, okGroupGetRepayment)
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, requestURL, request, &resp, true)
 }
 
 // PlaceMarginOrder OKEx API only supports limit and market orders (more orders will become available in the future).
 // You can place an order only if you have enough funds. Once your order is placed, the amount will be put on hold.
 func (o *OKGroup) PlaceMarginOrder(request PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, okGroupOrders, request, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, OKGroupOrders, request, &resp, true)
 }
 
 // PlaceMultipleMarginOrders Place multiple orders for specific trading pairs (up to 4 trading pairs, maximum 4 orders each)
@@ -624,7 +496,7 @@ func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (ma
 		}
 	}
 
-	err := o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, okGroupBatchOrders, request, &resp, true)
+	err := o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, OKGroupBatchOrders, request, &resp, true)
 	if err != nil {
 		return resp, []error{err}
 	}
@@ -646,7 +518,7 @@ func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (ma
 
 // CancelMarginOrder Cancelling an unfilled order.
 func (o *OKGroup) CancelMarginOrder(request CancelSpotOrderRequest) (resp CancelSpotOrderResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupCancelOrders, request.OrderID)
+	requestURL := fmt.Sprintf("%v/%v", OKGroupCancelOrders, request.OrderID)
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, requestURL, request, &resp, true)
 }
 
@@ -657,7 +529,7 @@ func (o *OKGroup) CancelMultipleMarginOrders(request CancelMultipleSpotOrdersReq
 		return resp, []error{errors.New("maximum 4 order cancellations for each pair")}
 	}
 
-	err := o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, okGroupCancelBatchOrders, []CancelMultipleSpotOrdersRequest{request}, &resp, true)
+	err := o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, OKGroupCancelBatchOrders, []CancelMultipleSpotOrdersRequest{request}, &resp, true)
 	if err != nil {
 		return resp, []error{err}
 	}
@@ -679,682 +551,37 @@ func (o *OKGroup) CancelMultipleMarginOrders(request CancelMultipleSpotOrdersReq
 
 // GetMarginOrders List your orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetMarginOrders(request GetSpotOrdersRequest) (resp []GetSpotOrderResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("instrument_id", request.InstrumentID)
-	urlValues.Set("status", request.Status)
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v?%v", okGroupOrders, urlValues.Encode())
+	requestURL := fmt.Sprintf("%v%v", OKGroupOrders, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
 // GetMarginOpenOrders List all your current open orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetMarginOpenOrders(request GetSpotOpenOrdersRequest) (resp []GetSpotOrderResponse, _ error) {
-	urlValues := url.Values{}
-	if len(request.InstrumentID) > 0 {
-		urlValues.Set("instrument_id", request.InstrumentID)
-	}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v%v", okGroupPendingOrders, parameters)
+	requestURL := fmt.Sprintf("%v%v", OKGroupPendingOrders, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
 // GetMarginOrder Get order details by order ID.
 func (o *OKGroup) GetMarginOrder(request GetSpotOrderRequest) (resp GetSpotOrderResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("instrument_id", request.InstrumentID)
-	requestURL := fmt.Sprintf("%v/%v?%v", okGroupOrders, request.OrderID, urlValues.Encode())
+	requestURL := fmt.Sprintf("%v/%v%v", OKGroupOrders, request.OrderID, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, request, &resp, true)
 }
 
-// GetMarginTransactionDetails Get details of the recent filled orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
+// GetMarginTransactionDetails Get details of the recent filled orders. Cursor pagination is used.
+// All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetMarginTransactionDetails(request GetSpotTransactionDetailsRequest) (resp []GetSpotTransactionDetailsResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("order_id", strconv.FormatInt(request.OrderID, 10))
-	urlValues.Set("instrument_id", request.InstrumentID)
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v?%v", okGroupGetSpotTransactionDetails, urlValues.Encode())
+	requestURL := fmt.Sprintf("%v%v", OKGroupGetSpotTransactionDetails, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
-// -------------------------------------Futures------------------------------------------
-
-// GetFuturesPostions Get the information of all holding positions in futures trading.Due to high energy consumption, you are advised to capture data with the "Futures Account of a Currency" API instead.
-func (o *OKGroup) GetFuturesPostions() (resp GetFuturesPositionsResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, okGroupFuturePosition, nil, &resp, true)
-}
-
-// GetFuturesPostionsForCurrency Get the information of holding positions of a contract.
-func (o *OKGroup) GetFuturesPostionsForCurrency(instrumentID string) (resp GetFuturesPositionsForCurrencyResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", instrumentID, okGroupFuturePosition)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesAccountOfAllCurrencies Get the futures account info of all token.Due to high energy consumption, you are advised to capture data with the "Futures Account of a Currency" API instead.
-func (o *OKGroup) GetFuturesAccountOfAllCurrencies() (resp FuturesAccountForAllCurrenciesResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, okGroupAccounts, nil, &resp, true)
-}
-
-// GetFuturesAccountOfACurrency Get the futures account info of a token.
-func (o *OKGroup) GetFuturesAccountOfACurrency(instrumentID string) (resp FuturesCurrencyData, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, instrumentID)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesLeverage Get the leverage of the futures account
-func (o *OKGroup) GetFuturesLeverage(instrumentID string) (resp GetFuturesLeverageResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, instrumentID, okGroupFutureLeverage)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// SetFuturesLeverage Adjusting the leverage for futures account。
-// Cross margin request requirements:  {"leverage":"10"}
-// Fixed margin request requirements: {"instrument_id":"BTC-USD-180213","direction":"long","leverage":"10"}
-func (o *OKGroup) SetFuturesLeverage(request SetFuturesLeverageRequest) (resp SetFuturesLeverageResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, request.Currency, okGroupFutureLeverage)
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupFuturesSubsection, requestURL, request, &resp, true)
-}
-
-// GetFuturesBillDetails Shows the account’s historical coin in flow and out flow.
-// All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
-func (o *OKGroup) GetFuturesBillDetails(request GetSpotBillDetailsForCurrencyRequest) (resp []GetSpotBillDetailsForCurrencyResponse, _ error) {
-	urlValues := url.Values{}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
+// FormatParameters Formats URL parameters, useful for optional parameters due to OKEX signature check
+func FormatParameters(request interface{}) (parameters string) {
+	v, err := query.Values(request)
+	if err != nil {
+		log.Errorf("Could not parse %v to URL values. Check that the type has url fields", reflect.TypeOf(request).Name())
+		return
 	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupAccounts, request.Currency, okGroupLedger, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// PlaceFuturesOrder OKEx futures trading only supports limit orders.
-// You can place an order only if you have enough funds. Once your order is placed, the amount will be put on hold in the order lifecycle.
-// The assets and amount on hold depends on the order's specific type and parameters.
-func (o *OKGroup) PlaceFuturesOrder(request PlaceFuturesOrderRequest) (resp PlaceFuturesOrderResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupFuturesSubsection, okGroupFutureOrder, request, &resp, true)
-}
-
-// PlaceFuturesOrderBatch Batch contract placing order operation.
-func (o *OKGroup) PlaceFuturesOrderBatch(request PlaceFuturesOrderBatchRequest) (resp PlaceFuturesOrderBatchResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupFuturesSubsection, okGroupOrders, request, &resp, true)
-}
-
-// CancelFuturesOrder Cancelling an unfilled order.
-func (o *OKGroup) CancelFuturesOrder(request CancelFuturesOrderRequest) (resp CancelFuturesOrderResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupCancelOrder, request.InstrumentID, request.OrderID)
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupFuturesSubsection, requestURL, request, &resp, true)
-}
-
-// CancelFuturesOrderBatch With best effort, cancel all open orders.
-func (o *OKGroup) CancelFuturesOrderBatch(request CancelMultipleSpotOrdersRequest) (resp CancelMultipleSpotOrdersResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupCancelBatchOrders, request.InstrumentID)
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupFuturesSubsection, requestURL, request, &resp, true)
-}
-
-// GetFuturesOrderList List your orders. Cursor pagination is used.
-// All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
-func (o *OKGroup) GetFuturesOrderList(request GetFuturesOrdersListRequest) (resp GetFuturesOrderListResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("status", strconv.FormatInt(request.Status, 10))
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v/%v?%v", okGroupOrders, request.InstrumentID, urlValues.Encode())
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesOrderDetails Get order details by order ID.
-func (o *OKGroup) GetFuturesOrderDetails(request GetFuturesOrderDetailsRequest) (resp GetFuturesOrderDetailsResponseData, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupOrders, request.InstrumentID, request.OrderID)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesTransactionDetails  Get details of the recent filled orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
-func (o *OKGroup) GetFuturesTransactionDetails(request GetFuturesTransactionDetailsRequest) (resp []GetFuturesTransactionDetailsResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("order_id", strconv.FormatInt(request.OrderID, 10))
-	urlValues.Set("instrument_id", request.InstrumentID)
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v?%v", okGroupGetSpotTransactionDetails, urlValues.Encode())
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesContractInformation Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
-func (o *OKGroup) GetFuturesContractInformation() (resp []GetFuturesContractInformationResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, okGroupInstruments, nil, &resp, false)
-}
-
-// GetFuturesOrderBook List all contracts. This request does not support pagination. The full list will be returned for a request.
-func (o *OKGroup) GetFuturesOrderBook(request GetFuturesOrderBookRequest) (resp GetFuturesOrderBookResponse, _ error) {
-	urlValues := url.Values{}
-	if request.Size > 0 {
-		urlValues.Set("size", strconv.FormatInt(request.Size, 10))
-	}
-	urlValues.Set("instrument_id", request.InstrumentID)
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupGetSpotOrderBook, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetAllFuturesTokenInfo Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all contracts.
-func (o *OKGroup) GetAllFuturesTokenInfo() (resp []GetFuturesTokenInfoResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupInstruments, okGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesTokenInfoForCurrency Get the last traded price, best bid/ask price, 24 hour trading volume and more info of a contract.
-func (o *OKGroup) GetFuturesTokenInfoForCurrency(instrumentID string) (resp GetFuturesTokenInfoResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesFilledOrder Get the recent 300 transactions of all contracts. Pagination is not supported here.
-// The whole book will be returned for one request. WebSocket is recommended here.
-func (o *OKGroup) GetFuturesFilledOrder(request GetFuturesFilledOrderRequest) (resp []GetFuturesFilledOrdersResponse, _ error) {
-	urlValues := url.Values{}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupTrades, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
-func (o *OKGroup) GetFuturesMarketData(request GetFuturesMarketDateRequest) (resp GetFuturesMarketDataResponse, _ error) {
-	urlValues := url.Values{}
-	if len(request.Start) > 0 {
-		urlValues.Set("start", request.Start)
-	}
-	if len(request.End) > 0 {
-		urlValues.Set("end", request.End)
-	}
-	if request.Granularity > 0 {
-		urlValues.Set("granularity", strconv.FormatInt(request.Granularity, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupGetSpotMarketData, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesHoldAmount Get the number of futures with hold.
-func (o *OKGroup) GetFuturesHoldAmount(instrumentID string) (resp GetFuturesHoldAmountResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, instrumentID, okGroupFutureHolds)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
-// GetFuturesIndices Get Indices of tokens. This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetFuturesIndices(instrumentID string) (resp GetFuturesIndicesResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupIndices)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, false)
-}
-
-// GetFuturesExchangeRates Get the fiat exchange rates. This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetFuturesExchangeRates() (resp GetFuturesExchangeRatesResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, okGroupRate, nil, &resp, false)
-}
-
-// GetFuturesEstimatedDeliveryPrice the estimated delivery price. It is available 3 hours before delivery.
-// This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetFuturesEstimatedDeliveryPrice(instrumentID string) (resp GetFuturesEstimatedDeliveryPriceResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupEsimtatedPrice)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, false)
-}
-
-// GetFuturesOpenInterests Get the open interest of a contract. This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetFuturesOpenInterests(instrumentID string) (resp GetFuturesOpenInterestsResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupOpenInterest)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, false)
-}
-
-// GetFuturesCurrentPriceLimit The maximum buying price and the minimum selling price of the contract.
-// This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetFuturesCurrentPriceLimit(instrumentID string) (resp GetFuturesCurrentPriceLimitResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupPriceLimit)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, false)
-}
-
-// GetFuturesCurrentMarkPrice The maximum buying price and the minimum selling price of the contract.
-// This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetFuturesCurrentMarkPrice(instrumentID string) (resp GetFuturesCurrentMarkPriceResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupMarkPrice)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, false)
-}
-
-// GetFuturesForceLiquidatedOrders Get force liquidated orders. This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetFuturesForceLiquidatedOrders(request GetFuturesForceLiquidatedOrdersRequest) (resp []GetFuturesForceLiquidatedOrdersResponse, _ error) {
-	urlValues := url.Values{}
-	if len(request.Status) > 0 {
-		urlValues.Set("status", request.Status)
-	}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupLiquidation, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, false)
-}
-
-// GetFuturesTagPrice Get the tag price. This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetFuturesTagPrice(instrumentID string) (resp GetFuturesTagPriceResponse, _ error) {
-	// OKEX documentation is missing for this endpoint. Guessing "tag_price" for the URL results in 404
-	return GetFuturesTagPriceResponse{}, common.ErrNotYetImplemented
-}
-
-// -----------------------------------Perpetual-Swap-----------------------------------
-
-// GetSwapPostions Get the information of all holding positions in swap trading.
-// Due to high energy consumption, you are advised to capture data with the "Swap Account of a Currency" API instead.
-func (o *OKGroup) GetSwapPostions() (resp []GetSwapPostionsResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okGroupFuturePosition, nil, &resp, true)
-}
-
-// GetSwapPostionsForContract Get the information of holding positions of a contract.
-func (o *OKGroup) GetSwapPostionsForContract(instrumentID string) (resp GetSwapPostionsResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", instrumentID, okGroupFuturePosition)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapAccountOfAllCurrency Get the perpetual swap account info of a token.
-// Margin ratio set as 10,000 when users have no open position.
-func (o *OKGroup) GetSwapAccountOfAllCurrency() (resp GetSwapAccountOfAllCurrencyResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okGroupAccounts, nil, &resp, true)
-}
-
-// GetSwapAccountSettingsOfAContract Get leverage level and margin mode of a contract.
-func (o *OKGroup) GetSwapAccountSettingsOfAContract(instrumentID string) (resp GetSwapAccountSettingsOfAContractResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, instrumentID, okGroupSettings)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// SetSwapLeverageLevelOfAContract Setting the leverage level of a contract
-// TODO this returns invalid parameters, but matches spec. Unsure how to fix
-func (o *OKGroup) SetSwapLeverageLevelOfAContract(request SetSwapLeverageLevelOfAContractRequest) (resp SetSwapLeverageLevelOfAContractResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, request.InstrumentID, okGroupFutureLeverage)
-	request.InstrumentID = ""
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupSwapSubsection, requestURL, request, &resp, true)
-}
-
-// GetSwapBillDetails Shows the account’s historical coin in flow and out flow.
-// All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
-func (o *OKGroup) GetSwapBillDetails(request GetSpotBillDetailsForCurrencyRequest) (resp []GetSwapBillDetailsResponse, _ error) {
-	urlValues := url.Values{}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupAccounts, request.Currency, okGroupLedger, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// PlaceSwapOrder OKEx perpetual swap trading only supports limit orders，USD as quote currency for orders.
-// You can place an order only if you have enough funds. Once your order is placed, the amount will be put on hold in the order lifecycle.
-// The assets and amount on hold depends on the order's specific type and parameters.
-func (o *OKGroup) PlaceSwapOrder(request PlaceSwapOrderRequest) (resp PlaceSwapOrderResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupSwapSubsection, okGroupFutureOrder, request, &resp, true)
-}
-
-// PlaceMultipleSwapOrders Batch contract placing order operation.
-func (o *OKGroup) PlaceMultipleSwapOrders(request PlaceMultipleSwapOrdersRequest) (resp PlaceMultipleSwapOrdersResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupSwapSubsection, okGroupOrders, request, &resp, true)
-}
-
-// CancelSwapOrder Cancelling an unfilled order
-func (o *OKGroup) CancelSwapOrder(request CancelSwapOrderRequest) (resp CancelSwapOrderResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupCancelOrder, request.InstrumentID, request.OrderID)
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// CancelMultipleSwapOrders With best effort, cancel all open orders.
-func (o *OKGroup) CancelMultipleSwapOrders(request CancelMultipleSwapOrdersRequest) (resp CancelMultipleSwapOrdersResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupCancelBatchOrders, request.InstrumentID)
-	request.InstrumentID = ""
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupSwapSubsection, requestURL, request, &resp, true)
-}
-
-// GetSwapOrderList List your orders. Cursor pagination is used.
-// All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
-func (o *OKGroup) GetSwapOrderList(request GetSwapOrderListRequest) (resp GetSwapOrderListResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("status", strconv.FormatInt(request.Status, 10))
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v/%v?%v", okGroupOrders, request.InstrumentID, urlValues.Encode())
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapOrderDetails Get order details by order ID.
-func (o *OKGroup) GetSwapOrderDetails(request GetSwapOrderDetailsRequest) (resp GetSwapOrderListResponseData, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupOrders, request.InstrumentID, request.OrderID)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapTransactionDetails Get details of the recent filled orders
-func (o *OKGroup) GetSwapTransactionDetails(request GetSwapTransactionDetailsRequest) (resp []GetSwapTransactionDetailsResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("order_id", request.OrderID)
-	urlValues.Set("instrument_id", request.InstrumentID)
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	requestURL := fmt.Sprintf("%v?%v", okGroupGetSpotTransactionDetails, urlValues.Encode())
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapContractInformation Get market data.
-func (o *OKGroup) GetSwapContractInformation() (resp []GetSwapContractInformationResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okGroupInstruments, nil, &resp, true)
-}
-
-// GetSwapOrderBook Get the charts of the trading pairs.
-func (o *OKGroup) GetSwapOrderBook(request GetSwapOrderBookRequest) (resp GetSwapOrderBookResponse, _ error) {
-	urlValues := url.Values{}
-	if request.Size > 0 {
-		urlValues.Set("size", strconv.FormatFloat(request.Size, 'f', -1, 64))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupDepth, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetAllSwapTokensInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all contracts.
-func (o *OKGroup) GetAllSwapTokensInformation() (resp []GetAllSwapTokensInformationResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupInstruments, okGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapTokensInformationForCurrency Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all contracts.
-func (o *OKGroup) GetSwapTokensInformationForCurrency(instrumentID string) (resp GetAllSwapTokensInformationResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapFilledOrdersData Get details of the recent filled orders
-func (o *OKGroup) GetSwapFilledOrdersData(request *GetSwapFilledOrdersDataRequest) (resp []GetSwapFilledOrdersDataResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("instrument_id", request.InstrumentID)
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupTrades, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapMarketData Get the charts of the trading pairs.
-func (o *OKGroup) GetSwapMarketData(request GetSwapMarketDataRequest) (resp []GetSwapMarketDataResponse, _ error) {
-	urlValues := url.Values{}
-	if len(request.Start) > 0 {
-		urlValues.Set("start", request.Start)
-	}
-	if len(request.End) > 0 {
-		urlValues.Set("end", request.End)
-	}
-	if request.Granularity > 0 {
-		urlValues.Set("granularity", strconv.FormatInt(request.Granularity, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupGetSpotMarketData, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapIndeces Get Indices of tokens.
-func (o *OKGroup) GetSwapIndeces(instrumentID string) (resp GetSwapIndecesResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupIndices)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapExchangeRates Get the fiat exchange rates.
-func (o *OKGroup) GetSwapExchangeRates() (resp GetSwapExchangeRatesResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okGroupRate, nil, &resp, true)
-}
-
-// GetSwapOpenInterest Get the open interest of a contract.
-func (o *OKGroup) GetSwapOpenInterest(instrumentID string) (resp GetSwapExchangeRatesResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupOpenInterest)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapCurrentPriceLimits Get the open interest of a contract.
-func (o *OKGroup) GetSwapCurrentPriceLimits(instrumentID string) (resp GetSwapCurrentPriceLimitsResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupPriceLimit)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapForceLiquidatedOrders Get force liquidated orders.
-func (o *OKGroup) GetSwapForceLiquidatedOrders(request GetSwapForceLiquidatedOrdersRequest) (resp []GetSwapForceLiquidatedOrdersResponse, _ error) {
-	urlValues := url.Values{}
-	if len(request.Status) > 0 {
-		urlValues.Set("status", request.Status)
-	}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupLiquidation, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
-}
-
-// GetSwapOnHoldAmountForOpenOrders Get On Hold Amount for Open Orders.
-func (o *OKGroup) GetSwapOnHoldAmountForOpenOrders(instrumentID string) (resp GetSwapOnHoldAmountForOpenOrdersResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, instrumentID, okGroupFutureHolds)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapNextSettlementTime Get the time of next settlement.
-func (o *OKGroup) GetSwapNextSettlementTime(instrumentID string) (resp GetSwapNextSettlementTimeResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupFundingTime)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapMarkPrice Get the time of next settlement.
-func (o *OKGroup) GetSwapMarkPrice(instrumentID string) (resp GetSwapMarkPriceResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupInstruments, instrumentID, okGroupMarkPrice)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-}
-
-// GetSwapFundingRateHistory Get Funding Rate History.
-func (o *OKGroup) GetSwapFundingRateHistory(request GetSwapFundingRateHistoryRequest) (resp []GetSwapFundingRateHistoryResponse, _ error) {
-	urlValues := url.Values{}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupHistoricalFundingRate, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
-}
-
-// ---------------------------------------ETT---------------------------------------
-
-// GetETT List the assets in ETT account. Get information such as balance, amount on hold/ available.
-func (o *OKGroup) GetETT() (resp []GetETTResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, okGroupAccounts, nil, &resp, true)
-}
-
-// GetETTAccountInformationForCurrency Getting the balance, amount available/on hold of a token in ETT account.
-func (o *OKGroup) GetETTAccountInformationForCurrency(currency string) (resp GetETTResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, currency)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, true)
-}
-
-// GetETTBillsDetails Bills details. All paginated requests return the latest information (newest)
-// as the first page sorted by newest (in chronological time) first
-func (o *OKGroup) GetETTBillsDetails(currency string) (resp []GetETTBillsDetailsResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, currency, okGroupLedger)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, true)
-}
-
-// PlaceETTOrder You can place subscription or redemption orders under ETT trading.
-// You can place an order only if you have enough funds. Once your order is placed,
-// the amount will be put on hold in the order lifecycle.
-// The assets and amount on hold depends on the order's specific type and parameters.
-func (o *OKGroup) PlaceETTOrder(request PlaceETTOrderRequest) (resp PlaceETTOrderResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodPost, okGroupETTSubsection, okGroupOrders, nil, &resp, true)
-}
-
-// CancelETTOrder Cancel an unfilled order.
-func (o *OKGroup) CancelETTOrder(orderID string) (resp PlaceETTOrderResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupOrders, orderID)
-	return resp, o.SendHTTPRequest(http.MethodDelete, okGroupETTSubsection, requestURL, nil, &resp, true)
-}
-
-// GetETTOrderList List your orders. Cursor pagination is used. All paginated requests return the latest information
-// (newest) as the first page sorted by newest (in chronological time) first.
-func (o *OKGroup) GetETTOrderList(request GetETTOrderListRequest) (resp []GetETTOrderListResponse, _ error) {
-	urlValues := url.Values{}
-	urlValues.Set("ett", request.ETT)
-	urlValues.Set("type", strconv.FormatInt(request.Type, 10))
-	if request.Status > 0 {
-		urlValues.Set("status", strconv.FormatInt(request.Status, 10))
-	}
-	if request.From > 0 {
-		urlValues.Set("from", strconv.FormatInt(request.From, 10))
-	}
-	if request.To > 0 {
-		urlValues.Set("to", strconv.FormatInt(request.To, 10))
-	}
-	if request.Limit > 0 {
-		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
-	}
-	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v%v", okGroupOrders, parameters)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, true)
-}
-
-// GetETTOrderDetails Get order details by order ID.
-func (o *OKGroup) GetETTOrderDetails(orderID string) (resp GetETTOrderListResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupOrders, orderID)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, true)
-}
-
-// GetETTConstituents Get ETT Constituents.This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetETTConstituents(ett string) (resp GetETTConstituentsResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupConstituents, ett)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, false)
-}
-
-// GetETTSettlementPriceHistory Get ETT settlement price history. This is a public endpoint, no identity verification is needed.
-func (o *OKGroup) GetETTSettlementPriceHistory(ett string) (resp []GetETTSettlementPriceHistoryResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupDefinePrice, ett)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, false)
-}
-
-// -------------------------------------------------------------------------------------------------------
-
-// Formats URL parameters, useful for optional paramters due to OKEX signature check
-func formatParameters(urlValues url.Values) (parameters string) {
-	urlEncodedValues := urlValues.Encode()
+	urlEncodedValues := v.Encode()
 	if len(urlEncodedValues) > 0 {
 		parameters = fmt.Sprintf("?%v", urlEncodedValues)
 	}
@@ -1407,13 +634,13 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 
 	path := o.APIUrl + requestType + o.APIVersion + requestPath
 	if o.Verbose {
-		log.Debugf("Sending %v request to %s with params \n", requestType, path)
+		log.Debugf("Sending %v request to %s \n", requestType, path)
 	}
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	if authenticated {
-		signPath := fmt.Sprintf("/%v%v%v%v", OkGroupAPIPath, requestType, o.APIVersion, requestPath)
+		signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath, requestType, o.APIVersion, requestPath)
 		hmac := common.GetHMAC(common.HashSHA256, []byte(iso+httpMethod+signPath+string(payload)), []byte(o.APISecret))
 		base64 := common.Base64Encode(hmac)
 		headers["OK-ACCESS-KEY"] = o.APIKey
@@ -1447,7 +674,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 				o.ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
 		}
 		if !errCap.Result {
-			return errors.New("Unspecified error occured")
+			return errors.New("Unspecified error occurred")
 		}
 		if errCap.Code > 0 {
 			return fmt.Errorf("SendHTTPRequest error - %s",

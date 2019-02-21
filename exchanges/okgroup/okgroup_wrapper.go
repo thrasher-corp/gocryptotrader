@@ -2,6 +2,7 @@ package okgroup
 
 import (
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -11,7 +12,11 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Start starts the OKEX go routine
+// Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
+// Therefore this OKGroup_Wrapper can be shared between OKEX and OKCoin.
+// When circumstances change, wrapper funcs can be split appropriately
+
+// Start starts the OKGroup go routine
 func (o *OKGroup) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -30,7 +35,7 @@ func (o *OKGroup) Run() {
 
 	prods, err := o.GetSpotTokenPairDetails()
 	if err != nil {
-		log.Errorf("OKEX failed to obtain available spot instruments. Err: %d", err)
+		log.Errorf("%v failed to obtain available spot instruments. Err: %d", o.Name, err)
 		return
 	}
 
@@ -41,24 +46,81 @@ func (o *OKGroup) Run() {
 
 	err = o.UpdateCurrencies(pairs, false, false)
 	if err != nil {
-		log.Errorf("OKEX failed to update available currencies. Err: %s", err)
+		log.Errorf("%v failed to update available currencies. Err: %s", o.Name, err)
 		return
 	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKGroup) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	return ticker.Price{}, common.ErrNotYetImplemented
+func (o *OKGroup) UpdateTicker(p pair.CurrencyPair, assetType string) (tickerData ticker.Price, err error) {
+	resp, err := o.GetSpotAllTokenPairsInformationForCurrency(exchange.FormatExchangeCurrency(o.Name, p).String())
+	if err != nil {
+		return
+	}
+	respTime, err := time.Parse(time.RFC3339Nano, resp.Timestamp)
+	if err != nil {
+		log.Warnf("Exchange %v Func %v Currency %v Could not parse date to unix with value of %v",
+			o.Name, "UpdateTicker", exchange.FormatExchangeCurrency(o.Name, p).String(), resp.Timestamp)
+	}
+	tickerData = ticker.Price{
+		Ask:          resp.BestAsk,
+		Bid:          resp.BestBid,
+		CurrencyPair: exchange.FormatExchangeCurrency(o.Name, p).String(),
+		High:         resp.High24h,
+		Last:         resp.Last,
+		LastUpdated:  respTime,
+		Low:          resp.Low24h,
+		Pair:         p,
+		Volume:       resp.BaseVolume24h,
+	}
+
+	ticker.ProcessTicker(o.Name, p, tickerData, assetType)
+
+	return
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (o *OKGroup) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	return ticker.Price{}, common.ErrNotYetImplemented
+func (o *OKGroup) GetTickerPrice(p pair.CurrencyPair, assetType string) (tickerData ticker.Price, err error) {
+	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
+	if err != nil {
+		return o.UpdateTicker(p, assetType)
+	}
+	return
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (o *OKGroup) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	return orderbook.Base{}, common.ErrNotYetImplemented
+func (o *OKGroup) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (resp orderbook.Base, err error) {
+	_, err = o.GetSpotOrderBook(GetSpotOrderBookRequest{
+		InstrumentID: exchange.FormatExchangeCurrency(o.Name, currency).String(),
+	})
+	if err != nil {
+		return
+	}
+	var asks []orderbook.Item
+	var bids []orderbook.Item
+	/*for _, respAsk := range getSpotOrderBookResponse.Asks {
+		asks = append(asks, orderbook.Item{
+			Amount: respAsk[0],
+			Price:  respAsk[2],
+		})
+	}
+
+	for _, respBid := range resp.Bids {
+		bids = append(asks, orderbook.Item{
+			Amount: respAsk[3],
+			Price:  respAsk[0],
+		})
+	}
+	*/
+	resp = orderbook.Base{
+		Asks:         asks,
+		Bids:         bids,
+		Pair:         currency,
+		CurrencyPair: exchange.FormatExchangeCurrency(o.Name, currency).String(),
+		LastUpdated:  time.Now(),
+		AssetType:    assetType,
+	}
+	return
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -66,8 +128,7 @@ func (o *OKGroup) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 	return orderbook.Base{}, common.ErrNotYetImplemented
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
-// OKEX exchange
+// GetAccountInfo retrieves balances for all enabled currencies
 func (o *OKGroup) GetAccountInfo() (exchange.AccountInfo, error) {
 	return exchange.AccountInfo{}, common.ErrNotYetImplemented
 }

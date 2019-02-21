@@ -19,10 +19,6 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-const (
-	okexDefaultWebsocketURL = "wss://real.okex.com:10442/ws/v3"
-)
-
 func (o *OKGroup) writeToWebsocket(message string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()

@@ -80,11 +80,11 @@ type WithdrawalHistoryResponse struct {
 
 // GetAccountBillDetailsRequest request data for GetAccountBillDetailsRequest
 type GetAccountBillDetailsRequest struct {
-	Currency string `json:"currency"` // [optional] token ,information of all tokens will be returned if the field is left blank
-	Type     int64  `json:"type"`     // [optional] 1:deposit 2:withdrawal 13:cancel withdrawal 18: into futures account 19: out of futures account 20:into sub account 21:out of sub account 28: claim 29: into ETT account 30: out of ETT account 31: into C2C account 32:out of C2C account 33: into margin account 34: out of margin account 37: into spot account 38: out of spot account
-	From     int64  `json:"from"`     // [optional] you would request pages after this page.
-	To       int64  `json:"to"`       // [optional] you would request pages before this page
-	Limit    int64  `json:"limit"`    // [optional] Number of results per request. Maximum 100. (default 100)
+	Currency string `url:"currency,omitempty"` // [optional] token ,information of all tokens will be returned if the field is left blank
+	Type     int64  `url:"type,omitempty"`     // [optional] 1:deposit 2:withdrawal 13:cancel withdrawal 18: into futures account 19: out of futures account 20:into sub account 21:out of sub account 28: claim 29: into ETT account 30: out of ETT account 31: into C2C account 32:out of C2C account 33: into margin account 34: out of margin account 37: into spot account 38: out of spot account
+	From     int64  `url:"from,omitempty"`     // [optional] you would request pages after this page.
+	To       int64  `url:"to,omitempty"`       // [optional] you would request pages before this page
+	Limit    int64  `url:"limit,omitempty"`    // [optional] Number of results per request. Maximum 100. (default 100)
 }
 
 // GetAccountBillDetailsResponse response data for GetAccountBillDetails
@@ -129,10 +129,10 @@ type GetSpotTradingAccountResponse struct {
 
 // GetSpotBillDetailsForCurrencyRequest request data for GetSpotBillDetailsForCurrency
 type GetSpotBillDetailsForCurrencyRequest struct {
-	Currency string `json:"currency"`               // [required] token
-	From     int64  `json:"from,string,omitempty"`  // [optional] request page before(newer) this id.
-	To       int64  `json:"to,string,omitempty"`    // [optional] request page after(older) this id.
-	Limit    int64  `json:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100.(default 100)
+	Currency string `url:"-"`                      // [required] token
+	From     int64  `url:"from,string,omitempty"`  // [optional] request page before(newer) this id.
+	To       int64  `url:"to,string,omitempty"`    // [optional] request page after(older) this id.
+	Limit    int64  `url:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100.(default 100)
 }
 
 // GetSpotBillDetailsForCurrencyResponse response data for GetSpotBillDetailsForCurrency
@@ -200,12 +200,12 @@ type CancelMultipleSpotOrdersResponse struct {
 
 // GetSpotOrdersRequest request data for GetSpotOrders
 type GetSpotOrdersRequest struct {
-	Status string `json:"status"` // list the status of all orders (all, open, part_filled, canceling, filled, cancelled，ordering,failure)
+	Status string `url:"status"` // list the status of all orders (all, open, part_filled, canceling, filled, cancelled，ordering,failure)
 	// （Multiple status separated by '|'，and '|' need encode to ' %7C'）
-	InstrumentID string `json:"instrument_id"`          // trading pair ,information of all trading pair will be returned if the field is left blank
-	From         int64  `json:"from,string,omitempty"`  // [optional] request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
-	To           int64  `json:"to,string,omitempty"`    // [optional] request page after (older) this id.
-	Limit        int64  `json:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100. (default 100)
+	InstrumentID string `url:"instrument_id"`          // trading pair ,information of all trading pair will be returned if the field is left blank
+	From         int64  `url:"from,string,omitempty"`  // [optional] request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
+	To           int64  `url:"to,string,omitempty"`    // [optional] request page after (older) this id.
+	Limit        int64  `url:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100. (default 100)
 }
 
 // GetSpotOrderResponse response data for GetSpotOrders
@@ -233,17 +233,17 @@ type GetSpotOpenOrdersRequest struct {
 
 // GetSpotOrderRequest request data for GetSpotOrder
 type GetSpotOrderRequest struct {
-	OrderID      int64  `json:"order_id,string"` // [required] order ID
-	InstrumentID string `json:"instrument_id"`   // [required]trading pair
+	OrderID      int64  `url:"-"`             // [required] order ID
+	InstrumentID string `url:"instrument_id"` // [required]trading pair
 }
 
 // GetSpotTransactionDetailsRequest request data for GetSpotTransactionDetails
 type GetSpotTransactionDetailsRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required]list all transaction details of this instrument_id.
-	OrderID      int64  `json:"order_id,string"`        // [required]list all transaction details of this order_id.
-	From         int64  `json:"from,string,omitempty"`  // [optional] request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
-	To           int64  `json:"to,string,omitempty"`    // [optional] request page after (older) this id.
-	Limit        int64  `json:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100. (default 100)
+	InstrumentID string `url:"instrument_id"`          // [required]list all transaction details of this instrument_id.
+	OrderID      int64  `url:"order_id,string"`        // [required]list all transaction details of this order_id.
+	From         int64  `url:"from,string,omitempty"`  // [optional] request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
+	To           int64  `url:"to,string,omitempty"`    // [optional] request page after (older) this id.
+	Limit        int64  `url:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100. (default 100)
 }
 
 // GetSpotTransactionDetailsResponse response data for GetSpotTransactionDetails
@@ -271,9 +271,9 @@ type GetSpotTokenPairDetailsResponse struct {
 
 // GetSpotOrderBookRequest request data for GetSpotOrderBook
 type GetSpotOrderBookRequest struct {
-	Size         int64   `json:"size,string,omitempty"`  // [optional] number of results per request. Maximum 200
-	Depth        float64 `json:"depth,string,omitempty"` // [optional] the aggregation of the book. e.g . 0.1,0.001
-	InstrumentID string  `json:"instrument_id"`          // [required] trading pairs
+	Size         int64   `url:"size,string,omitempty"`  // [optional] number of results per request. Maximum 200
+	Depth        float64 `url:"depth,string,omitempty"` // [optional] the aggregation of the book. e.g . 0.1,0.001
+	InstrumentID string  `url:"-"`                      // [required] trading pairs
 }
 
 // GetSpotOrderBookResponse response data for GetSpotOrderBook
@@ -285,24 +285,24 @@ type GetSpotOrderBookResponse struct {
 
 // GetSpotTokenPairsInformationResponse response data for GetSpotTokenPairsInformation
 type GetSpotTokenPairsInformationResponse struct {
-	BaseVolume24h  string `json:"base_volume_24h"`  // 24 trading volume of the base currency
-	BestAsk        string `json:"best_ask"`         // best ask price
-	BestBid        string `json:"best_bid"`         // best bid price
-	High24h        string `json:"high_24h"`         // 24 hour high
-	InstrumentID   string `json:"instrument_id"`    // trading pair
-	Last           string `json:"last"`             // last traded price
-	Low24h         string `json:"low_24h"`          // 24 hour low
-	Open24h        string `json:"open_24h"`         // 24 hour open
-	QuoteVolume24h string `json:"quote_volume_24h"` // 24 trading volume of the quote currency
-	Timestamp      string `json:"timestamp"`
+	BaseVolume24h  float64 `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
+	BestAsk        float64 `json:"best_ask,string"`         // best ask price
+	BestBid        float64 `json:"best_bid,string"`         // best bid price
+	High24h        float64 `json:"high_24h,string"`         // 24 hour high
+	InstrumentID   string  `json:"instrument_id"`           // trading pair
+	Last           float64 `json:"last,string"`             // last traded price
+	Low24h         float64 `json:"low_24h,string"`          // 24 hour low
+	Open24h        float64 `json:"open_24h,string"`         // 24 hour open
+	QuoteVolume24h float64 `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
+	Timestamp      string  `json:"timestamp"`
 }
 
 // GetSpotFilledOrdersInformationRequest request data for GetSpotFilledOrdersInformation
 type GetSpotFilledOrdersInformationRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required] trading pairs
-	From         int64  `json:"from,string,omitempty"`  // [optional] number of results per request. Maximum 100. (default 100)
-	To           int64  `json:"to,string,omitempty"`    // [optional] request page after (older) this id.
-	Limit        int64  `json:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100. (default 100)
+	InstrumentID string `url:"-"`                      // [required] trading pairs
+	From         int64  `url:"from,string,omitempty"`  // [optional] number of results per request. Maximum 100. (default 100)
+	To           int64  `url:"to,string,omitempty"`    // [optional] request page after (older) this id.
+	Limit        int64  `url:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100. (default 100)
 }
 
 // GetSpotFilledOrdersInformationResponse response data for GetSpotFilledOrdersInformation
@@ -316,10 +316,10 @@ type GetSpotFilledOrdersInformationResponse struct {
 
 // GetSpotMarketDataRequest request data for GetSpotMarketData
 type GetSpotMarketDataRequest struct {
-	Start        string `json:"start,omitempty"` // [optional] start time in ISO 8601
-	End          string `json:"end,omitempty"`   // [optional] end time in ISO 8601
-	Granularity  int64  `json:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
-	InstrumentID string `json:"instrument_id"`   // [required] trading pairs
+	Start        string `url:"start,omitempty"` // [optional] start time in ISO 8601
+	End          string `url:"end,omitempty"`   // [optional] end time in ISO 8601
+	Granularity  int64  `url:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
+	InstrumentID string `url:"-"`               // [required] trading pairs
 }
 
 // GetSpotMarketDataResponse response data for GetSpotMarketData
@@ -357,6 +357,15 @@ type GetMarginAccountSettingsResponse struct {
 	InstrumentID string `json:"instrument_id"`
 	ProductID    string `json:"product_id"`
 	Currencies   map[string]MarginAccountSettingsInfo
+}
+
+// GetMarginBillDetailsRequest request data for GetMarginBillDetails
+type GetMarginBillDetailsRequest struct {
+	InstrumentID string `url:"-"`               // [required] trading pair
+	Type         int64  `url:"type,omitempty"`  // [optional] 1:deposit 2:withdrawal 13:cancel withdrawal 18: into futures account 19: out of futures account 20:into sub account 21:out of sub account 28: claim 29: into ETT account 30: out of ETT account 31: into C2C account 32:out of C2C account 33: into margin account 34: out of margin account 37: into spot account 38: out of spot account
+	From         int64  `url:"from,omitempty"`  // [optional] you would request pages after this page.
+	To           int64  `url:"to,omitempty"`    // [optional] you would request pages before this page
+	Limit        int64  `url:"limit,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
 }
 
 // MarginAccountSettingsInfo contains individual currency data
@@ -421,8 +430,6 @@ type RepayMarginLoanResponse struct {
 	RepaymentID int64 `json:"repayment_id"`
 	Result      bool  `json:"result"`
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------
 
 // GetFuturesPositionsResponse response data for GetFuturesPositions
 type GetFuturesPositionsResponse struct {
@@ -596,11 +603,11 @@ type CancelFuturesOrderResponse struct {
 
 // GetFuturesOrdersListRequest request data for GetFutureOrdersList
 type GetFuturesOrdersListRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213”
-	Status       int64  `json:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
-	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	Limit        int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	Status       int64  `url:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
+	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `url:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
 }
 
 // GetFuturesOrderListResponse response data from GetFuturesOrderList
@@ -668,8 +675,8 @@ type GetFuturesContractInformationResponse struct {
 
 // GetFuturesOrderBookRequest request data for GetFuturesOrderBook
 type GetFuturesOrderBookRequest struct {
-	InstrumentID string `json:"instrument_id"` // [required] Contract ID, e.g. “BTC-USD-180213”
-	Size         int64  `json:"size"`          // [optional] The size of the price range (max: 200)
+	InstrumentID string `url:"-"`              // [required] Contract ID, e.g. “BTC-USD-180213”
+	Size         int64  `url:"size,omitempty"` // [optional] The size of the price range (max: 200)
 }
 
 // GetFuturesOrderBookResponse response data for GetFuturesOrderBook
@@ -693,10 +700,10 @@ type GetFuturesTokenInfoResponse struct {
 
 // GetFuturesFilledOrderRequest request data for GetFuturesFilledOrder
 type GetFuturesFilledOrderRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213”
-	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	Limit        int64  `json:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
 }
 
 // GetFuturesFilledOrdersResponse response data for GetFuturesFilledOrders
@@ -710,10 +717,10 @@ type GetFuturesFilledOrdersResponse struct {
 
 // GetFuturesMarketDateRequest retrieves candle data information
 type GetFuturesMarketDateRequest struct {
-	Start        string `json:"start,omitempty"` // [optional] start time in ISO 8601
-	End          string `json:"end,omitempty"`   // [optional] end time in ISO 8601
-	Granularity  int64  `json:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
-	InstrumentID string `json:"instrument_id"`   // [required] trading pairs
+	Start        string `url:"start,omitempty"`       // [optional] start time in ISO 8601
+	End          string `url:"end,omitempty"`         // [optional] end time in ISO 8601
+	Granularity  int64  `url:"granularity,omitempty"` // [optional] The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
+	InstrumentID string `url:"-"`                     // [required] trading pairs
 }
 
 // GetFuturesMarketDataResponse contains candle data from a GetSpotMarketDataRequest
@@ -779,11 +786,11 @@ type GetFuturesCurrentMarkPriceResponse struct {
 
 // GetFuturesForceLiquidatedOrdersRequest request data for GetFuturesForceLiquidatedOrders
 type GetFuturesForceLiquidatedOrdersRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213”
-	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	Limit        int64  `json:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
-	Status       string `json:"status,omitempty"`       // [optional] Status (0:unfilled orders in the recent 7 days 1:filled orders in the recent 7 days)
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
+	Status       string `url:"status,omitempty"`       // [optional] Status (0:unfilled orders in the recent 7 days 1:filled orders in the recent 7 days)
 }
 
 // GetFuturesForceLiquidatedOrdersResponse response data for GetFuturesForceLiquidatedOrders
@@ -802,8 +809,6 @@ type GetFuturesTagPriceResponse struct {
 	InstrumentID string  `json:"instrument_id"`
 	Timestamp    string  `json:"timestamp"`
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------
 
 // GetSwapPostionsResponse response data for GetSwapPostions
 type GetSwapPostionsResponse struct {
@@ -934,7 +939,7 @@ type CancelSwapOrderRequest struct {
 	InstrumentID string `json:"instrument_id"` // [required] Contract ID,e.g. BTC-USD-SWAP
 }
 
-// CancelSwapOrderResponse repsonse data for CancelSwapOrder
+// CancelSwapOrderResponse response data for CancelSwapOrder
 type CancelSwapOrderResponse struct {
 	Result       bool   `json:"result,string"`
 	OrderID      string `json:"order_id"`
@@ -947,7 +952,7 @@ type CancelMultipleSwapOrdersRequest struct {
 	OrderIDs     []int64 `json:"order_ids"`               // [required] ID's of the orders canceled
 }
 
-// CancelMultipleSwapOrdersResponse repsonse data for CancelMultipleSwapOrders
+// CancelMultipleSwapOrdersResponse response data for CancelMultipleSwapOrders
 type CancelMultipleSwapOrdersResponse struct {
 	Result       bool     `json:"result,string"`
 	OrderIDS     []string `json:"order_ids"`
@@ -956,11 +961,11 @@ type CancelMultipleSwapOrdersResponse struct {
 
 // GetSwapOrderListRequest request data for GetSwapOrderList
 type GetSwapOrderListRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213”
-	Status       int64  `json:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
-	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	Limit        int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	Status       int64  `url:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
+	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `url:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
 }
 
 // GetSwapOrderListResponse  response data for GetSwapOrderList
@@ -1028,8 +1033,8 @@ type GetSwapContractInformationResponse struct {
 
 // GetSwapOrderBookRequest request data for GetSwapOrderBook
 type GetSwapOrderBookRequest struct {
-	InstrumentID string  `json:"instrument_id"`
-	Size         float64 `json:"size,string,omitempty"`
+	InstrumentID string  `url:"-"`
+	Size         float64 `url:"size,string,omitempty"`
 }
 
 // GetSwapOrderBookResponse response data for GetSwapOrderBook
@@ -1053,10 +1058,10 @@ type GetAllSwapTokensInformationResponse struct {
 
 // GetSwapFilledOrdersDataRequest request data for GetSwapFilledOrdersData
 type GetSwapFilledOrdersDataRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-SWAP
-	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	Limit        int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-SWAP
+	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `url:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
 }
 
 // GetSwapFilledOrdersDataResponse response data for GetSwapFilledOrdersData
@@ -1070,10 +1075,10 @@ type GetSwapFilledOrdersDataResponse struct {
 
 // GetSwapMarketDataRequest retrieves candle data information
 type GetSwapMarketDataRequest struct {
-	Start        string `json:"start,omitempty"` // [optional] start time in ISO 8601
-	End          string `json:"end,omitempty"`   // [optional] end time in ISO 8601
-	Granularity  int64  `json:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
-	InstrumentID string `json:"instrument_id"`   // [required] trading pairs
+	Start        string `url:"start,omitempty"`       // [optional] start time in ISO 8601
+	End          string `url:"end,omitempty"`         // [optional] end time in ISO 8601
+	Granularity  int64  `url:"granularity,omitempty"` // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
+	InstrumentID string `url:"-"`                     // [required] trading pairs
 }
 
 // GetSwapMarketDataResponse response data for GetSwapMarketData
@@ -1118,11 +1123,11 @@ type GetSwapCurrentPriceLimitsResponse struct {
 
 // GetSwapForceLiquidatedOrdersRequest request data for GetSwapForceLiquidatedOrders
 type GetSwapForceLiquidatedOrdersRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213”
-	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	Limit        int64  `json:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
-	Status       string `json:"status,omitempty"`       // [optional] Status (0:unfilled orders in the recent 7 days 1:filled orders in the recent 7 days)
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
+	Status       string `url:"status,omitempty"`       // [optional] Status (0:unfilled orders in the recent 7 days 1:filled orders in the recent 7 days)
 }
 
 // GetSwapForceLiquidatedOrdersResponse response data for GetSwapForceLiquidatedOrders
@@ -1157,10 +1162,10 @@ type GetSwapMarkPriceResponse struct {
 
 // GetSwapFundingRateHistoryRequest request data for GetSwapFundingRateHistory
 type GetSwapFundingRateHistoryRequest struct {
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-SWAP
-	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	Limit        int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100.
+	InstrumentID string `url:"ins-trument_id"`         // [required] Contract ID, e.g. “BTC-USD-SWAP
+	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `url:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100.
 }
 
 // GetSwapFundingRateHistoryResponse response data for GetSwapFundingRateHistory
@@ -1172,8 +1177,6 @@ type GetSwapFundingRateHistoryResponse struct {
 	FundingTime  string  `json:"funding_time"`
 	FundingFee   float64 `json:"funding_fee,string,omitempty"`
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------
 
 // GetETTResponse response data for GetETT
 type GetETTResponse struct {
@@ -1213,12 +1216,12 @@ type PlaceETTOrderResponse struct {
 
 // GetETTOrderListRequest request data for GetETTOrderList
 type GetETTOrderListRequest struct {
-	ETT    string `json:"ett"`                    //  	[required] list specific ETT order
-	Type   int64  `json:"type"`                   //  	[required]（1: subscription 2: redemption）
-	Status int64  `json:"status,omitempty"`       // [optional]  	List the orders of the status (0:All 1:Unfilled 2:Filled 3:Canceled)
-	From   int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	To     int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
-	Limit  int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100.
+	ETT    string `url:"ett"`                    //  	[required] list specific ETT order
+	Type   int64  `url:"type"`                   //  	[required]（1: subscription 2: redemption）
+	Status int64  `url:"status,omitempty"`       // [optional]  	List the orders of the status (0:All 1:Unfilled 2:Filled 3:Canceled)
+	From   int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To     int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit  int64  `url:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100.
 }
 
 // GetETTOrderListResponse  response data for GetETTOrderList
@@ -1252,8 +1255,6 @@ type GetETTSettlementPriceHistoryResponse struct {
 	Date  string  `json:"date"`
 	Price float64 `json:"price"`
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------
 
 // OrderStatus Holds OKGroup order status values
 var OrderStatus = map[int]string{
