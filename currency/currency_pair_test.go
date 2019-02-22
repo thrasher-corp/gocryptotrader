@@ -164,7 +164,7 @@ func TestDisplay(t *testing.T) {
 		)
 	}
 
-	actual = pair.Display("", false).String()
+	actual = pair.Format("", false).String()
 	expected = "btcusd"
 	if actual != expected {
 		t.Errorf(
@@ -173,7 +173,7 @@ func TestDisplay(t *testing.T) {
 		)
 	}
 
-	actual = pair.Display("~", true).String()
+	actual = pair.Format("~", true).String()
 	expected = "BTC~USD"
 	if actual != expected {
 		t.Errorf(

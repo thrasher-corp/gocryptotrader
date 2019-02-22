@@ -103,7 +103,7 @@ func main() {
 			fiatCurrencies = append(fiatCurrencies, y.Coin)
 		}
 	}
-	err = currency.SeedForiegnExchangeData(fiatCurrencies)
+	err = currency.SeedForeignExchangeData(fiatCurrencies)
 	if err != nil {
 		log.Fatal(err)
 	}

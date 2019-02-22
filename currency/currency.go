@@ -179,8 +179,8 @@ func ConvertCurrency(amount float64, from, to Code) (float64, error) {
 	return system.ConvertCurrency(amount, from, to)
 }
 
-// SeedForiegnExchangeData seeds FX data with the currencies supplied
-func SeedForiegnExchangeData(c Currencies) error {
+// SeedForeignExchangeData seeds FX data with the currencies supplied
+func SeedForeignExchangeData(c Currencies) error {
 	return system.SeedForeignExchangeRatesByCurrencies(c)
 }
 
