@@ -7,24 +7,23 @@ var translations = map[Code]Code{
 	ETH:  XETH,
 	DOGE: XDG,
 	USD:  USDT,
+	XBT:  BTC,
+	XETH: ETH,
+	XDG:  DOGE,
+	USDT: USD,
 }
 
 // GetTranslation returns similar strings for a particular currency
 func GetTranslation(currency Code) (Code, error) {
-	for k, v := range translations {
-		if k == currency {
-			return v, nil
-		}
-
-		if v == currency {
-			return k, nil
-		}
+	val, ok := translations[currency]
+	if !ok {
+		return Code{}, errors.New("no translation found for specified currency")
 	}
-	return Code{}, errors.New("no translation found for specified currency")
+	return val, nil
 }
 
 // HasTranslation returns whether or not a particular currency has a translation
 func HasTranslation(currency Code) bool {
-	_, err := GetTranslation(currency)
-	return (err == nil)
+	_, ok := translations[currency]
+	return ok
 }
