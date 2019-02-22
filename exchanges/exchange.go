@@ -653,7 +653,7 @@ func FormatExchangeCurrency(exchName string, p currency.Pair) currency.Pair {
 	cfg := config.GetConfig()
 	exch, _ := cfg.GetExchangeConfig(exchName)
 
-	return p.Display(exch.RequestCurrencyPairFormat.Delimiter,
+	return p.Format(exch.RequestCurrencyPairFormat.Delimiter,
 		exch.RequestCurrencyPairFormat.Uppercase)
 }
 
@@ -661,7 +661,7 @@ func FormatExchangeCurrency(exchName string, p currency.Pair) currency.Pair {
 // based on the user currency display preferences
 func FormatCurrency(p currency.Pair) currency.Pair {
 	cfg := config.GetConfig()
-	return p.Display(cfg.Currency.CurrencyPairFormat.Delimiter,
+	return p.Format(cfg.Currency.CurrencyPairFormat.Delimiter,
 		cfg.Currency.CurrencyPairFormat.Uppercase)
 }
 
@@ -711,7 +711,7 @@ func (e *Base) SetCurrencies(pairs []currency.Pair, enabledPairs bool) error {
 
 	var newPairs currency.Pairs
 	for x := range pairs {
-		newPairs = append(newPairs, pairs[x].Display(exchCfg.ConfigCurrencyPairFormat.Delimiter,
+		newPairs = append(newPairs, pairs[x].Format(exchCfg.ConfigCurrencyPairFormat.Delimiter,
 			exchCfg.ConfigCurrencyPairFormat.Uppercase))
 	}
 

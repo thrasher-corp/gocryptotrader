@@ -51,9 +51,9 @@ func (p Pair) MarshalJSON() ([]byte, error) {
 	return common.JSONEncode(p.String())
 }
 
-// Display formats and returns the currency based on user preferences,
-// overriding the default String() display
-func (p Pair) Display(delimiter string, uppercase bool) Pair {
+// Format changes the currency based on user preferences overriding the default
+// String() display
+func (p Pair) Format(delimiter string, uppercase bool) Pair {
 	p.Delimiter = delimiter
 
 	if uppercase {
