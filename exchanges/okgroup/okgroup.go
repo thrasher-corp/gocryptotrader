@@ -327,30 +327,34 @@ func (o *OKGroup) CancelSpotOrder(request CancelSpotOrderRequest) (resp CancelSp
 }
 
 // CancelMultipleSpotOrders Cancelling multiple unfilled orders.
-func (o *OKGroup) CancelMultipleSpotOrders(request CancelMultipleSpotOrdersRequest) (map[string][]CancelMultipleSpotOrdersResponse, []error) {
-	resp := make(map[string][]CancelMultipleSpotOrdersResponse)
+func (o *OKGroup) CancelMultipleSpotOrders(request CancelMultipleSpotOrdersRequest) (resp map[string][]CancelMultipleSpotOrdersResponse, err error) {
+	resp = make(map[string][]CancelMultipleSpotOrdersResponse)
 	if len(request.OrderIDs) > 4 {
-		return resp, []error{errors.New("maximum 4 order cancellations for each pair")}
+		return resp, errors.New("maximum 4 order cancellations for each pair")
 	}
 
-	err := o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupCancelBatchOrders, []CancelMultipleSpotOrdersRequest{request}, &resp, true)
+	err = o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupCancelBatchOrders, []CancelMultipleSpotOrdersRequest{request}, &resp, true)
 	if err != nil {
-		return resp, []error{err}
+		return
 	}
 
-	orderErrors := []error{}
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
-			if !order.Result {
-				orderErrors = append(orderErrors, fmt.Errorf("Order %v for currency %v failed to be cancelled", order.OrderID, currency))
+			cancellationResponse := CancelMultipleSpotOrdersResponse{
+				OrderID:   order.OrderID,
+				Result:    order.Result,
+				ClientOID: order.ClientOID,
 			}
+
+			if !order.Result {
+				cancellationResponse.Error = fmt.Errorf("Order %v for currency %v failed to be cancelled", order.OrderID, currency)
+			}
+
+			resp[currency] = append(resp[currency], cancellationResponse)
 		}
 	}
-	if len(orderErrors) <= 0 {
-		orderErrors = nil
-	}
 
-	return resp, orderErrors
+	return
 }
 
 // GetSpotOrders List your orders. Cursor pagination is used.

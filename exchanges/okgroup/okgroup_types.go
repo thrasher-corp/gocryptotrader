@@ -41,7 +41,7 @@ type TransferAccountFundsResponse struct {
 
 // AccountWithdrawRequest request data for AccountWithdrawRequest
 type AccountWithdrawRequest struct {
-	Amount      int64   `json:"amount"`      // [required] withdrawal amount
+	Amount      float64 `json:"amount"`      // [required] withdrawal amount
 	Currency    string  `json:"currency"`    // [required] token
 	Destination int64   `json:"destination"` // [required] withdrawal address(2:OKCoin International 3:OKEx 4:others)
 	Fee         float64 `json:"fee"`         // [required] Network transaction fee≥0. Withdrawals to OKCoin or OKEx are fee-free, please set as 0. Withdrawal to external digital asset address requires network transaction fee.
@@ -193,9 +193,10 @@ type CancelMultipleSpotOrdersRequest struct {
 
 // CancelMultipleSpotOrdersResponse response data for CancelMultipleSpotOrders
 type CancelMultipleSpotOrdersResponse struct {
-	ClientOID string  `json:"client_oid"`
-	OrderID   []int64 `json:"order_id,string"`
-	Result    bool    `json:"result"`
+	ClientOID string `json:"client_oid"`
+	OrderID   int64  `json:"order_id,string"`
+	Result    bool   `json:"result"`
+	Error     error  // Placeholder to store errors
 }
 
 // GetSpotOrdersRequest request data for GetSpotOrders
@@ -210,17 +211,17 @@ type GetSpotOrdersRequest struct {
 
 // GetSpotOrderResponse response data for GetSpotOrders
 type GetSpotOrderResponse struct {
-	FilledNotional string `json:"filled_notional"`
-	FilledSize     string `json:"filled_size"`
-	InstrumentID   string `json:"instrument_id"`
-	Notional       string `json:"notional"`
-	OrderID        string `json:"order_id"`
-	Price          string `json:"price"`
-	Side           string `json:"side"`
-	Size           string `json:"size"`
-	Status         string `json:"status"`
-	Timestamp      string `json:"timestamp"`
-	Type           string `json:"type"`
+	FilledNotional float64 `json:"filled_notional,string"`
+	FilledSize     float64 `json:"filled_size,string"`
+	InstrumentID   string  `json:"instrument_id"`
+	Notional       float64 `json:"notional,string"`
+	OrderID        string  `json:"order_id"`
+	Price          float64 `json:"price,string"`
+	Side           string  `json:"side"`
+	Size           float64 `json:"size,string"`
+	Status         string  `json:"status"`
+	Timestamp      string  `json:"timestamp"`
+	Type           string  `json:"type"`
 }
 
 // GetSpotOpenOrdersRequest request data for GetSpotOpenOrders
@@ -1257,7 +1258,7 @@ type GetETTSettlementPriceHistoryResponse struct {
 }
 
 // OrderStatus Holds OKGroup order status values
-var OrderStatus = map[int]string{
+var OrderStatus = map[int64]string{
 	-3: "pending cancel",
 	-2: "cancelled",
 	-1: "failed",

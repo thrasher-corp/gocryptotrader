@@ -397,9 +397,14 @@ func TestCancelMultipleSpotOrders(t *testing.T) {
 		OrderIDs:     []int64{1, 2, 3, 4},
 	}
 
-	_, errs := o.CancelMultipleSpotOrders(request)
-	if len(errs) > 0 {
-		testStandardErrorHandling(t, errs[0])
+	cancellations, err := o.CancelMultipleSpotOrders(request)
+	testStandardErrorHandling(t, err)
+	for _, cancellationsPerCurrency := range cancellations {
+		for _, cancellation := range cancellationsPerCurrency {
+			if !cancellation.Result {
+				t.Error(cancellation.Error)
+			}
+		}
 	}
 }
 
@@ -411,9 +416,9 @@ func TestCancelMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 		OrderIDs:     []int64{1, 2, 3, 4, 5},
 	}
 
-	_, errs := o.CancelMultipleSpotOrders(request)
-	if errs[0].Error() != "maximum 4 order cancellations for each pair" {
-		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	_, err := o.CancelMultipleSpotOrders(request)
+	if err.Error() != "maximum 4 order cancellations for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", err)
 	}
 }
 

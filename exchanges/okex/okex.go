@@ -43,7 +43,7 @@ const (
 	okGroupDefinePrice  = "define-price"
 )
 
-// OKEX bases all methods off okgroup implementation
+// OKEX bases all account, spot and margin methods off okgroup implementation
 type OKEX struct {
 	okgroup.OKGroup
 }
