@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -60,18 +59,13 @@ func (o *OKGroup) UpdateTicker(p pair.CurrencyPair, assetType string) (tickerDat
 	if err != nil {
 		return
 	}
-	respTime, err := time.Parse(time.RFC3339Nano, resp.Timestamp)
-	if err != nil {
-		log.Warnf("Exchange %v Func %v Currency %v Could not parse date to unix with value of %v",
-			o.Name, "UpdateTicker", exchange.FormatExchangeCurrency(o.Name, p).String(), resp.Timestamp)
-	}
 	tickerData = ticker.Price{
 		Ask:          resp.BestAsk,
 		Bid:          resp.BestBid,
 		CurrencyPair: exchange.FormatExchangeCurrency(o.Name, p).String(),
 		High:         resp.High24h,
 		Last:         resp.Last,
-		LastUpdated:  respTime,
+		LastUpdated:  resp.Timestamp,
 		Low:          resp.Low24h,
 		Pair:         p,
 		Volume:       resp.BaseVolume24h,
@@ -174,11 +168,6 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 	accountDepositHistory, err := o.GetAccountDepositHistory("")
 	for _, deposit := range accountDepositHistory {
-		timeStamp, err := time.Parse(time.RFC3339Nano, deposit.Timestamp)
-		if err != nil {
-			log.Warnf("Exchange %v Func %v Could not parse date to unix with value of %v",
-				o.Name, "GetFundingHistory", deposit.Timestamp)
-		}
 		orderStatus := ""
 		switch deposit.Status {
 		case 0:
@@ -194,24 +183,19 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 			Currency:     deposit.Currency,
 			ExchangeName: o.Name,
 			Status:       orderStatus,
-			Timestamp:    timeStamp,
+			Timestamp:    deposit.Timestamp,
 			TransferID:   deposit.TransactionID,
 			TransferType: "deposit",
 		})
 	}
 	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory("")
 	for _, withdrawal := range accountWithdrawlHistory {
-		timeStamp, err := time.Parse(time.RFC3339Nano, withdrawal.Timestamp)
-		if err != nil {
-			log.Warnf("Exchange %v Func %v Could not parse date to unix with value of %v",
-				o.Name, "GetFundingHistory", withdrawal.Timestamp)
-		}
 		resp = append(resp, exchange.FundHistory{
 			Amount:       withdrawal.Amount,
 			Currency:     withdrawal.Currency,
 			ExchangeName: o.Name,
 			Status:       OrderStatus[withdrawal.Status],
-			Timestamp:    timeStamp,
+			Timestamp:    withdrawal.Timestamp,
 			TransferID:   withdrawal.Txid,
 			TransferType: "withdrawal",
 		})
@@ -305,16 +289,11 @@ func (o *OKGroup) GetOrderInfo(orderID int64) (resp exchange.OrderDetail, err er
 	if err != nil {
 		return
 	}
-	timestamp, err := time.Parse(time.RFC3339Nano, order.Timestamp)
-	if err != nil {
-		log.Warnf("Exchange %v Func %v Could not parse date to unix with value of %v",
-			o.Name, "GetOrderInfo", order.Timestamp)
-	}
 	resp = exchange.OrderDetail{
 		Amount:         order.Size,
 		CurrencyPair:   pair.NewCurrencyPairDelimiter(order.InstrumentID, o.ConfigCurrencyPairFormat.Delimiter),
 		Exchange:       o.Name,
-		OrderDate:      timestamp,
+		OrderDate:      order.Timestamp,
 		ExecutedAmount: order.FilledSize,
 		Status:         order.Status,
 		OrderSide:      exchange.OrderSide(order.Side),
@@ -374,17 +353,12 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (r
 			return resp, err
 		}
 		for _, openOrder := range spotOpenOrders {
-			timestamp, err := time.Parse(time.RFC3339Nano, openOrder.Timestamp)
-			if err != nil {
-				log.Warnf("Exchange %v Func %v Could not parse date to unix with value of %v",
-					o.Name, "GetOrderInfo", openOrder.Timestamp)
-			}
 			resp = append(resp, exchange.OrderDetail{
 				Amount:         openOrder.Size,
 				CurrencyPair:   currency,
 				Exchange:       o.Name,
 				ExecutedAmount: openOrder.FilledSize,
-				OrderDate:      timestamp,
+				OrderDate:      openOrder.Timestamp,
 				Status:         openOrder.Status,
 			})
 		}
@@ -404,17 +378,12 @@ func (o *OKGroup) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (r
 			return resp, err
 		}
 		for _, openOrder := range spotOpenOrders {
-			timestamp, err := time.Parse(time.RFC3339Nano, openOrder.Timestamp)
-			if err != nil {
-				log.Warnf("Exchange %v Func %v Could not parse date to unix with value of %v",
-					o.Name, "GetOrderInfo", openOrder.Timestamp)
-			}
 			resp = append(resp, exchange.OrderDetail{
 				Amount:         openOrder.Size,
 				CurrencyPair:   currency,
 				Exchange:       o.Name,
 				ExecutedAmount: openOrder.FilledSize,
-				OrderDate:      timestamp,
+				OrderDate:      openOrder.Timestamp,
 				Status:         openOrder.Status,
 			})
 		}

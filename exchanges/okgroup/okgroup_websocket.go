@@ -230,7 +230,7 @@ func (o *OKGroup) WsHandleData() {
 					}
 
 					o.Websocket.DataHandler <- exchange.TickerData{
-						Timestamp: time.Unix(0, int64(ticker.Timestamp)),
+						Timestamp: ticker.Timestamp,
 						Exchange:  o.GetName(),
 						AssetType: assetType,
 					}

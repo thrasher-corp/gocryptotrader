@@ -1,6 +1,9 @@
 package okgroup
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 // GetAccountCurrenciesResponse response data for GetAccountCurrencies
 type GetAccountCurrenciesResponse struct {
@@ -66,16 +69,16 @@ type GetAccountWithdrawalFeeResponse struct {
 
 // WithdrawalHistoryResponse response data for WithdrawalHistoryResponse
 type WithdrawalHistoryResponse struct {
-	Amount    float64 `json:"amount"`
-	Currency  string  `json:"currency"`
-	Fee       string  `json:"fee"`
-	From      string  `json:"from"`
-	Status    int64   `json:"status"`
-	Timestamp string  `json:"timestamp"`
-	To        string  `json:"to"`
-	Txid      string  `json:"txid"`
-	PaymentID string  `json:"payment_id"`
-	Tag       string  `json:"tag"`
+	Amount    float64   `json:"amount"`
+	Currency  string    `json:"currency"`
+	Fee       string    `json:"fee"`
+	From      string    `json:"from"`
+	Status    int64     `json:"status"`
+	Timestamp time.Time `json:"timestamp"`
+	To        string    `json:"to"`
+	Txid      string    `json:"txid"`
+	PaymentID string    `json:"payment_id"`
+	Tag       string    `json:"tag"`
 }
 
 // GetAccountBillDetailsRequest request data for GetAccountBillDetailsRequest
@@ -89,13 +92,13 @@ type GetAccountBillDetailsRequest struct {
 
 // GetAccountBillDetailsResponse response data for GetAccountBillDetails
 type GetAccountBillDetailsResponse struct {
-	Amount    float64 `json:"amount"`
-	Balance   int64   `json:"balance"`
-	Currency  string  `json:"currency"`
-	Fee       int64   `json:"fee"`
-	LedgerID  int64   `json:"ledger_id"`
-	Timestamp string  `json:"timestamp"`
-	Typename  string  `json:"typename"`
+	Amount    float64   `json:"amount"`
+	Balance   int64     `json:"balance"`
+	Currency  string    `json:"currency"`
+	Fee       int64     `json:"fee"`
+	LedgerID  int64     `json:"ledger_id"`
+	Timestamp time.Time `json:"timestamp"`
+	Typename  string    `json:"typename"`
 }
 
 // GetDepositAddressResponse response data for GetDepositAddress
@@ -108,12 +111,12 @@ type GetDepositAddressResponse struct {
 
 // GetAccountDepositHistoryResponse response data for GetAccountDepositHistory
 type GetAccountDepositHistoryResponse struct {
-	Amount        float64 `json:"amount"`
-	Currency      string  `json:"currency"`
-	Status        int64   `json:"status"`
-	Timestamp     string  `json:"timestamp"`
-	To            string  `json:"to"`
-	TransactionID string  `json:"txid"`
+	Amount        float64   `json:"amount"`
+	Currency      string    `json:"currency"`
+	Status        int64     `json:"status"`
+	Timestamp     time.Time `json:"timestamp"`
+	To            string    `json:"to"`
+	TransactionID string    `json:"txid"`
 }
 
 // GetSpotTradingAccountResponse response data for GetSpotTradingAccount
@@ -142,7 +145,7 @@ type GetSpotBillDetailsForCurrencyResponse struct {
 	CurrencyResponse string          `json:"currency"`
 	Amount           string          `json:"amount"`
 	Type             string          `json:"type"`
-	TimeStamp        string          `json:"timestamp"`
+	TimeStamp        time.Time       `json:"timestamp"`
 	Details          SpotBillDetails `json:"details"`
 }
 
@@ -211,17 +214,17 @@ type GetSpotOrdersRequest struct {
 
 // GetSpotOrderResponse response data for GetSpotOrders
 type GetSpotOrderResponse struct {
-	FilledNotional float64 `json:"filled_notional,string"`
-	FilledSize     float64 `json:"filled_size,string"`
-	InstrumentID   string  `json:"instrument_id"`
-	Notional       float64 `json:"notional,string"`
-	OrderID        string  `json:"order_id"`
-	Price          float64 `json:"price,string"`
-	Side           string  `json:"side"`
-	Size           float64 `json:"size,string"`
-	Status         string  `json:"status"`
-	Timestamp      string  `json:"timestamp"`
-	Type           string  `json:"type"`
+	FilledNotional float64   `json:"filled_notional,string"`
+	FilledSize     float64   `json:"filled_size,string"`
+	InstrumentID   string    `json:"instrument_id"`
+	Notional       float64   `json:"notional,string"`
+	OrderID        string    `json:"order_id"`
+	Price          float64   `json:"price,string"`
+	Side           string    `json:"side"`
+	Size           float64   `json:"size,string"`
+	Status         string    `json:"status"`
+	Timestamp      time.Time `json:"timestamp"`
+	Type           string    `json:"type"`
 }
 
 // GetSpotOpenOrdersRequest request data for GetSpotOpenOrders
@@ -249,15 +252,15 @@ type GetSpotTransactionDetailsRequest struct {
 
 // GetSpotTransactionDetailsResponse response data for GetSpotTransactionDetails
 type GetSpotTransactionDetailsResponse struct {
-	ExecType     string `json:"exec_type"`
-	Fee          string `json:"fee"`
-	InstrumentID string `json:"instrument_id"`
-	LedgerID     string `json:"ledger_id"`
-	OrderID      string `json:"order_id"`
-	Price        string `json:"price"`
-	Side         string `json:"side"`
-	Size         string `json:"size"`
-	Timestamp    string `json:"timestamp"`
+	ExecType     string    `json:"exec_type"`
+	Fee          string    `json:"fee"`
+	InstrumentID string    `json:"instrument_id"`
+	LedgerID     string    `json:"ledger_id"`
+	OrderID      string    `json:"order_id"`
+	Price        string    `json:"price"`
+	Side         string    `json:"side"`
+	Size         string    `json:"size"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSpotTokenPairDetailsResponse response data for GetSpotTokenPairDetails
@@ -279,23 +282,23 @@ type GetSpotOrderBookRequest struct {
 
 // GetSpotOrderBookResponse response data for GetSpotOrderBook
 type GetSpotOrderBookResponse struct {
-	Timestamp string     `json:"timestamp"`
+	Timestamp time.Time  `json:"timestamp"`
 	Asks      [][]string `json:"asks"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
 	Bids      [][]string `json:"bids"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
 }
 
 // GetSpotTokenPairsInformationResponse response data for GetSpotTokenPairsInformation
 type GetSpotTokenPairsInformationResponse struct {
-	BaseVolume24h  float64 `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
-	BestAsk        float64 `json:"best_ask,string"`         // best ask price
-	BestBid        float64 `json:"best_bid,string"`         // best bid price
-	High24h        float64 `json:"high_24h,string"`         // 24 hour high
-	InstrumentID   string  `json:"instrument_id"`           // trading pair
-	Last           float64 `json:"last,string"`             // last traded price
-	Low24h         float64 `json:"low_24h,string"`          // 24 hour low
-	Open24h        float64 `json:"open_24h,string"`         // 24 hour open
-	QuoteVolume24h float64 `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
-	Timestamp      string  `json:"timestamp"`
+	BaseVolume24h  float64   `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
+	BestAsk        float64   `json:"best_ask,string"`         // best ask price
+	BestBid        float64   `json:"best_bid,string"`         // best bid price
+	High24h        float64   `json:"high_24h,string"`         // 24 hour high
+	InstrumentID   string    `json:"instrument_id"`           // trading pair
+	Last           float64   `json:"last,string"`             // last traded price
+	Low24h         float64   `json:"low_24h,string"`          // 24 hour low
+	Open24h        float64   `json:"open_24h,string"`         // 24 hour open
+	QuoteVolume24h float64   `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 // GetSpotFilledOrdersInformationRequest request data for GetSpotFilledOrdersInformation
@@ -308,11 +311,11 @@ type GetSpotFilledOrdersInformationRequest struct {
 
 // GetSpotFilledOrdersInformationResponse response data for GetSpotFilledOrdersInformation
 type GetSpotFilledOrdersInformationResponse struct {
-	Price     string `json:"price"`
-	Side      string `json:"side"`
-	Size      string `json:"size"`
-	Timestamp string `json:"timestamp"`
-	TradeID   string `json:"trade_id"`
+	Price     string    `json:"price"`
+	Side      string    `json:"side"`
+	Size      string    `json:"size"`
+	Timestamp time.Time `json:"timestamp"`
+	TradeID   string    `json:"trade_id"`
 }
 
 // GetSpotMarketDataRequest request data for GetSpotMarketData
@@ -388,21 +391,21 @@ type GetMarginLoanHistoryRequest struct {
 
 // GetMarginLoanHistoryResponse response data for GetMarginLoanHistory
 type GetMarginLoanHistoryResponse struct {
-	Amount           float64 `json:"amount,string"`
-	BorrowID         int64   `json:"borrow_id"`
-	CreatedAt        string  `json:"created_at"`
-	Currency         string  `json:"currency"`
-	ForceRepayTime   string  `json:"force_repay_time"`
-	InstrumentID     string  `json:"instrument_id"`
-	Interest         float64 `json:"interest,string"`
-	LastInterestTime string  `json:"last_interest_time"`
-	PaidInterest     float64 `json:"paid_interest,string"`
-	ProductID        string  `json:"product_id"`
-	Rate             float64 `json:"rate,string"`
-	RepayAmount      string  `json:"repay_amount"`
-	RepayInterest    string  `json:"repay_interest"`
-	ReturnedAmount   float64 `json:"returned_amount,string"`
-	Timestamp        string  `json:"timestamp"`
+	Amount           float64   `json:"amount,string"`
+	BorrowID         int64     `json:"borrow_id"`
+	CreatedAt        string    `json:"created_at"`
+	Currency         string    `json:"currency"`
+	ForceRepayTime   string    `json:"force_repay_time"`
+	InstrumentID     string    `json:"instrument_id"`
+	Interest         float64   `json:"interest,string"`
+	LastInterestTime string    `json:"last_interest_time"`
+	PaidInterest     float64   `json:"paid_interest,string"`
+	ProductID        string    `json:"product_id"`
+	Rate             float64   `json:"rate,string"`
+	RepayAmount      string    `json:"repay_amount"`
+	RepayInterest    string    `json:"repay_interest"`
+	ReturnedAmount   float64   `json:"returned_amount,string"`
+	Timestamp        time.Time `json:"timestamp"`
 }
 
 // OpenMarginLoanRequest request data for OpenMarginLoan
@@ -619,18 +622,18 @@ type GetFuturesOrderListResponse struct {
 
 // GetFuturesOrderDetailsResponseData individual order data from GetFuturesOrderList
 type GetFuturesOrderDetailsResponseData struct {
-	ContractVal  float64 `json:"contract_val,string"`
-	Fee          float64 `json:"fee,string"`
-	FilledQty    float64 `json:"filled_qty,string"`
-	InstrumentID string  `json:"instrument_id"`
-	Leverage     int64   `json:"leverage,string"` //  	Leverage value:10\20 default:10
-	OrderID      int64   `json:"order_id,string"`
-	Price        float64 `json:"price,string"`
-	PriceAvg     float64 `json:"price_avg,string"`
-	Size         float64 `json:"size,string"`
-	Status       int64   `json:"status,string"` // Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled)
-	Timestamp    string  `json:"timestamp"`
-	Type         int64   `json:"type,string"` //  	Type (1: open long 2: open short 3: close long 4: close short)
+	ContractVal  float64   `json:"contract_val,string"`
+	Fee          float64   `json:"fee,string"`
+	FilledQty    float64   `json:"filled_qty,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Leverage     int64     `json:"leverage,string"` //  	Leverage value:10\20 default:10
+	OrderID      int64     `json:"order_id,string"`
+	Price        float64   `json:"price,string"`
+	PriceAvg     float64   `json:"price_avg,string"`
+	Size         float64   `json:"size,string"`
+	Status       int64     `json:"status,string"` // Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled)
+	Timestamp    time.Time `json:"timestamp"`
+	Type         int64     `json:"type,string"` //  	Type (1: open long 2: open short 3: close long 4: close short)
 }
 
 // GetFuturesOrderDetailsRequest request data for GetFuturesOrderDetails
@@ -684,19 +687,19 @@ type GetFuturesOrderBookRequest struct {
 type GetFuturesOrderBookResponse struct {
 	Asks      [][]float64 `json:"asks"` // [[0: Price, 1: Size price, 2: number of force liquidated orders, 3: number of orders on the price]]
 	Bids      [][]float64 `json:"bids"` // [[0: Price, 1: Size price, 2: number of force liquidated orders, 3: number of orders on the price]]
-	Timestamp string      `json:"timestamp"`
+	Timestamp time.Time   `json:"timestamp"`
 }
 
 // GetFuturesTokenInfoResponse response data for GetFuturesOrderBook
 type GetFuturesTokenInfoResponse struct {
-	BestAsk      float64 `json:"best_ask,string"`
-	BestBid      float64 `json:"best_bid,string"`
-	High24h      float64 `json:"high_24h,string"`
-	InstrumentID string  `json:"instrument_id"`
-	Last         float64 `json:"last,string"`
-	Low24h       float64 `json:"low_24h,string"`
-	Timestamp    string  `json:"timestamp"`
-	Volume24h    int64   `json:"volume_24h,string"`
+	BestAsk      float64   `json:"best_ask,string"`
+	BestBid      float64   `json:"best_bid,string"`
+	High24h      float64   `json:"high_24h,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Last         float64   `json:"last,string"`
+	Low24h       float64   `json:"low_24h,string"`
+	Timestamp    time.Time `json:"timestamp"`
+	Volume24h    int64     `json:"volume_24h,string"`
 }
 
 // GetFuturesFilledOrderRequest request data for GetFuturesFilledOrder
@@ -709,11 +712,11 @@ type GetFuturesFilledOrderRequest struct {
 
 // GetFuturesFilledOrdersResponse response data for GetFuturesFilledOrders
 type GetFuturesFilledOrdersResponse struct {
-	Price     float64 `json:"price,string"`
-	Qty       int64   `json:"qty,string"`
-	Side      string  `json:"side"`
-	Timestamp string  `json:"timestamp"`
-	TradeID   string  `json:"trade_id"`
+	Price     float64   `json:"price,string"`
+	Qty       int64     `json:"qty,string"`
+	Side      string    `json:"side"`
+	Timestamp time.Time `json:"timestamp"`
+	TradeID   string    `json:"trade_id"`
 }
 
 // GetFuturesMarketDateRequest retrieves candle data information
@@ -737,52 +740,52 @@ type GetFuturesMarketDataResponse []interface{}
 
 // GetFuturesHoldAmountResponse response data for GetFuturesHoldAmount
 type GetFuturesHoldAmountResponse struct {
-	Amount       float64 `json:"amount,string"`
-	InstrumentID string  `json:"instrument_id"`
-	Timestamp    string  `json:"timestamp"`
+	Amount       float64   `json:"amount,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetFuturesIndicesResponse response data for GetFuturesIndices
 type GetFuturesIndicesResponse struct {
-	Index        float64 `json:"index,string"`
-	InstrumentID string  `json:"instrument_id"`
-	Timestamp    string  `json:"timestamp"`
+	Index        float64   `json:"index,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetFuturesExchangeRatesResponse response data for GetFuturesExchangeRate
 type GetFuturesExchangeRatesResponse struct {
-	InstrumentID string  `json:"instrument_id"`
-	Rate         float64 `json:"rate,string"`
-	Timestamp    string  `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
+	Rate         float64   `json:"rate,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetFuturesEstimatedDeliveryPriceResponse response data for GetFuturesEstimatedDeliveryPrice
 type GetFuturesEstimatedDeliveryPriceResponse struct {
-	InstrumentID    string  `json:"instrument_id"`
-	SettlementPrice float64 `json:"settlement_price,string"`
-	Timestamp       string  `json:"timestamp"`
+	InstrumentID    string    `json:"instrument_id"`
+	SettlementPrice float64   `json:"settlement_price,string"`
+	Timestamp       time.Time `json:"timestamp"`
 }
 
 // GetFuturesOpenInterestsResponse response data for GetFuturesOpenInterests
 type GetFuturesOpenInterestsResponse struct {
-	Amount       float64 `json:"amount,string"`
-	InstrumentID string  `json:"instrument_id"`
-	Timestamp    string  `json:"timestamp"`
+	Amount       float64   `json:"amount,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetFuturesCurrentPriceLimitResponse response data for GetFuturesCurrentPriceLimit
 type GetFuturesCurrentPriceLimitResponse struct {
-	Highest      float64 `json:"highest,string"`
-	InstrumentID string  `json:"instrument_id"`
-	Lowest       float64 `json:"lowest,string"`
-	Timestamp    string  `json:"timestamp"`
+	Highest      float64   `json:"highest,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Lowest       float64   `json:"lowest,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetFuturesCurrentMarkPriceResponse response data for GetFuturesCurrentMarkPrice
 type GetFuturesCurrentMarkPriceResponse struct {
-	MarkPrice    float64 `json:"mark_price"`
-	InstrumentID string  `json:"instrument_id"`
-	Timestamp    string  `json:"timestamp"`
+	MarkPrice    float64   `json:"mark_price"`
+	InstrumentID string    `json:"instrument_id"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetFuturesForceLiquidatedOrdersRequest request data for GetFuturesForceLiquidatedOrders
@@ -806,9 +809,9 @@ type GetFuturesForceLiquidatedOrdersResponse struct {
 
 // GetFuturesTagPriceResponse response data for GetFuturesTagPrice
 type GetFuturesTagPriceResponse struct {
-	MarkPrice    float64 `json:"mark_price"`
-	InstrumentID string  `json:"instrument_id"`
-	Timestamp    string  `json:"timestamp"`
+	MarkPrice    float64   `json:"mark_price"`
+	InstrumentID string    `json:"instrument_id"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSwapPostionsResponse response data for GetSwapPostions
@@ -819,17 +822,17 @@ type GetSwapPostionsResponse struct {
 
 // GetSwapPostionsResponseHolding response data for GetSwapPostions
 type GetSwapPostionsResponseHolding struct {
-	AvailPosition    string `json:"avail_position"`
-	AvgCost          string `json:"avg_cost"`
-	InstrumentID     string `json:"instrument_id"`
-	Leverage         string `json:"leverage"`
-	LiquidationPrice string `json:"liquidation_price"`
-	Margin           string `json:"margin"`
-	Position         string `json:"position"`
-	RealizedPnl      string `json:"realized_pnl"`
-	SettlementPrice  string `json:"settlement_price"`
-	Side             string `json:"side"`
-	Timestamp        string `json:"timestamp"`
+	AvailPosition    string    `json:"avail_position"`
+	AvgCost          string    `json:"avg_cost"`
+	InstrumentID     string    `json:"instrument_id"`
+	Leverage         string    `json:"leverage"`
+	LiquidationPrice string    `json:"liquidation_price"`
+	Margin           string    `json:"margin"`
+	Position         string    `json:"position"`
+	RealizedPnl      string    `json:"realized_pnl"`
+	SettlementPrice  string    `json:"settlement_price"`
+	Side             string    `json:"side"`
+	Timestamp        time.Time `json:"timestamp"`
 }
 
 // GetSwapAccountOfAllCurrencyResponse response data for GetSwapAccountOfAllCurrency
@@ -839,17 +842,17 @@ type GetSwapAccountOfAllCurrencyResponse struct {
 
 // GetSwapAccountOfAllCurrencyResponseInfo response data for GetSwapAccountOfAllCurrency
 type GetSwapAccountOfAllCurrencyResponseInfo struct {
-	Equity            string `json:"equity"`
-	FixedBalance      string `json:"fixed_balance"`
-	TotalAvailBalance string `json:"total_avail_balance"`
-	Margin            string `json:"margin"`
-	RealizedPnl       string `json:"realized_pnl"`
-	UnrealizedPnl     string `json:"unrealized_pnl"`
-	MarginRatio       string `json:"margin_ratio"`
-	InstrumentID      string `json:"instrument_id"`
-	MarginFrozen      string `json:"margin_frozen"`
-	Timestamp         string `json:"timestamp"`
-	MarginMode        string `json:"margin_mode"`
+	Equity            string    `json:"equity"`
+	FixedBalance      string    `json:"fixed_balance"`
+	TotalAvailBalance string    `json:"total_avail_balance"`
+	Margin            string    `json:"margin"`
+	RealizedPnl       string    `json:"realized_pnl"`
+	UnrealizedPnl     string    `json:"unrealized_pnl"`
+	MarginRatio       string    `json:"margin_ratio"`
+	InstrumentID      string    `json:"instrument_id"`
+	MarginFrozen      string    `json:"margin_frozen"`
+	Timestamp         time.Time `json:"timestamp"`
+	MarginMode        string    `json:"margin_mode"`
 }
 
 // GetSwapAccountSettingsOfAContractResponse response data for GetSwapAccountSettingsOfAContract
@@ -877,12 +880,12 @@ type SetSwapLeverageLevelOfAContractResponse struct {
 
 // GetSwapBillDetailsResponse response data for GetSwapBillDetails
 type GetSwapBillDetailsResponse struct {
-	LedgerID     string `json:"ledger_id"`
-	Amount       string `json:"amount"`
-	Type         string `json:"type"`
-	Fee          string `json:"fee"`
-	Timestamp    string `json:"timestamp"`
-	InstrumentID string `json:"instrument_id"`
+	LedgerID     string    `json:"ledger_id"`
+	Amount       string    `json:"amount"`
+	Type         string    `json:"type"`
+	Fee          string    `json:"fee"`
+	Timestamp    time.Time `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
 }
 
 // PlaceSwapOrderRequest request data for PlaceSwapOrder
@@ -977,18 +980,18 @@ type GetSwapOrderListResponse struct {
 
 // GetSwapOrderListResponseData individual order data from GetSwapOrderList
 type GetSwapOrderListResponseData struct {
-	ContractVal  float64 `json:"contract_val,string"`
-	Fee          float64 `json:"fee,string"`
-	FilledQty    float64 `json:"filled_qty,string"`
-	InstrumentID string  `json:"instrument_id"`
-	Leverage     int64   `json:"leverage,string"` //  	Leverage value:10\20 default:10
-	OrderID      int64   `json:"order_id,string"`
-	Price        float64 `json:"price,string"`
-	PriceAvg     float64 `json:"price_avg,string"`
-	Size         float64 `json:"size,string"`
-	Status       int64   `json:"status,string"` // Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled)
-	Timestamp    string  `json:"timestamp"`
-	Type         int64   `json:"type,string"` //  	Type (1: open long 2: open short 3: close long 4: close short)
+	ContractVal  float64   `json:"contract_val,string"`
+	Fee          float64   `json:"fee,string"`
+	FilledQty    float64   `json:"filled_qty,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Leverage     int64     `json:"leverage,string"` //  	Leverage value:10\20 default:10
+	OrderID      int64     `json:"order_id,string"`
+	Price        float64   `json:"price,string"`
+	PriceAvg     float64   `json:"price_avg,string"`
+	Size         float64   `json:"size,string"`
+	Status       int64     `json:"status,string"` // Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled)
+	Timestamp    time.Time `json:"timestamp"`
+	Type         int64     `json:"type,string"` //  	Type (1: open long 2: open short 3: close long 4: close short)
 }
 
 // GetSwapOrderDetailsRequest request data for GetSwapOrderList
@@ -1008,15 +1011,15 @@ type GetSwapTransactionDetailsRequest struct {
 
 // GetSwapTransactionDetailsResponse response data for GetSwapTransactionDetails
 type GetSwapTransactionDetailsResponse struct {
-	TradeID      string `json:"trade_id"`
-	InstrumentID string `json:"instrument_id"`
-	OrderID      string `json:"order_id"`
-	Price        string `json:"price"`
-	OrderQty     string `json:"order_qty"`
-	Fee          string `json:"fee"`
-	Timestamp    string `json:"timestamp"`
-	ExecType     string `json:"exec_type"`
-	Side         string `json:"side"`
+	TradeID      string    `json:"trade_id"`
+	InstrumentID string    `json:"instrument_id"`
+	OrderID      string    `json:"order_id"`
+	Price        string    `json:"price"`
+	OrderQty     string    `json:"order_qty"`
+	Fee          string    `json:"fee"`
+	Timestamp    time.Time `json:"timestamp"`
+	ExecType     string    `json:"exec_type"`
+	Side         string    `json:"side"`
 }
 
 // GetSwapContractInformationResponse response data for GetSwapContractInformation
@@ -1042,19 +1045,19 @@ type GetSwapOrderBookRequest struct {
 type GetSwapOrderBookResponse struct {
 	Asks      [][]interface{} `json:"asks"` // eg [["411.3","16",5,4]] [[0: Price, 1: Size price, 2: number of force liquidated orders, 3: number of orders on the price]]
 	Bids      [][]interface{} `json:"bids"` // eg [["411.3","16",5,4]] [[0: Price, 1: Size price, 2: number of force liquidated orders, 3: number of orders on the price]]
-	Timestamp string          `json:"timestamp"`
+	Timestamp time.Time       `json:"timestamp"`
 }
 
 // GetAllSwapTokensInformationResponse response data for GetAllSwapTokensInformation
 type GetAllSwapTokensInformationResponse struct {
-	InstrumentID string  `json:"instrument_id"`
-	Last         float64 `json:"last,string"`
-	High24H      float64 `json:"high_24h,string"`
-	Low24H       float64 `json:"low_24h,string"`
-	BestBid      float64 `json:"best_bid,string"`
-	BestAsk      float64 `json:"best_ask,string"`
-	Volume24H    float64 `json:"volume_24h,string"`
-	Timestamp    string  `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
+	Last         float64   `json:"last,string"`
+	High24H      float64   `json:"high_24h,string"`
+	Low24H       float64   `json:"low_24h,string"`
+	BestBid      float64   `json:"best_bid,string"`
+	BestAsk      float64   `json:"best_ask,string"`
+	Volume24H    float64   `json:"volume_24h,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSwapFilledOrdersDataRequest request data for GetSwapFilledOrdersData
@@ -1067,11 +1070,11 @@ type GetSwapFilledOrdersDataRequest struct {
 
 // GetSwapFilledOrdersDataResponse response data for GetSwapFilledOrdersData
 type GetSwapFilledOrdersDataResponse struct {
-	TradeID   string  `json:"trade_id"`
-	Price     float64 `json:"price,string"`
-	Size      float64 `json:"size,string"`
-	Side      string  `json:"side"`
-	Timestamp string  `json:"timestamp"`
+	TradeID   string    `json:"trade_id"`
+	Price     float64   `json:"price,string"`
+	Size      float64   `json:"size,string"`
+	Side      string    `json:"side"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // GetSwapMarketDataRequest retrieves candle data information
@@ -1095,31 +1098,31 @@ type GetSwapMarketDataResponse []interface{}
 
 // GetSwapIndecesResponse response data for GetSwapIndeces
 type GetSwapIndecesResponse struct {
-	InstrumentID string  `json:"instrument_id"`
-	Index        float64 `json:"index,string"`
-	Timestamp    string  `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
+	Index        float64   `json:"index,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSwapExchangeRatesResponse response data for GetSwapExchangeRates
 type GetSwapExchangeRatesResponse struct {
-	InstrumentID string  `json:"instrument_id"`
-	Rate         float64 `json:"rate,string"`
-	Timestamp    string  `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
+	Rate         float64   `json:"rate,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSwapOpenInterestResponse response data for GetSwapOpenInterest
 type GetSwapOpenInterestResponse struct {
-	InstrumentID string  `json:"instrument_id"`
-	Amount       float64 `json:"amount,string"`
-	Timestamp    string  `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
+	Amount       float64   `json:"amount,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSwapCurrentPriceLimitsResponse response data for GetSwapCurrentPriceLimits
 type GetSwapCurrentPriceLimitsResponse struct {
-	InstrumentID string  `json:"instrument_id"`
-	Highest      float64 `json:"highest,string"`
-	Lowest       float64 `json:"lowest,string"`
-	Timestamp    string  `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
+	Highest      float64   `json:"highest,string"`
+	Lowest       float64   `json:"lowest,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSwapForceLiquidatedOrdersRequest request data for GetSwapForceLiquidatedOrders
@@ -1143,9 +1146,9 @@ type GetSwapForceLiquidatedOrdersResponse struct {
 
 // GetSwapOnHoldAmountForOpenOrdersResponse response data for GetSwapOnHoldAmountForOpenOrders
 type GetSwapOnHoldAmountForOpenOrdersResponse struct {
-	InstrumentID string  `json:"instrument_id"`
-	Amount       float64 `json:"amount,string"`
-	Timestamp    string  `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
+	Amount       float64   `json:"amount,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSwapNextSettlementTimeResponse response data for GetSwapNextSettlementTime
@@ -1292,16 +1295,16 @@ type MultiStreamData struct {
 
 // TickerStreamData contains ticker stream data from okex
 type TickerStreamData struct {
-	Buy       string  `json:"buy"`
-	Change    string  `json:"change"`
-	High      string  `json:"high"`
-	Low       string  `json:"low"`
-	Last      string  `json:"last"`
-	Sell      string  `json:"sell"`
-	DayLow    string  `json:"dayLow"`
-	DayHigh   string  `json:"dayHigh"`
-	Timestamp float64 `json:"timestamp"`
-	Vol       string  `json:"vol"`
+	Buy       string    `json:"buy"`
+	Change    string    `json:"change"`
+	High      string    `json:"high"`
+	Low       string    `json:"low"`
+	Last      string    `json:"last"`
+	Sell      string    `json:"sell"`
+	DayLow    string    `json:"dayLow"`
+	DayHigh   string    `json:"dayHigh"`
+	Timestamp time.Time `json:"timestamp"`
+	Vol       string    `json:"vol"`
 }
 
 // DealsStreamData defines Deals data
@@ -1314,7 +1317,7 @@ type KlineStreamData = [][]string
 type DepthStreamData struct {
 	Asks      [][]string `json:"asks"`
 	Bids      [][]string `json:"bids"`
-	Timestamp float64    `json:"timestamp"`
+	Timestamp time.Time  `json:"timestamp"`
 }
 
 // SpotPrice holds date and ticker price price for contracts.
