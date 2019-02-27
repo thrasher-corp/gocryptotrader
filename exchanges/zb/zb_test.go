@@ -127,12 +127,11 @@ func TestGetSpotKline(t *testing.T) {
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:              1,
-		Delimiter:           "-",
-		FeeType:             exchange.CryptocurrencyTradeFee,
-		BaseCurrency:        currency.LTC,
-		QuoteCurrency:       currency.BTC,
-		IsMaker:             false,
+		Amount:  1,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			currency.BTC.String(),
+			"-"),
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
@@ -184,7 +183,7 @@ func TestGetFee(t *testing.T) {
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
-	feeBuilder.BaseCurrency = currency.NewCode("hello")
+	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
@@ -233,8 +232,8 @@ func TestGetActiveOrders(t *testing.T) {
 	TestSetup(t)
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:  exchange.AnyOrderType,
-		Currencies: []currency.Pair{currency.NewPair(currency.LTC, 
+		OrderType: exchange.AnyOrderType,
+		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 	}
 
@@ -251,9 +250,9 @@ func TestGetOrderHistory(t *testing.T) {
 	TestSetup(t)
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:  exchange.AnyOrderType,
-		OrderSide:  exchange.BuyOrderSide,
-		Currencies: []currency.Pair{currency.NewPair(currency.LTC, 
+		OrderType: exchange.AnyOrderType,
+		OrderSide: exchange.BuyOrderSide,
+		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 	}
 

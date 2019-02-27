@@ -68,20 +68,20 @@ const (
 	Contact         InternationalBankTransactionType = "contact"
 )
 
-// SubmitOrderResponse is what is returned after submitting an order to an exchange
+// SubmitOrderResponse is what is returned after submitting an order to an
+// exchange
 type SubmitOrderResponse struct {
 	IsOrderPlaced bool
 	OrderID       string
 }
 
-// FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange
+// FeeBuilder is the type which holds all parameters required to calculate a fee
+// for an exchange
 type FeeBuilder struct {
 	FeeType FeeType
 	// Used for calculating crypto trading fees, deposits & withdrawals
-	BaseCurrency  currency.Code
-	QuoteCurrency currency.Code
-	Delimiter     string
-	IsMaker       bool
+	Pair    currency.Pair
+	IsMaker bool
 	// Fiat currency used for bank deposits & withdrawals
 	FiatCurrency        currency.Code
 	BankTransactionType InternationalBankTransactionType

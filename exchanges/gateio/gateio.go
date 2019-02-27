@@ -463,7 +463,8 @@ func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 // To use this you must setup an APIKey and APISecret from the exchange
 func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, result interface{}) error {
 	if !g.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			g.Name)
 	}
 
 	headers := make(map[string]string)
@@ -477,7 +478,13 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 
 	var intermidiary json.RawMessage
 
-	err := g.SendPayload(method, urlPath, headers, strings.NewReader(param), &intermidiary, true, g.Verbose)
+	err := g.SendPayload(method,
+		urlPath,
+		headers,
+		strings.NewReader(param),
+		&intermidiary,
+		true,
+		g.Verbose)
 	if err != nil {
 		return err
 	}
@@ -509,9 +516,9 @@ func (g *Gateio) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, err error)
 			return 0, err
 		}
 
-		currencyPair := feeBuilder.BaseCurrency.String() +
-			feeBuilder.Delimiter +
-			feeBuilder.QuoteCurrency.String()
+		currencyPair := feeBuilder.Pair.Base.String() +
+			feeBuilder.Pair.Delimiter +
+			feeBuilder.Pair.Quote.String()
 
 		var feeForPair float64
 		for _, i := range feePairs.Pairs {
@@ -530,7 +537,7 @@ func (g *Gateio) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, err error)
 			feeBuilder.Amount)
 
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.BaseCurrency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	}
 
 	if fee < 0 {

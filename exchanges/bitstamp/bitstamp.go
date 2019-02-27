@@ -154,7 +154,10 @@ func (b *Bitstamp) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = b.CalculateTradingFee(feeBuilder.BaseCurrency, feeBuilder.QuoteCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = b.CalculateTradingFee(feeBuilder.Pair.Base,
+			feeBuilder.Pair.Quote,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount)
 	case exchange.CyptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:

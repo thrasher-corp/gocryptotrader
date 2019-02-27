@@ -145,11 +145,10 @@ func TestGetFee(t *testing.T) {
 	TestSetup(t)
 
 	feeBuilder := exchange.FeeBuilder{
-		FeeType:       exchange.CryptocurrencyTradeFee,
-		BaseCurrency:  currency.BTC,
-		QuoteCurrency: currency.USD,
-		IsMaker:       true,
-		Amount:        1000,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair:    currency.NewPair(currency.BTC, currency.USD),
+		IsMaker: true,
+		Amount:  1000,
 	}
 
 	if resp, err := b.GetFee(feeBuilder); resp != 0.00050 || err != nil {
@@ -169,7 +168,7 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 
-	feeBuilder.BaseCurrency = currency.USDT
+	feeBuilder.Pair.Base = currency.USDT
 	if resp, err := b.GetFee(feeBuilder); resp != float64(5) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(5), resp)
 		t.Error(err)

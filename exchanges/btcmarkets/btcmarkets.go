@@ -385,7 +385,10 @@ func (b *BTCMarkets) WithdrawCrypto(amount float64, currency, address string) (s
 	}
 
 	resp := Response{}
-	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsWithdrawCrypto, req, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost,
+		btcMarketsWithdrawCrypto,
+		req,
+		&resp)
 	if err != nil {
 		return "", err
 	}
@@ -412,7 +415,9 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 	}
 
 	resp := Response{}
-	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsWithdrawAud, req, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsWithdrawAud,
+		req,
+		&resp)
 	if err != nil {
 		return "", err
 	}
@@ -432,7 +437,8 @@ func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedRequest sends an authenticated HTTP request
 func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result interface{}) (err error) {
 	if !b.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			b.Name)
 	}
 
 	if b.Nonce.Get() == 0 {
@@ -453,10 +459,14 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 		req = path + "\n" + b.Nonce.String()[0:13] + "\n"
 	}
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(req), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512,
+		[]byte(req), []byte(b.APISecret))
 
 	if b.Verbose {
-		log.Debugf("Sending %s request to URL %s with params %s\n", reqType, b.APIUrl+path, req)
+		log.Debugf("Sending %s request to URL %s with params %s\n",
+			reqType,
+			b.APIUrl+path,
+			req)
 	}
 
 	headers := make(map[string]string)
@@ -467,7 +477,13 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 	headers["timestamp"] = b.Nonce.String()[0:13]
 	headers["signature"] = common.Base64Encode(hmac)
 
-	return b.SendPayload(reqType, b.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, b.Verbose)
+	return b.SendPayload(reqType,
+		b.APIUrl+path,
+		headers,
+		bytes.NewBuffer(payload),
+		result,
+		true,
+		b.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -476,13 +492,18 @@ func (b *BTCMarkets) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		tradingFee, err := b.GetTradingFee(feeBuilder.BaseCurrency, feeBuilder.QuoteCurrency)
+		tradingFee, err := b.GetTradingFee(feeBuilder.Pair.Base,
+			feeBuilder.Pair.Quote)
 		if err != nil {
 			return 0, err
 		}
-		fee = calculateTradingFee(tradingFee, feeBuilder.PurchasePrice, feeBuilder.Amount)
+
+		fee = calculateTradingFee(tradingFee,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount)
+
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.BaseCurrency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
 	}

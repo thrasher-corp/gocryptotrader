@@ -368,7 +368,13 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	headers["Content-Type"] = "application/json"
 
 	var rawMsg json.RawMessage
-	err = c.SendPayload(http.MethodPost, c.APIUrl, headers, bytes.NewBuffer(payload), &rawMsg, authenticated, c.Verbose)
+	err = c.SendPayload(http.MethodPost,
+		c.APIUrl,
+		headers,
+		bytes.NewBuffer(payload),
+		&rawMsg,
+		authenticated,
+		c.Verbose)
 	if err != nil {
 		return err
 	}
@@ -392,11 +398,17 @@ func (c *COINUT) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = c.calculateTradingFee(feeBuilder.BaseCurrency, feeBuilder.QuoteCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+		fee = c.calculateTradingFee(feeBuilder.Pair.Base,
+			feeBuilder.Pair.Quote,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.Amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency, feeBuilder.Amount)
+		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount)
 	}
 
 	if fee < 0 {

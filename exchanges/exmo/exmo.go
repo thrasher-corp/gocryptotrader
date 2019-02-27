@@ -377,7 +377,8 @@ func (e *EXMO) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Values, result interface{}) error {
 	if !e.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, e.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			e.Name)
 	}
 
 	if e.Nonce.Get() == 0 {
@@ -388,10 +389,15 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 	vals.Set("nonce", e.Nonce.String())
 
 	payload := vals.Encode()
-	hash := common.GetHMAC(common.HashSHA512, []byte(payload), []byte(e.APISecret))
+	hash := common.GetHMAC(common.HashSHA512,
+		[]byte(payload),
+		[]byte(e.APISecret))
 
 	if e.Verbose {
-		log.Debugf("Sending %s request to %s with params %s\n", method, endpoint, payload)
+		log.Debugf("Sending %s request to %s with params %s\n",
+			method,
+			endpoint,
+			payload)
 	}
 
 	headers := make(map[string]string)
@@ -401,7 +407,13 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 
 	path := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, endpoint)
 
-	return e.SendPayload(method, path, headers, strings.NewReader(payload), result, true, e.Verbose)
+	return e.SendPayload(method,
+		path,
+		headers,
+		strings.NewReader(payload),
+		result,
+		true,
+		e.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -411,11 +423,15 @@ func (e *EXMO) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = e.calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.BaseCurrency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.Amount, feeBuilder.BankTransactionType)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount,
+			feeBuilder.BankTransactionType)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency, feeBuilder.Amount, feeBuilder.BankTransactionType)
+		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount,
+			feeBuilder.BankTransactionType)
 	}
 
 	if fee < 0 {

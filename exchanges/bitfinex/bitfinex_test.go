@@ -613,11 +613,8 @@ func TestCloseMarginFunding(t *testing.T) {
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:        1,
-		Delimiter:     "",
 		FeeType:       exchange.CryptocurrencyTradeFee,
-		BaseCurrency:  currency.BTC,
-		QuoteCurrency: currency.LTC,
-		IsMaker:       false,
+		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
 }

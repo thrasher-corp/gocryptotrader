@@ -421,7 +421,7 @@ func (z *ZB) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.BaseCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	}
 	if fee < 0 {
 		fee = 0

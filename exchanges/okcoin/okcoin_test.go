@@ -1041,11 +1041,11 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 // Function tests ----------------------------------------------------------------------------------------------
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:              1,
-		Delimiter:           "-",
-		FeeType:             exchange.CryptocurrencyTradeFee,
-		BaseCurrency:        currency.LTC,
-		QuoteCurrency:       currency.BTC,
+		Amount:  1,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			currency.BTC.String(),
+			"-"),
 		IsMaker:             false,
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,

@@ -168,11 +168,8 @@ func TestGetOrderInfo(t *testing.T) {
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:        1,
-		Delimiter:     "",
 		FeeType:       exchange.CryptocurrencyTradeFee,
-		BaseCurrency:  currency.BTC,
-		QuoteCurrency: currency.LTC,
-		IsMaker:       false,
+		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
 }
@@ -186,7 +183,7 @@ func TestGetFee(t *testing.T) {
 	if apiKey != "" || apiSecret != "" {
 		// CryptocurrencyTradeFee Fiat
 		feeBuilder = setFeeBuilder()
-		feeBuilder.QuoteCurrency = currency.USD
+		feeBuilder.Pair.Quote = currency.USD
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.00849999) || err != nil {
 			t.Error(err)
 			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.00849999), resp)

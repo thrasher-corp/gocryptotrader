@@ -614,9 +614,9 @@ func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CyptocurrencyDepositFee:
-		fee = getDepositFee(feeBuilder.BaseCurrency, feeBuilder.Amount)
+		fee = getDepositFee(feeBuilder.Pair.Base, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.BaseCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FiatCurrency)
 	}

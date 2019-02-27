@@ -913,7 +913,8 @@ func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, result interface{}) (err error) {
 	if !k.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, k.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			k.Name)
 	}
 
 	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
@@ -932,25 +933,35 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 
 	encoded := params.Encode()
 	shasum := common.GetSHA256([]byte(params.Get("nonce") + encoded))
-	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512, append([]byte(path), shasum...), secret))
+	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512,
+		append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
-		log.Debugf("Sending POST request to %s, path: %s, params: %s", k.APIUrl, path, encoded)
+		log.Debugf("Sending POST request to %s, path: %s, params: %s",
+			k.APIUrl,
+			path,
+			encoded)
 	}
 
 	headers := make(map[string]string)
 	headers["API-Key"] = k.APIKey
 	headers["API-Sign"] = signature
 
-	return k.SendPayload(http.MethodPost, k.APIUrl+path, headers, strings.NewReader(encoded), result, true, k.Verbose)
+	return k.SendPayload(http.MethodPost,
+		k.APIUrl+path,
+		headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		k.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
 func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	c := feeBuilder.BaseCurrency.String() +
-		feeBuilder.Delimiter +
-		feeBuilder.QuoteCurrency.String()
+	c := feeBuilder.Pair.Base.String() +
+		feeBuilder.Pair.Delimiter +
+		feeBuilder.Pair.Quote.String()
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
@@ -970,7 +981,7 @@ func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 				feeBuilder.Amount)
 		}
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.BaseCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankDepositFee:
 		depositMethods, err := k.GetDepositMethods(feeBuilder.FiatCurrency.String())
 		if err != nil {
@@ -986,7 +997,7 @@ func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 			}
 		}
 	case exchange.CyptocurrencyDepositFee:
-		fee = getCryptocurrencyDepositFee(feeBuilder.BaseCurrency)
+		fee = getCryptocurrencyDepositFee(feeBuilder.Pair.Base)
 
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FiatCurrency)

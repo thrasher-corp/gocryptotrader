@@ -234,11 +234,8 @@ func TestGetAccount(t *testing.T) {
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:        1,
-		Delimiter:     "",
 		FeeType:       exchange.CryptocurrencyTradeFee,
-		BaseCurrency:  currency.BTC,
-		QuoteCurrency: currency.LTC,
-		IsMaker:       false,
+		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
 }
@@ -368,7 +365,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	getOrdersRequest.Currencies = []currency.Pair{
 		currency.NewPair(currency.LTC,
-		currency.BTC)}
+			currency.BTC)}
 
 	_, err = b.GetOrderHistory(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {

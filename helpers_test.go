@@ -257,18 +257,18 @@ func TestGetSpecificOrderbook(t *testing.T) {
 	SetupTestHelpers(t)
 
 	LoadExchange("Bitstamp", false, nil)
-	p := currency.NewPairFromStrings("BTC", "USD")
+
 	bids := []orderbook.Item{}
 	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
 
-	newOrderbook := orderbook.Base{
-		Pair:         p,
+	base := orderbook.Base{
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
 		Bids:         bids,
-		AssetType:    ticker.Spot,
 		ExchangeName: "Bitstamp",
+		AssetType:    orderbook.Spot,
 	}
 
-	err := newOrderbook.Process()
+	err := base.Process()
 	if err != nil {
 		t.Fatal("Unexpected result", err)
 	}

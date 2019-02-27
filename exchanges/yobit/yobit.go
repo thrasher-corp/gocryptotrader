@@ -330,13 +330,20 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
-	return y.SendPayload(http.MethodGet, path, nil, nil, result, false, y.Verbose)
+	return y.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		y.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
 func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, result interface{}) (err error) {
 	if !y.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, y.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			y.Name)
 	}
 
 	if params == nil {
@@ -352,10 +359,15 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	params.Set("method", path)
 
 	encoded := params.Encode()
-	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(y.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512,
+		[]byte(encoded),
+		[]byte(y.APISecret))
 
 	if y.Verbose {
-		log.Debugf("Sending POST request to %s calling path %s with params %s\n", apiPrivateURL, path, encoded)
+		log.Debugf("Sending POST request to %s calling path %s with params %s\n",
+			apiPrivateURL,
+			path,
+			encoded)
 	}
 
 	headers := make(map[string]string)
@@ -363,7 +375,13 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return y.SendPayload(http.MethodPost, apiPrivateURL, headers, strings.NewReader(encoded), result, true, y.Verbose)
+	return y.SendPayload(http.MethodPost,
+		apiPrivateURL,
+		headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		y.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -373,11 +391,14 @@ func (y *Yobit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.BaseCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency, feeBuilder.BankTransactionType)
+		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
+			feeBuilder.BankTransactionType)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.Amount, feeBuilder.BankTransactionType)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount,
+			feeBuilder.BankTransactionType)
 	}
 	if fee < 0 {
 		fee = 0

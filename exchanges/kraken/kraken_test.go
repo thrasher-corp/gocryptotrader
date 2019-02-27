@@ -223,11 +223,8 @@ func TestCancelExistingOrder(t *testing.T) {
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:              1,
-		Delimiter:           "",
 		FeeType:             exchange.CryptocurrencyTradeFee,
-		BaseCurrency:        currency.XXBT,
-		QuoteCurrency:       currency.ZUSD,
-		IsMaker:             false,
+		Pair:                currency.NewPair(currency.XXBT, currency.ZUSD),
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
@@ -283,7 +280,7 @@ func TestGetFee(t *testing.T) {
 	// CyptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	feeBuilder.BaseCurrency = currency.XXBT
+	feeBuilder.Pair.Base = currency.XXBT
 	if resp, err := k.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(5), resp)
 		t.Error(err)
@@ -299,7 +296,7 @@ func TestGetFee(t *testing.T) {
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
-	feeBuilder.BaseCurrency = currency.NewCode("hello")
+	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := k.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)

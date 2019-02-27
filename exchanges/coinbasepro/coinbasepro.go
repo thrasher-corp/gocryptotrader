@@ -798,7 +798,8 @@ func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
 func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
 	if !c.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			c.Name)
 	}
 
 	payload := []byte("")
@@ -824,7 +825,13 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 	headers["CB-ACCESS-PASSPHRASE"] = c.ClientID
 	headers["Content-Type"] = "application/json"
 
-	return c.SendPayload(method, c.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, c.Verbose)
+	return c.SendPayload(method,
+		c.APIUrl+path,
+		headers,
+		bytes.NewBuffer(payload),
+		result,
+		true,
+		c.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -836,7 +843,13 @@ func (c *CoinbasePro) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = c.calculateTradingFee(trailingVolume, feeBuilder.BaseCurrency, feeBuilder.QuoteCurrency, feeBuilder.Delimiter, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+		fee = c.calculateTradingFee(trailingVolume,
+			feeBuilder.Pair.Base,
+			feeBuilder.Pair.Quote,
+			feeBuilder.Pair.Delimiter,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
 	case exchange.InternationalBankDepositFee:
