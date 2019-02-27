@@ -116,7 +116,7 @@ func (b *BTSE) GetAccountInfo() (exchange.AccountInfo, error) {
 	for _, b := range *balance {
 		currencies = append(currencies,
 			exchange.AccountCurrencyInfo{
-				CurrencyName: currency.NewCurrencyCode(b.Currency),
+				CurrencyName: currency.NewCode(b.Currency),
 				TotalValue:   b.Total,
 				Hold:         b.Available,
 			},

@@ -347,14 +347,16 @@ func TestSupportsPair(t *testing.T) {
 		)
 	}
 
-	_, err = cfg.SupportsPair("asdf", currency.NewPair("BTC", "USD"))
+	_, err = cfg.SupportsPair("asdf",
+		currency.NewPair(currency.BTC, currency.USD))
 	if err == nil {
 		t.Error(
 			"Test failed. TestSupportsPair. Non-existent exchange returned nil error",
 		)
 	}
 
-	_, err = cfg.SupportsPair("Bitfinex", currency.NewPair("BTC", "USD"))
+	_, err = cfg.SupportsPair("Bitfinex",
+		currency.NewPair(currency.BTC, currency.USD))
 	if err != nil {
 		t.Errorf(
 			"Test failed. TestSupportsPair. Incorrect values. Err: %s", err,

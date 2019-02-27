@@ -988,7 +988,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	if c.Currency.FiatDisplayCurrency.IsEmpty() {
 		if c.FiatDisplayCurrency.IsEmpty() {
 			c.Currency.FiatDisplayCurrency = c.FiatDisplayCurrency
-			c.FiatDisplayCurrency = currency.NewCurrencyCode("")
+			c.FiatDisplayCurrency = currency.NewCode("")
 		} else {
 			c.Currency.FiatDisplayCurrency = currency.USD
 		}

@@ -412,7 +412,7 @@ func (c *COINUT) calculateTradingFee(base, quote currency.Code, purchasePrice, a
 	switch {
 	case isMaker:
 		fee = 0
-	case currency.NewPairFromCodes(base, quote).IsCryptoFiat():
+	case currency.NewPair(base, quote).IsCryptoFiatPair():
 		fee = 0.002
 	default:
 		fee = 0.001

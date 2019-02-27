@@ -39,7 +39,7 @@ func (c *Currencies) UnmarshalJSON(d []byte) error {
 
 	var allTheCurrencies Currencies
 	for _, data := range common.SplitStrings(configCurrencies, ",") {
-		allTheCurrencies = append(allTheCurrencies, NewCurrencyCode(data))
+		allTheCurrencies = append(allTheCurrencies, NewCode(data))
 	}
 
 	*c = allTheCurrencies

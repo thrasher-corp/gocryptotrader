@@ -776,7 +776,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -802,7 +802,7 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

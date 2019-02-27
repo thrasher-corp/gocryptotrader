@@ -156,7 +156,7 @@ func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for _, item := range accountBalance {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(item.Currency)
+		exchangeCurrency.CurrencyName = currency.NewCode(item.Currency)
 		exchangeCurrency.TotalValue = item.Available
 		exchangeCurrency.Hold = item.Reserved
 		currencies = append(currencies, exchangeCurrency)

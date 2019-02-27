@@ -146,7 +146,7 @@ func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 	cryptocurrencies := currency.GetCryptoCurrencies()
 
 	for x := range cryptocurrencies {
-		newPair := currency.NewPairFromCodes(p.Base, cryptocurrencies[x])
+		newPair := currency.NewPair(p.Base, cryptocurrencies[x])
 		if newPair.IsInvalid() {
 			continue
 		}
@@ -171,7 +171,7 @@ func GetRelatableFiatCurrencies(p currency.Pair) currency.Pairs {
 	fiatCurrencies := currency.GetFiatCurrencies()
 
 	for x := range fiatCurrencies {
-		newPair := currency.NewPairFromCodes(p.Base, fiatCurrencies[x])
+		newPair := currency.NewPair(p.Base, fiatCurrencies[x])
 		if newPair.Base.Upper() == newPair.Quote.Upper() {
 			continue
 		}
@@ -209,18 +209,18 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 
 		first, ok := currency.GetTranslation(p.Base)
 		if ok {
-			addPair(currency.NewPairFromCodes(first, p.Quote))
+			addPair(currency.NewPair(first, p.Quote))
 
 			var second currency.Code
 			second, ok = currency.GetTranslation(p.Quote)
 			if ok {
-				addPair(currency.NewPairFromCodes(first, second))
+				addPair(currency.NewPair(first, second))
 			}
 		}
 
 		second, ok := currency.GetTranslation(p.Quote)
 		if ok {
-			addPair(currency.NewPairFromCodes(p.Base, second))
+			addPair(currency.NewPair(p.Base, second))
 		}
 	}
 

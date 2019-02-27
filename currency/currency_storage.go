@@ -398,9 +398,9 @@ func (s *Storage) IsCryptocurrency(c Code) bool {
 	return false
 }
 
-// NewCurrencyCode validates string against currency list and returns a currency
+// NewCode validates string against currency list and returns a currency
 // code
-func (s *Storage) NewCurrencyCode(newCode string) Code {
+func (s *Storage) NewCode(newCode string) Code {
 	return s.currencyCodes.Register(newCode)
 }
 

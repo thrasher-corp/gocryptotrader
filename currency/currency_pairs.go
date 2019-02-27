@@ -33,7 +33,7 @@ func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
 		formattedPair.Quote = data.Quote
 
 		if index != "" {
-			formattedPair.Quote = NewCurrencyCode(index)
+			formattedPair.Quote = NewCode(index)
 		}
 
 		if uppercase {
@@ -138,7 +138,7 @@ func (p Pairs) GetRandomPair() Pair {
 	pairsLen := len(p)
 
 	if pairsLen == 0 {
-		return Pair{Base: NewCurrencyCode(""), Quote: NewCurrencyCode("")}
+		return Pair{Base: NewCode(""), Quote: NewCode("")}
 	}
 
 	return p[rand.Intn(pairsLen)]

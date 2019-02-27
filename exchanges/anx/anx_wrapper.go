@@ -46,7 +46,7 @@ func (a *ANX) Run() {
 
 			var enabledPairs currency.Pairs
 			for _, p := range newPairs {
-				enabledPairs = append(enabledPairs, 
+				enabledPairs = append(enabledPairs,
 					currency.NewPairDelimiter(p, "_"))
 			}
 
@@ -219,7 +219,7 @@ func (a *ANX) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balance []exchange.AccountCurrencyInfo
 	for c, info := range raw.Wallets {
 		balance = append(balance, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCurrencyCode(c),
+			CurrencyName: currency.NewCode(c),
 			TotalValue:   info.AvailableBalance.Value,
 			Hold:         info.Balance.Value,
 		})

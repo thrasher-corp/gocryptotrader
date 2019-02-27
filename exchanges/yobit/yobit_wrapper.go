@@ -124,7 +124,7 @@ func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.FundsInclOrders {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(x)
+		exchangeCurrency.CurrencyName = currency.NewCode(x)
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
 		for z, w := range accountBalance.Funds {

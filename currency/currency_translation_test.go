@@ -3,7 +3,7 @@ package currency
 import "testing"
 
 func TestGetTranslation(t *testing.T) {
-	currencyPair := NewPair("BTC", "USD")
+	currencyPair := NewPair(BTC, USD)
 	expected := XBT
 	actual, ok := GetTranslation(currencyPair.Base)
 	if !ok {

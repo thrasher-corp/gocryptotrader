@@ -170,7 +170,7 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		currencyBalance = append(currencyBalance, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCurrencyCode(balance.Asset),
+			CurrencyName: currency.NewCode(balance.Asset),
 			TotalValue:   freeCurrency + lockedCurrency,
 			Hold:         freeCurrency,
 		})

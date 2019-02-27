@@ -29,7 +29,7 @@ package events
 // func TestAddEvent(t *testing.T) {
 // 	testSetup(t)
 //
-// 	pair := currency.NewPair("BTC", "USD")
+// 	pair := currency.NewPairFromStrings("BTC", "USD")
 // 	eventID, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 // 	if err != nil && eventID != 0 {
 // 		t.Errorf("Test Failed. AddEvent: Error, %s", err)
@@ -59,7 +59,7 @@ package events
 // func TestRemoveEvent(t *testing.T) {
 // 	testSetup(t)
 //
-// 	pair := currency.NewPair("BTC", "USD")
+// 	pair := currency.NewPairFromStrings("BTC", "USD")
 // 	eventID, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 // 	if err != nil && eventID != 0 {
 // 		t.Errorf("Test Failed. RemoveEvent: Error, %s", err)
@@ -75,7 +75,7 @@ package events
 // func TestGetEventCounter(t *testing.T) {
 // 	testSetup(t)
 //
-// 	pair := currency.NewPair("BTC", "USD")
+// 	pair := currency.NewPairFromStrings("BTC", "USD")
 // 	one, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 // 	if err != nil {
 // 		t.Errorf("Test Failed. GetEventCounter: Error, %s", err)
@@ -114,7 +114,7 @@ package events
 // func TestExecuteAction(t *testing.T) {
 // 	testSetup(t)
 //
-// 	pair := currency.NewPair("BTC", "USD")
+// 	pair := currency.NewPairFromStrings("BTC", "USD")
 // 	one, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 // 	if err != nil {
 // 		t.Fatalf("Test Failed. ExecuteAction: Error, %s", err)
@@ -160,7 +160,7 @@ package events
 // func TestEventToString(t *testing.T) {
 // 	testSetup(t)
 //
-// 	pair := currency.NewPair("BTC", "USD")
+// 	pair := currency.NewPairFromStrings("BTC", "USD")
 // 	one, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 // 	if err != nil {
 // 		t.Errorf("Test Failed. EventToString: Error, %s", err)
@@ -180,7 +180,7 @@ package events
 // 	testSetup(t)
 //
 // 	// Test invalid currency pair
-// 	newPair := currency.NewPair("A", "B")
+// 	newPair := currency.NewPairFromStrings("A", "B")
 // 	one, err := AddEvent("ANX", "price", ">=,10", newPair, "SPOT", actionTest)
 // 	if err != nil {
 // 		t.Errorf("Test Failed. CheckCondition: Error, %s", err)
@@ -193,7 +193,7 @@ package events
 // 	// Test last price == 0
 // 	var tickerNew ticker.Price
 // 	tickerNew.Last = 0
-// 	newPair = currency.NewPair("BTC", "USD")
+// 	newPair = currency.NewPairFromStrings("BTC", "USD")
 // 	ticker.ProcessTicker("ANX", newPair, tickerNew, ticker.Spot)
 // 	Events[one].Pair = newPair
 // 	conditionBool = Events[one].CheckCondition()
@@ -287,7 +287,7 @@ package events
 // func TestCheckEvents(t *testing.T) {
 // 	testSetup(t)
 //
-// 	pair := currency.NewPair("BTC", "USD")
+// 	pair := currency.NewPairFromStrings("BTC", "USD")
 // 	_, err := AddEvent("ANX", "price", ">=,10", pair, "SPOT", actionTest)
 // 	if err != nil {
 // 		t.Fatal("Test failed. TestChcheckEvents add event")

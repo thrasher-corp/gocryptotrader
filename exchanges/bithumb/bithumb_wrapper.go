@@ -154,7 +154,7 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCurrencyCode(key),
+			CurrencyName: currency.NewCode(key),
 			TotalValue:   totalAmount,
 			Hold:         hold,
 		})

@@ -204,7 +204,7 @@ func TestGetFee(t *testing.T) {
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
-	feeBuilder.BaseCurrency = currency.NewCurrencyCode("hello")
+	feeBuilder.BaseCurrency = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := g.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
@@ -272,7 +272,7 @@ func TestGetOrderHistory(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	currPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currPair := currency.NewPair(currency.LTC, currency.BTC)
 	currPair.Delimiter = "_"
 	getOrdersRequest.Currencies = []currency.Pair{currPair}
 
@@ -323,7 +323,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -349,7 +349,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip()
 	}
 
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

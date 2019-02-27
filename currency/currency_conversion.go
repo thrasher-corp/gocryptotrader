@@ -105,11 +105,11 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	var mainBaseCurrency Code
 
 	for key, val := range m {
-		code1 := NewCurrencyCode(key[:3])
+		code1 := NewCode(key[:3])
 		if mainBaseCurrency == (Code{}) {
 			mainBaseCurrency = code1
 		}
-		code2 := NewCurrencyCode(key[3:])
+		code2 := NewCode(key[3:])
 
 		if code1 == code2 { // Get rid of same conversions
 			continue

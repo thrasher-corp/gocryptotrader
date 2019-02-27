@@ -342,7 +342,7 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	getOrdersRequest.Currencies = []currency.Pair{
-		currency.NewPairFromCodes(currency.LTC, currency.BTC),
+		currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	_, err = b.GetActiveOrders(getOrdersRequest)
@@ -367,7 +367,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	getOrdersRequest.Currencies = []currency.Pair{
-		currency.NewPairFromCodes(currency.LTC,
+		currency.NewPair(currency.LTC,
 		currency.BTC)}
 
 	_, err = b.GetOrderHistory(getOrdersRequest)
@@ -410,7 +410,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -432,7 +432,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

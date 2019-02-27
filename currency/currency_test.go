@@ -8,7 +8,7 @@ import (
 
 func TestCodeString(t *testing.T) {
 	expected := "TEST"
-	cc := NewCurrencyCode("TEST")
+	cc := NewCode("TEST")
 	if cc.String() != expected {
 		t.Errorf("Test Failed - Currency Code String() error expected %s but recieved %s",
 			expected, cc)
@@ -47,8 +47,8 @@ func TestNewConversion(t *testing.T) {
 }
 
 func TestNewConversionFromCode(t *testing.T) {
-	from := NewCurrencyCode("AUD")
-	to := NewCurrencyCode("USD")
+	from := NewCode("AUD")
+	to := NewCode("USD")
 	expected := "AUDUSD"
 
 	conv, err := NewConversionFromCode(from, to)

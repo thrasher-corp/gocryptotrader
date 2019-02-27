@@ -170,7 +170,7 @@ func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
 
 			var updated bool
 			for i := range currencyDetails {
-				if currencyDetails[i].CurrencyName == currency.NewCurrencyCode(balance.Currency) {
+				if currencyDetails[i].CurrencyName == currency.NewCode(balance.Currency) {
 					if frozen {
 						currencyDetails[i].Hold = balance.Balance
 					} else {
@@ -187,13 +187,13 @@ func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
 			if frozen {
 				currencyDetails = append(currencyDetails,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: currency.NewCurrencyCode(balance.Currency),
+						CurrencyName: currency.NewCode(balance.Currency),
 						Hold:         balance.Balance,
 					})
 			} else {
 				currencyDetails = append(currencyDetails,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: currency.NewCurrencyCode(balance.Currency),
+						CurrencyName: currency.NewCode(balance.Currency),
 						TotalValue:   balance.Balance,
 					})
 			}

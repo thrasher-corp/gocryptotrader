@@ -538,15 +538,15 @@ func TestSupportsCurrency(t *testing.T) {
 	b.RequestCurrencyPairFormat = format
 	b.ConfigCurrencyPairFormat = format
 
-	if !b.SupportsCurrency(currency.NewPair("BTC", "USD"), true) {
+	if !b.SupportsCurrency(currency.NewPairFromStrings("BTC", "USD"), true) {
 		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
 	}
 
-	if !b.SupportsCurrency(currency.NewPair("ETH", "USD"), false) {
+	if !b.SupportsCurrency(currency.NewPairFromStrings("ETH", "USD"), false) {
 		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
 	}
 
-	if b.SupportsCurrency(currency.NewPair("ASD", "ASDF"), true) {
+	if b.SupportsCurrency(currency.NewPairFromStrings("ASD", "ASDF"), true) {
 		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
 	}
 }
@@ -618,7 +618,7 @@ func TestFormatExchangeCurrency(t *testing.T) {
 		t.Fatalf("Failed to load config file. Error: %s", err)
 	}
 
-	p := currency.NewPairFromCodes(currency.BTC, currency.USD)
+	p := currency.NewPair(currency.BTC, currency.USD)
 	expected := defaultTestCurrencyPair
 	actual := FormatExchangeCurrency("CoinbasePro", p)
 
@@ -635,7 +635,7 @@ func TestFormatCurrency(t *testing.T) {
 		t.Fatalf("Failed to load config file. Error: %s", err)
 	}
 
-	p := currency.NewPairFromCodes(currency.BTC, currency.USD)
+	p := currency.NewPair(currency.BTC, currency.USD)
 	expected := defaultTestCurrencyPair
 	actual := FormatCurrency(p).String()
 	if actual != expected {
@@ -1027,32 +1027,32 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 func TestFilterOrdersByCurrencies(t *testing.T) {
 	var orders = []OrderDetail{
 		{
-			CurrencyPair: currency.NewPairFromCodes(currency.BTC, currency.USD),
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 		},
 		{
-			CurrencyPair: currency.NewPairFromCodes(currency.LTC, currency.EUR),
+			CurrencyPair: currency.NewPair(currency.LTC, currency.EUR),
 		},
 		{
-			CurrencyPair: currency.NewPairFromCodes(currency.DOGE, currency.RUB),
+			CurrencyPair: currency.NewPair(currency.DOGE, currency.RUB),
 		},
 	}
 
-	currencies := []currency.Pair{currency.NewPairFromCodes(currency.BTC, currency.USD),
-		currency.NewPairFromCodes(currency.LTC, currency.EUR),
-		currency.NewPairFromCodes(currency.DOGE, currency.RUB)}
+	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.LTC, currency.EUR),
+		currency.NewPair(currency.DOGE, currency.RUB)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	currencies = []currency.Pair{currency.NewPairFromCodes(currency.BTC, currency.USD),
-		currency.NewPairFromCodes(currency.LTC, currency.EUR)}
+	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.LTC, currency.EUR)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
-	currencies = []currency.Pair{currency.NewPairFromCodes(currency.BTC, currency.USD)}
+	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))

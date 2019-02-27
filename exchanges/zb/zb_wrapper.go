@@ -153,7 +153,7 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCurrencyCode(data.EnName),
+			CurrencyName: currency.NewCode(data.EnName),
 			TotalValue:   hold + avail,
 			Hold:         hold,
 		})

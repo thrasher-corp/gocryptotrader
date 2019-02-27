@@ -1907,7 +1907,7 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelExchangeOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -1924,7 +1924,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 func TestCancelAllExchangeOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",

@@ -69,7 +69,7 @@ func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(accountBalance[i].Currency)
+		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Hold
 

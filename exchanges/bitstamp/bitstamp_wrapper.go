@@ -320,7 +320,7 @@ func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 			ID:        fmt.Sprintf("%v", order.ID),
 			Price:     order.Price,
 			OrderDate: orderDate,
-			CurrencyPair: currency.NewPair(order.Currency[0:3],
+			CurrencyPair: currency.NewPairFromStrings(order.Currency[0:3],
 				order.Currency[len(order.Currency)-3:]),
 			Exchange: b.Name,
 		})

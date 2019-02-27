@@ -69,7 +69,7 @@ func TestExchangeExists(t *testing.T) {
 	newBase := Base{}
 	newBase.AddAddress("someaddress",
 		currency.LTC.String(),
-		currency.NewCurrencyCode("LTCWALLETTEST"),
+		currency.NewCode("LTCWALLETTEST"),
 		0.02)
 
 	if !newBase.ExchangeExists("someaddress") {
@@ -84,7 +84,7 @@ func TestAddressExists(t *testing.T) {
 	newbase := Base{}
 	newbase.AddAddress("someaddress",
 		currency.LTC.String(),
-		currency.NewCurrencyCode("LTCWALLETTEST"),
+		currency.NewCode("LTCWALLETTEST"),
 		0.02)
 
 	if !newbase.AddressExists("someaddress") {
@@ -125,7 +125,7 @@ func TestUpdateAddressBalance(t *testing.T) {
 	newbase := Base{}
 	newbase.AddAddress("someaddress",
 		currency.LTC.String(),
-		currency.NewCurrencyCode("LTCWALLETTEST"),
+		currency.NewCode("LTCWALLETTEST"),
 		0.02)
 
 	newbase.UpdateAddressBalance("someaddress", 0.03)
@@ -141,7 +141,7 @@ func TestRemoveAddress(t *testing.T) {
 	newbase := Base{}
 	newbase.AddAddress("someaddr",
 		currency.LTC.String(),
-		currency.NewCurrencyCode("LTCWALLETTEST"),
+		currency.NewCode("LTCWALLETTEST"),
 		420)
 
 	if !newbase.AddressExists("someaddr") {
@@ -150,7 +150,7 @@ func TestRemoveAddress(t *testing.T) {
 
 	newbase.RemoveAddress("someaddr",
 		currency.LTC.String(),
-		currency.NewCurrencyCode("LTCWALLETTEST"))
+		currency.NewCode("LTCWALLETTEST"))
 	if newbase.AddressExists("someaddr") {
 		t.Error("Test failed - portfolio_test.go - TestRemoveAddress")
 	}
@@ -190,7 +190,7 @@ func TestAddAddress(t *testing.T) {
 	newbase := Base{}
 	newbase.AddAddress("Gibson",
 		currency.LTC.String(),
-		currency.NewCurrencyCode("LTCWALLETTEST"),
+		currency.NewCode("LTCWALLETTEST"),
 		0.02)
 
 	portfolio := GetPortfolio()
@@ -203,7 +203,7 @@ func TestAddAddress(t *testing.T) {
 	// Fail if address still exists.
 	newbase.AddAddress("Gibson",
 		currency.LTC.String(),
-		currency.NewCurrencyCode("LTCWALLETTEST"),
+		currency.NewCode("LTCWALLETTEST"),
 		-1)
 
 	if newbase.AddressExists("Gibson") {
@@ -215,7 +215,7 @@ func TestUpdatePortfolio(t *testing.T) {
 	newbase := Base{}
 	newbase.AddAddress("someaddress",
 		currency.LTC.String(),
-		currency.NewCurrencyCode("LTCWALLETTEST"),
+		currency.NewCode("LTCWALLETTEST"),
 		0.02)
 
 	portfolio := GetPortfolio()
@@ -272,7 +272,7 @@ func TestGetPortfolioByExchange(t *testing.T) {
 	newbase := Base{}
 	newbase.AddExchangeAddress("ANX", currency.LTC, 0.07)
 	newbase.AddExchangeAddress("Bitfinex", currency.LTC, 0.05)
-	newbase.AddAddress("someaddress", "LTC", currency.NewCurrencyCode(PortfolioAddressPersonal), 0.03)
+	newbase.AddAddress("someaddress", "LTC", currency.NewCode(PortfolioAddressPersonal), 0.03)
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
 	value := portfolio.GetPortfolioByExchange("ANX")
@@ -406,11 +406,12 @@ func TestStartPortfolioWatcher(t *testing.T) {
 	newBase := Base{}
 	newBase.AddAddress("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1",
 		currency.LTC.String(),
-		currency.NewCurrencyCode(PortfolioAddressPersonal),
+		currency.NewCode(PortfolioAddressPersonal),
 		0.02)
 
-	newBase.AddAddress("Testy", currency.LTC.String(),
-		currency.NewCurrencyCode(PortfolioAddressPersonal),
+	newBase.AddAddress("Testy",
+		currency.LTC.String(),
+		currency.NewCode(PortfolioAddressPersonal),
 		0.02)
 
 	portfolio := GetPortfolio()

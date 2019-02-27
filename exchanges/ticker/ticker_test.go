@@ -12,7 +12,7 @@ import (
 )
 
 func TestPriceToString(t *testing.T) {
-	newPair := currency.NewPair("BTC", "USD")
+	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
 		Last:     1200,
@@ -53,7 +53,7 @@ func TestPriceToString(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	newPair := currency.NewPair("BTC", "USD")
+	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
 		Last:     1200,
@@ -89,7 +89,7 @@ func TestGetTicker(t *testing.T) {
 		t.Fatal("Test Failed. TestGetTicker returned ticker for invalid first currency")
 	}
 
-	btcltcPair := currency.NewPair("BTC", "LTC")
+	btcltcPair := currency.NewPairFromStrings("BTC", "LTC")
 	_, err = GetTicker("bitfinex", btcltcPair, Spot)
 	if err == nil {
 		t.Fatal("Test Failed. TestGetTicker returned ticker for invalid second currency")
@@ -113,7 +113,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetTickerByExchange(t *testing.T) {
-	newPair := currency.NewPair("BTC", "USD")
+	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
 		Last:     1200,
@@ -138,7 +138,7 @@ func TestGetTickerByExchange(t *testing.T) {
 }
 
 func TestFirstCurrencyExists(t *testing.T) {
-	newPair := currency.NewPair("BTC", "USD")
+	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
 		Last:     1200,
@@ -156,7 +156,7 @@ func TestFirstCurrencyExists(t *testing.T) {
 	if !FirstCurrencyExists("alphapoint", currency.BTC) {
 		t.Error("Test Failed - FirstCurrencyExists1 value return is incorrect")
 	}
-	if FirstCurrencyExists("alphapoint", currency.NewCurrencyCode("CATS")) {
+	if FirstCurrencyExists("alphapoint", currency.NewCode("CATS")) {
 		t.Error("Test Failed - FirstCurrencyExists2 value return is incorrect")
 	}
 }
@@ -164,7 +164,7 @@ func TestFirstCurrencyExists(t *testing.T) {
 func TestSecondCurrencyExists(t *testing.T) {
 	t.Parallel()
 
-	newPair := currency.NewPair("BTC", "USD")
+	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
 		Last:     1200,
@@ -183,7 +183,7 @@ func TestSecondCurrencyExists(t *testing.T) {
 		t.Error("Test Failed - SecondCurrencyExists1 value return is incorrect")
 	}
 
-	newPair.Quote = currency.NewCurrencyCode("DOGS")
+	newPair.Quote = currency.NewCode("DOGS")
 	if SecondCurrencyExists("bitstamp", newPair) {
 		t.Error("Test Failed - SecondCurrencyExists2 value return is incorrect")
 	}
@@ -191,7 +191,7 @@ func TestSecondCurrencyExists(t *testing.T) {
 
 func TestCreateNewTicker(t *testing.T) {
 	const float64Type = "float64"
-	newPair := currency.NewPair("BTC", "USD")
+	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
 		Last:     1200,
@@ -246,7 +246,7 @@ func TestCreateNewTicker(t *testing.T) {
 
 func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	Tickers = []Ticker{}
-	newPair := currency.NewPair("BTC", "USD")
+	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
 		Last:     1200,
@@ -277,7 +277,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		t.Fatal("Test failed. TestProcessTicker pair mismatch")
 	}
 
-	secondPair := currency.NewPair("BTC", "AUD")
+	secondPair := currency.NewPairFromStrings("BTC", "AUD")
 	priceStruct.Pair = secondPair
 	err = ProcessTicker("btcc", priceStruct, Spot)
 	if err != nil {
@@ -311,7 +311,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs := currency.NewPair("BTC"+strconv.FormatInt(rand.Int63(), 10),
+			newPairs := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10),
 				"USD"+strconv.FormatInt(rand.Int63(), 10))
 
 			tp := Price{

@@ -171,7 +171,7 @@ func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balances []exchange.AccountCurrencyInfo
 	for key, data := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCurrencyCode(key),
+			CurrencyName: currency.NewCode(key),
 			TotalValue:   data,
 		})
 	}

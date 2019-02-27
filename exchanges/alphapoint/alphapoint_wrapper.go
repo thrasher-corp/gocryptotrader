@@ -26,7 +26,7 @@ func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(account.Currencies); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(account.Currencies[i].Name)
+		exchangeCurrency.CurrencyName = currency.NewCode(account.Currencies[i].Name)
 		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
 		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)
 

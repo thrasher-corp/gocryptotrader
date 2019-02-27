@@ -134,7 +134,7 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 				continue
 			}
 			var exchangeCurrency exchange.AccountCurrencyInfo
-			exchangeCurrency.CurrencyName = currency.NewCurrencyCode(x)
+			exchangeCurrency.CurrencyName = currency.NewCode(x)
 			exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 			exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
 			currencies = append(currencies, exchangeCurrency)

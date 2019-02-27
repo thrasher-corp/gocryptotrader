@@ -4,9 +4,9 @@ import (
 	"strings"
 )
 
-// NewCurrencyCode returns a new currency registered code
-func NewCurrencyCode(c string) Code {
-	return storage.NewCurrencyCode(c)
+// NewCode returns a new currency registered code
+func NewCode(c string) Code {
+	return storage.NewCode(c)
 }
 
 // NewConversionFromString splits a string from a foreign exchange provider
@@ -17,8 +17,8 @@ func NewConversionFromString(p string) Conversion {
 // NewConversion assigns or finds a new conversion unit
 func NewConversion(from, to string) Conversion {
 	return Conversion{
-		From: NewCurrencyCode(from),
-		To:   NewCurrencyCode(to),
+		From: NewCode(from),
+		To:   NewCode(to),
 	}
 }
 
@@ -29,13 +29,13 @@ func NewCurrenciesFromStrings(currencies []string) Currencies {
 		if c == "" {
 			continue
 		}
-		list = append(list, NewCurrencyCode(c))
+		list = append(list, NewCode(c))
 	}
 	return list
 }
 
-// NewPairsFromStrings takes in currency pair strings and returns a
-// currency pair list
+// NewPairsFromStrings takes in currency pair strings and returns a currency
+// pair list
 func NewPairsFromStrings(pairs []string) Pairs {
 	var ps Pairs
 	for _, p := range pairs {
@@ -54,21 +54,21 @@ func NewPairDelimiter(currencyPair, delimiter string) Pair {
 	result := strings.Split(currencyPair, delimiter)
 	return Pair{
 		Delimiter: delimiter,
-		Base:      NewCurrencyCode(result[0]),
-		Quote:     NewCurrencyCode(result[1]),
+		Base:      NewCode(result[0]),
+		Quote:     NewCode(result[1]),
 	}
 }
 
-// NewPair returns a CurrencyPair without a delimiter
-func NewPair(baseCurrency, quoteCurrency string) Pair {
+// NewPairFromStrings returns a CurrencyPair without a delimiter
+func NewPairFromStrings(baseCurrency, quoteCurrency string) Pair {
 	return Pair{
-		Base:  NewCurrencyCode(baseCurrency),
-		Quote: NewCurrencyCode(quoteCurrency),
+		Base:  NewCode(baseCurrency),
+		Quote: NewCode(quoteCurrency),
 	}
 }
 
-// NewPairFromCodes returns a currency pair from currency codes
-func NewPairFromCodes(baseCurrency, quoteCurrency Code) Pair {
+// NewPair returns a currency pair from currency codes
+func NewPair(baseCurrency, quoteCurrency Code) Pair {
 	return Pair{
 		Base:  baseCurrency,
 		Quote: quoteCurrency,
@@ -78,8 +78,8 @@ func NewPairFromCodes(baseCurrency, quoteCurrency Code) Pair {
 // NewPairWithDelimiter returns a CurrencyPair with a delimiter
 func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 	return Pair{
-		Base:      NewCurrencyCode(base),
-		Quote:     NewCurrencyCode(quote),
+		Base:      NewCode(base),
+		Quote:     NewCode(quote),
 		Delimiter: delimiter,
 	}
 }
@@ -89,9 +89,9 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 func NewPairFromIndex(currencyPair, index string) Pair {
 	i := strings.Index(currencyPair, index)
 	if i == 0 {
-		return NewPair(currencyPair[0:len(index)], currencyPair[len(index):])
+		return NewPairFromStrings(currencyPair[0:len(index)], currencyPair[len(index):])
 	}
-	return NewPair(currencyPair[0:i], currencyPair[i:])
+	return NewPairFromStrings(currencyPair[0:i], currencyPair[i:])
 }
 
 // NewPairFromString converts currency string into a new CurrencyPair
@@ -105,7 +105,7 @@ func NewPairFromString(currencyPair string) Pair {
 			return NewPairDelimiter(currencyPair, delimiter)
 		}
 	}
-	return NewPair(currencyPair[0:3], currencyPair[3:])
+	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])
 }
 
 // NewConversionFromCode returns a conversion rate object that allows for
@@ -203,7 +203,7 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 			return pairs[x]
 		}
 	}
-	return Pair{Base: NewCurrencyCode(""), Quote: NewCurrencyCode("")}
+	return Pair{Base: NewCode(""), Quote: NewCode("")}
 }
 
 // FormatPairs formats a string array to a list of currency pairs with the
@@ -221,7 +221,7 @@ func FormatPairs(pairs []string, delimiter, index string) Pairs {
 			if index != "" {
 				p = NewPairFromIndex(pairs[x], index)
 			} else {
-				p = NewPair(pairs[x][0:3], pairs[x][3:])
+				p = NewPairFromStrings(pairs[x][0:3], pairs[x][3:])
 			}
 		}
 		result = append(result, p)

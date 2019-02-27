@@ -162,7 +162,7 @@ func TestCalculateTradingFee(t *testing.T) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 	}
 
-	dummy1, dummy2 := currency.NewCurrencyCode(""), currency.NewCurrencyCode("")
+	dummy1, dummy2 := currency.NewCode(""), currency.NewCode("")
 	if resp := b.CalculateTradingFee(dummy1, dummy2, 0, 0); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
 	}
@@ -440,7 +440,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -466,7 +466,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPairFromCodes(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

@@ -143,7 +143,7 @@ func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balances []exchange.AccountCurrencyInfo
 	for _, data := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCurrencyCode(data.Currency),
+			CurrencyName: currency.NewCode(data.Currency),
 			TotalValue:   float64(data.WalletBalance),
 		})
 	}

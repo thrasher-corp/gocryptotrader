@@ -151,7 +151,7 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for key, data := range amounts {
 		fullBalance = append(fullBalance, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCurrencyCode(key),
+			CurrencyName: currency.NewCode(key),
 			TotalValue:   data.TotalValue,
 			Hold:         data.Hold,
 		})

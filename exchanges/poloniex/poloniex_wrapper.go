@@ -154,7 +154,7 @@ func (p *Poloniex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.Currency {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(x)
+		exchangeCurrency.CurrencyName = currency.NewCode(x)
 		exchangeCurrency.TotalValue = y
 		currencies = append(currencies, exchangeCurrency)
 	}

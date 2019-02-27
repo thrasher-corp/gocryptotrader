@@ -67,7 +67,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 	}
 
 	for x := range tickerNew {
-		newP := currency.NewPair(tickerNew[x].Symbol[1:4],
+		newP := currency.NewPairFromStrings(tickerNew[x].Symbol[1:4],
 			tickerNew[x].Symbol[4:])
 
 		var tick ticker.Price
@@ -153,7 +153,7 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 			if Accounts[i].ID == bal.Type {
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: currency.NewCurrencyCode(bal.Currency),
+						CurrencyName: currency.NewCode(bal.Currency),
 						TotalValue:   bal.Amount,
 						Hold:         bal.Amount - bal.Available,
 					})

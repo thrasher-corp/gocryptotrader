@@ -60,12 +60,12 @@ func Add(exchange string, p currency.Pair, assetType string, price, volume float
 	}
 
 	if p.Base == currency.XBT {
-		newPair := currency.NewPair(currency.BTC.String(), p.Quote.String())
+		newPair := currency.NewPairFromStrings(currency.BTC.String(), p.Quote.String())
 		Append(exchange, newPair, assetType, price, volume)
 	}
 
 	if p.Quote == currency.USDT {
-		newPair := currency.NewPair(p.Base.String(), currency.USD.String())
+		newPair := currency.NewPairFromStrings(p.Base.String(), currency.USD.String())
 		Append(exchange, newPair, assetType, price, volume)
 	}
 

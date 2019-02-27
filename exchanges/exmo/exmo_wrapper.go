@@ -165,7 +165,7 @@ func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range result.Balances {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCurrencyCode(x)
+		exchangeCurrency.CurrencyName = currency.NewCode(x)
 		for z, w := range result.Reserved {
 			if z == x {
 				avail, _ := strconv.ParseFloat(y, 64)

@@ -8,7 +8,7 @@ import (
 
 func TestCodeLower(t *testing.T) {
 	expected := "test"
-	cc := NewCurrencyCode("TEST")
+	cc := NewCode("TEST")
 	if cc.Lower().String() != expected {
 		t.Errorf("Test Failed - Currency Code Lower() error expected %s but recieved %s",
 			expected,
@@ -18,7 +18,7 @@ func TestCodeLower(t *testing.T) {
 
 func TestCodeUpper(t *testing.T) {
 	expected := "TEST"
-	cc := NewCurrencyCode("test")
+	cc := NewCode("test")
 	if cc.Upper().String() != expected {
 		t.Errorf("Test Failed - Currency Code Upper() error expected %s but recieved %s",
 			expected,
@@ -55,7 +55,7 @@ func TestCodeMarshalJSON(t *testing.T) {
 	quickstruct := struct {
 		Codey Code `json:"sweetCodes"`
 	}{
-		Codey: NewCurrencyCode("BRO"),
+		Codey: NewCode("BRO"),
 	}
 
 	expectedJSON := `{"sweetCodes":"BRO"}`
