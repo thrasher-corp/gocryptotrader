@@ -355,7 +355,7 @@ func (s *Storage) GetTotalMarketCryptocurrencies() (Currencies, error) {
 func (s *Storage) IsDefaultCurrency(c Code) bool {
 	t, _ := GetTranslation(c)
 	for _, d := range s.defaultFiatCurrencies {
-		if d == c || d == t {
+		if d.C.name == c.C.name || d.C.name == t.C.name {
 			return true
 		}
 	}
@@ -367,7 +367,7 @@ func (s *Storage) IsDefaultCurrency(c Code) bool {
 func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
 	t, _ := GetTranslation(c)
 	for _, d := range s.defaultCryptoCurrencies {
-		if d == c || d == t {
+		if d.C.name == c.C.name || d.C.name == t.C.name {
 			return true
 		}
 	}

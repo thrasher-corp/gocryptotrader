@@ -207,19 +207,19 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 			addPair(p)
 		}
 
-		first, err := currency.GetTranslation(p.Base)
-		if err == nil {
+		first, ok := currency.GetTranslation(p.Base)
+		if ok {
 			addPair(currency.NewPairFromCodes(first, p.Quote))
 
 			var second currency.Code
-			second, err = currency.GetTranslation(p.Quote)
-			if err == nil {
+			second, ok = currency.GetTranslation(p.Quote)
+			if ok {
 				addPair(currency.NewPairFromCodes(first, second))
 			}
 		}
 
-		second, err := currency.GetTranslation(p.Quote)
-		if err == nil {
+		second, ok := currency.GetTranslation(p.Quote)
+		if ok {
 			addPair(currency.NewPairFromCodes(p.Base, second))
 		}
 	}

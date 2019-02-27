@@ -1,7 +1,5 @@
 package currency
 
-import "errors"
-
 var translations = map[Code]Code{
 	BTC:  XBT,
 	ETH:  XETH,
@@ -13,18 +11,12 @@ var translations = map[Code]Code{
 	USDT: USD,
 }
 
-// GetTranslation returns similar strings for a particular currency
-func GetTranslation(currency Code) (Code, error) {
+// GetTranslation returns similar strings for a particular currency if not found
+// returns the code back
+func GetTranslation(currency Code) (Code, bool) {
 	val, ok := translations[currency]
 	if !ok {
-		return NewCurrencyCode(""),
-			errors.New("no translation found for specified currency")
+		return currency, ok
 	}
-	return val, nil
-}
-
-// HasTranslation returns whether or not a particular currency has a translation
-func HasTranslation(currency Code) bool {
-	_, ok := translations[currency]
-	return ok
+	return val, ok
 }
