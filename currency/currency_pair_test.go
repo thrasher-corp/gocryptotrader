@@ -73,31 +73,31 @@ func TestPairMarshalJSON(t *testing.T) {
 }
 
 func TestIsCryptoPair(t *testing.T) {
-	if !NewPair("BTC", "LTC").IsCrypto() {
+	if !NewPair("BTC", "LTC").IsCryptoPair() {
 		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
 	}
 
-	if NewPair("BTC", "USD").IsCrypto() {
+	if NewPair("BTC", "USD").IsCryptoPair() {
 		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
 	}
 }
 
 func TestIsCryptoFiatPair(t *testing.T) {
-	if !NewPair("BTC", "USD").IsCryptoFiat() {
+	if !NewPair("BTC", "USD").IsCryptoFiatPair() {
 		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
 	}
 
-	if NewPair("BTC", "LTC").IsCryptoFiat() {
+	if NewPair("BTC", "LTC").IsCryptoFiatPair() {
 		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
 	}
 }
 
 func TestIsFiatPair(t *testing.T) {
-	if !NewPair("AUD", "USD").IsFiat() {
+	if !NewPair("AUD", "USD").IsFiatPair() {
 		t.Error("Test Failed. TestIsFiatPair. Expected true result")
 	}
 
-	if NewPair("BTC", "AUD").IsFiat() {
+	if NewPair("BTC", "AUD").IsFiatPair() {
 		t.Error("Test Failed. TestIsFiatPair. Expected false result")
 	}
 }
