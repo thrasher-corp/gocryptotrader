@@ -190,7 +190,11 @@ func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.B
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Sell[x].Quantity, Price: orderbookNew.Sell[x].Price})
 	}
 
-	err = orderbook.ProcessOrderbook(c.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = c.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

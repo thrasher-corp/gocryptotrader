@@ -135,7 +135,11 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType string) (
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
-	err = orderbook.ProcessOrderbook(h.GetName(), orderBook, assetType)
+	orderBook.Pair = currencyPair
+	orderBook.ExchangeName = h.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

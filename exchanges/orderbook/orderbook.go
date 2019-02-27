@@ -32,16 +32,17 @@ type Item struct {
 
 // Base holds the fields for the orderbook base
 type Base struct {
-	Pair        currency.Pair `json:"pair"`
-	Bids        []Item        `json:"bids"`
-	Asks        []Item        `json:"asks"`
-	LastUpdated time.Time
-	AssetType   string
+	Pair         currency.Pair `json:"pair"`
+	Bids         []Item        `json:"bids"`
+	Asks         []Item        `json:"asks"`
+	LastUpdated  time.Time
+	AssetType    string
+	ExchangeName string
 }
 
 // Orderbook holds the orderbook information for a currency pair and type
 type Orderbook struct {
-	Orderbook    map[string]map[string]map[string]Base
+	Orderbook    map[*currency.Item]map[*currency.Item]map[string]Base
 	ExchangeName string
 }
 
@@ -88,7 +89,7 @@ func GetOrderbook(exchange string, p currency.Pair, orderbookType string) (Base,
 		return Base{}, errors.New(ErrSecondaryCurrencyNotFound)
 	}
 
-	return orderbook.Orderbook[p.Base.String()][p.Quote.String()][orderbookType], nil
+	return orderbook.Orderbook[p.Base.Item][p.Quote.Item][orderbookType], nil
 }
 
 // GetOrderbookByExchange returns an exchange orderbook
@@ -110,7 +111,7 @@ func FirstCurrencyExists(exchange string, currency currency.Code) bool {
 	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[currency.String()]; ok {
+			if _, ok := y.Orderbook[currency.Item]; ok {
 				return true
 			}
 		}
@@ -125,8 +126,8 @@ func SecondCurrencyExists(exchange string, p currency.Pair) bool {
 	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[p.Base.String()]; ok {
-				if _, ok := y.Orderbook[p.Base.String()][p.Quote.String()]; ok {
+			if _, ok := y.Orderbook[p.Base.Item]; ok {
+				if _, ok := y.Orderbook[p.Base.Item][p.Quote.Item]; ok {
 					return true
 				}
 			}
@@ -141,48 +142,52 @@ func CreateNewOrderbook(exchangeName string, orderbookNew Base, orderbookType st
 	defer m.Unlock()
 	orderbook := Orderbook{}
 	orderbook.ExchangeName = exchangeName
-	orderbook.Orderbook = make(map[string]map[string]map[string]Base)
-	a := make(map[string]map[string]Base)
+	orderbook.Orderbook = make(map[*currency.Item]map[*currency.Item]map[string]Base)
+	a := make(map[*currency.Item]map[string]Base)
 	b := make(map[string]Base)
 	b[orderbookType] = orderbookNew
-	a[orderbookNew.Pair.Quote.String()] = b
-	orderbook.Orderbook[orderbookNew.Pair.Base.String()] = a
+	a[orderbookNew.Pair.Quote.Item] = b
+	orderbook.Orderbook[orderbookNew.Pair.Base.Item] = a
 	Orderbooks = append(Orderbooks, orderbook)
 	return &orderbook
 }
 
-// ProcessOrderbook processes incoming orderbooks, creating or updating the
-// Orderbook list
-func ProcessOrderbook(exchangeName string, orderbookNew Base, orderbookType string) error {
-	if orderbookNew.Pair.String() == "" {
+// Process processes incoming orderbooks, creating or updating the orderbook
+// list
+func (o Base) Process() error {
+	if o.Pair.IsEmpty() {
 		return errors.New("orderbook currency pair not populated")
 	}
 
-	if orderbookNew.LastUpdated.IsZero() {
-		orderbookNew.LastUpdated = time.Now()
+	if o.AssetType == "" {
+		return errors.New("orderbook asset type not set")
 	}
 
-	orderbook, err := GetOrderbookByExchange(exchangeName)
+	if o.LastUpdated.IsZero() {
+		o.LastUpdated = time.Now()
+	}
+
+	orderbook, err := GetOrderbookByExchange(o.ExchangeName)
 	if err != nil {
-		CreateNewOrderbook(exchangeName, orderbookNew, orderbookType)
+		CreateNewOrderbook(o.ExchangeName, o, o.AssetType)
 		return nil
 	}
 
-	if FirstCurrencyExists(exchangeName, orderbookNew.Pair.Base) {
+	if FirstCurrencyExists(o.ExchangeName, o.Pair.Base) {
 		m.Lock()
 		a := make(map[string]Base)
-		a[orderbookType] = orderbookNew
-		orderbook.Orderbook[orderbookNew.Pair.Base.String()][orderbookNew.Pair.Quote.String()] = a
+		a[o.AssetType] = o
+		orderbook.Orderbook[o.Pair.Base.Item][o.Pair.Quote.Item] = a
 		m.Unlock()
 		return nil
 	}
 
 	m.Lock()
-	a := make(map[string]map[string]Base)
+	a := make(map[*currency.Item]map[string]Base)
 	b := make(map[string]Base)
-	b[orderbookType] = orderbookNew
-	a[orderbookNew.Pair.Quote.String()] = b
-	orderbook.Orderbook[orderbookNew.Pair.Base.String()] = a
+	b[o.AssetType] = o
+	a[o.Pair.Quote.Item] = b
+	orderbook.Orderbook[o.Pair.Base.Item] = a
 	m.Unlock()
 	return nil
 }

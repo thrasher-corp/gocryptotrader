@@ -147,7 +147,11 @@ func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType string) (orderb
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: obNew.Asks[x].Amount, Price: obNew.Asks[x].Price})
 	}
 
-	err = orderbook.ProcessOrderbook(c.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = c.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

@@ -131,7 +131,11 @@ func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.B
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	err = orderbook.ProcessOrderbook(g.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = g.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

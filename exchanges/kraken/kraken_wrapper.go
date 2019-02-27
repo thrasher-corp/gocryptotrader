@@ -149,7 +149,11 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.B
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	err = orderbook.ProcessOrderbook(k.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = k.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

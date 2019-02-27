@@ -115,7 +115,11 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.B
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
-	err = orderbook.ProcessOrderbook(g.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = g.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

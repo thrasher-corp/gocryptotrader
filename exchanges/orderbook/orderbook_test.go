@@ -203,12 +203,17 @@ func TestProcessOrderbook(t *testing.T) {
 	Orderbooks = []Orderbook{}
 	c := currency.NewPairFromStrings("BTC", "USD")
 	base := Base{
-		Pair: c,
-		Asks: []Item{{Price: 100, Amount: 10}},
-		Bids: []Item{{Price: 200, Amount: 10}},
+		Pair:         c,
+		Asks:         []Item{{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 200, Amount: 10}},
+		ExchangeName: "Exchange",
+		AssetType:    Spot,
 	}
 
-	ProcessOrderbook("Exchange", base, Spot)
+	err := base.Process()
+	if err != nil {
+		t.Error("Test Failed - Process() error", err)
+	}
 
 	result, err := GetOrderbook("Exchange", c, Spot)
 	if err != nil {
@@ -221,7 +226,11 @@ func TestProcessOrderbook(t *testing.T) {
 
 	c = currency.NewPairFromStrings("BTC", "GBP")
 	base.Pair = c
-	ProcessOrderbook("Exchange", base, Spot)
+
+	err = base.Process()
+	if err != nil {
+		t.Error("Test Failed - Process() error", err)
+	}
 
 	result, err = GetOrderbook("Exchange", c, Spot)
 	if err != nil {
@@ -233,7 +242,11 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	base.Asks = []Item{{Price: 200, Amount: 200}}
-	ProcessOrderbook("Exchange", base, "monthly")
+	base.AssetType = "monthly"
+	err = base.Process()
+	if err != nil {
+		t.Error("Test Failed - Process() error", err)
+	}
 
 	result, err = GetOrderbook("Exchange", c, "monthly")
 	if err != nil {
@@ -246,7 +259,13 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	base.Bids = []Item{{Price: 420, Amount: 200}}
-	ProcessOrderbook("Blah", base, "quarterly")
+	base.ExchangeName = "Blah"
+	base.AssetType = "quarterly"
+	err = base.Process()
+	if err != nil {
+		t.Error("Test Failed - Process() error", err)
+	}
+
 	result, err = GetOrderbook("Blah", c, "quarterly")
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
@@ -280,12 +299,18 @@ func TestProcessOrderbook(t *testing.T) {
 			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
 			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
 			base := Base{
-				Pair: newPairs,
-				Asks: asks,
-				Bids: bids,
+				Pair:         newPairs,
+				Asks:         asks,
+				Bids:         bids,
+				ExchangeName: newName,
+				AssetType:    Spot,
 			}
 
-			ProcessOrderbook(newName, base, Spot)
+			err = base.Process()
+			if err != nil {
+				t.Fatal("Test Failed - Process() error", err)
+			}
+
 			m.Lock()
 			testArray = append(testArray, quick{Name: newName, P: newPairs, Bids: bids, Asks: asks})
 			m.Unlock()

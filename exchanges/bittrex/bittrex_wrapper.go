@@ -171,7 +171,11 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 		)
 	}
 
-	err = orderbook.ProcessOrderbook(b.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

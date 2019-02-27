@@ -132,8 +132,12 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType string)
 				orderbook.Item{Amount: obData.Amount, Price: obData.Price})
 		}
 
+		orderBook.Pair = currencyPair
 		orderBook.Asks = obItems
-		err = orderbook.ProcessOrderbook(p.Name, orderBook, assetType)
+		orderBook.ExchangeName = p.GetName()
+		orderBook.AssetType = assetType
+
+		err = orderBook.Process()
 		if err != nil {
 			return orderBook, err
 		}

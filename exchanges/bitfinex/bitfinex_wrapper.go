@@ -117,14 +117,22 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: orderbookNew.Asks[x].Price, Amount: orderbookNew.Asks[x].Amount})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{Price: orderbookNew.Asks[x].Price,
+				Amount: orderbookNew.Asks[x].Amount})
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Bids[x].Price, Amount: orderbookNew.Bids[x].Amount})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{Price: orderbookNew.Bids[x].Price,
+				Amount: orderbookNew.Bids[x].Amount})
 	}
 
-	err = orderbook.ProcessOrderbook(b.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

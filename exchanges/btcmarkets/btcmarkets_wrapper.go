@@ -124,7 +124,11 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType string) (orderbo
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	err = orderbook.ProcessOrderbook(b.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

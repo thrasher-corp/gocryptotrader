@@ -108,9 +108,10 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType, exchan
 
 func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType, exchangeName string, err error) {
 	if err != nil {
-		log.Errorf("Failed to get %s %s orderbook. Error: %s",
+		log.Errorf("Failed to get %s %s orderbook of type %s. Error: %s",
 			p,
 			exchangeName,
+			assetType,
 			err)
 		return
 	}

@@ -164,7 +164,11 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	err = orderbook.ProcessOrderbook(h.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = h.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}

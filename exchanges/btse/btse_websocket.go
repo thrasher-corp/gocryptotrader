@@ -210,8 +210,9 @@ func (b *BTSE) wsProcessSnapshot(snapshot websocketOrderbookSnapshot) error {
 	base.AssetType = "SPOT"
 	base.Pair = p
 	base.LastUpdated = time.Now()
+	base.ExchangeName = b.Name
 
-	err := orderbook.ProcessOrderbook(b.Name, base, "SPOT")
+	err := base.Process()
 	if err != nil {
 		return err
 	}

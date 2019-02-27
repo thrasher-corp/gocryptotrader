@@ -144,7 +144,11 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Bas
 		}
 
 		orderBook.Bids = obItems
-		err = orderbook.ProcessOrderbook(e.Name, orderBook, assetType)
+		orderBook.Pair = p
+		orderBook.ExchangeName = e.GetName()
+		orderBook.AssetType = assetType
+
+		err = orderBook.Process()
 		if err != nil {
 			return orderBook, err
 		}

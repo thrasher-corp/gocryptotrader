@@ -460,7 +460,7 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 		}()
 	}
 
-	return orderbook.ProcessOrderbook(exchName, *orderbookAddress, assetType)
+	return orderbookAddress.Process()
 
 }
 
@@ -479,24 +479,14 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 		if w.ob[i].Pair == newOrderbook.Pair && w.ob[i].AssetType == newOrderbook.AssetType {
 			if overwrite {
 				w.ob[i] = newOrderbook
-
-				orderbook.ProcessOrderbook(exchName,
-					newOrderbook,
-					newOrderbook.AssetType)
-
-				return nil
+				return newOrderbook.Process()
 			}
 			return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - Snapshot instance already found")
 		}
 	}
 
 	w.ob = append(w.ob, newOrderbook)
-
-	orderbook.ProcessOrderbook(exchName,
-		newOrderbook,
-		newOrderbook.AssetType)
-
-	return nil
+	return newOrderbook.Process()
 }
 
 // UpdateUsingID updates orderbooks using specified ID
@@ -566,7 +556,7 @@ func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbo
 		orderbookAddress.Asks = append(orderbookAddress.Asks, askTargets...)
 	}
 
-	return orderbook.ProcessOrderbook(exchName, *orderbookAddress, assetType)
+	return orderbookAddress.Process()
 }
 
 // FlushCache flushes w.ob data to be garbage collected and refreshed when a

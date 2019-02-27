@@ -128,7 +128,11 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
 	}
 
-	err = orderbook.ProcessOrderbook(b.GetName(), orderBook, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}
