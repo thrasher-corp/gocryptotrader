@@ -440,7 +440,7 @@ func wsGetExchangeRates(client *WebsocketClient, data interface{}) error {
 	}
 
 	var err error
-	wsResp.Data, err = currency.GetSystemExchangeRates()
+	wsResp.Data, err = currency.GetExchangeRates()
 	if err != nil {
 		return err
 	}

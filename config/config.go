@@ -1000,7 +1000,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 // pairs either cryptoCurrencies or fiatCurrencies
 func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 	cryptoCurrencies := c.Currency.Cryptocurrencies
-	fiatCurrencies := currency.GetDefaultCryptocurrencies()
+	fiatCurrencies := currency.GetFiatCurrencies()
 
 	for x := range c.Exchanges {
 		if !c.Exchanges[x].Enabled && enabledOnly {

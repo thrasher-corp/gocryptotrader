@@ -76,13 +76,15 @@ func (c *ConversionRates) Register(from, to Code) (Conversion, error) {
 	p, ok := c.c[from.C][to.C]
 	if !ok {
 		log.Errorf("currency conversion rate not found from %s to %s", from, to)
-		return Conversion{}, errors.New("no rate found, totally sucks")
+		return Conversion{}, errors.New("no rate found")
 	}
 
 	i, ok := c.c[to.C][from.C]
 	if !ok {
-		log.Errorf("currency conversion inversion rate not found from %s to %s", to, from)
-		return Conversion{}, errors.New("no rate found, totally sucks")
+		log.Errorf("currency conversion inversion rate not found from %s to %s",
+			to,
+			from)
+		return Conversion{}, errors.New("no rate found")
 	}
 
 	return Conversion{From: from, To: to, rate: p, mtx: &c.mtx, inverseRate: i},
@@ -181,7 +183,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 				} else {
 					crossRate = 1 / v
 				}
-				if system.IsVerbose() {
+				if storage.IsVerbose() {
 					log.Debugf("Conversion from %s to %s deriving cross rate value %f",
 						base,
 						term,
@@ -246,6 +248,11 @@ func (c *ConversionRates) ExtractBase() Code {
 // Conversions define a list of conversion data
 type Conversions []Conversion
 
+// Slice exposes the underlying Conversion slice type
+func (c Conversions) Slice() []Conversion {
+	return c
+}
+
 // Conversion defines a specific currency conversion for a rate
 type Conversion struct {
 	From        Code
@@ -265,7 +272,7 @@ func (c Conversion) IsInvalid() bool {
 
 // IsFiat checks to see if the from and to currency is a fiat e.g. EURUSD
 func (c Conversion) IsFiat() bool {
-	return system.IsFiatCurrency(c.From) && system.IsFiatCurrency(c.To)
+	return storage.IsFiatCurrency(c.From) && storage.IsFiatCurrency(c.To)
 }
 
 // String returns the stringed fields
@@ -309,7 +316,7 @@ func (c Conversion) Convert(fromAmount float64) (float64, error) {
 	}
 
 	if !c.IsFiat() {
-		return 0, errors.New("Not fiat pair, sad days fellaz")
+		return 0, errors.New("not fiat pair")
 	}
 
 	r, err := c.GetRate()
@@ -327,7 +334,7 @@ func (c Conversion) ConvertInverse(fromAmount float64) (float64, error) {
 	}
 
 	if !c.IsFiat() {
-		return 0, errors.New("Not fiat pair, sad days fellaz")
+		return 0, errors.New("not fiat pair")
 	}
 
 	r, err := c.GetInversionRate()

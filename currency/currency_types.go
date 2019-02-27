@@ -36,20 +36,6 @@ type AnalysisData struct {
 	LastUpdated time.Time
 }
 
-// FXData data data bra
-type FXData struct {
-	Fiat        Pair      `json:"currency"`
-	Rate        float64   `json:"rate"`
-	Inverse     float64   `json:"inverseRate"`
-	LastUpdated time.Time `json:"lastUpdated"`
-}
-
-// JSONSTUFF some freakin stuff
-type JSONSTUFF struct {
-	C  Currencies `json:"currencies"`
-	Fx FXData     `json:"foreignExchange"`
-}
-
 // CoinmarketcapSettings refers to settings
 type CoinmarketcapSettings coinmarketcap.Settings
 

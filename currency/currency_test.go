@@ -64,31 +64,31 @@ func TestNewConversionFromCode(t *testing.T) {
 }
 
 func TestGetDefaultExchangeRates(t *testing.T) {
-	// rates, err := GetDefaultExchangeRates()
-	// if err != nil {
-	// 	t.Error("Test failed - GetDefaultExchangeRates() err", err)
-	// }
+	rates, err := GetDefaultExchangeRates()
+	if err != nil {
+		t.Error("Test failed - GetDefaultExchangeRates() err", err)
+	}
 
-	// for key := range rates {
-	// 	if !key.IsFiatPair() {
-	// 		t.Errorf("Test failed - GetDefaultExchangeRates() %s is not fiat pair",
-	// 			key)
-	// 	}
-	// }
+	for _, val := range rates {
+		if !val.IsFiat() {
+			t.Errorf("Test failed - GetDefaultExchangeRates() %s is not fiat pair",
+				val)
+		}
+	}
 }
 
-func TestGetSystemExchangeRates(t *testing.T) {
-	// rates, err := GetSystemExchangeRates()
-	// if err != nil {
-	// 	t.Error("Test failed - GetDefaultExchangeRates() err", err)
-	// }
+func TestGetExchangeRates(t *testing.T) {
+	rates, err := GetExchangeRates()
+	if err != nil {
+		t.Error("Test failed - GetExchangeRates() err", err)
+	}
 
-	// for key := range rates {
-	// 	if !key.IsFiatPair() {
-	// 		t.Errorf("Test failed - GetDefaultExchangeRates() %s is not fiat pair",
-	// 			key)
-	// 	}
-	// }
+	for _, val := range rates {
+		if !val.IsFiat() {
+			t.Errorf("Test failed - GetExchangeRates() %s is not fiat pair",
+				val)
+		}
+	}
 }
 
 func TestUpdateBaseCurrency(t *testing.T) {
@@ -134,14 +134,14 @@ func TestGetDefaultFiatCurrencies(t *testing.T) {
 func TestUpdateCurrencies(t *testing.T) {
 	fiat := Currencies{HKN, JPY}
 	UpdateCurrencies(fiat, false)
-	rFiat := GetSystemFiatCurrencies()
+	rFiat := GetFiatCurrencies()
 	if !rFiat.Contains(HKN) || !rFiat.Contains(JPY) {
 		t.Error("Test failed - UpdateCurrencies() currencies did not update")
 	}
 
 	crypto := Currencies{ZAR, ZCAD, B2}
 	UpdateCurrencies(crypto, true)
-	rCrypto := GetSystemCryptoCurrencies()
+	rCrypto := GetCryptoCurrencies()
 	if !rCrypto.Contains(ZAR) || !rCrypto.Contains(ZAR) || !rCrypto.Contains(B2) {
 		t.Error("Test failed - UpdateCurrencies() currencies did not update")
 	}

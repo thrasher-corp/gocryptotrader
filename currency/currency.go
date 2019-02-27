@@ -4,13 +4,9 @@ import (
 	"strings"
 )
 
-func init() {
-	system.SetDefaults()
-}
-
 // NewCurrencyCode returns a new currency registered code
 func NewCurrencyCode(c string) Code {
-	return system.NewCurrencyCode(c)
+	return storage.NewCurrencyCode(c)
 }
 
 // NewConversionFromString splits a string from a foreign exchange provider
@@ -112,96 +108,90 @@ func NewPairFromString(currencyPair string) Pair {
 	return NewPair(currencyPair[0:3], currencyPair[3:])
 }
 
-// NewConversionFromCode returns a conversion rate abject that allows for
+// NewConversionFromCode returns a conversion rate object that allows for
 // obtaining efficient rate values when needed
 func NewConversionFromCode(from, to Code) (Conversion, error) {
-	return system.NewConversion(from, to)
+	return storage.NewConversion(from, to)
 }
 
 // GetDefaultExchangeRates returns the currency exchange rates based off the
 // default fiat values
 func GetDefaultExchangeRates() (Conversions, error) {
-	return system.GetDefaultForeignExchangeRates()
+	return storage.GetDefaultForeignExchangeRates()
 }
 
-// GetSystemExchangeRates returns the full fiat currency exchange rates base off
-// configuration parameters supplied to the system
-func GetSystemExchangeRates() (Conversions, error) {
-	return system.GetSystemExchangeRates()
+// GetExchangeRates returns the full fiat currency exchange rates base off
+// configuration parameters supplied to the currency storage
+func GetExchangeRates() (Conversions, error) {
+	return storage.GetExchangeRates()
 }
 
-// UpdateBaseCurrency updates system base currency
+// UpdateBaseCurrency updates storage base currency
 func UpdateBaseCurrency(c Code) error {
-	return system.UpdateBaseCurrency(c)
+	return storage.UpdateBaseCurrency(c)
 }
 
-// GetBaseCurrency returns the system base currency
+// GetBaseCurrency returns the storage base currency
 func GetBaseCurrency() Code {
-	return system.GetBaseCurrency()
+	return storage.GetBaseCurrency()
 }
 
-// GetDefaultBaseCurrency returns system defauly base currency
+// GetDefaultBaseCurrency returns storage defauly base currency
 func GetDefaultBaseCurrency() Code {
-	return system.GetDefaultBaseCurrency()
+	return storage.GetDefaultBaseCurrency()
 }
 
-// GetSystemCryptoCurrencies returns the system enabled cryptocurrencies
-func GetSystemCryptoCurrencies() Currencies {
-	return system.GetCryptocurrencies()
+// GetCryptoCurrencies returns the storage enabled cryptocurrencies
+func GetCryptoCurrencies() Currencies {
+	return storage.GetCryptocurrencies()
 }
 
 // GetDefaultCryptocurrencies returns a list of default cryptocurrencies
 func GetDefaultCryptocurrencies() Currencies {
-	return system.GetDefaultCryptocurrencies()
+	return storage.GetDefaultCryptocurrencies()
 }
 
-// GetSystemFiatCurrencies returns the system enabled fiat currencies
-func GetSystemFiatCurrencies() Currencies {
-	return system.GetFiatCurrencies()
+// GetFiatCurrencies returns the storage enabled fiat currencies
+func GetFiatCurrencies() Currencies {
+	return storage.GetFiatCurrencies()
 }
 
 // GetDefaultFiatCurrencies returns a list of default fiat currencies
 func GetDefaultFiatCurrencies() Currencies {
-	return system.GetDefaultFiatCurrencies()
+	return storage.GetDefaultFiatCurrencies()
 }
 
 // UpdateCurrencies updates the local cryptocurrency or fiat currency store
-func UpdateCurrencies(c Currencies, cryptos bool) {
-	if cryptos {
-		system.UpdateEnabledCryptoCurrencies(c)
+func UpdateCurrencies(c Currencies, IsCryptocurrency bool) {
+	if IsCryptocurrency {
+		storage.UpdateEnabledCryptoCurrencies(c)
 		return
 	}
-	system.UpdateEnabledFiatCurrencies(c)
+	storage.UpdateEnabledFiatCurrencies(c)
 }
 
 // ConvertCurrency converts an amount from one currency to another
 func ConvertCurrency(amount float64, from, to Code) (float64, error) {
-	return system.ConvertCurrency(amount, from, to)
+	return storage.ConvertCurrency(amount, from, to)
 }
 
 // SeedForeignExchangeData seeds FX data with the currencies supplied
 func SeedForeignExchangeData(c Currencies) error {
-	return system.SeedForeignExchangeRatesByCurrencies(c)
+	return storage.SeedForeignExchangeRatesByCurrencies(c)
 }
 
 // GetTotalMarketCryptocurrencies returns the full market cryptocurrencies
 func GetTotalMarketCryptocurrencies() ([]Code, error) {
-	return system.GetTotalMarketCryptocurrencies()
+	return storage.GetTotalMarketCryptocurrencies()
 }
 
-// // GetTotalMarketExchanges returns the full market exchange participation data
-// func GetTotalMarketExchanges() []Data {
-// 	return system.GetTotalMarketExchanges()
-// }
-
-// RunUpdaterSystem runs sets up and runs a new foreign exchange updater
+// RunStorageUpdater runs sets up and runs a new foreign exchange updater
 // instance
-func RunUpdaterSystem(o BotOverrides, m MainConfiguration, filepath string, v bool) error {
-	return system.RunUpdater(o, m, filepath, v)
+func RunStorageUpdater(o BotOverrides, m MainConfiguration, filepath string, v bool) error {
+	return storage.RunUpdater(o, m, filepath, v)
 }
 
 // CopyPairFormat copies the pair format from a list of pairs once matched
-// NOTE: Unused in codebase
 func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 	for x := range pairs {
 		if exact {
@@ -218,7 +208,6 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 
 // FormatPairs formats a string array to a list of currency pairs with the
 // supplied currency pair format
-// NOTE: Unused in codebase
 func FormatPairs(pairs []string, delimiter, index string) Pairs {
 	var result Pairs
 	for x := range pairs {

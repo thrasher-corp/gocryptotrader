@@ -143,7 +143,7 @@ func GetExchangeNamesByCurrency(p currency.Pair, enabled bool) []string {
 // any relatable currencies (e.g ETHBTC -> ETHLTC -> ETHUSDT -> ETHREP)
 func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 	var pairs currency.Pairs
-	cryptocurrencies := currency.GetSystemCryptoCurrencies()
+	cryptocurrencies := currency.GetCryptoCurrencies()
 
 	for x := range cryptocurrencies {
 		newPair := currency.NewPairFromCodes(p.Base, cryptocurrencies[x])
@@ -168,7 +168,7 @@ func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 // any relatable currencies (e.g ETHUSD -> ETHAUD -> ETHGBP -> ETHJPY)
 func GetRelatableFiatCurrencies(p currency.Pair) currency.Pairs {
 	var pairs currency.Pairs
-	fiatCurrencies := currency.GetSystemFiatCurrencies()
+	fiatCurrencies := currency.GetFiatCurrencies()
 
 	for x := range fiatCurrencies {
 		newPair := currency.NewPairFromCodes(p.Base, fiatCurrencies[x])

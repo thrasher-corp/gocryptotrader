@@ -26,9 +26,12 @@ func GetAvailableForexProviders() []string {
 func NewDefaultFXProvider() *ForexProviders {
 	fxp := new(ForexProviders)
 	currencyC := new(exchangerates.ExchangeRates)
-	currencyC.PrimaryProvider = true
-	currencyC.Enabled = true
-	currencyC.Name = "ExchangeRates"
+	currencyC.Setup(base.Settings{
+		PrimaryProvider: true,
+		Enabled:         true,
+		Name:            "ExchangeRates",
+	})
+
 	fxp.IFXProviders = append(fxp.IFXProviders, currencyC)
 	return fxp
 }

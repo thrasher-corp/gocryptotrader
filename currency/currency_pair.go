@@ -85,21 +85,21 @@ func (p Pair) EqualIncludeReciprocal(cPair Pair) bool {
 
 // IsCrypto checks to see if the pair is a crypto pair e.g. BTCLTC
 func (p Pair) IsCrypto() bool {
-	return system.IsCryptocurrency(p.Base) &&
-		system.IsCryptocurrency(p.Quote)
+	return storage.IsCryptocurrency(p.Base) &&
+		storage.IsCryptocurrency(p.Quote)
 }
 
 // IsCryptoFiat checks to see if the pair is a crypto fiat pair e.g. BTCUSD
 func (p Pair) IsCryptoFiat() bool {
-	return system.IsCryptocurrency(p.Base) &&
-		system.IsFiatCurrency(p.Quote) ||
-		system.IsFiatCurrency(p.Base) &&
-			system.IsCryptocurrency(p.Quote)
+	return storage.IsCryptocurrency(p.Base) &&
+		storage.IsFiatCurrency(p.Quote) ||
+		storage.IsFiatCurrency(p.Base) &&
+			storage.IsCryptocurrency(p.Quote)
 }
 
 // IsFiat checks to see if the pair is a fiat pair e.g. EURUSD
 func (p Pair) IsFiat() bool {
-	return system.IsFiatCurrency(p.Base) && system.IsFiatCurrency(p.Quote)
+	return storage.IsFiatCurrency(p.Base) && storage.IsFiatCurrency(p.Quote)
 }
 
 // IsInvalid checks invalid pair if base and quote are the same

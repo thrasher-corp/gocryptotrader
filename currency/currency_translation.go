@@ -17,7 +17,8 @@ var translations = map[Code]Code{
 func GetTranslation(currency Code) (Code, error) {
 	val, ok := translations[currency]
 	if !ok {
-		return Code{}, errors.New("no translation found for specified currency")
+		return NewCurrencyCode(""),
+			errors.New("no translation found for specified currency")
 	}
 	return val, nil
 }

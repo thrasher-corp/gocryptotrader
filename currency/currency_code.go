@@ -60,7 +60,7 @@ func (b *BaseCodes) Register(c string) Code {
 		}
 	}
 
-	if system.IsVerbose() {
+	if storage.IsVerbose() {
 		log.Warnf("Currency Package Warning: %s unset in system please add to"+
 			" currency.JSON", c)
 	}
@@ -169,23 +169,23 @@ func (c Code) IsEmpty() bool {
 // IsDefaultFiatCurrency checks if the currency passed in matches the default
 // fiat currency
 func (c Code) IsDefaultFiatCurrency() bool {
-	return system.IsDefaultCurrency(c)
+	return storage.IsDefaultCurrency(c)
 }
 
 // IsDefaultCryptocurrency checks if the currency passed in matches the default
 // cryptocurrency
 func (c Code) IsDefaultCryptocurrency() bool {
-	return system.IsDefaultCryptocurrency(c)
+	return storage.IsDefaultCryptocurrency(c)
 }
 
 // IsFiatCurrency checks if the currency passed is an enabled fiat currency
 func (c Code) IsFiatCurrency() bool {
-	return system.IsFiatCurrency(c)
+	return storage.IsFiatCurrency(c)
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
 func (c Code) IsCryptocurrency() bool {
-	return system.IsCryptocurrency(c)
+	return storage.IsCryptocurrency(c)
 }
 
 // Const declarations for individual currencies/tokens/fiat

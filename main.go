@@ -129,7 +129,7 @@ func main() {
 		newFxSettings = append(newFxSettings, currency.FXSettings(d))
 	}
 
-	err = currency.RunUpdaterSystem(currency.BotOverrides{
+	err = currency.RunStorageUpdater(currency.BotOverrides{
 		Coinmarketcap:       *Coinmarketcap,
 		FxCurrencyConverter: *FxCurrencyConverter,
 		FxCurrencyLayer:     *FxCurrencyLayer,
