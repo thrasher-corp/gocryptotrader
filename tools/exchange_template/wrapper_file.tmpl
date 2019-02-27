@@ -2,10 +2,9 @@
 package {{.Name}}
 
 import (
-	"errors"
 	"sync"
 
-{{if .WS}} "github.com/thrasher-/gocryptotrader/common" {{end}}
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -102,13 +101,13 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p pair.CurrencyPair, asse
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // {{.CapitalName}} exchange
 func ({{.Variable}} *{{.CapitalName}}) GetAccountInfo() (exchange.AccountInfo, error) {
-	return exchange.AccountInfo{}, errors.New("not implemented")
+	return exchange.AccountInfo{}, common.ErrNotYetImplemented
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func ({{.Variable}} *{{.CapitalName}}) GetFundingHistory() ([]exchange.FundHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -167,6 +166,17 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(with
 
 // GetWebsocket returns a pointer to the exchange websocket
 func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

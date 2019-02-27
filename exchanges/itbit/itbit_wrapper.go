@@ -278,11 +278,6 @@ func (i *ItBit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return i.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (i *ItBit) GetWithdrawCapabilities() uint32 {
-	return i.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	wallets, err := i.GetWallets(url.Values{})

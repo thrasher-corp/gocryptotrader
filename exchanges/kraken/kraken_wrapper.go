@@ -288,11 +288,6 @@ func (k *Kraken) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return k.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (k *Kraken) GetWithdrawCapabilities() uint32 {
-	return k.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := k.GetOpenOrders(OrderInfoOptions{})

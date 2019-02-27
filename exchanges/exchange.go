@@ -322,12 +322,12 @@ type IBotExchange interface {
 	GetOrderInfo(orderID int64) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
 
-	GetOrderHistory(GetOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
+	GetOrderHistory(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
 	GetActiveOrders(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
 
-	WithdrawCryptocurrencyFunds(wtihdrawRequest WithdrawRequest) (string, error)
-	WithdrawFiatFunds(wtihdrawRequest WithdrawRequest) (string, error)
-	WithdrawFiatFundsToInternationalBank(wtihdrawRequest WithdrawRequest) (string, error)
+	WithdrawCryptocurrencyFunds(withdrawRequest WithdrawRequest) (string, error)
+	WithdrawFiatFunds(withdrawRequest WithdrawRequest) (string, error)
+	WithdrawFiatFundsToInternationalBank(withdrawRequest WithdrawRequest) (string, error)
 
 	GetWebsocket() (*Websocket, error)
 }

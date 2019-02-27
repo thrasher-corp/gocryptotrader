@@ -257,11 +257,6 @@ func (c *CoinbasePro) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, err
 	return c.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (c *CoinbasePro) GetWithdrawCapabilities() uint32 {
-	return c.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var respOrders []GeneralizedOrderResponse

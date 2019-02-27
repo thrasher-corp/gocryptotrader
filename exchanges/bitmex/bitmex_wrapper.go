@@ -300,11 +300,6 @@ func (b *Bitmex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Bitmex) GetWithdrawCapabilities() uint32 {
-	return b.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {

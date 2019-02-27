@@ -35,7 +35,7 @@ func (o *OKEX) Run() {
 
 	prods, err := o.GetSpotInstruments()
 	if err != nil {
-		log.Errorf("OKEX failed to obtain available spot instruments. Err: %d", err)
+		log.Errorf("OKEX failed to obtain available spot instruments. Err: %s", err)
 		return
 	}
 
@@ -318,11 +318,6 @@ func (o *OKEX) GetWebsocket() (*exchange.Websocket, error) {
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKEX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return o.GetFee(feeBuilder)
-}
-
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (o *OKEX) GetWithdrawCapabilities() uint32 {
-	return o.GetWithdrawPermissions()
 }
 
 // GetActiveOrders retrieves any orders that are active/open

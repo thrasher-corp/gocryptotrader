@@ -42,7 +42,7 @@ func (o *OKCoin) Run() {
 
 		prods, err := o.GetSpotInstruments()
 		if err != nil {
-			log.Errorf("OKEX failed to obtain available spot instruments. Err: %d", err)
+			log.Errorf("OKEX failed to obtain available spot instruments. Err: %s", err)
 		} else {
 			var pairs []string
 			for x := range prods {
@@ -325,11 +325,6 @@ func (o *OKCoin) GetWebsocket() (*exchange.Websocket, error) {
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKCoin) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return o.GetFee(feeBuilder)
-}
-
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (o *OKCoin) GetWithdrawCapabilities() uint32 {
-	return o.GetWithdrawPermissions()
 }
 
 // GetActiveOrders retrieves any orders that are active/open

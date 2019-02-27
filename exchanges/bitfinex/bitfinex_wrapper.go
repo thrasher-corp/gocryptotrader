@@ -304,11 +304,6 @@ func (b *Bitfinex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error)
 	return b.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Bitfinex) GetWithdrawCapabilities() uint32 {
-	return b.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail

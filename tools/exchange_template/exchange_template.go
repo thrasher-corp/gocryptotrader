@@ -219,7 +219,7 @@ func main() {
 	fmt.Println("Update the config_test.go file")
 	fmt.Println("Test config.go")
 	fmt.Println("Open a pull request")
-	fmt.Println("If help is needed please post a message on the slack.")
+	fmt.Println("If help is needed please post a message on Slack.")
 }
 
 func newFile(path string) {

@@ -372,11 +372,6 @@ func (h *HUOBI) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return h.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (h *HUOBI) GetWithdrawCapabilities() uint32 {
-	return h.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) <= 0 {

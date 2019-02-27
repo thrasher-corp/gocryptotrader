@@ -380,11 +380,6 @@ func (c *COINUT) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return c.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (c *COINUT) GetWithdrawCapabilities() uint32 {
-	return c.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	instruments, err := c.GetInstruments()

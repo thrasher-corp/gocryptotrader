@@ -239,11 +239,6 @@ func (g *Gemini) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return g.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (g *Gemini) GetWithdrawCapabilities() uint32 {
-	return g.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := g.GetOrders()

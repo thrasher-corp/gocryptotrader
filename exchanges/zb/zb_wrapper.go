@@ -292,11 +292,6 @@ func (z *ZB) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return z.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (z *ZB) GetWithdrawCapabilities() uint32 {
-	return z.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {

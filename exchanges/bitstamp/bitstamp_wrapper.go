@@ -287,11 +287,6 @@ func (b *Bitstamp) GetWebsocket() (*exchange.Websocket, error) {
 	return b.Websocket, nil
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Bitstamp) GetWithdrawCapabilities() uint32 {
-	return b.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail

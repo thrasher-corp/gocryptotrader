@@ -211,11 +211,6 @@ func (b *Bitflyer) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Bitflyer) GetWithdrawCapabilities() uint32 {
-	return b.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitflyer) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented

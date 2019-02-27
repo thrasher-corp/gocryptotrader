@@ -213,11 +213,6 @@ func (a *Alphapoint) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, erro
 	return 0, common.ErrFunctionNotSupported
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (a *Alphapoint) GetWithdrawCapabilities() uint32 {
-	return a.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {

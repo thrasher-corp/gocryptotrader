@@ -212,11 +212,6 @@ func (b *BTCC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *BTCC) GetWithdrawCapabilities() uint32 {
-	return b.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented

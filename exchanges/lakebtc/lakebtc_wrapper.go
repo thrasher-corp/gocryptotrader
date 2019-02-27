@@ -261,11 +261,6 @@ func (l *LakeBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 	return l.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (l *LakeBTC) GetWithdrawCapabilities() uint32 {
-	return l.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := l.GetOpenOrders()

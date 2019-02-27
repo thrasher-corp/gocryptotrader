@@ -306,11 +306,6 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, erro
 	return b.GetFee(feeBuilder)
 }
 
-// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *BTCMarkets) GetWithdrawCapabilities() uint32 {
-	return b.GetWithdrawPermissions()
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := b.GetOpenOrders()
