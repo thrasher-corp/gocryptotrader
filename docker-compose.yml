@@ -5,11 +5,11 @@ services:
   web:
     build: ./web
     depends_on:
-      - cli
+      - daemon
     ports:
       - "9051:80"
 
-  cli:
+  daemon:
     build: .
     ports:
       - "9050:9050"

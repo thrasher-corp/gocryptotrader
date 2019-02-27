@@ -1,9 +1,7 @@
-FROM golang:1.10 as build
-RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+FROM golang:1.12 as build
 WORKDIR /go/src/github.com/thrasher-/gocryptotrader
-COPY Gopkg.* ./
-RUN dep ensure -vendor-only
 COPY . .
+RUN GO111MODULE=on go mod vendor
 RUN mv -vn config_example.json config.json \
  && GOARCH=386 GOOS=linux CGO_ENABLED=0 go build . \
  && mv gocryptotrader /go/bin/gocryptotrader
