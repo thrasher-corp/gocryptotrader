@@ -11,7 +11,7 @@ import (
 // ConversionRates defines protected conversion rate map for concurrent updating
 // and retrieval of foreign exchange rates
 type ConversionRates struct {
-	c   map[*code]map[*code]*float64
+	m   map[*Item]map[*Item]*float64
 	mtx sync.Mutex
 }
 
@@ -19,38 +19,38 @@ type ConversionRates struct {
 func (c *ConversionRates) HasData() bool {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	if c.c == nil {
+	if c.m == nil {
 		return false
 	}
-	return len(c.c) != 0
+	return len(c.m) != 0
 }
 
 // GetRate returns a rate from the conversion rate list
 func (c *ConversionRates) GetRate(from, to Code) (float64, error) {
-	if from.C == USDT.C {
+	if from.Item == USDT.Item {
 		from = USD
 	}
 
-	if to.C == USDT.C {
+	if to.Item == USDT.Item {
 		to = USD
 	}
 
-	if from.C == RUR.C {
+	if from.Item == RUR.Item {
 		from = RUB
 	}
 
-	if to.C == RUR.C {
+	if to.Item == RUR.Item {
 		to = RUB
 	}
 
-	if from.C == to.C {
+	if from.Item == to.Item {
 		return 1, nil
 	}
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	p, ok := c.c[from.C][to.C]
+	p, ok := c.m[from.Item][to.Item]
 	if !ok {
 		return 0, fmt.Errorf("rate not found for from %s to %s conversion",
 			from,
@@ -73,13 +73,13 @@ func (c *ConversionRates) Register(from, to Code) (Conversion, error) {
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	p, ok := c.c[from.C][to.C]
+	p, ok := c.m[from.Item][to.Item]
 	if !ok {
 		log.Errorf("currency conversion rate not found from %s to %s", from, to)
 		return Conversion{}, errors.New("no rate found")
 	}
 
-	i, ok := c.c[to.C][from.C]
+	i, ok := c.m[to.Item][from.Item]
 	if !ok {
 		log.Errorf("currency conversion inversion rate not found from %s to %s",
 			to,
@@ -197,17 +197,17 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	c.mtx.Lock()
 	for key, val := range solidvalues {
 		for key2, val2 := range val {
-			if c.c == nil {
-				c.c = make(map[*code]map[*code]*float64)
+			if c.m == nil {
+				c.m = make(map[*Item]map[*Item]*float64)
 			}
 
-			if c.c[key.C] == nil {
-				c.c[key.C] = make(map[*code]*float64)
+			if c.m[key.Item] == nil {
+				c.m[key.Item] = make(map[*Item]*float64)
 			}
 
-			p := c.c[key.C][key2.C]
+			p := c.m[key.Item][key2.Item]
 			if p == nil {
-				c.c[key.C][key2.C] = &val2
+				c.m[key.Item][key2.Item] = &val2
 			} else {
 				*p = val2
 			}
@@ -221,11 +221,11 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 func (c *ConversionRates) GetFullRates() Conversions {
 	var conversions Conversions
 	c.mtx.Lock()
-	for key, val := range c.c {
+	for key, val := range c.m {
 		for key2, val2 := range val {
 			conversions = append(conversions, Conversion{
-				From: Code{C: key},
-				To:   Code{C: key2},
+				From: Code{Item: key},
+				To:   Code{Item: key2},
 				rate: val2,
 				mtx:  &c.mtx,
 			})
@@ -239,10 +239,10 @@ func (c *ConversionRates) GetFullRates() Conversions {
 func (c *ConversionRates) ExtractBase() Code {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	for key := range c.c {
-		return Code{C: key}
+	for key := range c.m {
+		return Code{Item: key}
 	}
-	return Code{}
+	return NewCode("")
 }
 
 // Conversions define a list of conversion data
@@ -264,10 +264,10 @@ type Conversion struct {
 
 // IsInvalid returns true if both from and to currencies are the same
 func (c Conversion) IsInvalid() bool {
-	if c.From.C == nil || c.To.C == nil {
+	if c.From.Item == nil || c.To.Item == nil {
 		return true
 	}
-	return c.From.C.name == c.To.C.name
+	return c.From.Item == c.To.Item
 }
 
 // IsFiat checks to see if the from and to currency is a fiat e.g. EURUSD

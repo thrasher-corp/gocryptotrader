@@ -7,20 +7,9 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Defines a currency code type
-const (
-	Unset    CodeType = 0
-	Fiat     CodeType = 1 << 0
-	Crypto   CodeType = 1 << 1
-	Contract CodeType = 1 << 2
-)
-
-// CodeType defines each individual type of currency code for the pair
-type CodeType uint8
-
 // BaseCodes defines a basket of bare currency codes
 type BaseCodes struct {
-	codes []*code
+	Items []*Item
 	mtx   sync.Mutex
 }
 
@@ -28,7 +17,7 @@ type BaseCodes struct {
 func (b *BaseCodes) HasData() bool {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	return len(b.codes) != 0
+	return len(b.Items) != 0
 }
 
 // GetCurrencies gets the full currency list from the base code type available
@@ -36,9 +25,9 @@ func (b *BaseCodes) HasData() bool {
 func (b *BaseCodes) GetCurrencies() Currencies {
 	var currencies Currencies
 	b.mtx.Lock()
-	for _, c := range b.codes {
+	for _, i := range b.Items {
 		currencies = append(currencies, Code{
-			C: c,
+			Item: i,
 		})
 	}
 	b.mtx.Unlock()
@@ -47,15 +36,16 @@ func (b *BaseCodes) GetCurrencies() Currencies {
 
 // Register registers a currency from a string and returns a currency code
 func (b *BaseCodes) Register(c string) Code {
-	format := common.StringContains(c, common.StringToUpper(c))
+	NewUpperCode := common.StringToUpper(c)
+	format := common.StringContains(c, NewUpperCode)
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	for _, n := range b.codes {
-		if n.name == common.StringToUpper(c) {
+	for _, i := range b.Items {
+		if string(*i) == NewUpperCode {
 			return Code{
-				C:           n,
-				IsUpperCase: format,
+				Item:      i,
+				UpperCase: format,
 			}
 		}
 	}
@@ -65,80 +55,48 @@ func (b *BaseCodes) Register(c string) Code {
 			" currency.JSON", c)
 	}
 
-	var newCode Code
-	newCode.C = &code{
-		name: common.StringToUpper(c),
+	newItem := Item(NewUpperCode)
+	newCode := Code{
+		Item:      &newItem,
+		UpperCase: format,
 	}
 
-	newCode.IsUpperCase = format
-	b.codes = append(b.codes, newCode.C)
+	b.Items = append(b.Items, newCode.Item)
 	return newCode
-}
-
-// RegisterData registers a currency from a data object to populate more info
-// provided by coinmarketcap api
-func (b *BaseCodes) RegisterData(d AnalysisData) {
-	b.mtx.Lock()
-	for _, c := range b.codes {
-		if c.name == common.StringToUpper(d.Symbol) {
-			c.enabled = d.Active
-			c.id = d.ID
-			if c.codeType == Unset {
-				c.codeType = Crypto
-				b.codes = append(b.codes, c)
-			}
-			b.mtx.Unlock()
-			return
-		}
-	}
-	b.mtx.Unlock()
-
-	newCode := b.Register(d.Symbol)
-	b.mtx.Lock()
-	newCode.C.enabled = d.Active
-	newCode.C.id = d.ID
-	newCode.C.codeType = Crypto
-	b.codes = append(b.codes, newCode.C)
-	b.mtx.Unlock()
 }
 
 // Code defines an ISO 4217 fiat currency or unofficial cryptocurrency code
 // string
 type Code struct {
-	C           *code
-	IsUpperCase bool
+	Item      *Item
+	UpperCase bool
 }
 
-// code defines a sub type containing the main attributes of a designated
-// pointer
-type code struct {
-	id       int
-	name     string
-	enabled  bool
-	codeType CodeType
-}
+// Item defines a sub type containing the main attributes of a designated
+// currency code pointer
+type Item string
 
 // String converts the code to string
 func (c Code) String() string {
-	if c.C == nil {
+	if c.Item == nil {
 		return ""
 	}
 
-	if c.IsUpperCase {
-		return common.StringToUpper(c.C.name)
+	if c.UpperCase {
+		return common.StringToUpper(string(*c.Item))
 	}
-	return common.StringToLower(c.C.name)
+	return common.StringToLower(string(*c.Item))
 }
 
 // Lower converts the code to lowercase formatting
 func (c Code) Lower() Code {
-	c.IsUpperCase = false
+	c.UpperCase = false
 	return c
 }
 
 // Upper converts the code to uppercase formatting
 func (c Code) Upper() Code {
-	c.IsUpperCase = true
+	c.UpperCase = true
 	return c
 }
 
@@ -155,7 +113,7 @@ func (c *Code) UnmarshalJSON(d []byte) error {
 
 // MarshalJSON conforms type to the marshaler interface
 func (c Code) MarshalJSON() ([]byte, error) {
-	if c.C == nil {
+	if c.Item == nil {
 		return common.JSONEncode("")
 	}
 	return common.JSONEncode(c.String())
@@ -163,7 +121,10 @@ func (c Code) MarshalJSON() ([]byte, error) {
 
 // IsEmpty returns true if the code is empty
 func (c Code) IsEmpty() bool {
-	return c.C.name == ""
+	if c.Item == nil {
+		return false
+	}
+	return string(*c.Item) == ""
 }
 
 // IsDefaultFiatCurrency checks if the currency passed in matches the default

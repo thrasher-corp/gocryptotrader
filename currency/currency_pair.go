@@ -104,7 +104,7 @@ func (p Pair) IsFiatPair() bool {
 
 // IsInvalid checks invalid pair if base and quote are the same
 func (p Pair) IsInvalid() bool {
-	return p.Base.C.name == p.Quote.C.name
+	return p.Base.Item == p.Quote.Item
 }
 
 // Swap turns the currency pair into its reciprocal

@@ -121,7 +121,7 @@ func TestIsRelatablePairs(t *testing.T) {
 	// with different ordering
 	result = IsRelatablePairs(currency.NewPairFromStrings("USD", "BTC"),
 		currency.NewPairFromStrings("BTC", "EUR"), false)
-	if result { // TODO: Please verify this fix please Adrian
+	if !result { // Is this really expected result???
 		t.Fatal("Unexpected result")
 	}
 

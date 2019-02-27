@@ -91,21 +91,6 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 	s.baseCurrency = settings.FiatDisplayCurrency
 	log.Debugf("Fiat display currency: %s.", s.baseCurrency)
 
-	if settings.CryptocurrencyProvider.Enabled || overrides.Coinmarketcap {
-		log.Debug("seeding full cryptocurrency market data from Coinmarketcap")
-		settings.CryptocurrencyProvider.Enabled = true
-		err := s.SeedCryptocurrencyMarketData(settings.CryptocurrencyProvider)
-		if err != nil {
-			log.Warnf("failure seeding cryptocurrency market data %s", err)
-		} else {
-			if verbose {
-				log.Debug("total market cryptocurrencies seeded from Coinmarketcap")
-			}
-		}
-	} else {
-		log.Debug("cryptocurrency analysis not enabled")
-	}
-
 	var fxSettings []base.Settings
 	for i := range settings.ForexProviders {
 		switch settings.ForexProviders[i].Name {
@@ -168,7 +153,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 // SetupConversionRates sets default conversion rate values
 func (s *Storage) SetupConversionRates() {
 	s.fxRates = ConversionRates{
-		c: make(map[*code]map[*code]*float64),
+		m: make(map[*Item]map[*Item]*float64),
 	}
 }
 
@@ -176,7 +161,6 @@ func (s *Storage) SetupConversionRates() {
 // to the running list
 func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
 	for _, currency := range c {
-		currency.C.codeType = Fiat
 		s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, currency)
 		s.fiatCurrencies = append(s.fiatCurrencies, currency)
 	}
@@ -186,7 +170,6 @@ func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c ...Code) {
 	for _, currency := range c {
-		currency.C.codeType = Crypto
 		s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, currency)
 		s.cryptocurrencies = append(s.cryptocurrencies, currency)
 	}
@@ -309,39 +292,6 @@ func (s *Storage) SetupCryptoProvider(settings coinmarketcap.Settings) error {
 	return nil
 }
 
-// SeedCryptocurrencyMarketData seeds cryptocurrency market data this is once
-// off to validate all entries
-func (s *Storage) SeedCryptocurrencyMarketData(settings coinmarketcap.Settings) error {
-	if !settings.Enabled {
-		return errors.New("not enabled please set in config.json with apikey and account levels")
-	}
-
-	if s.currencyAnalysis == nil {
-		err := s.SetupCryptoProvider(settings)
-		if err != nil {
-			return err
-		}
-	}
-
-	cryptoData, err := s.currencyAnalysis.GetCryptocurrencyIDMap()
-	if err != nil {
-		return err
-	}
-
-	for _, data := range cryptoData {
-		s.SeedCryptocurrencyCodes(AnalysisData{
-			ID:          data.ID,
-			Name:        data.Name,
-			Symbol:      data.Symbol,
-			Slug:        data.Slug,
-			Active:      data.IsActive == 1,
-			LastUpdated: time.Now(),
-		})
-	}
-
-	return nil
-}
-
 // GetTotalMarketCryptocurrencies returns the total seeded market
 // cryptocurrencies
 func (s *Storage) GetTotalMarketCryptocurrencies() (Currencies, error) {
@@ -355,7 +305,7 @@ func (s *Storage) GetTotalMarketCryptocurrencies() (Currencies, error) {
 func (s *Storage) IsDefaultCurrency(c Code) bool {
 	t, _ := GetTranslation(c)
 	for _, d := range s.defaultFiatCurrencies {
-		if d.C.name == c.C.name || d.C.name == t.C.name {
+		if d.Item == c.Item || d.Item == t.Item {
 			return true
 		}
 	}
@@ -367,7 +317,7 @@ func (s *Storage) IsDefaultCurrency(c Code) bool {
 func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
 	t, _ := GetTranslation(c)
 	for _, d := range s.defaultCryptoCurrencies {
-		if d.C.name == c.C.name || d.C.name == t.C.name {
+		if d.Item == c.Item || d.Item == t.Item {
 			return true
 		}
 	}
@@ -379,7 +329,7 @@ func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
 func (s *Storage) IsFiatCurrency(c Code) bool {
 	t, _ := GetTranslation(c)
 	for _, d := range s.fiatCurrencies {
-		if d.C.name == c.C.name || d.C.name == t.C.name {
+		if d.Item == c.Item || d.Item == t.Item {
 			return true
 		}
 	}
@@ -391,7 +341,7 @@ func (s *Storage) IsFiatCurrency(c Code) bool {
 func (s *Storage) IsCryptocurrency(c Code) bool {
 	t, _ := GetTranslation(c)
 	for _, d := range s.cryptocurrencies {
-		if d.C.name == c.C.name || d.C.name == t.C.name {
+		if d.Item == c.Item || d.Item == t.Item {
 			return true
 		}
 	}
@@ -402,11 +352,6 @@ func (s *Storage) IsCryptocurrency(c Code) bool {
 // code
 func (s *Storage) NewCode(newCode string) Code {
 	return s.currencyCodes.Register(newCode)
-}
-
-// SeedCryptocurrencyCodes seeds crypto data into the cryptocurrency section
-func (s *Storage) SeedCryptocurrencyCodes(d AnalysisData) {
-	s.currencyCodes.RegisterData(d)
 }
 
 // UpdateBaseCurrency changes base currency
