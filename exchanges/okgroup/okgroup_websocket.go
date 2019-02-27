@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -58,56 +59,24 @@ func (o *OKGroup) WsConnect() error {
 	go o.WsHandleData()
 	go o.wsPingHandler()
 
-	err = o.WsSubscribe()
+	err = o.WsSubscribeToDefaults()
 	if err != nil {
 		return fmt.Errorf("Error: Could not subscribe to the OKEX websocket %s",
 			err)
 	}
-	log.Println("Success!")
 	return nil
 }
 
-// WsSubscribe subscribes to the websocket channels
-func (o *OKGroup) WsSubscribe() error {
-	myEnabledSubscriptionChannels := []string{}
-
+// WsSubscribeToDefaults subscribes to the websocket channels
+func (o *OKGroup) WsSubscribeToDefaults() (err error) {
+	channelsToSubscribe := []string{"spot/ticker", "spot/depth", "spot/trade", "spot/candle60s"}
 	for _, pair := range o.EnabledPairs {
-
-		// ----------- deprecate when usd pairs are upgraded to usdt ----------
-		checkSymbol := common.SplitStrings(pair, "_")
-		for i := range checkSymbol {
-			if common.StringContains(checkSymbol[i], "usdt") {
-				break
+		formattedPair := strings.ToUpper(strings.Replace(pair, "_", "-", 1))
+		for _, channel := range channelsToSubscribe {
+			err = o.WsSubscribeToChannel(fmt.Sprintf("%v:%s", channel, formattedPair))
+			if err != nil {
+				return
 			}
-			if common.StringContains(checkSymbol[i], "usd") {
-				checkSymbol[i] = "usdt"
-			}
-		}
-
-		symbolRedone := common.JoinStrings(checkSymbol, "_")
-		// ----------- deprecate when usd pairs are upgraded to usdt ----------
-
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
-			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_ticker'}",
-				symbolRedone))
-
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
-			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_depth'}",
-				symbolRedone))
-
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
-			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_deals'}",
-				symbolRedone))
-
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
-			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_kline_1min'}",
-				symbolRedone))
-	}
-
-	for _, outgoing := range myEnabledSubscriptionChannels {
-		err := o.writeToWebsocket(outgoing)
-		if err != nil {
-			return err
 		}
 	}
 
@@ -122,9 +91,7 @@ func (o *OKGroup) WsReadData() (exchange.WebsocketResponse, error) {
 	}
 
 	o.Websocket.TrafficAlert <- struct{}{}
-
 	var standardMessage []byte
-
 	switch mType {
 	case websocket.TextMessage:
 		standardMessage = resp
@@ -136,6 +103,9 @@ func (o *OKGroup) WsReadData() (exchange.WebsocketResponse, error) {
 		if err != nil {
 			return exchange.WebsocketResponse{}, err
 		}
+	}
+	if o.Verbose {
+		log.Debugf("%v", string(standardMessage))
 	}
 
 	return exchange.WebsocketResponse{Raw: standardMessage}, nil
@@ -153,7 +123,7 @@ func (o *OKGroup) wsPingHandler() {
 			return
 
 		case <-ticker.C:
-			err := o.writeToWebsocket("{'event':'ping'}")
+			err := o.writeToWebsocket("ping")
 			if err != nil {
 				o.Websocket.DataHandler <- err
 				return
@@ -162,10 +132,15 @@ func (o *OKGroup) wsPingHandler() {
 	}
 }
 
+// WsHandleErrorResponse sends an error message to ws handler
+func (o *OKGroup) WsHandleErrorResponse(event WebsocketErrorResponse) {
+	o.Websocket.DataHandler <- fmt.Errorf("%v error - %v message: %s ",
+		o.GetName(), event.ErrorCode, event.Message)
+}
+
 // WsHandleData handles the read data from the websocket connection
 func (o *OKGroup) WsHandleData() {
 	o.Websocket.Wg.Add(1)
-
 	defer func() {
 		err := o.WebsocketConn.Close()
 		if err != nil {
@@ -179,143 +154,49 @@ func (o *OKGroup) WsHandleData() {
 		select {
 		case <-o.Websocket.ShutdownC:
 			return
-
 		default:
 			resp, err := o.WsReadData()
 			if err != nil {
 				o.Websocket.DataHandler <- err
 				return
 			}
-
-			multiStreamDataArr := []MultiStreamData{}
-
-			err = common.JSONDecode(resp.Raw, &multiStreamDataArr)
-			if err != nil {
-				if strings.Contains(string(resp.Raw), "pong") {
-					continue
-				} else {
-					o.Websocket.DataHandler <- err
-					continue
-				}
+			var eventResponse WebsocketEventResponse
+			var dataResponse WebsocketDataResponse
+			var errorResponse WebsocketErrorResponse
+			// Determine what kind of message was returned
+			err = common.JSONDecode(resp.Raw, &dataResponse)
+			if err == nil && len(dataResponse.Table) > 0 {
+				o.WsHandleDataResponse(dataResponse)
+				continue
 			}
-
-			for _, multiStreamData := range multiStreamDataArr {
-				var errResponse ErrorResponse
-				if common.StringContains(string(resp.Raw), "error_msg") {
-					err = common.JSONDecode(resp.Raw, &errResponse)
-					if err != nil {
-						log.Error(err)
-					}
-					o.Websocket.DataHandler <- fmt.Errorf("okex.go error - %s resp: %s ",
-						errResponse.ErrorMsg,
-						string(resp.Raw))
-					continue
+			err = common.JSONDecode(resp.Raw, &errorResponse)
+			if err == nil && errorResponse.ErrorCode > 0 {
+				o.WsHandleErrorResponse(errorResponse)
+				continue
+			}
+			err = common.JSONDecode(resp.Raw, &eventResponse)
+			if err == nil && len(eventResponse.Channel) > 0 {
+				if o.Verbose { // Should we need it to be verbose?
+					log.Debugf("WS Event: %v on Channel: %v", eventResponse.Event, eventResponse.Channel)
 				}
-
-				var newPair string
-				var assetType string
-				currencyPairSlice := common.SplitStrings(multiStreamData.Channel, "_")
-				if len(currencyPairSlice) > 5 {
-					newPair = currencyPairSlice[3] + "_" + currencyPairSlice[4]
-					assetType = currencyPairSlice[2]
-				}
-
-				if strings.Contains(multiStreamData.Channel, "ticker") {
-					var ticker TickerStreamData
-
-					err = common.JSONDecode(multiStreamData.Data, &ticker)
-					if err != nil {
-						o.Websocket.DataHandler <- err
-						continue
-					}
-
-					o.Websocket.DataHandler <- exchange.TickerData{
-						Timestamp: ticker.Timestamp,
-						Exchange:  o.GetName(),
-						AssetType: assetType,
-					}
-
-				} else if strings.Contains(multiStreamData.Channel, "deals") {
-					var deals DealsStreamData
-
-					err = common.JSONDecode(multiStreamData.Data, &deals)
-					if err != nil {
-						o.Websocket.DataHandler <- err
-						continue
-					}
-
-					for _, trade := range deals {
-						price, _ := strconv.ParseFloat(trade[1], 64)
-						amount, _ := strconv.ParseFloat(trade[2], 64)
-						time, _ := time.Parse(time.RFC3339, trade[3])
-
-						o.Websocket.DataHandler <- exchange.TradeData{
-							Timestamp:    time,
-							Exchange:     o.GetName(),
-							AssetType:    assetType,
-							CurrencyPair: pair.NewCurrencyPairFromString(newPair),
-							Price:        price,
-							Amount:       amount,
-							EventType:    trade[4],
-						}
-					}
-
-				} else if strings.Contains(multiStreamData.Channel, "kline") {
-					var klines KlineStreamData
-
-					err := common.JSONDecode(multiStreamData.Data, &klines)
-					if err != nil {
-						o.Websocket.DataHandler <- err
-						continue
-					}
-
-					for _, kline := range klines {
-						ntime, _ := strconv.ParseInt(kline[0], 10, 64)
-						open, _ := strconv.ParseFloat(kline[1], 64)
-						high, _ := strconv.ParseFloat(kline[2], 64)
-						low, _ := strconv.ParseFloat(kline[3], 64)
-						close, _ := strconv.ParseFloat(kline[4], 64)
-						volume, _ := strconv.ParseFloat(kline[5], 64)
-
-						o.Websocket.DataHandler <- exchange.KlineData{
-							Timestamp:  time.Unix(ntime, 0),
-							Pair:       pair.NewCurrencyPairFromString(newPair),
-							AssetType:  assetType,
-							Exchange:   o.GetName(),
-							OpenPrice:  open,
-							HighPrice:  high,
-							LowPrice:   low,
-							ClosePrice: close,
-							Volume:     volume,
-						}
-					}
-
-				} else if strings.Contains(multiStreamData.Channel, "depth") {
-					var depth DepthStreamData
-
-					err := common.JSONDecode(multiStreamData.Data, &depth)
-					if err != nil {
-						o.Websocket.DataHandler <- err
-						continue
-					}
-
-					o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-						Exchange: o.GetName(),
-						Asset:    assetType,
-						Pair:     pair.NewCurrencyPairFromString(newPair),
-					}
-				}
+				continue
+			}
+			if strings.Contains(string(resp.Raw), "pong") {
+				continue
+			} else {
+				o.Websocket.DataHandler <- fmt.Errorf("Unrecognised response: %v", resp.Raw)
+				continue
 			}
 		}
 	}
 }
 
-// SubscribeToChannel sends a request to WS to subscribe to supplied channel
-func (o *OKGroup) SubscribeToChannel(topic string) error {
-	resp := v3RequestFormat{}
-	resp.Operation = "subscribe"
-	resp.Arguments = append(resp.Arguments, topic)
-	//Now do something
+// WsSubscribeToChannel sends a request to WS to subscribe to supplied channel
+func (o *OKGroup) WsSubscribeToChannel(topic string) error {
+	resp := WebsocketEventRequest{
+		Operation: "subscribe",
+		Arguments: []string{topic},
+	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		return err
@@ -327,12 +208,12 @@ func (o *OKGroup) SubscribeToChannel(topic string) error {
 	return nil
 }
 
-// UnsubscribeToChannel sends a request to WS to unsubscribe to supplied channel
-func (o *OKGroup) UnsubscribeToChannel(topic string) error {
-	resp := v3RequestFormat{}
-	resp.Operation = "unsubscribe"
-	resp.Arguments = append(resp.Arguments, topic)
-	//Now do something
+// WsUnsubscribeToChannel sends a request to WS to unsubscribe to supplied channel
+func (o *OKGroup) WsUnsubscribeToChannel(topic string) error {
+	resp := WebsocketEventRequest{
+		Operation: "unsubscribe",
+		Arguments: []string{topic},
+	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		return err
@@ -344,43 +225,151 @@ func (o *OKGroup) UnsubscribeToChannel(topic string) error {
 	return nil
 }
 
-// ErrorResponse defines an error response type from the websocket connection
-type ErrorResponse struct {
-	Result    bool   `json:"result"`
-	ErrorMsg  string `json:"error_msg"`
-	ErrorCode int64  `json:"error_code"`
+// WsHandleDataResponse sends an error message to ws handler
+func (o *OKGroup) WsHandleDataResponse(event WebsocketDataResponse) {
+	if len(event.Data) > 0 {
+		switch event.Data[0].(type) {
+		case WebsocketTickerResponse:
+			o.wsProcessTickers(event.Data)
+		case WebsocketTradeResponse:
+			o.wsProcessTrades(event.Data)
+		case WebsocketCandleResponse:
+			o.wsProcessCandles(event.Data, event.Table)
+		case WebsocketFundingFeeResponse:
+			o.wsProcessFundingFees(event.Data)
+		case WebsocketOrderBooksResponse:
+			o.wsProcessOrderBook(event.Data)
+		}
+	}
 }
 
-// Request defines the JSON request structure to the websocket server
-type Request struct {
-	Event      string `json:"event"`
-	Channel    string `json:"channel"`
-	Parameters string `json:"parameters,omitempty"`
+func (o *OKGroup) wsProcessTickers(tickers []interface{}) {
+	for _, tickerInterface := range tickers {
+		tickerData := tickerInterface.(WebsocketTickerResponse)
+		instrument := pair.NewCurrencyPairDelimiter(tickerData.InstrumentID, "-")
+		o.Websocket.DataHandler <- exchange.TickerData{
+			Timestamp:  tickerData.Timestamp,
+			Exchange:   o.GetName(),
+			AssetType:  "SPOT",
+			HighPrice:  tickerData.High24H,
+			LowPrice:   tickerData.Low24H,
+			ClosePrice: tickerData.Last,
+			Pair:       instrument,
+		}
+	}
 }
 
-type v3RequestFormat struct {
-	Operation string   `json:"event"` // 1--subscribe 2--unsubscribe 3--login
-	Arguments []string `json:"args"`  // args: the value is the channel name, which can be one or more channels
+func (o *OKGroup) wsProcessTrades(trades []interface{}) {
+	for _, tradeInterface := range trades {
+		tradeData := tradeInterface.(WebsocketTradeResponse)
+		instrument := pair.NewCurrencyPairDelimiter(tradeData.InstrumentID, "-")
+		o.Websocket.DataHandler <- exchange.TradeData{
+			Amount:       tradeData.Qty,
+			AssetType:    "SPOT",
+			CurrencyPair: instrument,
+			EventTime:    time.Now().Unix(),
+			Exchange:     o.GetName(),
+			Price:        tradeData.Price,
+			Side:         tradeData.Side,
+			Timestamp:    tradeData.Timestamp,
+		}
+	}
 }
 
-type v3SSuccessResponseFormat struct {
-	Event   string `json:"event"`
-	Channel string `json:"channel"`
+func (o *OKGroup) wsProcessCandles(candles []interface{}, interval string) {
+	for _, candleInterface := range candles {
+		candleData := candleInterface.(WebsocketCandleResponse)
+		instrument := pair.NewCurrencyPairDelimiter(candleData.InstrumentID, "-")
+		timeData, err := time.Parse(time.RFC3339Nano, candleData.Candle[0])
+		parsedInterval := strings.Replace(interval, "swap/candle", "", 1)
+		parsedInterval = strings.Replace(parsedInterval, "s", "", 1)
+		if err != nil {
+			log.Warnf("%v Time data could not be parsed: %v", o.GetName(), candleData.Candle[0])
+		}
+		klineData := exchange.KlineData{
+			AssetType: "SPOT",
+			Pair:      instrument,
+			Exchange:  o.GetName(),
+			Timestamp: timeData,
+			Interval:  parsedInterval,
+		}
+		klineData.OpenPrice, err = strconv.ParseFloat(candleData.Candle[1], 64)
+		if err != nil {
+			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candleData.Candle[1])
+		}
+		klineData.HighPrice, err = strconv.ParseFloat(candleData.Candle[2], 64)
+		if err != nil {
+			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candleData.Candle[2])
+		}
+		klineData.LowPrice, err = strconv.ParseFloat(candleData.Candle[3], 64)
+		if err != nil {
+			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candleData.Candle[3])
+		}
+		klineData.ClosePrice, err = strconv.ParseFloat(candleData.Candle[4], 64)
+		if err != nil {
+			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candleData.Candle[4])
+		}
+		klineData.Volume, err = strconv.ParseFloat(candleData.Candle[5], 64)
+		if err != nil {
+			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candleData.Candle[5])
+		}
+
+		o.Websocket.DataHandler <- klineData
+	}
 }
 
-type v3SSuccessTableResponseFormat struct {
-	Table string        `json:"table"`
-	Data  []interface{} `json:"data"`
+func (o *OKGroup) wsProcessFundingFees(fundingFees []interface{}) {
+	/* This is not supported yet
+	for _, fundingFeeInterface := range fundingFees {
+		fundingFeeData := fundingFeeInterface.(WebsocketFundingFeeResponse)
+		instrument := pair.NewCurrencyPairDelimiter(fundingFeeData.InstrumentID, "-")
+	}
+	*/
 }
 
-type v3SuccessfulSwapDepthResponseFormat struct {
-	Table  string        `json:"table"`
-	Action string        `json:"action"`
-	Data   []interface{} `json:"data"`
-}
-
-type v3FailureResponseFormat struct {
-	Event     string `json:"event"`
-	Message   string `json:"error_message"`
-	ErrorCode string `json:"error_code"`
+func (o *OKGroup) wsProcessOrderBook(orderbooks []interface{}) {
+	for _, orderbooksInterface := range orderbooks {
+		orderbookData := orderbooksInterface.(WebsocketOrderBooksResponse)
+		instrument := pair.NewCurrencyPairDelimiter(orderbookData.Data[0].InstrumentID, "-")
+		var asks, bids []orderbook.Item
+		for _, data := range orderbookData.Data {
+			for _, ask := range data.Asks {
+				amount, err := strconv.ParseFloat(ask[2].(string), 64)
+				if err != nil {
+					log.Warnf("Could not convert %v to float", ask[2])
+				}
+				price, err := strconv.ParseFloat(ask[0].(string), 64)
+				if err != nil {
+					log.Warnf("Could not convert %v to float", ask[0])
+				}
+				asks = append(asks, orderbook.Item{
+					Amount: amount,
+					Price:  price,
+				})
+			}
+			for _, bid := range data.Bids {
+				amount, err := strconv.ParseFloat(bid[2].(string), 64)
+				if err != nil {
+					log.Warnf("Could not convert %v to float", bid[2])
+				}
+				price, err := strconv.ParseFloat(bid[0].(string), 64)
+				if err != nil {
+					log.Warnf("Could not convert %v to float", bid[0])
+				}
+				bids = append(bids, orderbook.Item{
+					Amount: amount,
+					Price:  price,
+				})
+			}
+		}
+		err := o.Websocket.Orderbook.Update(bids, asks, instrument, time.Now(), o.GetName(), "SPOT")
+		if err != nil {
+			log.Error(err)
+		}
+		o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			Exchange: o.GetName(),
+			Asset:    "SPOT",
+			Pair:     instrument,
+		}
+	}
 }

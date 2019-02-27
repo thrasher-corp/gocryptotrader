@@ -316,7 +316,7 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
-		Destination: 4,
+		Destination: 4, // 1, 2, 3 are all internal
 		Fee:         withdrawRequest.FeeAmount,
 		ToAddress:   withdrawRequest.Address,
 		TradePwd:    withdrawRequest.TradePassword,

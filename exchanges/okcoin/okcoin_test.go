@@ -91,7 +91,7 @@ func setupWSConnection(t *testing.T) error {
 	if err != nil {
 		return err
 	}
-	o.Websocket.SetEnabled(true)
+	o.Websocket.SetWsStatusAndConnection(true)
 	err = o.Websocket.Connect()
 	if err != nil {
 		return err

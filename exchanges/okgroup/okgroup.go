@@ -147,7 +147,7 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
-		o.Websocket.SetEnabled(exch.Websocket)
+		o.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -174,7 +174,7 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 		err = o.WebsocketSetup(o.WsConnect,
 			exch.Name,
 			exch.Websocket,
-			"okexDefaultWebsocketURL",
+			exch.WebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)

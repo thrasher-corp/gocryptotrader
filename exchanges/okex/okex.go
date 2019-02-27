@@ -19,7 +19,8 @@ const (
 	okExAPIURL       = "https://www.okex.com/" + okExAPIPath
 	okExAPIVersion   = "/v3/"
 	okExExchangeName = "OKEX"
-	okExWebsocketURL = "wss://real.okex.com:10440/websocket/okexapi"
+	// OkExWebsocketURL WebsocketURL
+	OkExWebsocketURL = "wss://real.okex.com:10442/ws/v3"
 	// API subsections
 	okGroupFuturesSubsection = "futures"
 	okGroupSwapSubsection    = "swap"
@@ -73,6 +74,7 @@ func (o *OKEX) SetDefaults() {
 	o.AssetTypes = []string{ticker.Spot}
 	o.WebsocketInit()
 	o.APIVersion = okExAPIVersion
+	o.WebsocketURL = OkExWebsocketURL
 	o.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketKlineSupported |

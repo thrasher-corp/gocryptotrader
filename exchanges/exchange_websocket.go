@@ -66,7 +66,7 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.Disconnected = make(chan struct{}, 1)
 	e.Websocket.TrafficAlert = make(chan struct{}, 1)
 
-	err := e.Websocket.SetEnabled(wsEnabled)
+	err := e.Websocket.SetWsStatusAndConnection(wsEnabled)
 	if err != nil {
 		return err
 	}
@@ -259,8 +259,9 @@ func (w *Websocket) GetWebsocketURL() string {
 	return w.runningURL
 }
 
-// SetEnabled sets if websocket is enabled
-func (w *Websocket) SetEnabled(enabled bool) error {
+// SetWsStatusAndConnection sets if websocket is enabled
+// it will also connect/disconnect the websocket connection
+func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
 	if w.enabled == enabled {
 		if w.init {
 			return nil

@@ -1,7 +1,6 @@
 package okgroup
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -521,7 +520,7 @@ type GetFuturesLeverageData struct {
 // SetFuturesLeverageRequest request data for SetFuturesLeverage
 type SetFuturesLeverageRequest struct {
 	Direction    string `json:"direction,omitempty"`     // opening side (long or short)
-	InstrumentID string `json:"instrument_id,omitempty"` //  	Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `json:"instrument_id,omitempty"` //  	Contract ID, e.g. “BTC-USD-180213"
 	Leverage     int64  `json:"leverage,omitempty"`      //  	10x or 20x leverage
 	Currency     string `json:"currency,omitempty"`
 }
@@ -545,7 +544,7 @@ type SetFutureLeverageShortLongData struct {
 // PlaceFuturesOrderRequest request data for PlaceFuturesOrder
 type PlaceFuturesOrderRequest struct {
 	ClientOid    string  `json:"client_oid,omitempty"`         // [optional] 	the order ID customized by yourself
-	InstrumentID string  `json:"instrument_id"`                // [required]   	Contract ID,e.g. “TC-USD-180213”
+	InstrumentID string  `json:"instrument_id"`                // [required]   	Contract ID,e.g. “TC-USD-180213"
 	Type         int64   `json:"type,string"`                  //  [required] 	1:open long 2:open short 3:close long 4:close short
 	Price        float64 `json:"price,string"`                 //  [required] 	Price of each contract
 	Size         int64   `json:"size,string"`                  //  [required] The buying or selling quantity
@@ -564,7 +563,7 @@ type PlaceFuturesOrderResponse struct {
 
 // PlaceFuturesOrderBatchRequest request data for PlaceFuturesOrderBatch
 type PlaceFuturesOrderBatchRequest struct {
-	InstrumentID string                                 `json:"instrument_id"` // [required] Contract ID, e.g.“BTC-USD-180213”
+	InstrumentID string                                 `json:"instrument_id"` // [required] Contract ID, e.g.“BTC-USD-180213"
 	Leverage     int                                    `json:"leverage"`      // [required] 10x or 20x leverage
 	OrdersData   []PlaceFuturesOrderBatchRequestDetails `json:"orders_data"`   // [required] the JSON word string for placing multiple orders, include：{client_oid type price size match_price}
 }
@@ -595,7 +594,7 @@ type PlaceFuturesOrderBatchResponseData struct {
 // CancelFuturesOrderRequest request data for CancelFuturesOrder
 type CancelFuturesOrderRequest struct {
 	OrderID      string `json:"order_id"`      // [required] Order ID
-	InstrumentID string `json:"instrument_id"` // [required] Contract ID,e.g. “BTC-USD-180213”
+	InstrumentID string `json:"instrument_id"` // [required] Contract ID,e.g. “BTC-USD-180213"
 }
 
 // CancelFuturesOrderResponse response data from CancelFuturesOrder
@@ -607,7 +606,7 @@ type CancelFuturesOrderResponse struct {
 
 // GetFuturesOrdersListRequest request data for GetFutureOrdersList
 type GetFuturesOrdersListRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
 	Status       int64  `url:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
@@ -639,13 +638,13 @@ type GetFuturesOrderDetailsResponseData struct {
 // GetFuturesOrderDetailsRequest request data for GetFuturesOrderDetails
 type GetFuturesOrderDetailsRequest struct {
 	OrderID      int64  `json:"order_id,string"` // [required] Order ID
-	InstrumentID string `json:"instrument_id"`   // [required] Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `json:"instrument_id"`   // [required] Contract ID, e.g. “BTC-USD-180213"
 }
 
 // GetFuturesTransactionDetailsRequest request data for GetFuturesTransactionDetails
 type GetFuturesTransactionDetailsRequest struct {
 	OrderID      int64  `json:"order_id,string"`        // [required] Order ID
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213"
 	Status       int64  `json:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
 	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
@@ -679,7 +678,7 @@ type GetFuturesContractInformationResponse struct {
 
 // GetFuturesOrderBookRequest request data for GetFuturesOrderBook
 type GetFuturesOrderBookRequest struct {
-	InstrumentID string `url:"-"`              // [required] Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `url:"-"`              // [required] Contract ID, e.g. “BTC-USD-180213"
 	Size         int64  `url:"size,omitempty"` // [optional] The size of the price range (max: 200)
 }
 
@@ -704,7 +703,7 @@ type GetFuturesTokenInfoResponse struct {
 
 // GetFuturesFilledOrderRequest request data for GetFuturesFilledOrder
 type GetFuturesFilledOrderRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
@@ -790,7 +789,7 @@ type GetFuturesCurrentMarkPriceResponse struct {
 
 // GetFuturesForceLiquidatedOrdersRequest request data for GetFuturesForceLiquidatedOrders
 type GetFuturesForceLiquidatedOrdersRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
@@ -965,7 +964,7 @@ type CancelMultipleSwapOrdersResponse struct {
 
 // GetSwapOrderListRequest request data for GetSwapOrderList
 type GetSwapOrderListRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
 	Status       int64  `url:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
@@ -1127,7 +1126,7 @@ type GetSwapCurrentPriceLimitsResponse struct {
 
 // GetSwapForceLiquidatedOrdersRequest request data for GetSwapForceLiquidatedOrders
 type GetSwapForceLiquidatedOrdersRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213”
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
@@ -1287,31 +1286,82 @@ type SpotInstrument struct {
 	TickSize       float64 `json:"tick_size,string"`
 }
 
-// MultiStreamData contains raw data from okex
-type MultiStreamData struct {
-	Channel string          `json:"channel"`
-	Data    json.RawMessage `json:"data"`
+// WebsocketEventRequest contains event data for a websocket channel
+type WebsocketEventRequest struct {
+	Operation string   `json:"op"`   // 1--subscribe 2--unsubscribe 3--login
+	Arguments []string `json:"args"` // args: the value is the channel name, which can be one or more channels
 }
 
-// TickerStreamData contains ticker stream data from okex
-type TickerStreamData struct {
-	Buy       string    `json:"buy"`
-	Change    string    `json:"change"`
-	High      string    `json:"high"`
-	Low       string    `json:"low"`
-	Last      string    `json:"last"`
-	Sell      string    `json:"sell"`
-	DayLow    string    `json:"dayLow"`
-	DayHigh   string    `json:"dayHigh"`
-	Timestamp time.Time `json:"timestamp"`
-	Vol       string    `json:"vol"`
+// WebsocketEventResponse contains event data for a websocket channel
+type WebsocketEventResponse struct {
+	Event   string `json:"event"`
+	Channel string `json:"channel"`
 }
 
-// DealsStreamData defines Deals data
-type DealsStreamData = [][]string
+// WebsocketDataResponse formats all response data for a websocket event
+type WebsocketDataResponse struct {
+	Table string        `json:"table"`
+	Data  []interface{} `json:"data"`
+}
 
-// KlineStreamData defines kline data
-type KlineStreamData = [][]string
+// WebsocketTickerResponse contains formatted data for ticker related websocket responses
+type WebsocketTickerResponse struct {
+	High24H      float64   `json:"high_24h,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Last         float64   `json:"last,string"`
+	BestBid      float64   `json:"best_bid,string"`
+	BestAsk      float64   `json:"best_ask,string"`
+	Low24H       float64   `json:"low_24h,string"`
+	Timestamp    time.Time `json:"timestamp"`
+	Volume24H    float64   `json:"volume_24h,string"`
+}
+
+// WebsocketTradeResponse contains formatted data for trade related websocket responses
+type WebsocketTradeResponse struct {
+	InstrumentID string    `json:"instrument_id"`
+	Price        float64   `json:"price,string"`
+	Side         string    `json:"side"`
+	Qty          float64   `json:"qty,string"`
+	Timestamp    time.Time `json:"timestamp"`
+	TradeID      string    `json:"trade_id"`
+}
+
+// WebsocketErrorResponse yo
+type WebsocketErrorResponse struct {
+	Event     string `json:"event"`
+	Message   string `json:"message"`
+	ErrorCode int64  `json:"errorCode"`
+}
+
+// WebsocketCandleResponse contains formatted data for candle related websocket responses
+type WebsocketCandleResponse struct {
+	InstrumentID string   `json:"instrument_id"`
+	Candle       []string `json:"candle"` // [0]timestamp, [1]open, [2]high, [3]low, [4]close, [5]volume, [6]currencyVolume
+}
+
+// WebsocketFundingFeeResponse contains formatted data for funding fee related websocket responses
+type WebsocketFundingFeeResponse struct {
+	FundingRate  float64   `json:"funding_rate,string"`
+	FundingTime  time.Time `json:"funding_time"`
+	InstrumentID string    `json:"instrument_id"`
+	InterestRate float64   `json:"interest_rate,string"`
+}
+
+// WebsocketOrderBooksResponse contains formatted data for order book related websocket responses
+type WebsocketOrderBooksResponse struct {
+	Table  string                    `json:"table"`
+	Action string                    `json:"action"`
+	Data   []WebsocketOrderBooksData `json:"data"`
+}
+
+// WebsocketOrderBooksData contains orderbook data from  WebsocketOrderBooksResponse
+type WebsocketOrderBooksData struct {
+	InstrumentID string          `json:"instrument_id"`
+	Asks         [][]interface{} `json:"asks"` // [0] Price, [1] Size, [2] Number of orders
+	Bids         [][]interface{} `json:"bids"` // [0] Price, [1] Size, [2] Number of orders
+	Timestamp    string          `json:"timestamp"`
+	Checksum     int64           `json:"checksum"`
+}
 
 // DepthStreamData defines orderbook depth
 type DepthStreamData struct {

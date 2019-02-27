@@ -60,6 +60,7 @@ func TestSetup(t *testing.T) {
 	okexConfig.APISecret = apiSecret
 	okexConfig.ClientID = passphrase
 	okexConfig.Verbose = true
+	okexConfig.WebsocketURL = o.WebsocketURL
 	o.Setup(okexConfig)
 }
 
@@ -80,23 +81,25 @@ func testStandardErrorHandling(t *testing.T, err error) {
 	}
 }
 
-/*
 // setupWSConnection Connect to WS, but pass back error so test can handle it if needed
 func setupWSConnection(t *testing.T) error {
 	o.Enabled = true
 	err := o.WebsocketSetup(o.WsConnect,
 		o.Name,
 		true,
-		okexDefaultWebsocketURL,
+		o.WebsocketURL,
 		o.WebsocketURL)
 	if err != nil {
 		return err
 	}
-	o.Websocket.SetEnabled(true)
-	err = o.Websocket.Connect()
+	o.Websocket.SetWsStatusAndConnection(true)
+	return nil
+}
+
+func connectToWs() error {
+	err := o.Websocket.Connect()
 	if err != nil {
 		return err
-
 	}
 	return nil
 }
@@ -109,7 +112,7 @@ func disconnectFromWS() error {
 	}
 	return nil
 }
-*/
+
 // TestGetAccountCurrencies API endpoint test
 func TestGetAccountCurrencies(t *testing.T) {
 	TestSetDefaults(t)
@@ -1383,25 +1386,32 @@ func TestGetETTSettlementPriceHistory(t *testing.T) {
 	testStandardErrorHandling(t, err)
 }
 
-// TestSubscribeToPewDiePie API endpoint test
-/*
-func TestSubscribeToPewDiePie(t *testing.T) {
-	TestSetDefaults(t)
-	setupWSConnection(t)
-	err := o.SubscribeToChannel("Pewdiepie")
-	resp, err := o.WsReadData()
-	if err == nil {
-		t.Error("Expected error")
-	}
-	t.Log(resp)
-	err = o.UnsubscribeToChannel("T-Series")
-	if err == nil {
-		t.Error("Expected error")
-	}
-	disconnectFromWS()
-}
-*/
+// Websocket tests ----------------------------------------------------------------------------------------------
 
+// TestSubscribeToPewDiePie API endpoint test
+func TestWSSetup(t *testing.T) {
+	defer disconnectFromWS()
+	TestSetDefaults(t)
+	err := setupWSConnection(t)
+	testStandardErrorHandling(t, err)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestSubscribeToPewDiePie API endpoint test
+func TestSubscribeToPewDiePie(t *testing.T) {
+	defer disconnectFromWS()
+	TestSetDefaults(t)
+	err := setupWSConnection(t)
+	testStandardErrorHandling(t, err)
+	err = o.SubscribeToChannel("Pewdiepie")
+	testStandardErrorHandling(t, err)
+	err = o.UnsubscribeToChannel("T-Series")
+	testStandardErrorHandling(t, err)
+}
+
+// Function tests ----------------------------------------------------------------------------------------------
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:              1,
@@ -1503,8 +1513,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// ----------------------------------------------------------------------------------------------------------------------------
+// Wrapper tests --------------------------------------------------------------------------------------------------
 
 // TestSubmitOrder Wrapper test
 func TestSubmitOrder(t *testing.T) {
@@ -1512,7 +1521,7 @@ func TestSubmitOrder(t *testing.T) {
 	var p = pair.CurrencyPair{
 		Delimiter:      "",
 		FirstCurrency:  symbol.BTC,
-		SecondCurrency: symbol.EUR,
+		SecondCurrency: symbol.USDT,
 	}
 	response, err := o.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -1567,8 +1576,8 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	_, err := o.ModifyOrder(exchange.ModifyOrder{})
-	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
 
@@ -1577,7 +1586,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:        100,
-		Currency:      "btc_usd",
+		Currency:      symbol.BTC,
 		Address:       "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",
