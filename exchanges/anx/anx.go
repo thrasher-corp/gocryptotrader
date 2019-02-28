@@ -75,7 +75,7 @@ func (a *ANX) SetDefaults() {
 	a.WebsocketInit()
 }
 
-//Setup is run on startup to setup exchange with config values
+// Setup is run on startup to setup exchange with config values
 func (a *ANX) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		a.SetEnabled(false)
@@ -129,17 +129,15 @@ func (a *ANX) GetCurrencies() (CurrenciesStore, error) {
 
 // GetTicker returns the current ticker
 func (a *ANX) GetTicker(currency string) (Ticker, error) {
-	var ticker Ticker
+	var t Ticker
 	path := fmt.Sprintf("%sapi/2/%s/%s", a.APIUrl, currency, anxTicker)
-
-	return ticker, a.SendHTTPRequest(path, &ticker)
+	return t, a.SendHTTPRequest(path, &t)
 }
 
 // GetDepth returns current orderbook depth.
 func (a *ANX) GetDepth(currency string) (Depth, error) {
 	var depth Depth
 	path := fmt.Sprintf("%sapi/2/%s/%s", a.APIUrl, currency, anxDepth)
-
 	return depth, a.SendHTTPRequest(path, &depth)
 }
 
@@ -366,7 +364,7 @@ func (a *ANX) CreateNewSubAccount(currency, name string) (string, error) {
 }
 
 // GetDepositAddressByCurrency returns a deposit address for a specific currency
-func (a *ANX) GetDepositAddressByCurrency(currency, name string, new bool) (string, error) {
+func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (string, error) {
 	request := make(map[string]interface{})
 	request["ccy"] = currency
 
@@ -383,7 +381,7 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, new bool) (stri
 	var response AddressResponse
 
 	path := anxReceieveAddress
-	if new {
+	if newAddr {
 		path = anxCreateAddress
 	}
 
@@ -427,7 +425,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 
 	PayloadJSON, err := common.JSONEncode(request)
 	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+		return errors.New("unable to JSON request")
 	}
 
 	if a.Verbose {
@@ -483,7 +481,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	if currency == symbol.HKD {
 		fee = 250 + (WithdrawalFees[currency] * amount)
 	}
-	//TODO, other fiat currencies require consultation with ANXPRO
+	// TODO, other fiat currencies require consultation with ANXPRO
 	return fee
 }
 

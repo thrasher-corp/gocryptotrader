@@ -193,7 +193,7 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 	}
 
 	if len(resp.Error) > 0 {
-		return ticker, fmt.Errorf("Kraken error: %s", resp.Error)
+		return ticker, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
 	for _, y := range resp.Data {
@@ -231,7 +231,7 @@ func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
 	}
 
 	if len(resp.Error) > 0 {
-		return nil, fmt.Errorf("Kraken error: %s", resp.Error)
+		return nil, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
 	tickers := make(Tickers)
@@ -273,7 +273,7 @@ func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
 	}
 
 	if len(result.Error) != 0 {
-		return OHLC, fmt.Errorf("GetOHLC error: %s", result.Error)
+		return OHLC, fmt.Errorf("getOHLC error: %s", result.Error)
 	}
 
 	for _, y := range result.Data[symbol].([]interface{}) {
@@ -891,13 +891,13 @@ func (k *Kraken) CancelExistingOrder(txid string) (CancelOrderResponse, error) {
 //       <char-severity code><string-error category>:<string-error type>[:<string-extra info>]
 //       severity code can be E for error or W for warning
 func GetError(errors []string) error {
-
+	const exchangeName = "Kraken"
 	for _, e := range errors {
 		switch e[0] {
 		case 'W':
-			log.Warnf("Kraken API warning: %v\n", e[1:])
+			log.Warnf("%s API warning: %v\n", exchangeName, e[1:])
 		default:
-			return fmt.Errorf("Kraken API error: %v", e[1:])
+			return fmt.Errorf("%s API error: %v", exchangeName, e[1:])
 		}
 	}
 

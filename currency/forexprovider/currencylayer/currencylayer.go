@@ -142,7 +142,7 @@ func (c *CurrencyLayer) Convert(from, to, date string, amount float64) (float64,
 
 // QueryTimeFrame returns historical exchange rates for a time-period.
 // (maximum range: 365 days)
-func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, base string, currencies []string) (map[string]interface{}, error) {
+func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, baseCurrency string, currencies []string) (map[string]interface{}, error) {
 	if c.APIKeyLvl >= AccountPro {
 		return nil, errors.New("insufficient API privileges, upgrade to basic to use this function")
 	}
@@ -152,7 +152,7 @@ func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, base string, currenci
 	v := url.Values{}
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("currencies", common.JoinStrings(currencies, ","))
 
 	err := c.SendHTTPRequest(APIEndpointTimeframe, v, &resp)
@@ -169,7 +169,7 @@ func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, base string, currenci
 // QueryCurrencyChange returns the change (both margin and percentage) of one or
 // more currencies, relative to a Source Currency, within a specific
 // time-frame (optional).
-func (c *CurrencyLayer) QueryCurrencyChange(startDate, endDate, base string, currencies []string) (map[string]Changes, error) {
+func (c *CurrencyLayer) QueryCurrencyChange(startDate, endDate, baseCurrency string, currencies []string) (map[string]Changes, error) {
 	if c.APIKeyLvl != AccountEnterprise {
 		return nil, errors.New("insufficient API privileges, upgrade to basic to use this function")
 	}
@@ -178,7 +178,7 @@ func (c *CurrencyLayer) QueryCurrencyChange(startDate, endDate, base string, cur
 	v := url.Values{}
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("currencies", common.JoinStrings(currencies, ","))
 
 	err := c.SendHTTPRequest(APIEndpointChange, v, &resp)
@@ -203,7 +203,7 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 	} else {
 		path = fmt.Sprintf("%s%s%s", APIEndpointURLSSL, endPoint, "?")
 	}
-	path = path + values.Encode()
+	path += values.Encode()
 
 	return common.SendHTTPGetRequest(path, true, c.Verbose, result)
 }

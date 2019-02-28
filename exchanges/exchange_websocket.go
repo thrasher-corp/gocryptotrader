@@ -246,12 +246,12 @@ func (w *Websocket) Shutdown() error {
 }
 
 // SetWebsocketURL sets websocket URL
-func (w *Websocket) SetWebsocketURL(URL string) {
-	if URL == "" || URL == config.WebsocketURLNonDefaultMessage {
+func (w *Websocket) SetWebsocketURL(websocketURL string) {
+	if websocketURL == "" || websocketURL == config.WebsocketURLNonDefaultMessage {
 		w.runningURL = w.defaultURL
 		return
 	}
-	w.runningURL = URL
+	w.runningURL = websocketURL
 }
 
 // GetWebsocketURL returns the running websocket URL
@@ -293,12 +293,12 @@ func (w *Websocket) IsEnabled() bool {
 }
 
 // SetProxyAddress sets websocket proxy address
-func (w *Websocket) SetProxyAddress(URL string) error {
-	if w.proxyAddr == URL {
+func (w *Websocket) SetProxyAddress(proxyAddr string) error {
+	if w.proxyAddr == proxyAddr {
 		return errors.New("exchange_websocket.go error - Setting proxy address - same address")
 	}
 
-	w.proxyAddr = URL
+	w.proxyAddr = proxyAddr
 
 	if !w.init && w.enabled {
 		if w.connected {
@@ -401,8 +401,8 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 				if orderbookAddress.Bids[y].Price == bidTargets[x].Price {
 					if bidTargets[x].Amount == 0 {
 						// Delete
-						orderbookAddress.Asks = append(orderbookAddress.Bids[:y],
-							orderbookAddress.Bids[y+1:]...)
+						orderbookAddress.Asks = append(orderbookAddress.Asks[:y],
+							orderbookAddress.Asks[y+1:]...)
 						return
 					}
 					// Amend

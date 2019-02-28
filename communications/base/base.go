@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-//global vars contain staged update data that will be sent to the communication
+// global vars contain staged update data that will be sent to the communication
 // mediums
 var (
 	TickerStaged    map[string]map[string]map[string]ticker.Price

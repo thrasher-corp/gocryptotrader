@@ -489,7 +489,8 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 
 	if err := common.JSONDecode(intermidiary, &errCap); err == nil {
 		if !errCap.Result {
-			return fmt.Errorf("GateIO auth request error, code: %d message: %s",
+			return fmt.Errorf("%s auth request error, code: %d message: %s",
+				g.Name,
 				errCap.Code,
 				errCap.Message)
 		}
@@ -514,7 +515,7 @@ func (g *Gateio) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, err error)
 			}
 		}
 		if feeForPair == 0 {
-			return 0, fmt.Errorf("Currency: '%s' failed to find fee data", currencyPair)
+			return 0, fmt.Errorf("currency '%s' failed to find fee data", currencyPair)
 		}
 		fee = calculateTradingFee(feeForPair, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:

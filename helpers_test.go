@@ -191,9 +191,10 @@ func TestGetRelatableFiatCurrencies(t *testing.T) {
 func TestMapCurrenciesByExchange(t *testing.T) {
 	SetupTestHelpers(t)
 
-	var pairs []pair.CurrencyPair
-	pairs = append(pairs, pair.NewCurrencyPair("BTC", "USD"))
-	pairs = append(pairs, pair.NewCurrencyPair("BTC", "EUR"))
+	var pairs = []pair.CurrencyPair{
+		pair.NewCurrencyPair("BTC", "USD"),
+		pair.NewCurrencyPair("BTC", "EUR"),
+	}
 
 	result := MapCurrenciesByExchange(pairs, true)
 	pairs, ok := result["Bitstamp"]
@@ -370,12 +371,12 @@ func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
 	stats.Add("Bitfinex", p, ticker.Spot, 1000, 10000)
 	stats.Add("Bitstamp", p, ticker.Spot, 1337, 10000)
-	exchange, err := GetExchangeHighestPriceByCurrencyPair(p, ticker.Spot)
+	exchangeName, err := GetExchangeHighestPriceByCurrencyPair(p, ticker.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if exchange != "Bitstamp" {
+	if exchangeName != "Bitstamp" {
 		t.Error("Unexpected result")
 	}
 
@@ -391,12 +392,12 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
 	stats.Add("Bitfinex", p, ticker.Spot, 1000, 10000)
 	stats.Add("Bitstamp", p, ticker.Spot, 1337, 10000)
-	exchange, err := GetExchangeLowestPriceByCurrencyPair(p, ticker.Spot)
+	exchangeName, err := GetExchangeLowestPriceByCurrencyPair(p, ticker.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if exchange != "Bitfinex" {
+	if exchangeName != "Bitfinex" {
 		t.Error("Unexpected result")
 	}
 

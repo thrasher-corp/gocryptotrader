@@ -200,6 +200,7 @@ func TestCreateNewTicker(t *testing.T) {
 	}
 
 	newTicker := CreateNewTicker("ANX", newPair, priceStruct, Spot)
+	const float64Type = "float64"
 
 	if reflect.ValueOf(newTicker).NumField() != 2 {
 		t.Error("Test Failed - ticker CreateNewTicker struct change/or updated")
@@ -214,28 +215,28 @@ func TestCreateNewTicker(t *testing.T) {
 	if newTicker.Price["BTC"]["USD"][Spot].Pair.Pair().String() != "BTCUSD" {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Pair.Pair().String() value is not expected 'BTCUSD'")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Ask).String() != "float64" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Ask).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Ask value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Bid).String() != "float64" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Bid).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Bid value is not a float64")
 	}
 	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].CurrencyPair).String() != "string" {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].CurrencyPair value is not a string")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].High).String() != "float64" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].High).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].High value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Last).String() != "float64" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Last).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Last value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Low).String() != "float64" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Low).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Low value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].PriceATH).String() != "float64" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].PriceATH).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].PriceATH value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Volume).String() != "float64" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Volume).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Volume value is not a float64")
 	}
 }
@@ -317,10 +318,12 @@ func TestProcessTicker(t *testing.T) { //non-appending function to tickers
 
 	for _, test := range testArray {
 		wg.Add(1)
+		fatalErr := false
 		go func(test quick) {
 			result, err := GetTicker(test.Name, test.P, Spot)
 			if err != nil {
-				t.Fatal("Test failed. TestProcessTicker failed to retrieve new ticker")
+				fatalErr = true
+				return
 			}
 
 			if result.Last != test.TP.Last {
@@ -329,6 +332,10 @@ func TestProcessTicker(t *testing.T) { //non-appending function to tickers
 
 			wg.Done()
 		}(test)
+
+		if fatalErr {
+			t.Fatal("Test failed. TestProcessTicker failed to retrieve new ticker")
+		}
 	}
 	wg.Wait()
 

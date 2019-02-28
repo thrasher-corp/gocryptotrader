@@ -86,20 +86,20 @@ func (e *ExchangeRates) GetLatestRates(baseCurrency, symbols string) (Rates, err
 // GetHistoricalRates returns historical exchange rate data for all available or
 // a specific set of currencies.
 // date - YYYY-MM-DD	[required] A date in the past
-// base - USD 			[optional] The base currency to use for forex rates, defaults to EUR
+// baseCurrency - USD 			[optional] The base currency to use for forex rates, defaults to EUR
 // symbols - AUD,USD	[optional] The symbols to query the forex rates for, default is
 // all supported currencies
-func (e *ExchangeRates) GetHistoricalRates(date, base string, symbols []string) (HistoricalRates, error) {
+func (e *ExchangeRates) GetHistoricalRates(date, baseCurrency string, symbols []string) (HistoricalRates, error) {
 	var resp HistoricalRates
 	v := url.Values{}
 
 	if len(symbols) > 0 {
-		s := cleanCurrencies(base, strings.Join(symbols, ","))
+		s := cleanCurrencies(baseCurrency, strings.Join(symbols, ","))
 		v.Set("symbols", s)
 	}
 
-	if len(base) > 0 {
-		v.Set("base", base)
+	if len(baseCurrency) > 0 {
+		v.Set("base", baseCurrency)
 	}
 
 	return resp, e.SendHTTPRequest(date, v, &resp)
@@ -109,12 +109,12 @@ func (e *ExchangeRates) GetHistoricalRates(date, base string, symbols []string) 
 // specified dates for all available or a specific set of currencies.
 // startDate - YYYY-MM-DD	[required] A date in the past
 // endDate - YYYY-MM-DD	[required] A date in the past but greater than the startDate
-// base - USD 			[optional] The base currency to use for forex rates, defaults to EUR
+// baseCurrency - USD 	[optional] The base currency to use for forex rates, defaults to EUR
 // symbols - AUD,USD 	[optional] The symbols to query the forex rates for, default is
 // all supported currencies
-func (e *ExchangeRates) GetTimeSeriesRates(startDate, endDate, base string, symbols []string) (TimeSeriesRates, error) {
+func (e *ExchangeRates) GetTimeSeriesRates(startDate, endDate, baseCurrency string, symbols []string) (TimeSeriesRates, error) {
 	var resp TimeSeriesRates
-	if len(startDate) == 0 || len(endDate) == 0 {
+	if startDate == "" || endDate == "" {
 		return resp, errors.New("startDate and endDate params must be set")
 	}
 
@@ -122,12 +122,12 @@ func (e *ExchangeRates) GetTimeSeriesRates(startDate, endDate, base string, symb
 	v.Set("start_at", startDate)
 	v.Set("end_at", endDate)
 
-	if len(base) > 0 {
-		v.Set("base", base)
+	if len(baseCurrency) > 0 {
+		v.Set("base", baseCurrency)
 	}
 
 	if len(symbols) > 0 {
-		s := cleanCurrencies(base, strings.Join(symbols, ","))
+		s := cleanCurrencies(baseCurrency, strings.Join(symbols, ","))
 		v.Set("symbols", s)
 	}
 
@@ -155,7 +155,7 @@ func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, resu
 	path := common.EncodeURLValues(exchangeRatesAPI+"/"+endPoint, values)
 	err := common.SendHTTPGetRequest(path, true, e.Verbose, &result)
 	if err != nil {
-		return fmt.Errorf("ExchangeRatesAPI SendHTTPRequest error %s with path %s",
+		return fmt.Errorf("exchangeRatesAPI SendHTTPRequest error %s with path %s",
 			err,
 			path)
 	}

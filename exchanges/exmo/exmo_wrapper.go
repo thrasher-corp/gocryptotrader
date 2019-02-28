@@ -189,7 +189,7 @@ func (e *EXMO) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT string
 	if orderType == exchange.LimitOrderType {
-		return submitOrderResponse, errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("unsupported order type")
 	} else if orderType == exchange.MarketOrderType {
 		if side == exchange.BuyOrderSide {
 			oT = "market_buy"
@@ -197,7 +197,7 @@ func (e *EXMO) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 			oT = "market_sell"
 		}
 	} else {
-		return submitOrderResponse, errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
 	response, err := e.CreateOrder(p.Pair().String(), oT, price, amount)
@@ -333,7 +333,7 @@ func (e *EXMO) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 // Can Limit response to specific order status
 func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) <= 0 {
-		return nil, errors.New("Currency must be supplied")
+		return nil, errors.New("currency must be supplied")
 	}
 
 	var allTrades []UserTrades

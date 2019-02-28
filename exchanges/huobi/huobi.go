@@ -249,7 +249,7 @@ func (h *HUOBI) GetLatestSpotPrice(symbol string) (float64, error) {
 		return 0, err
 	}
 	if len(list) == 0 {
-		return 0, errors.New("The length of the list is 0")
+		return 0, errors.New("the length of the list is 0")
 	}
 
 	return list[0].Trades[0].Price, nil
@@ -476,7 +476,7 @@ func (h *HUOBI) CancelOpenOrdersBatch(accountID, symbol string) (CancelOpenOrder
 
 	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiBatchCancelOpenOrders, url.Values{}, data, &result)
 	if result.Data.FailedCount > 0 {
-		return result, fmt.Errorf("There were %v failed order cancellations", result.Data.FailedCount)
+		return result, fmt.Errorf("there were %v failed order cancellations", result.Data.FailedCount)
 	}
 
 	return result, err
@@ -869,23 +869,23 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		pemKey := strings.NewReader(h.APIAuthPEMKey)
 		pemBytes, err := ioutil.ReadAll(pemKey)
 		if err != nil {
-			return fmt.Errorf("Huobi unable to ioutil.ReadAll PEM key: %s", err)
+			return fmt.Errorf("%s unable to ioutil.ReadAll PEM key: %s", h.Name, err)
 		}
 
 		block, _ := pem.Decode(pemBytes)
 		if block == nil {
-			return fmt.Errorf("Huobi block is nil")
+			return fmt.Errorf("%s PEM block is nil", h.Name)
 		}
 
 		x509Encoded := block.Bytes
 		privKey, err := x509.ParseECPrivateKey(x509Encoded)
 		if err != nil {
-			return fmt.Errorf("Huobi unable to ParseECPrivKey: %s", err)
+			return fmt.Errorf("%s unable to ParseECPrivKey: %s", h.Name, err)
 		}
 
 		r, s, err := ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte(signature)))
 		if err != nil {
-			return fmt.Errorf("Huobi unable to sign: %s", err)
+			return fmt.Errorf("%s unable to sign: %s", h.Name, err)
 		}
 
 		privSig := r.Bytes()
@@ -901,7 +901,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	if data != nil {
 		encoded, err := json.Marshal(data)
 		if err != nil {
-			return fmt.Errorf("Huobi unable to marshal data: %s", err)
+			return fmt.Errorf("%s unable to marshal data: %s", h.Name, err)
 		}
 
 		body = encoded

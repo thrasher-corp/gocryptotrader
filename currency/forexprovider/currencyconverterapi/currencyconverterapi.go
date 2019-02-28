@@ -164,11 +164,11 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 		path = fmt.Sprintf("%s%s%s?", APIEndpointURL, APIEndpointVersion, endPoint)
 		values.Set("apiKey", c.APIKey)
 	}
-	path = path + values.Encode()
+	path += values.Encode()
 
 	err := common.SendHTTPGetRequest(path, true, c.Verbose, &result)
 	if err != nil {
-		return fmt.Errorf("Currency converter API SendHTTPRequest error %s with path %s",
+		return fmt.Errorf("currency converter API SendHTTPRequest error %s with path %s",
 			err,
 			path)
 	}

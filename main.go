@@ -54,7 +54,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//Handle flags
+	// Handle flags
 	flag.StringVar(&bot.configFile, "config", defaultPath, "config file to load")
 	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
@@ -64,7 +64,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf(BuildVersion(true))
+		fmt.Print(BuildVersion(true))
 		os.Exit(0)
 	}
 
@@ -115,7 +115,8 @@ func main() {
 	}
 
 	log.Debugf("Starting communication mediums..")
-	bot.comms = communications.NewComm(bot.config.GetCommunicationsConfig())
+	cfg := bot.config.GetCommunicationsConfig()
+	bot.comms = communications.NewComm(&cfg)
 	bot.comms.GetEnabledCommunicationMediums()
 
 	if bot.config.GetCryptocurrencyProviderConfig().Enabled {
@@ -123,21 +124,17 @@ func main() {
 		err = currency.SeedCryptocurrencyMarketData(coinmarketcap.Settings(bot.config.GetCryptocurrencyProviderConfig()))
 		if err != nil {
 			log.Warnf("Failure seeding cryptocurrency market data %s", err)
-		} else {
-			if *verbosity {
-				log.Debugf("Total market cryptocurrencies: %d",
-					len(currency.GetTotalMarketCryptocurrencies()))
-			}
+		} else if *verbosity {
+			log.Debugf("Total market cryptocurrencies: %d",
+				len(currency.GetTotalMarketCryptocurrencies()))
 		}
 
 		err = currency.SeedExchangeMarketData(coinmarketcap.Settings(bot.config.GetCryptocurrencyProviderConfig()))
 		if err != nil {
 			log.Warnf("Failure seeding exchange market data %s", err)
-		} else {
-			if *verbosity {
-				log.Debugf("Total market exchanges: %d",
-					len(currency.GetTotalMarketExchanges()))
-			}
+		} else if *verbosity {
+			log.Debugf("Total market exchanges: %d",
+				len(currency.GetTotalMarketExchanges()))
 		}
 	} else {
 		log.Debug("Cryptocurrency provider not enabled.")

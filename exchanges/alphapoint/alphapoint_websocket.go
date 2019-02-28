@@ -42,8 +42,7 @@ func (a *Alphapoint) WebsocketClient() {
 				break
 			}
 
-			switch msgType {
-			case websocket.TextMessage:
+			if msgType == websocket.TextMessage {
 				type MsgType struct {
 					MessageType string `json:"messageType"`
 				}
@@ -55,8 +54,7 @@ func (a *Alphapoint) WebsocketClient() {
 					continue
 				}
 
-				switch msgType.MessageType {
-				case "Ticker":
+				if msgType.MessageType == "Ticker" {
 					ticker := WebsocketTicker{}
 					err = common.JSONDecode(resp, &ticker)
 					if err != nil {

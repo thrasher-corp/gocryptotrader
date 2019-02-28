@@ -53,7 +53,7 @@ func printConvertCurrencyFormat(origCurrency string, origPrice float64) string {
 	)
 }
 
-func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exchangeName string, err error) {
+func printTickerSummary(result *ticker.Price, p pair.CurrencyPair, assetType, exchangeName string, err error) {
 	if err != nil {
 		log.Errorf("Failed to get %s %s ticker. Error: %s",
 			p.Pair().String(),
@@ -102,7 +102,7 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 	}
 }
 
-func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType, exchangeName string, err error) {
+func printOrderbookSummary(result *orderbook.Base, p pair.CurrencyPair, assetType, exchangeName string, err error) {
 	if err != nil {
 		log.Errorf("Failed to get %s %s orderbook. Error: %s",
 			p.Pair().String(),
@@ -207,7 +207,7 @@ func TickerUpdaterRoutine() {
 					} else {
 						result, err = exch.GetTickerPrice(c, assetType)
 					}
-					printTickerSummary(result, c, assetType, exchangeName, err)
+					printTickerSummary(&result, c, assetType, exchangeName, err)
 					if err == nil {
 						bot.comms.StageTickerData(exchangeName, assetType, result)
 						if bot.config.Webserver.Enabled {
@@ -258,7 +258,7 @@ func OrderbookUpdaterRoutine() {
 
 				processOrderbook := func(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) {
 					result, err := exch.UpdateOrderbook(c, assetType)
-					printOrderbookSummary(result, c, assetType, exchangeName, err)
+					printOrderbookSummary(&result, c, assetType, exchangeName, err)
 					if err == nil {
 						bot.comms.StageOrderbookData(exchangeName, assetType, result)
 						if bot.config.Webserver.Enabled {
@@ -449,13 +449,13 @@ func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
 	wg.Add(1)
 	defer wg.Done()
 
-	ticker := time.NewTicker(3 * time.Second)
+	tick := time.NewTicker(3 * time.Second)
 	for {
 		select {
 		case <-shutdowner:
 			return
 
-		case <-ticker.C:
+		case <-tick.C:
 			err = ws.Connect()
 			if err == nil {
 				return

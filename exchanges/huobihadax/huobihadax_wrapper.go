@@ -237,7 +237,7 @@ func (h *HUOBIHADAX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, o
 		formattedType = SpotNewOrderRequestTypeSellLimit
 		params.Price = price
 	} else {
-		return submitOrderResponse, errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
 	params.Type = formattedType
@@ -340,7 +340,7 @@ func (h *HUOBIHADAX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, erro
 // GetActiveOrders retrieves any orders that are active/open
 func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) <= 0 {
-		return nil, errors.New("Currency must be supplied")
+		return nil, errors.New("currency must be supplied")
 	}
 
 	side := ""
@@ -385,7 +385,7 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 // Can Limit response to specific order status
 func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) <= 0 {
-		return nil, errors.New("Currency must be supplied")
+		return nil, errors.New("currency must be supplied")
 	}
 
 	states := "partial-canceled,filled,canceled"

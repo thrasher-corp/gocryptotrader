@@ -23,7 +23,7 @@ const (
 	// SaltRandomLength is the number of random bytes to append after the prefix string
 	SaltRandomLength = 12
 
-	errAESBlockSize = "The config file data is too small for the AES required block size"
+	errAESBlockSize = "config file data is too small for the AES required block size"
 )
 
 var (

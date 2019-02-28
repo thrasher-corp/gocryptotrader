@@ -243,8 +243,8 @@ func (o *OKCoin) WsHandleData() {
 					newDeal.Amount, _ = strconv.ParseFloat(data[2].(string), 64)
 					newDeal.Timestamp, _ = data[3].(string)
 					newDeal.Type, _ = data[4].(string)
-
-					deals = append(deals, newDeal)
+					deals = append(deals, newDeal) // nolint: staticcheck
+					// TODO: will need to link this up
 				}
 			}
 		}

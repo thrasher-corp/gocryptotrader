@@ -217,7 +217,7 @@ func (o *OKCoin) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 			oT = "sell_market"
 		}
 	} else {
-		return submitOrderResponse, errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
 	response, err := o.Trade(amount, price, p.Pair().String(), oT)

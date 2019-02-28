@@ -29,7 +29,7 @@ var Portfolio Base
 func GetEthereumBalance(address string) (EthplorerResponse, error) {
 	valid, _ := common.IsValidCryptoAddress(address, "eth")
 	if !valid {
-		return EthplorerResponse{}, errors.New("Not an ethereum address")
+		return EthplorerResponse{}, errors.New("not an Ethereum address")
 	}
 
 	url := fmt.Sprintf(

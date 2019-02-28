@@ -1,38 +1,15 @@
 LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-/gocryptotrader
-LINTPKG = gopkg.in/alecthomas/gometalinter.v2
-LINTBIN = $(GOPATH)/bin/gometalinter.v2
-ENABLELLL = false
-LINTOPTS = \
-	--disable-all \
-	--enable=gofmt \
-	--enable=vet \
-	--enable=vetshadow \
-	--enable=misspell \
-	--enable=golint \
-	--enable=ineffassign \
-	--enable=goconst \
-	--enable=structcheck \
-	--enable=unparam \
-	--enable=gosimple \
-	--enable=unconvert
-ifeq ($(ENABLELLL), true)
-LINTOPTS += \
-	--enable=lll \
-	--line-length=80
-endif
-LINTOPTS += \
-	--deadline=5m ./... | \
-	tee /dev/stderr
+LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.15.0
+LINTBIN = $(GOPATH)/bin/golangci-lint
 
 get:
 	GO111MODULE=on go get $(GCTPKG)
 
 linter:
 	GO111MODULE=on go get $(GCTPKG)
-	GO111MODULE=off go get -u $(LINTPKG)
-	$(LINTBIN)	--install
-	test -z "$$($(LINTBIN) $(LINTOPTS))"
+	GO111MODULE=on go get $(LINTPKG)
+	$(LINTBIN) run --verbose | tee /dev/stderr
 
 check: linter test
 
@@ -47,3 +24,9 @@ install:
 
 fmt:
 	gofmt -l -w -s $(shell find . -type f -name '*.go')
+
+update_deps:
+	GO111MODULE=on go mod verify
+	GO111MODULE=on go mod tidy
+	rm -rf vendor
+	GO111MODULE=on go mod vendor

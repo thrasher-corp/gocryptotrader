@@ -37,25 +37,20 @@ const (
 
 // Constants here hold some messages
 const (
-	ErrExchangeNameEmpty                            = "Exchange #%d in config: Exchange name is empty."
-	ErrExchangeAvailablePairsEmpty                  = "Exchange %s: Available pairs is empty."
-	ErrExchangeEnabledPairsEmpty                    = "Exchange %s: Enabled pairs is empty."
-	ErrExchangeBaseCurrenciesEmpty                  = "Exchange %s: Base currencies is empty."
-	ErrExchangeNotFound                             = "Exchange %s: Not found."
-	ErrNoEnabledExchanges                           = "No Exchanges enabled."
-	ErrCryptocurrenciesEmpty                        = "Cryptocurrencies variable is empty."
-	ErrFailureOpeningConfig                         = "Fatal error opening %s file. Error: %s"
-	ErrCheckingConfigValues                         = "Fatal error checking config values. Error: %s"
-	ErrSavingConfigBytesMismatch                    = "Config file %q bytes comparison doesn't match, read %s expected %s."
-	WarningSMSGlobalDefaultOrEmptyValues            = "WARNING -- SMS Support disabled due to default or empty Username/Password values."
-	WarningSSMSGlobalSMSContactDefaultOrEmptyValues = "WARNING -- SMS contact #%d Name/Number disabled due to default or empty values."
-	WarningSSMSGlobalSMSNoContacts                  = "WARNING -- SMS Support disabled due to no enabled contacts."
-	WarningWebserverCredentialValuesEmpty           = "WARNING -- Webserver support disabled due to empty Username/Password values."
-	WarningWebserverListenAddressInvalid            = "WARNING -- Webserver support disabled due to invalid listen address."
-	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
-	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
-	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
-	WarningPairsLastUpdatedThresholdExceeded        = "WARNING -- Exchange %s: Last manual update of available currency pairs has exceeded %d days. Manual update required!"
+	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
+	ErrExchangeAvailablePairsEmpty             = "exchange %s avaiable pairs is emtpy"
+	ErrExchangeEnabledPairsEmpty               = "exchange %s enabled pairs is empty"
+	ErrExchangeBaseCurrenciesEmpty             = "exchange %s base currencies is empty"
+	ErrExchangeNotFound                        = "exchange %s not found"
+	ErrNoEnabledExchanges                      = "no exchanges enabled"
+	ErrCryptocurrenciesEmpty                   = "cryptocurrencies variable is empty"
+	ErrFailureOpeningConfig                    = "fatal error opening %s file. Error: %s"
+	ErrCheckingConfigValues                    = "fatal error checking config values. Error: %s"
+	ErrSavingConfigBytesMismatch               = "config file %q bytes comparison doesn't match, read %s expected %s"
+	WarningWebserverCredentialValuesEmpty      = "webserver support disabled due to empty Username/Password values"
+	WarningWebserverListenAddressInvalid       = "webserver support disabled due to invalid listen address"
+	WarningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
+	WarningPairsLastUpdatedThresholdExceeded   = "exchange %s last manual update of available currency pairs has exceeded %d days. Manual update required!"
 )
 
 // Constants here define unset default values displayed in the config.json
@@ -257,20 +252,20 @@ func (c *Config) GetCurrencyConfig() CurrencyConfig {
 
 // GetExchangeBankAccounts returns banking details associated with an exchange
 // for depositing funds
-func (c *Config) GetExchangeBankAccounts(exchangeName string, depositingCurrency string) (BankAccount, error) {
+func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string) (BankAccount, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	for _, exch := range c.Exchanges {
-		if exch.Name == exchangeName {
-			for _, account := range exch.BankAccounts {
+	for x := range c.Exchanges {
+		if c.Exchanges[x].Name == exchangeName {
+			for _, account := range c.Exchanges[x].BankAccounts {
 				if common.StringContains(account.SupportedCurrencies, depositingCurrency) {
 					return account, nil
 				}
 			}
 		}
 	}
-	return BankAccount{}, fmt.Errorf("Exchange %s bank details not found for %s",
+	return BankAccount{}, fmt.Errorf("exchange %s bank details not found for %s",
 		exchangeName,
 		depositingCurrency)
 }
@@ -287,19 +282,21 @@ func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []BankA
 			return nil
 		}
 	}
-	return fmt.Errorf("UpdateExchangeBankAccounts() error exchange %s not found",
+	return fmt.Errorf("exchange %s not found",
 		exchangeName)
 }
 
 // GetClientBankAccounts returns banking details used for a given exchange
 // and currency
-func (c *Config) GetClientBankAccounts(exchangeName string, targetCurrency string) (BankAccount, error) {
+func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (BankAccount, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	for _, bank := range c.BankAccounts {
-		if (common.StringContains(bank.SupportedExchanges, exchangeName) || bank.SupportedExchanges == "ALL") && common.StringContains(bank.SupportedCurrencies, targetCurrency) {
-			return bank, nil
+	for x := range c.BankAccounts {
+		if (common.StringContains(c.BankAccounts[x].SupportedExchanges, exchangeName) ||
+			c.BankAccounts[x].SupportedExchanges == "ALL") &&
+			common.StringContains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
+			return c.BankAccounts[x], nil
 
 		}
 	}
@@ -769,11 +766,11 @@ func (c *Config) CheckExchangeConfigValues() error {
 					exch.APIKey == DefaultUnsetAPIKey ||
 					exch.APISecret == DefaultUnsetAPISecret {
 					c.Exchanges[i].AuthenticatedAPISupport = false
-					log.Warn(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
+					log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "COINUT" || exch.Name == "CoinbasePro" {
 					if exch.ClientID == "" || exch.ClientID == "ClientID" {
 						c.Exchanges[i].AuthenticatedAPISupport = false
-						log.Warn(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
+						log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 					}
 				}
 			}
@@ -954,8 +951,8 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		}
 	}
 
-	if len(c.Currency.Cryptocurrencies) == 0 {
-		if len(c.Cryptocurrencies) != 0 {
+	if c.Currency.Cryptocurrencies == "" {
+		if c.Cryptocurrencies != "" {
 			c.Currency.Cryptocurrencies = c.Cryptocurrencies
 			c.Cryptocurrencies = ""
 		} else {
@@ -1038,7 +1035,7 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 
 // CheckLoggerConfig checks to see logger values are present and valid in config
 // if not creates a default instance of the logger
-func (c *Config) CheckLoggerConfig() (err error) {
+func (c *Config) CheckLoggerConfig() error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -1065,13 +1062,13 @@ func (c *Config) CheckLoggerConfig() (err error) {
 
 	if len(c.Logging.File) > 0 {
 		logPath := path.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
-		err = common.CheckDir(logPath, true)
+		err := common.CheckDir(logPath, true)
 		if err != nil {
-			return
+			return err
 		}
 		log.LogPath = logPath
 	}
-	return
+	return nil
 }
 
 // GetFilePath returns the desired config file or the default config file name
@@ -1272,7 +1269,7 @@ func (c *Config) CheckConfig() error {
 	if c.Webserver.Enabled {
 		err = c.CheckWebserverConfigValues()
 		if err != nil {
-			log.Errorf(ErrCheckingConfigValues, err)
+			log.Warnf(ErrCheckingConfigValues, err)
 			c.Webserver.Enabled = false
 		}
 	}

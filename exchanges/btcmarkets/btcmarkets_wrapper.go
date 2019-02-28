@@ -285,7 +285,7 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdr
 // withdrawal is submitted
 func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	if withdrawRequest.Currency != symbol.AUD {
-		return "", errors.New("Only AUD supported for withdrawals")
+		return "", errors.New("only AUD is supported for withdrawals")
 	}
 	return b.WithdrawAUD(withdrawRequest.BankAccountName, fmt.Sprintf("%v", withdrawRequest.BankAccountNumber), withdrawRequest.BankName, fmt.Sprintf("%v", withdrawRequest.BankCode), withdrawRequest.Amount)
 }
@@ -364,7 +364,7 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 // Can Limit response to specific order status
 func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) <= 0 {
-		return nil, errors.New("Requires at least one currency pair to retrieve history")
+		return nil, errors.New("requires at least one currency pair to retrieve history")
 	}
 
 	var respOrders []Order

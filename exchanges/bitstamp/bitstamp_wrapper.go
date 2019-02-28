@@ -215,7 +215,7 @@ func (b *Bitstamp) CancelOrder(order exchange.OrderCancellation) error {
 func (b *Bitstamp) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	isCancelAllSuccessful, err := b.CancelAllExistingOrders()
 	if !isCancelAllSuccessful {
-		err = errors.New("Cancel all failed. Bitstamp provides no further information. Check order status to verify")
+		err = errors.New("cancel all orders failed. Bitstamp provides no further information. Check order status to verify")
 	}
 
 	return exchange.CancelAllOrdersResponse{}, err

@@ -243,7 +243,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdraw
 		return "", err
 	}
 	if len(resp) == 0 {
-		return "", errors.New("No withdrawID returned. Check order status")
+		return "", errors.New("no withdrawID returned. Check order status")
 	}
 
 	return fmt.Sprintf("%v", resp[0].WithdrawalID), err
@@ -268,7 +268,7 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (
 		return "", err
 	}
 	if len(resp) == 0 {
-		return "", errors.New("No withdrawID returned. Check order status")
+		return "", errors.New("no withdrawID returned. Check order status")
 	}
 
 	var withdrawalSuccesses string

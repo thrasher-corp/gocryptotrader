@@ -353,7 +353,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 
 	payload, err := common.JSONEncode(params)
 	if err != nil {
-		return errors.New("SenddHTTPRequest: Unable to JSON request")
+		return errors.New("sendHTTPRequest: Unable to JSON request")
 	}
 
 	if c.Verbose {

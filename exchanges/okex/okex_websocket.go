@@ -61,8 +61,8 @@ func (o *OKEX) WsConnect() error {
 
 	err = o.WsSubscribe()
 	if err != nil {
-		return fmt.Errorf("Error: Could not subscribe to the OKEX websocket %s",
-			err)
+		return fmt.Errorf("%s could not subscribe to websocket %s",
+			o.Name, err)
 	}
 
 	return nil

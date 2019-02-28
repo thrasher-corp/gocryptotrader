@@ -278,10 +278,10 @@ func getName(name string, capital bool) string {
 }
 
 func getCapital(name string) string {
-	cap := strings.ToUpper(string(name[0]))
+	capLetter := strings.ToUpper(string(name[0]))
 	last := name[1:]
 
-	return cap + last
+	return capLetter + last
 }
 
 // getslashFromName returns a string for godoc package names
@@ -352,20 +352,20 @@ func replaceReadme(packageName string) error {
 func createReadme(packageName string) error {
 	if packageName == licenseName || packageName == contributorName {
 		file, err := os.Create(codebasePaths[packageName] + packageName)
-		defer file.Close()
 		if err != nil {
 			return err
 		}
+		defer file.Close()
 		if verbose {
 			fmt.Println("File done")
 		}
 		return tmpl.ExecuteTemplate(file, packageName, codebaseReadme[packageName])
 	}
 	file, err := os.Create(codebasePaths[packageName] + "README.md")
-	defer file.Close()
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	if verbose {
 		fmt.Println("File done")
 	}

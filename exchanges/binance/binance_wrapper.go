@@ -198,7 +198,7 @@ func (b *Binance) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
 	} else {
 		submitOrderResponse.IsOrderPlaced = false
-		return submitOrderResponse, errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
 	var orderRequest = NewOrderRequest{
@@ -307,7 +307,7 @@ func (b *Binance) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) <= 0 {
-		return nil, errors.New("At least one currency is required to fetch order history")
+		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
 	var orders []exchange.OrderDetail
@@ -347,7 +347,7 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 // Can Limit response to specific order status
 func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) <= 0 {
-		return nil, errors.New("At least one currency is required to fetch order history")
+		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
 	var orders []exchange.OrderDetail

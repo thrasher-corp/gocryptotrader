@@ -209,7 +209,7 @@ func (o *OKEX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 			oT = SpotNewOrderRequestTypeSellMarket
 		}
 	} else {
-		return submitOrderResponse, errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
 	var params = SpotNewOrderRequestParams{
@@ -263,7 +263,7 @@ func (o *OKEX) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAll
 		}
 
 		if !openOrders.Result {
-			return cancelAllOrdersResponse, fmt.Errorf("Something went wrong for currency %s", formattedCurrency)
+			return cancelAllOrdersResponse, fmt.Errorf("something went wrong for currency %s", formattedCurrency)
 		}
 
 		allOpenOrders = append(allOpenOrders, openOrders.Orders...)

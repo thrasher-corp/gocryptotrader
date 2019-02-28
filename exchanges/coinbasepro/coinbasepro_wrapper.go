@@ -230,7 +230,7 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest
 		}
 	}
 	if len(selectedWithdrawalMethod.ID) <= 0 {
-		return "", fmt.Errorf("Could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.BankName)
+		return "", fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.BankName)
 	}
 
 	resp, err := c.WithdrawViaPaymentMethod(withdrawRequest.Amount, withdrawRequest.Currency.String(), selectedWithdrawalMethod.ID)

@@ -206,17 +206,18 @@ func (b *Bitmex) wsHandleIncomingData() {
 				if decodedResp.Success {
 					if b.Verbose {
 						if len(quickCapture) == 3 {
-							log.Debugf("Bitmex Websocket: Successfully subscribed to %s",
-								decodedResp.Subscribe)
+							log.Debugf("%s websocket: Successfully subscribed to %s",
+								b.Name, decodedResp.Subscribe)
 						} else {
-							log.Debugf("Bitmex Websocket: Successfully authenticated websocket connection")
+							log.Debugf("%s websocket: Successfully authenticated websocket connection",
+								b.Name)
 						}
 					}
 					continue
 				}
 
-				b.Websocket.DataHandler <- fmt.Errorf("Bitmex websocket error: Unable to subscribe %s",
-					decodedResp.Subscribe)
+				b.Websocket.DataHandler <- fmt.Errorf("%s websocket error: Unable to subscribe %s",
+					b.Name, decodedResp.Subscribe)
 
 			} else if _, ok := quickCapture["table"]; ok {
 				var decodedResp WebsocketMainResponse
@@ -291,8 +292,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- announcement.Data
 
 				default:
-					b.Websocket.DataHandler <- fmt.Errorf("Bitmex websocket error: Table unknown - %s",
-						decodedResp.Table)
+					b.Websocket.DataHandler <- fmt.Errorf("%s websocket error: Table unknown - %s",
+						b.Name, decodedResp.Table)
 				}
 			}
 		}

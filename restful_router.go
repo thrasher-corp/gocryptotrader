@@ -117,7 +117,7 @@ func NewRouter() *mux.Router {
 	return router
 }
 
-func getIndex(w http.ResponseWriter, r *http.Request) {
+func getIndex(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprint(w, "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/thrasher-/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>")
 	w.WriteHeader(http.StatusOK)
 }

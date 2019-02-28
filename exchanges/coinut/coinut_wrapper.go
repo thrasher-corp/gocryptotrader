@@ -251,7 +251,7 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	case OrderRejectResponse:
 		orderResult := apiResp
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
-		err = fmt.Errorf("OrderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
+		err = fmt.Errorf("orderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
 	}
 
 	if err == nil {

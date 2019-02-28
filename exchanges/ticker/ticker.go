@@ -12,9 +12,9 @@ import (
 
 // Const values for the ticker package
 const (
-	ErrTickerForExchangeNotFound = "Ticker for exchange does not exist."
-	ErrPrimaryCurrencyNotFound   = "Error primary currency for ticker not found."
-	ErrSecondaryCurrencyNotFound = "Error secondary currency for ticker not found."
+	ErrTickerForExchangeNotFound = "ticker for exchange does not exist"
+	ErrPrimaryCurrencyNotFound   = "primary currency for ticker not found"
+	ErrSecondaryCurrencyNotFound = "secondary currency for ticker not found"
 
 	Spot = "SPOT"
 )
@@ -91,9 +91,9 @@ func GetTicker(exchange string, p pair.CurrencyPair, tickerType string) (Price, 
 func GetTickerByExchange(exchange string) (*Ticker, error) {
 	m.Lock()
 	defer m.Unlock()
-	for _, y := range Tickers {
-		if y.ExchangeName == exchange {
-			return &y, nil
+	for x := range Tickers {
+		if Tickers[x].ExchangeName == exchange {
+			return &Tickers[x], nil
 		}
 	}
 	return nil, errors.New(ErrTickerForExchangeNotFound)

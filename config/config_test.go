@@ -495,6 +495,9 @@ func TestGetConfigCurrencyPairFormat(t *testing.T) {
 	}
 
 	exchFmt, err := cfg.GetConfigCurrencyPairFormat("Yobit")
+	if err != nil {
+		t.Errorf("Test failed. TestGetConfigCurrencyPairFormat err: %s", err)
+	}
 	if !exchFmt.Uppercase || exchFmt.Delimiter != "_" {
 		t.Errorf(
 			"Test failed. TestGetConfigCurrencyPairFormat. Invalid values",
@@ -519,6 +522,9 @@ func TestGetRequestCurrencyPairFormat(t *testing.T) {
 	}
 
 	exchFmt, err := cfg.GetRequestCurrencyPairFormat("Yobit")
+	if err != nil {
+		t.Errorf("Test failed. TestGetRequestCurrencyPairFormat. Err: %s", err)
+	}
 	if exchFmt.Uppercase || exchFmt.Delimiter != "_" || exchFmt.Separator != "-" {
 		t.Errorf(
 			"Test failed. TestGetRequestCurrencyPairFormat. Invalid values",
@@ -923,7 +929,7 @@ func TestUpdateConfig(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed. %s", err)
 	}
-	if len(c.Currency.Cryptocurrencies) == 0 {
+	if c.Currency.Cryptocurrencies == "" {
 		t.Fatalf("Test failed. Cryptocurrencies should have been repopulated")
 	}
 }

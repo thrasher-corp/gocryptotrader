@@ -145,12 +145,12 @@ func (b *Bitfinex) WsConnect() error {
 
 	b.WebsocketConn, _, err = Dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
 	if err != nil {
-		return fmt.Errorf("Unable to connect to Websocket. Error: %s", err)
+		return fmt.Errorf("unable to connect to Websocket. Error: %s", err)
 	}
 
 	_, resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("Unable to read from Websocket. Error: %s", err)
+		return fmt.Errorf("unable to read from Websocket. Error: %s", err)
 	}
 
 	var hs WebsocketHandshake

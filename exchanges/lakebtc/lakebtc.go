@@ -132,7 +132,6 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 
 	result := make(map[string]Ticker)
 
-	var addresses []string
 	for k, v := range response {
 		var ticker Ticker
 		key := common.StringToUpper(k)
@@ -155,7 +154,6 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 			ticker.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
 		}
 		result[key] = ticker
-		addresses = append(addresses, key)
 	}
 	return result, nil
 }
@@ -236,7 +234,7 @@ func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string)
 	}
 
 	if resp.Result != "order received" {
-		return resp, fmt.Errorf("Unexpected result: %s", resp.Result)
+		return resp, fmt.Errorf("unexpected result: %s", resp.Result)
 	}
 
 	return resp, nil

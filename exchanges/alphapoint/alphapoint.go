@@ -67,11 +67,11 @@ func (a *Alphapoint) SetDefaults() {
 // GetTicker returns current ticker information from Alphapoint for a selected
 // currency pair ie "BTCUSD"
 func (a *Alphapoint) GetTicker(currencyPair string) (Ticker, error) {
-	request := make(map[string]interface{})
-	request["productPair"] = currencyPair
+	req := make(map[string]interface{})
+	req["productPair"] = currencyPair
 	response := Ticker{}
 
-	err := a.SendHTTPRequest(http.MethodPost, alphapointTicker, request, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointTicker, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -88,13 +88,13 @@ func (a *Alphapoint) GetTicker(currencyPair string) (Ticker, error) {
 // 0 (default: 0)
 // Count: specifies the number of trades to return (default: 10)
 func (a *Alphapoint) GetTrades(currencyPair string, startIndex, count int) (Trades, error) {
-	request := make(map[string]interface{})
-	request["ins"] = currencyPair
-	request["startIndex"] = startIndex
-	request["Count"] = count
+	req := make(map[string]interface{})
+	req["ins"] = currencyPair
+	req["startIndex"] = startIndex
+	req["Count"] = count
 	response := Trades{}
 
-	err := a.SendHTTPRequest(http.MethodPost, alphapointTrades, request, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointTrades, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -109,13 +109,13 @@ func (a *Alphapoint) GetTrades(currencyPair string, startIndex, count int) (Trad
 // StartDate - specifies the starting time in epoch time, type is long
 // EndDate - specifies the end time in epoch time, type is long
 func (a *Alphapoint) GetTradesByDate(currencyPair string, startDate, endDate int64) (Trades, error) {
-	request := make(map[string]interface{})
-	request["ins"] = currencyPair
-	request["startDate"] = startDate
-	request["endDate"] = endDate
+	req := make(map[string]interface{})
+	req["ins"] = currencyPair
+	req["startDate"] = startDate
+	req["endDate"] = endDate
 	response := Trades{}
 
-	err := a.SendHTTPRequest(http.MethodPost, alphapointTradesByDate, request, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointTradesByDate, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -128,11 +128,11 @@ func (a *Alphapoint) GetTradesByDate(currencyPair string, startDate, endDate int
 // GetOrderbook fetches the current orderbook for a given currency pair
 // CurrencyPair - trade pair (ex: “BTCUSD”)
 func (a *Alphapoint) GetOrderbook(currencyPair string) (Orderbook, error) {
-	request := make(map[string]interface{})
-	request["productPair"] = currencyPair
+	req := make(map[string]interface{})
+	req["productPair"] = currencyPair
 	response := Orderbook{}
 
-	err := a.SendHTTPRequest(http.MethodPost, alphapointOrderbook, request, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointOrderbook, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -193,7 +193,7 @@ func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password s
 
 	err := a.SendAuthenticatedHTTPRequest(http.MethodPost, alphapointCreateAccount, request, &response)
 	if err != nil {
-		return fmt.Errorf("Alphapoint Error - CreateAccount HTTPRequest - reason: %s", err)
+		return fmt.Errorf("unable to create account. Reason: %s", err)
 	}
 	if !response.IsAccepted {
 		return errors.New(response.RejectReason)
@@ -254,13 +254,13 @@ func (a *Alphapoint) SetUserInfo(firstName, lastName, cell2FACountryCode, cell2F
 		},
 	}
 
-	request := make(map[string]interface{})
-	request["userInfoKVP"] = userInfoKVPs
+	req := make(map[string]interface{})
+	req["userInfoKVP"] = userInfoKVPs
 
 	err := a.SendAuthenticatedHTTPRequest(
 		http.MethodPost,
 		alphapointUserInfo,
-		request,
+		req,
 		&response,
 	)
 	if err != nil {
@@ -408,10 +408,10 @@ func (a *Alphapoint) CreateOrder(symbol, side, orderType string, quantity, price
 // book. A buy order will be modified to the highest bid and a sell order will
 // be modified to the lowest ask price. “1” means "Execute now", which will
 // convert a limit order into a market order.
-func (a *Alphapoint) ModifyExistingOrder(symbol string, OrderID, action int64) (int64, error) {
+func (a *Alphapoint) ModifyExistingOrder(symbol string, orderID, action int64) (int64, error) {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
-	request["serverOrderId"] = OrderID
+	request["serverOrderId"] = orderID
 	request["modifyAction"] = action
 	response := Response{}
 
@@ -433,10 +433,10 @@ func (a *Alphapoint) ModifyExistingOrder(symbol string, OrderID, action int64) (
 // CancelExistingOrder cancels an order that has not been executed.
 // symbol - Instrument code (ex: “BTCUSD”)
 // OrderId - Order id (ex: 1000)
-func (a *Alphapoint) CancelExistingOrder(OrderID int64, OMSID string) (int64, error) {
+func (a *Alphapoint) CancelExistingOrder(orderID int64, omsid string) (int64, error) {
 	request := make(map[string]interface{})
-	request["OrderId"] = OrderID
-	request["OMSId"] = OMSID
+	request["OrderId"] = orderID
+	request["OMSId"] = omsid
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
@@ -456,9 +456,9 @@ func (a *Alphapoint) CancelExistingOrder(OrderID int64, OMSID string) (int64, er
 
 // CancelAllExistingOrders cancels all open orders by symbol
 // symbol - Instrument code (ex: “BTCUSD”)
-func (a *Alphapoint) CancelAllExistingOrders(OMSID string) error {
+func (a *Alphapoint) CancelAllExistingOrders(omsid string) error {
 	request := make(map[string]interface{})
-	request["OMSId"] = OMSID
+	request["OMSId"] = omsid
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
@@ -531,7 +531,7 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 
 	PayloadJSON, err := common.JSONEncode(data)
 	if err != nil {
-		return errors.New("SendHTTPRequest: Unable to JSON request")
+		return errors.New("unable to JSON request")
 	}
 
 	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, false, a.Verbose)
@@ -559,7 +559,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 
 	PayloadJSON, err := common.JSONEncode(data)
 	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+		return errors.New("unable to JSON request")
 	}
 
 	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)

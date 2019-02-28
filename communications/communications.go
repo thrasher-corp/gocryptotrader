@@ -15,30 +15,30 @@ type Communications struct {
 }
 
 // NewComm sets up and returns a pointer to a Communications object
-func NewComm(config config.CommunicationsConfig) *Communications {
+func NewComm(cfg *config.CommunicationsConfig) *Communications {
 	var comm Communications
 
-	if config.TelegramConfig.Enabled {
+	if cfg.TelegramConfig.Enabled {
 		Telegram := new(telegram.Telegram)
-		Telegram.Setup(config)
+		Telegram.Setup(*cfg)
 		comm.IComm = append(comm.IComm, Telegram)
 	}
 
-	if config.SMSGlobalConfig.Enabled {
+	if cfg.SMSGlobalConfig.Enabled {
 		SMSGlobal := new(smsglobal.SMSGlobal)
-		SMSGlobal.Setup(config)
+		SMSGlobal.Setup(*cfg)
 		comm.IComm = append(comm.IComm, SMSGlobal)
 	}
 
-	if config.SMTPConfig.Enabled {
+	if cfg.SMTPConfig.Enabled {
 		SMTP := new(smtpservice.SMTPservice)
-		SMTP.Setup(config)
+		SMTP.Setup(*cfg)
 		comm.IComm = append(comm.IComm, SMTP)
 	}
 
-	if config.SlackConfig.Enabled {
+	if cfg.SlackConfig.Enabled {
 		Slack := new(slack.Slack)
-		Slack.Setup(config)
+		Slack.Setup(*cfg)
 		comm.IComm = append(comm.IComm, Slack)
 	}
 

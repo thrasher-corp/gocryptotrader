@@ -179,7 +179,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 		var ok bool
 		resultFrom, ok = FXRates[baseCurr+from]
 		if !ok {
-			return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
+			return 0, fmt.Errorf("currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
 		}
 		return amount / resultFrom, nil
 	}
@@ -189,7 +189,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 		var ok bool
 		resultTo, ok = FXRates[baseCurr+to]
 		if !ok {
-			return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
+			return 0, fmt.Errorf("currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
 		}
 		return resultTo * amount, nil
 	}
@@ -197,13 +197,13 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	// Otherwise convert to base currency, then to the target currency
 	resultFrom, ok := FXRates[baseCurr+from]
 	if !ok {
-		return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
+		return 0, fmt.Errorf("currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
 	}
 
 	converted := amount / resultFrom
 	resultTo, ok = FXRates[baseCurr+to]
 	if !ok {
-		return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
+		return 0, fmt.Errorf("currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
 	}
 
 	return converted * resultTo, nil
@@ -238,17 +238,17 @@ func SeedCryptocurrencyMarketData(settings coinmarketcap.Settings) error {
 		return err
 	}
 
-	for _, data := range cryptoData {
+	for x := range cryptoData {
 		var active bool
-		if data.IsActive == 1 {
+		if cryptoData[x].IsActive == 1 {
 			active = true
 		}
 
 		TotalCryptocurrencies = append(TotalCryptocurrencies, Data{
-			ID:          data.ID,
-			Name:        data.Name,
-			Symbol:      data.Symbol,
-			Slug:        data.Slug,
+			ID:          cryptoData[x].ID,
+			Name:        cryptoData[x].Name,
+			Symbol:      cryptoData[x].Symbol,
+			Slug:        cryptoData[x].Slug,
 			Active:      active,
 			LastUpdated: time.Now(),
 		})

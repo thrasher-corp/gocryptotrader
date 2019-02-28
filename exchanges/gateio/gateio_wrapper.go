@@ -247,7 +247,7 @@ func (g *Gateio) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelA
 		return cancelAllOrdersResponse, err
 	}
 
-	var uniqueSymbols map[string]string
+	uniqueSymbols := make(map[string]string)
 	for _, openOrder := range openOrders.Orders {
 		uniqueSymbols[openOrder.CurrencyPair] = openOrder.CurrencyPair
 	}
@@ -280,8 +280,11 @@ func (g *Gateio) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (
 	if addr == gateioGenerateAddress {
 		time.Sleep(10 * time.Second)
 		addr, err = g.GetCryptoDepositAddress(cryptocurrency.String())
+		if err != nil {
+			return "", err
+		}
 		if addr == gateioGenerateAddress {
-			return "", errors.New("address not generated in time")
+			return "", errors.New("new deposit address is being generated, please retry again shortly")
 		}
 		return addr, nil
 	}

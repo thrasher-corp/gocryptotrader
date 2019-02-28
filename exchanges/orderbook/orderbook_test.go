@@ -308,10 +308,12 @@ func TestProcessOrderbook(t *testing.T) {
 
 	for _, test := range testArray {
 		wg.Add(1)
+		fatalErr := false
 		go func(test quick) {
 			result, err := GetOrderbook(test.Name, test.P, Spot)
 			if err != nil {
-				t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
+				fatalErr = true
+				return
 			}
 
 			if result.Asks[0] != test.Asks[0] {
@@ -324,6 +326,10 @@ func TestProcessOrderbook(t *testing.T) {
 
 			wg.Done()
 		}(test)
+
+		if fatalErr {
+			t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
+		}
 	}
 
 	wg.Wait()

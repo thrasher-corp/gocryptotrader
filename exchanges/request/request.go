@@ -456,7 +456,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 // SetProxy sets a proxy address to the client transport
 func (r *Requester) SetProxy(p *url.URL) error {
 	if p.String() == "" {
-		return errors.New("No proxy URL supplied")
+		return errors.New("no proxy URL supplied")
 	}
 
 	r.HTTPClient.Transport = &http.Transport{

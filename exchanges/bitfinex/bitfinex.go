@@ -940,7 +940,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 
 	PayloadJSON, err := common.JSONEncode(request)
 	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+		return errors.New("sendAuthenticatedAPIRequest: unable to JSON request")
 	}
 
 	if b.Verbose {

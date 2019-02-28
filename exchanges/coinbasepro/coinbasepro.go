@@ -807,7 +807,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 	if params != nil {
 		payload, err = common.JSONEncode(params)
 		if err != nil {
-			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+			return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
 		}
 
 		if c.Verbose {

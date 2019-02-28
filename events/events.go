@@ -60,35 +60,35 @@ func SetComms(commsP *communications.Communications) {
 
 // AddEvent adds an event to the Events chain and returns an index/eventID
 // and an error
-func AddEvent(Exchange, Item, Condition string, CurrencyPair pair.CurrencyPair, Asset, Action string) (int, error) {
-	err := IsValidEvent(Exchange, Item, Condition, Action)
+func AddEvent(exchange, item, condition string, currencyPair pair.CurrencyPair, asset, action string) (int, error) {
+	err := IsValidEvent(exchange, item, condition, action)
 	if err != nil {
 		return 0, err
 	}
 
-	Event := &Event{}
+	evt := &Event{}
 
 	if len(Events) == 0 {
-		Event.ID = 0
+		evt.ID = 0
 	} else {
-		Event.ID = len(Events) + 1
+		evt.ID = len(Events) + 1
 	}
 
-	Event.Exchange = Exchange
-	Event.Item = Item
-	Event.Condition = Condition
-	Event.Pair = CurrencyPair
-	Event.Asset = Asset
-	Event.Action = Action
-	Event.Executed = false
-	Events = append(Events, Event)
-	return Event.ID, nil
+	evt.Exchange = exchange
+	evt.Item = item
+	evt.Condition = condition
+	evt.Pair = currencyPair
+	evt.Asset = asset
+	evt.Action = action
+	evt.Executed = false
+	Events = append(Events, evt)
+	return evt.ID, nil
 }
 
 // RemoveEvent deletes and event by its ID
-func RemoveEvent(EventID int) bool {
+func RemoveEvent(eventID int) bool {
 	for i, x := range Events {
-		if x.ID == EventID {
+		if x.ID == eventID {
 			Events = append(Events[:i], Events[i+1:]...)
 			return true
 		}
@@ -98,9 +98,8 @@ func RemoveEvent(EventID int) bool {
 
 // GetEventCounter displays the emount of total events on the chain and the
 // events that have been executed.
-func GetEventCounter() (int, int) {
-	total := len(Events)
-	executed := 0
+func GetEventCounter() (total int, executed int) {
+	total = len(Events)
 
 	for _, x := range Events {
 		if x.Executed {
@@ -154,34 +153,24 @@ func (e *Event) CheckCondition() bool {
 
 	switch condition[0] {
 	case greaterThan:
-		{
-			if lastPrice > targetPrice {
-				return e.ExecuteAction()
-			}
+		if lastPrice > targetPrice {
+			return e.ExecuteAction()
 		}
 	case greaterThanOrEqual:
-		{
-			if lastPrice >= targetPrice {
-				return e.ExecuteAction()
-			}
+		if lastPrice >= targetPrice {
+			return e.ExecuteAction()
 		}
 	case lessThan:
-		{
-			if lastPrice < targetPrice {
-				return e.ExecuteAction()
-			}
+		if lastPrice < targetPrice {
+			return e.ExecuteAction()
 		}
 	case lessThanOrEqual:
-		{
-			if lastPrice <= targetPrice {
-				return e.ExecuteAction()
-			}
+		if lastPrice <= targetPrice {
+			return e.ExecuteAction()
 		}
 	case isEqual:
-		{
-			if lastPrice == targetPrice {
-				return e.ExecuteAction()
-			}
+		if lastPrice == targetPrice {
+			return e.ExecuteAction()
 		}
 	}
 	return false
@@ -207,7 +196,7 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 
 	condition := common.SplitStrings(Condition, ",")
 
-	if !IsValidCondition(condition[0]) || len(condition[1]) == 0 {
+	if !IsValidCondition(condition[0]) || condition[1] == "" {
 		return errInvalidCondition
 	}
 
@@ -221,11 +210,10 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 		if action[1] != "ALL" {
 			comms.PushEvent(base.Event{Type: action[1]})
 		}
-	} else {
-		if Action != actionConsolePrint && Action != actionTest {
-			return errInvalidAction
-		}
+	} else if Action != actionConsolePrint && Action != actionTest {
+		return errInvalidAction
 	}
+
 	return nil
 }
 
@@ -252,11 +240,11 @@ func CheckEvents() {
 }
 
 // IsValidExchange validates the exchange
-func IsValidExchange(Exchange string) bool {
-	Exchange = common.StringToUpper(Exchange)
+func IsValidExchange(exchange string) bool {
+	exchange = common.StringToUpper(exchange)
 	cfg := config.GetConfig()
 	for _, x := range cfg.Exchanges {
-		if x.Name == Exchange && x.Enabled {
+		if x.Name == exchange && x.Enabled {
 			return true
 		}
 	}
@@ -264,8 +252,8 @@ func IsValidExchange(Exchange string) bool {
 }
 
 // IsValidCondition validates passed in condition
-func IsValidCondition(Condition string) bool {
-	switch Condition {
+func IsValidCondition(condition string) bool {
+	switch condition {
 	case greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, isEqual:
 		return true
 	}
@@ -273,9 +261,9 @@ func IsValidCondition(Condition string) bool {
 }
 
 // IsValidAction validates passed in action
-func IsValidAction(Action string) bool {
-	Action = common.StringToUpper(Action)
-	switch Action {
+func IsValidAction(action string) bool {
+	action = common.StringToUpper(action)
+	switch action {
 	case actionSMSNotify, actionConsolePrint, actionTest:
 		return true
 	}
@@ -283,11 +271,7 @@ func IsValidAction(Action string) bool {
 }
 
 // IsValidItem validates passed in Item
-func IsValidItem(Item string) bool {
-	Item = common.StringToUpper(Item)
-	switch Item {
-	case itemPrice:
-		return true
-	}
-	return false
+func IsValidItem(item string) bool {
+	item = common.StringToUpper(item)
+	return (item == itemPrice)
 }

@@ -243,7 +243,7 @@ func (h *HUOBIHADAX) GetLatestSpotPrice(symbol string) (float64, error) {
 		return 0, err
 	}
 	if len(list) == 0 {
-		return 0, errors.New("The length of the list is 0")
+		return 0, errors.New("the length of the list is 0")
 	}
 
 	return list[0].Trades[0].Price, nil
@@ -482,7 +482,7 @@ func (h *HUOBIHADAX) CancelOpenOrdersBatch(accountID, symbol string) (CancelOpen
 	err := h.SendAuthenticatedHTTPPostRequest(http.MethodPost, huobiHadaxBatchCancelOpenOrders, postBodyParams, &result)
 
 	if result.Data.FailedCount > 0 {
-		return result, fmt.Errorf("There were %v failed order cancellations", result.Data.FailedCount)
+		return result, fmt.Errorf("there were %v failed order cancellations", result.Data.FailedCount)
 	}
 
 	return result, err

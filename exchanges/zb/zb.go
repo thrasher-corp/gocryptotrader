@@ -145,7 +145,7 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 		return 0, err
 	}
 	if result.Code != 1000 {
-
+		return 0, fmt.Errorf("unsucessful new order, message: %s code: %d", result.Message, result.Code)
 	}
 	newOrderID, err := strconv.ParseInt(result.ID, 10, 64)
 	if err != nil {
@@ -404,7 +404,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 	err = common.JSONDecode(intermediary, &errCap)
 	if err == nil {
 		if errCap.Code != 0 {
-			return fmt.Errorf("SendAuthenticatedHTTPRequest error code: %d message %s",
+			return fmt.Errorf("sendAuthenticatedHTTPRequest error code: %d message %s",
 				errCap.Code,
 				errorCode[errCap.Code])
 		}

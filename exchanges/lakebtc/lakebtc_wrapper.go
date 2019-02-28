@@ -227,7 +227,7 @@ func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) 
 // submitted
 func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	if withdrawRequest.Currency.String() != symbol.BTC {
-		return "", errors.New("Only BTC supported for withdrawals")
+		return "", errors.New("only BTC is supported for withdrawals")
 	}
 
 	resp, err := l.CreateWithdraw(withdrawRequest.Amount, withdrawRequest.Description)

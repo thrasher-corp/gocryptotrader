@@ -160,7 +160,7 @@ type ChatSendParams struct {
 // VerifyData verifies outgoing data sets
 func (p ChatSendParams) VerifyData() error {
 	if p.ChannelID == 0 || p.Message == "" {
-		return errors.New("ChatSendParams error params not correctly set")
+		return errors.New("chatSendParams error params not correctly set")
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -75,7 +76,7 @@ func TestIsDefaultCurrency(t *testing.T) {
 func TestIsDefaultCryptocurrency(t *testing.T) {
 	t.Parallel()
 
-	var str1, str2, str3 string = "BTC", "btc", "dogs123"
+	var str1, str2, str3 string = symbol.BTC, symbol.BTC, "dogs123"
 
 	if !IsDefaultCryptocurrency(str1) {
 		t.Errorf(
@@ -103,7 +104,7 @@ func TestIsFiatCurrency(t *testing.T) {
 	}
 
 	FiatCurrencies = []string{"USD", "AUD"}
-	var str1, str2, str3 string = "BTC", "USD", "birds123"
+	var str1, str2, str3 string = symbol.BTC, "USD", "birds123"
 
 	if IsFiatCurrency(str1) {
 		t.Errorf(
@@ -127,8 +128,8 @@ func TestIsCryptocurrency(t *testing.T) {
 		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
 	}
 
-	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
-	var str1, str2, str3 string = "USD", "BTC", "pterodactyl123"
+	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
+	var str1, str2, str3 string = "USD", symbol.BTC, "pterodactyl123"
 
 	if IsCryptocurrency(str1) {
 		t.Errorf(
@@ -152,14 +153,14 @@ func TestIsCryptoPair(t *testing.T) {
 		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
 	}
 
-	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
+	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
 	FiatCurrencies = []string{"USD"}
 
-	if !IsCryptoPair(pair.NewCurrencyPair("BTC", "LTC")) {
+	if !IsCryptoPair(pair.NewCurrencyPair(symbol.BTC, symbol.LTC)) {
 		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
 	}
 
-	if IsCryptoPair(pair.NewCurrencyPair("BTC", "USD")) {
+	if IsCryptoPair(pair.NewCurrencyPair(symbol.BTC, "USD")) {
 		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
 	}
 }
@@ -169,33 +170,33 @@ func TestIsCryptoFiatPair(t *testing.T) {
 		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
 	}
 
-	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
+	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
 	FiatCurrencies = []string{"USD"}
 
-	if !IsCryptoFiatPair(pair.NewCurrencyPair("BTC", "USD")) {
+	if !IsCryptoFiatPair(pair.NewCurrencyPair(symbol.BTC, "USD")) {
 		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
 	}
 
-	if IsCryptoFiatPair(pair.NewCurrencyPair("BTC", "LTC")) {
+	if IsCryptoFiatPair(pair.NewCurrencyPair(symbol.BTC, symbol.LTC)) {
 		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
 	}
 }
 
 func TestIsFiatPair(t *testing.T) {
-	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
+	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
 	FiatCurrencies = []string{"USD", "AUD", "EUR"}
 
 	if !IsFiatPair(pair.NewCurrencyPair("AUD", "USD")) {
 		t.Error("Test Failed. TestIsFiatPair. Expected true result")
 	}
 
-	if IsFiatPair(pair.NewCurrencyPair("BTC", "AUD")) {
+	if IsFiatPair(pair.NewCurrencyPair(symbol.BTC, "AUD")) {
 		t.Error("Test Failed. TestIsFiatPair. Expected false result")
 	}
 }
 
 func TestUpdate(t *testing.T) {
-	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
+	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
 	FiatCurrencies = []string{"USD", "AUD"}
 
 	Update([]string{"ETH"}, true)

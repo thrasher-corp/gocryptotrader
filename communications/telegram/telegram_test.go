@@ -7,6 +7,10 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
+const (
+	testErrNotFound = "Not Found"
+)
+
 var T Telegram
 
 func TestSetup(t *testing.T) {
@@ -34,7 +38,7 @@ func TestPushEvent(t *testing.T) {
 	}
 	T.AuthorisedClients = append(T.AuthorisedClients, 1337)
 	err = T.PushEvent(base.Event{})
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram PushEvent() error, expected 'Not found' got '%s'",
 			err)
 	}
@@ -44,42 +48,42 @@ func TestHandleMessages(t *testing.T) {
 	t.Parallel()
 	chatID := int64(1337)
 	err := T.HandleMessages(cmdHelp, chatID)
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
 	err = T.HandleMessages(cmdStart, chatID)
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
 	err = T.HandleMessages(cmdOrders, chatID)
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
 	err = T.HandleMessages(cmdStatus, chatID)
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
 	err = T.HandleMessages(cmdTicker, chatID)
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
 	err = T.HandleMessages(cmdSettings, chatID)
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
 	err = T.HandleMessages(cmdPortfolio, chatID)
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
 	err = T.HandleMessages("Not a command", chatID)
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
@@ -96,7 +100,7 @@ func TestGetUpdates(t *testing.T) {
 func TestTestConnection(t *testing.T) {
 	t.Parallel()
 	err := T.TestConnection()
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram TestConnection() error, expected 'Not found' got '%s'",
 			err)
 	}
@@ -105,7 +109,7 @@ func TestTestConnection(t *testing.T) {
 func TestSendMessage(t *testing.T) {
 	t.Parallel()
 	err := T.SendMessage("Test message", int64(1337))
-	if err.Error() != "Not Found" {
+	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram SendMessage() error, expected 'Not found' got '%s'",
 			err)
 	}

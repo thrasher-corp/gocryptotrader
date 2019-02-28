@@ -136,7 +136,7 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 	for key, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[key]
 		if !ok {
-			return info, fmt.Errorf("GetAccountInfo error - in use item not found for currency %s",
+			return info, fmt.Errorf("getAccountInfo error - in use item not found for currency %s",
 				key)
 		}
 
@@ -270,10 +270,10 @@ func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 // withdrawal is submitted
 func (b *Bithumb) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	if math.Mod(withdrawRequest.Amount, 1) != 0 {
-		return "", errors.New("KRW withdrawals do not support decimal places")
+		return "", errors.New("currency KRW does not support decimal places")
 	}
 	if withdrawRequest.Currency.String() != symbol.KRW {
-		return "", errors.New("Only KRW supported")
+		return "", errors.New("only KRW is supported")
 	}
 	bankDetails := fmt.Sprintf("%v_%v", withdrawRequest.BankCode, withdrawRequest.BankName)
 	bankAccountNumber := strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64)

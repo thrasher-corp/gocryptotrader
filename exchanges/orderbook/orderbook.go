@@ -10,9 +10,9 @@ import (
 
 // Const values for orderbook package
 const (
-	ErrOrderbookForExchangeNotFound = "Ticker for exchange does not exist."
-	ErrPrimaryCurrencyNotFound      = "Error primary currency for orderbook not found."
-	ErrSecondaryCurrencyNotFound    = "Error secondary currency for orderbook not found."
+	ErrOrderbookForExchangeNotFound = "ticker for exchange does not exist"
+	ErrPrimaryCurrencyNotFound      = "primary currency for orderbook not found"
+	ErrSecondaryCurrencyNotFound    = "secondary currency for orderbook not found"
 
 	Spot = "SPOT"
 )
@@ -100,9 +100,9 @@ func GetOrderbook(exchange string, p pair.CurrencyPair, orderbookType string) (B
 func GetOrderbookByExchange(exchange string) (*Orderbook, error) {
 	m.Lock()
 	defer m.Unlock()
-	for _, y := range Orderbooks {
-		if y.ExchangeName == exchange {
-			return &y, nil
+	for x := range Orderbooks {
+		if Orderbooks[x].ExchangeName == exchange {
+			return &Orderbooks[x], nil
 		}
 	}
 	return nil, errors.New(ErrOrderbookForExchangeNotFound)
