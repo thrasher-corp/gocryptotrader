@@ -2,12 +2,8 @@ package fixer
 
 // Rates contains the data fields for the currencies you have requested.
 type Rates struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Type string `json:"type"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success    bool               `json:"success"`
+	Error      RespError          `json:"error"`
 	Historical bool               `json:"historical"`
 	Timestamp  int64              `json:"timestamp"`
 	Base       string             `json:"base"`
@@ -17,13 +13,9 @@ type Rates struct {
 
 // Conversion contains data for currency conversion
 type Conversion struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Type string `json:"type"`
-		Info string `json:"info"`
-	} `json:"error"`
-	Query struct {
+	Success bool      `json:"success"`
+	Error   RespError `json:"error"`
+	Query   struct {
 		From   string  `json:"from"`
 		To     string  `json:"to"`
 		Amount float64 `json:"amount"`
@@ -39,12 +31,8 @@ type Conversion struct {
 
 // TimeSeries holds timeseries data
 type TimeSeries struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Type string `json:"type"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success    bool                   `json:"success"`
+	Error      RespError              `json:"error"`
 	Timeseries bool                   `json:"timeseries"`
 	StartDate  string                 `json:"start_date"`
 	EndDate    string                 `json:"end_date"`
@@ -54,12 +42,8 @@ type TimeSeries struct {
 
 // Fluctuation holds fluctuation data
 type Fluctuation struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Type string `json:"type"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success     bool            `json:"success"`
+	Error       RespError       `json:"error"`
 	Fluctuation bool            `json:"fluctuation"`
 	StartDate   string          `json:"start_date"`
 	EndDate     string          `json:"end_date"`
@@ -73,4 +57,18 @@ type Flux struct {
 	EndRate   float64 `json:"end_rate"`
 	Change    float64 `json:"change"`
 	ChangePCT float64 `json:"change_pct"`
+}
+
+// RespError defines a general resp error sub type
+type RespError struct {
+	Code int    `json:"code"`
+	Type string `json:"type"`
+	Info string `json:"info"`
+}
+
+// Symbols defines a symbols list
+type Symbols struct {
+	Success bool              `json:"success"`
+	Error   RespError         `json:"error"`
+	Map     map[string]string `json:"symbols"`
 }

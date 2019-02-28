@@ -27,12 +27,13 @@ const (
 	fixerAPIProfessionalPlus
 	fixerAPIEnterprise
 
-	fixerAPI            = "http://data.fixer.io/api/"
-	fixerAPISSL         = "https://data.fixer.io/api/"
-	fixerAPILatest      = "latest"
-	fixerAPIConvert     = "convert"
-	fixerAPITimeSeries  = "timeseries"
-	fixerAPIFluctuation = "fluctuation"
+	fixerAPI                 = "http://data.fixer.io/api/"
+	fixerAPISSL              = "https://data.fixer.io/api/"
+	fixerAPILatest           = "latest"
+	fixerAPIConvert          = "convert"
+	fixerAPITimeSeries       = "timeseries"
+	fixerAPIFluctuation      = "fluctuation"
+	fixerSupportedCurrencies = "symbols"
 
 	authRate   = 0
 	unAuthRate = 0
@@ -58,6 +59,27 @@ func (f *Fixer) Setup(config base.Settings) {
 		request.NewRateLimit(time.Second*10, authRate),
 		request.NewRateLimit(time.Second*10, unAuthRate),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+}
+
+// GetSupportedCurrencies returns supported currencies
+func (f *Fixer) GetSupportedCurrencies() ([]string, error) {
+	var resp Symbols
+
+	err := f.SendOpenHTTPRequest(fixerSupportedCurrencies, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, errors.New(resp.Error.Type + resp.Error.Info)
+	}
+
+	var currencies []string
+	for key := range resp.Map {
+		currencies = append(currencies, key)
+	}
+
+	return currencies, nil
 }
 
 // GetRates is a wrapper function to return rates

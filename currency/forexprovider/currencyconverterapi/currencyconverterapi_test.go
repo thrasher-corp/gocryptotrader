@@ -80,12 +80,12 @@ func TestConvert(t *testing.T) {
 	}
 }
 
-func TestGetCurrencies(t *testing.T) {
+func TestGetSupportedCurrencies(t *testing.T) {
 	if !IsAPIKeysSet() {
 		t.Skip()
 	}
 
-	_, err := c.GetCurrencies()
+	_, err := c.GetSupportedCurrencies()
 	if err != nil {
 		t.Fatal(err)
 	}

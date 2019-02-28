@@ -73,7 +73,7 @@ func (c *CurrencyLayer) GetRates(baseCurrency, symbols string) (map[string]float
 }
 
 // GetSupportedCurrencies returns supported currencies
-func (c *CurrencyLayer) GetSupportedCurrencies() (map[string]string, error) {
+func (c *CurrencyLayer) GetSupportedCurrencies() ([]string, error) {
 	var resp SupportedCurrencies
 
 	if err := c.SendHTTPRequest(APIEndpointList, url.Values{}, &resp); err != nil {
@@ -83,7 +83,13 @@ func (c *CurrencyLayer) GetSupportedCurrencies() (map[string]string, error) {
 	if !resp.Success {
 		return nil, errors.New(resp.Error.Info)
 	}
-	return resp.Currencies, nil
+
+	var currencies []string
+	for key := range resp.Currencies {
+		currencies = append(currencies, key)
+	}
+
+	return currencies, nil
 }
 
 // GetliveData returns live quotes for foreign exchange currencies

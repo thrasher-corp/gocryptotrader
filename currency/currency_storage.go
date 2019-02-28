@@ -135,13 +135,20 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 	}
 
 	if len(fxSettings) != 0 {
-		s.fiatExchangeMarkets = forexprovider.StartFXService(fxSettings)
-		for i := range s.fiatExchangeMarkets.IFXProviders {
-			if s.fiatExchangeMarkets.IFXProviders[i].IsPrimaryProvider() {
-				log.Debugf("Primary forex conversion provider: %s.",
-					s.fiatExchangeMarkets.IFXProviders[i].GetName())
-			}
+		var err error
+		s.fiatExchangeMarkets, err = forexprovider.StartFXService(fxSettings)
+		if err != nil {
+			return err
 		}
+
+		log.Debugf("Primary foreign exchange conversion provider %s enabled",
+			s.fiatExchangeMarkets.Primary.Provider.GetName())
+
+		for i := range s.fiatExchangeMarkets.Support {
+			log.Debugf("Support forex conversion provider %s enabled",
+				s.fiatExchangeMarkets.Support[i].Provider.GetName())
+		}
+
 		go s.ForeignExchangeUpdater()
 	} else {
 		log.Warnf("No foreign exchange providers enabled in config.json")
@@ -176,8 +183,14 @@ func (s *Storage) SetDefaultCryptocurrencies(c ...Code) {
 }
 
 // SetupForexProviders sets up a new instance of the forex providers
-func (s *Storage) SetupForexProviders(setting ...base.Settings) {
-	s.fiatExchangeMarkets = forexprovider.StartFXService(setting)
+func (s *Storage) SetupForexProviders(setting ...base.Settings) error {
+	addr, err := forexprovider.StartFXService(setting)
+	if err != nil {
+		return err
+	}
+
+	s.fiatExchangeMarkets = addr
+	return nil
 }
 
 // ForeignExchangeUpdater is a routine that seeds foreign exchange rate and keeps
@@ -210,7 +223,7 @@ func (s *Storage) ForeignExchangeUpdater() {
 // currencies supplied
 func (s *Storage) SeedForeignExchangeRatesByCurrencies(c Currencies) error {
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.baseCurrency.String(),
-		c.Join())
+		c.Strings())
 	if err != nil {
 		return err
 	}
@@ -220,7 +233,8 @@ func (s *Storage) SeedForeignExchangeRatesByCurrencies(c Currencies) error {
 
 // SeedForeignExchangeRate returns a singular exchange rate
 func (s *Storage) SeedForeignExchangeRate(from, to Code) (map[string]float64, error) {
-	return s.fiatExchangeMarkets.GetCurrencyData(from.String(), to.String())
+	return s.fiatExchangeMarkets.GetCurrencyData(from.String(),
+		[]string{to.String()})
 }
 
 // GetDefaultForeignExchangeRates returns foreign exchange rates base off
@@ -239,7 +253,7 @@ func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
 func (s *Storage) SeedDefaultForeignExchangeRates() error {
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(
 		s.defaultBaseCurrency.String(),
-		s.defaultFiatCurrencies.Join())
+		s.defaultFiatCurrencies.Strings())
 	if err != nil {
 		return err
 	}
@@ -263,7 +277,7 @@ func (s *Storage) GetExchangeRates() (Conversions, error) {
 func (s *Storage) SeedForeignExchangeRates() error {
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(
 		s.baseCurrency.String(),
-		s.fiatCurrencies.Join())
+		s.fiatCurrencies.Strings())
 	if err != nil {
 		return err
 	}

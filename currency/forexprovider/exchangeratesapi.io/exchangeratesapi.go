@@ -18,9 +18,9 @@ const (
 	exchangeRatesAPI                 = "https://api.exchangeratesapi.io"
 	exchangeRatesLatest              = "latest"
 	exchangeRatesHistory             = "history"
-	exchangeRatesSupportedCurrencies = "USD,ISK,CAD,MXN,CHF,AUD,CNY,GBP,SEK,NOK,TRY,IDR,ZAR," +
-		"HRK,EUR,HKD,ILS,NZD,MYR,JPY,CZK,JPY,CZK,SGD,RUB,RON,HUF,BGN,INR,KRW," +
-		"DKK,THB,PHP,PLN,BRL"
+	exchangeRatesSupportedCurrencies = "EUR,CHF,USD,BRL,ISK,PHP,KRW,BGN,MXN," +
+		"RON,CAD,SGD,NZD,THB,HKD,JPY,NOK,HRK,ILS,GBP,DKK,HUF,MYR,RUB,TRY,IDR," +
+		"ZAR,INR,AUD,CZK,SEK,CNY,PLN"
 
 	authRate   = 0
 	unAuthRate = 0
@@ -159,6 +159,11 @@ func (e *ExchangeRates) GetRates(baseCurrency, symbols string) (map[string]float
 	}
 
 	return standardisedRates, nil
+}
+
+// GetSupportedCurrencies returns the supported currency list
+func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
+	return common.SplitStrings(exchangeRatesSupportedCurrencies, ","), nil
 }
 
 // SendHTTPRequest sends a HTTPS request to the desired endpoint and returns the result

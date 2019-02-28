@@ -3,18 +3,19 @@
 package forexprovider
 
 import (
+	"errors"
+
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	currencyconverter "github.com/thrasher-/gocryptotrader/currency/forexprovider/currencyconverterapi"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/currencylayer"
 	exchangerates "github.com/thrasher-/gocryptotrader/currency/forexprovider/exchangeratesapi.io"
 	fixer "github.com/thrasher-/gocryptotrader/currency/forexprovider/fixer.io"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/openexchangerates"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// ForexProviders is an array of foreign exchange interfaces
+// ForexProviders is a foreign exchange handler type
 type ForexProviders struct {
-	base.IFXProviders
+	base.FXHandler
 }
 
 // GetAvailableForexProviders returns a list of supported forex providers
@@ -24,50 +25,163 @@ func GetAvailableForexProviders() []string {
 
 // NewDefaultFXProvider returns the default forex provider (currencyconverterAPI)
 func NewDefaultFXProvider() *ForexProviders {
-	fxp := new(ForexProviders)
-	currencyC := new(exchangerates.ExchangeRates)
-	currencyC.Setup(base.Settings{
+	handler := new(ForexProviders)
+	provider := new(exchangerates.ExchangeRates)
+	provider.Setup(base.Settings{
 		PrimaryProvider: true,
 		Enabled:         true,
 		Name:            "ExchangeRates",
 	})
 
-	fxp.IFXProviders = append(fxp.IFXProviders, currencyC)
-	return fxp
+	currencies, _ := provider.GetSupportedCurrencies()
+	providerBase := base.Provider{
+		Provider:            provider,
+		SupportedCurrencies: currencies,
+	}
+
+	handler.FXHandler = base.FXHandler{
+		Primary: providerBase,
+	}
+
+	return handler
 }
 
 // StartFXService starts the forex provider service and returns a pointer to it
-func StartFXService(fxProviders []base.Settings) *ForexProviders {
-	fxp := new(ForexProviders)
+func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
+	handler := new(ForexProviders)
+
 	for i := range fxProviders {
 		if fxProviders[i].Name == "CurrencyConverter" && fxProviders[i].Enabled {
-			currencyC := new(currencyconverter.CurrencyConverter)
-			currencyC.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, currencyC)
+			provider := new(currencyconverter.CurrencyConverter)
+			provider.Setup(fxProviders[i])
+
+			currencies, err := provider.GetSupportedCurrencies()
+			if err != nil {
+				return nil, err
+			}
+
+			providerBase := base.Provider{
+				Provider:            provider,
+				SupportedCurrencies: currencies,
+			}
+
+			if fxProviders[i].PrimaryProvider {
+				handler.FXHandler = base.FXHandler{
+					Primary: providerBase,
+				}
+				continue
+			}
+
+			handler.FXHandler.Support = append(handler.FXHandler.Support,
+				providerBase)
+			continue
 		}
+
 		if fxProviders[i].Name == "CurrencyLayer" && fxProviders[i].Enabled {
-			currencyLayerP := new(currencylayer.CurrencyLayer)
-			currencyLayerP.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, currencyLayerP)
+			provider := new(currencylayer.CurrencyLayer)
+			provider.Setup(fxProviders[i])
+
+			currencies, err := provider.GetSupportedCurrencies()
+			if err != nil {
+				return nil, err
+			}
+
+			providerBase := base.Provider{
+				Provider:            provider,
+				SupportedCurrencies: currencies,
+			}
+
+			if fxProviders[i].PrimaryProvider {
+				handler.FXHandler = base.FXHandler{
+					Primary: providerBase,
+				}
+				continue
+			}
+
+			handler.FXHandler.Support = append(handler.FXHandler.Support,
+				providerBase)
+			continue
 		}
 		if fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled {
-			exchangeRatesP := new(exchangerates.ExchangeRates)
-			exchangeRatesP.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, exchangeRatesP)
+			provider := new(exchangerates.ExchangeRates)
+			provider.Setup(fxProviders[i])
+
+			currencies, err := provider.GetSupportedCurrencies()
+			if err != nil {
+				return nil, err
+			}
+
+			providerBase := base.Provider{
+				Provider:            provider,
+				SupportedCurrencies: currencies,
+			}
+
+			if fxProviders[i].PrimaryProvider {
+				handler.FXHandler = base.FXHandler{
+					Primary: providerBase,
+				}
+				continue
+			}
+
+			handler.FXHandler.Support = append(handler.FXHandler.Support,
+				providerBase)
+			continue
 		}
 		if fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled {
-			fixerP := new(fixer.Fixer)
-			fixerP.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, fixerP)
+			provider := new(fixer.Fixer)
+			provider.Setup(fxProviders[i])
+
+			currencies, err := provider.GetSupportedCurrencies()
+			if err != nil {
+				return nil, err
+			}
+
+			providerBase := base.Provider{
+				Provider:            provider,
+				SupportedCurrencies: currencies,
+			}
+
+			if fxProviders[i].PrimaryProvider {
+				handler.FXHandler = base.FXHandler{
+					Primary: providerBase,
+				}
+				continue
+			}
+
+			handler.FXHandler.Support = append(handler.FXHandler.Support,
+				providerBase)
+			continue
 		}
 		if fxProviders[i].Name == "OpenExchangeRates" && fxProviders[i].Enabled {
-			OpenExchangeRatesP := new(openexchangerates.OXR)
-			OpenExchangeRatesP.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, OpenExchangeRatesP)
+			provider := new(openexchangerates.OXR)
+			provider.Setup(fxProviders[i])
+
+			currencies, err := provider.GetSupportedCurrencies()
+			if err != nil {
+				return nil, err
+			}
+
+			providerBase := base.Provider{
+				Provider:            provider,
+				SupportedCurrencies: currencies,
+			}
+
+			if fxProviders[i].PrimaryProvider {
+				handler.FXHandler = base.FXHandler{
+					Primary: providerBase,
+				}
+				continue
+			}
+
+			handler.FXHandler.Support = append(handler.FXHandler.Support,
+				providerBase)
+			continue
 		}
 	}
-	if len(fxp.IFXProviders) == 0 {
-		log.Error("No foreign exchange providers enabled")
+
+	if handler.Primary.Provider == nil {
+		return nil, errors.New("No foreign exchange providers enabled")
 	}
-	return fxp
+
+	return handler, nil
 }

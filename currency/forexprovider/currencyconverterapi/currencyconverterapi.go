@@ -139,8 +139,8 @@ func (c *CurrencyConverter) Convert(from, to string) (map[string]float64, error)
 	return result, nil
 }
 
-// GetCurrencies returns a list of the supported currencies
-func (c *CurrencyConverter) GetCurrencies() (map[string]CurrencyItem, error) {
+// GetSupportedCurrencies returns a list of the supported currencies
+func (c *CurrencyConverter) GetSupportedCurrencies() ([]string, error) {
 	var result Currencies
 
 	err := c.SendHTTPRequest(APIEndpointCurrencies, url.Values{}, &result)
@@ -148,7 +148,12 @@ func (c *CurrencyConverter) GetCurrencies() (map[string]CurrencyItem, error) {
 		return nil, err
 	}
 
-	return result.Results, nil
+	var currencies []string
+	for key := range result.Results {
+		currencies = append(currencies, key)
+	}
+
+	return currencies, nil
 }
 
 // GetCountries returns a list of the supported countries and
