@@ -9,7 +9,7 @@ get:
 linter:
 	GO111MODULE=on go get $(GCTPKG)
 	GO111MODULE=on go get $(LINTPKG)
-	$(LINTBIN) run --verbose | tee /dev/stderr
+	test -z "$$($(LINTBIN) run --verbose | tee /dev/stderr)"
 
 check: linter test
 
