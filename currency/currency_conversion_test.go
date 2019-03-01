@@ -88,4 +88,25 @@ func TestConversionsRatesSystem(t *testing.T) {
 		t.Fatalf("Test Failed - HasData() error expected true but recieved %v",
 			SuperDuperConversionSystem.HasData())
 	}
+
+	// TODO: Implement later due to rounding issues for float64
+	// initialRateList := SuperDuperConversionSystem.m
+	// err = SuperDuperConversionSystem.Update(testmap)
+	// if err != nil {
+	// 	t.Fatal("Test Failed - Update() error cannnot be nil")
+	// }
+
+	// seconardyRateList := SuperDuperConversionSystem.m
+
+	// for key, val := range initialRateList {
+	// 	for key2, val2 := range val {
+	// 		log.Debugf("Checking %s, %s", *key, *key2)
+	// 		if *val2 != *seconardyRateList[key][key2] {
+	// 			t.Errorf("Converstion update failure for %s %s val1 %f -> val2 %f",
+	// 				*key, *key2, *val2, *seconardyRateList[key][key2])
+	// 		} else {
+	// 			log.Debugf("Rate = %f", *val2)
+	// 		}
+	// 	}
+	// }
 }

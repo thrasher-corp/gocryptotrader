@@ -98,6 +98,10 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 		return errors.New("No data given")
 	}
 
+	if storage.IsVerbose() {
+		log.Debug("Conversion rates are being updated.")
+	}
+
 	solidvalues := make(map[Code]map[Code]float64)
 
 	var list []Code // Verification list, cross check all currencies coming in
@@ -194,7 +198,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 		}
 	}
 
-	c.mtx.Lock()
+	c.m = nil
 	for key, val := range solidvalues {
 		for key2, val2 := range val {
 			if c.m == nil {
@@ -207,13 +211,13 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 
 			p := c.m[key.Item][key2.Item]
 			if p == nil {
-				c.m[key.Item][key2.Item] = &val2
+				newPalsAndFriends := val2
+				c.m[key.Item][key2.Item] = &newPalsAndFriends
 			} else {
 				*p = val2
 			}
 		}
 	}
-	c.mtx.Unlock()
 	return nil
 }
 

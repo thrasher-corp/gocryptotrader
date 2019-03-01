@@ -203,6 +203,11 @@ func (s *Storage) ForeignExchangeUpdater() {
 		s.updaterRunning = false
 	}()
 
+	err := s.SeedForeignExchangeRates()
+	if err != nil {
+		log.Error(err)
+	}
+
 	t := time.NewTicker(1 * time.Minute)
 	s.updaterRunning = true
 	for {
@@ -222,12 +227,13 @@ func (s *Storage) ForeignExchangeUpdater() {
 // SeedForeignExchangeRatesByCurrencies seeds the foreign exchange rates by
 // currencies supplied
 func (s *Storage) SeedForeignExchangeRatesByCurrencies(c Currencies) error {
+	s.fxRates.mtx.Lock()
+	defer s.fxRates.mtx.Unlock()
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.baseCurrency.String(),
 		c.Strings())
 	if err != nil {
 		return err
 	}
-
 	return s.updateExchangeRates(rates)
 }
 
@@ -251,13 +257,14 @@ func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
 
 // SeedDefaultForeignExchangeRates seeds the default foreign exchange rates
 func (s *Storage) SeedDefaultForeignExchangeRates() error {
+	s.fxRates.mtx.Lock()
+	defer s.fxRates.mtx.Unlock()
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(
 		s.defaultBaseCurrency.String(),
 		s.defaultFiatCurrencies.Strings())
 	if err != nil {
 		return err
 	}
-
 	return s.updateExchangeRates(rates)
 }
 
@@ -275,6 +282,8 @@ func (s *Storage) GetExchangeRates() (Conversions, error) {
 // SeedForeignExchangeRates seeds the foreign exchange rates from storage config
 // currencies
 func (s *Storage) SeedForeignExchangeRates() error {
+	s.fxRates.mtx.Lock()
+	defer s.fxRates.mtx.Unlock()
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(
 		s.baseCurrency.String(),
 		s.fiatCurrencies.Strings())
