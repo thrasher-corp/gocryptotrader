@@ -859,9 +859,9 @@ func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, firstCurrency
 				fee = 0
 			case i.Volume <= 10000000:
 				fee = 0.003
-			case i.Volume > 10000000 && i.Volume <= 10000000:
+			case i.Volume > 10000000 && i.Volume <= 100000000:
 				fee = 0.002
-			case i.Volume > 10000000:
+			case i.Volume > 100000000:
 				fee = 0.001
 			}
 			break
