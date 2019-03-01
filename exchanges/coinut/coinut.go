@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"

@@ -104,7 +104,7 @@ func (f *Fixer) GetHistoricalRates(date, baseCurrency string, symbols []string) 
 	v := url.Values{}
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 
-	if len(baseCurrency) > 0 {
+	if baseCurrency != "" {
 		v.Set("base", baseCurrency)
 	}
 
