@@ -235,16 +235,6 @@ func (c *ConversionRates) GetFullRates() Conversions {
 	return conversions
 }
 
-// ExtractBase extracts base from loaded currency conversion rates
-func (c *ConversionRates) ExtractBase() Code {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	for key := range c.m {
-		return Code{Item: key}
-	}
-	return NewCode("")
-}
-
 // Conversions define a list of conversion data
 type Conversions []Conversion
 

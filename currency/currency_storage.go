@@ -427,12 +427,6 @@ func (s *Storage) UpdateEnabledFiatCurrencies(c Currencies) {
 	}
 }
 
-// ExtractBaseCurrencyFromFXResp returns the base currency from the foreign
-// exchange rate provider
-func (s *Storage) ExtractBaseCurrencyFromFXResp() Code {
-	return s.fxRates.ExtractBase()
-}
-
 // ConvertCurrency for example converts $1 USD to the equivalent Japanese Yen
 // or vice versa.
 func (s *Storage) ConvertCurrency(amount float64, from, to Code) (float64, error) {
