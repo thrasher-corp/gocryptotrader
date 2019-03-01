@@ -1,0 +1,83 @@
+run:
+  deadline: 30s
+  issues-exit-code: 1
+  tests: true
+  skip-dirs:
+    - vendor
+    - web
+    - testdata
+
+linters:
+  disable-all: true
+  enable:
+# defaults
+    - govet
+#   - errcheck
+    - staticcheck
+#   - unused
+    - gosimple
+    - structcheck
+#   - varcheck
+    - ineffassign
+#   - deadcode
+    - typecheck
+    - goimports
+    - govet
+
+# disabled by default linters
+    - golint
+    - stylecheck
+    - gosec
+#    - interfacer
+    - unconvert
+#   - dupl
+    - goconst
+#   - gocyclo
+    - gofmt
+    - goimports
+#   - maligned
+    - depguard
+    - misspell
+#   - lll
+    - unparam
+    - nakedret
+#   - prealloc
+    - scopelint
+    - gocritic
+#   - gochecknoinits
+#   - gochecknoglobals
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  golint:
+    min-confidence: 0
+  goconst:
+    min-occurrences: 6
+  depguard:
+    list-type: blacklist
+#  lll:
+#    line-length: 80 # NOTE: we'll enforce this at a later point
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - wrapperFunc
+      - hugeParam
+      - importShadow
+      - rangeValCopy
+      - methodExprCall
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+
+service:
+  golangci-lint-version: 1.15.x 

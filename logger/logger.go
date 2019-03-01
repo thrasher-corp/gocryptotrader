@@ -95,7 +95,7 @@ func setupOutputs() (err error) {
 				newFile := newName + " " + Logger.File
 				err = os.Rename(logFile, path.Join(LogPath, newFile))
 				if err != nil {
-					err = fmt.Errorf("Failed to rename old log file %s", err)
+					err = fmt.Errorf("failed to rename old log file %s", err)
 					return
 				}
 			}

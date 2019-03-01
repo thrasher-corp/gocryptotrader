@@ -10,9 +10,9 @@ import (
 
 // Const values for orderbook package
 const (
-	ErrOrderbookForExchangeNotFound = "Ticker for exchange does not exist."
-	ErrPrimaryCurrencyNotFound      = "Error primary currency for orderbook not found."
-	ErrSecondaryCurrencyNotFound    = "Error secondary currency for orderbook not found."
+	ErrOrderbookForExchangeNotFound = "ticker for exchange does not exist"
+	ErrPrimaryCurrencyNotFound      = "primary currency for orderbook not found"
+	ErrSecondaryCurrencyNotFound    = "secondary currency for orderbook not found"
 
 	Spot = "SPOT"
 )
@@ -48,9 +48,7 @@ type Orderbook struct {
 
 // CalculateTotalBids returns the total amount of bids and the total orderbook
 // bids value
-func (o *Base) CalculateTotalBids() (float64, float64) {
-	amountCollated := float64(0)
-	total := float64(0)
+func (o *Base) CalculateTotalBids() (amountCollated, total float64) {
 	for _, x := range o.Bids {
 		amountCollated += x.Amount
 		total += x.Amount * x.Price
@@ -60,9 +58,7 @@ func (o *Base) CalculateTotalBids() (float64, float64) {
 
 // CalculateTotalAsks returns the total amount of asks and the total orderbook
 // asks value
-func (o *Base) CalculateTotalAsks() (float64, float64) {
-	amountCollated := float64(0)
-	total := float64(0)
+func (o *Base) CalculateTotalAsks() (amountCollated, total float64) {
 	for _, x := range o.Asks {
 		amountCollated += x.Amount
 		total += x.Amount * x.Price
@@ -71,9 +67,9 @@ func (o *Base) CalculateTotalAsks() (float64, float64) {
 }
 
 // Update updates the bids and asks
-func (o *Base) Update(Bids, Asks []Item) {
-	o.Bids = Bids
-	o.Asks = Asks
+func (o *Base) Update(bids, asks []Item) {
+	o.Bids = bids
+	o.Asks = asks
 	o.LastUpdated = time.Now()
 }
 
@@ -100,9 +96,9 @@ func GetOrderbook(exchange string, p pair.CurrencyPair, orderbookType string) (B
 func GetOrderbookByExchange(exchange string) (*Orderbook, error) {
 	m.Lock()
 	defer m.Unlock()
-	for _, y := range Orderbooks {
-		if y.ExchangeName == exchange {
-			return &y, nil
+	for x := range Orderbooks {
+		if Orderbooks[x].ExchangeName == exchange {
+			return &Orderbooks[x], nil
 		}
 	}
 	return nil, errors.New(ErrOrderbookForExchangeNotFound)

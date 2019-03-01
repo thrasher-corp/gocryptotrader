@@ -196,20 +196,19 @@ func (o *OKEX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestType
 
-	if orderType == exchange.LimitOrderType {
+	switch orderType {
+	case exchange.LimitOrderType:
+		oT = SpotNewOrderRequestTypeSell
 		if side == exchange.BuyOrderSide {
 			oT = SpotNewOrderRequestTypeBuy
-		} else {
-			oT = SpotNewOrderRequestTypeSell
 		}
-	} else if orderType == exchange.MarketOrderType {
+	case exchange.MarketOrderType:
+		oT = SpotNewOrderRequestTypeSellMarket
 		if side == exchange.BuyOrderSide {
 			oT = SpotNewOrderRequestTypeBuyMarket
-		} else {
-			oT = SpotNewOrderRequestTypeSellMarket
 		}
-	} else {
-		return submitOrderResponse, errors.New("Unsupported order type")
+	default:
+		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
 	var params = SpotNewOrderRequestParams{
@@ -263,7 +262,7 @@ func (o *OKEX) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAll
 		}
 
 		if !openOrders.Result {
-			return cancelAllOrdersResponse, fmt.Errorf("Something went wrong for currency %s", formattedCurrency)
+			return cancelAllOrdersResponse, fmt.Errorf("something went wrong for currency %s", formattedCurrency)
 		}
 
 		allOpenOrders = append(allOpenOrders, openOrders.Orders...)

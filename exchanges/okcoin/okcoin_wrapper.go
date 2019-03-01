@@ -153,32 +153,28 @@ func (o *OKCoin) GetAccountInfo() (exchange.AccountInfo, error) {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
-
-	currencies = append(currencies, exchange.AccountCurrencyInfo{
-		CurrencyName: "BTC",
-		TotalValue:   assets.Info.Funds.Free.BTC,
-		Hold:         assets.Info.Funds.Freezed.BTC,
-	})
-
-	currencies = append(currencies, exchange.AccountCurrencyInfo{
-		CurrencyName: "LTC",
-		TotalValue:   assets.Info.Funds.Free.LTC,
-		Hold:         assets.Info.Funds.Freezed.LTC,
-	})
-
-	currencies = append(currencies, exchange.AccountCurrencyInfo{
-		CurrencyName: "USD",
-		TotalValue:   assets.Info.Funds.Free.USD,
-		Hold:         assets.Info.Funds.Freezed.USD,
-	})
-
-	currencies = append(currencies, exchange.AccountCurrencyInfo{
-		CurrencyName: "CNY",
-		TotalValue:   assets.Info.Funds.Free.CNY,
-		Hold:         assets.Info.Funds.Freezed.CNY,
-	})
-
+	var currencies = []exchange.AccountCurrencyInfo{
+		{
+			CurrencyName: "BTC",
+			TotalValue:   assets.Info.Funds.Free.BTC,
+			Hold:         assets.Info.Funds.Freezed.BTC,
+		},
+		{
+			CurrencyName: "LTC",
+			TotalValue:   assets.Info.Funds.Free.LTC,
+			Hold:         assets.Info.Funds.Freezed.LTC,
+		},
+		{
+			CurrencyName: "USD",
+			TotalValue:   assets.Info.Funds.Free.USD,
+			Hold:         assets.Info.Funds.Freezed.USD,
+		},
+		{
+			CurrencyName: "CNY",
+			TotalValue:   assets.Info.Funds.Free.CNY,
+			Hold:         assets.Info.Funds.Freezed.CNY,
+		},
+	}
 	response.Accounts = append(response.Accounts, exchange.Account{
 		Currencies: currencies,
 	})
@@ -204,20 +200,20 @@ func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 func (o *OKCoin) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT string
-	if orderType == exchange.LimitOrderType {
+
+	switch orderType {
+	case exchange.LimitOrderType:
+		oT = "sell"
 		if side == exchange.BuyOrderSide {
 			oT = "buy"
-		} else {
-			oT = "sell"
 		}
-	} else if orderType == exchange.MarketOrderType {
+	case exchange.MarketOrderType:
+		oT = "sell_market"
 		if side == exchange.BuyOrderSide {
 			oT = "buy_market"
-		} else {
-			oT = "sell_market"
 		}
-	} else {
-		return submitOrderResponse, errors.New("Unsupported order type")
+	default:
+		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
 	response, err := o.Trade(amount, price, p.Pair().String(), oT)

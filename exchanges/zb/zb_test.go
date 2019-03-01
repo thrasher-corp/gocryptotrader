@@ -281,12 +281,13 @@ func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", z.APIKey, canManipulateRealOrders))
 	}
-	var pair = pair.CurrencyPair{
+	var currencyPair = pair.CurrencyPair{
 		Delimiter:      "_",
 		FirstCurrency:  symbol.QTUM,
 		SecondCurrency: symbol.USDT,
 	}
-	response, err := z.SubmitOrder(pair, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
+
+	response, err := z.SubmitOrder(currencyPair, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

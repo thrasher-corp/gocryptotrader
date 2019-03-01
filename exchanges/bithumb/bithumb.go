@@ -307,7 +307,7 @@ func (b *Bithumb) GetAccountBalance(c string) (FullBalance, error) {
 			fullBalance.Xcoin[c] = val
 
 		default:
-			return fullBalance, fmt.Errorf("GetAccountBalance error tag name %s unhandled",
+			return fullBalance, fmt.Errorf("getaccountbalance error tag name %s unhandled",
 				splitTag)
 		}
 	}
@@ -597,7 +597,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 	err = common.JSONDecode(intermediary, &errCapture)
 	if err == nil {
 		if errCapture.Status != "" && errCapture.Status != "0000" {
-			return fmt.Errorf("SendAuthenticatedHTTPRequest error Code:%s Message:%s",
+			return fmt.Errorf("sendAuthenticatedAPIRequest error code: %s message:%s",
 				errCapture.Status,
 				errCode[errCapture.Status])
 		}
@@ -627,9 +627,8 @@ func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // calculateTradingFee returns fee when performing a trade
-func calculateTradingFee(purchasePrice float64, amount float64) float64 {
+func calculateTradingFee(purchasePrice, amount float64) float64 {
 	fee := 0.0015
-
 	return fee * amount * purchasePrice
 }
 

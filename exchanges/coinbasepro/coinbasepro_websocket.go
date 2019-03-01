@@ -28,30 +28,29 @@ func (c *CoinbasePro) WebsocketSubscriber() error {
 		currencies = append(currencies, currency)
 	}
 
-	var channels []WsChannels
-	channels = append(channels, WsChannels{
-		Name:       "heartbeat",
-		ProductIDs: currencies,
-	})
-
-	channels = append(channels, WsChannels{
-		Name:       "ticker",
-		ProductIDs: currencies,
-	})
-
-	channels = append(channels, WsChannels{
-		Name:       "level2",
-		ProductIDs: currencies,
-	})
+	var channels = []WsChannels{
+		{
+			Name:       "heartbeat",
+			ProductIDs: currencies,
+		},
+		{
+			Name:       "ticker",
+			ProductIDs: currencies,
+		},
+		{
+			Name:       "level2",
+			ProductIDs: currencies,
+		},
+	}
 
 	subscribe := WebsocketSubscribe{Type: "subscribe", Channels: channels}
 
-	json, err := common.JSONEncode(subscribe)
+	data, err := common.JSONEncode(subscribe)
 	if err != nil {
 		return err
 	}
 
-	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
 // WsConnect initiates a websocket connection

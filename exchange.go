@@ -106,7 +106,7 @@ func UnloadExchange(name string) error {
 	}
 
 	exchCfg.Enabled = false
-	err = bot.config.UpdateExchangeConfig(exchCfg)
+	err = bot.config.UpdateExchangeConfig(&exchCfg)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 // SetupExchanges sets up the exchanges used by the bot
 func SetupExchanges() {
 	var wg sync.WaitGroup
-	for _, exch := range bot.config.Exchanges {
+	for x := range bot.config.Exchanges {
+		exch := &bot.config.Exchanges[x]
 		if CheckExchangeExists(exch.Name) {
 			e := GetExchangeByName(exch.Name)
 			if e == nil {

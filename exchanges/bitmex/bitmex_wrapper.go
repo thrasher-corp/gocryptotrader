@@ -2,6 +2,7 @@ package bitmex
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -63,7 +64,7 @@ func (b *Bitmex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	}
 
 	if len(tick) == 0 {
-		return tickerPrice, errors.New("Bitmex REST error: no ticker return")
+		return tickerPrice, fmt.Errorf("%s REST error: no ticker return", b.Name)
 	}
 
 	tickerPrice.Pair = p
@@ -153,9 +154,7 @@ func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	// b.GetFullFundingHistory()
-	return fundHistory, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

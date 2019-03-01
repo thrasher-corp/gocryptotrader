@@ -43,7 +43,8 @@ func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig(config.ConfigTestFile)
 
-	s.Setup(cfg.GetCommunicationsConfig())
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
 	s.Verbose = true
 }
 
@@ -103,7 +104,7 @@ func TestGetChannelsString(t *testing.T) {
 
 func TestGetUsernameByID(t *testing.T) {
 	username := s.GetUsernameByID("1337")
-	if len(username) != 0 {
+	if username != "" {
 		t.Error("test failed - slack GetUsernameByID() error")
 	}
 
@@ -144,7 +145,7 @@ func TestGetUsernameByID(t *testing.T) {
 
 func TestGetIDByName(t *testing.T) {
 	id, err := s.GetIDByName("batman")
-	if err == nil || len(id) != 0 {
+	if err == nil || id != "" {
 		t.Error("test failed - slack GetIDByName() error")
 	}
 
@@ -161,7 +162,7 @@ func TestGetIDByName(t *testing.T) {
 
 func TestGetGroupIDByName(t *testing.T) {
 	id, err := s.GetGroupIDByName("batman")
-	if err == nil || len(id) != 0 {
+	if err == nil || id != "" {
 		t.Error("test failed - slack GetGroupIDByName() error")
 	}
 
@@ -179,7 +180,7 @@ func TestGetGroupIDByName(t *testing.T) {
 
 func TestGetChannelIDByName(t *testing.T) {
 	id, err := s.GetChannelIDByName("1337")
-	if err == nil || len(id) != 0 {
+	if err == nil || id != "" {
 		t.Error("test failed - slack GetChannelIDByName() error")
 	}
 
@@ -264,7 +265,7 @@ func TestHandleMessageResponse(t *testing.T) {
 	data.ReplyTo = 1
 
 	err := s.handleMessageResponse(nil, data)
-	if err.Error() != "ReplyTo != 0" {
+	if err.Error() != "reply to is != 0" {
 		t.Errorf("test failed - slack handleMessageResponse(), Incorrect Error: %s",
 			err)
 	}
@@ -341,7 +342,7 @@ func TestWebsocketSend(t *testing.T) {
 }
 
 func TestHandleMessage(t *testing.T) {
-	var msg Message
+	msg := &Message{}
 
 	err := s.HandleMessage(msg)
 	if err == nil {

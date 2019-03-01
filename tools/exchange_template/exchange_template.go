@@ -106,8 +106,8 @@ func main() {
 
 	var configTestExchanges []string
 
-	for _, exch := range configTestFile.Exchanges {
-		configTestExchanges = append(configTestExchanges, exch.Name)
+	for x := range configTestFile.Exchanges {
+		configTestExchanges = append(configTestExchanges, configTestFile.Exchanges[x].Name)
 	}
 
 	if common.StringDataContainsUpper(configTestExchanges, capName) {
@@ -227,9 +227,9 @@ func newFile(path string) {
 
 	if os.IsNotExist(err) {
 		var file, err = os.Create(path)
-		defer file.Close()
 		if err != nil {
 			log.Fatal("GoCryptoTrader: Exchange templating tool file creation error ", err)
 		}
+		file.Close()
 	}
 }

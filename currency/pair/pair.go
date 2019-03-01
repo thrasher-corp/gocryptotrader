@@ -205,8 +205,7 @@ func CopyPairFormat(p CurrencyPair, pairs []CurrencyPair, exact bool) CurrencyPa
 }
 
 // FindPairDifferences returns pairs which are new or have been removed
-func FindPairDifferences(oldPairs, newPairs []string) ([]string, []string) {
-	var newPs, removedPs []string
+func FindPairDifferences(oldPairs, newPairs []string) (newPs, removedPs []string) {
 	for x := range newPairs {
 		if newPairs[x] == "" {
 			continue

@@ -140,13 +140,13 @@ func (b *BTCMarkets) GetMarkets() ([]Market, error) {
 // GetTicker returns a ticker
 // symbol - example "btc" or "ltc"
 func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
-	ticker := Ticker{}
+	tick := Ticker{}
 	path := fmt.Sprintf("%s/market/%s/%s/tick",
 		b.APIUrl,
 		common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair))
 
-	return ticker, b.SendHTTPRequest(path, &ticker)
+	return tick, b.SendHTTPRequest(path, &tick)
 }
 
 // GetOrderbook returns current orderbook
@@ -237,19 +237,19 @@ func (b *BTCMarkets) CancelExistingOrder(orderID []int64) ([]ResponseDetails, er
 // since - since a time example "33434568724"
 // historic - if false just normal Orders open
 func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, historic bool) ([]Order, error) {
-	request := make(map[string]interface{})
+	req := make(map[string]interface{})
 
 	if currency != "" {
-		request["currency"] = common.StringToUpper(currency)
+		req["currency"] = common.StringToUpper(currency)
 	}
 	if instrument != "" {
-		request["instrument"] = common.StringToUpper(instrument)
+		req["instrument"] = common.StringToUpper(instrument)
 	}
 	if limit != 0 {
-		request["limit"] = limit
+		req["limit"] = limit
 	}
 	if since != 0 {
-		request["since"] = since
+		req["since"] = since
 	}
 
 	path := btcMarketsOrderOpen
@@ -259,7 +259,7 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 
 	resp := Response{}
 
-	err := b.SendAuthenticatedRequest(http.MethodPost, path, request, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, path, req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -269,14 +269,14 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 	}
 
 	for _, order := range resp.Orders {
-		order.Price = order.Price / common.SatoshisPerBTC
-		order.OpenVolume = order.OpenVolume / common.SatoshisPerBTC
-		order.Volume = order.Volume / common.SatoshisPerBTC
+		order.Price /= common.SatoshisPerBTC
+		order.OpenVolume /= common.SatoshisPerBTC
+		order.Volume /= common.SatoshisPerBTC
 
 		for _, trade := range order.Trades {
-			trade.Fee = trade.Fee / common.SatoshisPerBTC
-			trade.Price = trade.Price / common.SatoshisPerBTC
-			trade.Volume = trade.Volume / common.SatoshisPerBTC
+			trade.Fee /= common.SatoshisPerBTC
+			trade.Price /= common.SatoshisPerBTC
+			trade.Volume /= common.SatoshisPerBTC
 		}
 	}
 
@@ -289,11 +289,11 @@ func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
 		Response
 		Orders []Order `json:"orders"`
 	}
-	request := make(map[string]interface{})
+	req := make(map[string]interface{})
 	var resp marketsResp
 	path := fmt.Sprintf("/v2/order/open")
 
-	err := b.SendAuthenticatedRequest(http.MethodGet, path, request, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodGet, path, req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -303,14 +303,14 @@ func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
 	}
 
 	for _, order := range resp.Orders {
-		order.Price = order.Price / common.SatoshisPerBTC
-		order.OpenVolume = order.OpenVolume / common.SatoshisPerBTC
-		order.Volume = order.Volume / common.SatoshisPerBTC
+		order.Price /= common.SatoshisPerBTC
+		order.OpenVolume /= common.SatoshisPerBTC
+		order.Volume /= common.SatoshisPerBTC
 
 		for _, trade := range order.Trades {
-			trade.Fee = trade.Fee / common.SatoshisPerBTC
-			trade.Price = trade.Price / common.SatoshisPerBTC
-			trade.Volume = trade.Volume / common.SatoshisPerBTC
+			trade.Fee /= common.SatoshisPerBTC
+			trade.Price /= common.SatoshisPerBTC
+			trade.Volume /= common.SatoshisPerBTC
 		}
 	}
 
@@ -338,14 +338,14 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price / common.SatoshisPerBTC
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SatoshisPerBTC
-		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SatoshisPerBTC
+		resp.Orders[i].Price /= common.SatoshisPerBTC
+		resp.Orders[i].OpenVolume /= common.SatoshisPerBTC
+		resp.Orders[i].Volume /= common.SatoshisPerBTC
 
 		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SatoshisPerBTC
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SatoshisPerBTC
-			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Fee /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Price /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Volume /= common.SatoshisPerBTC
 		}
 	}
 	return resp.Orders, nil
@@ -362,8 +362,8 @@ func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
 
 	// All values are returned in Satoshis, even for fiat currencies.
 	for i := range balance {
-		balance[i].Balance = balance[i].Balance / common.SatoshisPerBTC
-		balance[i].PendingFunds = balance[i].PendingFunds / common.SatoshisPerBTC
+		balance[i].Balance /= common.SatoshisPerBTC
+		balance[i].PendingFunds /= common.SatoshisPerBTC
 	}
 	return balance, nil
 }
@@ -431,7 +431,7 @@ func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
-func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interface{}, result interface{}) (err error) {
+func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result interface{}) (err error) {
 	if !b.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
@@ -441,7 +441,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	} else {
 		b.Nonce.Inc()
 	}
-	var request string
+	var req string
 	payload := []byte("")
 
 	if data != nil {
@@ -449,15 +449,15 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 		if err != nil {
 			return err
 		}
-		request = path + "\n" + b.Nonce.String()[0:13] + "\n" + string(payload)
+		req = path + "\n" + b.Nonce.String()[0:13] + "\n" + string(payload)
 	} else {
-		request = path + "\n" + b.Nonce.String()[0:13] + "\n"
+		req = path + "\n" + b.Nonce.String()[0:13] + "\n"
 	}
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(request), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(req), []byte(b.APISecret))
 
 	if b.Verbose {
-		log.Debugf("Sending %s request to URL %s with params %s\n", reqType, b.APIUrl+path, request)
+		log.Debugf("Sending %s request to URL %s with params %s\n", reqType, b.APIUrl+path, req)
 	}
 
 	headers := make(map[string]string)

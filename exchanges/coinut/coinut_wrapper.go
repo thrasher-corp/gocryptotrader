@@ -62,77 +62,64 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 		return info, err
 	}
 
-	var balances []exchange.AccountCurrencyInfo
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.BCH,
-		TotalValue:   bal.BCH,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.BTC,
-		TotalValue:   bal.BTC,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.BTG,
-		TotalValue:   bal.BTG,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.CAD,
-		TotalValue:   bal.CAD,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.ETC,
-		TotalValue:   bal.ETC,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.ETH,
-		TotalValue:   bal.ETH,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.LCH,
-		TotalValue:   bal.LCH,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.LTC,
-		TotalValue:   bal.LTC,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.MYR,
-		TotalValue:   bal.MYR,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.SGD,
-		TotalValue:   bal.SGD,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.USD,
-		TotalValue:   bal.USD,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.USDT,
-		TotalValue:   bal.USDT,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.XMR,
-		TotalValue:   bal.XMR,
-	})
-
-	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: symbol.ZEC,
-		TotalValue:   bal.ZEC,
-	})
-
+	var balances = []exchange.AccountCurrencyInfo{
+		{
+			CurrencyName: symbol.BCH,
+			TotalValue:   bal.BCH,
+		},
+		{
+			CurrencyName: symbol.BTC,
+			TotalValue:   bal.BTC,
+		},
+		{
+			CurrencyName: symbol.BTG,
+			TotalValue:   bal.BTG,
+		},
+		{
+			CurrencyName: symbol.CAD,
+			TotalValue:   bal.CAD,
+		},
+		{
+			CurrencyName: symbol.ETC,
+			TotalValue:   bal.ETC,
+		},
+		{
+			CurrencyName: symbol.ETH,
+			TotalValue:   bal.ETH,
+		},
+		{
+			CurrencyName: symbol.LCH,
+			TotalValue:   bal.LCH,
+		},
+		{
+			CurrencyName: symbol.LTC,
+			TotalValue:   bal.LTC,
+		},
+		{
+			CurrencyName: symbol.MYR,
+			TotalValue:   bal.MYR,
+		},
+		{
+			CurrencyName: symbol.SGD,
+			TotalValue:   bal.SGD,
+		},
+		{
+			CurrencyName: symbol.USD,
+			TotalValue:   bal.USD,
+		},
+		{
+			CurrencyName: symbol.USDT,
+			TotalValue:   bal.USDT,
+		},
+		{
+			CurrencyName: symbol.XMR,
+			TotalValue:   bal.XMR,
+		},
+		{
+			CurrencyName: symbol.ZEC,
+			TotalValue:   bal.ZEC,
+		},
+	}
 	info.Exchange = c.GetName()
 	info.Accounts = append(info.Accounts, exchange.Account{
 		Currencies: balances,
@@ -233,11 +220,12 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	currencyArray := instruments.Instruments[p.Pair().String()]
 	currencyID := currencyArray[0].InstID
 
-	if orderType == exchange.LimitOrderType {
+	switch orderType {
+	case exchange.LimitOrderType:
 		APIresponse, err = c.NewOrder(currencyID, amount, price, isBuyOrder, clientIDUint)
-	} else if orderType == exchange.MarketOrderType {
+	case exchange.MarketOrderType:
 		APIresponse, err = c.NewOrder(currencyID, amount, 0, isBuyOrder, clientIDUint)
-	} else {
+	default:
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
@@ -251,7 +239,7 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	case OrderRejectResponse:
 		orderResult := apiResp
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
-		err = fmt.Errorf("OrderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
+		err = fmt.Errorf("orderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
 	}
 
 	if err == nil {

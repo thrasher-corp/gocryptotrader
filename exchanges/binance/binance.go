@@ -648,7 +648,7 @@ func (b *Binance) CheckLimit(limit int) error {
 			return nil
 		}
 	}
-	return errors.New("Incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
+	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 }
 
 // CheckSymbol checks value against a variable list
@@ -659,7 +659,7 @@ func (b *Binance) CheckSymbol(symbol string) error {
 			return nil
 		}
 	}
-	return errors.New("Incorrect symbol values - please check available pairs in configuration")
+	return errors.New("incorrect symbol values - please check available pairs in configuration")
 }
 
 // CheckIntervals checks value against a variable list
@@ -669,7 +669,7 @@ func (b *Binance) CheckIntervals(interval string) error {
 			return nil
 		}
 	}
-	return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
+	return errors.New(`incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
 }
 
 // SetValues sets the default valid values
@@ -766,7 +766,7 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 	return resp.ID, nil
 }
 
-//GetDepositAddressForCurrency retrieves the wallet address for a given currency
+// GetDepositAddressForCurrency retrieves the wallet address for a given currency
 func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) {
 	path := fmt.Sprintf("%s%s", b.APIUrl, depositAddress)
 

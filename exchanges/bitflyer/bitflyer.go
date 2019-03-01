@@ -251,10 +251,10 @@ func (b *Bitflyer) GetExchangeStatus() (string, error) {
 
 // GetChats returns trollbox chat log
 // Note: returns vary from instant to infinty
-func (b *Bitflyer) GetChats(FromDate string) ([]ChatLog, error) {
+func (b *Bitflyer) GetChats(fromDate string) ([]ChatLog, error) {
 	var resp []ChatLog
 	v := url.Values{}
-	v.Set("from_date", FromDate)
+	v.Set("from_date", fromDate)
 	path := fmt.Sprintf("%s%s?%s", b.APIUrl, pubGetChats, v.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
@@ -386,9 +386,9 @@ func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
 // if you have access and update the authenticated requests
 // TODO: Fill out this function once API access is obtained
 func (b *Bitflyer) SendAuthHTTPRequest() {
-	//headers := make(map[string]string)
-	//headers["ACCESS-KEY"] = b.APIKey
-	//headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
+	// headers := make(map[string]string)
+	// headers["ACCESS-KEY"] = b.APIKey
+	// headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -411,28 +411,22 @@ func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // calculateTradingFee returns fee when performing a trade
-func calculateTradingFee(purchasePrice float64, amount float64) float64 {
+func calculateTradingFee(purchasePrice, amount float64) float64 {
 	fee := 0.0015
 	// bitflyer has fee tiers, but does not disclose them via API, so the largest has to be assumed
 	return fee * amount * purchasePrice
 }
 
 func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, currency string) (fee float64) {
-	switch bankTransactionType {
-	case exchange.WireTransfer:
-		switch currency {
-		case symbol.JPY:
-			fee = 324
-		}
+	if bankTransactionType == exchange.WireTransfer && currency == symbol.JPY {
+		fee = 324
 	}
 	return fee
 }
 
 func getWithdrawalFee(bankTransactionType exchange.InternationalBankTransactionType, currency string, amount float64) (fee float64) {
-	switch bankTransactionType {
-	case exchange.WireTransfer:
-		switch currency {
-		case symbol.JPY:
+	if bankTransactionType == exchange.WireTransfer {
+		if currency == symbol.JPY {
 			if amount < 30000 {
 				fee = 540
 			} else {

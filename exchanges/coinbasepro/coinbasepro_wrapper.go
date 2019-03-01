@@ -158,13 +158,14 @@ func (c *CoinbasePro) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, 
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var response string
 	var err error
-	if orderType == exchange.MarketOrderType {
-		response, err = c.PlaceMarginOrder("", amount, amount, side.ToString(), p.Pair().String(), "")
 
-	} else if orderType == exchange.LimitOrderType {
+	switch orderType {
+	case exchange.MarketOrderType:
+		response, err = c.PlaceMarginOrder("", amount, amount, side.ToString(), p.Pair().String(), "")
+	case exchange.LimitOrderType:
 		response, err = c.PlaceLimitOrder("", price, amount, side.ToString(), "", "", p.Pair().String(), "", false)
-	} else {
-		err = errors.New("not supported")
+	default:
+		err = errors.New("order type not supported")
 	}
 
 	if response != "" {
@@ -229,8 +230,8 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest
 			break
 		}
 	}
-	if len(selectedWithdrawalMethod.ID) <= 0 {
-		return "", fmt.Errorf("Could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.BankName)
+	if selectedWithdrawalMethod.ID == "" {
+		return "", fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.BankName)
 	}
 
 	resp, err := c.WithdrawViaPaymentMethod(withdrawRequest.Amount, withdrawRequest.Currency.String(), selectedWithdrawalMethod.ID)

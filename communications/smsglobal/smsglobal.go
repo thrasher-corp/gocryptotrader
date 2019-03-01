@@ -33,20 +33,20 @@ type SMSGlobal struct {
 
 // Setup takes in a SMSGlobal configuration, sets username, password and
 // and recipient list
-func (s *SMSGlobal) Setup(config config.CommunicationsConfig) {
-	s.Name = config.SMSGlobalConfig.Name
-	s.Enabled = config.SMSGlobalConfig.Enabled
-	s.Verbose = config.SMSGlobalConfig.Verbose
-	s.Username = config.SMSGlobalConfig.Username
-	s.Password = config.SMSGlobalConfig.Password
+func (s *SMSGlobal) Setup(cfg *config.CommunicationsConfig) {
+	s.Name = cfg.SMSGlobalConfig.Name
+	s.Enabled = cfg.SMSGlobalConfig.Enabled
+	s.Verbose = cfg.SMSGlobalConfig.Verbose
+	s.Username = cfg.SMSGlobalConfig.Username
+	s.Password = cfg.SMSGlobalConfig.Password
 
 	var contacts []Contact
-	for x := range config.SMSGlobalConfig.Contacts {
+	for x := range cfg.SMSGlobalConfig.Contacts {
 		contacts = append(contacts,
 			Contact{
-				Name:    config.SMSGlobalConfig.Contacts[x].Name,
-				Number:  config.SMSGlobalConfig.Contacts[x].Number,
-				Enabled: config.SMSGlobalConfig.Contacts[x].Enabled,
+				Name:    cfg.SMSGlobalConfig.Contacts[x].Name,
+				Number:  cfg.SMSGlobalConfig.Contacts[x].Number,
+				Enabled: cfg.SMSGlobalConfig.Contacts[x].Enabled,
 			},
 		)
 	}

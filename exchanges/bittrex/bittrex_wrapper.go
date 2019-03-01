@@ -100,16 +100,17 @@ func (b *Bittrex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pr
 	for _, x := range b.GetEnabledCurrencies() {
 		curr := exchange.FormatExchangeCurrency(b.Name, x)
 		for y := range tick.Result {
-			if tick.Result[y].MarketName == curr.String() {
-				tickerPrice.Pair = x
-				tickerPrice.High = tick.Result[y].High
-				tickerPrice.Low = tick.Result[y].Low
-				tickerPrice.Ask = tick.Result[y].Ask
-				tickerPrice.Bid = tick.Result[y].Bid
-				tickerPrice.Last = tick.Result[y].Last
-				tickerPrice.Volume = tick.Result[y].Volume
-				ticker.ProcessTicker(b.GetName(), x, tickerPrice, assetType)
+			if tick.Result[y].MarketName != curr.String() {
+				continue
 			}
+			tickerPrice.Pair = x
+			tickerPrice.High = tick.Result[y].High
+			tickerPrice.Low = tick.Result[y].Low
+			tickerPrice.Ask = tick.Result[y].Ask
+			tickerPrice.Bid = tick.Result[y].Bid
+			tickerPrice.Last = tick.Result[y].Last
+			tickerPrice.Volume = tick.Result[y].Volume
+			ticker.ProcessTicker(b.GetName(), x, tickerPrice, assetType)
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)

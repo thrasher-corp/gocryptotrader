@@ -29,27 +29,27 @@ var Portfolio Base
 func GetEthereumBalance(address string) (EthplorerResponse, error) {
 	valid, _ := common.IsValidCryptoAddress(address, "eth")
 	if !valid {
-		return EthplorerResponse{}, errors.New("Not an ethereum address")
+		return EthplorerResponse{}, errors.New("not an Ethereum address")
 	}
 
-	url := fmt.Sprintf(
+	urlPath := fmt.Sprintf(
 		"%s/%s/%s?apiKey=freekey", ethplorerAPIURL, ethplorerAddressInfo, address,
 	)
 	result := EthplorerResponse{}
-	return result, common.SendHTTPGetRequest(url, true, false, &result)
+	return result, common.SendHTTPGetRequest(urlPath, true, false, &result)
 }
 
 // GetCryptoIDAddress queries CryptoID for an address balance for a
 // specified cryptocurrency
-func GetCryptoIDAddress(address string, coinType string) (float64, error) {
+func GetCryptoIDAddress(address, coinType string) (float64, error) {
 	ok, err := common.IsValidCryptoAddress(address, coinType)
 	if !ok || err != nil {
 		return 0, errors.New("invalid address")
 	}
 
 	var result interface{}
-	url := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s", cryptoIDAPIURL, common.StringToLower(coinType), address)
-	err = common.SendHTTPGetRequest(url, true, false, &result)
+	urlPath := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s", cryptoIDAPIURL, common.StringToLower(coinType), address)
+	err = common.SendHTTPGetRequest(urlPath, true, false, &result)
 	if err != nil {
 		return 0, err
 	}
@@ -179,22 +179,22 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 		return true
 	}
 
-	errors := 0
+	numErrors := 0
 	if coinType == "ETH" {
 		for x := range addresses {
 			result, err := GetEthereumBalance(addresses[x])
 			if err != nil {
-				errors++
+				numErrors++
 				continue
 			}
 
 			if result.Error.Message != "" {
-				errors++
+				numErrors++
 				continue
 			}
 			p.AddAddress(addresses[x], coinType, PortfolioAddressPersonal, result.ETH.Balance)
 		}
-		return errors == 0
+		return numErrors == 0
 	}
 	for x := range addresses {
 		result, err := GetCryptoIDAddress(addresses[x], coinType)

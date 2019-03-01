@@ -206,9 +206,9 @@ func (y *Yobit) GetOpenOrders(pair string) (map[string]ActiveOrders, error) {
 }
 
 // GetOrderInformation returns the order info for a specific order ID
-func (y *Yobit) GetOrderInformation(OrderID int64) (map[string]OrderInfo, error) {
+func (y *Yobit) GetOrderInformation(orderID int64) (map[string]OrderInfo, error) {
 	req := url.Values{}
-	req.Add("order_id", strconv.FormatInt(OrderID, 10))
+	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
 	result := map[string]OrderInfo{}
 
@@ -216,9 +216,9 @@ func (y *Yobit) GetOrderInformation(OrderID int64) (map[string]OrderInfo, error)
 }
 
 // CancelExistingOrder cancels an order for a specific order ID
-func (y *Yobit) CancelExistingOrder(OrderID int64) (bool, error) {
+func (y *Yobit) CancelExistingOrder(orderID int64) (bool, error) {
 	req := url.Values{}
-	req.Add("order_id", strconv.FormatInt(OrderID, 10))
+	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
 	result := CancelOrder{}
 
@@ -233,12 +233,12 @@ func (y *Yobit) CancelExistingOrder(OrderID int64) (bool, error) {
 }
 
 // GetTradeHistory returns the trade history
-func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
+func (y *Yobit) GetTradeHistory(tidFrom, count, tidEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
 	req := url.Values{}
-	req.Add("from", strconv.FormatInt(TIDFrom, 10))
-	req.Add("count", strconv.FormatInt(Count, 10))
-	req.Add("from_id", strconv.FormatInt(TIDFrom, 10))
-	req.Add("end_id", strconv.FormatInt(TIDEnd, 10))
+	req.Add("from", strconv.FormatInt(tidFrom, 10))
+	req.Add("count", strconv.FormatInt(count, 10))
+	req.Add("from_id", strconv.FormatInt(tidFrom, 10))
+	req.Add("end_id", strconv.FormatInt(tidEnd, 10))
 	req.Add("order", order)
 	req.Add("since", strconv.FormatInt(since, 10))
 	req.Add("end", strconv.FormatInt(end, 10))
@@ -400,8 +400,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64, bankTran
 
 	switch bankTransactionType {
 	case exchange.PerfectMoney:
-		switch currency {
-		case symbol.USD:
+		if currency == symbol.USD {
 			fee = 0.02 * amount
 		}
 	case exchange.Payeer:
@@ -419,13 +418,11 @@ func getInternationalBankWithdrawalFee(currency string, amount float64, bankTran
 			fee = 0.03 * amount
 		}
 	case exchange.Qiwi:
-		switch currency {
-		case symbol.RUR:
+		if currency == symbol.RUR {
 			fee = 0.04 * amount
 		}
 	case exchange.Capitalist:
-		switch currency {
-		case symbol.USD:
+		if currency == symbol.USD {
 			fee = 0.06 * amount
 		}
 	}
@@ -438,8 +435,7 @@ func getInternationalBankDepositFee(currency string, bankTransactionType exchang
 	var fee float64
 	switch bankTransactionType {
 	case exchange.PerfectMoney:
-		switch currency {
-		case symbol.USD:
+		if currency == symbol.USD {
 			fee = 0
 		}
 	case exchange.Payeer:
@@ -457,8 +453,7 @@ func getInternationalBankDepositFee(currency string, bankTransactionType exchang
 			fee = 0
 		}
 	case exchange.Qiwi:
-		switch currency {
-		case symbol.RUR:
+		if currency == symbol.RUR {
 			fee = 0
 		}
 	case exchange.Capitalist:

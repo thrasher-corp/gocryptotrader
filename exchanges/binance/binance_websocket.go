@@ -109,7 +109,7 @@ func (b *Binance) UpdateLocalCache(ob WebsocketDepthStream) error {
 				priceToBeUpdated.Amount, _ = strconv.ParseFloat(asks.(string), 64)
 			}
 		}
-		updateAsk = append(updateBid, priceToBeUpdated)
+		updateAsk = append(updateAsk, priceToBeUpdated)
 	}
 
 	updatedTime := time.Unix(ob.Timestamp, 0)
@@ -132,7 +132,7 @@ func (b *Binance) WSConnect() error {
 	var Dialer websocket.Dialer
 	var err error
 
-	ticker := strings.ToLower(
+	tick := strings.ToLower(
 		strings.Replace(
 			strings.Join(b.EnabledPairs, "@ticker/"), "-", "", -1)) + "@ticker"
 	trade := strings.ToLower(
@@ -147,7 +147,7 @@ func (b *Binance) WSConnect() error {
 
 	wsurl := b.Websocket.GetWebsocketURL() +
 		"/stream?streams=" +
-		ticker +
+		tick +
 		"/" +
 		trade +
 		"/" +
@@ -220,8 +220,7 @@ func (b *Binance) WsHandleData() {
 				return
 			}
 
-			switch read.Type {
-			case websocket.TextMessage:
+			if read.Type == websocket.TextMessage {
 				multiStreamData := MultiStreamData{}
 				err = common.JSONDecode(read.Raw, &multiStreamData)
 				if err != nil {
@@ -230,7 +229,8 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				if strings.Contains(multiStreamData.Stream, "trade") {
+				switch multiStreamData.Stream {
+				case "trade":
 					trade := TradeStream{}
 
 					err := common.JSONDecode(multiStreamData.Data, &trade)
@@ -264,8 +264,7 @@ func (b *Binance) WsHandleData() {
 						Side:         trade.EventType,
 					}
 					continue
-
-				} else if strings.Contains(multiStreamData.Stream, "ticker") {
+				case "ticker":
 					t := TickerStream{}
 
 					err := common.JSONDecode(multiStreamData.Data, &t)
@@ -289,8 +288,7 @@ func (b *Binance) WsHandleData() {
 
 					b.Websocket.DataHandler <- wsTicker
 					continue
-
-				} else if strings.Contains(multiStreamData.Stream, "kline") {
+				case "kline":
 					kline := KlineStream{}
 
 					err := common.JSONDecode(multiStreamData.Data, &kline)
@@ -317,8 +315,7 @@ func (b *Binance) WsHandleData() {
 
 					b.Websocket.DataHandler <- wsKline
 					continue
-
-				} else if common.StringContains(multiStreamData.Stream, "depth") {
+				case "depth":
 					depth := WebsocketDepthStream{}
 
 					err := common.JSONDecode(multiStreamData.Data, &depth)

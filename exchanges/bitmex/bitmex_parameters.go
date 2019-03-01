@@ -86,7 +86,7 @@ func StructValsToURLVals(v interface{}) (url.Values, error) {
 
 // APIKeyParams contains all the parameters to send to the API endpoint
 type APIKeyParams struct {
-	//API Key ID (public component).
+	// API Key ID (public component).
 	APIKeyID string `json:"apiKeyID,omitempty"`
 }
 
@@ -160,7 +160,7 @@ type ChatSendParams struct {
 // VerifyData verifies outgoing data sets
 func (p ChatSendParams) VerifyData() error {
 	if p.ChannelID == 0 || p.Message == "" {
-		return errors.New("ChatSendParams error params not correctly set")
+		return errors.New("chatSendParams error params not correctly set")
 	}
 	return nil
 }
@@ -287,7 +287,7 @@ type OrderNewParams struct {
 	// are specified.
 	OrdType string `json:"ordType,omitempty"`
 
-	//OrderQty Order quantity in units of the instrument (i.e. contracts).
+	// OrderQty Order quantity in units of the instrument (i.e. contracts).
 	OrderQty float64 `json:"orderQty,omitempty"`
 
 	// PegOffsetValue - [Optional] trailing offset from the current price for

@@ -117,13 +117,14 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountInfo.Balance {
 		for z, w := range accountInfo.Locked {
-			if z == x {
-				var exchangeCurrency exchange.AccountCurrencyInfo
-				exchangeCurrency.CurrencyName = common.StringToUpper(x)
-				exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
-				exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
-				currencies = append(currencies, exchangeCurrency)
+			if z != x {
+				continue
 			}
+			var exchangeCurrency exchange.AccountCurrencyInfo
+			exchangeCurrency.CurrencyName = common.StringToUpper(x)
+			exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
+			exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
+			currencies = append(currencies, exchangeCurrency)
 		}
 	}
 
@@ -227,7 +228,7 @@ func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) 
 // submitted
 func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	if withdrawRequest.Currency.String() != symbol.BTC {
-		return "", errors.New("Only BTC supported for withdrawals")
+		return "", errors.New("only BTC is supported for withdrawals")
 	}
 
 	resp, err := l.CreateWithdraw(withdrawRequest.Amount, withdrawRequest.Description)

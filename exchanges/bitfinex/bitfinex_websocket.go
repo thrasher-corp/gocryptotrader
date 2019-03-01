@@ -54,10 +54,10 @@ var pongReceive chan struct{}
 
 // WsPingHandler sends a ping request to the websocket server
 func (b *Bitfinex) WsPingHandler() error {
-	request := make(map[string]string)
-	request["event"] = "ping"
+	req := make(map[string]string)
+	req["event"] = "ping"
 
-	return b.WsSend(request)
+	return b.WsSend(req)
 }
 
 // WsSend sends data to the websocket server
@@ -71,42 +71,42 @@ func (b *Bitfinex) WsSend(data interface{}) error {
 
 // WsSubscribe subscribes to the websocket channel
 func (b *Bitfinex) WsSubscribe(channel string, params map[string]string) error {
-	request := make(map[string]string)
-	request["event"] = "subscribe"
-	request["channel"] = channel
+	req := make(map[string]string)
+	req["event"] = "subscribe"
+	req["channel"] = channel
 
 	if len(params) > 0 {
 		for k, v := range params {
-			request[k] = v
+			req[k] = v
 		}
 	}
-	return b.WsSend(request)
+	return b.WsSend(req)
 }
 
 // WsSendAuth sends a autheticated event payload
 func (b *Bitfinex) WsSendAuth() error {
-	request := make(map[string]interface{})
+	req := make(map[string]interface{})
 	payload := "AUTH" + strconv.FormatInt(time.Now().UnixNano(), 10)[:13]
-	request["event"] = "auth"
-	request["apiKey"] = b.APIKey
+	req["event"] = "auth"
+	req["apiKey"] = b.APIKey
 
-	request["authSig"] = common.HexEncodeToString(
+	req["authSig"] = common.HexEncodeToString(
 		common.GetHMAC(
 			common.HashSHA512_384,
 			[]byte(payload),
 			[]byte(b.APISecret)))
 
-	request["authPayload"] = payload
+	req["authPayload"] = payload
 
-	return b.WsSend(request)
+	return b.WsSend(req)
 }
 
 // WsSendUnauth sends an unauthenticated payload
 func (b *Bitfinex) WsSendUnauth() error {
-	request := make(map[string]string)
-	request["event"] = "unauth"
+	req := make(map[string]string)
+	req["event"] = "unauth"
 
-	return b.WsSend(request)
+	return b.WsSend(req)
 }
 
 // WsAddSubscriptionChannel adds a new subscription channel to the
@@ -145,12 +145,12 @@ func (b *Bitfinex) WsConnect() error {
 
 	b.WebsocketConn, _, err = Dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
 	if err != nil {
-		return fmt.Errorf("Unable to connect to Websocket. Error: %s", err)
+		return fmt.Errorf("unable to connect to Websocket. Error: %s", err)
 	}
 
 	_, resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("Unable to read from Websocket. Error: %s", err)
+		return fmt.Errorf("unable to read from Websocket. Error: %s", err)
 	}
 
 	var hs WebsocketHandshake
@@ -234,8 +234,7 @@ func (b *Bitfinex) WsDataHandler() {
 				return
 			}
 
-			switch stream.Type {
-			case websocket.TextMessage:
+			if stream.Type == websocket.TextMessage {
 				var result interface{}
 				common.JSONDecode(stream.Raw, &result)
 
@@ -482,7 +481,7 @@ func (b *Bitfinex) WsDataHandler() {
 								newAmount := trades[0].Amount
 								if newAmount < 0 {
 									side = "SELL"
-									newAmount = newAmount * -1
+									newAmount *= -1
 								}
 
 								b.Websocket.DataHandler <- exchange.TradeData{

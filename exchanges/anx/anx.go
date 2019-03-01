@@ -75,7 +75,7 @@ func (a *ANX) SetDefaults() {
 	a.WebsocketInit()
 }
 
-//Setup is run on startup to setup exchange with config values
+// Setup is run on startup to setup exchange with config values
 func (a *ANX) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		a.SetEnabled(false)
@@ -129,32 +129,30 @@ func (a *ANX) GetCurrencies() (CurrenciesStore, error) {
 
 // GetTicker returns the current ticker
 func (a *ANX) GetTicker(currency string) (Ticker, error) {
-	var ticker Ticker
+	var t Ticker
 	path := fmt.Sprintf("%sapi/2/%s/%s", a.APIUrl, currency, anxTicker)
-
-	return ticker, a.SendHTTPRequest(path, &ticker)
+	return t, a.SendHTTPRequest(path, &t)
 }
 
 // GetDepth returns current orderbook depth.
 func (a *ANX) GetDepth(currency string) (Depth, error) {
 	var depth Depth
 	path := fmt.Sprintf("%sapi/2/%s/%s", a.APIUrl, currency, anxDepth)
-
 	return depth, a.SendHTTPRequest(path, &depth)
 }
 
 // GetAPIKey returns a new generated API key set.
-func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, string, error) {
-	request := make(map[string]interface{})
-	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
-	request["username"] = username
-	request["password"] = password
+func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (apiKey, apiSecret string, err error) {
+	req := make(map[string]interface{})
+	req["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+	req["username"] = username
+	req["password"] = password
 
 	if otp != "" {
-		request["otp"] = otp
+		req["otp"] = otp
 	}
 
-	request["deviceId"] = deviceID
+	req["deviceId"] = deviceID
 
 	type APIKeyResponse struct {
 		APIKey     string `json:"apiKey"`
@@ -164,21 +162,23 @@ func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, strin
 	}
 	var response APIKeyResponse
 
-	err := a.SendAuthenticatedHTTPRequest(anxAPIKey, request, &response)
+	err = a.SendAuthenticatedHTTPRequest(anxAPIKey, req, &response)
 	if err != nil {
-		return "", "", err
+		return apiKey, apiSecret, err
 	}
 
 	if response.ResultCode != "OK" {
-		return "", "", errors.New("Response code is not OK: " + response.ResultCode)
+		return apiKey, apiSecret, errors.New("Response code is not OK: " + response.ResultCode)
 	}
 
-	return response.APIKey, response.APISecret, nil
+	apiKey = response.APIKey
+	apiSecret = response.APISecret
+	return apiKey, apiSecret, err
 }
 
 // GetDataToken returns token data
 func (a *ANX) GetDataToken() (string, error) {
-	request := make(map[string]interface{})
+	req := make(map[string]interface{})
 
 	type DataTokenResponse struct {
 		ResultCode string `json:"resultCode"`
@@ -188,7 +188,7 @@ func (a *ANX) GetDataToken() (string, error) {
 	}
 	var response DataTokenResponse
 
-	err := a.SendAuthenticatedHTTPRequest(anxDataToken, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(anxDataToken, req, &response)
 	if err != nil {
 		return "", err
 	}
@@ -200,10 +200,10 @@ func (a *ANX) GetDataToken() (string, error) {
 }
 
 // NewOrder sends a new order request to the exchange.
-func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, tradedCurrencyAmount float64, settlementCurrency string, settlementCurrencyAmount float64, limitPriceSettlement float64,
+func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, tradedCurrencyAmount float64, settlementCurrency string, settlementCurrencyAmount, limitPriceSettlement float64,
 	replace bool, replaceUUID string, replaceIfActive bool) (string, error) {
 
-	request := make(map[string]interface{})
+	req := make(map[string]interface{})
 	var order Order
 	order.OrderType = orderType
 	order.BuyTradedCurrency = buy
@@ -223,7 +223,7 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 		order.ReplaceOnlyIfActive = replaceIfActive
 	}
 
-	request["order"] = order
+	req["order"] = order
 
 	type OrderResponse struct {
 		OrderID    string `json:"orderId"`
@@ -232,7 +232,7 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 	}
 	var response OrderResponse
 
-	err := a.SendAuthenticatedHTTPRequest(anxOrderNew, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(anxOrderNew, req, &response)
 	if err != nil {
 		return "", err
 	}
@@ -246,11 +246,11 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 // CancelOrderByIDs cancels orders, requires already knowing order IDs
 // There is no existing API call to retrieve orderIds
 func (a *ANX) CancelOrderByIDs(orderIds []string) (OrderCancelResponse, error) {
-	request := make(map[string]interface{})
-	request["orderIds"] = orderIds
+	req := make(map[string]interface{})
+	req["orderIds"] = orderIds
 	var response OrderCancelResponse
 
-	err := a.SendAuthenticatedHTTPRequest(anxOrderCancel, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(anxOrderCancel, req, &response)
 	if response.ResultCode != "OK" {
 		return response, errors.New(response.ResultCode)
 	}
@@ -260,8 +260,8 @@ func (a *ANX) CancelOrderByIDs(orderIds []string) (OrderCancelResponse, error) {
 
 // GetOrderList retrieves orders from the exchange
 func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
-	request := make(map[string]interface{})
-	request["activeOnly"] = isActiveOrdersOnly
+	req := make(map[string]interface{})
+	req["activeOnly"] = isActiveOrdersOnly
 
 	type OrderListResponse struct {
 		Timestamp      int64           `json:"timestamp"`
@@ -270,7 +270,7 @@ func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
 		OrderResponses []OrderResponse `json:"orders"`
 	}
 	var response OrderListResponse
-	err := a.SendAuthenticatedHTTPRequest(anxOrderList, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(anxOrderList, req, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -285,8 +285,8 @@ func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
 
 // OrderInfo returns information about a specific order
 func (a *ANX) OrderInfo(orderID string) (OrderResponse, error) {
-	request := make(map[string]interface{})
-	request["orderId"] = orderID
+	req := make(map[string]interface{})
+	req["orderId"] = orderID
 
 	type OrderInfoResponse struct {
 		Order      OrderResponse `json:"order"`
@@ -295,7 +295,7 @@ func (a *ANX) OrderInfo(orderID string) (OrderResponse, error) {
 	}
 	var response OrderInfoResponse
 
-	err := a.SendAuthenticatedHTTPRequest(anxOrderInfo, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(anxOrderInfo, req, &response)
 
 	if err != nil {
 		return OrderResponse{}, err
@@ -310,13 +310,13 @@ func (a *ANX) OrderInfo(orderID string) (OrderResponse, error) {
 
 // Send withdraws a currency to an address
 func (a *ANX) Send(currency, address, otp, amount string) (string, error) {
-	request := make(map[string]interface{})
-	request["ccy"] = currency
-	request["amount"] = amount
-	request["address"] = address
+	req := make(map[string]interface{})
+	req["ccy"] = currency
+	req["amount"] = amount
+	req["address"] = address
 
 	if otp != "" {
-		request["otp"] = otp
+		req["otp"] = otp
 	}
 
 	type SendResponse struct {
@@ -326,7 +326,7 @@ func (a *ANX) Send(currency, address, otp, amount string) (string, error) {
 	}
 	var response SendResponse
 
-	err := a.SendAuthenticatedHTTPRequest(anxSend, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(anxSend, req, &response)
 
 	if err != nil {
 		return "", err
@@ -341,9 +341,9 @@ func (a *ANX) Send(currency, address, otp, amount string) (string, error) {
 
 // CreateNewSubAccount generates a new sub account
 func (a *ANX) CreateNewSubAccount(currency, name string) (string, error) {
-	request := make(map[string]interface{})
-	request["ccy"] = currency
-	request["customRef"] = name
+	req := make(map[string]interface{})
+	req["ccy"] = currency
+	req["customRef"] = name
 
 	type SubaccountResponse struct {
 		SubAccount string `json:"subAccount"`
@@ -352,7 +352,7 @@ func (a *ANX) CreateNewSubAccount(currency, name string) (string, error) {
 	}
 	var response SubaccountResponse
 
-	err := a.SendAuthenticatedHTTPRequest(anxSubaccountNew, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(anxSubaccountNew, req, &response)
 
 	if err != nil {
 		return "", err
@@ -366,12 +366,12 @@ func (a *ANX) CreateNewSubAccount(currency, name string) (string, error) {
 }
 
 // GetDepositAddressByCurrency returns a deposit address for a specific currency
-func (a *ANX) GetDepositAddressByCurrency(currency, name string, new bool) (string, error) {
-	request := make(map[string]interface{})
-	request["ccy"] = currency
+func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (string, error) {
+	req := make(map[string]interface{})
+	req["ccy"] = currency
 
 	if name != "" {
-		request["subAccount"] = name
+		req["subAccount"] = name
 	}
 
 	type AddressResponse struct {
@@ -383,11 +383,11 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, new bool) (stri
 	var response AddressResponse
 
 	path := anxReceieveAddress
-	if new {
+	if newAddr {
 		path = anxCreateAddress
 	}
 
-	err := a.SendAuthenticatedHTTPRequest(path, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(path, req, &response)
 	if err != nil {
 		return "", err
 	}
@@ -417,17 +417,17 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		a.Nonce.Inc()
 	}
 
-	request := make(map[string]interface{})
-	request["nonce"] = a.Nonce.String()[0:13]
+	req := make(map[string]interface{})
+	req["nonce"] = a.Nonce.String()[0:13]
 	path = fmt.Sprintf("api/%s/%s", anxAPIVersion, path)
 
 	for key, value := range params {
-		request[key] = value
+		req[key] = value
 	}
 
-	PayloadJSON, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(req)
 	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+		return errors.New("unable to JSON request")
 	}
 
 	if a.Verbose {
@@ -483,7 +483,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	if currency == symbol.HKD {
 		fee = 250 + (WithdrawalFees[currency] * amount)
 	}
-	//TODO, other fiat currencies require consultation with ANXPRO
+	// TODO, other fiat currencies require consultation with ANXPRO
 	return fee
 }
 

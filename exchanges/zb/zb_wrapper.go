@@ -340,7 +340,7 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
-		return nil, errors.New("Specific order side is required")
+		return nil, errors.New("specific order side is required")
 	}
 
 	var allOrders []Order

@@ -284,8 +284,8 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if len(getOrdersRequest.Currencies) <= 0 {
-		return nil, errors.New("Currency must be supplied")
+	if len(getOrdersRequest.Currencies) == 0 {
+		return nil, errors.New("currency must be supplied")
 	}
 
 	var trades []TradeHistory

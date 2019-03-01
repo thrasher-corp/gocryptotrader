@@ -59,12 +59,12 @@ type Slack struct {
 
 // Setup takes in a slack configuration, sets bots target channel and
 // sets verification token to access workspace
-func (s *Slack) Setup(config config.CommunicationsConfig) {
-	s.Name = config.SlackConfig.Name
-	s.Enabled = config.SlackConfig.Enabled
-	s.Verbose = config.SlackConfig.Verbose
-	s.TargetChannel = config.SlackConfig.TargetChannel
-	s.VerificationToken = config.SlackConfig.VerificationToken
+func (s *Slack) Setup(cfg *config.CommunicationsConfig) {
+	s.Name = cfg.SlackConfig.Name
+	s.Enabled = cfg.SlackConfig.Enabled
+	s.Verbose = cfg.SlackConfig.Verbose
+	s.TargetChannel = cfg.SlackConfig.TargetChannel
+	s.VerificationToken = cfg.SlackConfig.VerificationToken
 }
 
 // Connect connects to the service
@@ -92,9 +92,9 @@ func (s *Slack) GetChannelsString() []string {
 }
 
 // GetUsernameByID returns a users name by ID
-func (s *Slack) GetUsernameByID(ID string) string {
+func (s *Slack) GetUsernameByID(id string) string {
 	for i := range s.Details.Users {
-		if s.Details.Users[i].ID == ID {
+		if s.Details.Users[i].ID == id {
 			return s.Details.Users[i].Name
 		}
 	}
@@ -117,7 +117,7 @@ func (s *Slack) GetGroupIDByName(group string) (string, error) {
 			return s.Details.Groups[i].ID, nil
 		}
 	}
-	return "", errors.New("Channel not found")
+	return "", errors.New("channel not found")
 }
 
 // GetChannelIDByName returns a channel ID by its corresponding name
@@ -127,7 +127,7 @@ func (s *Slack) GetChannelIDByName(channel string) (string, error) {
 			return s.Details.Channels[i].ID, nil
 		}
 	}
-	return "", errors.New("Channel not found")
+	return "", errors.New("channel not found")
 }
 
 // GetUsersInGroup returns a list of users currently in a group
@@ -263,7 +263,7 @@ func (s *Slack) handlePresenceChange(resp []byte) error {
 
 func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error {
 	if data.ReplyTo != 0 {
-		return fmt.Errorf("ReplyTo != 0")
+		return errors.New("reply to is != 0")
 	}
 	var msg Message
 	err := common.JSONDecode(resp, &msg)
@@ -276,7 +276,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 			msg.User, msg.Text)
 	}
 	if string(msg.Text[0]) == "!" {
-		return s.HandleMessage(msg)
+		return s.HandleMessage(&msg)
 	}
 	return nil
 }
@@ -287,7 +287,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 		}
 
 		if s.WebsocketConn == nil {
-			return errors.New("Websocket connection is nil")
+			return errors.New("websocket connection is nil")
 		}
 
 		if err := s.WebsocketConn.Close(); err != nil {
@@ -298,7 +298,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 		s.Connected = false
 		return s.NewConnection()
 	}
-	return fmt.Errorf("Unknown error '%s'", data.Error.Msg)
+	return fmt.Errorf("unknown error '%s'", data.Error.Msg)
 }
 
 func (s *Slack) handleHelloResponse() {
@@ -352,13 +352,17 @@ func (s *Slack) WebsocketSend(eventType, text string) error {
 		return err
 	}
 	if s.WebsocketConn == nil {
-		return errors.New("Websocket not connected")
+		return errors.New("websocket not connected")
 	}
 	return s.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
 // HandleMessage handles incoming messages and/or commands from slack
-func (s *Slack) HandleMessage(msg Message) error {
+func (s *Slack) HandleMessage(msg *Message) error {
+	if msg == nil {
+		return errors.New("msg is nil")
+	}
+
 	msg.Text = common.StringToLower(msg.Text)
 	switch {
 	case common.StringContains(msg.Text, cmdStatus):

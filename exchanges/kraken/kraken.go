@@ -175,7 +175,7 @@ func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
 
 // GetTicker returns ticker information from kraken
 func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
-	ticker := Ticker{}
+	tick := Ticker{}
 	values := url.Values{}
 	values.Set("pair", symbol)
 
@@ -189,25 +189,25 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 
 	err := k.SendHTTPRequest(path, &resp)
 	if err != nil {
-		return ticker, err
+		return tick, err
 	}
 
 	if len(resp.Error) > 0 {
-		return ticker, fmt.Errorf("Kraken error: %s", resp.Error)
+		return tick, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
 	for _, y := range resp.Data {
-		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
-		ticker.Trades = y.Trades[1]
-		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
-		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
+		tick.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
+		tick.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
+		tick.Last, _ = strconv.ParseFloat(y.Last[0], 64)
+		tick.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
+		tick.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
+		tick.Trades = y.Trades[1]
+		tick.Low, _ = strconv.ParseFloat(y.Low[1], 64)
+		tick.High, _ = strconv.ParseFloat(y.High[1], 64)
+		tick.Open, _ = strconv.ParseFloat(y.Open, 64)
 	}
-	return ticker, nil
+	return tick, nil
 }
 
 // GetTickers supports fetching multiple tickers from Kraken
@@ -231,23 +231,23 @@ func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
 	}
 
 	if len(resp.Error) > 0 {
-		return nil, fmt.Errorf("Kraken error: %s", resp.Error)
+		return nil, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
 	tickers := make(Tickers)
 
 	for x, y := range resp.Data {
-		ticker := Ticker{}
-		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
-		ticker.Trades = y.Trades[1]
-		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
-		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
-		tickers[x] = ticker
+		tick := Ticker{}
+		tick.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
+		tick.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
+		tick.Last, _ = strconv.ParseFloat(y.Last[0], 64)
+		tick.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
+		tick.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
+		tick.Trades = y.Trades[1]
+		tick.Low, _ = strconv.ParseFloat(y.Low[1], 64)
+		tick.High, _ = strconv.ParseFloat(y.High[1], 64)
+		tick.Open, _ = strconv.ParseFloat(y.Open, 64)
+		tickers[x] = tick
 	}
 	return tickers, nil
 }
@@ -273,7 +273,7 @@ func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
 	}
 
 	if len(result.Error) != 0 {
-		return OHLC, fmt.Errorf("GetOHLC error: %s", result.Error)
+		return OHLC, fmt.Errorf("getOHLC error: %s", result.Error)
 	}
 
 	for _, y := range result.Data[symbol].([]interface{}) {
@@ -514,11 +514,11 @@ func (k *Kraken) GetTradeBalance(args ...TradeBalanceOptions) (TradeBalanceInfo,
 	params := url.Values{}
 
 	if args != nil {
-		if len(args[0].Aclass) != 0 {
+		if len(args[0].Aclass) > 0 {
 			params.Set("aclass", args[0].Aclass)
 		}
 
-		if len(args[0].Asset) != 0 {
+		if len(args[0].Asset) > 0 {
 			params.Set("asset", args[0].Asset)
 		}
 
@@ -572,19 +572,19 @@ func (k *Kraken) GetClosedOrders(args GetClosedOrdersOptions) (ClosedOrders, err
 		params.Set("userref", strconv.FormatInt(int64(args.UserRef), 10))
 	}
 
-	if len(args.Start) != 0 {
+	if len(args.Start) > 0 {
 		params.Set("start", args.Start)
 	}
 
-	if len(args.End) != 0 {
+	if len(args.End) > 0 {
 		params.Set("end", args.End)
 	}
 
-	if args.Ofs != 0 {
+	if args.Ofs > 0 {
 		params.Set("ofs", strconv.FormatInt(args.Ofs, 10))
 	}
 
-	if len(args.CloseTime) != 0 {
+	if len(args.CloseTime) > 0 {
 		params.Set("closetime", args.CloseTime)
 	}
 
@@ -635,7 +635,7 @@ func (k *Kraken) GetTradesHistory(args ...GetTradesHistoryOptions) (TradesHistor
 	params := url.Values{}
 
 	if args != nil {
-		if len(args[0].Type) != 0 {
+		if len(args[0].Type) > 0 {
 			params.Set("type", args[0].Type)
 		}
 
@@ -643,15 +643,15 @@ func (k *Kraken) GetTradesHistory(args ...GetTradesHistoryOptions) (TradesHistor
 			params.Set("trades", "true")
 		}
 
-		if len(args[0].Start) != 0 {
+		if len(args[0].Start) > 0 {
 			params.Set("start", args[0].Start)
 		}
 
-		if len(args[0].End) != 0 {
+		if len(args[0].End) > 0 {
 			params.Set("end", args[0].End)
 		}
 
-		if args[0].Ofs != 0 {
+		if args[0].Ofs > 0 {
 			params.Set("ofs", strconv.FormatInt(args[0].Ofs, 10))
 		}
 	}
@@ -723,23 +723,23 @@ func (k *Kraken) GetLedgers(args ...GetLedgersOptions) (Ledgers, error) {
 	params := url.Values{}
 
 	if args != nil {
-		if len(args[0].Aclass) != 0 {
+		if args[0].Aclass == "" {
 			params.Set("aclass", args[0].Aclass)
 		}
 
-		if len(args[0].Asset) != 0 {
+		if args[0].Asset == "" {
 			params.Set("asset", args[0].Asset)
 		}
 
-		if len(args[0].Type) != 0 {
+		if args[0].Type == "" {
 			params.Set("type", args[0].Type)
 		}
 
-		if len(args[0].Start) != 0 {
+		if args[0].Start == "" {
 			params.Set("start", args[0].Start)
 		}
 
-		if len(args[0].End) != 0 {
+		if args[0].End == "" {
 			params.Set("end", args[0].End)
 		}
 
@@ -827,19 +827,19 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	}
 
-	if len(args.Oflags) != 0 {
+	if args.Oflags == "" {
 		params.Set("oflags", args.Oflags)
 	}
 
-	if len(args.StartTm) != 0 {
+	if args.StartTm == "" {
 		params.Set("starttm", args.StartTm)
 	}
 
-	if len(args.ExpireTm) != 0 {
+	if args.ExpireTm == "" {
 		params.Set("expiretm", args.ExpireTm)
 	}
 
-	if len(args.CloseOrderType) != 0 {
+	if args.CloseOrderType != "" {
 		params.Set("close[ordertype]", args.ExpireTm)
 	}
 
@@ -890,14 +890,14 @@ func (k *Kraken) CancelExistingOrder(txid string) (CancelOrderResponse, error) {
 //   error = array of error messages in the format of:
 //       <char-severity code><string-error category>:<string-error type>[:<string-extra info>]
 //       severity code can be E for error or W for warning
-func GetError(errors []string) error {
-
-	for _, e := range errors {
+func GetError(apiErrors []string) error {
+	const exchangeName = "Kraken"
+	for _, e := range apiErrors {
 		switch e[0] {
 		case 'W':
-			log.Warnf("Kraken API warning: %v\n", e[1:])
+			log.Warnf("%s API warning: %v\n", exchangeName, e[1:])
 		default:
-			return fmt.Errorf("Kraken API error: %v", e[1:])
+			return fmt.Errorf("%s API error: %v", exchangeName, e[1:])
 		}
 	}
 
@@ -969,8 +969,7 @@ func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		}
 
 		for _, i := range depositMethods {
-			switch feeBuilder.BankTransactionType {
-			case exchange.WireTransfer:
+			if feeBuilder.BankTransactionType == exchange.WireTransfer {
 				if i.Method == "SynapsePay (US Wire)" {
 					fee = i.Fee
 					return fee, nil
@@ -1034,7 +1033,7 @@ func (k *Kraken) WithdrawStatus(currency, method string) ([]WithdrawStatusRespon
 
 	params := url.Values{}
 	params.Set("asset ", currency)
-	if len(method) != 0 {
+	if method != "" {
 		params.Set("method", method)
 	}
 

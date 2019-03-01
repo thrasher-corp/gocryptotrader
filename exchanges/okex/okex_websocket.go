@@ -61,8 +61,8 @@ func (o *OKEX) WsConnect() error {
 
 	err = o.WsSubscribe()
 	if err != nil {
-		return fmt.Errorf("Error: Could not subscribe to the OKEX websocket %s",
-			err)
+		return fmt.Errorf("%s could not subscribe to websocket %s",
+			o.Name, err)
 	}
 
 	return nil
@@ -90,17 +90,11 @@ func (o *OKEX) WsSubscribe() error {
 
 		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
 			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_ticker'}",
-				symbolRedone))
-
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
+				symbolRedone),
 			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_depth'}",
-				symbolRedone))
-
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
+				symbolRedone),
 			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_deals'}",
-				symbolRedone))
-
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
+				symbolRedone),
 			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_kline_1min'}",
 				symbolRedone))
 	}
@@ -221,7 +215,8 @@ func (o *OKEX) WsHandleData() {
 					assetType = currencyPairSlice[2]
 				}
 
-				if strings.Contains(multiStreamData.Channel, "ticker") {
+				switch multiStreamData.Channel {
+				case "ticker":
 					var ticker TickerStreamData
 
 					err = common.JSONDecode(multiStreamData.Data, &ticker)
@@ -235,8 +230,7 @@ func (o *OKEX) WsHandleData() {
 						Exchange:  o.GetName(),
 						AssetType: assetType,
 					}
-
-				} else if strings.Contains(multiStreamData.Channel, "deals") {
+				case "deals":
 					var deals DealsStreamData
 
 					err = common.JSONDecode(multiStreamData.Data, &deals)
@@ -248,10 +242,10 @@ func (o *OKEX) WsHandleData() {
 					for _, trade := range deals {
 						price, _ := strconv.ParseFloat(trade[1], 64)
 						amount, _ := strconv.ParseFloat(trade[2], 64)
-						time, _ := time.Parse(time.RFC3339, trade[3])
+						tradeTime, _ := time.Parse(time.RFC3339, trade[3])
 
 						o.Websocket.DataHandler <- exchange.TradeData{
-							Timestamp:    time,
+							Timestamp:    tradeTime,
 							Exchange:     o.GetName(),
 							AssetType:    assetType,
 							CurrencyPair: pair.NewCurrencyPairFromString(newPair),
@@ -260,8 +254,7 @@ func (o *OKEX) WsHandleData() {
 							EventType:    trade[4],
 						}
 					}
-
-				} else if strings.Contains(multiStreamData.Channel, "kline") {
+				case "kline":
 					var klines KlineStreamData
 
 					err := common.JSONDecode(multiStreamData.Data, &klines)
@@ -275,7 +268,7 @@ func (o *OKEX) WsHandleData() {
 						open, _ := strconv.ParseFloat(kline[1], 64)
 						high, _ := strconv.ParseFloat(kline[2], 64)
 						low, _ := strconv.ParseFloat(kline[3], 64)
-						close, _ := strconv.ParseFloat(kline[4], 64)
+						klineClose, _ := strconv.ParseFloat(kline[4], 64)
 						volume, _ := strconv.ParseFloat(kline[5], 64)
 
 						o.Websocket.DataHandler <- exchange.KlineData{
@@ -286,12 +279,11 @@ func (o *OKEX) WsHandleData() {
 							OpenPrice:  open,
 							HighPrice:  high,
 							LowPrice:   low,
-							ClosePrice: close,
+							ClosePrice: klineClose,
 							Volume:     volume,
 						}
 					}
-
-				} else if strings.Contains(multiStreamData.Channel, "depth") {
+				case "depth":
 					var depth DepthStreamData
 
 					err := common.JSONDecode(multiStreamData.Data, &depth)

@@ -8,7 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -133,7 +133,7 @@ func (a *Alphapoint) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, o
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *Alphapoint) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (a *Alphapoint) ModifyOrder(_ exchange.ModifyOrder) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

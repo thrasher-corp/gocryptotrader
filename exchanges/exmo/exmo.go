@@ -119,9 +119,9 @@ func (e *EXMO) GetTrades(symbol string) (map[string][]Trades, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string][]Trades)
-	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoTrades)
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoTrades)
 
-	return result, e.SendHTTPRequest(common.EncodeURLValues(url, v), &result)
+	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
 // GetOrderbook returns the orderbook for a symbol or symbols
@@ -129,9 +129,9 @@ func (e *EXMO) GetOrderbook(symbol string) (map[string]Orderbook, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string]Orderbook)
-	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoOrderbook)
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoOrderbook)
 
-	return result, e.SendHTTPRequest(common.EncodeURLValues(url, v), &result)
+	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
 // GetTicker returns the ticker for a symbol or symbols
@@ -139,25 +139,24 @@ func (e *EXMO) GetTicker(symbol string) (map[string]Ticker, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string]Ticker)
-	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoTicker)
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoTicker)
 
-	return result, e.SendHTTPRequest(common.EncodeURLValues(url, v), &result)
+	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
 // GetPairSettings returns the pair settings for a symbol or symbols
 func (e *EXMO) GetPairSettings() (map[string]PairSettings, error) {
 	result := make(map[string]PairSettings)
-	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoPairSettings)
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoPairSettings)
 
-	return result, e.SendHTTPRequest(url, &result)
+	return result, e.SendHTTPRequest(urlPath, &result)
 }
 
 // GetCurrency returns a list of currencies
 func (e *EXMO) GetCurrency() ([]string, error) {
 	result := []string{}
-	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoCurrency)
-
-	return result, e.SendHTTPRequest(url, &result)
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoCurrency)
+	return result, e.SendHTTPRequest(urlPath, &result)
 }
 
 // GetUserInfo returns the user info
@@ -445,11 +444,12 @@ func getInternationalBankWithdrawalFee(currency string, amount float64, bankTran
 
 	switch bankTransactionType {
 	case exchange.WireTransfer:
-		if currency == symbol.RUB {
+		switch currency {
+		case symbol.RUB:
 			fee = 3200
-		} else if currency == symbol.PLN {
+		case symbol.PLN:
 			fee = 125
-		} else if currency == symbol.TRY {
+		case symbol.TRY:
 			fee = 0
 		}
 	case exchange.PerfectMoney:
@@ -513,11 +513,12 @@ func getInternationalBankDepositFee(currency string, amount float64, bankTransac
 	var fee float64
 	switch bankTransactionType {
 	case exchange.WireTransfer:
-		if currency == symbol.RUB {
+		switch currency {
+		case symbol.RUB:
 			fee = 1600
-		} else if currency == symbol.PLN {
+		case symbol.PLN:
 			fee = 30
-		} else if currency == symbol.TRY {
+		case symbol.TRY:
 			fee = 0
 		}
 	case exchange.Neteller:

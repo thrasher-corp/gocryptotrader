@@ -368,20 +368,22 @@ func (r *Requester) worker() {
 				time.Sleep(diff)
 
 				for {
-					if !r.IsRateLimited(x.AuthRequest) {
-						r.IncrementRequests(x.AuthRequest)
-
-						if x.Verbose {
-							log.Debugf("%s request. No longer rate limited! Doing request", r.Name)
-						}
-
-						err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose)
-						x.JobResult <- &JobResult{
-							Error:  err,
-							Result: x.Result,
-						}
-						break
+					if r.IsRateLimited(x.AuthRequest) {
+						time.Sleep(time.Millisecond)
+						continue
 					}
+					r.IncrementRequests(x.AuthRequest)
+
+					if x.Verbose {
+						log.Debugf("%s request. No longer rate limited! Doing request", r.Name)
+					}
+
+					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose)
+					x.JobResult <- &JobResult{
+						Error:  err,
+						Result: x.Result,
+					}
+					break
 				}
 			}
 		}
@@ -456,7 +458,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 // SetProxy sets a proxy address to the client transport
 func (r *Requester) SetProxy(p *url.URL) error {
 	if p.String() == "" {
-		return errors.New("No proxy URL supplied")
+		return errors.New("no proxy URL supplied")
 	}
 
 	r.HTTPClient.Transport = &http.Transport{

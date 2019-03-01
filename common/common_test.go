@@ -2,7 +2,6 @@ package common
 
 import (
 	"bytes"
-	"fmt"
 	"net/url"
 	"reflect"
 	"strings"
@@ -579,12 +578,12 @@ func TestSendHTTPGetRequest(t *testing.T) {
 			TotalOut int `json:"totalOut"`
 		} `json:"ETH"`
 	}
-	url := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`
+	ethURL := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`
 	result := test{}
 
 	var badresult int
 
-	err := SendHTTPGetRequest(url, true, true, &result)
+	err := SendHTTPGetRequest(ethURL, true, true, &result)
 	if err != nil {
 		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
 	}
@@ -592,7 +591,7 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	if err == nil {
 		t.Error("Test failed - common SendHTTPGetRequest error")
 	}
-	err = SendHTTPGetRequest(url, false, false, &result)
+	err = SendHTTPGetRequest(ethURL, false, false, &result)
 	if err != nil {
 		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
 	}
@@ -600,7 +599,7 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	if err == nil {
 		t.Error("Test failed = common SendHTTPGetRequest error: Ignored unexpected status code")
 	}
-	err = SendHTTPGetRequest(url, true, false, &badresult)
+	err = SendHTTPGetRequest(ethURL, true, false, &badresult)
 	if err == nil {
 		t.Error("Test failed - common SendHTTPGetRequest error: Unmarshalled into bad type")
 	}
@@ -663,11 +662,8 @@ func TestJSONDecode(t *testing.T) {
 
 func TestEncodeURLValues(t *testing.T) {
 	urlstring := "https://www.test.com"
-	expectedOutput := `https://www.test.com?env=TEST%2FDATABASE&format=json&q=SELECT+%2A+from+yahoo.finance.xchange+WHERE+pair+in+%28%22BTC%2CUSD%22%29`
+	expectedOutput := `https://www.test.com?env=TEST%2FDATABASE&format=json`
 	values := url.Values{}
-	values.Set("q", fmt.Sprintf(
-		"SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", "BTC,USD"),
-	)
 	values.Set("format", "json")
 	values.Set("env", "TEST/DATABASE")
 
@@ -718,8 +714,7 @@ func TestOutputCSV(t *testing.T) {
 	data := [][]string{}
 	rowOne := []string{"Appended", "to", "two", "dimensional", "array"}
 	rowTwo := []string{"Appended", "to", "two", "dimensional", "array", "two"}
-	data = append(data, rowOne)
-	data = append(data, rowTwo)
+	data = append(data, rowOne, rowTwo)
 
 	err := OutputCSV(path, data)
 	if err != nil {

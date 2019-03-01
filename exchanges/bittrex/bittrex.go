@@ -159,19 +159,19 @@ func (b *Bittrex) GetCurrencies() (Currency, error) {
 // GetTicker sends a public get request and returns current ticker information
 // on the supplied currency. Example currency input param "btc-ltc".
 func (b *Bittrex) GetTicker(currencyPair string) (Ticker, error) {
-	ticker := Ticker{}
+	tick := Ticker{}
 	path := fmt.Sprintf("%s/%s?market=%s", b.APIUrl, bittrexAPIGetTicker,
 		common.StringToUpper(currencyPair),
 	)
 
-	if err := b.SendHTTPRequest(path, &ticker); err != nil {
-		return ticker, err
+	if err := b.SendHTTPRequest(path, &tick); err != nil {
+		return tick, err
 	}
 
-	if !ticker.Success {
-		return ticker, errors.New(ticker.Message)
+	if !tick.Success {
+		return tick, errors.New(tick.Message)
 	}
-	return ticker, nil
+	return tick, nil
 }
 
 // GetMarketSummaries is used to get the last 24 hour summary of all active
@@ -553,8 +553,7 @@ func (b *Bittrex) GetWithdrawalFee(currency string) (float64, error) {
 }
 
 // calculateTradingFee returns the fee for trading any currency on Bittrex
-func calculateTradingFee(purchasePrice float64, amount float64) float64 {
+func calculateTradingFee(purchasePrice, amount float64) float64 {
 	var fee = 0.0025
-
 	return fee * purchasePrice * amount
 }

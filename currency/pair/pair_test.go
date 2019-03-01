@@ -286,11 +286,9 @@ func TestNewCurrencyPairFromString(t *testing.T) {
 
 func TestContains(t *testing.T) {
 	pairOne := NewCurrencyPair("BTC", "USD")
-	pairTwo := NewCurrencyPair("LTC", "USD")
 
 	var pairs []CurrencyPair
-	pairs = append(pairs, pairOne)
-	pairs = append(pairs, pairTwo)
+	pairs = append(pairs, pairOne, NewCurrencyPair("LTC", "USD"))
 
 	if !Contains(pairs, pairOne, true) {
 		t.Errorf("Test failed. TestContains: Expected pair was not found")
@@ -315,9 +313,9 @@ func TestContainsCurrency(t *testing.T) {
 
 func TestRemovePairsByFilter(t *testing.T) {
 	var pairs []CurrencyPair
-	pairs = append(pairs, NewCurrencyPair("BTC", "USD"))
-	pairs = append(pairs, NewCurrencyPair("LTC", "USD"))
-	pairs = append(pairs, NewCurrencyPair("LTC", "USDT"))
+	pairs = append(pairs, NewCurrencyPair("BTC", "USD"),
+		NewCurrencyPair("LTC", "USD"),
+		NewCurrencyPair("LTC", "USDT"))
 
 	pairs = RemovePairsByFilter(pairs, "USDT")
 	if Contains(pairs, NewCurrencyPair("LTC", "USDT"), true) {
@@ -346,11 +344,9 @@ func TestFormatPairs(t *testing.T) {
 func TestCopyPairFormat(t *testing.T) {
 	pairOne := NewCurrencyPair("BTC", "USD")
 	pairOne.Delimiter = "-"
-	pairTwo := NewCurrencyPair("LTC", "USD")
 
 	var pairs []CurrencyPair
-	pairs = append(pairs, pairOne)
-	pairs = append(pairs, pairTwo)
+	pairs = append(pairs, pairOne, NewCurrencyPair("LTC", "USD"))
 
 	testPair := NewCurrencyPair("BTC", "USD")
 	testPair.Delimiter = "~"

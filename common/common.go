@@ -2,9 +2,9 @@ package common
 
 import (
 	"crypto/hmac"
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // nolint:gosec
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
@@ -38,11 +38,11 @@ var (
 
 	// ErrNotYetImplemented defines a common error across the code base that
 	// alerts of a function that has not been completed or tied into main code
-	ErrNotYetImplemented = errors.New("Not Yet Implemented")
+	ErrNotYetImplemented = errors.New("not yet implemented")
 
 	// ErrFunctionNotSupported defines a standardised error for an unsupported
 	// wrapper function by an API
-	ErrFunctionNotSupported = errors.New("Unsupported Wrapper Function")
+	ErrFunctionNotSupported = errors.New("unsupported wrapper function")
 )
 
 // Const declarations for common.go operations
@@ -91,9 +91,9 @@ func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
 
 // GetMD5 returns a MD5 hash of a byte array
 func GetMD5(input []byte) []byte {
-	hash := md5.New()
-	hash.Write(input)
-	return hash.Sum(nil)
+	m := md5.New() // nolint:gosec
+	m.Write(input)
+	return m.Sum(nil)
 }
 
 // GetSHA512 returns a SHA512 hash of a byte array
@@ -113,40 +113,30 @@ func GetSHA256(input []byte) []byte {
 // GetHMAC returns a keyed-hash message authentication code using the desired
 // hashtype
 func GetHMAC(hashType int, input, key []byte) []byte {
-	var hash func() hash.Hash
+	var hasher func() hash.Hash
 
 	switch hashType {
 	case HashSHA1:
-		{
-			hash = sha1.New
-		}
+		hasher = sha1.New
 	case HashSHA256:
-		{
-			hash = sha256.New
-		}
+		hasher = sha256.New
 	case HashSHA512:
-		{
-			hash = sha512.New
-		}
+		hasher = sha512.New
 	case HashSHA512_384:
-		{
-			hash = sha512.New384
-		}
+		hasher = sha512.New384
 	case HashMD5:
-		{
-			hash = md5.New
-		}
+		hasher = md5.New
 	}
 
-	hmac := hmac.New(hash, key)
-	hmac.Write(input)
-	return hmac.Sum(nil)
+	h := hmac.New(hasher, key)
+	h.Write(input)
+	return h.Sum(nil)
 }
 
 // Sha1ToHex takes a string, sha1 hashes it and return a hex string of the
 // result
 func Sha1ToHex(data string) string {
-	h := sha1.New()
+	h := sha1.New() // nolint:gosec
 	h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil))
 }
@@ -172,7 +162,7 @@ func Base64Encode(input []byte) string {
 
 // StringSliceDifference concatenates slices together based on its index and
 // returns an individual string array
-func StringSliceDifference(slice1 []string, slice2 []string) []string {
+func StringSliceDifference(slice1, slice2 []string) []string {
 	var diff []string
 	for i := 0; i < 2; i++ {
 		for _, s1 := range slice1 {
@@ -256,8 +246,8 @@ func TrimString(input, cutset string) string {
 }
 
 // ReplaceString replaces a string with another
-func ReplaceString(input, old, new string, n int) string {
-	return strings.Replace(input, old, new, n)
+func ReplaceString(input, old, newStr string, n int) string {
+	return strings.Replace(input, old, newStr, n)
 }
 
 // StringToUpper changes strings to uppercase
@@ -312,7 +302,7 @@ func IsValidCryptoAddress(address, crypto string) (bool, error) {
 	case "eth":
 		return regexp.MatchString("^0x[a-km-z0-9]{40}$", address)
 	default:
-		return false, errors.New("Invalid crypto currency")
+		return false, errors.New("invalid crypto currency")
 	}
 }
 
@@ -353,7 +343,7 @@ func CalculateNetProfit(amount, priceThen, priceNow, costs float64) float64 {
 
 // SendHTTPRequest sends a request using the http package and returns a response
 // as a string and an error
-func SendHTTPRequest(method, path string, headers map[string]string, body io.Reader) (string, error) {
+func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.Reader) (string, error) {
 	result := strings.ToUpper(method)
 
 	if result != http.MethodPost && result != http.MethodGet && result != http.MethodDelete {
@@ -362,7 +352,7 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 
 	initialiseHTTPClient()
 
-	req, err := http.NewRequest(method, path, body)
+	req, err := http.NewRequest(method, urlPath, body)
 	if err != nil {
 		return "", err
 	}
@@ -389,14 +379,14 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 // SendHTTPGetRequest sends a simple get request using a url string & JSON
 // decodes the response into a struct pointer you have supplied. Returns an error
 // on failure.
-func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface{}) error {
+func SendHTTPGetRequest(urlPath string, jsonDecode, isVerbose bool, result interface{}) error {
 	if isVerbose {
-		log.Debugf("Raw URL: %s", url)
+		log.Debugf("Raw URL: %s", urlPath)
 	}
 
 	initialiseHTTPClient()
 
-	res, err := HTTPClient.Get(url)
+	res, err := HTTPClient.Get(urlPath)
 	if err != nil {
 		return err
 	}
@@ -411,7 +401,7 @@ func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface
 	}
 
 	if isVerbose {
-		log.Debugf("Raw Resp: %s", string(contents[:]))
+		log.Debugf("Raw Resp: %s", string(contents))
 	}
 
 	defer res.Body.Close()
@@ -441,12 +431,12 @@ func JSONDecode(data []byte, to interface{}) error {
 
 // EncodeURLValues concatenates url values onto a url string and returns a
 // string
-func EncodeURLValues(url string, values url.Values) string {
-	path := url
+func EncodeURLValues(urlPath string, values url.Values) string {
+	u := urlPath
 	if len(values) > 0 {
-		path += "?" + values.Encode()
+		u += "?" + values.Encode()
 	}
-	return path
+	return u
 }
 
 // ExtractHost returns the hostname out of a string
@@ -466,16 +456,16 @@ func ExtractPort(host string) int {
 }
 
 // OutputCSV dumps data into a file as comma-separated values
-func OutputCSV(path string, data [][]string) error {
-	_, err := ReadFile(path)
+func OutputCSV(filePath string, data [][]string) error {
+	_, err := ReadFile(filePath)
 	if err != nil {
-		errTwo := WriteFile(path, nil)
+		errTwo := WriteFile(filePath, nil)
 		if errTwo != nil {
 			return errTwo
 		}
 	}
 
-	file, err := os.Create(path)
+	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
@@ -508,8 +498,8 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 }
 
 // ReadFile reads a file and returns read data as byte array.
-func ReadFile(path string) ([]byte, error) {
-	return ioutil.ReadFile(path)
+func ReadFile(file string) ([]byte, error) {
+	return ioutil.ReadFile(file)
 }
 
 // WriteFile writes selected data to a file and returns an error
@@ -570,7 +560,7 @@ func FloatFromString(raw interface{}) (float64, error) {
 	}
 	flt, err := strconv.ParseFloat(str, 64)
 	if err != nil {
-		return 0, fmt.Errorf("Could not convert value: %s Error: %s", str, err)
+		return 0, fmt.Errorf("could not convert value: %s Error: %s", str, err)
 	}
 	return flt, nil
 }

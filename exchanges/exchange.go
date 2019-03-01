@@ -21,11 +21,11 @@ import (
 )
 
 const (
-	warningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
+	warningBase64DecryptSecretKeyFailed = "exchange %s unable to base64 decode secret key.. Disabling Authenticated API support" // nolint:gosec
 	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
-	WarningAuthenticatedRequestWithoutCredentialsSet = "WARNING -- Exchange %s authenticated HTTP request called but not supported due to unset/default API keys."
+	WarningAuthenticatedRequestWithoutCredentialsSet = "exchange %s authenticated HTTP request called but not supported due to unset/default API keys"
 	// ErrExchangeNotFound is a stand for an error message
-	ErrExchangeNotFound = "Exchange not found in dataset"
+	ErrExchangeNotFound = "exchange not found in dataset"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
 )
@@ -77,7 +77,7 @@ type SubmitOrderResponse struct {
 // FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange
 type FeeBuilder struct {
 	FeeType FeeType
-	//Used for calculating crypto trading fees, deposits & withdrawals
+	// Used for calculating crypto trading fees, deposits & withdrawals
 	FirstCurrency  string
 	SecondCurrency string
 	Delimiter      string
@@ -439,7 +439,7 @@ func (e *Base) SetAutoPairDefaults() error {
 	}
 
 	if update {
-		return cfg.UpdateExchangeConfig(exch)
+		return cfg.UpdateExchangeConfig(&exch)
 	}
 	return nil
 }
@@ -470,12 +470,12 @@ func (e *Base) SetAssetTypes() error {
 		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
 		update = true
 	} else {
-		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
+		e.AssetTypes = common.SplitStrings(exch.AssetTypes, ",")
 		update = true
 	}
 
 	if update {
-		return cfg.UpdateExchangeConfig(exch)
+		return cfg.UpdateExchangeConfig(&exch)
 	}
 
 	return nil
@@ -571,7 +571,7 @@ func (e *Base) SetCurrencyPairFormat() error {
 	}
 
 	if update {
-		return cfg.UpdateExchangeConfig(exch)
+		return cfg.UpdateExchangeConfig(&exch)
 	}
 	return nil
 }
@@ -676,23 +676,23 @@ func (e *Base) IsEnabled() bool {
 }
 
 // SetAPIKeys is a method that sets the current API keys for the exchange
-func (e *Base) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode bool) {
+func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string, b64Decode bool) {
 	if !e.AuthenticatedAPISupport {
 		return
 	}
 
-	e.APIKey = APIKey
-	e.ClientID = ClientID
+	e.APIKey = apiKey
+	e.ClientID = clientID
 
 	if b64Decode {
-		result, err := common.Base64Decode(APISecret)
+		result, err := common.Base64Decode(apiSecret)
 		if err != nil {
 			e.AuthenticatedAPISupport = false
 			log.Warn(warningBase64DecryptSecretKeyFailed, e.Name)
 		}
 		e.APISecret = string(result)
 	} else {
-		e.APISecret = APISecret
+		e.APISecret = apiSecret
 	}
 }
 
@@ -723,7 +723,7 @@ func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 		e.AvailablePairs = pairsStr
 	}
 
-	return cfg.UpdateExchangeConfig(exchCfg)
+	return cfg.UpdateExchangeConfig(&exchCfg)
 }
 
 // UpdateCurrencies updates the exchange currency pairs for either enabledPairs or
@@ -779,7 +779,7 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 			exch.AvailablePairs = common.JoinStrings(products, ",")
 			e.AvailablePairs = products
 		}
-		return cfg.UpdateExchangeConfig(exch)
+		return cfg.UpdateExchangeConfig(&exch)
 	}
 	return nil
 }
@@ -860,7 +860,7 @@ func (o OrderSide) ToString() string {
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL(ec config.ExchangeConfig) error {
 	if ec.APIURL == "" || ec.APIURLSecondary == "" {
-		return errors.New("SetAPIURL error variable zero value")
+		return errors.New("empty config API URLs")
 	}
 	if ec.APIURL != config.APIURLNonDefaultMessage {
 		e.APIUrl = ec.APIURL
@@ -1039,7 +1039,7 @@ func FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Ti
 // FilterOrdersByCurrencies removes any OrderDetails that do not match the provided currency list
 // It is forgiving in that the provided currencies can match quote or base currencies
 func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair.CurrencyPair) {
-	if len(currencies) <= 0 {
+	if len(currencies) == 0 {
 		return
 	}
 

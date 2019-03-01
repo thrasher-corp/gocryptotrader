@@ -254,10 +254,11 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
-	if b.APIKey == "" || b.APISecret == "" ||
-		b.APIKey == "Key" || b.APISecret == "Secret" {
+
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
+
 	_, err := b.GetOrderStatus(1337)
 	if err == nil {
 		t.Error("Test Failed - GetOpenOrders() error")
@@ -284,10 +285,11 @@ func TestCancelAllExistingOrders(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
-	if b.APIKey == "" || b.APISecret == "" ||
-		b.APIKey == "Key" || b.APISecret == "Secret" {
+
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
+
 	_, err := b.PlaceOrder("btcusd", 0.01, 1, true, true)
 	if err == nil {
 		t.Error("Test Failed - PlaceOrder() error")
@@ -309,8 +311,8 @@ func TestGetWithdrawalRequests(t *testing.T) {
 
 func TestCryptoWithdrawal(t *testing.T) {
 	t.Parallel()
-	if b.APIKey == "" || b.APISecret == "" ||
-		b.APIKey == "Key" || b.APISecret == "Secret" {
+
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -340,14 +342,16 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 
 func TestTransferAccountBalance(t *testing.T) {
 	t.Parallel()
-	if b.APIKey == "" || b.APISecret == "" ||
-		b.APIKey == "Key" || b.APISecret == "Secret" {
+
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
+
 	_, err := b.TransferAccountBalance(1, "", "", true)
 	if err == nil {
 		t.Error("Test Failed - TransferAccountBalance() error", err)
 	}
+
 	_, err = b.TransferAccountBalance(1, "btc", "", false)
 	if err == nil {
 		t.Error("Test Failed - TransferAccountBalance() error", err)

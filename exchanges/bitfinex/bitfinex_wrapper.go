@@ -243,7 +243,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdraw
 		return "", err
 	}
 	if len(resp) == 0 {
-		return "", errors.New("No withdrawID returned. Check order status")
+		return "", errors.New("no withdrawID returned. Check order status")
 	}
 
 	return fmt.Sprintf("%v", resp[0].WithdrawalID), err
@@ -268,7 +268,7 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (
 		return "", err
 	}
 	if len(resp) == 0 {
-		return "", errors.New("No withdrawID returned. Check order status")
+		return "", errors.New("no withdrawID returned. Check order status")
 	}
 
 	var withdrawalSuccesses string
@@ -332,13 +332,14 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 			ExecutedAmount:  order.ExecutedAmount,
 		}
 
-		if order.IsLive {
+		switch {
+		case order.IsLive:
 			orderDetail.Status = string(exchange.ActiveOrderStatus)
-		} else if order.IsCancelled {
+		case order.IsCancelled:
 			orderDetail.Status = string(exchange.CancelledOrderStatus)
-		} else if order.IsHidden {
+		case order.IsHidden:
 			orderDetail.Status = string(exchange.HiddenOrderStatus)
-		} else {
+		default:
 			orderDetail.Status = string(exchange.UnknownOrderStatus)
 		}
 
@@ -391,13 +392,14 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
 		}
 
-		if order.IsLive {
+		switch {
+		case order.IsLive:
 			orderDetail.Status = string(exchange.ActiveOrderStatus)
-		} else if order.IsCancelled {
+		case order.IsCancelled:
 			orderDetail.Status = string(exchange.CancelledOrderStatus)
-		} else if order.IsHidden {
+		case order.IsHidden:
 			orderDetail.Status = string(exchange.HiddenOrderStatus)
-		} else {
+		default:
 			orderDetail.Status = string(exchange.UnknownOrderStatus)
 		}
 

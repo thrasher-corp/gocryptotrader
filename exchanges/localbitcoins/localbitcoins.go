@@ -225,8 +225,6 @@ func (l *LocalBitcoins) EditAd(_ AdEdit, adID string) error {
 	}
 
 	resp := response{}
-	//request := make(map[string]interface{})
-
 	return l.SendAuthenticatedHTTPRequest(http.MethodPost, localbitcoinsAPIAdEdit+adID+"/", nil, &resp)
 }
 

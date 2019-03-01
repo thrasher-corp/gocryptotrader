@@ -2,6 +2,7 @@ package base
 
 import (
 	"errors"
+	"fmt"
 
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -36,10 +37,10 @@ func (fxp IFXProviders) GetCurrencyData(baseCurrency, symbols string) (map[strin
 						return rates, nil
 					}
 				}
-				return nil, errors.New("ForexProvider error GetCurrencyData() failed to acquire data")
+				return nil, fmt.Errorf("forex provider %s unable to acquire rates data", fxp[x].GetName())
 			}
 			return rates, nil
 		}
 	}
-	return nil, errors.New("ForexProvider error GetCurrencyData() no providers enabled")
+	return nil, errors.New("no forex providers enabled")
 }

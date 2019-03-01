@@ -207,7 +207,7 @@ func (l *LocalBitcoins) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide
 	if adID != "" {
 		submitOrderResponse.OrderID = adID
 	} else {
-		return submitOrderResponse, errors.New("Ad placed, but not found via API")
+		return submitOrderResponse, errors.New("ad placed, but not found via API")
 	}
 
 	return submitOrderResponse, err
@@ -254,8 +254,8 @@ func (l *LocalBitcoins) GetOrderInfo(orderID int64) (exchange.OrderDetail, error
 // GetDepositAddress returns a deposit address for a specified currency
 func (l *LocalBitcoins) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	if !strings.EqualFold(symbol.BTC, cryptocurrency.String()) {
-		return "", fmt.Errorf("Localbitcoins do not have support for currency %s just bitcoin",
-			cryptocurrency.String())
+		return "", fmt.Errorf("%s does not have support for currency %s, it only supports bitcoin",
+			l.Name, cryptocurrency.String())
 	}
 
 	return l.GetWalletAddress()
@@ -368,11 +368,13 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersReque
 		}
 
 		status := ""
-		if trade.Data.ReleasedAt != "" && trade.Data.ReleasedAt != null {
+
+		switch {
+		case trade.Data.ReleasedAt != "" && trade.Data.ReleasedAt != null:
 			status = "Released"
-		} else if trade.Data.CanceledAt != "" && trade.Data.CanceledAt != null {
+		case trade.Data.CanceledAt != "" && trade.Data.CanceledAt != null:
 			status = "Cancelled"
-		} else if trade.Data.ClosedAt != "" && trade.Data.ClosedAt != null {
+		case trade.Data.ClosedAt != "" && trade.Data.ClosedAt != null:
 			status = "Closed"
 		}
 

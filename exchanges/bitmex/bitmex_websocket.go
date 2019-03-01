@@ -206,17 +206,18 @@ func (b *Bitmex) wsHandleIncomingData() {
 				if decodedResp.Success {
 					if b.Verbose {
 						if len(quickCapture) == 3 {
-							log.Debugf("Bitmex Websocket: Successfully subscribed to %s",
-								decodedResp.Subscribe)
+							log.Debugf("%s websocket: Successfully subscribed to %s",
+								b.Name, decodedResp.Subscribe)
 						} else {
-							log.Debugf("Bitmex Websocket: Successfully authenticated websocket connection")
+							log.Debugf("%s websocket: Successfully authenticated websocket connection",
+								b.Name)
 						}
 					}
 					continue
 				}
 
-				b.Websocket.DataHandler <- fmt.Errorf("Bitmex websocket error: Unable to subscribe %s",
-					decodedResp.Subscribe)
+				b.Websocket.DataHandler <- fmt.Errorf("%s websocket error: Unable to subscribe %s",
+					b.Name, decodedResp.Subscribe)
 
 			} else if _, ok := quickCapture["table"]; ok {
 				var decodedResp WebsocketMainResponse
@@ -291,8 +292,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- announcement.Data
 
 				default:
-					b.Websocket.DataHandler <- fmt.Errorf("Bitmex websocket error: Table unknown - %s",
-						decodedResp.Table)
+					b.Websocket.DataHandler <- fmt.Errorf("%s websocket error: Table unknown - %s",
+						b.Name, decodedResp.Table)
 				}
 			}
 		}
@@ -411,15 +412,11 @@ func (b *Bitmex) websocketSubscribe() error {
 	subscriber.Arguments = append(subscriber.Arguments, bitmexWSAnnouncement)
 
 	for _, contract := range contracts {
-		// Orderbook subscribe
-		subscriber.Arguments = append(subscriber.Arguments,
-			bitmexWSOrderbookL2+":"+contract.Pair().String())
-
-		// Trade subscribe
-		subscriber.Arguments = append(subscriber.Arguments,
-			bitmexWSTrade+":"+contract.Pair().String())
-
+		// Orderbook and Trade subscribe
 		// NOTE more added here in future
+		subscriber.Arguments = append(subscriber.Arguments,
+			bitmexWSOrderbookL2+":"+contract.Pair().String(),
+			bitmexWSTrade+":"+contract.Pair().String())
 	}
 
 	return b.WebsocketConn.WriteJSON(subscriber)
@@ -432,14 +429,11 @@ func (b *Bitmex) websocketSendAuth() error {
 	hmac := common.GetHMAC(common.HashSHA256,
 		[]byte("GET/realtime"+newTimestamp),
 		[]byte(b.APISecret))
-
 	signature := common.HexEncodeToString(hmac)
 
 	var sendAuth WebsocketRequest
 	sendAuth.Command = "authKeyExpires"
-	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey)
-	sendAuth.Arguments = append(sendAuth.Arguments, timestamp)
-	sendAuth.Arguments = append(sendAuth.Arguments, signature)
-
+	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
+		signature)
 	return b.WebsocketConn.WriteJSON(sendAuth)
 }

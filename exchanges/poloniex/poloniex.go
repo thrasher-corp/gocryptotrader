@@ -172,8 +172,8 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 		if err != nil {
 			return oba, err
 		}
-		if len(resp.Error) != 0 {
-			return oba, fmt.Errorf("Poloniex GetOrderbook() error: %s", resp.Error)
+		if resp.Error != "" {
+			return oba, fmt.Errorf("%s GetOrderbook() error: %s", p.Name, resp.Error)
 		}
 		ob := Orderbook{}
 		for x := range resp.Asks {
@@ -544,11 +544,11 @@ func (p *Poloniex) MoveOrder(orderID int64, rate, amount float64, postOnly, imme
 	values := url.Values{}
 
 	if orderID == 0 {
-		return result, errors.New("OrderID cannot be zero")
+		return result, errors.New("orderID cannot be zero")
 	}
 
 	if rate == 0 {
-		return result, errors.New("Rate cannot be zero")
+		return result, errors.New("rate cannot be zero")
 	}
 
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
