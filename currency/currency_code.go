@@ -51,7 +51,7 @@ func (b *BaseCodes) Register(c string) Code {
 	}
 
 	if storage.IsVerbose() {
-		log.Warnf("Currency Package Warning: %s unset in system please add to"+
+		log.Warnf("Currency Package Warning: %s unset in storage please add to"+
 			" currency.JSON", c)
 	}
 

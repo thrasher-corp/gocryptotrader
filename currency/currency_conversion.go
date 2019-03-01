@@ -9,7 +9,7 @@ import (
 )
 
 // ConversionRates defines protected conversion rate map for concurrent updating
-// and retrieval of foreign exchange rates
+// and retrieval of foreign exchange rates for mainly fiat currencies
 type ConversionRates struct {
 	m   map[*Item]map[*Item]*float64
 	mtx sync.Mutex
@@ -105,11 +105,11 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	var mainBaseCurrency Code
 
 	for key, val := range m {
-		code1 := NewCode(key[:3])
+		code1 := storage.NewValidFiatCode(key[:3])
 		if mainBaseCurrency == (Code{}) {
 			mainBaseCurrency = code1
 		}
-		code2 := NewCode(key[3:])
+		code2 := storage.NewValidFiatCode(key[3:])
 
 		if code1 == code2 { // Get rid of same conversions
 			continue
@@ -272,10 +272,6 @@ func (c Conversion) String() string {
 
 // GetRate returns system rate if availabled
 func (c Conversion) GetRate() (float64, error) {
-	if c.mtx == nil {
-		return 0, errors.New("mutex copy failure")
-	}
-
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	if c.rate == nil {

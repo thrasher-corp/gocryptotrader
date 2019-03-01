@@ -343,7 +343,11 @@ func TestNewPairFromIndex(t *testing.T) {
 	currency := "BTCUSD"
 	index := "BTC"
 
-	pair := NewPairFromIndex(currency, index)
+	pair, err := NewPairFromIndex(currency, index)
+	if err != nil {
+		t.Error("test failed - NewPairFromIndex() error", err)
+	}
+
 	pair.Delimiter = "-"
 	actual := pair.String()
 
@@ -357,7 +361,11 @@ func TestNewPairFromIndex(t *testing.T) {
 
 	currency = "DOGEBTC"
 
-	pair = NewPairFromIndex(currency, index)
+	pair, err = NewPairFromIndex(currency, index)
+	if err != nil {
+		t.Error("test failed - NewPairFromIndex() error", err)
+	}
+
 	pair.Delimiter = "-"
 	actual = pair.String()
 
@@ -408,19 +416,38 @@ func TestContainsCurrency(t *testing.T) {
 }
 
 func TestFormatPairs(t *testing.T) {
-	if len(FormatPairs([]string{""}, "-", "")) > 0 {
+	newP, err := FormatPairs([]string{""}, "-", "")
+	if err != nil {
+		t.Error("Test Failed - FormatPairs() error", err)
+	}
+
+	if len(newP) > 0 {
 		t.Error("Test failed. TestFormatPairs: Empty string returned a valid pair")
 	}
 
-	if FormatPairs([]string{"BTC-USD"}, "-", "")[0].String() != "BTC-USD" {
+	newP, err = FormatPairs([]string{"BTC-USD"}, "-", "")
+	if err != nil {
+		t.Error("Test Failed - FormatPairs() error", err)
+	}
+
+	if newP[0].String() != "BTC-USD" {
 		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
 	}
 
-	if FormatPairs([]string{"BTCUSD"}, "", "BTC")[0].String() != "BTCUSD" {
-		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+	newP, err = FormatPairs([]string{"BTCUSD"}, "", "BTC")
+	if err != nil {
+		t.Error("Test Failed - FormatPairs() error", err)
 	}
 
-	if FormatPairs([]string{"ETHUSD"}, "", "")[0].String() != "ETHUSD" {
+	if newP[0].String() != "BTCUSD" {
+		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+	}
+	newP, err = FormatPairs([]string{"ETHUSD"}, "", "")
+	if err != nil {
+		t.Error("Test Failed - FormatPairs() error", err)
+	}
+
+	if newP[0].String() != "ETHUSD" {
 		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
 	}
 }

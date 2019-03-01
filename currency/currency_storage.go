@@ -368,6 +368,26 @@ func (s *Storage) NewCode(newCode string) Code {
 	return s.currencyCodes.Register(newCode)
 }
 
+// NewValidFiatCode inserts a new code and updates the fiat currency list
+// TODO: mutex protection
+func (s *Storage) NewValidFiatCode(newCode string) Code {
+	c := s.currencyCodes.Register(newCode)
+	if !s.fiatCurrencies.Contains(c) {
+		s.fiatCurrencies = append(s.fiatCurrencies, c)
+	}
+	return c
+}
+
+// NewCryptoCode inserts a new code and updates the crypto currency list
+// TODO: mutex protection
+func (s *Storage) NewCryptoCode(newCode string) Code {
+	c := s.currencyCodes.Register(newCode)
+	if !s.cryptocurrencies.Contains(c) {
+		s.cryptocurrencies = append(s.cryptocurrencies, c)
+	}
+	return c
+}
+
 // UpdateBaseCurrency changes base currency
 func (s *Storage) UpdateBaseCurrency(c Code) error {
 	if c.IsFiatCurrency() {

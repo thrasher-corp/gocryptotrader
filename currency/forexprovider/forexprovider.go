@@ -46,136 +46,59 @@ func NewDefaultFXProvider() *ForexProviders {
 	return handler
 }
 
+// SetProvider sets provider to the FX handler
+func (f *ForexProviders) SetProvider(b base.IFXProvider) error {
+	currencies, err := b.GetSupportedCurrencies()
+	if err != nil {
+		return err
+	}
+
+	providerBase := base.Provider{
+		Provider:            b,
+		SupportedCurrencies: currencies,
+	}
+
+	if b.IsPrimaryProvider() {
+		f.FXHandler = base.FXHandler{
+			Primary: providerBase,
+		}
+		return nil
+	}
+
+	f.FXHandler.Support = append(f.FXHandler.Support, providerBase)
+	return nil
+}
+
 // StartFXService starts the forex provider service and returns a pointer to it
 func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 	handler := new(ForexProviders)
 
 	for i := range fxProviders {
-		if fxProviders[i].Name == "CurrencyConverter" && fxProviders[i].Enabled {
+		switch {
+		case fxProviders[i].Name == "CurrencyConverter" && fxProviders[i].Enabled:
 			provider := new(currencyconverter.CurrencyConverter)
 			provider.Setup(fxProviders[i])
+			handler.SetProvider(provider)
 
-			currencies, err := provider.GetSupportedCurrencies()
-			if err != nil {
-				return nil, err
-			}
-
-			providerBase := base.Provider{
-				Provider:            provider,
-				SupportedCurrencies: currencies,
-			}
-
-			if fxProviders[i].PrimaryProvider {
-				handler.FXHandler = base.FXHandler{
-					Primary: providerBase,
-				}
-				continue
-			}
-
-			handler.FXHandler.Support = append(handler.FXHandler.Support,
-				providerBase)
-			continue
-		}
-
-		if fxProviders[i].Name == "CurrencyLayer" && fxProviders[i].Enabled {
+		case fxProviders[i].Name == "CurrencyLayer" && fxProviders[i].Enabled:
 			provider := new(currencylayer.CurrencyLayer)
 			provider.Setup(fxProviders[i])
+			handler.SetProvider(provider)
 
-			currencies, err := provider.GetSupportedCurrencies()
-			if err != nil {
-				return nil, err
-			}
-
-			providerBase := base.Provider{
-				Provider:            provider,
-				SupportedCurrencies: currencies,
-			}
-
-			if fxProviders[i].PrimaryProvider {
-				handler.FXHandler = base.FXHandler{
-					Primary: providerBase,
-				}
-				continue
-			}
-
-			handler.FXHandler.Support = append(handler.FXHandler.Support,
-				providerBase)
-			continue
-		}
-		if fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled {
+		case fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled:
 			provider := new(exchangerates.ExchangeRates)
 			provider.Setup(fxProviders[i])
+			handler.SetProvider(provider)
 
-			currencies, err := provider.GetSupportedCurrencies()
-			if err != nil {
-				return nil, err
-			}
-
-			providerBase := base.Provider{
-				Provider:            provider,
-				SupportedCurrencies: currencies,
-			}
-
-			if fxProviders[i].PrimaryProvider {
-				handler.FXHandler = base.FXHandler{
-					Primary: providerBase,
-				}
-				continue
-			}
-
-			handler.FXHandler.Support = append(handler.FXHandler.Support,
-				providerBase)
-			continue
-		}
-		if fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled {
+		case fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled:
 			provider := new(fixer.Fixer)
 			provider.Setup(fxProviders[i])
+			handler.SetProvider(provider)
 
-			currencies, err := provider.GetSupportedCurrencies()
-			if err != nil {
-				return nil, err
-			}
-
-			providerBase := base.Provider{
-				Provider:            provider,
-				SupportedCurrencies: currencies,
-			}
-
-			if fxProviders[i].PrimaryProvider {
-				handler.FXHandler = base.FXHandler{
-					Primary: providerBase,
-				}
-				continue
-			}
-
-			handler.FXHandler.Support = append(handler.FXHandler.Support,
-				providerBase)
-			continue
-		}
-		if fxProviders[i].Name == "OpenExchangeRates" && fxProviders[i].Enabled {
+		case fxProviders[i].Name == "OpenExchangeRates" && fxProviders[i].Enabled:
 			provider := new(openexchangerates.OXR)
 			provider.Setup(fxProviders[i])
-
-			currencies, err := provider.GetSupportedCurrencies()
-			if err != nil {
-				return nil, err
-			}
-
-			providerBase := base.Provider{
-				Provider:            provider,
-				SupportedCurrencies: currencies,
-			}
-
-			if fxProviders[i].PrimaryProvider {
-				handler.FXHandler = base.FXHandler{
-					Primary: providerBase,
-				}
-				continue
-			}
-
-			handler.FXHandler.Support = append(handler.FXHandler.Support,
-				providerBase)
-			continue
+			handler.SetProvider(provider)
 		}
 	}
 

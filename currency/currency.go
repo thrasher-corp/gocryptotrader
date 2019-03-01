@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -86,12 +87,18 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 
 // NewPairFromIndex returns a CurrencyPair via a currency string and specific
 // index
-func NewPairFromIndex(currencyPair, index string) Pair {
+func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 	i := strings.Index(currencyPair, index)
-	if i == 0 {
-		return NewPairFromStrings(currencyPair[0:len(index)], currencyPair[len(index):])
+	if i == -1 {
+		return Pair{},
+			fmt.Errorf("index %s not found in currency pair string", index)
 	}
-	return NewPairFromStrings(currencyPair[0:i], currencyPair[i:])
+	if i == 0 {
+		return NewPairFromStrings(currencyPair[0:len(index)],
+				currencyPair[len(index):]),
+			nil
+	}
+	return NewPairFromStrings(currencyPair[0:i], currencyPair[i:]), nil
 }
 
 // NewPairFromString converts currency string into a new CurrencyPair
@@ -185,8 +192,7 @@ func GetTotalMarketCryptocurrencies() ([]Code, error) {
 	return storage.GetTotalMarketCryptocurrencies()
 }
 
-// RunStorageUpdater runs sets up and runs a new foreign exchange updater
-// instance
+// RunStorageUpdater  runs a new foreign exchange updater instance
 func RunStorageUpdater(o BotOverrides, m MainConfiguration, filepath string, v bool) error {
 	return storage.RunUpdater(o, m, filepath, v)
 }
@@ -208,7 +214,7 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 
 // FormatPairs formats a string array to a list of currency pairs with the
 // supplied currency pair format
-func FormatPairs(pairs []string, delimiter, index string) Pairs {
+func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
 	var result Pairs
 	for x := range pairs {
 		if pairs[x] == "" {
@@ -219,12 +225,16 @@ func FormatPairs(pairs []string, delimiter, index string) Pairs {
 			p = NewPairDelimiter(pairs[x], delimiter)
 		} else {
 			if index != "" {
-				p = NewPairFromIndex(pairs[x], index)
+				var err error
+				p, err = NewPairFromIndex(pairs[x], index)
+				if err != nil {
+					return Pairs{}, err
+				}
 			} else {
 				p = NewPairFromStrings(pairs[x][0:3], pairs[x][3:])
 			}
 		}
 		result = append(result, p)
 	}
-	return result
+	return result, nil
 }
