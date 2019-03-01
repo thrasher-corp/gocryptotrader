@@ -92,9 +92,9 @@ func (b *Base) GetTicker(exchangeName string) string {
 	}
 
 	var tickerPrices []ticker.Price
-	for _, x := range tickerPrice {
-		for _, y := range x {
-			tickerPrices = append(tickerPrices, y)
+	for x := range tickerPrice {
+		for y := range tickerPrice[x] {
+			tickerPrices = append(tickerPrices, tickerPrice[x][y])
 		}
 	}
 

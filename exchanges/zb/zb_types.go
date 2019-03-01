@@ -16,21 +16,21 @@ type OrderbookResponse struct {
 
 // AccountsResponseCoin holds the accounts coin details
 type AccountsResponseCoin struct {
-	Freez       string `json:"freez"`       //冻结资产
-	EnName      string `json:"enName"`      //币种英文名
-	UnitDecimal int    `json:"unitDecimal"` //保留小数位
-	UnName      string `json:"cnName"`      //币种中文名
-	UnitTag     string `json:"unitTag"`     //币种符号
-	Available   string `json:"available"`   //可用资产
-	Key         string `json:"key"`         //币种
+	Freez       string `json:"freez"`       // 冻结资产
+	EnName      string `json:"enName"`      // 币种英文名
+	UnitDecimal int    `json:"unitDecimal"` // 保留小数位
+	UnName      string `json:"cnName"`      // 币种中文名
+	UnitTag     string `json:"unitTag"`     // 币种符号
+	Available   string `json:"available"`   // 可用资产
+	Key         string `json:"key"`         // 币种
 }
 
 // AccountsBaseResponse holds basic account details
 type AccountsBaseResponse struct {
-	UserName             string `json:"username"`               //用户名
-	TradePasswordEnabled bool   `json:"trade_password_enabled"` //是否开通交易密码
-	AuthGoogleEnabled    bool   `json:"auth_google_enabled"`    //是否开通谷歌验证
-	AuthMobileEnabled    bool   `json:"auth_mobile_enabled"`    //是否开通手机验证
+	UserName             string `json:"username"`               // 用户名
+	TradePasswordEnabled bool   `json:"trade_password_enabled"` // 是否开通交易密码
+	AuthGoogleEnabled    bool   `json:"auth_google_enabled"`    // 是否开通谷歌验证
+	AuthMobileEnabled    bool   `json:"auth_mobile_enabled"`    // 是否开通手机验证
 }
 
 // Order is the order details for retrieving all orders
@@ -51,10 +51,10 @@ type AccountsResponse struct {
 	Result struct {
 		Coins []AccountsResponseCoin `json:"coins"`
 		Base  AccountsBaseResponse   `json:"base"`
-	} `json:"result"` //用户名
-	AssetPerm   bool `json:"assetPerm"`   //是否开通交易密码
-	LeverPerm   bool `json:"leverPerm"`   //是否开通谷歌验证
-	EntrustPerm bool `json:"entrustPerm"` //是否开通手机验证
+	} `json:"result"` // 用户名
+	AssetPerm   bool `json:"assetPerm"`   // 是否开通交易密码
+	LeverPerm   bool `json:"leverPerm"`   // 是否开通谷歌验证
+	EntrustPerm bool `json:"entrustPerm"` // 是否开通手机验证
 	MoneyPerm   bool `json:"moneyPerm"`   // 资产列表
 }
 
@@ -72,12 +72,12 @@ type TickerResponse struct {
 
 // TickerChildResponse holds the ticker child response data
 type TickerChildResponse struct {
-	Vol  float64 `json:"vol,string"`  //成交量(最近的24小时)
-	Last float64 `json:"last,string"` //最新成交价
-	Sell float64 `json:"sell,string"` //卖一价
-	Buy  float64 `json:"buy,string"`  //买一价
-	High float64 `json:"high,string"` //最高价
-	Low  float64 `json:"low,string"`  //最低价
+	Vol  float64 `json:"vol,string"`  // 成交量(最近的24小时)
+	Last float64 `json:"last,string"` // 最新成交价
+	Sell float64 `json:"sell,string"` // 卖一价
+	Buy  float64 `json:"buy,string"`  // 买一价
+	High float64 `json:"high,string"` // 最高价
+	Low  float64 `json:"low,string"`  // 最低价
 }
 
 // SpotNewOrderRequestParamsType ZB 交易类型
@@ -100,19 +100,19 @@ type SpotNewOrderRequestParams struct {
 
 // SpotNewOrderResponse stores the new order response data
 type SpotNewOrderResponse struct {
-	Code    int    `json:"code"`    //返回代码
-	Message string `json:"message"` //提示信息
-	ID      string `json:"id"`      //委托挂单号
+	Code    int    `json:"code"`    // 返回代码
+	Message string `json:"message"` // 提示信息
+	ID      string `json:"id"`      // 委托挂单号
 }
 
 // //-------------Kline
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol string       //交易对, zb_qc,zb_usdt,zb_btc...
-	Type   TimeInterval //K线类型, 1min, 3min, 15min, 30min, 1hour......
-	Since  string       //从这个时间戳之后的
-	Size   int          //返回数据的条数限制(默认为1000，如果返回数据多于1000条，那么只返回1000条)
+	Symbol string       // 交易对, zb_qc,zb_usdt,zb_btc...
+	Type   TimeInterval // K线类型, 1min, 3min, 15min, 30min, 1hour......
+	Since  string       // 从这个时间戳之后的
+	Size   int          // 返回数据的条数限制(默认为1000，如果返回数据多于1000条，那么只返回1000条)
 }
 
 // KLineResponseData Kline Data

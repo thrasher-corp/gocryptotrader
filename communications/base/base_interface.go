@@ -14,7 +14,7 @@ type IComm []ICommunicate
 
 // ICommunicate enforces standard functions across communication packages
 type ICommunicate interface {
-	Setup(config config.CommunicationsConfig)
+	Setup(config *config.CommunicationsConfig)
 	Connect() error
 	PushEvent(Event) error
 	IsEnabled() bool
@@ -68,7 +68,7 @@ func (c IComm) GetEnabledCommunicationMediums() {
 }
 
 // StageTickerData stages updated ticker data for the communications package
-func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice ticker.Price) {
+func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice *ticker.Price) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -80,12 +80,12 @@ func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice ticke
 		TickerStaged[exchangeName][assetType] = make(map[string]ticker.Price)
 	}
 
-	TickerStaged[exchangeName][assetType][tickerPrice.CurrencyPair] = tickerPrice
+	TickerStaged[exchangeName][assetType][tickerPrice.CurrencyPair] = *tickerPrice
 }
 
 // StageOrderbookData stages updated orderbook data for the communications
 // package
-func (c IComm) StageOrderbookData(exchangeName, assetType string, orderbook orderbook.Base) {
+func (c IComm) StageOrderbookData(exchangeName, assetType string, ob *orderbook.Base) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -97,12 +97,12 @@ func (c IComm) StageOrderbookData(exchangeName, assetType string, orderbook orde
 		OrderbookStaged[exchangeName][assetType] = make(map[string]Orderbook)
 	}
 
-	_, totalAsks := orderbook.CalculateTotalAsks()
-	_, totalBids := orderbook.CalculateTotalBids()
+	_, totalAsks := ob.CalculateTotalAsks()
+	_, totalBids := ob.CalculateTotalBids()
 
-	OrderbookStaged[exchangeName][assetType][orderbook.CurrencyPair] = Orderbook{
-		CurrencyPair: orderbook.CurrencyPair,
+	OrderbookStaged[exchangeName][assetType][ob.CurrencyPair] = Orderbook{
+		CurrencyPair: ob.CurrencyPair,
 		TotalAsks:    totalAsks,
 		TotalBids:    totalBids,
-		LastUpdated:  orderbook.LastUpdated.String()}
+		LastUpdated:  ob.LastUpdated.String()}
 }

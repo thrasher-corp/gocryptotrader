@@ -222,14 +222,14 @@ func GetRelatableCurrencies(p pair.CurrencyPair, incOrig, incUSDT bool) []pair.C
 
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
-func GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.Base, error) {
+func GetSpecificOrderbook(currencyPair, exchangeName, assetType string) (orderbook.Base, error) {
 	var specificOrderbook orderbook.Base
 	var err error
 	for x := range bot.exchanges {
 		if bot.exchanges[x] != nil {
 			if bot.exchanges[x].GetName() == exchangeName {
 				specificOrderbook, err = bot.exchanges[x].GetOrderbookEx(
-					pair.NewCurrencyPairFromString(currency),
+					pair.NewCurrencyPairFromString(currencyPair),
 					assetType,
 				)
 				break
@@ -241,14 +241,14 @@ func GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.B
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
-func GetSpecificTicker(currency, exchangeName, assetType string) (ticker.Price, error) {
+func GetSpecificTicker(currencyPair, exchangeName, assetType string) (ticker.Price, error) {
 	var specificTicker ticker.Price
 	var err error
 	for x := range bot.exchanges {
 		if bot.exchanges[x] != nil {
 			if bot.exchanges[x].GetName() == exchangeName {
 				specificTicker, err = bot.exchanges[x].GetTickerPrice(
-					pair.NewCurrencyPairFromString(currency),
+					pair.NewCurrencyPairFromString(currencyPair),
 					assetType,
 				)
 				break

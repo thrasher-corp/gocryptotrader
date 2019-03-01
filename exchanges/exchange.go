@@ -439,7 +439,7 @@ func (e *Base) SetAutoPairDefaults() error {
 	}
 
 	if update {
-		return cfg.UpdateExchangeConfig(exch)
+		return cfg.UpdateExchangeConfig(&exch)
 	}
 	return nil
 }
@@ -470,12 +470,12 @@ func (e *Base) SetAssetTypes() error {
 		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
 		update = true
 	} else {
-		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
+		e.AssetTypes = common.SplitStrings(exch.AssetTypes, ",")
 		update = true
 	}
 
 	if update {
-		return cfg.UpdateExchangeConfig(exch)
+		return cfg.UpdateExchangeConfig(&exch)
 	}
 
 	return nil
@@ -571,7 +571,7 @@ func (e *Base) SetCurrencyPairFormat() error {
 	}
 
 	if update {
-		return cfg.UpdateExchangeConfig(exch)
+		return cfg.UpdateExchangeConfig(&exch)
 	}
 	return nil
 }
@@ -723,7 +723,7 @@ func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 		e.AvailablePairs = pairsStr
 	}
 
-	return cfg.UpdateExchangeConfig(exchCfg)
+	return cfg.UpdateExchangeConfig(&exchCfg)
 }
 
 // UpdateCurrencies updates the exchange currency pairs for either enabledPairs or
@@ -779,7 +779,7 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 			exch.AvailablePairs = common.JoinStrings(products, ",")
 			e.AvailablePairs = products
 		}
-		return cfg.UpdateExchangeConfig(exch)
+		return cfg.UpdateExchangeConfig(&exch)
 	}
 	return nil
 }

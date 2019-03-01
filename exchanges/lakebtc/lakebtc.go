@@ -133,27 +133,27 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 	result := make(map[string]Ticker)
 
 	for k, v := range response {
-		var ticker Ticker
+		var tick Ticker
 		key := common.StringToUpper(k)
 		if v.Ask != nil {
-			ticker.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
+			tick.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
 		}
 		if v.Bid != nil {
-			ticker.Bid, _ = strconv.ParseFloat(v.Bid.(string), 64)
+			tick.Bid, _ = strconv.ParseFloat(v.Bid.(string), 64)
 		}
 		if v.High != nil {
-			ticker.High, _ = strconv.ParseFloat(v.High.(string), 64)
+			tick.High, _ = strconv.ParseFloat(v.High.(string), 64)
 		}
 		if v.Last != nil {
-			ticker.Last, _ = strconv.ParseFloat(v.Last.(string), 64)
+			tick.Last, _ = strconv.ParseFloat(v.Last.(string), 64)
 		}
 		if v.Low != nil {
-			ticker.Low, _ = strconv.ParseFloat(v.Low.(string), 64)
+			tick.Low, _ = strconv.ParseFloat(v.Low.(string), 64)
 		}
 		if v.Volume != nil {
-			ticker.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
+			tick.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
 		}
-		result[key] = ticker
+		result[key] = tick
 	}
 	return result, nil
 }

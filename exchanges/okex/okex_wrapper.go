@@ -196,19 +196,18 @@ func (o *OKEX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestType
 
-	if orderType == exchange.LimitOrderType {
+	switch orderType {
+	case exchange.LimitOrderType:
+		oT = SpotNewOrderRequestTypeSell
 		if side == exchange.BuyOrderSide {
 			oT = SpotNewOrderRequestTypeBuy
-		} else {
-			oT = SpotNewOrderRequestTypeSell
 		}
-	} else if orderType == exchange.MarketOrderType {
+	case exchange.MarketOrderType:
+		oT = SpotNewOrderRequestTypeSellMarket
 		if side == exchange.BuyOrderSide {
 			oT = SpotNewOrderRequestTypeBuyMarket
-		} else {
-			oT = SpotNewOrderRequestTypeSellMarket
 		}
-	} else {
+	default:
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
 

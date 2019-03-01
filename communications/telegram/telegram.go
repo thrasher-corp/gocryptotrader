@@ -52,11 +52,11 @@ type Telegram struct {
 }
 
 // Setup takes in a Telegram configuration and sets verification token
-func (t *Telegram) Setup(config config.CommunicationsConfig) {
-	t.Name = config.TelegramConfig.Name
-	t.Enabled = config.TelegramConfig.Enabled
-	t.Token = config.TelegramConfig.VerificationToken
-	t.Verbose = config.TelegramConfig.Verbose
+func (t *Telegram) Setup(cfg *config.CommunicationsConfig) {
+	t.Name = cfg.TelegramConfig.Name
+	t.Enabled = cfg.TelegramConfig.Enabled
+	t.Token = cfg.TelegramConfig.VerificationToken
+	t.Verbose = cfg.TelegramConfig.Verbose
 }
 
 // Connect starts an initial connection

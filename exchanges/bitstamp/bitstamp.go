@@ -192,7 +192,7 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(currency string, purchasePrice float64, amount float64) float64 {
+func (b *Bitstamp) CalculateTradingFee(currency string, purchasePrice, amount float64) float64 {
 	var fee float64
 
 	switch currency {
@@ -233,7 +233,7 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (Ticker, error) {
 
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
 // of open orders and each order is represented as a list holding the price and
-//the amount.
+// the amount.
 func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	type response struct {
 		Timestamp int64      `json:"timestamp,string"`
@@ -415,20 +415,20 @@ func (b *Bitstamp) GetOpenOrders(currencyPair string) ([]Order, error) {
 }
 
 // GetOrderStatus returns an the status of an order by its ID
-func (b *Bitstamp) GetOrderStatus(OrderID int64) (OrderStatus, error) {
+func (b *Bitstamp) GetOrderStatus(orderID int64) (OrderStatus, error) {
 	resp := OrderStatus{}
 	req := url.Values{}
-	req.Add("id", strconv.FormatInt(OrderID, 10))
+	req.Add("id", strconv.FormatInt(orderID, 10))
 
 	return resp,
 		b.SendAuthenticatedHTTPRequest(bitstampAPIOrderStatus, false, req, &resp)
 }
 
 // CancelExistingOrder cancels order by ID
-func (b *Bitstamp) CancelExistingOrder(OrderID int64) (bool, error) {
+func (b *Bitstamp) CancelExistingOrder(orderID int64) (bool, error) {
 	result := false
 	var req = url.Values{}
-	req.Add("id", strconv.FormatInt(OrderID, 10))
+	req.Add("id", strconv.FormatInt(orderID, 10))
 
 	return result,
 		b.SendAuthenticatedHTTPRequest(bitstampAPICancelOrder, true, req, &result)
@@ -443,7 +443,7 @@ func (b *Bitstamp) CancelAllExistingOrders() (bool, error) {
 }
 
 // PlaceOrder places an order on the exchange.
-func (b *Bitstamp) PlaceOrder(currencyPair string, price float64, amount float64, buy, market bool) (Order, error) {
+func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, market bool) (Order, error) {
 	var req = url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))

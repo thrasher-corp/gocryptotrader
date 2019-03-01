@@ -563,13 +563,13 @@ func TestWithdrawStatus(t *testing.T) {
 
 	if areTestAPIKeysSet() {
 		_, err := k.WithdrawStatus(symbol.BTC, "")
-		if err == nil {
+		if err != nil {
 			t.Error("Test Failed - WithdrawStatus() error", err)
 		}
 	} else {
 		_, err := k.WithdrawStatus(symbol.BTC, "")
 		if err == nil {
-			t.Error("Test Failed - WithdrawStatus() error", err)
+			t.Error("Test Failed - GetDepositAddress() error can not be nil", err)
 		}
 	}
 }

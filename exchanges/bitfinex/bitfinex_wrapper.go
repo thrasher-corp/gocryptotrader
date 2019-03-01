@@ -332,13 +332,14 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 			ExecutedAmount:  order.ExecutedAmount,
 		}
 
-		if order.IsLive {
+		switch {
+		case order.IsLive:
 			orderDetail.Status = string(exchange.ActiveOrderStatus)
-		} else if order.IsCancelled {
+		case order.IsCancelled:
 			orderDetail.Status = string(exchange.CancelledOrderStatus)
-		} else if order.IsHidden {
+		case order.IsHidden:
 			orderDetail.Status = string(exchange.HiddenOrderStatus)
-		} else {
+		default:
 			orderDetail.Status = string(exchange.UnknownOrderStatus)
 		}
 
@@ -391,13 +392,14 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
 		}
 
-		if order.IsLive {
+		switch {
+		case order.IsLive:
 			orderDetail.Status = string(exchange.ActiveOrderStatus)
-		} else if order.IsCancelled {
+		case order.IsCancelled:
 			orderDetail.Status = string(exchange.CancelledOrderStatus)
-		} else if order.IsHidden {
+		case order.IsHidden:
 			orderDetail.Status = string(exchange.HiddenOrderStatus)
-		} else {
+		default:
 			orderDetail.Status = string(exchange.UnknownOrderStatus)
 		}
 

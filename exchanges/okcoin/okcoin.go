@@ -398,11 +398,11 @@ func (o *OKCoin) Trade(amount, price float64, symbol, orderType string) (int64, 
 }
 
 // GetTradeHistory returns client trade history
-func (o *OKCoin) GetTradeHistory(symbol string, TradeID int64) ([]Trades, error) {
+func (o *OKCoin) GetTradeHistory(symbol string, tradeID int64) ([]Trades, error) {
 	result := []Trades{}
 	v := url.Values{}
 	v.Set("symbol", symbol)
-	v.Set("since", strconv.FormatInt(TradeID, 10))
+	v.Set("since", strconv.FormatInt(tradeID, 10))
 
 	err := o.SendAuthenticatedHTTPRequest(okcoinTradeHistory, v, &result)
 
@@ -414,7 +414,7 @@ func (o *OKCoin) GetTradeHistory(symbol string, TradeID int64) ([]Trades, error)
 }
 
 // BatchTrade initiates a trade by batch order
-func (o *OKCoin) BatchTrade(orderData string, symbol, orderType string) (BatchTrade, error) {
+func (o *OKCoin) BatchTrade(orderData, symbol, orderType string) (BatchTrade, error) {
 	v := url.Values{}
 	v.Set("orders_data", orderData)
 	v.Set("symbol", symbol)
@@ -811,7 +811,7 @@ func (o *OKCoin) FuturesTrade(amount, price float64, matchPrice, leverage int64,
 
 // FuturesBatchTrade initiates a batch of futures contract trades
 func (o *OKCoin) FuturesBatchTrade(orderData, symbol, contractType string, leverage int64, _ string) {
-	v := url.Values{} //to-do batch trade support for orders_data)
+	v := url.Values{} // to-do batch trade support for orders_data)
 	v.Set("symbol", symbol)
 	v.Set("contract_type", contractType)
 	v.Set("orders_data", orderData)

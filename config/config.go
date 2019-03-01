@@ -258,9 +258,10 @@ func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string
 
 	for x := range c.Exchanges {
 		if c.Exchanges[x].Name == exchangeName {
-			for _, account := range c.Exchanges[x].BankAccounts {
-				if common.StringContains(account.SupportedCurrencies, depositingCurrency) {
-					return account, nil
+			for y := range c.Exchanges[x].BankAccounts {
+				if common.StringContains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
+					depositingCurrency) {
+					return c.Exchanges[x].BankAccounts[y], nil
 				}
 			}
 		}
@@ -306,13 +307,13 @@ func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (Ban
 }
 
 // UpdateClientBankAccounts updates the configuration for a bank
-func (c *Config) UpdateClientBankAccounts(bankCfg BankAccount) error {
+func (c *Config) UpdateClientBankAccounts(bankCfg *BankAccount) error {
 	m.Lock()
 	defer m.Unlock()
 
 	for i := range c.BankAccounts {
 		if c.BankAccounts[i].BankName == bankCfg.BankName && c.BankAccounts[i].AccountNumber == bankCfg.AccountNumber {
-			c.BankAccounts[i] = bankCfg
+			c.BankAccounts[i] = *bankCfg
 			return nil
 		}
 	}
@@ -375,9 +376,9 @@ func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
 
 // UpdateCommunicationsConfig sets a new updated version of a Communications
 // configuration
-func (c *Config) UpdateCommunicationsConfig(config CommunicationsConfig) {
+func (c *Config) UpdateCommunicationsConfig(config *CommunicationsConfig) {
 	m.Lock()
-	c.Communications = config
+	c.Communications = *config
 	m.Unlock()
 }
 
@@ -560,7 +561,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 		exchCfg.EnabledPairs = common.JoinStrings(pair.PairsToStringArray(pairs), ",")
 	}
 
-	err = c.UpdateExchangeConfig(exchCfg)
+	err = c.UpdateExchangeConfig(&exchCfg)
 	if err != nil {
 		return err
 	}
@@ -707,12 +708,12 @@ func (c *Config) GetPrimaryForexProvider() string {
 }
 
 // UpdateExchangeConfig updates exchange configurations
-func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
+func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Name == e.Name {
-			c.Exchanges[i] = e
+			c.Exchanges[i] = *e
 			return nil
 		}
 	}
@@ -795,27 +796,32 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if len(exch.BankAccounts) == 0 {
 				c.Exchanges[i].BankAccounts = append(c.Exchanges[i].BankAccounts, BankAccount{})
 			} else {
-				for _, bankAccount := range exch.BankAccounts {
+				for y := range c.Exchanges[i].BankAccounts {
+					bankAccount := &c.Exchanges[i].BankAccounts[y]
 					if bankAccount.Enabled {
 						if bankAccount.BankName == "" || bankAccount.BankAddress == "" {
-							return fmt.Errorf("banking details for %s is enabled but variables not set",
+							log.Warnf("banking details for %s is enabled but variables not set",
 								exch.Name)
+							bankAccount.Enabled = false
 						}
 
 						if bankAccount.AccountName == "" || bankAccount.AccountNumber == "" {
-							return fmt.Errorf("banking account details for %s variables not set",
+							log.Warnf("banking account details for %s variables not set",
 								exch.Name)
+							bankAccount.Enabled = false
 						}
 
 						if bankAccount.SupportedCurrencies == "" {
-							return fmt.Errorf("banking account details for %s acceptable funding currencies not set",
+							log.Warnf("banking account details for %s acceptable funding currencies not set",
 								exch.Name)
+							bankAccount.Enabled = false
 						}
 
 						if bankAccount.BSBNumber == "" && bankAccount.IBAN == "" &&
 							bankAccount.SWIFTCode == "" {
-							return fmt.Errorf("banking account details for %s critical banking numbers not set",
+							log.Warnf("banking account details for %s critical banking numbers not set",
 								exch.Name)
+							bankAccount.Enabled = false
 						}
 					}
 				}

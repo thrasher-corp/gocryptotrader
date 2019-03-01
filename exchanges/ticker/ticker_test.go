@@ -241,7 +241,7 @@ func TestCreateNewTicker(t *testing.T) {
 	}
 }
 
-func TestProcessTicker(t *testing.T) { //non-appending function to tickers
+func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	Tickers = []Ticker{}
 	newPair := pair.NewCurrencyPair("BTC", "USD")
 	priceStruct := Price{

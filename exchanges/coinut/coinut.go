@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -56,7 +58,7 @@ func (c *COINUT) SetDefaults() {
 	c.Name = "COINUT"
 	c.Enabled = false
 	c.Verbose = false
-	c.TakerFee = 0.1 //spot
+	c.TakerFee = 0.1 // spot
 	c.MakerFee = 0
 	c.Verbose = false
 	c.RESTPollingDelay = 10
@@ -286,7 +288,7 @@ func (c *COINUT) GetIndexTicker(asset string) (IndexTicker, error) {
 
 // GetDerivativeInstruments returns a list of derivative instruments
 func (c *COINUT) GetDerivativeInstruments(secType string) (interface{}, error) {
-	var result interface{} //to-do
+	var result interface{} // to-do
 	params := make(map[string]interface{})
 	params["sec_type"] = secType
 
@@ -331,7 +333,7 @@ func (c *COINUT) GetOpenPositions(instrumentID int) ([]OpenPosition, error) {
 		c.SendHTTPRequest(coinutPositionOpen, params, true, &result)
 }
 
-//to-do: user position update via websocket
+// to-do: user position update via websocket
 
 // SendHTTPRequest sends either an authenticated or unauthenticated HTTP request
 func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{}, authenticated bool, result interface{}) (err error) {
@@ -409,12 +411,13 @@ func (c *COINUT) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency string, purchasePrice, amount float64, isMaker bool) float64 {
 	var fee float64
-	if isMaker {
+
+	switch {
+	case isMaker:
 		fee = 0
-	} else if currency.IsCryptocurrency(firstCurrency) && !currency.IsCryptocurrency(secondCurrency) ||
-		!currency.IsCryptocurrency(firstCurrency) && currency.IsCryptocurrency(secondCurrency) {
+	case currency.IsCryptoFiatPair(pair.NewCurrencyPair(firstCurrency, secondCurrency)):
 		fee = 0.002
-	} else {
+	default:
 		fee = 0.001
 	}
 
@@ -424,19 +427,20 @@ func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency string, purch
 func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
 	var fee float64
 
-	if currency == symbol.USD {
+	switch currency {
+	case symbol.USD:
 		if amount*0.001 < 10 {
 			fee = 10
 		} else {
 			fee = amount * 0.001
 		}
-	} else if currency == symbol.CAD {
+	case symbol.CAD:
 		if amount*0.005 < 10 {
 			fee = 2
 		} else {
 			fee = amount * 0.005
 		}
-	} else if currency == symbol.SGD {
+	case symbol.SGD:
 		if amount*0.001 < 10 {
 			fee = 10
 		} else {

@@ -87,17 +87,18 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 
 	for _, x := range pairs {
 		for y, z := range tickers {
-			if common.StringContains(y, x.FirstCurrency.Upper().String()) && common.StringContains(y, x.SecondCurrency.Upper().String()) {
-				var tp ticker.Price
-				tp.Pair = x
-				tp.Last = z.Last
-				tp.Ask = z.Ask
-				tp.Bid = z.Bid
-				tp.High = z.High
-				tp.Low = z.Low
-				tp.Volume = z.Volume
-				ticker.ProcessTicker(k.GetName(), x, tp, assetType)
+			if !common.StringContains(y, x.FirstCurrency.Upper().String()) && !common.StringContains(y, x.SecondCurrency.Upper().String()) {
+				continue
 			}
+			var tp ticker.Price
+			tp.Pair = x
+			tp.Last = z.Last
+			tp.Ask = z.Ask
+			tp.Bid = z.Bid
+			tp.High = z.High
+			tp.Low = z.Low
+			tp.Volume = z.Volume
+			ticker.ProcessTicker(k.GetName(), x, tp, assetType)
 		}
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)
@@ -324,15 +325,15 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	request := GetClosedOrdersOptions{}
+	req := GetClosedOrdersOptions{}
 	if getOrdersRequest.StartTicks.Unix() > 0 {
-		request.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks.Unix())
+		req.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks.Unix())
 	}
 	if getOrdersRequest.EndTicks.Unix() > 0 {
-		request.End = fmt.Sprintf("%v", getOrdersRequest.EndTicks.Unix())
+		req.End = fmt.Sprintf("%v", getOrdersRequest.EndTicks.Unix())
 	}
 
-	resp, err := k.GetClosedOrders(request)
+	resp, err := k.GetClosedOrders(req)
 	if err != nil {
 		return nil, err
 	}

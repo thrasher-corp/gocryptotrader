@@ -96,12 +96,12 @@ func TestUpdateClientBankAccounts(t *testing.T) {
 		t.Error("Test failed. UpdateClientBankAccounts LoadConfig error", err)
 	}
 	b := BankAccount{Enabled: false, BankName: "test", AccountNumber: "0234"}
-	err = cfg.UpdateClientBankAccounts(b)
+	err = cfg.UpdateClientBankAccounts(&b)
 	if err != nil {
 		t.Error("Test failed. UpdateClientBankAccounts error", err)
 	}
 
-	err = cfg.UpdateClientBankAccounts(BankAccount{})
+	err = cfg.UpdateClientBankAccounts(&BankAccount{})
 	if err == nil {
 		t.Error("Test failed. UpdateClientBankAccounts error")
 	}
@@ -181,7 +181,7 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 	if err != nil {
 		t.Error("Test failed. UpdateCommunicationsConfig LoadConfig error", err)
 	}
-	cfg.UpdateCommunicationsConfig(CommunicationsConfig{SlackConfig: SlackConfig{Name: "TEST"}})
+	cfg.UpdateCommunicationsConfig(&CommunicationsConfig{SlackConfig: SlackConfig{Name: "TEST"}})
 	if cfg.Communications.SlackConfig.Name != "TEST" {
 		t.Error("Test failed. UpdateCommunicationsConfig LoadConfig error")
 	}
@@ -327,7 +327,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	tec.EnabledPairs = "DOGE_LTC,BTC_LTC"
-	err = cfg.UpdateExchangeConfig(tec)
+	err = cfg.UpdateExchangeConfig(&tec)
 	if err != nil {
 		t.Error("Test failed. CheckPairConsistency Update config failed, error:", err)
 	}
@@ -451,7 +451,7 @@ func TestGetDisabledExchanges(t *testing.T) {
 	}
 
 	exchCfg.Enabled = false
-	err = cfg.UpdateExchangeConfig(exchCfg)
+	err = cfg.UpdateExchangeConfig(&exchCfg)
 	if err != nil {
 		t.Errorf(
 			"Test failed. TestGetDisabledExchanges. UpdateExchangeConfig Error: %s", err.Error(),
@@ -630,14 +630,14 @@ func TestUpdateExchangeConfig(t *testing.T) {
 		)
 	}
 	e.APIKey = "test1234"
-	err3 := UpdateExchangeConfig.UpdateExchangeConfig(e)
+	err3 := UpdateExchangeConfig.UpdateExchangeConfig(&e)
 	if err3 != nil {
 		t.Errorf(
 			"Test failed. UpdateExchangeConfig.UpdateExchangeConfig: %s", err.Error(),
 		)
 	}
 	e.Name = "testyTest"
-	err = UpdateExchangeConfig.UpdateExchangeConfig(e)
+	err = UpdateExchangeConfig.UpdateExchangeConfig(&e)
 	if err == nil {
 		t.Error("Test failed. UpdateExchangeConfig.UpdateExchangeConfig Error")
 	}

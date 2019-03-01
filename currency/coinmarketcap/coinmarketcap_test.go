@@ -251,14 +251,9 @@ func TestGetExchangeHistoricalListings(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
 	_, err := c.GetExchangeHistoricalListings()
-	if areAPICredtionalsSet(Basic) {
-		if err == nil {
-			t.Error("Test Failed - GetExchangeHistoricalListings() error cannot be nil")
-		}
-	} else {
-		if err == nil {
-			t.Error("Test Failed - GetExchangeHistoricalListings() error cannot be nil")
-		}
+	if err == nil {
+		// TODO: update this once the feature above is implemented
+		t.Error("Test Failed - GetExchangeHistoricalListings() error cannot be nil")
 	}
 }
 
@@ -266,14 +261,9 @@ func TestGetExchangeLatestListings(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
 	_, err := c.GetExchangeLatestListings()
-	if areAPICredtionalsSet(Basic) {
-		if err == nil {
-			t.Error("Test Failed - GetExchangeLatestListings() error cannot be nil")
-		}
-	} else {
-		if err == nil {
-			t.Error("Test Failed - GetExchangeLatestListings() error cannot be nil")
-		}
+	if err == nil {
+		// TODO: update this once the feature above is implemented
+		t.Error("Test Failed - GetExchangeHistoricalListings() error cannot be nil")
 	}
 }
 

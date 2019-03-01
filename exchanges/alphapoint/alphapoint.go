@@ -183,15 +183,15 @@ func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password s
 		)
 	}
 
-	request := make(map[string]interface{})
-	request["firstname"] = firstName
-	request["lastname"] = lastName
-	request["email"] = email
-	request["phone"] = phone
-	request["password"] = password
+	req := make(map[string]interface{})
+	req["firstname"] = firstName
+	req["lastname"] = lastName
+	req["email"] = email
+	req["phone"] = phone
+	req["password"] = password
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(http.MethodPost, alphapointCreateAccount, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(http.MethodPost, alphapointCreateAccount, req, &response)
 	if err != nil {
 		return fmt.Errorf("unable to create account. Reason: %s", err)
 	}
@@ -296,16 +296,16 @@ func (a *Alphapoint) GetAccountInformation() (AccountInfo, error) {
 // StartIndex - Starting index, if less than 0 then start from the beginning
 // Count - Returns last trade, (Default: 30)
 func (a *Alphapoint) GetAccountTrades(currencyPair string, startIndex, count int) (Trades, error) {
-	request := make(map[string]interface{})
-	request["ins"] = currencyPair
-	request["startIndex"] = startIndex
-	request["count"] = count
+	req := make(map[string]interface{})
+	req["ins"] = currencyPair
+	req["startIndex"] = startIndex
+	req["count"] = count
 	response := Trades{}
 
 	err := a.SendAuthenticatedHTTPRequest(
 		http.MethodPost,
 		alphapointAccountTrades,
-		request,
+		req,
 		&response,
 	)
 	if err != nil {
@@ -339,17 +339,17 @@ func (a *Alphapoint) GetDepositAddresses() ([]DepositAddresses, error) {
 // amount - Amount (ex: “.011”)
 // address - Withdraw address
 func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float64) error {
-	request := make(map[string]interface{})
-	request["ins"] = symbol
-	request["product"] = product
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	request["sendToAddress"] = address
+	req := make(map[string]interface{})
+	req["ins"] = symbol
+	req["product"] = product
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req["sendToAddress"] = address
 
 	response := Response{}
 	err := a.SendAuthenticatedHTTPRequest(
 		http.MethodPost,
 		alphapointWithdraw,
-		request,
+		req,
 		&response,
 	)
 	if err != nil {
@@ -377,18 +377,18 @@ func (a *Alphapoint) convertOrderTypeToOrderTypeNumber(orderType string) (orderT
 // price - Price in USD
 func (a *Alphapoint) CreateOrder(symbol, side, orderType string, quantity, price float64) (int64, error) {
 	orderTypeNumber := a.convertOrderTypeToOrderTypeNumber(orderType)
-	request := make(map[string]interface{})
-	request["ins"] = symbol
-	request["side"] = side
-	request["orderType"] = orderTypeNumber
-	request["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
-	request["px"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req := make(map[string]interface{})
+	req["ins"] = symbol
+	req["side"] = side
+	req["orderType"] = orderTypeNumber
+	req["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
+	req["px"] = strconv.FormatFloat(price, 'f', -1, 64)
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
 		http.MethodPost,
 		alphapointCreateOrder,
-		request,
+		req,
 		&response,
 	)
 	if err != nil {
@@ -409,16 +409,16 @@ func (a *Alphapoint) CreateOrder(symbol, side, orderType string, quantity, price
 // be modified to the lowest ask price. “1” means "Execute now", which will
 // convert a limit order into a market order.
 func (a *Alphapoint) ModifyExistingOrder(symbol string, orderID, action int64) (int64, error) {
-	request := make(map[string]interface{})
-	request["ins"] = symbol
-	request["serverOrderId"] = orderID
-	request["modifyAction"] = action
+	req := make(map[string]interface{})
+	req["ins"] = symbol
+	req["serverOrderId"] = orderID
+	req["modifyAction"] = action
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
 		http.MethodPost,
 		alphapointModifyOrder,
-		request,
+		req,
 		&response,
 	)
 	if err != nil {
@@ -434,15 +434,15 @@ func (a *Alphapoint) ModifyExistingOrder(symbol string, orderID, action int64) (
 // symbol - Instrument code (ex: “BTCUSD”)
 // OrderId - Order id (ex: 1000)
 func (a *Alphapoint) CancelExistingOrder(orderID int64, omsid string) (int64, error) {
-	request := make(map[string]interface{})
-	request["OrderId"] = orderID
-	request["OMSId"] = omsid
+	req := make(map[string]interface{})
+	req["OrderId"] = orderID
+	req["OMSId"] = omsid
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
 		http.MethodPost,
 		alphapointCancelOrder,
-		request,
+		req,
 		&response,
 	)
 	if err != nil {
@@ -457,14 +457,14 @@ func (a *Alphapoint) CancelExistingOrder(orderID int64, omsid string) (int64, er
 // CancelAllExistingOrders cancels all open orders by symbol
 // symbol - Instrument code (ex: “BTCUSD”)
 func (a *Alphapoint) CancelAllExistingOrders(omsid string) error {
-	request := make(map[string]interface{})
-	request["OMSId"] = omsid
+	req := make(map[string]interface{})
+	req["OMSId"] = omsid
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
 		http.MethodPost,
 		alphapointCancelAllOrders,
-		request,
+		req,
 		&response,
 	)
 	if err != nil {
@@ -501,17 +501,17 @@ func (a *Alphapoint) GetOrders() ([]OpenOrders, error) {
 // quantity - Quantity
 // price - Price in USD
 func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (float64, error) {
-	request := make(map[string]interface{})
-	request["ins"] = symbol
-	request["side"] = side
-	request["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
-	request["px"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req := make(map[string]interface{})
+	req["ins"] = symbol
+	req["side"] = side
+	req["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
+	req["px"] = strconv.FormatFloat(price, 'f', -1, 64)
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
 		http.MethodPost,
 		alphapointOrderFee,
-		request,
+		req,
 		&response,
 	)
 	if err != nil {

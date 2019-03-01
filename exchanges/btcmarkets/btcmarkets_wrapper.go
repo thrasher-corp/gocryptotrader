@@ -363,7 +363,7 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if len(getOrdersRequest.Currencies) <= 0 {
+	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("requires at least one currency pair to retrieve history")
 	}
 

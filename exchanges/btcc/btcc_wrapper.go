@@ -1,7 +1,6 @@
 package btcc
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -55,7 +54,7 @@ func (b *BTCC) Run() {
 			log.Errorf("%s failed to update enabled currencies. %s\n", b.Name, err)
 		}
 
-		err = cfg.UpdateExchangeConfig(exchCfg)
+		err = cfg.UpdateExchangeConfig(&exchCfg)
 		if err != nil {
 			log.Errorf("%s failed to update config. %s\n", b.Name, err)
 			return
@@ -65,96 +64,44 @@ func (b *BTCC) Run() {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	// var tickerPrice ticker.Price
-	// tick, err := b.GetTicker(exchange.FormatExchangeCurrency(b.GetName(), p).String())
-	// if err != nil {
-	// 	return tickerPrice, err
-	// }
-	// tickerPrice.Pair = p
-	// tickerPrice.Ask = tick.AskPrice
-	// tickerPrice.Bid = tick.BidPrice
-	// tickerPrice.Low = tick.Low
-	// tickerPrice.Last = tick.Last
-	// tickerPrice.Volume = tick.Volume24H
-	// tickerPrice.High = tick.High
-	// ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
-	// return ticker.GetTicker(b.Name, p, assetType)
-	return ticker.Price{}, errors.New("REST NOT SUPPORTED")
+	return ticker.Price{}, common.ErrFunctionNotSupported
 }
 
 // GetTickerPrice returns the ticker for a currency pair
 func (b *BTCC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	// tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
-	// if err != nil {
-	// 	return b.UpdateTicker(p, assetType)
-	// }
-	// return tickerNew, nil
-	return ticker.Price{}, errors.New("REST NOT SUPPORTED")
+	return ticker.Price{}, common.ErrFunctionNotSupported
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	// ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
-	// if err != nil {
-	// 	return b.UpdateOrderbook(p, assetType)
-	// }
-	// return ob, nil
-	return orderbook.Base{}, errors.New("REST NOT SUPPORTED")
+	return orderbook.Base{}, common.ErrFunctionNotSupported
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	// var orderBook orderbook.Base
-	// orderbookNew, err := b.GetOrderBook(exchange.FormatExchangeCurrency(b.GetName(), p).String(), 100)
-	// if err != nil {
-	// 	return orderBook, err
-	// }
-
-	// for x := range orderbookNew.Bids {
-	// 	data := orderbookNew.Bids[x]
-	// 	orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: data[0], Amount: data[1]})
-	// }
-
-	// for x := range orderbookNew.Asks {
-	// 	data := orderbookNew.Asks[x]
-	// 	orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: data[0], Amount: data[1]})
-	// }
-
-	// orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
-	// return orderbook.GetOrderbook(b.Name, p, assetType)
-	return orderbook.Base{}, errors.New("REST NOT SUPPORTED")
+	return orderbook.Base{}, common.ErrFunctionNotSupported
 }
 
 // GetAccountInfo : Retrieves balances for all enabled currencies for
 // the Kraken exchange - TODO
 func (b *BTCC) GetAccountInfo() (exchange.AccountInfo, error) {
-	// var response exchange.AccountInfo
-	// response.ExchangeName = b.GetName()
-	// return response, nil
-	return exchange.AccountInfo{}, errors.New("REST NOT SUPPORTED")
+	return exchange.AccountInfo{}, common.ErrFunctionNotSupported
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *BTCC) GetFundingHistory() ([]exchange.FundHistory, error) {
-	// var fundHistory []exchange.FundHistory
-	// return fundHistory, common.ErrFunctionNotSupported
-	return nil, errors.New("REST NOT SUPPORTED")
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *BTCC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
-	// var resp []exchange.TradeHistory
-
-	// return resp, common.ErrNotYetImplemented
-	return nil, errors.New("REST NOT SUPPORTED")
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
 func (b *BTCC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-
-	return submitOrderResponse, common.ErrNotYetImplemented
+	return exchange.SubmitOrderResponse{}, common.ErrNotYetImplemented
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -175,8 +122,7 @@ func (b *BTCC) CancelAllOrders(orderCancellation exchange.OrderCancellation) (ex
 
 // GetOrderInfo returns information on a current open order
 func (b *BTCC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
-	return orderDetail, common.ErrNotYetImplemented
+	return exchange.OrderDetail{}, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

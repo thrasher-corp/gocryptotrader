@@ -175,11 +175,11 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalListings() ([]CryptocurrencyH
 	// 	return resp.Data, err
 	// }
 
-	// if resp.Status.ErrorCode != 0 {
+	//nolint:gocritic if resp.Status.ErrorCode != 0 {
 	// 	return resp.Data, errors.New(resp.Status.ErrorMessage)
 	// }
 
-	// return resp.Data, nil
+	//nolint:gocritic return resp.Data, nil
 }
 
 // GetCryptocurrencyLatestListing returns a paginated list of all

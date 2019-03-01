@@ -48,9 +48,7 @@ type Orderbook struct {
 
 // CalculateTotalBids returns the total amount of bids and the total orderbook
 // bids value
-func (o *Base) CalculateTotalBids() (float64, float64) {
-	amountCollated := float64(0)
-	total := float64(0)
+func (o *Base) CalculateTotalBids() (amountCollated, total float64) {
 	for _, x := range o.Bids {
 		amountCollated += x.Amount
 		total += x.Amount * x.Price
@@ -60,9 +58,7 @@ func (o *Base) CalculateTotalBids() (float64, float64) {
 
 // CalculateTotalAsks returns the total amount of asks and the total orderbook
 // asks value
-func (o *Base) CalculateTotalAsks() (float64, float64) {
-	amountCollated := float64(0)
-	total := float64(0)
+func (o *Base) CalculateTotalAsks() (amountCollated, total float64) {
 	for _, x := range o.Asks {
 		amountCollated += x.Amount
 		total += x.Amount * x.Price
@@ -71,9 +67,9 @@ func (o *Base) CalculateTotalAsks() (float64, float64) {
 }
 
 // Update updates the bids and asks
-func (o *Base) Update(Bids, Asks []Item) {
-	o.Bids = Bids
-	o.Asks = Asks
+func (o *Base) Update(bids, asks []Item) {
+	o.Bids = bids
+	o.Asks = asks
 	o.LastUpdated = time.Now()
 }
 

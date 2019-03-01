@@ -53,7 +53,7 @@ func (h *HUOBI) Run() {
 			exchCfg.BaseCurrencies = "USD"
 			h.BaseCurrencies = []string{"USD"}
 
-			errCNY = cfg.UpdateExchangeConfig(exchCfg)
+			errCNY = cfg.UpdateExchangeConfig(&exchCfg)
 			if errCNY != nil {
 				log.Errorf("%s failed to update config. %s\n", h.Name, errCNY)
 				return
@@ -165,7 +165,7 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 	return acc, nil
 }
 
-//GetAccountInfo retrieves balances for all enabled currencies for the
+// GetAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
 func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
@@ -261,24 +261,23 @@ func (h *HUOBI) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 		AccountID: int(accountID),
 	}
 
-	if side == exchange.BuyOrderSide && orderType == exchange.MarketOrderType {
+	switch {
+	case side == exchange.BuyOrderSide && orderType == exchange.MarketOrderType:
 		formattedType = SpotNewOrderRequestTypeBuyMarket
-	} else if side == exchange.SellOrderSide && orderType == exchange.MarketOrderType {
+	case side == exchange.SellOrderSide && orderType == exchange.MarketOrderType:
 		formattedType = SpotNewOrderRequestTypeSellMarket
-	} else if side == exchange.BuyOrderSide && orderType == exchange.LimitOrderType {
+	case side == exchange.BuyOrderSide && orderType == exchange.LimitOrderType:
 		formattedType = SpotNewOrderRequestTypeBuyLimit
 		params.Price = price
-	} else if side == exchange.SellOrderSide && orderType == exchange.LimitOrderType {
+	case side == exchange.SellOrderSide && orderType == exchange.LimitOrderType:
 		formattedType = SpotNewOrderRequestTypeSellLimit
 		params.Price = price
-	} else {
+	default:
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
 	params.Type = formattedType
-
 	response, err := h.SpotNewOrder(params)
-
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}
@@ -374,7 +373,7 @@ func (h *HUOBI) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if len(getOrdersRequest.Currencies) <= 0 {
+	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
@@ -419,7 +418,7 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (h *HUOBI) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if len(getOrdersRequest.Currencies) <= 0 {
+	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 

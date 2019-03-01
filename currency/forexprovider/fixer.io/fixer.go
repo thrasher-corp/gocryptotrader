@@ -71,13 +71,13 @@ func (f *Fixer) GetRates(baseCurrency, symbols string) (map[string]float64, erro
 
 // GetLatestRates returns real-time exchange rate data for all available or a
 // specific set of currencies. NOTE DEFAULT BASE CURRENCY IS EUR
-func (f *Fixer) GetLatestRates(base, symbols string) (map[string]float64, error) {
+func (f *Fixer) GetLatestRates(baseCurrency, symbols string) (map[string]float64, error) {
 	var resp Rates
 
 	v := url.Values{}
 
 	if f.APIKeyLvl > fixerAPIFree {
-		v.Add("base", base)
+		v.Add("base", baseCurrency)
 	}
 	v.Add("symbols", symbols)
 
@@ -98,14 +98,14 @@ func (f *Fixer) GetLatestRates(base, symbols string) (map[string]float64, error)
 // date - YYYY-MM-DD	[required] A date in the past
 // base - USD 			[optional]
 // symbols - the desired symbols
-func (f *Fixer) GetHistoricalRates(date, base string, symbols []string) (map[string]float64, error) {
+func (f *Fixer) GetHistoricalRates(date, baseCurrency string, symbols []string) (map[string]float64, error) {
 	var resp Rates
 
 	v := url.Values{}
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 
-	if len(base) > 0 {
-		v.Set("base", base)
+	if len(baseCurrency) > 0 {
+		v.Set("base", baseCurrency)
 	}
 
 	err := f.SendOpenHTTPRequest(date, v, &resp)
@@ -154,7 +154,7 @@ func (f *Fixer) ConvertCurrency(from, to, date string, amount float64) (float64,
 
 // GetTimeSeriesData returns daily historical exchange rate data between two
 // specified dates for all available or a specific set of currencies.
-func (f *Fixer) GetTimeSeriesData(startDate, endDate, base string, symbols []string) (map[string]interface{}, error) {
+func (f *Fixer) GetTimeSeriesData(startDate, endDate, baseCurrency string, symbols []string) (map[string]interface{}, error) {
 	if f.APIKeyLvl < fixerAPIProfessional {
 		return nil, errors.New("insufficient API privileges, upgrade to professional to use this function")
 	}
@@ -164,7 +164,7 @@ func (f *Fixer) GetTimeSeriesData(startDate, endDate, base string, symbols []str
 	v := url.Values{}
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 
 	err := f.SendOpenHTTPRequest(fixerAPITimeSeries, v, &resp)
@@ -180,7 +180,7 @@ func (f *Fixer) GetTimeSeriesData(startDate, endDate, base string, symbols []str
 
 // GetFluctuationData returns fluctuation data between two specified dates for
 // all available or a specific set of currencies.
-func (f *Fixer) GetFluctuationData(startDate, endDate, base string, symbols []string) (map[string]Flux, error) {
+func (f *Fixer) GetFluctuationData(startDate, endDate, baseCurrency string, symbols []string) (map[string]Flux, error) {
 	if f.APIKeyLvl < fixerAPIProfessionalPlus {
 		return nil, errors.New("insufficient API privileges, upgrade to professional plus or enterprise to use this function")
 	}
@@ -190,7 +190,7 @@ func (f *Fixer) GetFluctuationData(startDate, endDate, base string, symbols []st
 	v := url.Values{}
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 
 	err := f.SendOpenHTTPRequest(fixerAPIFluctuation, v, &resp)

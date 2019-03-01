@@ -209,7 +209,7 @@ func TickerUpdaterRoutine() {
 					}
 					printTickerSummary(&result, c, assetType, exchangeName, err)
 					if err == nil {
-						bot.comms.StageTickerData(exchangeName, assetType, result)
+						bot.comms.StageTickerData(exchangeName, assetType, &result)
 						if bot.config.Webserver.Enabled {
 							relayWebsocketEvent(result, "ticker_update", assetType, exchangeName)
 						}
@@ -260,7 +260,7 @@ func OrderbookUpdaterRoutine() {
 					result, err := exch.UpdateOrderbook(c, assetType)
 					printOrderbookSummary(&result, c, assetType, exchangeName, err)
 					if err == nil {
-						bot.comms.StageOrderbookData(exchangeName, assetType, result)
+						bot.comms.StageOrderbookData(exchangeName, assetType, &result)
 						if bot.config.Webserver.Enabled {
 							relayWebsocketEvent(result, "orderbook_update", assetType, exchangeName)
 						}

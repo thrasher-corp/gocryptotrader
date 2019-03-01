@@ -71,13 +71,13 @@ func TestSetup(t *testing.T) {
 	if a.Websocket.IsEnabled() {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(a.BaseCurrencies) <= 0 {
+	if len(a.BaseCurrencies) == 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(a.AvailablePairs) <= 0 {
+	if len(a.AvailablePairs) == 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(a.EnabledPairs) <= 0 {
+	if len(a.EnabledPairs) == 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
 }

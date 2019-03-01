@@ -368,11 +368,13 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersReque
 		}
 
 		status := ""
-		if trade.Data.ReleasedAt != "" && trade.Data.ReleasedAt != null {
+
+		switch {
+		case trade.Data.ReleasedAt != "" && trade.Data.ReleasedAt != null:
 			status = "Released"
-		} else if trade.Data.CanceledAt != "" && trade.Data.CanceledAt != null {
+		case trade.Data.CanceledAt != "" && trade.Data.CanceledAt != null:
 			status = "Cancelled"
-		} else if trade.Data.ClosedAt != "" && trade.Data.ClosedAt != null {
+		case trade.Data.ClosedAt != "" && trade.Data.ClosedAt != null:
 			status = "Closed"
 		}
 

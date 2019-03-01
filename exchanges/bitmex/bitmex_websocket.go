@@ -412,15 +412,11 @@ func (b *Bitmex) websocketSubscribe() error {
 	subscriber.Arguments = append(subscriber.Arguments, bitmexWSAnnouncement)
 
 	for _, contract := range contracts {
-		// Orderbook subscribe
-		subscriber.Arguments = append(subscriber.Arguments,
-			bitmexWSOrderbookL2+":"+contract.Pair().String())
-
-		// Trade subscribe
-		subscriber.Arguments = append(subscriber.Arguments,
-			bitmexWSTrade+":"+contract.Pair().String())
-
+		// Orderbook and Trade subscribe
 		// NOTE more added here in future
+		subscriber.Arguments = append(subscriber.Arguments,
+			bitmexWSOrderbookL2+":"+contract.Pair().String(),
+			bitmexWSTrade+":"+contract.Pair().String())
 	}
 
 	return b.WebsocketConn.WriteJSON(subscriber)
@@ -433,14 +429,11 @@ func (b *Bitmex) websocketSendAuth() error {
 	hmac := common.GetHMAC(common.HashSHA256,
 		[]byte("GET/realtime"+newTimestamp),
 		[]byte(b.APISecret))
-
 	signature := common.HexEncodeToString(hmac)
 
 	var sendAuth WebsocketRequest
 	sendAuth.Command = "authKeyExpires"
-	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey)
-	sendAuth.Arguments = append(sendAuth.Arguments, timestamp)
-	sendAuth.Arguments = append(sendAuth.Arguments, signature)
-
+	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
+		signature)
 	return b.WebsocketConn.WriteJSON(sendAuth)
 }

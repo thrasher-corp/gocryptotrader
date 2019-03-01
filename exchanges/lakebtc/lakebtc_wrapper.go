@@ -117,13 +117,14 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountInfo.Balance {
 		for z, w := range accountInfo.Locked {
-			if z == x {
-				var exchangeCurrency exchange.AccountCurrencyInfo
-				exchangeCurrency.CurrencyName = common.StringToUpper(x)
-				exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
-				exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
-				currencies = append(currencies, exchangeCurrency)
+			if z != x {
+				continue
 			}
+			var exchangeCurrency exchange.AccountCurrencyInfo
+			exchangeCurrency.CurrencyName = common.StringToUpper(x)
+			exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
+			exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
+			currencies = append(currencies, exchangeCurrency)
 		}
 	}
 

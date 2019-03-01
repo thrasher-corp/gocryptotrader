@@ -131,9 +131,9 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 func (g *Gateio) GetSymbols() ([]string, error) {
 	var result []string
 
-	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioSymbol)
+	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioSymbol)
 
-	err := g.SendHTTPRequest(url, &result)
+	err := g.SendHTTPRequest(urlPath, &result)
 	if err != nil {
 		return nil, nil
 	}
@@ -148,11 +148,11 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 		Pairs  []interface{} `json:"pairs"`
 	}
 
-	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioMarketInfo)
+	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioMarketInfo)
 
 	var res response
 	var result MarketInfoResponse
-	err := g.SendHTTPRequest(url, &res)
+	err := g.SendHTTPRequest(urlPath, &res)
 	if err != nil {
 		return result, err
 	}
@@ -189,17 +189,17 @@ func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 // GetTicker returns a ticker for the supplied symbol
 // updated every 10 seconds
 func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTicker, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTicker, symbol)
 	var res TickerResponse
-	return res, g.SendHTTPRequest(url, &res)
+	return res, g.SendHTTPRequest(urlPath, &res)
 }
 
 // GetTickers returns tickers for all symbols
 func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTickers)
+	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTickers)
 
 	resp := make(map[string]TickerResponse)
-	err := g.SendHTTPRequest(url, &resp)
+	err := g.SendHTTPRequest(urlPath, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -208,10 +208,10 @@ func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
 
 // GetOrderbook returns the orderbook data for a suppled symbol
 func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioOrderbook, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioOrderbook, symbol)
 
 	var resp OrderbookResponse
-	err := g.SendHTTPRequest(url, &resp)
+	err := g.SendHTTPRequest(urlPath, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -270,7 +270,7 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 
 // GetSpotKline returns kline data for the most recent time period
 func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d",
+	urlPath := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d",
 		g.APIUrlSecondary,
 		gateioAPIVersion,
 		gateioKline,
@@ -279,7 +279,7 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 		arg.HourSize)
 
 	var rawKlines map[string]interface{}
-	err := g.SendHTTPRequest(url, &rawKlines)
+	err := g.SendHTTPRequest(urlPath, &rawKlines)
 	if err != nil {
 		return nil, err
 	}
@@ -357,8 +357,8 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 		strconv.FormatFloat(arg.Amount, 'f', -1, 64),
 	)
 
-	strRequestURL := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
-	return result, g.SendAuthenticatedHTTPRequest(http.MethodPost, strRequestURL, params, &result)
+	urlPath := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
+	return result, g.SendAuthenticatedHTTPRequest(http.MethodPost, urlPath, params, &result)
 }
 
 // CancelExistingOrder cancels an order given the supplied orderID and symbol
@@ -472,11 +472,11 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(g.APISecret))
 	headers["sign"] = common.HexEncodeToString(hmac)
 
-	url := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
+	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
 
 	var intermidiary json.RawMessage
 
-	err := g.SendPayload(method, url, headers, strings.NewReader(param), &intermidiary, true, g.Verbose)
+	err := g.SendPayload(method, urlPath, headers, strings.NewReader(param), &intermidiary, true, g.Verbose)
 	if err != nil {
 		return err
 	}

@@ -43,8 +43,8 @@ func (b *Bitstamp) Run() {
 			if pairs[x].Trading != "Enabled" {
 				continue
 			}
-			pair := strings.Split(pairs[x].Name, "/")
-			currencies = append(currencies, pair[0]+pair[1])
+			p := strings.Split(pairs[x].Name, "/")
+			currencies = append(currencies, p[0]+p[1])
 		}
 		err = b.UpdateCurrencies(currencies, false, false)
 		if err != nil {
@@ -128,32 +128,28 @@ func (b *Bitstamp) GetAccountInfo() (exchange.AccountInfo, error) {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
-
-	currencies = append(currencies, exchange.AccountCurrencyInfo{
-		CurrencyName: "BTC",
-		TotalValue:   accountBalance.BTCAvailable,
-		Hold:         accountBalance.BTCReserved,
-	})
-
-	currencies = append(currencies, exchange.AccountCurrencyInfo{
-		CurrencyName: "XRP",
-		TotalValue:   accountBalance.XRPAvailable,
-		Hold:         accountBalance.XRPReserved,
-	})
-
-	currencies = append(currencies, exchange.AccountCurrencyInfo{
-		CurrencyName: "USD",
-		TotalValue:   accountBalance.USDAvailable,
-		Hold:         accountBalance.USDReserved,
-	})
-
-	currencies = append(currencies, exchange.AccountCurrencyInfo{
-		CurrencyName: "EUR",
-		TotalValue:   accountBalance.EURAvailable,
-		Hold:         accountBalance.EURReserved,
-	})
-
+	var currencies = []exchange.AccountCurrencyInfo{
+		{
+			CurrencyName: "BTC",
+			TotalValue:   accountBalance.BTCAvailable,
+			Hold:         accountBalance.BTCReserved,
+		},
+		{
+			CurrencyName: "XRP",
+			TotalValue:   accountBalance.XRPAvailable,
+			Hold:         accountBalance.XRPReserved,
+		},
+		{
+			CurrencyName: "USD",
+			TotalValue:   accountBalance.USDAvailable,
+			Hold:         accountBalance.USDReserved,
+		},
+		{
+			CurrencyName: "EUR",
+			TotalValue:   accountBalance.EURAvailable,
+			Hold:         accountBalance.EURReserved,
+		},
+	}
 	response.Accounts = append(response.Accounts, exchange.Account{
 		Currencies: currencies,
 	})
@@ -337,39 +333,42 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		if order.Type == 2 {
-			quoteCurrency := ""
-			baseCurrency := ""
-			if order.BTC > 0 {
-				baseCurrency = symbol.BTC
-			} else if order.XRP > 0 {
-				baseCurrency = symbol.XRP
-			} else {
-				log.Warnf("No quote currency found for OrderID '%v'", order.OrderID)
-			}
-
-			if order.USD > 0 {
-				quoteCurrency = symbol.USD
-			} else if order.EUR > 0 {
-				quoteCurrency = symbol.EUR
-			} else {
-				log.Warnf("No quote currency found for OrderID '%v'", order.OrderID)
-			}
-
-			var currPair pair.CurrencyPair
-			if quoteCurrency != "" && baseCurrency != "" {
-				currPair = pair.NewCurrencyPairWithDelimiter(baseCurrency, quoteCurrency, b.ConfigCurrencyPairFormat.Delimiter)
-			}
-			orderDate := time.Unix(order.Date, 0)
-
-			orders = append(orders, exchange.OrderDetail{
-				ID:           fmt.Sprintf("%v", order.OrderID),
-				OrderDate:    orderDate,
-				Exchange:     b.Name,
-				CurrencyPair: currPair,
-			})
-
+		if order.Type != 2 {
+			continue
 		}
+		quoteCurrency := ""
+		baseCurrency := ""
+
+		switch {
+		case order.BTC > 0:
+			baseCurrency = symbol.BTC
+		case order.XRP > 0:
+			baseCurrency = symbol.XRP
+		default:
+			log.Warnf("no base currency found for OrderID '%v'", order.OrderID)
+		}
+
+		switch {
+		case order.USD > 0:
+			quoteCurrency = symbol.USD
+		case order.EUR > 0:
+			quoteCurrency = symbol.EUR
+		default:
+			log.Warnf("no quote currency found for orderID '%v'", order.OrderID)
+		}
+
+		var currPair pair.CurrencyPair
+		if quoteCurrency != "" && baseCurrency != "" {
+			currPair = pair.NewCurrencyPairWithDelimiter(baseCurrency, quoteCurrency, b.ConfigCurrencyPairFormat.Delimiter)
+		}
+		orderDate := time.Unix(order.Date, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.OrderID),
+			OrderDate:    orderDate,
+			Exchange:     b.Name,
+			CurrencyPair: currPair,
+		})
 	}
 
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)

@@ -106,7 +106,7 @@ func UnloadExchange(name string) error {
 	}
 
 	exchCfg.Enabled = false
-	err = bot.config.UpdateExchangeConfig(exchCfg)
+	err = bot.config.UpdateExchangeConfig(&exchCfg)
 	if err != nil {
 		return err
 	}

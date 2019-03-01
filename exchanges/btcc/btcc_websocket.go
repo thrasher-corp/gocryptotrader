@@ -383,12 +383,12 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	var asks, bids []orderbook.Item
 	for _, data := range ob.List {
 		var newSize float64
-		switch data.Size.(type) {
+		switch result := data.Size.(type) {
 		case float64:
-			newSize = data.Size.(float64)
+			newSize = result
 		case string:
 			var err error
-			newSize, err = strconv.ParseFloat(data.Size.(string), 64)
+			newSize, err = strconv.ParseFloat(result, 64)
 			if err != nil {
 				return err
 			}
@@ -430,12 +430,12 @@ func (b *BTCC) WsProcessOrderbookUpdate(ob WsOrderbookSnapshot) error {
 	var asks, bids []orderbook.Item
 	for _, data := range ob.List {
 		var newSize float64
-		switch data.Size.(type) {
+		switch d := data.Size.(type) {
 		case float64:
-			newSize = data.Size.(float64)
+			newSize = d
 		case string:
 			var err error
-			newSize, err = strconv.ParseFloat(data.Size.(string), 64)
+			newSize, err = strconv.ParseFloat(d, 64)
 			if err != nil {
 				return err
 			}
@@ -485,26 +485,26 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 		data := ask.([]interface{})
 		var price, amount float64
 
-		switch data[0].(type) {
+		switch d := data[0].(type) {
 		case string:
 			var err error
-			price, err = strconv.ParseFloat(data[0].(string), 64)
+			price, err = strconv.ParseFloat(d, 64)
 			if err != nil {
 				return err
 			}
 		case float64:
-			price = data[0].(float64)
+			price = d
 		}
 
-		switch data[0].(type) {
+		switch d := data[0].(type) {
 		case string:
 			var err error
-			amount, err = strconv.ParseFloat(data[0].(string), 64)
+			amount, err = strconv.ParseFloat(d, 64)
 			if err != nil {
 				return err
 			}
 		case float64:
-			amount = data[0].(float64)
+			amount = d
 		}
 
 		asks = append(asks, orderbook.Item{
@@ -517,26 +517,26 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 		data := bid.([]interface{})
 		var price, amount float64
 
-		switch data[1].(type) {
+		switch d := data[1].(type) {
 		case string:
 			var err error
-			price, err = strconv.ParseFloat(data[1].(string), 64)
+			price, err = strconv.ParseFloat(d, 64)
 			if err != nil {
 				return err
 			}
 		case float64:
-			price = data[1].(float64)
+			price = d
 		}
 
-		switch data[1].(type) {
+		switch d := data[1].(type) {
 		case string:
 			var err error
-			amount, err = strconv.ParseFloat(data[1].(string), 64)
+			amount, err = strconv.ParseFloat(d, 64)
 			if err != nil {
 				return err
 			}
 		case float64:
-			amount = data[1].(float64)
+			amount = d
 		}
 
 		bids = append(bids, orderbook.Item{
@@ -546,7 +546,6 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 	}
 
 	p := pair.NewCurrencyPairFromString(symbol)
-
 	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), "SPOT")
 	if err != nil {
 		return err

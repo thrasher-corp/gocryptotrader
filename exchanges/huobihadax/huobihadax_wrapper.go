@@ -226,17 +226,18 @@ func (h *HUOBIHADAX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, o
 		AccountID: int(accountID),
 	}
 
-	if side == exchange.BuyOrderSide && orderType == exchange.MarketOrderType {
+	switch {
+	case side == exchange.BuyOrderSide && orderType == exchange.MarketOrderType:
 		formattedType = SpotNewOrderRequestTypeBuyMarket
-	} else if side == exchange.SellOrderSide && orderType == exchange.MarketOrderType {
+	case side == exchange.SellOrderSide && orderType == exchange.MarketOrderType:
 		formattedType = SpotNewOrderRequestTypeSellMarket
-	} else if side == exchange.BuyOrderSide && orderType == exchange.LimitOrderType {
+	case side == exchange.BuyOrderSide && orderType == exchange.LimitOrderType:
 		formattedType = SpotNewOrderRequestTypeBuyLimit
 		params.Price = price
-	} else if side == exchange.SellOrderSide && orderType == exchange.LimitOrderType {
+	case side == exchange.SellOrderSide && orderType == exchange.LimitOrderType:
 		formattedType = SpotNewOrderRequestTypeSellLimit
 		params.Price = price
-	} else {
+	default:
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
@@ -339,7 +340,7 @@ func (h *HUOBIHADAX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, erro
 
 // GetActiveOrders retrieves any orders that are active/open
 func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if len(getOrdersRequest.Currencies) <= 0 {
+	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
@@ -384,7 +385,7 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if len(getOrdersRequest.Currencies) <= 0 {
+	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 

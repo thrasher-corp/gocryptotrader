@@ -223,8 +223,8 @@ func (i *ItBit) GetOrders(walletID, symbol, status string, page, perPage int64) 
 // GetWalletTrades returns all trades for a specified wallet.
 func (i *ItBit) GetWalletTrades(walletID string, params url.Values) (Records, error) {
 	resp := Records{}
-	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitTrades)
-	path := common.EncodeURLValues(url, params)
+	urlPath := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitTrades)
+	path := common.EncodeURLValues(urlPath, params)
 
 	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
@@ -239,8 +239,8 @@ func (i *ItBit) GetWalletTrades(walletID string, params url.Values) (Records, er
 // GetFundingHistoryForWallet returns all funding history for a specified wallet.
 func (i *ItBit) GetFundingHistoryForWallet(walletID string, params url.Values) (FundingRecords, error) {
 	resp := FundingRecords{}
-	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitFundingHistory)
-	path := common.EncodeURLValues(url, params)
+	urlPath := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitFundingHistory)
+	path := common.EncodeURLValues(urlPath, params)
 
 	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
@@ -282,8 +282,8 @@ func (i *ItBit) PlaceOrder(walletID, side, orderType, currency string, amount, p
 // GetOrder returns an order by id.
 func (i *ItBit) GetOrder(walletID string, params url.Values) (Order, error) {
 	resp := Order{}
-	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitOrders)
-	path := common.EncodeURLValues(url, params)
+	urlPath := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitOrders)
+	path := common.EncodeURLValues(urlPath, params)
 
 	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
@@ -347,7 +347,7 @@ func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
-func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params map[string]interface{}, result interface{}) error {
+func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) error {
 	if !i.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, i.Name)
 	}
@@ -356,18 +356,18 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		return errors.New("client ID not set")
 	}
 
-	request := make(map[string]interface{})
-	url := i.APIUrl + path
+	req := make(map[string]interface{})
+	urlPath := i.APIUrl + path
 
 	for key, value := range params {
-		request[key] = value
+		req[key] = value
 	}
 
 	PayloadJSON := []byte("")
 	var err error
 
 	if params != nil {
-		PayloadJSON, err = common.JSONEncode(request)
+		PayloadJSON, err = common.JSONEncode(req)
 		if err != nil {
 			return err
 		}
@@ -380,13 +380,13 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	nonce := i.Nonce.GetValue(i.Name, false).String()
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 
-	message, err := common.JSONEncode([]string{method, url, string(PayloadJSON), nonce, timestamp})
+	message, err := common.JSONEncode([]string{method, urlPath, string(PayloadJSON), nonce, timestamp})
 	if err != nil {
 		return err
 	}
 
 	hash := common.GetSHA256([]byte(nonce + string(message)))
-	hmac := common.GetHMAC(common.HashSHA512, []byte(url+string(hash)), []byte(i.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(urlPath+string(hash)), []byte(i.APISecret))
 	signature := common.Base64Encode(hmac)
 
 	headers := make(map[string]string)
@@ -403,7 +403,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		RequestID   string `json:"requestId"`
 	}{}
 
-	err = i.SendPayload(method, url, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, i.Verbose)
+	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, i.Verbose)
 	if err != nil {
 		return err
 	}

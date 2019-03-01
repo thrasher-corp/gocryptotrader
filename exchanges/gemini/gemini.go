@@ -300,15 +300,15 @@ func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType 
 		return 0, err
 	}
 
-	request := make(map[string]interface{})
-	request["symbol"] = symbol
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	request["price"] = strconv.FormatFloat(price, 'f', -1, 64)
-	request["side"] = side
-	request["type"] = orderType
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req["side"] = side
+	req["type"] = orderType
 
 	response := Order{}
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderNew, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderNew, req, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -317,12 +317,12 @@ func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType 
 
 // CancelExistingOrder will cancel an order. If the order is already canceled, the
 // message will succeed but have no effect.
-func (g *Gemini) CancelExistingOrder(OrderID int64) (Order, error) {
-	request := make(map[string]interface{})
-	request["order_id"] = OrderID
+func (g *Gemini) CancelExistingOrder(orderID int64) (Order, error) {
+	req := make(map[string]interface{})
+	req["order_id"] = orderID
 
 	response := Order{}
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderCancel, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderCancel, req, &response)
 	if err != nil {
 		return Order{}, err
 	}
@@ -337,10 +337,10 @@ func (g *Gemini) CancelExistingOrder(OrderID int64) (Order, error) {
 // sessions owned by this account, including interactive orders placed through
 // the UI. If sessions = true will only cancel the order that is called on this
 // session asssociated with the APIKEY
-func (g *Gemini) CancelExistingOrders(CancelBySession bool) (OrderResult, error) {
+func (g *Gemini) CancelExistingOrders(cancelBySession bool) (OrderResult, error) {
 	response := OrderResult{}
 	path := geminiOrderCancelAll
-	if CancelBySession {
+	if cancelBySession {
 		path = geminiOrderCancelSession
 	}
 
@@ -356,12 +356,12 @@ func (g *Gemini) CancelExistingOrders(CancelBySession bool) (OrderResult, error)
 
 // GetOrderStatus returns the status for an order
 func (g *Gemini) GetOrderStatus(orderID int64) (Order, error) {
-	request := make(map[string]interface{})
-	request["order_id"] = orderID
+	req := make(map[string]interface{})
+	req["order_id"] = orderID
 
 	response := Order{}
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderStatus, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderStatus, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -398,15 +398,15 @@ func (g *Gemini) GetOrders() ([]Order, error) {
 // timestamp - [optional] Only return trades on or after this timestamp.
 func (g *Gemini) GetTradeHistory(currencyPair string, timestamp int64) ([]TradeHistory, error) {
 	response := []TradeHistory{}
-	request := make(map[string]interface{})
-	request["symbol"] = currencyPair
+	req := make(map[string]interface{})
+	req["symbol"] = currencyPair
 
 	if timestamp != 0 {
-		request["timestamp"] = timestamp
+		req["timestamp"] = timestamp
 	}
 
 	return response,
-		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiMyTrades, request, &response)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiMyTrades, req, &response)
 }
 
 // GetNotionalVolume returns  the volume in price currency that has been traded across all pairs over a period of 30 days
@@ -436,13 +436,13 @@ func (g *Gemini) GetBalances() ([]Balance, error) {
 // GetCryptoDepositAddress returns a deposit address
 func (g *Gemini) GetCryptoDepositAddress(depositAddlabel, currency string) (DepositAddress, error) {
 	response := DepositAddress{}
-	request := make(map[string]interface{})
+	req := make(map[string]interface{})
 
 	if len(depositAddlabel) > 0 {
-		request["label"] = depositAddlabel
+		req["label"] = depositAddlabel
 	}
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiDeposit+"/"+currency+"/"+geminiNewAddress, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiDeposit+"/"+currency+"/"+geminiNewAddress, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -455,11 +455,11 @@ func (g *Gemini) GetCryptoDepositAddress(depositAddlabel, currency string) (Depo
 // WithdrawCrypto withdraws crypto currency to a whitelisted address
 func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (WithdrawalAddress, error) {
 	response := WithdrawalAddress{}
-	request := make(map[string]interface{})
-	request["address"] = address
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req := make(map[string]interface{})
+	req["address"] = address
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiWithdraw+common.StringToLower(currency), request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiWithdraw+common.StringToLower(currency), req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -501,15 +501,15 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	}
 
 	headers := make(map[string]string)
-	request := make(map[string]interface{})
-	request["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-	request["nonce"] = g.Nonce.GetValue(g.Name, false)
+	req := make(map[string]interface{})
+	req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
+	req["nonce"] = g.Nonce.GetValue(g.Name, false)
 
 	for key, value := range params {
-		request[key] = value
+		req[key] = value
 	}
 
-	PayloadJSON, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(req)
 	if err != nil {
 		return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
 	}

@@ -20,25 +20,25 @@ func NewComm(cfg *config.CommunicationsConfig) *Communications {
 
 	if cfg.TelegramConfig.Enabled {
 		Telegram := new(telegram.Telegram)
-		Telegram.Setup(*cfg)
+		Telegram.Setup(cfg)
 		comm.IComm = append(comm.IComm, Telegram)
 	}
 
 	if cfg.SMSGlobalConfig.Enabled {
 		SMSGlobal := new(smsglobal.SMSGlobal)
-		SMSGlobal.Setup(*cfg)
+		SMSGlobal.Setup(cfg)
 		comm.IComm = append(comm.IComm, SMSGlobal)
 	}
 
 	if cfg.SMTPConfig.Enabled {
 		SMTP := new(smtpservice.SMTPservice)
-		SMTP.Setup(*cfg)
+		SMTP.Setup(cfg)
 		comm.IComm = append(comm.IComm, SMTP)
 	}
 
 	if cfg.SlackConfig.Enabled {
 		Slack := new(slack.Slack)
-		Slack.Setup(*cfg)
+		Slack.Setup(cfg)
 		comm.IComm = append(comm.IComm, Slack)
 	}
 

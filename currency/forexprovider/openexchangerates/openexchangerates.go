@@ -71,11 +71,11 @@ func (o *OXR) GetRates(baseCurrency, symbols string) (map[string]float64, error)
 
 // GetLatest returns the latest exchange rates available from the Open Exchange
 // Rates
-func (o *OXR) GetLatest(base, symbols string, prettyPrint, showAlternative bool) (map[string]float64, error) {
+func (o *OXR) GetLatest(baseCurrency, symbols string, prettyPrint, showAlternative bool) (map[string]float64, error) {
 	var resp Latest
 
 	v := url.Values{}
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", symbols)
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 	v.Set("show_alternative", strconv.FormatBool(showAlternative))
@@ -92,11 +92,11 @@ func (o *OXR) GetLatest(base, symbols string, prettyPrint, showAlternative bool)
 
 // GetHistoricalRates returns historical exchange rates for any date available
 // from the Open Exchange Rates API.
-func (o *OXR) GetHistoricalRates(date, base string, symbols []string, prettyPrint, showAlternative bool) (map[string]float64, error) {
+func (o *OXR) GetHistoricalRates(date, baseCurrency string, symbols []string, prettyPrint, showAlternative bool) (map[string]float64, error) {
 	var resp Latest
 
 	v := url.Values{}
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 	v.Set("show_alternative", strconv.FormatBool(showAlternative))
@@ -127,7 +127,7 @@ func (o *OXR) GetCurrencies(showInactive, prettyPrint, showAlternative bool) (ma
 
 // GetTimeSeries returns historical exchange rates for a given time period,
 // where available.
-func (o *OXR) GetTimeSeries(base, startDate, endDate string, symbols []string, prettyPrint, showAlternative bool) (map[string]interface{}, error) {
+func (o *OXR) GetTimeSeries(baseCurrency, startDate, endDate string, symbols []string, prettyPrint, showAlternative bool) (map[string]interface{}, error) {
 	if o.APIKeyLvl < APIEnterpriseAccess {
 		return nil, errors.New("upgrade account, insufficient access")
 	}
@@ -135,7 +135,7 @@ func (o *OXR) GetTimeSeries(base, startDate, endDate string, symbols []string, p
 	var resp TimeSeries
 
 	v := url.Values{}
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("start", startDate)
 	v.Set("end", endDate)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
@@ -175,7 +175,7 @@ func (o *OXR) ConvertCurrency(amount float64, from, to string) (float64, error) 
 // GetOHLC returns historical Open, High Low, Close (OHLC) and Average exchange
 // rates for a given time period, ranging from 1 month to 1 minute, where
 // available.
-func (o *OXR) GetOHLC(startTime, period, base string, symbols []string, prettyPrint bool) (map[string]interface{}, error) {
+func (o *OXR) GetOHLC(startTime, period, baseCurrency string, symbols []string, prettyPrint bool) (map[string]interface{}, error) {
 	if o.APIKeyLvl < APIUnlimitedAccess {
 		return nil, errors.New("upgrade account, insufficient access")
 	}
@@ -185,7 +185,7 @@ func (o *OXR) GetOHLC(startTime, period, base string, symbols []string, prettyPr
 	v := url.Values{}
 	v.Set("start_time", startTime)
 	v.Set("period", period)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 

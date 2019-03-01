@@ -220,10 +220,10 @@ func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) 
 // GetMarkets returns market information including pricing, symbols and
 // each symbols decimal precision
 func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
-	url := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbMarkets)
+	endpoint := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbMarkets)
 
 	var res interface{}
-	err := z.SendHTTPRequest(url, &res)
+	err := z.SendHTTPRequest(endpoint, &res)
 	if err != nil {
 		return nil, err
 	}
@@ -256,28 +256,28 @@ func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
 
 // GetTicker returns a ticker for a given symbol
 func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbTicker, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbTicker, symbol)
 	var res TickerResponse
 
-	err := z.SendHTTPRequest(url, &res)
+	err := z.SendHTTPRequest(urlPath, &res)
 	return res, err
 }
 
 // GetTickers returns ticker data for all supported symbols
 func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbTickers)
+	urlPath := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbTickers)
 	resp := make(map[string]TickerChildResponse)
 
-	err := z.SendHTTPRequest(url, &resp)
+	err := z.SendHTTPRequest(urlPath, &resp)
 	return resp, err
 }
 
 // GetOrderbook returns the orderbook for a given symbol
 func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbDepth, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbDepth, symbol)
 	var res OrderbookResponse
 
-	err := z.SendHTTPRequest(url, &res)
+	err := z.SendHTTPRequest(urlPath, &res)
 	if err != nil {
 		return res, err
 	}
@@ -304,11 +304,11 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 		vals.Set("size", fmt.Sprintf("%d", arg.Size))
 	}
 
-	url := fmt.Sprintf("%s/%s/%s?%s", z.APIUrl, zbAPIVersion, zbKline, vals.Encode())
+	urlPath := fmt.Sprintf("%s/%s/%s?%s", z.APIUrl, zbAPIVersion, zbKline, vals.Encode())
 
 	var res KLineResponse
 	var rawKlines map[string]interface{}
-	err := z.SendHTTPRequest(url, &rawKlines)
+	err := z.SendHTTPRequest(urlPath, &rawKlines)
 	if err != nil {
 		return res, err
 	}
@@ -378,7 +378,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 	params.Set("reqTime", fmt.Sprintf("%d", common.UnixMillis(time.Now())))
 	params.Set("sign", fmt.Sprintf("%x", hmac))
 
-	url := fmt.Sprintf("%s/%s?%s",
+	urlPath := fmt.Sprintf("%s/%s?%s",
 		z.APIUrlSecondary,
 		params.Get("method"),
 		params.Encode())
@@ -391,7 +391,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 	}{}
 
 	err := z.SendPayload(httpMethod,
-		url,
+		urlPath,
 		nil,
 		strings.NewReader(""),
 		&intermediary,

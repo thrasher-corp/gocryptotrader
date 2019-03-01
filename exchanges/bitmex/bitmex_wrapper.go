@@ -154,9 +154,7 @@ func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	// b.GetFullFundingHistory()
-	return fundHistory, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

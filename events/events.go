@@ -98,7 +98,7 @@ func RemoveEvent(eventID int) bool {
 
 // GetEventCounter displays the emount of total events on the chain and the
 // events that have been executed.
-func GetEventCounter() (total int, executed int) {
+func GetEventCounter() (total, executed int) {
 	total = len(Events)
 
 	for _, x := range Events {
@@ -177,40 +177,40 @@ func (e *Event) CheckCondition() bool {
 }
 
 // IsValidEvent checks the actions to be taken and returns an error if incorrect
-func IsValidEvent(Exchange, Item, Condition, Action string) error {
-	Exchange = common.StringToUpper(Exchange)
-	Item = common.StringToUpper(Item)
-	Action = common.StringToUpper(Action)
+func IsValidEvent(exchange, item, condition, action string) error {
+	exchange = common.StringToUpper(exchange)
+	item = common.StringToUpper(item)
+	action = common.StringToUpper(action)
 
-	if !IsValidExchange(Exchange) {
+	if !IsValidExchange(exchange) {
 		return errExchangeDisabled
 	}
 
-	if !IsValidItem(Item) {
+	if !IsValidItem(item) {
 		return errInvalidItem
 	}
 
-	if !common.StringContains(Condition, ",") {
+	if !common.StringContains(condition, ",") {
 		return errInvalidCondition
 	}
 
-	condition := common.SplitStrings(Condition, ",")
+	c := common.SplitStrings(condition, ",")
 
-	if !IsValidCondition(condition[0]) || condition[1] == "" {
+	if !IsValidCondition(c[0]) || c[1] == "" {
 		return errInvalidCondition
 	}
 
-	if common.StringContains(Action, ",") {
-		action := common.SplitStrings(Action, ",")
+	if common.StringContains(action, ",") {
+		a := common.SplitStrings(action, ",")
 
-		if action[0] != actionSMSNotify {
+		if a[0] != actionSMSNotify {
 			return errInvalidAction
 		}
 
-		if action[1] != "ALL" {
-			comms.PushEvent(base.Event{Type: action[1]})
+		if a[1] != "ALL" {
+			comms.PushEvent(base.Event{Type: a[1]})
 		}
-	} else if Action != actionConsolePrint && Action != actionTest {
+	} else if action != actionConsolePrint && action != actionTest {
 		return errInvalidAction
 	}
 
@@ -243,8 +243,8 @@ func CheckEvents() {
 func IsValidExchange(exchange string) bool {
 	exchange = common.StringToUpper(exchange)
 	cfg := config.GetConfig()
-	for _, x := range cfg.Exchanges {
-		if x.Name == exchange && x.Enabled {
+	for x := range cfg.Exchanges {
+		if cfg.Exchanges[x].Name == exchange && cfg.Exchanges[x].Enabled {
 			return true
 		}
 	}

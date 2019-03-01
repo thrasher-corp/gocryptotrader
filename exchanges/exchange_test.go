@@ -138,7 +138,7 @@ func TestSetAutoPairDefaults(t *testing.T) {
 	}
 
 	exch.SupportsAutoPairUpdates = false
-	err = cfg.UpdateExchangeConfig(exch)
+	err = cfg.UpdateExchangeConfig(&exch)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAutoPairDefaults update config failed. Error %s", err)
 	}
@@ -229,7 +229,7 @@ func TestSetAssetTypes(t *testing.T) {
 	}
 
 	exch.AssetTypes = ""
-	err = cfg.UpdateExchangeConfig(exch)
+	err = cfg.UpdateExchangeConfig(&exch)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes update config failed. Error %s", err)
 	}
@@ -334,7 +334,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 
 	exch.ConfigCurrencyPairFormat = nil
 	exch.RequestCurrencyPairFormat = nil
-	err = cfg.UpdateExchangeConfig(exch)
+	err = cfg.UpdateExchangeConfig(&exch)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetCurrencyPairFormat update config failed. Error %s", err)
 	}

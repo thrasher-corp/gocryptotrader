@@ -481,10 +481,13 @@ func (o *OKEX) GetContractCandlestickData(symbol, typeInput, contractType string
 
 // GetContractHoldingsNumber returns current number of holdings
 func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (number float64, contract string, err error) {
-	if err = o.CheckSymbol(symbol); err != nil {
+	err = o.CheckSymbol(symbol)
+	if err != nil {
 		return number, contract, err
 	}
-	if err = o.CheckContractType(contractType); err != nil {
+
+	err = o.CheckContractType(contractType)
+	if err != nil {
 		return number, contract, err
 	}
 
@@ -495,7 +498,8 @@ func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (number fl
 	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, apiVersion, contractFutureHoldAmount, values.Encode())
 	var resp interface{}
 
-	if err = o.SendHTTPRequest(path, &resp); err != nil {
+	err = o.SendHTTPRequest(path, &resp)
+	if err != nil {
 		return number, contract, err
 	}
 
@@ -758,7 +762,7 @@ func (o *OKEX) GetSpotTicker(symbol string) (SpotPrice, error) {
 	return resp, nil
 }
 
-//GetSpotMarketDepth returns Market Depth
+// GetSpotMarketDepth returns Market Depth
 func (o *OKEX) GetSpotMarketDepth(asd ActualSpotDepthRequestParams) (ActualSpotDepth, error) {
 	resp := SpotDepth{}
 	fullDepth := ActualSpotDepth{}
@@ -977,7 +981,7 @@ func (o *OKEX) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 // SetErrorDefaults sets the full error default list
 func (o *OKEX) SetErrorDefaults() {
 	o.ErrorCodes = map[string]error{
-		//Spot Errors
+		// Spot Errors
 		"10000": errors.New("required field, can not be null"),
 		"10001": errors.New("request frequency too high to exceed the limit allowed"),
 		"10002": errors.New("system error"),

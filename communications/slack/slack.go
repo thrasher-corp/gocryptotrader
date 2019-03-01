@@ -59,12 +59,12 @@ type Slack struct {
 
 // Setup takes in a slack configuration, sets bots target channel and
 // sets verification token to access workspace
-func (s *Slack) Setup(config config.CommunicationsConfig) {
-	s.Name = config.SlackConfig.Name
-	s.Enabled = config.SlackConfig.Enabled
-	s.Verbose = config.SlackConfig.Verbose
-	s.TargetChannel = config.SlackConfig.TargetChannel
-	s.VerificationToken = config.SlackConfig.VerificationToken
+func (s *Slack) Setup(cfg *config.CommunicationsConfig) {
+	s.Name = cfg.SlackConfig.Name
+	s.Enabled = cfg.SlackConfig.Enabled
+	s.Verbose = cfg.SlackConfig.Verbose
+	s.TargetChannel = cfg.SlackConfig.TargetChannel
+	s.VerificationToken = cfg.SlackConfig.VerificationToken
 }
 
 // Connect connects to the service

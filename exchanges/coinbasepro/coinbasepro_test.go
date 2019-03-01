@@ -16,7 +16,7 @@ var c CoinbasePro
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	clientID                = "" //passphrase you made at API CREATION
+	clientID                = "" // passphrase you made at API CREATION
 	canManipulateRealOrders = false
 )
 

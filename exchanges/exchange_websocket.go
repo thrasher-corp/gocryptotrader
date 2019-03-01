@@ -401,8 +401,8 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 				if orderbookAddress.Bids[y].Price == bidTargets[x].Price {
 					if bidTargets[x].Amount == 0 {
 						// Delete
-						orderbookAddress.Asks = append(orderbookAddress.Asks[:y],
-							orderbookAddress.Asks[y+1:]...)
+						orderbookAddress.Bids = append(orderbookAddress.Bids[:y],
+							orderbookAddress.Bids[y+1:]...)
 						return
 					}
 					// Amend

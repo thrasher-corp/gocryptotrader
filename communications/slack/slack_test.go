@@ -43,7 +43,8 @@ func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig(config.ConfigTestFile)
 
-	s.Setup(cfg.GetCommunicationsConfig())
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
 	s.Verbose = true
 }
 

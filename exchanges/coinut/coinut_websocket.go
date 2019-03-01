@@ -230,7 +230,7 @@ func (c *COINUT) GetNonce() int64 {
 
 // WsSetInstrumentList fetches instrument list and propagates a local cache
 func (c *COINUT) WsSetInstrumentList() error {
-	request, err := common.JSONEncode(wsRequest{
+	req, err := common.JSONEncode(wsRequest{
 		Request: "inst_list",
 		SecType: "SPOT",
 		Nonce:   c.GetNonce(),
@@ -240,7 +240,7 @@ func (c *COINUT) WsSetInstrumentList() error {
 		return err
 	}
 
-	err = c.WebsocketConn.WriteMessage(websocket.TextMessage, request)
+	err = c.WebsocketConn.WriteMessage(websocket.TextMessage, req)
 	if err != nil {
 		return err
 	}
@@ -292,14 +292,14 @@ func (c *COINUT) WsSubscribe() error {
 			return err
 		}
 
-		orderbook := wsRequest{
+		ob := wsRequest{
 			Request:   "inst_order_book",
 			InstID:    instrumentListByString[p.Pair().String()],
 			Subscribe: true,
 			Nonce:     c.GetNonce(),
 		}
 
-		objson, err := common.JSONEncode(orderbook)
+		objson, err := common.JSONEncode(ob)
 		if err != nil {
 			return err
 		}

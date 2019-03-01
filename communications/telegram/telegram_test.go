@@ -16,7 +16,8 @@ var T Telegram
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	T.Setup(cfg.GetCommunicationsConfig())
+	commsCfg := cfg.GetCommunicationsConfig()
+	T.Setup(&commsCfg)
 	if T.Name != "Telegram" || T.Enabled ||
 		T.Token != "testest" || T.Verbose {
 		t.Error("test failed - telegram Setup() error, unexpected setup values",

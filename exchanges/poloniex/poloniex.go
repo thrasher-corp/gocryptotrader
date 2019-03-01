@@ -172,7 +172,7 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 		if err != nil {
 			return oba, err
 		}
-		if len(resp.Error) != 0 {
+		if resp.Error != "" {
 			return oba, fmt.Errorf("%s GetOrderbook() error: %s", p.Name, resp.Error)
 		}
 		ob := Orderbook{}

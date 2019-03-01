@@ -53,7 +53,7 @@ func (b *Bithumb) GetTradingPairs() ([]string, error) {
 	}
 
 	for x := range currencies {
-		currencies[x] = currencies[x] + "KRW"
+		currencies[x] += "KRW"
 	}
 
 	return currencies, nil

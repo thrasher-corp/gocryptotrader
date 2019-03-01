@@ -305,7 +305,7 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				open, _ := strconv.ParseFloat(data[1].(string), 64)
-				close, _ := strconv.ParseFloat(data[2].(string), 64)
+				closePrice, _ := strconv.ParseFloat(data[2].(string), 64)
 				high, _ := strconv.ParseFloat(data[3].(string), 64)
 				low, _ := strconv.ParseFloat(data[4].(string), 64)
 				volume, _ := strconv.ParseFloat(data[5].(string), 64)
@@ -316,7 +316,7 @@ func (g *Gateio) WsHandleData() {
 					AssetType:  "SPOT",
 					Exchange:   g.GetName(),
 					OpenPrice:  open,
-					ClosePrice: close,
+					ClosePrice: closePrice,
 					HighPrice:  high,
 					LowPrice:   low,
 					Volume:     volume,

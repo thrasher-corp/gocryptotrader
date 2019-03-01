@@ -34,12 +34,12 @@ func (o *OKCoin) PingHandler(_ string) error {
 // AddChannel adds a new channel on the websocket client
 func (o *OKCoin) AddChannel(channel string) error {
 	event := WebsocketEvent{"addChannel", channel}
-	json, err := common.JSONEncode(event)
+	data, err := common.JSONEncode(event)
 	if err != nil {
 		return err
 	}
 
-	return o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return o.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
 // WsConnect initiates a websocket connection
@@ -144,8 +144,7 @@ func (o *OKCoin) WsHandleData() {
 			var currencyPairSlice []string
 			splitChar := common.SplitStrings(init[0].Channel, "_")
 			currencyPairSlice = append(currencyPairSlice,
-				common.StringToUpper(splitChar[3]))
-			currencyPairSlice = append(currencyPairSlice,
+				common.StringToUpper(splitChar[3]),
 				common.StringToUpper(splitChar[4]))
 			currencyPair := common.JoinStrings(currencyPairSlice, "-")
 
