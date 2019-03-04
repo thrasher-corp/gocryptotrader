@@ -325,13 +325,14 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 				Last: rand.Float64(),
 			}
 
+			sm.Lock()
 			err = ProcessTicker(newName, tp, Spot)
 			if err != nil {
 				log.Error(err)
 				catastrophicFailure = true
 				return
 			}
-			sm.Lock()
+
 			testArray = append(testArray, quick{Name: newName, P: newPairs, TP: tp})
 			sm.Unlock()
 			wg.Done()

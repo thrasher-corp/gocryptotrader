@@ -305,7 +305,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
 			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
-			base := Base{
+			base := &Base{
 				Pair:         newPairs,
 				Asks:         asks,
 				Bids:         bids,
@@ -313,6 +313,7 @@ func TestProcessOrderbook(t *testing.T) {
 				AssetType:    Spot,
 			}
 
+			m.Lock()
 			err = base.Process()
 			if err != nil {
 				log.Error(err)
@@ -320,7 +321,6 @@ func TestProcessOrderbook(t *testing.T) {
 				return
 			}
 
-			m.Lock()
 			testArray = append(testArray, quick{Name: newName, P: newPairs, Bids: bids, Asks: asks})
 			m.Unlock()
 			wg.Done()
