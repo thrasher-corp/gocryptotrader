@@ -80,7 +80,7 @@ func main() {
 	}
 	log.Println("Loaded config file.")
 
-	displayCurrency = currency.Code(cfg.FiatDisplayCurrency)
+	displayCurrency = cfg.FiatDisplayCurrency
 	port := portfolio.Base{}
 	port.SeedPortfolio(cfg.Portfolio)
 	result := port.GetPortfolioSummary()

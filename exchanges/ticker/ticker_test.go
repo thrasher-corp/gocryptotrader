@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 func TestPriceToString(t *testing.T) {
@@ -307,7 +308,12 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	var wg sync.WaitGroup
 	var sm sync.Mutex
 
+	var catastrophicFailure bool
 	for i := 0; i < 500; i++ {
+		if catastrophicFailure {
+			break
+		}
+
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
@@ -321,7 +327,9 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 			err = ProcessTicker(newName, tp, Spot)
 			if err != nil {
-				t.Fatal("Test failed. ProcessTicker error", err)
+				log.Error(err)
+				catastrophicFailure = true
+				return
 			}
 			sm.Lock()
 			testArray = append(testArray, quick{Name: newName, P: newPairs, TP: tp})
@@ -329,6 +337,11 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 			wg.Done()
 		}()
 	}
+
+	if catastrophicFailure {
+		t.Fatal("Test failed. ProcessTicker error")
+	}
+
 	wg.Wait()
 
 	for _, test := range testArray {

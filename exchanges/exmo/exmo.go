@@ -460,11 +460,12 @@ func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTran
 
 	switch bankTransactionType {
 	case exchange.WireTransfer:
-		if c == currency.RUB {
+		switch c {
+		case currency.RUB:
 			fee = 3200
-		} else if c == currency.PLN {
+		case currency.PLN:
 			fee = 125
-		} else if c == currency.TRY {
+		case currency.TRY:
 			fee = 0
 		}
 	case exchange.PerfectMoney:

@@ -95,7 +95,7 @@ func (c *ConversionRates) Register(from, to Code) (Conversion, error) {
 // cross rates
 func (c *ConversionRates) Update(m map[string]float64) error {
 	if len(m) == 0 {
-		return errors.New("No data given")
+		return errors.New("no data given")
 	}
 
 	if storage.IsVerbose() {
@@ -173,13 +173,13 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 				if !ok {
 					v1, ok := solidvalues[mainBaseCurrency][base]
 					if !ok {
-						return fmt.Errorf("Value not found base %s term %s",
+						return fmt.Errorf("value not found base %s term %s",
 							mainBaseCurrency,
 							base)
 					}
 					v2, ok := solidvalues[mainBaseCurrency][term]
 					if !ok {
-						return fmt.Errorf("Value not found base %s term %s",
+						return fmt.Errorf("value not found base %s term %s",
 							mainBaseCurrency,
 							term)
 					}

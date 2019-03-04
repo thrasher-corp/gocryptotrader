@@ -143,11 +143,11 @@ func TestWalletTransfer(t *testing.T) {
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:              1,
-		FeeType:             exchange.CryptocurrencyTradeFee,
-		Pair:  currency.NewPairWithDelimiter(      currency.BTC.String(),
-		currency.LTC.String(),
-		 "_"),
+		Amount:  1,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			currency.LTC.String(),
+			"_"),
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,

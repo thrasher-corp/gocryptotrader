@@ -68,11 +68,10 @@ func (p Provider) CheckCurrencies(currencies []string) []string {
 
 // GetCurrencyData returns currency data from enabled FX providers
 func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (map[string]float64, error) {
-	var fullRange []string
+	var fullRange = currencies
+
 	if !common.StringDataCompareUpper(currencies, baseCurrency) {
-		fullRange = append(currencies, baseCurrency)
-	} else {
-		fullRange = currencies
+		fullRange = append(fullRange, baseCurrency)
 	}
 
 	f.mtx.Lock()
@@ -152,5 +151,5 @@ func (f *FXHandler) backupGetRate(base string, currencies []string) (map[string]
 		return rate, nil
 	}
 
-	return nil, fmt.Errorf("Currencies %s not supported", shunt)
+	return nil, fmt.Errorf("currencies %s not supported", shunt)
 }

@@ -105,10 +105,11 @@ func TestPairsMarshalJSON(t *testing.T) {
 }
 
 func TestRemovePairsByFilter(t *testing.T) {
-	var pairs Pairs
-	pairs = append(pairs, NewPair(BTC, USD))
-	pairs = append(pairs, NewPair(LTC, USD))
-	pairs = append(pairs, NewPair(LTC, USDT))
+	var pairs = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(LTC, USDT),
+	}
 
 	pairs = pairs.RemovePairsByFilter(USDT)
 	if pairs.Contain(NewPair(LTC, USDT), true) {
@@ -117,14 +118,12 @@ func TestRemovePairsByFilter(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
-	pairOne := NewPair(BTC, USD)
-	pairTwo := NewPair(LTC, USD)
+	var pairs = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+	}
 
-	var pairs Pairs
-	pairs = append(pairs, pairOne)
-	pairs = append(pairs, pairTwo)
-
-	if !pairs.Contain(pairOne, true) {
+	if !pairs.Contain(NewPair(BTC, USD), true) {
 		t.Errorf("Test failed. TestContains: Expected pair was not found")
 	}
 

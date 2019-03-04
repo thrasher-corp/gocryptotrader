@@ -103,7 +103,7 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 	}
 
 	if handler.Primary.Provider == nil {
-		return nil, errors.New("No foreign exchange providers enabled")
+		return nil, errors.New("no foreign exchange providers enabled")
 	}
 
 	return handler, nil

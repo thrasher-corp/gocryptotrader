@@ -109,9 +109,7 @@ func (p Pair) IsInvalid() bool {
 
 // Swap turns the currency pair into its reciprocal
 func (p Pair) Swap() Pair {
-	b := p.Base
-	p.Base = p.Quote
-	p.Quote = b
+	p.Base, p.Quote = p.Quote, p.Base
 	return p
 }
 

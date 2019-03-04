@@ -418,10 +418,8 @@ func calculateTradingFee(purchasePrice, amount float64) float64 {
 }
 
 func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, c currency.Code) (fee float64) {
-	switch bankTransactionType {
-	case exchange.WireTransfer:
-		switch c {
-		case currency.JPY:
+	if bankTransactionType == exchange.WireTransfer {
+		if c.Item == currency.JPY.Item {
 			fee = 324
 		}
 	}
@@ -429,10 +427,8 @@ func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType
 }
 
 func getWithdrawalFee(bankTransactionType exchange.InternationalBankTransactionType, c currency.Code, amount float64) (fee float64) {
-	switch bankTransactionType {
-	case exchange.WireTransfer:
-		switch c {
-		case currency.JPY:
+	if bankTransactionType == exchange.WireTransfer {
+		if c.Item == currency.JPY.Item {
 			if amount < 30000 {
 				fee = 540
 			} else {

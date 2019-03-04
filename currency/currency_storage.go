@@ -298,7 +298,7 @@ func (s *Storage) updateExchangeRates(m map[string]float64) error {
 	return s.fxRates.Update(m)
 }
 
-// SetupCryptoProvider sets congiguration paramaters and starts a new instance
+// SetupCryptoProvider sets congiguration parameters and starts a new instance
 // of the currency analyser
 func (s *Storage) SetupCryptoProvider(settings coinmarketcap.Settings) error {
 	if settings.APIkey == "" ||

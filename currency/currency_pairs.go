@@ -9,7 +9,7 @@ import (
 // Pairs defines a list of pairs
 type Pairs []Pair
 
-// Strings returns a slice of strings refering to each currency pair
+// Strings returns a slice of strings referring to each currency pair
 func (p Pairs) Strings() []string {
 	var list []string
 	for _, pair := range p {
@@ -112,25 +112,24 @@ func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 }
 
 // FindDifferences returns pairs which are new or have been removed
-func (p Pairs) FindDifferences(newPairs Pairs) (Pairs, Pairs) {
-	var newPs, removedPs Pairs
-	for x := range newPairs {
-		if newPairs[x].String() == "" {
+func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
+	for x := range pairs {
+		if pairs[x].String() == "" {
 			continue
 		}
-		if !p.Contain(newPairs[x], true) {
-			newPs = append(newPs, newPairs[x])
+		if !p.Contain(pairs[x], true) {
+			newPairs = append(newPairs, pairs[x])
 		}
 	}
-	for _, oldPair := range p.Slice() {
+	for _, oldPair := range p {
 		if oldPair.String() == "" {
 			continue
 		}
-		if !newPairs.Contain(oldPair, true) {
-			removedPs = append(removedPs, oldPair)
+		if !pairs.Contain(oldPair, true) {
+			removedPairs = append(removedPairs, oldPair)
 		}
 	}
-	return newPs, removedPs
+	return
 }
 
 // GetRandomPair returns a random pair from a list of pairs

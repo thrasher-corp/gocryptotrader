@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 func TestCalculateTotalBids(t *testing.T) {
@@ -289,7 +290,13 @@ func TestProcessOrderbook(t *testing.T) {
 	var wg sync.WaitGroup
 	var m sync.Mutex
 
+	var catastrophicFailure bool
+
 	for i := 0; i < 500; i++ {
+		if catastrophicFailure {
+			break
+		}
+
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
@@ -308,7 +315,9 @@ func TestProcessOrderbook(t *testing.T) {
 
 			err = base.Process()
 			if err != nil {
-				t.Fatal("Test Failed - Process() error", err)
+				log.Error(err)
+				catastrophicFailure = true
+				return
 			}
 
 			m.Lock()
@@ -317,6 +326,11 @@ func TestProcessOrderbook(t *testing.T) {
 			wg.Done()
 		}()
 	}
+
+	if catastrophicFailure {
+		t.Fatal("Test Failed - Process() error", err)
+	}
+
 	wg.Wait()
 
 	for _, test := range testArray {

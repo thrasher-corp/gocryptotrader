@@ -6,11 +6,16 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 )
 
+const (
+	defaultPair           = "BTCUSD"
+	defaultPairWDelimiter = "BTC-USD"
+)
+
 func TestLower(t *testing.T) {
 	t.Parallel()
-	pair := NewPairFromString("BTCUSD")
+	pair := NewPairFromString(defaultPair)
 	actual := pair.Lower()
-	expected := NewPairFromString("btcusd").Lower()
+	expected := NewPairFromString(defaultPair).Lower()
 	if actual != expected {
 		t.Errorf("Test failed. Lower(): %s was not equal to expected value: %s",
 			actual, expected)
@@ -19,9 +24,9 @@ func TestLower(t *testing.T) {
 
 func TestUpper(t *testing.T) {
 	t.Parallel()
-	pair := NewPairFromString("btcusd")
+	pair := NewPairFromString(defaultPair)
 	actual := pair.Upper()
-	expected := NewPairFromString("BTCUSD")
+	expected := NewPairFromString(defaultPair)
 	if actual != expected {
 		t.Errorf("Test failed. Upper(): %s was not equal to expected value: %s",
 			actual, expected)
@@ -105,7 +110,7 @@ func TestIsFiatPair(t *testing.T) {
 func TestString(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := "BTCUSD"
+	actual := defaultPair
 	expected := pair.String()
 	if actual != expected {
 		t.Errorf("Test failed. String(): %s was not equal to expected value: %s",
@@ -143,7 +148,7 @@ func TestPair(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
 	actual := pair.String()
-	expected := "BTCUSD"
+	expected := defaultPair
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Pair(): %s was not equal to expected value: %s",
@@ -154,9 +159,9 @@ func TestPair(t *testing.T) {
 
 func TestDisplay(t *testing.T) {
 	t.Parallel()
-	pair := NewPairDelimiter("BTC-USD", "-")
+	pair := NewPairDelimiter(defaultPairWDelimiter, "-")
 	actual := pair.String()
-	expected := "BTC-USD"
+	expected := defaultPairWDelimiter
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Pair(): %s was not equal to expected value: %s",
@@ -281,7 +286,7 @@ func TestNewPair(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
 	actual := pair.String()
-	expected := "BTCUSD"
+	expected := defaultPair
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Pair(): %s was not equal to expected value: %s",
@@ -304,7 +309,7 @@ func TestNewPairWithDelimiter(t *testing.T) {
 
 	pair = NewPairWithDelimiter("BTC", "USD", "")
 	actual = pair.String()
-	expected = "BTCUSD"
+	expected = defaultPair
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Pair(): %s was not equal to expected value: %s",
@@ -315,9 +320,9 @@ func TestNewPairWithDelimiter(t *testing.T) {
 
 func TestNewPairDelimiter(t *testing.T) {
 	t.Parallel()
-	pair := NewPairDelimiter("BTC-USD", "-")
+	pair := NewPairDelimiter(defaultPairWDelimiter, "-")
 	actual := pair.String()
-	expected := "BTC-USD"
+	expected := defaultPairWDelimiter
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Pair(): %s was not equal to expected value: %s",
@@ -339,7 +344,7 @@ func TestNewPairDelimiter(t *testing.T) {
 // specific index
 func TestNewPairFromIndex(t *testing.T) {
 	t.Parallel()
-	currency := "BTCUSD"
+	currency := defaultPair
 	index := "BTC"
 
 	pair, err := NewPairFromIndex(currency, index)
@@ -350,7 +355,7 @@ func TestNewPairFromIndex(t *testing.T) {
 	pair.Delimiter = "-"
 	actual := pair.String()
 
-	expected := "BTC-USD"
+	expected := defaultPairWDelimiter
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Pair(): %s was not equal to expected value: %s",
@@ -379,10 +384,10 @@ func TestNewPairFromIndex(t *testing.T) {
 
 func TestNewPairFromString(t *testing.T) {
 	t.Parallel()
-	pairStr := "BTC-USD"
+	pairStr := defaultPairWDelimiter
 	pair := NewPairFromString(pairStr)
 	actual := pair.String()
-	expected := "BTC-USD"
+	expected := defaultPairWDelimiter
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Pair(): %s was not equal to expected value: %s",
@@ -390,10 +395,10 @@ func TestNewPairFromString(t *testing.T) {
 		)
 	}
 
-	pairStr = "BTCUSD"
+	pairStr = defaultPair
 	pair = NewPairFromString(pairStr)
 	actual = pair.String()
-	expected = "BTCUSD"
+	expected = defaultPair
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Pair(): %s was not equal to expected value: %s",
@@ -424,21 +429,21 @@ func TestFormatPairs(t *testing.T) {
 		t.Error("Test failed. TestFormatPairs: Empty string returned a valid pair")
 	}
 
-	newP, err = FormatPairs([]string{"BTC-USD"}, "-", "")
+	newP, err = FormatPairs([]string{defaultPairWDelimiter}, "-", "")
 	if err != nil {
 		t.Error("Test Failed - FormatPairs() error", err)
 	}
 
-	if newP[0].String() != "BTC-USD" {
+	if newP[0].String() != defaultPairWDelimiter {
 		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
 	}
 
-	newP, err = FormatPairs([]string{"BTCUSD"}, "", "BTC")
+	newP, err = FormatPairs([]string{defaultPair}, "", "BTC")
 	if err != nil {
 		t.Error("Test Failed - FormatPairs() error", err)
 	}
 
-	if newP[0].String() != "BTCUSD" {
+	if newP[0].String() != defaultPair {
 		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
 	}
 	newP, err = FormatPairs([]string{"ETHUSD"}, "", "")
@@ -462,7 +467,7 @@ func TestCopyPairFormat(t *testing.T) {
 	testPair.Delimiter = "~"
 
 	result := CopyPairFormat(testPair, pairs, false)
-	if result.String() != "BTC-USD" {
+	if result.String() != defaultPairWDelimiter {
 		t.Error("Test failed. TestCopyPairFormat: Expected pair was not found")
 	}
 
@@ -473,7 +478,7 @@ func TestCopyPairFormat(t *testing.T) {
 }
 
 func TestFindPairDifferences(t *testing.T) {
-	pairList := NewPairsFromStrings([]string{"BTC-USD", "ETH-USD", "LTC-USD"})
+	pairList := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD"})
 
 	// Test new pair update
 	newPairs, removedPairs := pairList.FindDifferences(NewPairsFromStrings([]string{"DASH-USD"}))
@@ -505,7 +510,7 @@ func TestPairsToStringArray(t *testing.T) {
 	var pairs Pairs
 	pairs = append(pairs, NewPair(BTC, USD))
 
-	expected := []string{"BTCUSD"}
+	expected := []string{defaultPair}
 	actual := pairs.Strings()
 
 	if actual[0] != expected[0] {

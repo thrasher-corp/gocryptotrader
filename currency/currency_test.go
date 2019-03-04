@@ -142,7 +142,7 @@ func TestUpdateCurrencies(t *testing.T) {
 	crypto := Currencies{ZAR, ZCAD, B2}
 	UpdateCurrencies(crypto, true)
 	rCrypto := GetCryptoCurrencies()
-	if !rCrypto.Contains(ZAR) || !rCrypto.Contains(ZAR) || !rCrypto.Contains(B2) {
+	if !rCrypto.Contains(ZAR) || !rCrypto.Contains(ZCAD) || !rCrypto.Contains(B2) {
 		t.Error("Test failed - UpdateCurrencies() currencies did not update")
 	}
 }

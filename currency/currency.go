@@ -169,8 +169,8 @@ func GetDefaultFiatCurrencies() Currencies {
 }
 
 // UpdateCurrencies updates the local cryptocurrency or fiat currency store
-func UpdateCurrencies(c Currencies, IsCryptocurrency bool) {
-	if IsCryptocurrency {
+func UpdateCurrencies(c Currencies, isCryptocurrency bool) {
+	if isCryptocurrency {
 		storage.UpdateEnabledCryptoCurrencies(c)
 		return
 	}

@@ -421,8 +421,7 @@ func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTran
 
 	switch bankTransactionType {
 	case exchange.PerfectMoney:
-		switch c {
-		case currency.USD:
+		if c == currency.USD {
 			fee = 0.02 * amount
 		}
 	case exchange.Payeer:
@@ -440,13 +439,11 @@ func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTran
 			fee = 0.03 * amount
 		}
 	case exchange.Qiwi:
-		switch c {
-		case currency.RUR:
+		if c == currency.RUR {
 			fee = 0.04 * amount
 		}
 	case exchange.Capitalist:
-		switch c {
-		case currency.USD:
+		if c == currency.USD {
 			fee = 0.06 * amount
 		}
 	}
@@ -459,8 +456,7 @@ func getInternationalBankDepositFee(c currency.Code, bankTransactionType exchang
 	var fee float64
 	switch bankTransactionType {
 	case exchange.PerfectMoney:
-		switch c {
-		case currency.USD:
+		if c == currency.USD {
 			fee = 0
 		}
 	case exchange.Payeer:
@@ -478,8 +474,7 @@ func getInternationalBankDepositFee(c currency.Code, bankTransactionType exchang
 			fee = 0
 		}
 	case exchange.Qiwi:
-		switch c {
-		case currency.RUR:
+		if c == currency.RUR {
 			fee = 0
 		}
 	case exchange.Capitalist:

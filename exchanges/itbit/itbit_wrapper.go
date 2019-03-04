@@ -87,26 +87,28 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		price, err := strconv.ParseFloat(data[0], 64)
+		var price, amount float64
+		price, err = strconv.ParseFloat(data[0], 64)
 		if err != nil {
-			log.Error(err)
+			return orderBook, err
 		}
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err = strconv.ParseFloat(data[1], 64)
 		if err != nil {
-			log.Error(err)
+			return orderBook, err
 		}
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: amount, Price: price})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		price, err := strconv.ParseFloat(data[0], 64)
+		var price, amount float64
+		price, err = strconv.ParseFloat(data[0], 64)
 		if err != nil {
-			log.Error(err)
+			return orderBook, err
 		}
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err = strconv.ParseFloat(data[1], 64)
 		if err != nil {
-			log.Error(err)
+			return orderBook, err
 		}
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: amount, Price: price})
 	}
