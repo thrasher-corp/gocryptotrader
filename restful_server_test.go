@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 func loadConfig(t *testing.T) *config.Config {
@@ -41,8 +40,6 @@ func TestConfigAllJsonResponse(t *testing.T) {
 	if err != nil {
 		t.Error("Test failed. Body not readable", err)
 	}
-
-	log.Fatal(string(body))
 
 	var responseConfig config.Config
 	jsonErr := json.Unmarshal(body, &responseConfig)

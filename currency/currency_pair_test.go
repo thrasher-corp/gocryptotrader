@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
 )
 
 func TestLower(t *testing.T) {
@@ -457,7 +456,7 @@ func TestCopyPairFormat(t *testing.T) {
 	pairOne.Delimiter = "-"
 
 	var pairs []Pair
-	pairs = append(pairs, pairOne, NewPair(currency.LTC, currency.USD))
+	pairs = append(pairs, pairOne, NewPair(LTC, USD))
 
 	testPair := NewPair(BTC, USD)
 	testPair.Delimiter = "~"

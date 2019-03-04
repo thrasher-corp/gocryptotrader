@@ -224,8 +224,8 @@ func TestCreateNewTicker(t *testing.T) {
 	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Bid).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Bid value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Pair).String() != "string" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].CurrencyPair value is not a string")
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Pair).String() != "currency.Pair" {
+		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].CurrencyPair value is not a currency.Pair")
 	}
 	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].High).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].High value is not a float64")

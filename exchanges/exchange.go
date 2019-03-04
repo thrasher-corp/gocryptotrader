@@ -688,7 +688,7 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string, b64Decode bool) {
 		result, err := common.Base64Decode(apiSecret)
 		if err != nil {
 			e.AuthenticatedAPISupport = false
-			log.Warn(warningBase64DecryptSecretKeyFailed, e.Name)
+			log.Warnf(warningBase64DecryptSecretKeyFailed, e.Name)
 		}
 		e.APISecret = string(result)
 	} else {

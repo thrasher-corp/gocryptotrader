@@ -420,7 +420,7 @@ func TestGetEnabledCurrencies(t *testing.T) {
 	format.Delimiter = ""
 	b.ConfigCurrencyPairFormat = format
 	c = b.GetEnabledCurrencies()
-	if c[0].String() != defaultTestCurrencyPair {
+	if c[0].String() != "BTCUSD" {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
@@ -485,8 +485,8 @@ func TestGetAvailableCurrencies(t *testing.T) {
 	format.Delimiter = ""
 	b.ConfigCurrencyPairFormat = format
 	c = b.GetAvailableCurrencies()
-	if c[0].String() != defaultTestCurrencyPair {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+	if c[0].String() != "BTCUSD" {
+		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string", c[0])
 	}
 
 	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
