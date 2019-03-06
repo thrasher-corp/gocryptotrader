@@ -1300,30 +1300,57 @@ type WebsocketEventResponse struct {
 
 // WebsocketDataResponse formats all response data for a websocket event
 type WebsocketDataResponse struct {
-	Table string        `json:"table"`
-	Data  []interface{} `json:"data"`
+	Table  string                 `json:"table"`
+	Action string                 `json:"action,omitempty"`
+	Data   []WebsocketDataWrapper `json:"data"`
 }
 
-// WebsocketTickerResponse contains formatted data for ticker related websocket responses
-type WebsocketTickerResponse struct {
-	High24H      float64   `json:"high_24h,string"`
+// WebsocketDataWrapper lk
+type WebsocketDataWrapper struct {
 	InstrumentID string    `json:"instrument_id"`
-	Last         float64   `json:"last,string"`
-	BestBid      float64   `json:"best_bid,string"`
-	BestAsk      float64   `json:"best_ask,string"`
-	Low24H       float64   `json:"low_24h,string"`
-	Timestamp    time.Time `json:"timestamp"`
-	Volume24H    float64   `json:"volume_24h,string"`
+	Timestamp    time.Time `json:"timestamp,omitempty"`
+	WebsocketTickerData
+	WebsocketCandleResponse
+	WebsocketOrderBooksData
+	WebsocketTradeResponse
+	WebsocketFundingFeeResponse
+}
+
+// WebsocketTickerData contains formatted data for ticker related websocket responses
+type WebsocketTickerData struct {
+	High24H   float64 `json:"high_24h,string,omitempty"`
+	Last      float64 `json:"last,string,omitempty"`
+	BestBid   float64 `json:"best_bid,string,omitempty"`
+	BestAsk   float64 `json:"best_ask,string,omitempty"`
+	Low24H    float64 `json:"low_24h,string,omitempty"`
+	Volume24H float64 `json:"volume_24h,string,omitempty"`
 }
 
 // WebsocketTradeResponse contains formatted data for trade related websocket responses
 type WebsocketTradeResponse struct {
-	InstrumentID string    `json:"instrument_id"`
-	Price        float64   `json:"price,string"`
-	Side         string    `json:"side"`
-	Qty          float64   `json:"qty,string"`
-	Timestamp    time.Time `json:"timestamp"`
-	TradeID      string    `json:"trade_id"`
+	Price   float64 `json:"price,string,omitempty"`
+	Side    string  `json:"side,omitempty"`
+	Qty     float64 `json:"qty,string,omitempty"`
+	TradeID string  `json:"trade_id,omitempty"`
+}
+
+// WebsocketCandleResponse contains formatted data for candle related websocket responses
+type WebsocketCandleResponse struct {
+	Candle []string `json:"candle,omitempty"` // [0]timestamp, [1]open, [2]high, [3]low, [4]close, [5]volume, [6]currencyVolume
+}
+
+// WebsocketFundingFeeResponse contains formatted data for funding fee related websocket responses
+type WebsocketFundingFeeResponse struct {
+	FundingRate  float64   `json:"funding_rate,string,omitempty"`
+	FundingTime  time.Time `json:"funding_time,omitempty"`
+	InterestRate float64   `json:"interest_rate,string,omitempty"`
+}
+
+// WebsocketOrderBooksData contains orderbook data from  WebsocketOrderBooksResponse
+type WebsocketOrderBooksData struct {
+	Asks     [][]interface{} `json:"asks,omitempty"` // [0] Price, [1] Size, [2] Number of orders
+	Bids     [][]interface{} `json:"bids,omitempty"` // [0] Price, [1] Size, [2] Number of orders
+	Checksum int32           `json:"checksum,omitempty"`
 }
 
 // WebsocketErrorResponse yo
@@ -1331,36 +1358,6 @@ type WebsocketErrorResponse struct {
 	Event     string `json:"event"`
 	Message   string `json:"message"`
 	ErrorCode int64  `json:"errorCode"`
-}
-
-// WebsocketCandleResponse contains formatted data for candle related websocket responses
-type WebsocketCandleResponse struct {
-	InstrumentID string   `json:"instrument_id"`
-	Candle       []string `json:"candle"` // [0]timestamp, [1]open, [2]high, [3]low, [4]close, [5]volume, [6]currencyVolume
-}
-
-// WebsocketFundingFeeResponse contains formatted data for funding fee related websocket responses
-type WebsocketFundingFeeResponse struct {
-	FundingRate  float64   `json:"funding_rate,string"`
-	FundingTime  time.Time `json:"funding_time"`
-	InstrumentID string    `json:"instrument_id"`
-	InterestRate float64   `json:"interest_rate,string"`
-}
-
-// WebsocketOrderBooksResponse contains formatted data for order book related websocket responses
-type WebsocketOrderBooksResponse struct {
-	Table  string                    `json:"table"`
-	Action string                    `json:"action"`
-	Data   []WebsocketOrderBooksData `json:"data"`
-}
-
-// WebsocketOrderBooksData contains orderbook data from  WebsocketOrderBooksResponse
-type WebsocketOrderBooksData struct {
-	InstrumentID string          `json:"instrument_id"`
-	Asks         [][]interface{} `json:"asks"` // [0] Price, [1] Size, [2] Number of orders
-	Bids         [][]interface{} `json:"bids"` // [0] Price, [1] Size, [2] Number of orders
-	Timestamp    string          `json:"timestamp"`
-	Checksum     int64           `json:"checksum"`
 }
 
 // DepthStreamData defines orderbook depth

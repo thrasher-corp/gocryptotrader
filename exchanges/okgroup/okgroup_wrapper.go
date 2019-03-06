@@ -167,6 +167,9 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 // withdrawals
 func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 	accountDepositHistory, err := o.GetAccountDepositHistory("")
+	if err != nil {
+		return
+	}
 	for _, deposit := range accountDepositHistory {
 		orderStatus := ""
 		switch deposit.Status {
@@ -200,7 +203,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 			TransferType: "withdrawal",
 		})
 	}
-	return
+	return resp, err
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -248,14 +251,14 @@ func (o *OKGroup) CancelOrder(orderCancellation exchange.OrderCancellation) (err
 		OrderID:      orderID,
 	})
 	if !orderCancellationResponse.Result {
-		err = fmt.Errorf("Order %v failed to be cancelled", orderCancellationResponse.OrderID)
+		err = fmt.Errorf("order %v failed to be cancelled", orderCancellationResponse.OrderID)
 	}
 
 	return
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, err error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, _ error) {
 	orderIDs := strings.Split(orderCancellation.OrderID, ",")
 	var orderIDNumbers []int64
 	for _, i := range orderIDs {
@@ -325,7 +328,7 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 		return "", err
 	}
 	if !withdrawal.Result {
-		return fmt.Sprintf("%v", withdrawal.WithdrawalID), fmt.Errorf("Could not withdraw currency %v to %v, no error specified", withdrawRequest.Currency.String(), withdrawRequest.Address)
+		return fmt.Sprintf("%v", withdrawal.WithdrawalID), fmt.Errorf("could not withdraw currency %v to %v, no error specified", withdrawRequest.Currency.String(), withdrawRequest.Address)
 	}
 
 	return fmt.Sprintf("%v", withdrawal.WithdrawalID), nil

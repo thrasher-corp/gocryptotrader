@@ -18,8 +18,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -104,36 +102,6 @@ type OKGroup struct {
 	WebsocketURL string
 }
 
-// SetDefaults method assignes the default values for Bittrex
-func (o *OKGroup) SetDefaults() {
-	o.SetErrorDefaults()
-	o.SetCheckVarDefaults()
-	o.Name = o.ExchangeName
-	o.Enabled = false
-	o.Verbose = false
-	o.RESTPollingDelay = 10
-	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.NoFiatWithdrawals
-	o.RequestCurrencyPairFormat.Delimiter = "_"
-	o.RequestCurrencyPairFormat.Uppercase = false
-	o.ConfigCurrencyPairFormat.Delimiter = "_"
-	o.ConfigCurrencyPairFormat.Uppercase = true
-	o.SupportsAutoPairUpdating = true
-	o.SupportsRESTTickerBatching = false
-	o.Requester = request.New(o.Name,
-		request.NewRateLimit(time.Second, okGroupAuthRate),
-		request.NewRateLimit(time.Second, okGroupUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	o.APIUrlDefault = o.APIURL
-	o.APIUrl = o.APIUrlDefault
-	o.AssetTypes = []string{ticker.Spot}
-	o.WebsocketInit()
-	o.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported
-}
-
 // Setup method sets current configuration details if enabled
 func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
@@ -174,7 +142,7 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 		err = o.WebsocketSetup(o.WsConnect,
 			exch.Name,
 			exch.Websocket,
-			exch.WebsocketURL,
+			o.WebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
@@ -309,11 +277,11 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
-				orderErrors = append(orderErrors, fmt.Errorf("Order for currency %v failed to be placed", currency))
+				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
 	}
-	if len(orderErrors) <= 0 {
+	if len(orderErrors) == 0 {
 		orderErrors = nil
 	}
 
@@ -347,7 +315,7 @@ func (o *OKGroup) CancelMultipleSpotOrders(request CancelMultipleSpotOrdersReque
 			}
 
 			if !order.Result {
-				cancellationResponse.Error = fmt.Errorf("Order %v for currency %v failed to be cancelled", order.OrderID, currency)
+				cancellationResponse.Error = fmt.Errorf("order %v for currency %v failed to be cancelled", order.OrderID, currency)
 			}
 
 			resp[currency] = append(resp[currency], cancellationResponse)
@@ -509,11 +477,11 @@ func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (ma
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
-				orderErrors = append(orderErrors, fmt.Errorf("Order for currency %v failed to be placed", currency))
+				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
 	}
-	if len(orderErrors) <= 0 {
+	if len(orderErrors) == 0 {
 		orderErrors = nil
 	}
 
@@ -542,11 +510,11 @@ func (o *OKGroup) CancelMultipleMarginOrders(request CancelMultipleSpotOrdersReq
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
-				orderErrors = append(orderErrors, fmt.Errorf("Order %v for currency %v failed to be cancelled", order.OrderID, currency))
+				orderErrors = append(orderErrors, fmt.Errorf("order %v for currency %v failed to be cancelled", order.OrderID, currency))
 			}
 		}
 	}
-	if len(orderErrors) <= 0 {
+	if len(orderErrors) == 0 {
 		orderErrors = nil
 	}
 
@@ -614,7 +582,7 @@ func (o *OKGroup) GetErrorCode(code interface{}) error {
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
-func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, data interface{}, result interface{}, authenticated bool) (err error) {
+func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, data, result interface{}, authenticated bool) (err error) {
 	if authenticated && !o.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, o.Name)
 	}
@@ -628,7 +596,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 	if data != nil {
 		payload, err = common.JSONEncode(data)
 		if err != nil {
-			return errors.New("SendHTTPRequest: Unable to JSON request")
+			return errors.New("sendHTTPRequest: Unable to JSON request")
 		}
 
 		if o.Verbose {
@@ -671,17 +639,17 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 	err = common.JSONDecode(intermediary, &errCap)
 	if err == nil {
 		if len(errCap.ErrorMessage) > 0 {
-			return fmt.Errorf("Error: %v", errCap.ErrorMessage)
+			return fmt.Errorf("error: %v", errCap.ErrorMessage)
 		}
 		if errCap.Error > 0 {
-			return fmt.Errorf("SendHTTPRequest error - %s",
+			return fmt.Errorf("sendHTTPRequest error - %s",
 				o.ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
 		}
 		if !errCap.Result {
-			return errors.New("Unspecified error occurred")
+			return errors.New("unspecified error occurred")
 		}
 		if errCap.Code > 0 {
-			return fmt.Errorf("SendHTTPRequest error - %s",
+			return fmt.Errorf("sendHTTPRequest error - %s",
 				o.ErrorCodes[strconv.FormatInt(errCap.Code, 10)])
 		}
 	}
@@ -770,7 +738,7 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float
 func (o *OKGroup) SetErrorDefaults() {
 	o.ErrorCodes = map[string]error{
 		"0":     errors.New("successful"),
-		"1":     errors.New("Invalid parameter in url normally"),
+		"1":     errors.New("invalid parameter in url normally"),
 		"30001": errors.New("request header \"OK_ACCESS_KEY\" cannot be blank"),
 		"30002": errors.New("request header \"OK_ACCESS_SIGN\" cannot be blank"),
 		"30003": errors.New("request header \"OK_ACCESS_TIMESTAMP\" cannot be blank"),
@@ -780,7 +748,7 @@ func (o *OKGroup) SetErrorDefaults() {
 		"30007": errors.New("invalid Content_Type, please use \"application/json\" format"),
 		"30008": errors.New("timestamp request expired"),
 		"30009": errors.New("system error"),
-		"30010": errors.New("API validation failed"),
+		"30010": errors.New("api validation failed"),
 		"30011": errors.New("invalid IP"),
 		"30012": errors.New("invalid authorization"),
 		"30013": errors.New("invalid sign"),
@@ -814,8 +782,8 @@ func (o *OKGroup) SetErrorDefaults() {
 		"32005": errors.New("max order quantity"),
 		"32006": errors.New("the order price or trigger price exceeds USD 1 million"),
 		"32007": errors.New("leverage level must be the same for orders on the same side of the contract"),
-		"32008": errors.New("Max. positions to open (cross margin)"),
-		"32009": errors.New("Max. positions to open (fixed margin)"),
+		"32008": errors.New("max. positions to open (cross margin)"),
+		"32009": errors.New("max. positions to open (fixed margin)"),
 		"32010": errors.New("leverage cannot be changed with open positions"),
 		"32011": errors.New("futures status error"),
 		"32012": errors.New("futures order update error"),
@@ -884,25 +852,25 @@ func (o *OKGroup) SetErrorDefaults() {
 		"34018": errors.New("incorrect trades password"),
 		"34019": errors.New("please bind your email before withdrawal"),
 		"34020": errors.New("please bind your funds password before withdrawal"),
-		"34021": errors.New("Not verified address"),
-		"34022": errors.New("Withdrawals are not available for sub accounts"),
-		"35001": errors.New("Contract subscribing does not exist"),
-		"35002": errors.New("Contract is being settled"),
-		"35003": errors.New("Contract is being paused"),
-		"35004": errors.New("Pending contract settlement"),
-		"35005": errors.New("Perpetual swap trading is not enabled"),
-		"35008": errors.New("Margin ratio too low when placing order"),
-		"35010": errors.New("Closing position size larger than available size"),
-		"35012": errors.New("Placing an order with less than 1 contract"),
-		"35014": errors.New("Order size is not in acceptable range"),
-		"35015": errors.New("Leverage level unavailable"),
-		"35017": errors.New("Changing leverage level"),
-		"35019": errors.New("Order size exceeds limit"),
-		"35020": errors.New("Order price exceeds limit"),
-		"35021": errors.New("Order size exceeds limit of the current tier"),
-		"35022": errors.New("Contract is paused or closed"),
-		"35030": errors.New("Place multiple orders"),
-		"35031": errors.New("Cancel multiple orders"),
-		"35061": errors.New("Invalid instrument_id"),
+		"34021": errors.New("not verified address"),
+		"34022": errors.New("withdrawals are not available for sub accounts"),
+		"35001": errors.New("contract subscribing does not exist"),
+		"35002": errors.New("contract is being settled"),
+		"35003": errors.New("contract is being paused"),
+		"35004": errors.New("pending contract settlement"),
+		"35005": errors.New("perpetual swap trading is not enabled"),
+		"35008": errors.New("margin ratio too low when placing order"),
+		"35010": errors.New("closing position size larger than available size"),
+		"35012": errors.New("placing an order with less than 1 contract"),
+		"35014": errors.New("order size is not in acceptable range"),
+		"35015": errors.New("leverage level unavailable"),
+		"35017": errors.New("changing leverage level"),
+		"35019": errors.New("order size exceeds limit"),
+		"35020": errors.New("order price exceeds limit"),
+		"35021": errors.New("order size exceeds limit of the current tier"),
+		"35022": errors.New("contract is paused or closed"),
+		"35030": errors.New("place multiple orders"),
+		"35031": errors.New("cancel multiple orders"),
+		"35061": errors.New("invalid instrument_id"),
 	}
 }
