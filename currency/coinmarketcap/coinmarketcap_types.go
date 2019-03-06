@@ -71,14 +71,20 @@ type CryptoCurrencyInfo map[string]struct {
 
 // CryptoCurrencyMap defines a cryptocurrency struct
 type CryptoCurrencyMap struct {
-	ID                  int         `json:"id"`
-	Name                string      `json:"name"`
-	Symbol              string      `json:"symbol"`
-	Slug                string      `json:"slug"`
-	IsActive            int         `json:"is_active"`
-	FirstHistoricalData time.Time   `json:"first_historical_data"`
-	LastHistoricalData  time.Time   `json:"last_historical_data"`
-	Platform            interface{} `json:"platform"`
+	ID                  int       `json:"id"`
+	Name                string    `json:"name"`
+	Symbol              string    `json:"symbol"`
+	Slug                string    `json:"slug"`
+	IsActive            int       `json:"is_active"`
+	FirstHistoricalData time.Time `json:"first_historical_data"`
+	LastHistoricalData  time.Time `json:"last_historical_data"`
+	Platform            struct {
+		ID           int    `json:"id"`
+		Name         string `json:"name"`
+		Symbol       string `json:"symbol"`
+		Slug         string `json:"slug"`
+		TokenAddress string `json:"token_address"`
+	} `json:"platform"`
 }
 
 // CryptocurrencyHistoricalListings defines a historical listing data

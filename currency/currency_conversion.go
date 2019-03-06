@@ -109,11 +109,19 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	var mainBaseCurrency Code
 
 	for key, val := range m {
-		code1 := storage.NewValidFiatCode(key[:3])
+		code1, err := storage.NewValidFiatCode(key[:3])
+		if err != nil {
+			return err
+		}
+
 		if mainBaseCurrency == (Code{}) {
 			mainBaseCurrency = code1
 		}
-		code2 := storage.NewValidFiatCode(key[3:])
+
+		code2, err := storage.NewValidFiatCode(key[3:])
+		if err != nil {
+			return err
+		}
 
 		if code1 == code2 { // Get rid of same conversions
 			continue

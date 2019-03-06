@@ -1,15 +1,22 @@
 package currency
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
+
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	log "github.com/thrasher-/gocryptotrader/logger"
+)
+
+const (
+	CurrencyFileUpdateDelay = 168 * time.Hour
 )
 
 func init() {
@@ -33,10 +40,10 @@ type Storage struct {
 	cryptocurrencies Currencies
 
 	// CurrencyCodes is a full basket of currencies either crypto, fiat, ico or
-	// contract being tracked by the currency storage
+	// contract being tracked by the currency storage system
 	currencyCodes BaseCodes
 
-	// Main convert currency
+	// Main converting currency
 	baseCurrency Code
 
 	// FXRates defines a protected conversion rate map
@@ -59,6 +66,10 @@ type Storage struct {
 	// define different fiat currencies, cryptocurrencies and markets
 	currencyAnalysis *coinmarketcap.Coinmarketcap
 
+	// Path defines the main folder to dump and find currency JSON
+	path string
+
+	mtx            sync.Mutex
 	wg             sync.WaitGroup
 	shutdownC      chan struct{}
 	updaterRunning bool
@@ -80,16 +91,41 @@ func (s *Storage) SetDefaults() {
 // triggering rate limiters, it will also run a full cryptocurrency check
 // through coin market cap and expose analytics for exchange services
 func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration, filePath string, verbose bool) error {
+	s.mtx.Lock()
+
 	if !settings.Cryptocurrencies.HasData() {
+		s.mtx.Unlock()
 		return errors.New("currency storage error, no cryptocurrencies loaded")
 	}
 	s.cryptocurrencies = settings.Cryptocurrencies
 
 	if settings.FiatDisplayCurrency.IsEmpty() {
+		s.mtx.Unlock()
 		return errors.New("currency storage error, no fiat display currency set in config")
 	}
 	s.baseCurrency = settings.FiatDisplayCurrency
 	log.Debugf("Fiat display currency: %s.", s.baseCurrency)
+
+	if settings.CryptocurrencyProvider.Enabled {
+		log.Debugf("Setting up currency analysis system with Coinmarketcap...")
+		c := &coinmarketcap.Coinmarketcap{}
+		c.SetDefaults()
+		c.Setup(coinmarketcap.Settings{
+			Name:        settings.CryptocurrencyProvider.Name,
+			Enabled:     true,
+			AccountPlan: settings.CryptocurrencyProvider.AccountPlan,
+			APIkey:      settings.CryptocurrencyProvider.APIkey,
+			Verbose:     settings.CryptocurrencyProvider.Verbose,
+		})
+
+		s.currencyAnalysis = c
+	}
+
+	if filePath == "" {
+		return errors.New("RunUpdater error filepath not set")
+	}
+
+	s.path = filePath + common.GetOSPathSlash() + "currency.json"
 
 	var fxSettings []base.Settings
 	for i := range settings.ForexProviders {
@@ -138,6 +174,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 		var err error
 		s.fiatExchangeMarkets, err = forexprovider.StartFXService(fxSettings)
 		if err != nil {
+			s.mtx.Unlock()
 			return err
 		}
 
@@ -152,6 +189,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 		go s.ForeignExchangeUpdater()
 	} else {
 		log.Warnf("No foreign exchange providers enabled in config.json")
+		s.mtx.Unlock()
 	}
 
 	return nil
@@ -196,20 +234,24 @@ func (s *Storage) SetupForexProviders(setting ...base.Settings) error {
 // ForeignExchangeUpdater is a routine that seeds foreign exchange rate and keeps
 // updated as fast as possible
 func (s *Storage) ForeignExchangeUpdater() {
-	log.Debugf("Foreign exchange updater started seeding Fx rate list..")
-	s.wg.Add(1)
-	defer func() {
-		s.wg.Done()
-		s.updaterRunning = false
-	}()
+	log.Debugf("Foreign exchange updater started, seeding FX rate list..")
 
-	err := s.SeedForeignExchangeRates()
+	s.wg.Add(1)
+	defer s.wg.Done()
+
+	err := s.SeedCurrencyAnalysisData()
 	if err != nil {
 		log.Error(err)
 	}
 
+	err = s.SeedForeignExchangeRates()
+	if err != nil {
+		log.Error(err)
+	}
+
+	s.mtx.Unlock()
+
 	t := time.NewTicker(1 * time.Minute)
-	s.updaterRunning = true
 	for {
 		select {
 		case <-s.shutdownC:
@@ -222,6 +264,150 @@ func (s *Storage) ForeignExchangeUpdater() {
 			}
 		}
 	}
+}
+
+// SeedCurrencyAnalysisData sets a new instance of a coinmarketcap data.
+func (s *Storage) SeedCurrencyAnalysisData() error {
+	b, err := common.ReadFile(s.path)
+	if err != nil {
+		err = s.FetchCurrencyAnalysisData()
+		if err != nil {
+			return err
+		}
+
+		return s.WriteCurrencyDataToFile(s.path, true)
+	}
+
+	var fromFile File
+	err = common.JSONDecode(b, &fromFile)
+	if err != nil {
+		return err
+	}
+
+	err = s.LoadFileCurrencyData(fromFile)
+	if err != nil {
+		return err
+	}
+
+	// 1 week out of date, might as well update the list.
+	if fromFile.LastMainUpdate.After(fromFile.LastMainUpdate.Add(CurrencyFileUpdateDelay)) {
+		err = s.FetchCurrencyAnalysisData()
+		if err != nil {
+			return err
+		}
+
+		return s.WriteCurrencyDataToFile(s.path, true)
+	}
+
+	return nil
+}
+
+// FetchCurrencyAnalysisData fetches a new fresh batch of currency data and
+// loads it into memory
+func (s *Storage) FetchCurrencyAnalysisData() error {
+	if s.currencyAnalysis == nil {
+		log.Warn("Currency analysis system offline please set api keys for coinmarketcap")
+		return nil
+	}
+
+	return s.UpdateCurrencies()
+}
+
+// WriteCurrencyDataToFile writes the full currency data to a designated file
+func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
+	data, err := s.currencyCodes.GetFullCurrencyData()
+	if err != nil {
+		return err
+	}
+
+	if mainUpdate {
+		t := time.Now()
+		data.LastMainUpdate = t
+		s.currencyCodes.LastMainUpdate = t
+	}
+
+	var encoded []byte
+	encoded, err = json.MarshalIndent(data, "", " ")
+	if err != nil {
+		return err
+	}
+
+	return common.WriteFile(path, encoded)
+}
+
+// LoadFileCurrencyData loads currencies into the currency codes
+func (s *Storage) LoadFileCurrencyData(f File) error {
+	for _, contract := range f.Contracts {
+		err := s.currencyCodes.LoadItem(contract)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, crypto := range f.Cryptocurrency {
+		err := s.currencyCodes.LoadItem(crypto)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, fiat := range f.FiatCurrency {
+		err := s.currencyCodes.LoadItem(fiat)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, token := range f.Token {
+		err := s.currencyCodes.LoadItem(token)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, unset := range f.UnsetCurrency {
+		err := s.currencyCodes.LoadItem(unset)
+		if err != nil {
+			return err
+		}
+	}
+
+	s.currencyCodes.LastMainUpdate = f.LastMainUpdate
+
+	return nil
+}
+
+// UpdateCurrencies updates currency roll and information using coin market cap
+func (s *Storage) UpdateCurrencies() error {
+	m, err := s.currencyAnalysis.GetCryptocurrencyIDMap()
+	if err != nil {
+		return err
+	}
+
+	for x := range m {
+		if m[x].IsActive != 1 {
+			continue
+		}
+
+		if m[x].Platform.Symbol != "" {
+			err := s.currencyCodes.UpdateToken(m[x].Name,
+				m[x].Symbol,
+				m[x].Platform.Symbol,
+				m[x].ID)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		err := s.currencyCodes.UpdateCryptocurrency(m[x].Name,
+			m[x].Symbol,
+			m[x].ID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SeedForeignExchangeRatesByCurrencies seeds the foreign exchange rates by
@@ -295,7 +481,15 @@ func (s *Storage) SeedForeignExchangeRates() error {
 
 // UpdateForeignExchangeRates sets exchange rates on the FX map
 func (s *Storage) updateExchangeRates(m map[string]float64) error {
-	return s.fxRates.Update(m)
+	err := s.fxRates.Update(m)
+	if err != nil {
+		return err
+	}
+
+	if s.path != "" {
+		return s.WriteCurrencyDataToFile(s.path, false)
+	}
+	return nil
 }
 
 // SetupCryptoProvider sets congiguration parameters and starts a new instance
@@ -328,7 +522,7 @@ func (s *Storage) GetTotalMarketCryptocurrencies() (Currencies, error) {
 func (s *Storage) IsDefaultCurrency(c Code) bool {
 	t, _ := GetTranslation(c)
 	for _, d := range s.defaultFiatCurrencies {
-		if d.Item == c.Item || d.Item == t.Item {
+		if d.Match(c) || d.Match(t) {
 			return true
 		}
 	}
@@ -340,7 +534,7 @@ func (s *Storage) IsDefaultCurrency(c Code) bool {
 func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
 	t, _ := GetTranslation(c)
 	for _, d := range s.defaultCryptoCurrencies {
-		if d.Item == c.Item || d.Item == t.Item {
+		if d.Match(c) || d.Match(t) {
 			return true
 		}
 	}
@@ -350,24 +544,34 @@ func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
 // IsFiatCurrency returns if a currency is part of the enabled fiat currency
 // list
 func (s *Storage) IsFiatCurrency(c Code) bool {
+	if c.Item.Role != Unset {
+		return c.Item.Role == Fiat
+	}
+
 	t, _ := GetTranslation(c)
 	for _, d := range s.fiatCurrencies {
-		if d.Item == c.Item || d.Item == t.Item {
+		if d.Match(c) || d.Match(t) {
 			return true
 		}
 	}
+
 	return false
 }
 
 // IsCryptocurrency returns if a cryptocurrency is part of the enabled
 // cryptocurrency list
 func (s *Storage) IsCryptocurrency(c Code) bool {
+	if c.Item.Role != Unset {
+		return c.Item.Role == Cryptocurrency
+	}
+
 	t, _ := GetTranslation(c)
 	for _, d := range s.cryptocurrencies {
-		if d.Item == c.Item || d.Item == t.Item {
+		if d.Match(c) || d.Match(t) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -378,13 +582,15 @@ func (s *Storage) NewCode(newCode string) Code {
 }
 
 // NewValidFiatCode inserts a new code and updates the fiat currency list
-// TODO: mutex protection
-func (s *Storage) NewValidFiatCode(newCode string) Code {
-	c := s.currencyCodes.Register(newCode)
+func (s *Storage) NewValidFiatCode(newCode string) (Code, error) {
+	c, err := s.currencyCodes.RegisterFiat(newCode)
+	if err != nil {
+		return c, err
+	}
 	if !s.fiatCurrencies.Contains(c) {
 		s.fiatCurrencies = append(s.fiatCurrencies, c)
 	}
-	return c
+	return c, nil
 }
 
 // NewCryptoCode inserts a new code and updates the crypto currency list
@@ -459,6 +665,9 @@ func (s *Storage) UpdateEnabledFiatCurrencies(c Currencies) {
 // ConvertCurrency for example converts $1 USD to the equivalent Japanese Yen
 // or vice versa.
 func (s *Storage) ConvertCurrency(amount float64, from, to Code) (float64, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	if !s.fxRates.HasData() {
 		err := s.SeedDefaultForeignExchangeRates()
 		if err != nil {
@@ -476,6 +685,9 @@ func (s *Storage) ConvertCurrency(amount float64, from, to Code) (float64, error
 
 // GetStorageRate returns the rate of the conversion value
 func (s *Storage) GetStorageRate(from, to Code) (float64, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	if !s.fxRates.HasData() {
 		err := s.SeedDefaultForeignExchangeRates()
 		if err != nil {
@@ -489,6 +701,9 @@ func (s *Storage) GetStorageRate(from, to Code) (float64, error) {
 // NewConversion returns a new conversion object that has a pointer to a related
 // rate with its inversion.
 func (s *Storage) NewConversion(from, to Code) (Conversion, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	if !s.fxRates.HasData() {
 		err := storage.SeedDefaultForeignExchangeRates()
 		if err != nil {
