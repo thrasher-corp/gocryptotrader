@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Bitmasks const for currency rolls
@@ -134,31 +133,32 @@ func (b *BaseCodes) UpdateCryptocurrency(fullName, symbol string, id int) error 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
-		if b.Items[i].Symbol == symbol {
-			if b.Items[i].Role != Unset {
-				if b.Items[i].Role != Cryptocurrency {
-					if b.Items[i].FullName != "" {
-						if b.Items[i].FullName != fullName {
-							// multiple symbols found, break this and add the
-							// full context - this most likely won't occur for
-							// fiat but could occur for contracts.
-							break
-						}
+		if b.Items[i].Symbol != symbol {
+			continue
+		}
+		if b.Items[i].Role != Unset {
+			if b.Items[i].Role != Cryptocurrency {
+				if b.Items[i].FullName != "" {
+					if b.Items[i].FullName != fullName {
+						// multiple symbols found, break this and add the
+						// full context - this most likely won't occur for
+						// fiat but could occur for contracts.
+						break
 					}
-					return fmt.Errorf("role already defined in cryptocurrency %s as [%s]",
-						b.Items[i].Symbol,
-						b.Items[i].Role)
 				}
-				b.Items[i].FullName = fullName
-				b.Items[i].ID = id
-				return nil
+				return fmt.Errorf("role already defined in cryptocurrency %s as [%s]",
+					b.Items[i].Symbol,
+					b.Items[i].Role)
 			}
-
-			b.Items[i].Role = Cryptocurrency
 			b.Items[i].FullName = fullName
 			b.Items[i].ID = id
 			return nil
 		}
+
+		b.Items[i].Role = Cryptocurrency
+		b.Items[i].FullName = fullName
+		b.Items[i].ID = id
+		return nil
 	}
 
 	b.Items = append(b.Items, &Item{
@@ -172,27 +172,28 @@ func (b *BaseCodes) UpdateCryptocurrency(fullName, symbol string, id int) error 
 
 // UpdateFiatCurrency updates or registers a fiat currency
 func (b *BaseCodes) UpdateFiatCurrency(fullName, symbol string, id int) error {
-	log.Println("FIAT:", fullName, symbol)
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
 		if b.Items[i].Symbol == symbol {
-			if b.Items[i].Role != Unset {
-				if b.Items[i].Role != Fiat {
-					return fmt.Errorf("role already defined in fiat currency %s as [%s]",
-						b.Items[i].Symbol,
-						b.Items[i].Role)
-				}
-				b.Items[i].FullName = fullName
-				b.Items[i].ID = id
-				return nil
-			}
+			continue
+		}
 
-			b.Items[i].Role = Fiat
+		if b.Items[i].Role != Unset {
+			if b.Items[i].Role != Fiat {
+				return fmt.Errorf("role already defined in fiat currency %s as [%s]",
+					b.Items[i].Symbol,
+					b.Items[i].Role)
+			}
 			b.Items[i].FullName = fullName
 			b.Items[i].ID = id
 			return nil
 		}
+
+		b.Items[i].Role = Fiat
+		b.Items[i].FullName = fullName
+		b.Items[i].ID = id
+		return nil
 	}
 
 	b.Items = append(b.Items, &Item{
@@ -209,33 +210,35 @@ func (b *BaseCodes) UpdateToken(fullName, symbol, assocBlockchain string, id int
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
-		if b.Items[i].Symbol == symbol {
-			if b.Items[i].Role != Unset {
-				if b.Items[i].Role != Token {
-					if b.Items[i].FullName != "" {
-						if b.Items[i].FullName != fullName {
-							// multiple symbols found, break this and add the
-							// full context - this most likely won't occur for
-							// fiat but could occur for contracts.
-							break
-						}
-					}
-					return fmt.Errorf("role already defined in token %s as [%s]",
-						b.Items[i].Symbol,
-						b.Items[i].Role)
-				}
-				b.Items[i].FullName = fullName
-				b.Items[i].ID = id
-				b.Items[i].AssocChain = assocBlockchain
-				return nil
-			}
+		if b.Items[i].Symbol != symbol {
+			continue
+		}
 
-			b.Items[i].Role = Token
+		if b.Items[i].Role != Unset {
+			if b.Items[i].Role != Token {
+				if b.Items[i].FullName != "" {
+					if b.Items[i].FullName != fullName {
+						// multiple symbols found, break this and add the
+						// full context - this most likely won't occur for
+						// fiat but could occur for contracts.
+						break
+					}
+				}
+				return fmt.Errorf("role already defined in token %s as [%s]",
+					b.Items[i].Symbol,
+					b.Items[i].Role)
+			}
 			b.Items[i].FullName = fullName
 			b.Items[i].ID = id
 			b.Items[i].AssocChain = assocBlockchain
 			return nil
 		}
+
+		b.Items[i].Role = Token
+		b.Items[i].FullName = fullName
+		b.Items[i].ID = id
+		b.Items[i].AssocChain = assocBlockchain
+		return nil
 	}
 
 	b.Items = append(b.Items, &Item{
@@ -250,26 +253,19 @@ func (b *BaseCodes) UpdateToken(fullName, symbol, assocBlockchain string, id int
 
 // UpdateContract updates or registers a contract
 func (b *BaseCodes) UpdateContract(fullName, symbol, assocExchange string) error {
-	log.Println("CONTRACT:", fullName, symbol, assocExchange)
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
-		if b.Items[i].Symbol == symbol {
-			if b.Items[i].Role != Unset {
-				if b.Items[i].Role != Contract {
-					return fmt.Errorf("role already defined in contract %s as [%s]",
-						b.Items[i].Symbol,
-						b.Items[i].Role)
-				}
-				b.Items[i].FullName = fullName
-				if !common.StringDataContains(b.Items[i].AssocExchange, assocExchange) {
-					b.Items[i].AssocExchange = append(b.Items[i].AssocExchange,
-						assocExchange)
-				}
-				return nil
-			}
+		if b.Items[i].Symbol != symbol {
+			continue
+		}
 
-			b.Items[i].Role = Contract
+		if b.Items[i].Role != Unset {
+			if b.Items[i].Role != Contract {
+				return fmt.Errorf("role already defined in contract %s as [%s]",
+					b.Items[i].Symbol,
+					b.Items[i].Role)
+			}
 			b.Items[i].FullName = fullName
 			if !common.StringDataContains(b.Items[i].AssocExchange, assocExchange) {
 				b.Items[i].AssocExchange = append(b.Items[i].AssocExchange,
@@ -277,6 +273,14 @@ func (b *BaseCodes) UpdateContract(fullName, symbol, assocExchange string) error
 			}
 			return nil
 		}
+
+		b.Items[i].Role = Contract
+		b.Items[i].FullName = fullName
+		if !common.StringDataContains(b.Items[i].AssocExchange, assocExchange) {
+			b.Items[i].AssocExchange = append(b.Items[i].AssocExchange,
+				assocExchange)
+		}
+		return nil
 	}
 
 	b.Items = append(b.Items, &Item{

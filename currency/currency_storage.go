@@ -15,6 +15,8 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
+// CurrencyFileUpdateDelay defines the rate at which the currency.json file is
+// updated
 const (
 	CurrencyFileUpdateDelay = 168 * time.Hour
 )
@@ -122,7 +124,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 	}
 
 	if filePath == "" {
-		return errors.New("RunUpdater error filepath not set")
+		return errors.New("currency package runUpdater error filepath not set")
 	}
 
 	s.path = filePath + common.GetOSPathSlash() + "currency.json"
