@@ -17,7 +17,8 @@ import (
 // CurrencyFileUpdateDelay defines the rate at which the currency.json file is
 // updated
 const (
-	CurrencyFileUpdateDelay = 168 * time.Hour
+	DefaultCurrencyFileDelay    = 168 * time.Hour
+	DefaultForeignExchangeDelay = 1 * time.Minute
 )
 
 func init() {
@@ -69,6 +70,10 @@ type Storage struct {
 
 	// Path defines the main folder to dump and find currency JSON
 	path string
+
+	// Update delay variables
+	currencyFileUpdateDelay    time.Duration
+	foreignExchangeUpdateDelay time.Duration
 
 	mtx            sync.Mutex
 	wg             sync.WaitGroup
@@ -128,6 +133,18 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 	}
 
 	s.path = filePath + common.GetOSPathSlash() + "currency.json"
+
+	if settings.CurrencyDelay.Nanoseconds() == 0 {
+		s.currencyFileUpdateDelay = DefaultCurrencyFileDelay
+	} else {
+		s.currencyFileUpdateDelay = settings.CurrencyDelay
+	}
+
+	if settings.FxRateDelay.Nanoseconds() == 0 {
+		s.foreignExchangeUpdateDelay = DefaultForeignExchangeDelay
+	} else {
+		s.foreignExchangeUpdateDelay = settings.FxRateDelay
+	}
 
 	var fxSettings []base.Settings
 	for i := range settings.ForexProviders {
@@ -257,14 +274,23 @@ func (s *Storage) ForeignExchangeUpdater() {
 	// to data
 	s.mtx.Unlock()
 
-	t := time.NewTicker(1 * time.Minute)
+	// Set tickers to client defined rates or defaults
+	SeedForeignExchangeTick := time.NewTicker(s.foreignExchangeUpdateDelay)
+	SeedCurrencyAnalysisTick := time.NewTicker(s.currencyFileUpdateDelay)
+
 	for {
 		select {
 		case <-s.shutdownC:
 			return
 
-		case <-t.C:
+		case <-SeedForeignExchangeTick.C:
 			err := s.SeedForeignExchangeRates()
+			if err != nil {
+				log.Error(err)
+			}
+
+		case <-SeedCurrencyAnalysisTick.C:
+			err := s.SeedCurrencyAnalysisData()
 			if err != nil {
 				log.Error(err)
 			}
@@ -295,8 +321,8 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 		return err
 	}
 
-	// 1 week out of date, might as well update the list.
-	if fromFile.LastMainUpdate.After(fromFile.LastMainUpdate.Add(CurrencyFileUpdateDelay)) {
+	// Based on update delay update the file
+	if fromFile.LastMainUpdate.After(fromFile.LastMainUpdate.Add(s.currencyFileUpdateDelay)) {
 		err = s.FetchCurrencyAnalysisData()
 		if err != nil {
 			return err

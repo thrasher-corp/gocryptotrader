@@ -13,6 +13,8 @@ type MainConfiguration struct {
 	Cryptocurrencies       Currencies
 	CurrencyPairFormat     interface{}
 	FiatDisplayCurrency    Code
+	CurrencyDelay          time.Duration
+	FxRateDelay            time.Duration
 }
 
 // BotOverrides defines a bot overriding factor for quick running currency

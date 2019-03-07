@@ -141,6 +141,8 @@ func main() {
 			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider),
 			Cryptocurrencies:       bot.config.Currency.Cryptocurrencies,
 			FiatDisplayCurrency:    bot.config.Currency.FiatDisplayCurrency,
+			CurrencyDelay:          bot.config.Currency.CurrencyFileUpdateDuration,
+			FxRateDelay:            bot.config.Currency.ForeignExchangeUpdateDuration,
 		},
 		bot.dataDir,
 		*verbosity)

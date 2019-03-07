@@ -177,11 +177,13 @@ type BankTransaction struct {
 
 // CurrencyConfig holds all the information needed for currency related manipulation
 type CurrencyConfig struct {
-	ForexProviders         []base.Settings           `json:"forexProviders"`
-	CryptocurrencyProvider CryptocurrencyProvider    `json:"cryptocurrencyProvider"`
-	Cryptocurrencies       currency.Currencies       `json:"cryptocurrencies"`
-	CurrencyPairFormat     *CurrencyPairFormatConfig `json:"currencyPairFormat"`
-	FiatDisplayCurrency    currency.Code             `json:"fiatDisplayCurrency"`
+	ForexProviders                []base.Settings           `json:"forexProviders"`
+	CryptocurrencyProvider        CryptocurrencyProvider    `json:"cryptocurrencyProvider"`
+	Cryptocurrencies              currency.Currencies       `json:"cryptocurrencies"`
+	CurrencyPairFormat            *CurrencyPairFormatConfig `json:"currencyPairFormat"`
+	FiatDisplayCurrency           currency.Code             `json:"fiatDisplayCurrency"`
+	CurrencyFileUpdateDuration    time.Duration             `json:"currencyFileUpdateDuration"`
+	ForeignExchangeUpdateDuration time.Duration             `json:"foreignExchangeUpdateDuration"`
 }
 
 // CryptocurrencyProvider defines coinmarketcap tools
