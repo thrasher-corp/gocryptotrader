@@ -78,7 +78,7 @@ func (y *Yobit) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price,
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (y *Yobit) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(y.GetName(), p, assetType)
+	ob, err := orderbook.Get(y.GetName(), p, assetType)
 	if err != nil {
 		return y.UpdateOrderbook(p, assetType)
 	}
@@ -112,7 +112,7 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(y.Name, p, assetType)
+	return orderbook.Get(y.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

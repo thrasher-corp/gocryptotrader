@@ -712,12 +712,12 @@ func TestSetCurrencies(t *testing.T) {
 	UAC.Name = defaultTestExchange
 	UAC.ConfigCurrencyPairFormat.Delimiter = anxCfg.ConfigCurrencyPairFormat.Delimiter
 	UAC.SetCurrencies(currency.Pairs{newPair}, true)
-	if !UAC.GetEnabledCurrencies().Contain(newPair, true) {
+	if !UAC.GetEnabledCurrencies().Contains(newPair, true) {
 		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
 	}
 
 	UAC.SetCurrencies(currency.Pairs{newPair}, false)
-	if !UAC.GetAvailableCurrencies().Contain(newPair, true) {
+	if !UAC.GetAvailableCurrencies().Contains(newPair, true) {
 		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
 	}
 

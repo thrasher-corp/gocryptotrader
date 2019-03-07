@@ -25,17 +25,6 @@ type BotOverrides struct {
 	FxOpenExchangeRates bool
 }
 
-// AnalysisData defines information pertaining to exchange, cryptocurrency or
-// fiat from coinmarketcap
-type AnalysisData struct {
-	ID          int
-	Name        string
-	Symbol      string `json:",omitempty"`
-	Slug        string
-	Active      bool
-	LastUpdated time.Time
-}
-
 // CoinmarketcapSettings refers to settings
 type CoinmarketcapSettings coinmarketcap.Settings
 

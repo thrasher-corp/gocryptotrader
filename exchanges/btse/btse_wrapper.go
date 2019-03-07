@@ -91,7 +91,7 @@ func (b *BTSE) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, 
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (b *BTSE) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}

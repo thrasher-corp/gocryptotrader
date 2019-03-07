@@ -1,126 +1,5 @@
 package currency
 
-import (
-	"fmt"
-	"strings"
-)
-
-// NewCode returns a new currency registered code
-func NewCode(c string) Code {
-	return storage.NewCode(c)
-}
-
-// NewConversionFromString splits a string from a foreign exchange provider
-func NewConversionFromString(p string) Conversion {
-	return NewConversion(p[:3], p[3:])
-}
-
-// NewConversion assigns or finds a new conversion unit
-func NewConversion(from, to string) Conversion {
-	return Conversion{
-		From: NewCode(from),
-		To:   NewCode(to),
-	}
-}
-
-// NewCurrenciesFromStrings returns a Currencies object from strings
-func NewCurrenciesFromStrings(currencies []string) Currencies {
-	var list Currencies
-	for _, c := range currencies {
-		if c == "" {
-			continue
-		}
-		list = append(list, NewCode(c))
-	}
-	return list
-}
-
-// NewPairsFromStrings takes in currency pair strings and returns a currency
-// pair list
-func NewPairsFromStrings(pairs []string) Pairs {
-	var ps Pairs
-	for _, p := range pairs {
-		if p == "" {
-			continue
-		}
-
-		ps = append(ps, NewPairFromString(p))
-	}
-	return ps
-}
-
-// NewPairDelimiter splits the desired currency string at delimeter, the returns
-// a Pair struct
-func NewPairDelimiter(currencyPair, delimiter string) Pair {
-	result := strings.Split(currencyPair, delimiter)
-	return Pair{
-		Delimiter: delimiter,
-		Base:      NewCode(result[0]),
-		Quote:     NewCode(result[1]),
-	}
-}
-
-// NewPairFromStrings returns a CurrencyPair without a delimiter
-func NewPairFromStrings(baseCurrency, quoteCurrency string) Pair {
-	return Pair{
-		Base:  NewCode(baseCurrency),
-		Quote: NewCode(quoteCurrency),
-	}
-}
-
-// NewPair returns a currency pair from currency codes
-func NewPair(baseCurrency, quoteCurrency Code) Pair {
-	return Pair{
-		Base:  baseCurrency,
-		Quote: quoteCurrency,
-	}
-}
-
-// NewPairWithDelimiter returns a CurrencyPair with a delimiter
-func NewPairWithDelimiter(base, quote, delimiter string) Pair {
-	return Pair{
-		Base:      NewCode(base),
-		Quote:     NewCode(quote),
-		Delimiter: delimiter,
-	}
-}
-
-// NewPairFromIndex returns a CurrencyPair via a currency string and specific
-// index
-func NewPairFromIndex(currencyPair, index string) (Pair, error) {
-	i := strings.Index(currencyPair, index)
-	if i == -1 {
-		return Pair{},
-			fmt.Errorf("index %s not found in currency pair string", index)
-	}
-	if i == 0 {
-		return NewPairFromStrings(currencyPair[0:len(index)],
-				currencyPair[len(index):]),
-			nil
-	}
-	return NewPairFromStrings(currencyPair[0:i], currencyPair[i:]), nil
-}
-
-// NewPairFromString converts currency string into a new CurrencyPair
-// with or without delimeter
-func NewPairFromString(currencyPair string) Pair {
-	delimiters := []string{"_", "-"}
-	var delimiter string
-	for _, x := range delimiters {
-		if strings.Contains(currencyPair, x) {
-			delimiter = x
-			return NewPairDelimiter(currencyPair, delimiter)
-		}
-	}
-	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])
-}
-
-// NewConversionFromCode returns a conversion rate object that allows for
-// obtaining efficient rate values when needed
-func NewConversionFromCode(from, to Code) (Conversion, error) {
-	return storage.NewConversion(from, to)
-}
-
 // GetDefaultExchangeRates returns the currency exchange rates based off the
 // default fiat values
 func GetDefaultExchangeRates() (Conversions, error) {
@@ -143,13 +22,13 @@ func GetBaseCurrency() Code {
 	return storage.GetBaseCurrency()
 }
 
-// GetDefaultBaseCurrency returns storage defauly base currency
+// GetDefaultBaseCurrency returns storage default base currency
 func GetDefaultBaseCurrency() Code {
 	return storage.GetDefaultBaseCurrency()
 }
 
-// GetCryptoCurrencies returns the storage enabled cryptocurrencies
-func GetCryptoCurrencies() Currencies {
+// GetCryptocurrencies returns the storage enabled cryptocurrencies
+func GetCryptocurrencies() Currencies {
 	return storage.GetCryptocurrencies()
 }
 

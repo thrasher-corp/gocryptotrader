@@ -607,9 +607,9 @@ func (e *Base) GetAvailableCurrencies() currency.Pairs {
 // exchange available currencies or not
 func (e *Base) SupportsCurrency(p currency.Pair, enabledPairs bool) bool {
 	if enabledPairs {
-		return e.GetEnabledCurrencies().Contain(p, false)
+		return e.GetEnabledCurrencies().Contains(p, false)
 	}
-	return e.GetAvailableCurrencies().Contain(p, false)
+	return e.GetAvailableCurrencies().Contains(p, false)
 }
 
 // GetExchangeFormatCurrencySeperator returns whether or not a specific
@@ -648,7 +648,7 @@ func GetAndFormatExchangeCurrencies(exchName string, pairs []currency.Pair) (str
 }
 
 // FormatExchangeCurrency is a method that formats and returns a currency pair
-// based on the user currency display preferences
+// based on the exchange currency format
 func FormatExchangeCurrency(exchName string, p currency.Pair) currency.Pair {
 	cfg := config.GetConfig()
 	exch, _ := cfg.GetExchangeConfig(exchName)
@@ -793,7 +793,7 @@ type ModifyOrder struct {
 	Amount          float64
 	LimitPriceUpper float64
 	LimitPriceLower float64
-	Currency        currency.Pair
+	CurrencyPair    currency.Pair
 
 	ImmediateOrCancel bool
 	HiddenOrder       bool

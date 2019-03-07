@@ -6,14 +6,28 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 )
 
+// NewPairsFromStrings takes in currency pair strings and returns a currency
+// pair list
+func NewPairsFromStrings(pairs []string) Pairs {
+	var ps Pairs
+	for _, p := range pairs {
+		if p == "" {
+			continue
+		}
+
+		ps = append(ps, NewPairFromString(p))
+	}
+	return ps
+}
+
 // Pairs defines a list of pairs
 type Pairs []Pair
 
 // Strings returns a slice of strings referring to each currency pair
 func (p Pairs) Strings() []string {
 	var list []string
-	for _, pair := range p {
-		list = append(list, pair.String())
+	for i := range p {
+		list = append(list, p[i].String())
 	}
 	return list
 }
@@ -26,11 +40,11 @@ func (p Pairs) Join() string {
 // Format formats the pair list to the exchange format configuration
 func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
 	var pairs Pairs
-	for _, data := range p {
+	for i := range p {
 		var formattedPair Pair
 		formattedPair.Delimiter = delimiter
-		formattedPair.Base = data.Base
-		formattedPair.Quote = data.Quote
+		formattedPair.Base = p[i].Base
+		formattedPair.Quote = p[i].Quote
 
 		if index != "" {
 			formattedPair.Quote = NewCode(index)
@@ -70,8 +84,8 @@ func (p Pairs) MarshalJSON() ([]byte, error) {
 // Upper returns an upper formatted pair list
 func (p Pairs) Upper() Pairs {
 	var upper Pairs
-	for _, data := range p {
-		upper = append(upper, data.Upper())
+	for i := range p {
+		upper = append(upper, p[i].Upper())
 	}
 	return upper
 }
@@ -81,9 +95,9 @@ func (p Pairs) Slice() []Pair {
 	return p
 }
 
-// Contain checks to see if a specified pair exists inside a currency pair
+// Contains checks to see if a specified pair exists inside a currency pair
 // array
-func (p Pairs) Contain(check Pair, exact bool) bool {
+func (p Pairs) Contains(check Pair, exact bool) bool {
 	for _, pair := range p.Slice() {
 		if exact {
 			if pair.Equal(check) {
@@ -117,7 +131,7 @@ func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
 		if pairs[x].String() == "" {
 			continue
 		}
-		if !p.Contain(pairs[x], true) {
+		if !p.Contains(pairs[x], true) {
 			newPairs = append(newPairs, pairs[x])
 		}
 	}
@@ -125,7 +139,7 @@ func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
 		if oldPair.String() == "" {
 			continue
 		}
-		if !pairs.Contain(oldPair, true) {
+		if !pairs.Contains(oldPair, true) {
 			removedPairs = append(removedPairs, oldPair)
 		}
 	}

@@ -102,12 +102,12 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType string) (orderbo
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(a.Name, p, assetType)
+	return orderbook.Get(a.Name, p, assetType)
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (a *Alphapoint) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
+	ob, err := orderbook.Get(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
 	}

@@ -116,8 +116,8 @@ func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType, e
 		return
 	}
 
-	bidsAmount, bidsValue := result.CalculateTotalBids()
-	asksAmount, asksValue := result.CalculateTotalAsks()
+	bidsAmount, bidsValue := result.TotalBidsAmount()
+	asksAmount, asksValue := result.TotalAsksAmount()
 
 	if p.Quote.IsFiatCurrency() &&
 		p.Quote != bot.config.Currency.FiatDisplayCurrency {

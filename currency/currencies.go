@@ -2,6 +2,18 @@ package currency
 
 import "github.com/thrasher-/gocryptotrader/common"
 
+// NewCurrenciesFromStringArray returns a Currencies object from strings
+func NewCurrenciesFromStringArray(currencies []string) Currencies {
+	var list Currencies
+	for i := range currencies {
+		if currencies[i] == "" {
+			continue
+		}
+		list = append(list, NewCode(currencies[i]))
+	}
+	return list
+}
+
 // Currencies define a range of supported currency codes
 type Currencies []Code
 

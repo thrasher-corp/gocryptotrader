@@ -422,10 +422,10 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	curr := currency.NewPairFromString("BTCUSD")
 	_, err := b.ModifyOrder(exchange.ModifyOrder{OrderID: "1337",
-		Price:     100,
-		Amount:    1000,
-		OrderSide: exchange.SellOrderSide,
-		Currency:  curr})
+		Price:        100,
+		Amount:       1000,
+		OrderSide:    exchange.SellOrderSide,
+		CurrencyPair: curr})
 	if err == nil {
 		t.Error("Test Failed - ModifyOrder() error")
 	}

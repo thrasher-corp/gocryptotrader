@@ -541,7 +541,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 	var pairs, pairsRemoved currency.Pairs
 	update := false
 	for x := range enabledPairs {
-		if !availPairs.Contain(enabledPairs[x], true) {
+		if !availPairs.Contains(enabledPairs[x], true) {
 			update = true
 			pairsRemoved = append(pairsRemoved, enabledPairs[x])
 			continue
@@ -586,7 +586,7 @@ func (c *Config) SupportsPair(exchName string, p currency.Pair) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return pairs.Contain(p, false), nil
+	return pairs.Contains(p, false), nil
 }
 
 // GetAvailablePairs returns a list of currency pairs for a specifc exchange

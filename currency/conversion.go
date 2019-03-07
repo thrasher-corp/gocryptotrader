@@ -109,7 +109,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	var mainBaseCurrency Code
 
 	for key, val := range m {
-		code1, err := storage.NewValidFiatCode(key[:3])
+		code1, err := storage.ValidateFiatCode(key[:3])
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 			mainBaseCurrency = code1
 		}
 
-		code2, err := storage.NewValidFiatCode(key[3:])
+		code2, err := storage.ValidateFiatCode(key[3:])
 		if err != nil {
 			return err
 		}
@@ -253,6 +253,25 @@ type Conversions []Conversion
 // Slice exposes the underlying Conversion slice type
 func (c Conversions) Slice() []Conversion {
 	return c
+}
+
+// NewConversionFromString splits a string from a foreign exchange provider
+func NewConversionFromString(p string) Conversion {
+	return NewConversion(p[:3], p[3:])
+}
+
+// NewConversionFromCode returns a conversion rate object that allows for
+// obtaining efficient rate values when needed
+func NewConversionFromCode(from, to Code) (Conversion, error) {
+	return storage.NewConversion(from, to)
+}
+
+// NewConversion assigns or finds a new conversion unit
+func NewConversion(from, to string) Conversion {
+	return Conversion{
+		From: NewCode(from),
+		To:   NewCode(to),
+	}
 }
 
 // Conversion defines a specific currency conversion for a rate

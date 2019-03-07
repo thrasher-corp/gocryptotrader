@@ -29,7 +29,7 @@ func GetAllAvailablePairs(enabledExchangesOnly bool) currency.Pairs {
 		}
 
 		for y := range pairs {
-			if pairList.Contain(pairs[y], false) {
+			if pairList.Contains(pairs[y], false) {
 				continue
 			}
 			pairList = append(pairList, pairs[y])
@@ -51,7 +51,7 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 				(includeUSDT &&
 					supportedPairs[x].ContainsCurrency(currency.USDT) &&
 					supportedPairs[x].IsCryptoPair()) {
-				if pairList.Contain(supportedPairs[x], false) {
+				if pairList.Contains(supportedPairs[x], false) {
 					continue
 				}
 				pairList = append(pairList, supportedPairs[x])
@@ -59,7 +59,7 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 		}
 		if cryptoPairs {
 			if supportedPairs[x].IsCryptoPair() {
-				if pairList.Contain(supportedPairs[x], false) {
+				if pairList.Contains(supportedPairs[x], false) {
 					continue
 				}
 				pairList = append(pairList, supportedPairs[x])
@@ -82,7 +82,7 @@ func IsRelatablePairs(p1, p2 currency.Pair, includeUSDT bool) bool {
 				GetRelatableFiatCurrencies(relatablePairs[x])...)
 		}
 	}
-	return relatablePairs.Contain(p2, false)
+	return relatablePairs.Contains(p2, false)
 }
 
 // MapCurrenciesByExchange returns a list of currency pairs mapped to an
@@ -106,7 +106,7 @@ func MapCurrenciesByExchange(p []currency.Pair, enabledExchangesOnly bool) map[s
 				pairs = append(pairs, p[x])
 				currencyExchange[exchName] = pairs
 			} else {
-				if result.Contain(p[x], false) {
+				if result.Contains(p[x], false) {
 					continue
 				}
 				result = append(result, p[x])
@@ -143,7 +143,7 @@ func GetExchangeNamesByCurrency(p currency.Pair, enabled bool) []string {
 // any relatable currencies (e.g ETHBTC -> ETHLTC -> ETHUSDT -> ETHREP)
 func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 	var pairs currency.Pairs
-	cryptocurrencies := currency.GetCryptoCurrencies()
+	cryptocurrencies := currency.GetCryptocurrencies()
 
 	for x := range cryptocurrencies {
 		newPair := currency.NewPair(p.Base, cryptocurrencies[x])
@@ -156,7 +156,7 @@ func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 			continue
 		}
 
-		if pairs.Contain(newPair, false) {
+		if pairs.Contains(newPair, false) {
 			continue
 		}
 		pairs = append(pairs, newPair)
@@ -181,7 +181,7 @@ func GetRelatableFiatCurrencies(p currency.Pair) currency.Pairs {
 			continue
 		}
 
-		if pairs.Contain(newPair, false) {
+		if pairs.Contains(newPair, false) {
 			continue
 		}
 		pairs = append(pairs, newPair)
@@ -196,7 +196,7 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 	var pairs currency.Pairs
 
 	addPair := func(p currency.Pair) {
-		if pairs.Contain(p, true) {
+		if pairs.Contains(p, true) {
 			return
 		}
 		pairs = append(pairs, p)

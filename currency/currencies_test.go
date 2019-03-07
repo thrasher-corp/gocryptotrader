@@ -34,7 +34,7 @@ func TestCurrenciesMarshalJSON(t *testing.T) {
 	quickStruct := struct {
 		C Currencies `json:"amazingCurrencies"`
 	}{
-		C: NewCurrenciesFromStrings([]string{"btc", "usd", "ltc", "bro", "things"}),
+		C: NewCurrenciesFromStringArray([]string{"btc", "usd", "ltc", "bro", "things"}),
 	}
 
 	encoded, err := common.JSONEncode(quickStruct)

@@ -138,7 +138,7 @@ func (b *Bittrex) GetTickerPrice(p currency.Pair, assetType string) (ticker.Pric
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *Bittrex) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -180,7 +180,7 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(b.Name, p, assetType)
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetFundingHistory returns funding history, deposits and

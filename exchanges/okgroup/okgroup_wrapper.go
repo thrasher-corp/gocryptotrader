@@ -85,7 +85,7 @@ func (o *OKGroup) GetTickerPrice(p currency.Pair, assetType string) (tickerData 
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (o *OKGroup) GetOrderbookEx(p currency.Pair, assetType string) (resp orderbook.Base, err error) {
-	ob, err := orderbook.GetOrderbook(o.GetName(), p, assetType)
+	ob, err := orderbook.Get(o.GetName(), p, assetType)
 	if err != nil {
 		return o.UpdateOrderbook(p, assetType)
 	}
@@ -140,7 +140,7 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType string) (resp order
 		return
 	}
 
-	return orderbook.GetOrderbook(o.Name, p, assetType)
+	return orderbook.Get(o.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies

@@ -43,22 +43,22 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 	SetupTestHelpers(t)
 	result := GetSpecificAvailablePairs(true, true, true, false)
 
-	if !result.Contain(currency.NewPairFromStrings("BTC", "USD"), true) {
+	if !result.Contains(currency.NewPairFromStrings("BTC", "USD"), true) {
 		t.Fatal("Unexpected result")
 	}
 
-	if !result.Contain(currency.NewPairFromStrings("BTC", "USDT"), false) {
+	if !result.Contains(currency.NewPairFromStrings("BTC", "USDT"), false) {
 		t.Fatal("Unexpected result")
 	}
 
 	result = GetSpecificAvailablePairs(true, true, false, false)
 
-	if result.Contain(currency.NewPairFromStrings("BTC", "USDT"), false) {
+	if result.Contains(currency.NewPairFromStrings("BTC", "USDT"), false) {
 		t.Fatal("Unexpected result")
 	}
 
 	result = GetSpecificAvailablePairs(true, false, false, true)
-	if !result.Contain(currency.NewPairFromStrings("LTC", "BTC"), false) {
+	if !result.Contains(currency.NewPairFromStrings("LTC", "BTC"), false) {
 		t.Fatal("Unexpected result")
 	}
 }
@@ -173,30 +173,30 @@ func TestIsRelatablePairs(t *testing.T) {
 func TestGetRelatableCryptocurrencies(t *testing.T) {
 	SetupTestHelpers(t)
 	p := GetRelatableCryptocurrencies(currency.NewPairFromStrings("BTC", "LTC"))
-	if p.Contain(currency.NewPairFromStrings("BTC", "LTC"), true) {
+	if p.Contains(currency.NewPairFromStrings("BTC", "LTC"), true) {
 		t.Fatal("Unexpected result")
 	}
-	if p.Contain(currency.NewPairFromStrings("BTC", "BTC"), true) {
+	if p.Contains(currency.NewPairFromStrings("BTC", "BTC"), true) {
 		t.Fatal("Unexpected result")
 	}
-	if p.Contain(currency.NewPairFromStrings("LTC", "LTC"), true) {
+	if p.Contains(currency.NewPairFromStrings("LTC", "LTC"), true) {
 		t.Fatal("Unexpected result")
 	}
-	if !p.Contain(currency.NewPairFromStrings("BTC", "ETH"), true) {
+	if !p.Contains(currency.NewPairFromStrings("BTC", "ETH"), true) {
 		t.Fatal("Unexpected result")
 	}
 
 	p = GetRelatableCryptocurrencies(currency.NewPairFromStrings("BTC", "LTC"))
-	if p.Contain(currency.NewPairFromStrings("BTC", "LTC"), true) {
+	if p.Contains(currency.NewPairFromStrings("BTC", "LTC"), true) {
 		t.Fatal("Unexpected result")
 	}
-	if p.Contain(currency.NewPairFromStrings("BTC", "BTC"), true) {
+	if p.Contains(currency.NewPairFromStrings("BTC", "BTC"), true) {
 		t.Fatal("Unexpected result")
 	}
-	if p.Contain(currency.NewPairFromStrings("LTC", "LTC"), true) {
+	if p.Contains(currency.NewPairFromStrings("LTC", "LTC"), true) {
 		t.Fatal("Unexpected result")
 	}
-	if !p.Contain(currency.NewPairFromStrings("BTC", "ETH"), true) {
+	if !p.Contains(currency.NewPairFromStrings("BTC", "ETH"), true) {
 		t.Fatal("Unexpected result")
 	}
 }
@@ -204,12 +204,12 @@ func TestGetRelatableCryptocurrencies(t *testing.T) {
 func TestGetRelatableFiatCurrencies(t *testing.T) {
 	SetupTestHelpers(t)
 	p := GetRelatableFiatCurrencies(currency.NewPairFromStrings("BTC", "USD"))
-	if !p.Contain(currency.NewPairFromStrings("BTC", "EUR"), true) {
+	if !p.Contains(currency.NewPairFromStrings("BTC", "EUR"), true) {
 		t.Fatal("Unexpected result")
 	}
 
 	p = GetRelatableFiatCurrencies(currency.NewPairFromStrings("BTC", "USD"))
-	if !p.Contain(currency.NewPairFromStrings("BTC", "ZAR"), true) {
+	if !p.Contains(currency.NewPairFromStrings("BTC", "ZAR"), true) {
 		t.Fatal("Unexpected result")
 	}
 }

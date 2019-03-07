@@ -108,7 +108,7 @@ func (g *Gemini) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (g *Gemini) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(g.GetName(), p, assetType)
+	ob, err := orderbook.Get(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
 	}
@@ -140,7 +140,7 @@ func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.B
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(g.Name, p, assetType)
+	return orderbook.Get(g.Name, p, assetType)
 }
 
 // GetFundingHistory returns funding history, deposits and

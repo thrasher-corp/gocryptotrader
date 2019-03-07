@@ -20,7 +20,7 @@ func TestCalculateTotalBids(t *testing.T) {
 		LastUpdated: time.Now(),
 	}
 
-	a, b := base.CalculateTotalBids()
+	a, b := base.TotalBidsAmount()
 	if a != 10 && b != 1000 {
 		t.Fatal("Test failed. TestCalculateTotalBids expected a = 10 and b = 1000")
 	}
@@ -34,7 +34,7 @@ func TestCalculateTotaAsks(t *testing.T) {
 		Asks: []Item{{Price: 100, Amount: 10}},
 	}
 
-	a, b := base.CalculateTotalAsks()
+	a, b := base.TotalAsksAmount()
 	if a != 10 && b != 1000 {
 		t.Fatal("Test failed. TestCalculateTotalAsks expected a = 10 and b = 1000")
 	}
@@ -60,12 +60,12 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("test failed. TestUpdate expected LastUpdated to be greater then original time")
 	}
 
-	a, b := base.CalculateTotalAsks()
+	a, b := base.TotalAsksAmount()
 	if a != 100 && b != 20200 {
 		t.Fatal("Test failed. TestUpdate expected a = 100 and b = 20100")
 	}
 
-	a, b = base.CalculateTotalBids()
+	a, b = base.TotalBidsAmount()
 	if a != 100 && b != 20100 {
 		t.Fatal("Test failed. TestUpdate expected a = 100 and b = 20100")
 	}
@@ -81,7 +81,7 @@ func TestGetOrderbook(t *testing.T) {
 
 	CreateNewOrderbook("Exchange", base, Spot)
 
-	result, err := GetOrderbook("Exchange", c, Spot)
+	result, err := Get("Exchange", c, Spot)
 	if err != nil {
 		t.Fatalf("Test failed. TestGetOrderbook failed to get orderbook. Error %s",
 			err)
@@ -90,19 +90,19 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal("Test failed. TestGetOrderbook failed. Mismatched pairs")
 	}
 
-	_, err = GetOrderbook("nonexistent", c, Spot)
+	_, err = Get("nonexistent", c, Spot)
 	if err == nil {
 		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook")
 	}
 
 	c.Base = currency.NewCode("blah")
-	_, err = GetOrderbook("Exchange", c, Spot)
+	_, err = Get("Exchange", c, Spot)
 	if err == nil {
 		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid first currency")
 	}
 
 	newCurrency := currency.NewPairFromStrings("BTC", "AUD")
-	_, err = GetOrderbook("Exchange", newCurrency, Spot)
+	_, err = Get("Exchange", newCurrency, Spot)
 	if err == nil {
 		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid second currency")
 	}
@@ -118,13 +118,13 @@ func TestGetOrderbookByExchange(t *testing.T) {
 
 	CreateNewOrderbook("Exchange", base, Spot)
 
-	_, err := GetOrderbookByExchange("Exchange")
+	_, err := GetByExchange("Exchange")
 	if err != nil {
 		t.Fatalf("Test failed. TestGetOrderbookByExchange failed to get orderbook. Error %s",
 			err)
 	}
 
-	_, err = GetOrderbookByExchange("nonexistent")
+	_, err = GetByExchange("nonexistent")
 	if err == nil {
 		t.Fatal("Test failed. TestGetOrderbookByExchange retrieved non-existent orderbook")
 	}
@@ -140,12 +140,12 @@ func TestFirstCurrencyExists(t *testing.T) {
 
 	CreateNewOrderbook("Exchange", base, Spot)
 
-	if !FirstCurrencyExists("Exchange", c.Base) {
+	if !BaseCurrencyExists("Exchange", c.Base) {
 		t.Fatal("Test failed. TestFirstCurrencyExists expected first currency doesn't exist")
 	}
 
 	var item = currency.NewCode("blah")
-	if FirstCurrencyExists("Exchange", item) {
+	if BaseCurrencyExists("Exchange", item) {
 		t.Fatal("Test failed. TestFirstCurrencyExists unexpected first currency exists")
 	}
 }
@@ -160,12 +160,12 @@ func TestSecondCurrencyExists(t *testing.T) {
 
 	CreateNewOrderbook("Exchange", base, Spot)
 
-	if !SecondCurrencyExists("Exchange", c) {
+	if !QuoteCurrencyExists("Exchange", c) {
 		t.Fatal("Test failed. TestSecondCurrencyExists expected first currency doesn't exist")
 	}
 
 	c.Quote = currency.NewCode("blah")
-	if SecondCurrencyExists("Exchange", c) {
+	if QuoteCurrencyExists("Exchange", c) {
 		t.Fatal("Test failed. TestSecondCurrencyExists unexpected first currency exists")
 	}
 }
@@ -180,7 +180,7 @@ func TestCreateNewOrderbook(t *testing.T) {
 
 	CreateNewOrderbook("Exchange", base, Spot)
 
-	result, err := GetOrderbook("Exchange", c, Spot)
+	result, err := Get("Exchange", c, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestCreateNewOrderbook failed to create new orderbook")
 	}
@@ -189,12 +189,12 @@ func TestCreateNewOrderbook(t *testing.T) {
 		t.Fatal("Test failed. TestCreateNewOrderbook result pair is incorrect")
 	}
 
-	a, b := result.CalculateTotalAsks()
+	a, b := result.TotalAsksAmount()
 	if a != 10 && b != 1000 {
 		t.Fatal("Test failed. TestCreateNewOrderbook CalculateTotalAsks value is incorrect")
 	}
 
-	a, b = result.CalculateTotalBids()
+	a, b = result.TotalBidsAmount()
 	if a != 10 && b != 2000 {
 		t.Fatal("Test failed. TestCreateNewOrderbook CalculateTotalBids value is incorrect")
 	}
@@ -216,7 +216,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Error("Test Failed - Process() error", err)
 	}
 
-	result, err := GetOrderbook("Exchange", c, Spot)
+	result, err := Get("Exchange", c, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
 	}
@@ -233,7 +233,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Error("Test Failed - Process() error", err)
 	}
 
-	result, err = GetOrderbook("Exchange", c, Spot)
+	result, err = Get("Exchange", c, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
 	}
@@ -249,12 +249,12 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Error("Test Failed - Process() error", err)
 	}
 
-	result, err = GetOrderbook("Exchange", c, "monthly")
+	result, err = Get("Exchange", c, "monthly")
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
 	}
 
-	a, b := result.CalculateTotalAsks()
+	a, b := result.TotalAsksAmount()
 	if a != 200 && b != 40000 {
 		t.Fatal("Test failed. TestProcessOrderbook CalculateTotalsAsks incorrect values")
 	}
@@ -267,7 +267,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Error("Test Failed - Process() error", err)
 	}
 
-	result, err = GetOrderbook("Blah", c, "quarterly")
+	result, err = Get("Blah", c, "quarterly")
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
 	}
@@ -337,7 +337,7 @@ func TestProcessOrderbook(t *testing.T) {
 		wg.Add(1)
 		fatalErr := false
 		go func(test quick) {
-			result, err := GetOrderbook(test.Name, test.P, Spot)
+			result, err := Get(test.Name, test.P, Spot)
 			if err != nil {
 				fatalErr = true
 				return

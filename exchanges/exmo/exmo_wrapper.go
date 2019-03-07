@@ -98,7 +98,7 @@ func (e *EXMO) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, 
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (e *EXMO) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(e.GetName(), p, assetType)
+	ob, err := orderbook.Get(e.GetName(), p, assetType)
 	if err != nil {
 		return e.UpdateOrderbook(p, assetType)
 	}
@@ -153,7 +153,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Bas
 			return orderBook, err
 		}
 	}
-	return orderbook.GetOrderbook(e.Name, p, assetType)
+	return orderbook.Get(e.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

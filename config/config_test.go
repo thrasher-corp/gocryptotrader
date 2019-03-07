@@ -689,7 +689,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
-	checkExchangeConfigValues.Exchanges[0].BaseCurrencies = currency.NewCurrenciesFromStrings([]string{""})
+	checkExchangeConfigValues.Exchanges[0].BaseCurrencies = currency.NewCurrenciesFromStringArray([]string{""})
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(
@@ -721,7 +721,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
-	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrenciesFromStrings([]string{""})
+	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrenciesFromStringArray([]string{""})
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(
@@ -730,7 +730,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	checkExchangeConfigValues.Exchanges = checkExchangeConfigValues.Exchanges[:0]
-	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrenciesFromStrings([]string{"TESTYTEST"})
+	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrenciesFromStringArray([]string{"TESTYTEST"})
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(
@@ -926,7 +926,7 @@ func TestUpdateConfig(t *testing.T) {
 		t.Fatalf("Test failed. Error should of been thrown for invalid path")
 	}
 
-	newCfg.Currency.Cryptocurrencies = currency.NewCurrenciesFromStrings([]string{""})
+	newCfg.Currency.Cryptocurrencies = currency.NewCurrenciesFromStringArray([]string{""})
 	err = c.UpdateConfig(ConfigTestFile, newCfg)
 	if err != nil {
 		t.Errorf("Test failed. %s", err)

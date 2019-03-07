@@ -122,7 +122,7 @@ func (c *CoinbasePro) GetTickerPrice(p currency.Pair, assetType string) (ticker.
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (c *CoinbasePro) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(c.GetName(), p, assetType)
+	ob, err := orderbook.Get(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
 	}
@@ -156,7 +156,7 @@ func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType string) (orderb
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(c.Name, p, assetType)
+	return orderbook.Get(c.Name, p, assetType)
 }
 
 // GetFundingHistory returns funding history, deposits and

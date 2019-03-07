@@ -41,7 +41,7 @@ func getDefaultConfig() config.ExchangeConfig {
 		ClientID:                "",
 		AvailablePairs:          currency.NewPairsFromStrings([]string{"BTC-USDT", "BCH-USDT"}),
 		EnabledPairs:            currency.NewPairsFromStrings([]string{"BTC-USDT"}),
-		BaseCurrencies:          currency.NewCurrenciesFromStrings([]string{"USD"}),
+		BaseCurrencies:          currency.NewCurrenciesFromStringArray([]string{"USD"}),
 		AssetTypes:              "SPOT",
 		SupportsAutoPairUpdates: false,
 		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{

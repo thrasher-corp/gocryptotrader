@@ -97,8 +97,8 @@ func (c IComm) StageOrderbookData(exchangeName, assetType string, ob *orderbook.
 		OrderbookStaged[exchangeName][assetType] = make(map[string]Orderbook)
 	}
 
-	_, totalAsks := ob.CalculateTotalAsks()
-	_, totalBids := ob.CalculateTotalBids()
+	_, totalAsks := ob.TotalAsksAmount()
+	_, totalBids := ob.TotalBidsAmount()
 
 	OrderbookStaged[exchangeName][assetType][ob.Pair.String()] = Orderbook{
 		CurrencyPair: ob.Pair.String(),

@@ -98,7 +98,7 @@ func (b *BTCMarkets) GetTickerPrice(p currency.Pair, assetType string) (ticker.P
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (b *BTCMarkets) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -133,7 +133,7 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType string) (orderbo
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(b.Name, p, assetType)
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

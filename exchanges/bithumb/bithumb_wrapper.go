@@ -103,7 +103,7 @@ func (b *Bithumb) GetTickerPrice(p currency.Pair, assetType string) (ticker.Pric
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (b *Bithumb) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), currency, assetType)
+	ob, err := orderbook.Get(b.GetName(), currency, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(currency, assetType)
 	}
@@ -137,7 +137,7 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(b.Name, p, assetType)
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -217,7 +217,7 @@ func (b *Bithumb) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchan
 // market conversion
 func (b *Bithumb) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 	order, err := b.ModifyTrade(action.OrderID,
-		action.Currency.Base.String(),
+		action.CurrencyPair.Base.String(),
 		common.StringToLower(action.OrderSide.ToString()),
 		action.Amount,
 		int64(action.Price))

@@ -136,7 +136,7 @@ func (h *HUOBI) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price,
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (h *HUOBI) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(h.GetName(), p, assetType)
+	ob, err := orderbook.Get(h.GetName(), p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)
 	}
@@ -173,7 +173,7 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(h.Name, p, assetType)
+	return orderbook.Get(h.Name, p, assetType)
 }
 
 // GetAccountID returns the account ID for trades

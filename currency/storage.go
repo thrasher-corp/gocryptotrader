@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
@@ -124,6 +123,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 	}
 
 	if filePath == "" {
+		s.mtx.Unlock()
 		return errors.New("currency package runUpdater error filepath not set")
 	}
 
@@ -188,6 +188,8 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration,
 				s.fiatExchangeMarkets.Support[i].Provider.GetName())
 		}
 
+		// Mutex present in this go routine to lock down retrieving rate data
+		// until this system initially updates
 		go s.ForeignExchangeUpdater()
 	} else {
 		log.Warnf("No foreign exchange providers enabled in config.json")
@@ -251,6 +253,8 @@ func (s *Storage) ForeignExchangeUpdater() {
 		log.Error(err)
 	}
 
+	// Unlock main rate retrieval mutex so all routines waiting can get access
+	// to data
 	s.mtx.Unlock()
 
 	t := time.NewTicker(1 * time.Minute)
@@ -431,7 +435,7 @@ func (s *Storage) SeedForeignExchangeRate(from, to Code) (map[string]float64, er
 		[]string{to.String()})
 }
 
-// GetDefaultForeignExchangeRates returns foreign exchange rates base off
+// GetDefaultForeignExchangeRates returns foreign exchange rates based off
 // default fiat currencies.
 func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
 	if !s.updaterRunning {
@@ -577,14 +581,15 @@ func (s *Storage) IsCryptocurrency(c Code) bool {
 	return false
 }
 
-// NewCode validates string against currency list and returns a currency
+// ValidateCode validates string against currency list and returns a currency
 // code
-func (s *Storage) NewCode(newCode string) Code {
+func (s *Storage) ValidateCode(newCode string) Code {
 	return s.currencyCodes.Register(newCode)
 }
 
-// NewValidFiatCode inserts a new code and updates the fiat currency list
-func (s *Storage) NewValidFiatCode(newCode string) (Code, error) {
+// ValidateFiatCode validates a fiat currency string and returns a currency
+// code
+func (s *Storage) ValidateFiatCode(newCode string) (Code, error) {
 	c, err := s.currencyCodes.RegisterFiat(newCode)
 	if err != nil {
 		return c, err
@@ -595,9 +600,10 @@ func (s *Storage) NewValidFiatCode(newCode string) (Code, error) {
 	return c, nil
 }
 
-// NewCryptoCode inserts a new code and updates the crypto currency list
-// TODO: mutex protection
-func (s *Storage) NewCryptoCode(newCode string) Code {
+// ValidateCryptoCode validates a cryptocurrency string and returns a currency
+// code
+// TODO: Update and add in RegisterCrypto member func
+func (s *Storage) ValidateCryptoCode(newCode string) Code {
 	c := s.currencyCodes.Register(newCode)
 	if !s.cryptocurrencies.Contains(c) {
 		s.cryptocurrencies = append(s.cryptocurrencies, c)

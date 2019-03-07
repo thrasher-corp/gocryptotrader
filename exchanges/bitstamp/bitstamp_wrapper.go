@@ -100,7 +100,7 @@ func (b *Bitstamp) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error)
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *Bitstamp) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -134,7 +134,7 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType string) (orderbook
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(b.Name, p, assetType)
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

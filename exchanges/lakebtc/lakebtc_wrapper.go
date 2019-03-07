@@ -86,7 +86,7 @@ func (l *LakeBTC) GetTickerPrice(p currency.Pair, assetType string) (ticker.Pric
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (l *LakeBTC) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(l.GetName(), p, assetType)
+	ob, err := orderbook.Get(l.GetName(), p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
@@ -118,7 +118,7 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(l.Name, p, assetType)
+	return orderbook.Get(l.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

@@ -112,7 +112,7 @@ func TestRemovePairsByFilter(t *testing.T) {
 	}
 
 	pairs = pairs.RemovePairsByFilter(USDT)
-	if pairs.Contain(NewPair(LTC, USDT), true) {
+	if pairs.Contains(NewPair(LTC, USDT), true) {
 		t.Error("Test failed. TestRemovePairsByFilter unexpected result")
 	}
 }
@@ -123,11 +123,11 @@ func TestContains(t *testing.T) {
 		NewPair(LTC, USD),
 	}
 
-	if !pairs.Contain(NewPair(BTC, USD), true) {
+	if !pairs.Contains(NewPair(BTC, USD), true) {
 		t.Errorf("Test failed. TestContains: Expected pair was not found")
 	}
 
-	if pairs.Contain(NewPair(ETH, USD), false) {
+	if pairs.Contains(NewPair(ETH, USD), false) {
 		t.Errorf("Test failed. TestContains: Non-existent pair was found")
 	}
 }

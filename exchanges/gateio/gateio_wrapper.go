@@ -88,7 +88,7 @@ func (g *Gateio) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (g *Gateio) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(g.GetName(), currency, assetType)
+	ob, err := orderbook.Get(g.GetName(), currency, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(currency, assetType)
 	}
@@ -124,7 +124,7 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.B
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(g.Name, p, assetType)
+	return orderbook.Get(g.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

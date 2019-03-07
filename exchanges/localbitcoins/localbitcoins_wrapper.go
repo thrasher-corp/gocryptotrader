@@ -92,7 +92,7 @@ func (l *LocalBitcoins) GetTickerPrice(p currency.Pair, assetType string) (ticke
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (l *LocalBitcoins) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(l.GetName(), p, assetType)
+	ob, err := orderbook.Get(l.GetName(), p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
@@ -126,7 +126,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType string) (orde
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(l.Name, p, assetType)
+	return orderbook.Get(l.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

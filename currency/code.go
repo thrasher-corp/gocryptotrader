@@ -70,7 +70,7 @@ func (r *Role) UnmarshalJSON(d []byte) error {
 	case ContractString:
 		*r = Contract
 	default:
-		return fmt.Errorf("unmarshal error roll type %s unsupported for currency",
+		return fmt.Errorf("unmarshal error role type %s unsupported for currency",
 			incoming)
 	}
 	return nil
@@ -119,9 +119,9 @@ func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 func (b *BaseCodes) GetCurrencies() Currencies {
 	var currencies Currencies
 	b.mtx.Lock()
-	for _, i := range b.Items {
+	for i := range b.Items {
 		currencies = append(currencies, Code{
-			Item: i,
+			Item: b.Items[i],
 		})
 	}
 	b.mtx.Unlock()
@@ -175,7 +175,7 @@ func (b *BaseCodes) UpdateFiatCurrency(fullName, symbol string, id int) error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
-		if b.Items[i].Symbol == symbol {
+		if b.Items[i].Symbol != symbol {
 			continue
 		}
 
@@ -299,10 +299,10 @@ func (b *BaseCodes) Register(c string) Code {
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	for _, i := range b.Items {
-		if i.Symbol == NewUpperCode {
+	for i := range b.Items {
+		if b.Items[i].Symbol == NewUpperCode {
 			return Code{
-				Item:      i,
+				Item:      b.Items[i],
 				UpperCase: format,
 			}
 		}
@@ -388,6 +388,11 @@ func (b *BaseCodes) LoadItem(item Item) error {
 
 	b.Items = append(b.Items, &item)
 	return nil
+}
+
+// NewCode returns a new currency registered code
+func NewCode(c string) Code {
+	return storage.ValidateCode(c)
 }
 
 // Code defines an ISO 4217 fiat currency or unofficial cryptocurrency code

@@ -110,7 +110,7 @@ func (h *HitBTC) GetTickerPrice(currencyPair currency.Pair, assetType string) (t
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (h *HitBTC) GetOrderbookEx(currencyPair currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(h.GetName(), currencyPair, assetType)
+	ob, err := orderbook.Get(h.GetName(), currencyPair, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(currencyPair, assetType)
 	}
@@ -144,7 +144,7 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType string) (
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(h.Name, currencyPair, assetType)
+	return orderbook.Get(h.Name, currencyPair, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

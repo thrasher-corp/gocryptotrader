@@ -20,7 +20,11 @@ type ForexProviders struct {
 
 // GetAvailableForexProviders returns a list of supported forex providers
 func GetAvailableForexProviders() []string {
-	return []string{"CurrencyConverter", "CurrencyLayer", "ExchangeRates", "Fixer", "OpenExchangeRates"}
+	return []string{"CurrencyConverter",
+		"CurrencyLayer",
+		"ExchangeRates",
+		"Fixer",
+		"OpenExchangeRates"}
 }
 
 // NewDefaultFXProvider returns the default forex provider (currencyconverterAPI)

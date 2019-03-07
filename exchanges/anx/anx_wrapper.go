@@ -169,7 +169,7 @@ func (a *ANX) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, e
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (a *ANX) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
+	ob, err := orderbook.Get(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
 	}
@@ -206,7 +206,7 @@ func (a *ANX) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base
 		return orderBook, err
 	}
 
-	return orderbook.GetOrderbook(a.Name, p, assetType)
+	return orderbook.Get(a.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies on the
