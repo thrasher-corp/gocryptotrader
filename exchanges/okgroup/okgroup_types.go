@@ -1346,6 +1346,22 @@ type WebsocketFundingFeeResponse struct {
 	InterestRate float64   `json:"interest_rate,string,omitempty"`
 }
 
+// WebsocketSpotOrderResponse contains formatted data for spot user orders
+type WebsocketSpotOrderResponse struct {
+	FilledNotional float64   `json:"filled_notional,string"`
+	FilledSize     float64   `json:"filled_size,string"`
+	InstrumentID   string    `json:"instrument_id"`
+	Notional       float64   `json:"notional,string"`
+	OrderID        string    `json:"order_id"`
+	Price          float64   `json:"price,string"`
+	Side           string    `json:"side"`
+	Size           float64   `json:"size,string"`
+	Status         string    `json:"status"`
+	Timestamp      time.Time `json:"timestamp"`
+	MarginTrading  int64     `json:"margin_trading"`
+	Type           string    `json:"type"`
+}
+
 // WebsocketOrderBooksData contains orderbook data from  WebsocketOrderBooksResponse
 type WebsocketOrderBooksData struct {
 	Asks     [][]interface{} `json:"asks,omitempty"` // [0] Price, [1] Size, [2] Number of orders

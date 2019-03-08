@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -24,6 +25,9 @@ import (
 
 // List of all websocket channels to subscribe to
 const (
+	// Orderbook events
+	okGroupWsOrderbookUpdate  = "update"
+	okGroupWsOrderbookPartial = "partial"
 	// API subsections
 	okGroupWsSwapSubsection    = "swap/"
 	okGroupWsIndexSubsection   = "index/"
@@ -133,6 +137,10 @@ const (
 	okGroupWsFuturesPosition       = okGroupWsFuturesSubsection + okGroupWsPosition
 	okGroupWsFuturesOrder          = okGroupWsFuturesSubsection + okGroupWsOrder
 )
+
+var orderbookMutex sync.Mutex
+var internalOrderbook orderbook.Base
+var secretTimeStampStorage []time.Time
 
 func (o *OKGroup) writeToWebsocket(message string) error {
 	o.mu.Lock()
@@ -340,16 +348,15 @@ func (o *OKGroup) WsUnsubscribeToChannel(topic string) error {
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
 func (o *OKGroup) WsLogin() error {
 	utcTime := time.Now().UTC()
-	iso := utcTime.String()
-	isoBytes := []byte(iso)
-	iso = string(isoBytes[:10]) + "T" + string(isoBytes[11:23]) + "Z"
+	unixTime := utcTime.Unix()
+
 	signPath := "/users/self/verify"
-	hmac := common.GetHMAC(common.HashSHA256, []byte(iso+http.MethodGet+signPath), []byte(o.APISecret))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(fmt.Sprintf("%v", unixTime)+http.MethodGet+signPath), []byte(o.APISecret))
 	base64 := common.Base64Encode(hmac)
 
 	resp := WebsocketEventRequest{
 		Operation: "login",
-		Arguments: []string{o.APIKey, o.ClientID, iso, base64},
+		Arguments: []string{o.APIKey, o.ClientID, fmt.Sprintf("%v", unixTime), base64},
 	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
@@ -383,36 +390,43 @@ func (o *OKGroup) WsHandleDataResponse(response WebsocketDataResponse) {
 		o.wsProcessCandles(response)
 	case first.WebsocketFundingFeeResponse.FundingRate > 0:
 		if o.Verbose {
-			log.Debugf("%v Websocket candle data received", o.GetName())
+			log.Debugf("%v Websocket funding fee data received", o.GetName())
 		}
-		o.wsProcessFundingFees(response.Data)
+		o.wsProcessFundingFees(response)
 	case first.WebsocketOrderBooksData.Checksum != 0:
 		if o.Verbose {
 			log.Debugf("%v Websocket orderbook data received", o.GetName())
 		}
-		o.WsProcessOrderBook(response, false)
+		// Locking, orderbooks cannot be processed out of order
+		orderbookMutex.Lock()
+		err := o.WsProcessOrderBook(response)
+		if err != nil {
+			o.WsUnsubscribeToChannel(response.Table)
+			o.WsSubscribeToChannel(response.Table)
+		}
+		orderbookMutex.Unlock()
 	case first.WebsocketTickerData.Last > 0:
 		if o.Verbose {
-			log.Debugf("%v Websocket candle data received", o.GetName())
+			log.Debugf("%v Websocket ticker data received", o.GetName())
 		}
-		o.wsProcessTickers(response.Data)
+		o.wsProcessTickers(response)
 	case first.WebsocketTradeResponse.Price > 0:
 		if o.Verbose {
-			log.Debugf("%v Websocket candle data received", o.GetName())
+			log.Debugf("%v Websocket trade data received", o.GetName())
 		}
-		o.wsProcessTrades(response.Data)
+		o.wsProcessTrades(response)
 	default:
 		log.Errorf("%v unknown Websocket data receieved. Please check subscriptions. %v", o.GetName(), response)
 	}
 }
 
-func (o *OKGroup) wsProcessTickers(tickers []WebsocketDataWrapper) {
-	for _, tickerData := range tickers {
+func (o *OKGroup) wsProcessTickers(data WebsocketDataResponse) {
+	for _, tickerData := range data.Data {
 		instrument := pair.NewCurrencyPairDelimiter(tickerData.InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TickerData{
 			Timestamp:  tickerData.Timestamp,
 			Exchange:   o.GetName(),
-			AssetType:  "SPOT",
+			AssetType:  o.GetAssetTypeFromTableName(data.Table),
 			HighPrice:  tickerData.High24H,
 			LowPrice:   tickerData.Low24H,
 			ClosePrice: tickerData.Last,
@@ -421,12 +435,12 @@ func (o *OKGroup) wsProcessTickers(tickers []WebsocketDataWrapper) {
 	}
 }
 
-func (o *OKGroup) wsProcessTrades(trades []WebsocketDataWrapper) {
-	for _, trade := range trades {
+func (o *OKGroup) wsProcessTrades(data WebsocketDataResponse) {
+	for _, trade := range data.Data {
 		instrument := pair.NewCurrencyPairDelimiter(trade.InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TradeData{
 			Amount:       trade.Qty,
-			AssetType:    "SPOT",
+			AssetType:    o.GetAssetTypeFromTableName(data.Table),
 			CurrencyPair: instrument,
 			EventTime:    time.Now().Unix(),
 			Exchange:     o.GetName(),
@@ -437,22 +451,31 @@ func (o *OKGroup) wsProcessTrades(trades []WebsocketDataWrapper) {
 	}
 }
 
+func (o *OKGroup) GetAssetTypeFromTableName(table string) string {
+	assetIndex := strings.IndexAny(table, "/")
+	return strings.ToUpper(table[:assetIndex])
+}
+
 func (o *OKGroup) wsProcessCandles(data WebsocketDataResponse) {
 	for _, candle := range data.Data {
 		instrument := pair.NewCurrencyPairDelimiter(candle.InstrumentID, "-")
 		timeData, err := time.Parse(time.RFC3339Nano, candle.Candle[0])
-		parsedInterval := strings.Replace(data.Table, "swap/candle", "", 1)
-		parsedInterval = strings.Replace(parsedInterval, "s", "", 1)
 		if err != nil {
 			log.Warnf("%v Time data could not be parsed: %v", o.GetName(), candle.Candle[0])
 		}
+		candleIndex := strings.LastIndex(data.Table, okGroupWsCandle)
+		secondIndex := strings.LastIndex(data.Table, "0s")
+		candleInterval := ""
+		if candleIndex > 0 || secondIndex > 0 {
+			candleInterval = data.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
+		}
 
 		klineData := exchange.KlineData{
-			AssetType: "SPOT",
+			AssetType: o.GetAssetTypeFromTableName(data.Table),
 			Pair:      instrument,
 			Exchange:  o.GetName(),
 			Timestamp: timeData,
-			Interval:  parsedInterval,
+			Interval:  candleInterval,
 		}
 		klineData.OpenPrice, err = strconv.ParseFloat(candle.Candle[1], 64)
 		if err != nil {
@@ -481,32 +504,30 @@ func (o *OKGroup) wsProcessCandles(data WebsocketDataResponse) {
 
 // wsProcessFundingFees handles websocket funding fees
 // There is currently no handler for this type of information
-func (o *OKGroup) wsProcessFundingFees(data []WebsocketDataWrapper) {
+func (o *OKGroup) wsProcessFundingFees(data WebsocketDataResponse) {
 	// This is not supported yet
-	for _, fundingFee := range data {
-		log.Infof("funding fee for currency %v rate %v, interest rate %v, time %v",
-			fundingFee.InstrumentID,
-			fundingFee.WebsocketFundingFeeResponse.FundingRate,
-			fundingFee.WebsocketFundingFeeResponse.InterestRate,
-			fundingFee.WebsocketFundingFeeResponse.FundingTime)
+	for _, fundingFee := range data.Data {
+		if o.Verbose {
+			log.Infof("funding fee for currency %v rate %v, interest rate %v, time %v",
+				fundingFee.InstrumentID,
+				fundingFee.WebsocketFundingFeeResponse.FundingRate,
+				fundingFee.WebsocketFundingFeeResponse.InterestRate,
+				fundingFee.WebsocketFundingFeeResponse.FundingTime)
+		}
 	}
 }
 
 // WsProcessOrderBook Validates the checksum and updates internal orderbook values
-func (o *OKGroup) WsProcessOrderBook(wsEvent WebsocketDataResponse, sortUpdates bool) orderbook.Base {
+func (o *OKGroup) WsProcessOrderBook(wsEvent WebsocketDataResponse) (err error) {
 	for i := range wsEvent.Data {
 		instrument := pair.NewCurrencyPairDelimiter(wsEvent.Data[i].InstrumentID, "-")
-		if wsEvent.Action == "partial" {
-			log.Debug("PARTIAL OB")
-			ob := o.WsProcessPartialOrderBook(wsEvent.Data[i], instrument)
-			return ob
-		} else if wsEvent.Action == "update" {
-			log.Debug("UPDATE OB")
-			ob := o.WsProcessUpdateOrderbook(wsEvent.Data[i], sortUpdates, instrument)
-			return ob
+		if wsEvent.Action == okGroupWsOrderbookPartial {
+			err = o.WsProcessPartialOrderBook(wsEvent.Data[i], instrument, wsEvent.Table)
+		} else if wsEvent.Action == okGroupWsOrderbookUpdate {
+			err = o.WsProcessUpdateOrderbook(wsEvent.Data[i], instrument, wsEvent.Table)
 		}
 	}
-	return orderbook.Base{}
+	return
 }
 
 func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) (orderbookItems []orderbook.Item) {
@@ -524,26 +545,34 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) (orderbookItem
 // WsValidateOrderBookChecksum ensures that checksum matches and handles subscription status
 func (o *OKGroup) WsValidateOrderBookChecksum(wsEvent WebsocketDataResponse) bool {
 	for i := range wsEvent.Data {
-		signedChecksum := o.ChecksumPartialCalculationAlternatingViaWSMessage(wsEvent.Data[i])
+		signedChecksum := o.CalculatePartialOrderbookChecksum(wsEvent.Data[i])
 		if signedChecksum != wsEvent.Data[i].Checksum {
-			log.Warnf("orderbook checksum does not match")
+			log.Errorf("orderbook checksum does not match")
 			return false
 		}
 	}
-	log.Debug("Passed checksum!")
+	if o.Verbose {
+		log.Debug("Passed checksum!")
+	}
 	return true
 }
 
-func (o *OKGroup) WsProcessPartialOrderBook(wsEventData WebsocketDataWrapper, instrument pair.CurrencyPair) orderbook.Base {
-	if !o.WsValidateOrderBookChecksum(WebsocketDataResponse{}) {
-		return orderbook.Base{}
+// WsProcessPartialOrderBook takes websocket orderbook data and creates an orderbook
+// Calculates checksum to ensure it is valid
+func (o *OKGroup) WsProcessPartialOrderBook(wsEventData WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
+	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
+	if signedChecksum != wsEventData.Checksum {
+		return errors.New("checksum not valid")
+	}
+	if o.Verbose {
+		log.Debug("Passed checksum!")
 	}
 	asks := o.AppendWsOrderbookItems(wsEventData.Asks)
 	bids := o.AppendWsOrderbookItems(wsEventData.Bids)
 	newOrderBook := orderbook.Base{
 		Asks:         asks,
 		Bids:         bids,
-		AssetType:    "SPOT",
+		AssetType:    o.GetAssetTypeFromTableName(tableName),
 		CurrencyPair: wsEventData.InstrumentID,
 		LastUpdated:  wsEventData.Timestamp,
 		Pair:         instrument,
@@ -551,61 +580,72 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData WebsocketDataWrapper, in
 
 	err := o.Websocket.Orderbook.LoadSnapshot(newOrderBook, o.GetName(), true)
 	if err != nil {
-		log.Error(err)
+		return err
 	}
-
 	o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: o.GetName(),
-		Asset:    "SPOT",
+		Asset:    o.GetAssetTypeFromTableName(tableName),
 		Pair:     instrument,
 	}
-	ob, _ := o.GetOrderbookEx(instrument, "SPOT")
-	return ob
+	return nil
 }
 
-func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData WebsocketDataWrapper, applySorting bool, instrument pair.CurrencyPair) orderbook.Base {
-	ob, err := o.GetOrderbookEx(instrument, "SPOT")
-	if err != nil {
-		log.Error(err)
+// WsProcessUpdateOrderbook updates an existing orderbook using websocket data
+// After merging WS data, it will sort, validate and finally update the existing orderbook
+func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
+	var err error
+	if internalOrderbook.LastUpdated.IsZero() {
+		internalOrderbook, err = o.GetOrderbookEx(instrument, o.GetAssetTypeFromTableName(tableName))
+		if err != nil {
+			return errors.New("orderbook nil, could not load existing orderbook")
+		}
 	}
-	if ob.LastUpdated.Unix() > wsEventData.Timestamp.Unix() {
-		log.Error("Updated orderbook is older than existing")
-		log.Errorf("Existing: %v, Attempted: %v", ob.LastUpdated.Unix(), wsEventData.Timestamp.Unix())
-		return orderbook.Base{}
+	if internalOrderbook.LastUpdated.After(wsEventData.Timestamp) {
+		if o.Verbose {
+			log.Errorf("existing: %v, Attempted: %v", internalOrderbook.LastUpdated.Unix(), wsEventData.Timestamp.Unix())
+		}
+		return errors.New("updated orderbook is older than existing")
 	}
-
-	ob.Asks = o.WsUpdateOrderbookEntry(wsEventData.Asks, ob.Asks)
-	ob.Bids = o.WsUpdateOrderbookEntry(wsEventData.Bids, ob.Bids)
+	//Update orderbook entries with new data
+	internalOrderbook.Asks = o.WsUpdateOrderbookEntry(wsEventData.Asks, internalOrderbook.Asks)
+	internalOrderbook.Bids = o.WsUpdateOrderbookEntry(wsEventData.Bids, internalOrderbook.Bids)
 	//Validate all the checksums:
-	sort.Slice(ob.Asks, func(i, j int) bool {
-		return ob.Asks[i].Price < ob.Asks[j].Price
+	sort.Slice(internalOrderbook.Asks, func(i, j int) bool {
+		return internalOrderbook.Asks[i].Price < internalOrderbook.Asks[j].Price
 	})
-	sort.Slice(ob.Bids, func(i, j int) bool {
-		return ob.Bids[i].Price > ob.Bids[j].Price
+	sort.Slice(internalOrderbook.Bids, func(i, j int) bool {
+		return internalOrderbook.Bids[i].Price > internalOrderbook.Bids[j].Price
 	})
 	// Calculating checksum on sorted orderbook data
-	checksumValidated := false
-	checksum := o.ChecksumUpdateCalculationAlternatingViaOrderBook(ob)
-	//eight := o.ChecksumUpdateCalculationBidFirstAlternatingViaOrderBook(ob)
-	//nine := o.ChecksumUpdateCalculationBidFirstViaOrderBook(ob)
+	checksum := o.CalculateUpdateOrderbookChecksum(internalOrderbook)
 	if checksum == wsEventData.Checksum {
-		checksumValidated = true
-	}
+		if o.Verbose {
+			log.Debug("Orderbook valid")
+		}
+		internalOrderbook.LastUpdated = wsEventData.Timestamp
+		if o.Verbose {
+			log.Debug("Internalising orderbook")
+		}
 
-	if checksumValidated {
-		err = o.Websocket.Orderbook.Update(ob.Bids, ob.Asks, instrument, time.Now(), o.GetName(), "SPOT")
+		err := o.Websocket.Orderbook.LoadSnapshot(internalOrderbook, o.GetName(), true)
 		if err != nil {
 			log.Error(err)
 		}
 		o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 			Exchange: o.GetName(),
-			Asset:    "SPOT",
+			Asset:    o.GetAssetTypeFromTableName(tableName),
 			Pair:     instrument,
 		}
+	} else {
+		if o.Verbose {
+			log.Debug("Orderbook invalid")
+		}
+		return errors.New("orderbook update checksum invalid")
 	}
-	return ob
+	return nil
 }
 
+// WsUpdateOrderbookEntry takes WS bid or ask data and merges it with existing orderbook bid or ask data
 func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}, existingOrderbookEntries []orderbook.Item) []orderbook.Item {
 	var newRange []orderbook.Item
 	for k := range existingOrderbookEntries {
@@ -644,6 +684,9 @@ func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}, existingOrde
 		}
 		if !isWsEntryInExistingOrderBook {
 			if wsEntryAmount != 0 {
+				if o.Verbose {
+					log.Debugf("Adding new price entry %v to orderbook", wsEntryPrice)
+				}
 				newRange = append(newRange, orderbook.Item{
 					Amount: wsEntryAmount,
 					Price:  wsEntryPrice,
@@ -654,34 +697,12 @@ func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}, existingOrde
 	return newRange
 }
 
-func (o *OKGroup) ChecksumPartialCalculationAlternatingViaWSMessage(orderbookData WebsocketDataWrapper) int32 {
-	if o.Verbose {
-		log.Debug("alternating checksum")
-	}
-	iterations := 25
-	if len(orderbookData.Bids) < iterations || len(orderbookData.Asks) < iterations {
-		return 0
-	}
+// CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data
+// The checksum is made up of the price and the quantity with a semicolon (:) deliminating them
+// This will also work when there are less than 25 entries (for whatever reason)
+// eg Bid:Ask:Bid:Ask:Ask:Ask
+func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData WebsocketDataWrapper) int32 {
 	var checksum string
-	for i := 0; i < iterations && i < len(orderbookData.Bids); i++ {
-		bidsMessage := fmt.Sprintf("%v:%v", orderbookData.Bids[i][0], orderbookData.Bids[i][1])
-		askMessage := fmt.Sprintf("%v:%v", orderbookData.Asks[i][0], orderbookData.Asks[i][1])
-
-		if checksum == "" {
-			checksum = fmt.Sprintf("%v:%v", bidsMessage, askMessage)
-		} else {
-			checksum = fmt.Sprintf("%v:%v:%v", checksum, bidsMessage, askMessage)
-		}
-	}
-	return int32(crc32.ChecksumIEEE([]byte(checksum)))
-}
-
-// WsCalculateOrderBookChecksum calculates the orderbook checksum and compares to received value
-func (o *OKGroup) ChecksumPartialCalculationBidFirstAlternatingViaWSMessage(orderbookData WebsocketDataWrapper) int32 {
-	var checksum string
-	if o.Verbose {
-		log.Debug("bids priority, alternating checksum")
-	}
 	iterations := 25
 	for i := 0; i < iterations; i++ {
 		bidsMessage := ""
@@ -698,62 +719,17 @@ func (o *OKGroup) ChecksumPartialCalculationBidFirstAlternatingViaWSMessage(orde
 		} else {
 			checksum = fmt.Sprintf("%v%v%v", checksum, bidsMessage, askMessage)
 		}
-
 	}
 	checksum = strings.TrimSuffix(checksum, ":")
 	return int32(crc32.ChecksumIEEE([]byte(checksum)))
 }
 
-func (o *OKGroup) ChecksumPartialCalculationBidFirstViaWSMessage(orderbookData WebsocketDataWrapper) int32 {
+// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask entries of a merged orderbook
+// The checksum is made up of the price and the quantity with a semicolon (:) deliminating them
+// This will also work when there are less than 25 entries (for whatever reason)
+// eg Bid:Ask:Bid:Ask:Ask:Ask
+func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData orderbook.Base) int32 {
 	var checksum string
-	if o.Verbose {
-		log.Debug("bids first, then asks checksum")
-	}
-	iterations := 25
-	for i := 0; i < iterations && i < len(orderbookData.Bids); i++ {
-		if len(checksum) == 0 {
-			checksum = fmt.Sprintf("%v:%v", orderbookData.Bids[i][0], orderbookData.Bids[i][1])
-		} else {
-			checksum = fmt.Sprintf("%v:%v:%v", checksum, orderbookData.Bids[i][0], orderbookData.Bids[i][1])
-		}
-	}
-	for i := 0; i < iterations && i < len(orderbookData.Asks); i++ {
-		if len(checksum) == 0 {
-			checksum = fmt.Sprintf("%v:%v", orderbookData.Asks[i][0], orderbookData.Asks[i][1])
-		} else {
-			checksum = fmt.Sprintf("%v:%v:%v", checksum, orderbookData.Asks[i][0], orderbookData.Asks[i][1])
-		}
-	}
-	return int32(crc32.ChecksumIEEE([]byte(checksum)))
-}
-
-func (o *OKGroup) ChecksumUpdateCalculationAlternatingViaOrderBook(orderbookData orderbook.Base) int32 {
-	if o.Verbose {
-		log.Debug("alternating checksum")
-	}
-	iterations := 25
-	if len(orderbookData.Bids) < iterations || len(orderbookData.Asks) < iterations {
-		return 0
-	}
-	var checksum string
-	for i := 0; i < iterations && i < len(orderbookData.Bids); i++ {
-		bidsMessage := fmt.Sprintf("%v:%v", orderbookData.Bids[i].Price, orderbookData.Bids[i].Amount)
-		askMessage := fmt.Sprintf("%v:%v", orderbookData.Asks[i].Price, orderbookData.Asks[i].Amount)
-
-		if checksum == "" {
-			checksum = fmt.Sprintf("%v:%v", bidsMessage, askMessage)
-		} else {
-			checksum = fmt.Sprintf("%v:%v:%v", checksum, bidsMessage, askMessage)
-		}
-	}
-	return int32(crc32.ChecksumIEEE([]byte(checksum)))
-}
-
-func (o *OKGroup) ChecksumUpdateCalculationBidFirstAlternatingViaOrderBook(orderbookData orderbook.Base) int32 {
-	var checksum string
-	if o.Verbose {
-		log.Debug("bids priority, alternating checksum")
-	}
 	iterations := 25
 	for i := 0; i < iterations; i++ {
 		bidsMessage := ""
@@ -771,28 +747,5 @@ func (o *OKGroup) ChecksumUpdateCalculationBidFirstAlternatingViaOrderBook(order
 		}
 	}
 	checksum = strings.TrimSuffix(checksum, ":")
-	return int32(crc32.ChecksumIEEE([]byte(checksum)))
-}
-
-func (o *OKGroup) ChecksumUpdateCalculationBidFirstViaOrderBook(orderbookData orderbook.Base) int32 {
-	var checksum string
-	if o.Verbose {
-		log.Debug("bids first, then asks checksum")
-	}
-	iterations := 25
-	for i := 0; i < iterations && i < len(orderbookData.Bids); i++ {
-		if len(checksum) == 0 {
-			checksum = fmt.Sprintf("%v:%v", orderbookData.Bids[i].Price, orderbookData.Bids[i].Amount)
-		} else {
-			checksum = fmt.Sprintf("%v:%v:%v", checksum, orderbookData.Bids[i].Price, orderbookData.Bids[i].Amount)
-		}
-	}
-	for i := 0; i < iterations && i < len(orderbookData.Asks); i++ {
-		if len(checksum) == 0 {
-			checksum = fmt.Sprintf("%v:%v", orderbookData.Asks[i].Price, orderbookData.Asks[i].Amount)
-		} else {
-			checksum = fmt.Sprintf("%v:%v:%v", checksum, orderbookData.Asks[i].Price, orderbookData.Asks[i].Amount)
-		}
-	}
 	return int32(crc32.ChecksumIEEE([]byte(checksum)))
 }
