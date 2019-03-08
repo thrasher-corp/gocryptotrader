@@ -55,12 +55,15 @@ type ServerTime struct {
 	Epoch float64 `json:"epoch"`
 }
 
-// AccountInfo stores the account info data
-type AccountInfo struct {
+// CurrencyBalance stores the account info data
+type CurrencyBalance struct {
 	Currency  string  `json:"currency"`
-	Total     float64 `json:"total"`
-	Available float64 `json:"available"`
+	Total     float64 `json:"total,string"`
+	Available float64 `json:"available,string"`
 }
+
+// AccountBalance stores an array of currency balances
+type AccountBalance []CurrencyBalance
 
 // Order stores the order info
 type Order struct {
@@ -74,8 +77,14 @@ type Order struct {
 	CreatedAt string  `json:"created_at"`
 }
 
-// Orders stores an array of orders
-type Orders []Order
+// OpenOrder stores an open order info
+type OpenOrder struct {
+	Order
+	Status string `json:"status"`
+}
+
+// OpenOrders stores an array of orders
+type OpenOrders []OpenOrder
 
 // CancelOrder stores the cancel order response data
 type CancelOrder struct {
@@ -88,7 +97,7 @@ type FilledOrder struct {
 	Price     float64 `json:"price"`
 	Amount    float64 `json:"amount"`
 	Fee       float64 `json:"fee"`
-	Side      float64 `json:"side"`
+	Side      string  `json:"side"`
 	Tag       string  `json:"tag"`
 	ID        int64   `json:"id"`
 	TradeID   string  `json:"trade_id"`

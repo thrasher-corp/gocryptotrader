@@ -1,7 +1,11 @@
 package btse
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -96,7 +100,29 @@ func (b *BTSE) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // BTSE exchange
 func (b *BTSE) GetAccountInfo() (exchange.AccountInfo, error) {
-	return exchange.AccountInfo{}, common.ErrNotYetImplemented
+	var a exchange.AccountInfo
+	balance, err := b.GetAccountBalance()
+	if err != nil {
+		return a, err
+	}
+
+	var currencies []exchange.AccountCurrencyInfo
+	for _, b := range *balance {
+		currencies = append(currencies,
+			exchange.AccountCurrencyInfo{
+				CurrencyName: b.Currency,
+				TotalValue:   b.Total,
+				Hold:         b.Available,
+			},
+		)
+	}
+	a.Exchange = b.Name
+	a.Accounts = []exchange.Account{
+		{
+			Currencies: currencies,
+		},
+	}
+	return a, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -112,7 +138,19 @@ func (b *BTSE) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 
 // SubmitOrder submits a new order
 func (b *BTSE) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
-	return exchange.SubmitOrderResponse{}, common.ErrNotYetImplemented
+	var resp exchange.SubmitOrderResponse
+	r, err := b.CreateOrder(amount, price, side.ToString(),
+		orderType.ToString(), exchange.FormatExchangeCurrency(b.Name, p).String(), "GTC", clientID)
+	if err != nil {
+		return resp, err
+	}
+
+	if *r != "" {
+		resp.IsOrderPlaced = true
+		resp.OrderID = *r
+	}
+
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -123,17 +161,95 @@ func (b *BTSE) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTSE) CancelOrder(order exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+	r, err := b.CancelExistingOrder(order.OrderID,
+		exchange.FormatExchangeCurrency(b.Name, order.CurrencyPair).String())
+	if err != nil {
+		return err
+	}
+
+	switch r.Code {
+	case -1:
+		return errors.New("order cancellation unsuccessful")
+	case 4:
+		return errors.New("order cancellation timeout")
+	}
+
+	return nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
+// If product ID is sent, all orders of that specified market will be cancelled
+// If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
+	r, err := b.CancelOrders(exchange.FormatExchangeCurrency(b.Name,
+		orderCancellation.CurrencyPair).String())
+	if err != nil {
+		return exchange.CancelAllOrdersResponse{}, err
+	}
+
+	var resp exchange.CancelAllOrdersResponse
+	switch r.Code {
+	case -1:
+		return resp, errors.New("order cancellation unsuccessful")
+	case 4:
+		return resp, errors.New("order cancellation timeout")
+	}
+
+	return resp, nil
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *BTSE) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
-	return exchange.OrderDetail{}, common.ErrNotYetImplemented
+func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
+	o, err := b.GetOrders("")
+	if err != nil {
+		return exchange.OrderDetail{}, err
+	}
+
+	var od exchange.OrderDetail
+	if len(*o) == 0 {
+		return od, errors.New("no orders found")
+	}
+
+	for _, o := range *o {
+		if o.ID != orderID {
+			continue
+		}
+
+		var side = exchange.BuyOrderSide
+		if strings.EqualFold(o.Side, exchange.AskOrderSide.ToString()) {
+			side = exchange.SellOrderSide
+		}
+
+		od.CurrencyPair = pair.NewCurrencyPairDelimiter(o.ProductID,
+			b.ConfigCurrencyPairFormat.Delimiter)
+		od.Exchange = b.Name
+		od.Amount = o.Amount
+		od.ID = o.ID
+		od.OrderDate = parseOrderTime(o.CreatedAt)
+		od.OrderSide = side
+		od.OrderType = exchange.OrderType(strings.ToUpper(o.Type))
+		od.Price = o.Price
+		od.Status = o.Status
+
+		fills, err := b.GetFills(orderID, "", "", "", "")
+		if err != nil {
+			return od, fmt.Errorf("unable to get order fills for orderID %s", orderID)
+		}
+
+		for _, f := range *fills {
+			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+			od.Trades = append(od.Trades, exchange.TradeHistory{
+				Timestamp: createdAt,
+				TID:       f.ID,
+				Price:     f.Price,
+				Amount:    f.Amount,
+				Exchange:  b.Name,
+				Type:      exchange.OrderSide(f.Side).ToString(),
+				Fee:       f.Fee,
+			})
+		}
+	}
+	return od, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -166,11 +282,65 @@ func (b *BTSE) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTSE) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := b.GetOrders("")
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range *resp {
+		var side = exchange.BuyOrderSide
+		if strings.EqualFold(order.Side, exchange.AskOrderSide.ToString()) {
+			side = exchange.SellOrderSide
+		}
+
+		openOrder := exchange.OrderDetail{
+			CurrencyPair: pair.NewCurrencyPairDelimiter(order.ProductID,
+				b.ConfigCurrencyPairFormat.Delimiter),
+			Exchange:  b.Name,
+			Amount:    order.Amount,
+			ID:        order.ID,
+			OrderDate: parseOrderTime(order.CreatedAt),
+			OrderSide: side,
+			OrderType: exchange.OrderType(strings.ToUpper(order.Type)),
+			Price:     order.Price,
+			Status:    order.Status,
+		}
+
+		fills, err := b.GetFills(order.ID, "", "", "", "")
+		if err != nil {
+			log.Errorf("unable to get order fills for orderID %s", order.ID)
+			continue
+		}
+
+		for _, f := range *fills {
+			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
+				Timestamp: createdAt,
+				TID:       f.ID,
+				Price:     f.Price,
+				Amount:    f.Amount,
+				Exchange:  b.Name,
+				Type:      exchange.OrderSide(f.Side).ToString(),
+				Fee:       f.Fee,
+			})
+		}
+		orders = append(orders, openOrder)
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *BTSE) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
+}
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (b *BTSE) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return b.GetFee(feeBuilder)
 }

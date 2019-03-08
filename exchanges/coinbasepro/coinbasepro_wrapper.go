@@ -198,7 +198,7 @@ func (c *CoinbasePro) CancelAllOrders(_ exchange.OrderCancellation) (exchange.Ca
 }
 
 // GetOrderInfo returns information on a current open order
-func (c *CoinbasePro) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (c *CoinbasePro) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

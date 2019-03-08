@@ -319,7 +319,7 @@ type IBotExchange interface {
 	ModifyOrder(action ModifyOrder) (string, error)
 	CancelOrder(order OrderCancellation) error
 	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
-	GetOrderInfo(orderID int64) (OrderDetail, error)
+	GetOrderInfo(orderID string) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
 
 	GetOrderHistory(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)

@@ -218,7 +218,7 @@ func (h *HitBTC) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelA
 }
 
 // GetOrderInfo returns information on a current open order
-func (h *HitBTC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (h *HitBTC) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

@@ -303,7 +303,7 @@ func (a *ANX) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllO
 }
 
 // GetOrderInfo returns information on a current open order
-func (a *ANX) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (a *ANX) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

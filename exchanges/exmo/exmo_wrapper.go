@@ -252,7 +252,7 @@ func (e *EXMO) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAll
 }
 
 // GetOrderInfo returns information on a current open order
-func (e *EXMO) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (e *EXMO) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

@@ -237,7 +237,7 @@ func (p *Poloniex) CancelAllOrders(_ exchange.OrderCancellation) (exchange.Cance
 }
 
 // GetOrderInfo returns information on a current open order
-func (p *Poloniex) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (p *Poloniex) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

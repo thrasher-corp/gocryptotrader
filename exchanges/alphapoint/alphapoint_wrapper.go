@@ -155,7 +155,7 @@ func (a *Alphapoint) CancelAllOrders(orderCancellation exchange.OrderCancellatio
 }
 
 // GetOrderInfo returns information on a current open order
-func (a *Alphapoint) GetOrderInfo(orderID int64) (float64, error) {
+func (a *Alphapoint) GetOrderInfo(orderID string) (float64, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
 		return 0, err
@@ -163,7 +163,7 @@ func (a *Alphapoint) GetOrderInfo(orderID int64) (float64, error) {
 
 	for x := range orders {
 		for y := range orders[x].OpenOrders {
-			if int64(orders[x].OpenOrders[y].ServerOrderID) == orderID {
+			if strconv.Itoa(orders[x].OpenOrders[y].ServerOrderID) == orderID {
 				return orders[x].OpenOrders[y].QtyRemaining, nil
 			}
 		}

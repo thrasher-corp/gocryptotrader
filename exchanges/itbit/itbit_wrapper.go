@@ -237,7 +237,7 @@ func (i *ItBit) CancelAllOrders(orderCancellation exchange.OrderCancellation) (e
 }
 
 // GetOrderInfo returns information on a current open order
-func (i *ItBit) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (i *ItBit) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

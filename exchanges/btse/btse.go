@@ -3,9 +3,7 @@ package btse
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -13,9 +11,11 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // BTSE is the overarching type across this package
@@ -50,6 +50,7 @@ func (b *BTSE) SetDefaults() {
 	b.Enabled = false
 	b.Verbose = false
 	b.RESTPollingDelay = 10
+	b.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
 	b.RequestCurrencyPairFormat.Delimiter = "-"
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = "-"
@@ -64,6 +65,8 @@ func (b *BTSE) SetDefaults() {
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
 	b.WebsocketInit()
+	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTickerSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -174,60 +177,66 @@ func (b *BTSE) GetServerTime() (*ServerTime, error) {
 	return &s, b.SendHTTPRequest(http.MethodGet, btseTime, &s)
 }
 
-// GetAccount returns the users account balance
-func (b *BTSE) GetAccount() (*AccountInfo, error) {
-	var a AccountInfo
+// GetAccountBalance returns the users account balance
+func (b *BTSE) GetAccountBalance() (*AccountBalance, error) {
+	var a AccountBalance
 	return &a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseAccount, nil, &a)
 }
 
 // CreateOrder creates an order
 func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeInForce, tag string) (*string, error) {
-	vals := url.Values{}
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	vals.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	vals.Set("side", side)
-	vals.Set("type", orderType)
-	vals.Set("product_id", symbol)
+	req := make(map[string]interface{})
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req["side"] = side
+	req["type"] = orderType
+	req["product_id"] = symbol
 
 	if timeInForce != "" {
-		vals.Set("time_in_force", timeInForce)
+		req["time_in_force"] = timeInForce
 	}
 
 	if tag != "" {
-		vals.Set("tag", tag)
+		req["tag"] = tag
 	}
 
-	var orderID string
-	return &orderID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, vals, &orderID)
+	type orderResp struct {
+		ID string `json:"id"`
+	}
+
+	var r orderResp
+	return &r.ID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, req, &r)
 }
 
 // GetOrders returns all pending orders
-func (b *BTSE) GetOrders(productID string) (*Orders, error) {
-	vals := url.Values{}
+func (b *BTSE) GetOrders(productID string) (*OpenOrders, error) {
+	req := make(map[string]interface{})
 	if productID != "" {
-		vals.Set("product_id", productID)
+		req["product_id"] = productID
 	}
-	var o Orders
-	return &o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, vals, &o)
+	var o OpenOrders
+	return &o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o)
 }
 
 // CancelExistingOrder cancels an order
 func (b *BTSE) CancelExistingOrder(orderID, productID string) (*CancelOrder, error) {
 	var c CancelOrder
-	vals := url.Values{}
-	vals.Set("order_id", orderID)
-	vals.Set("product_id", productID)
-	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, vals, &c)
+	req := make(map[string]interface{})
+	req["order_id"] = orderID
+	req["product_id"] = productID
+	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, req, &c)
 }
 
 // CancelOrders cancels all orders
+// productID optional. If product ID is sent, all orders of that specified market
+// will be cancelled. If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelOrders(productID string) (*CancelOrder, error) {
 	var c CancelOrder
-	vals := url.Values{}
+	req := make(map[string]interface{})
 	if productID != "" {
-		vals.Set("product_id", productID)
+		req["product_id"] = productID
 	}
-	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrders, vals, &c)
+	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrders, req, &c)
 }
 
 // GetFills gets all filled orders
@@ -238,30 +247,29 @@ func (b *BTSE) GetFills(orderID, productID, before, after, limit string) (*Fille
 		return nil, errors.New("orderID OR productID must be set")
 	}
 
-	vals := url.Values{}
-
+	req := make(map[string]interface{})
 	if orderID != "" {
-		vals.Set("order_id", orderID)
+		req["order_id"] = orderID
 	}
 
 	if productID != "" {
-		vals.Set("product_id", productID)
+		req["product_id"] = productID
 	}
 
 	if before != "" {
-		vals.Set("before", before)
+		req["before"] = before
 	}
 
 	if after != "" {
-		vals.Set("after", after)
+		req["after"] = after
 	}
 
 	if limit != "" {
-		vals.Set("limit", limit)
+		req["limit"] = limit
 	}
 
 	var o FilledOrders
-	return &o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, vals, &o)
+	return &o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, req, &o)
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
@@ -271,14 +279,89 @@ func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) erro
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Values, result interface{}) error {
+func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[string]interface{}, result interface{}) error {
 	if !b.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	p := fmt.Sprintf("%s/%s", btseAPIURL, endpoint)
+	payload, err := common.JSONEncode(req)
+	if err != nil {
+		return errors.New("sendAuthenticatedAPIRequest: unable to JSON request")
+	}
+
 	headers := make(map[string]string)
 	headers["API-KEY"] = b.APIKey
 	headers["API-PASSPHRASE"] = b.APISecret
-	return b.SendPayload(method, p, headers, strings.NewReader(vals.Encode()), &result, true, b.Verbose)
+	if len(payload) > 0 {
+		headers["Content-Type"] = "application/json"
+	}
+
+	p := fmt.Sprintf("%s/%s", btseAPIURL, endpoint)
+	if b.Verbose {
+		log.Debugf("Sending %s request to URL %s with params %s\n", method, p, string(payload))
+	}
+	return b.SendPayload(method, p, headers, strings.NewReader(string(payload)),
+		&result, true, b.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *BTSE) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.IsMaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		if feeBuilder.FirstCurrency == symbol.BTC {
+			fee = 0.0005
+		} else if feeBuilder.FirstCurrency == symbol.USDT {
+			fee = 5
+		}
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.Amount)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
+	}
+	return fee, nil
+}
+
+// getInternationalBankDepositFee returns international deposit fee
+// Only when the initial deposit amount is less than $1000 or equivalent,
+// BTSE will charge a small fee (0.25% or $3 USD equivalent, whichever is greater).
+// The small deposit fee is charged in whatever currency it comes in.
+func getInternationalBankDepositFee(amount float64) float64 {
+	var fee float64
+	if amount <= 1000 {
+		fee = amount * 0.0025
+		if fee < 3 {
+			return 3
+		}
+	}
+	return fee
+}
+
+// getInternationalBankWithdrawalFee returns international withdrawal fee
+// 0.1% (min25 USD)
+func getInternationalBankWithdrawalFee(amount float64) float64 {
+	fee := amount * 0.001
+
+	if fee < 25 {
+		return 25
+	}
+	return fee
+}
+
+// calculateTradingFee BTSE has fee tiers, but does not disclose them via API,
+// so the largest fee has to be assumed
+func calculateTradingFee(isMaker bool) float64 {
+	fee := 0.00050
+	if !isMaker {
+		fee = 0.0015
+	}
+	return fee
+}
+
+func parseOrderTime(timeStr string) time.Time {
+	t, _ := time.Parse("2006-01-02 15:04:04", timeStr)
+	return t
 }

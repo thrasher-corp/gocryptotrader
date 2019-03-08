@@ -121,7 +121,7 @@ func (b *BTCC) CancelAllOrders(orderCancellation exchange.OrderCancellation) (ex
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *BTCC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (b *BTCC) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	return exchange.OrderDetail{}, common.ErrNotYetImplemented
 }
 
