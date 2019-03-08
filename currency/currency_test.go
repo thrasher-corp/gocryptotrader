@@ -2,66 +2,7 @@ package currency
 
 import (
 	"testing"
-
-	"github.com/thrasher-/gocryptotrader/common"
 )
-
-func TestCodeString(t *testing.T) {
-	expected := "TEST"
-	cc := NewCode("TEST")
-	if cc.String() != expected {
-		t.Errorf("Test Failed - Currency Code String() error expected %s but recieved %s",
-			expected, cc)
-	}
-}
-
-func TestNewConversionFromString(t *testing.T) {
-	expected := "AUDUSD"
-	conv := NewConversionFromString(expected)
-	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
-			expected,
-			conv)
-	}
-
-	newexpected := common.StringToLower(expected)
-	conv = NewConversionFromString(newexpected)
-	if conv.String() != newexpected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
-			newexpected,
-			conv)
-	}
-}
-
-func TestNewConversion(t *testing.T) {
-	from := "AUD"
-	to := "USD"
-	expected := "AUDUSD"
-
-	conv := NewConversion(from, to)
-	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
-			expected,
-			conv)
-	}
-}
-
-func TestNewConversionFromCode(t *testing.T) {
-	from := NewCode("AUD")
-	to := NewCode("USD")
-	expected := "AUDUSD"
-
-	conv, err := NewConversionFromCode(from, to)
-	if err != nil {
-		t.Error("Test Failed - NewConversionFromCode() error", err)
-	}
-
-	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
-			expected,
-			conv)
-	}
-}
 
 func TestGetDefaultExchangeRates(t *testing.T) {
 	rates, err := GetDefaultExchangeRates()

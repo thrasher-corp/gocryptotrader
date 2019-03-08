@@ -73,6 +73,7 @@ func (c *ConversionRates) Register(from, to Code) (Conversion, error) {
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
+
 	p, ok := c.m[from.Item][to.Item]
 	if !ok {
 		log.Errorf("currency conversion rate not found from %s to %s", from, to)
@@ -256,22 +257,19 @@ func (c Conversions) Slice() []Conversion {
 }
 
 // NewConversionFromString splits a string from a foreign exchange provider
-func NewConversionFromString(p string) Conversion {
-	return NewConversion(p[:3], p[3:])
+func NewConversionFromString(p string) (Conversion, error) {
+	return NewConversionFromStrings(p[:3], p[3:])
 }
 
-// NewConversionFromCode returns a conversion rate object that allows for
+// NewConversion returns a conversion rate object that allows for
 // obtaining efficient rate values when needed
-func NewConversionFromCode(from, to Code) (Conversion, error) {
+func NewConversion(from, to Code) (Conversion, error) {
 	return storage.NewConversion(from, to)
 }
 
-// NewConversion assigns or finds a new conversion unit
-func NewConversion(from, to string) Conversion {
-	return Conversion{
-		From: NewCode(from),
-		To:   NewCode(to),
-	}
+// NewConversionFromStrings assigns or finds a new conversion unit
+func NewConversionFromStrings(from, to string) (Conversion, error) {
+	return NewConversion(NewCode(from), NewCode(to))
 }
 
 // Conversion defines a specific currency conversion for a rate

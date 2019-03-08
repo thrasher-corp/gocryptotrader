@@ -554,3 +554,10 @@ func TestRandomPairFromPairs(t *testing.T) {
 		}
 	}
 }
+
+func TestIsInvalid(t *testing.T) {
+	p := NewPair(LTC, LTC)
+	if !p.IsInvalid() {
+		t.Error("Test Failed - IsInvalid() error expect true but received false")
+	}
+}

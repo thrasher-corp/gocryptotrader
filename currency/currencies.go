@@ -28,8 +28,8 @@ func (c Currencies) Strings() []string {
 
 // Contains checks to see if a currency code is contained in the currency list
 func (c Currencies) Contains(cc Code) bool {
-	for _, currency := range c {
-		if currency == cc {
+	for i := range c {
+		if c[i].Item == cc.Item {
 			return true
 		}
 	}
