@@ -510,6 +510,47 @@
    ]
   },
   {
+    "name": "BTSE",
+    "enabled": true,
+    "verbose": false,
+    "websocket": true,
+    "useSandbox": false,
+    "restPollingDelay": 10,
+    "httpTimeout": 15000000000,
+    "httpUserAgent": "",
+    "authenticatedApiSupport": false,
+    "apiKey": "Key",
+    "apiSecret": "Secret",
+    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+    "proxyAddress": "",
+    "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
+    "availablePairs": "BTC-USD",
+    "enabledPairs": "BTC-USD",
+    "baseCurrencies": "USD",
+    "assetTypes": "SPOT",
+    "supportsAutoPairUpdates": true,
+    "configCurrencyPairFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "requestCurrencyPairFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "bankAccounts": [
+     {
+      "bankName": "",
+      "bankAddress": "",
+      "accountName": "",
+      "accountNumber": "",
+      "swiftCode": "",
+      "iban": "",
+      "supportedCurrencies": ""
+     }
+    ]
+  },
+  {
    "name": "BTC Markets",
    "enabled": true,
    "verbose": false,

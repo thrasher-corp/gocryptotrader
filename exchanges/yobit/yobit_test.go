@@ -89,7 +89,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetOrderInfo(6196974)
+	_, err := y.GetOrderInfo("6196974")
 	if err == nil {
 		t.Error("Test Failed - GetOrderInfo() error", err)
 	}

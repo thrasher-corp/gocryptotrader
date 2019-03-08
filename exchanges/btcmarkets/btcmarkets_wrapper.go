@@ -230,10 +230,15 @@ func (b *BTCMarkets) CancelAllOrders(_ exchange.OrderCancellation) (exchange.Can
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (b *BTCMarkets) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var OrderDetail exchange.OrderDetail
 
-	orders, err := b.GetOrderDetail([]int64{orderID})
+	o, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return OrderDetail, err
+	}
+
+	orders, err := b.GetOrderDetail([]int64{o})
 	if err != nil {
 		return OrderDetail, err
 	}

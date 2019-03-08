@@ -330,7 +330,7 @@ func (c *COINUT) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelA
 }
 
 // GetOrderInfo returns information on a current open order
-func (c *COINUT) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (c *COINUT) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

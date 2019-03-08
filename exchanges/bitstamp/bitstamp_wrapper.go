@@ -218,7 +218,7 @@ func (b *Bitstamp) CancelAllOrders(_ exchange.OrderCancellation) (exchange.Cance
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bitstamp) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (b *Bitstamp) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

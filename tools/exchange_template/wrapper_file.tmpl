@@ -137,7 +137,7 @@ func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation exchang
 }
 
 // GetOrderInfo returns information on a current open order
-func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	return exchange.OrderDetail{}, common.ErrNotYetImplemented
 }
 

@@ -299,7 +299,7 @@ func (h *HUOBIHADAX) CancelAllOrders(orderCancellation exchange.OrderCancellatio
 }
 
 // GetOrderInfo returns information on a current open order
-func (h *HUOBIHADAX) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (h *HUOBIHADAX) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

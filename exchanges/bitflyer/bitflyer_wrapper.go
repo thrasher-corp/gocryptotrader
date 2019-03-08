@@ -178,7 +178,7 @@ func (b *Bitflyer) CancelAllOrders(_ exchange.OrderCancellation) (exchange.Cance
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bitflyer) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (b *Bitflyer) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

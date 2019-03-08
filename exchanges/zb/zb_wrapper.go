@@ -249,7 +249,7 @@ func (z *ZB) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOr
 }
 
 // GetOrderInfo returns information on a current open order
-func (z *ZB) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (z *ZB) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

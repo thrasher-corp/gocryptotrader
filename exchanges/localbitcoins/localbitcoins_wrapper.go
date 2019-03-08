@@ -246,7 +246,7 @@ func (l *LocalBitcoins) CancelAllOrders(_ exchange.OrderCancellation) (exchange.
 }
 
 // GetOrderInfo returns information on a current open order
-func (l *LocalBitcoins) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (l *LocalBitcoins) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

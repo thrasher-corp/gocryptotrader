@@ -189,7 +189,7 @@ func (g *Gemini) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelA
 }
 
 // GetOrderInfo returns information on a current open order
-func (g *Gemini) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (g *Gemini) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

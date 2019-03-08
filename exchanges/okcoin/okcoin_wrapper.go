@@ -283,7 +283,7 @@ func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 }
 
 // GetOrderInfo returns information on a current open order
-func (o *OKCoin) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (o *OKCoin) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

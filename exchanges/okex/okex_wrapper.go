@@ -279,7 +279,7 @@ func (o *OKEX) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAll
 }
 
 // GetOrderInfo returns information on a current open order
-func (o *OKEX) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (o *OKEX) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

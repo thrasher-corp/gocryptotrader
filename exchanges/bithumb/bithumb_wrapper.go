@@ -244,7 +244,7 @@ func (b *Bithumb) CancelAllOrders(orderCancellation exchange.OrderCancellation) 
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bithumb) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (b *Bithumb) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

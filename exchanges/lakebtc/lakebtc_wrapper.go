@@ -204,7 +204,7 @@ func (l *LakeBTC) CancelAllOrders(_ exchange.OrderCancellation) (exchange.Cancel
 }
 
 // GetOrderInfo returns information on a current open order
-func (l *LakeBTC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (l *LakeBTC) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }

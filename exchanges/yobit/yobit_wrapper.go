@@ -221,7 +221,7 @@ func (y *Yobit) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAl
 }
 
 // GetOrderInfo returns information on a current open order
-func (y *Yobit) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (y *Yobit) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }
