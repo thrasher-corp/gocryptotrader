@@ -269,6 +269,42 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
+// GetTradesBetween returns aggregated trade activity between two timestamps
+//
+// symbol: string of currency pair
+// start: epoch timestamp of beginning of query
+// end: epoch timestamp of end of query
+func (b *Binance) GetTradesBetween(symbol string, start, end time.Time) ([]AggregatedTrade, error) {
+	collectedTrades := []AggregatedTrade{}
+	for {
+		queryEnd := start.Add(1 * time.Hour)
+		if start.Equal(end) {
+			break
+		}
+		if start.Before(end) {
+			params := url.Values{}
+			params.Set("symbol", symbol)
+			params.Set("startTime", fmt.Sprintf("%v",start.Unix() * 1000))
+			params.Set("endTime", fmt.Sprintf("%v",queryEnd.Unix() * 1000))
+
+			path := fmt.Sprintf("%s%s?%s", b.APIUrl, aggregatedTrades, params.Encode())
+
+			nTrades := []AggregatedTrade{}
+			err := b.SendHTTPRequest(path, &nTrades)
+			if err != nil {
+				fmt.Println(err.Error())
+				return collectedTrades, err
+			}
+			collectedTrades = append(collectedTrades, nTrades...)
+
+			start = start.Add(1 * time.Hour)
+			queryEnd = queryEnd.Add(1 * time.Hour)
+		}
+	}
+
+	return collectedTrades, nil
+}
+
 // GetAggregatedTrades returns aggregated trade activity
 //
 // symbol: string of currency pair
