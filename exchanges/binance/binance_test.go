@@ -78,6 +78,16 @@ func TestGetHistoricalTrades(t *testing.T) {
 	}
 }
 
+func TestGetTradesBetween(t *testing.T) {
+	end := time.Now().UTC()
+	start := end.Add(-3 * time.Hour)
+	t.Parallel()
+	_, err := b.GetTradesBetween("BTCUSDT", start, end)
+	if err != nil {
+		t.Error("Test Failed - Binance GetTradesBetween() error", err)
+	}
+}
+
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetAggregatedTrades("BTCUSDT", 5)
