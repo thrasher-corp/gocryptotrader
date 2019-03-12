@@ -236,7 +236,7 @@ type GetSpotOpenOrdersRequest struct {
 
 // GetSpotOrderRequest request data for GetSpotOrder
 type GetSpotOrderRequest struct {
-	OrderID      int64  `url:"-"`             // [required] order ID
+	OrderID      string `url:"-"`             // [required] order ID
 	InstrumentID string `url:"instrument_id"` // [required]trading pair
 }
 

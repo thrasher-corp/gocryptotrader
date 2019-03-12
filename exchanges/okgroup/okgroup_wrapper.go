@@ -287,7 +287,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation exchange.OrderCancellation) 
 }
 
 // GetOrderInfo returns information on a current open order
-func (o *OKGroup) GetOrderInfo(orderID int64) (resp exchange.OrderDetail, err error) {
+func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err error) {
 	order, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
