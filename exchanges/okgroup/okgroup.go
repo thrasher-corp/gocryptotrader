@@ -624,9 +624,8 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 	var intermediary json.RawMessage
 	type errCapFormat struct {
 		Error        int64  `json:"error_code,omitempty"`
-		Code         int64  `json:"code,omitempty"`
 		ErrorMessage string `json:"error_message,omitempty"`
-		Result       bool   `json:"result,omitempty"`
+		Result       bool   `json:"result,string,omitempty"`
 	}
 
 	errCap := errCapFormat{}
@@ -638,7 +637,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 
 	err = common.JSONDecode(intermediary, &errCap)
 	if err == nil {
-		if len(errCap.ErrorMessage) > 0 {
+		if errCap.ErrorMessage != "" {
 			return fmt.Errorf("error: %v", errCap.ErrorMessage)
 		}
 		if errCap.Error > 0 {
@@ -648,10 +647,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		if !errCap.Result {
 			return errors.New("unspecified error occurred")
 		}
-		if errCap.Code > 0 {
-			return fmt.Errorf("sendHTTPRequest error - %s",
-				o.ErrorCodes[strconv.FormatInt(errCap.Code, 10)])
-		}
+
 	}
 
 	return common.JSONDecode(intermediary, result)
@@ -666,38 +662,6 @@ func (o *OKGroup) SetCheckVarDefaults() {
 	o.Types = []string{"1min", "3min", "5min", "15min", "30min", "1day", "3day",
 		"1week", "1hour", "2hour", "4hour", "6hour", "12hour"}
 	o.ContractPosition = []string{"1", "2", "3", "4"}
-}
-
-// CheckContractPosition checks to see if the string is a valid position for OKGroup
-func (o *OKGroup) CheckContractPosition(position string) error {
-	if !common.StringDataCompare(o.ContractPosition, position) {
-		return errors.New("invalid position string - e.g. 1 = open long position, 2 = open short position, 3 = liquidate long position, 4 = liquidate short position")
-	}
-	return nil
-}
-
-// CheckSymbol checks to see if the string is a valid symbol for OKGroup
-func (o *OKGroup) CheckSymbol(symbol string) error {
-	if !common.StringDataCompare(o.CurrencyPairs, symbol) {
-		return errors.New("invalid symbol string")
-	}
-	return nil
-}
-
-// CheckContractType checks to see if the string is a correct asset
-func (o *OKGroup) CheckContractType(contractType string) error {
-	if !common.StringDataCompare(o.ContractTypes, contractType) {
-		return errors.New("invalid contract type string")
-	}
-	return nil
-}
-
-// CheckType checks to see if the string is a correct type
-func (o *OKGroup) CheckType(typeInput string) error {
-	if !common.StringDataCompare(o.Types, typeInput) {
-		return errors.New("invalid type string")
-	}
-	return nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction

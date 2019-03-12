@@ -520,7 +520,7 @@ type GetFuturesLeverageData struct {
 // SetFuturesLeverageRequest request data for SetFuturesLeverage
 type SetFuturesLeverageRequest struct {
 	Direction    string `json:"direction,omitempty"`     // opening side (long or short)
-	InstrumentID string `json:"instrument_id,omitempty"` //  	Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `json:"instrument_id,omitempty"` //  	Contract ID, e.g. "BTC-USD-180213"
 	Leverage     int64  `json:"leverage,omitempty"`      //  	10x or 20x leverage
 	Currency     string `json:"currency,omitempty"`
 }
@@ -544,7 +544,7 @@ type SetFutureLeverageShortLongData struct {
 // PlaceFuturesOrderRequest request data for PlaceFuturesOrder
 type PlaceFuturesOrderRequest struct {
 	ClientOid    string  `json:"client_oid,omitempty"`         // [optional] 	the order ID customized by yourself
-	InstrumentID string  `json:"instrument_id"`                // [required]   	Contract ID,e.g. “TC-USD-180213"
+	InstrumentID string  `json:"instrument_id"`                // [required]   	Contract ID,e.g. "TC-USD-180213"
 	Type         int64   `json:"type,string"`                  //  [required] 	1:open long 2:open short 3:close long 4:close short
 	Price        float64 `json:"price,string"`                 //  [required] 	Price of each contract
 	Size         int64   `json:"size,string"`                  //  [required] The buying or selling quantity
@@ -563,7 +563,7 @@ type PlaceFuturesOrderResponse struct {
 
 // PlaceFuturesOrderBatchRequest request data for PlaceFuturesOrderBatch
 type PlaceFuturesOrderBatchRequest struct {
-	InstrumentID string                                 `json:"instrument_id"` // [required] Contract ID, e.g.“BTC-USD-180213"
+	InstrumentID string                                 `json:"instrument_id"` // [required] Contract ID, e.g."BTC-USD-180213"
 	Leverage     int                                    `json:"leverage"`      // [required] 10x or 20x leverage
 	OrdersData   []PlaceFuturesOrderBatchRequestDetails `json:"orders_data"`   // [required] the JSON word string for placing multiple orders, include：{client_oid type price size match_price}
 }
@@ -594,7 +594,7 @@ type PlaceFuturesOrderBatchResponseData struct {
 // CancelFuturesOrderRequest request data for CancelFuturesOrder
 type CancelFuturesOrderRequest struct {
 	OrderID      string `json:"order_id"`      // [required] Order ID
-	InstrumentID string `json:"instrument_id"` // [required] Contract ID,e.g. “BTC-USD-180213"
+	InstrumentID string `json:"instrument_id"` // [required] Contract ID,e.g. "BTC-USD-180213"
 }
 
 // CancelFuturesOrderResponse response data from CancelFuturesOrder
@@ -606,7 +606,7 @@ type CancelFuturesOrderResponse struct {
 
 // GetFuturesOrdersListRequest request data for GetFutureOrdersList
 type GetFuturesOrdersListRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. "BTC-USD-180213"
 	Status       int64  `url:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
@@ -638,13 +638,13 @@ type GetFuturesOrderDetailsResponseData struct {
 // GetFuturesOrderDetailsRequest request data for GetFuturesOrderDetails
 type GetFuturesOrderDetailsRequest struct {
 	OrderID      int64  `json:"order_id,string"` // [required] Order ID
-	InstrumentID string `json:"instrument_id"`   // [required] Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `json:"instrument_id"`   // [required] Contract ID, e.g. "BTC-USD-180213"
 }
 
 // GetFuturesTransactionDetailsRequest request data for GetFuturesTransactionDetails
 type GetFuturesTransactionDetailsRequest struct {
 	OrderID      int64  `json:"order_id,string"`        // [required] Order ID
-	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. "BTC-USD-180213"
 	Status       int64  `json:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
 	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
@@ -678,7 +678,7 @@ type GetFuturesContractInformationResponse struct {
 
 // GetFuturesOrderBookRequest request data for GetFuturesOrderBook
 type GetFuturesOrderBookRequest struct {
-	InstrumentID string `url:"-"`              // [required] Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `url:"-"`              // [required] Contract ID, e.g. "BTC-USD-180213"
 	Size         int64  `url:"size,omitempty"` // [optional] The size of the price range (max: 200)
 }
 
@@ -703,7 +703,7 @@ type GetFuturesTokenInfoResponse struct {
 
 // GetFuturesFilledOrderRequest request data for GetFuturesFilledOrder
 type GetFuturesFilledOrderRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. "BTC-USD-180213"
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
@@ -789,7 +789,7 @@ type GetFuturesCurrentMarkPriceResponse struct {
 
 // GetFuturesForceLiquidatedOrdersRequest request data for GetFuturesForceLiquidatedOrders
 type GetFuturesForceLiquidatedOrdersRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. "BTC-USD-180213"
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
@@ -964,7 +964,7 @@ type CancelMultipleSwapOrdersResponse struct {
 
 // GetSwapOrderListRequest request data for GetSwapOrderList
 type GetSwapOrderListRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. "BTC-USD-180213"
 	Status       int64  `url:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
@@ -1061,7 +1061,7 @@ type GetAllSwapTokensInformationResponse struct {
 
 // GetSwapFilledOrdersDataRequest request data for GetSwapFilledOrdersData
 type GetSwapFilledOrdersDataRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-SWAP
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. "BTC-USD-SWAP
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	Limit        int64  `url:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
@@ -1126,7 +1126,7 @@ type GetSwapCurrentPriceLimitsResponse struct {
 
 // GetSwapForceLiquidatedOrdersRequest request data for GetSwapForceLiquidatedOrders
 type GetSwapForceLiquidatedOrdersRequest struct {
-	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. “BTC-USD-180213"
+	InstrumentID string `url:"-"`                      // [required] Contract ID, e.g. "BTC-USD-180213"
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	Limit        int64  `url:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
@@ -1165,7 +1165,7 @@ type GetSwapMarkPriceResponse struct {
 
 // GetSwapFundingRateHistoryRequest request data for GetSwapFundingRateHistory
 type GetSwapFundingRateHistoryRequest struct {
-	InstrumentID string `url:"ins-trument_id"`         // [required] Contract ID, e.g. “BTC-USD-SWAP
+	InstrumentID string `url:"ins-trument_id"`         // [required] Contract ID, e.g. "BTC-USD-SWAP
 	From         int64  `url:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	To           int64  `url:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
 	Limit        int64  `url:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100.
@@ -1305,7 +1305,9 @@ type WebsocketDataResponse struct {
 	Data   []WebsocketDataWrapper `json:"data"`
 }
 
-// WebsocketDataWrapper lk
+// WebsocketDataWrapper holds all data responses for websocket
+// Can review in future if struct becomes too large
+// allows for easy data processing
 type WebsocketDataWrapper struct {
 	InstrumentID string    `json:"instrument_id"`
 	Timestamp    time.Time `json:"timestamp,omitempty"`
@@ -1314,6 +1316,17 @@ type WebsocketDataWrapper struct {
 	WebsocketOrderBooksData
 	WebsocketTradeResponse
 	WebsocketFundingFeeResponse
+	WebsocketMarkPriceResponse
+	WebsocketEstimatedPriceResponse
+	WebsocketPriceRangeResponse
+	WebsocketUserSwapPositionResponse
+	WebsocketUserSwapOrdersResponse
+	WebsocketUserSwapFutureAccountResponse
+	WebsocketUserSpotAccountResponse
+	WebsocketSpotMarginOrderResponse
+	WebsocketUserFutureFixedMarginAccountResponse
+	WebsocketUserFuturePositionResponse
+	WebsocketSpotOrderResponse
 }
 
 // WebsocketTickerData contains formatted data for ticker related websocket responses
@@ -1346,20 +1359,20 @@ type WebsocketFundingFeeResponse struct {
 	InterestRate float64   `json:"interest_rate,string,omitempty"`
 }
 
-// WebsocketSpotOrderResponse contains formatted data for spot user orders
-type WebsocketSpotOrderResponse struct {
-	FilledNotional float64   `json:"filled_notional,string"`
-	FilledSize     float64   `json:"filled_size,string"`
-	InstrumentID   string    `json:"instrument_id"`
-	Notional       float64   `json:"notional,string"`
-	OrderID        string    `json:"order_id"`
-	Price          float64   `json:"price,string"`
-	Side           string    `json:"side"`
-	Size           float64   `json:"size,string"`
-	Status         string    `json:"status"`
-	Timestamp      time.Time `json:"timestamp"`
-	MarginTrading  int64     `json:"margin_trading"`
-	Type           string    `json:"type"`
+// WebsocketMarkPriceResponse contains formatted data for mark prices
+type WebsocketMarkPriceResponse struct {
+	MarkPrice float64 `json:"mark_price,string,omitempty"`
+}
+
+// WebsocketEstimatedPriceResponse contains formatted data for estimated prices
+type WebsocketEstimatedPriceResponse struct {
+	SettlementPrice float64 `json:"settlement_price,string,omitempty"`
+}
+
+// WebsocketMarkPriceResponse contains formatted data for mark prices
+type WebsocketPriceRangeResponse struct {
+	Highest float64 `json:"highest,omitempty"`
+	Lowest  float64 `json:"lowest,omitempty"`
 }
 
 // WebsocketOrderBooksData contains orderbook data from  WebsocketOrderBooksResponse
@@ -1369,86 +1382,133 @@ type WebsocketOrderBooksData struct {
 	Checksum int32           `json:"checksum,omitempty"`
 }
 
+// WebsocketUserPositionResponse contains formatted data for user position data
+type WebsocketUserSwapPositionResponse struct {
+	Holding []WebsocketUserSwapPositionHoldingData `json:"holding,omitempty"`
+}
+
+// WebsocketUserPositionResponse contains formatted data for user position holding data
+type WebsocketUserSwapPositionHoldingData struct {
+	AvailablePosition float64   `json:"avail_position,string,omitempty"`
+	AverageCost       float64   `json:"avg_cost,string,omitempty"`
+	Leverage          float64   `json:"leverage,string,omitempty"`
+	LiquidationPrice  float64   `json:"liquidation_price,string,omitempty"`
+	Margin            float64   `json:"margin,string,omitempty"`
+	Position          float64   `json:"position,string,omitempty"`
+	RealizedPnl       float64   `json:"realized_pnl,string,omitempty"`
+	SettlementPrice   float64   `json:"settlement_price,string,omitempty"`
+	Side              string    `json:"side,omitempty"`
+	Timestamp         time.Time `json:"timestamp,omitempty"`
+}
+
+// WebsocketUserAccountResponse contains formatted data for user account data
+type WebsocketUserSwapFutureAccountResponse struct {
+	Equity        float64 `json:"equity,string,omitempty"`
+	FixedBalance  float64 `json:"fixed_balance,string,omitempty"`
+	MarginFrozen  float64 `json:"margin_frozen,string,omitempty"`
+	MarginRatio   float64 `json:"margin_ratio,string,omitempty"`
+	RealizedPnl   float64 `json:"realized_pnl,string,omitempty"`
+	UnrealizedPnl float64 `json:"unrealized_pnl,string,omitempty"`
+	// MarginMode       A member, but part already exists as part of WebsocketDataResponse
+	//TotalAvailBalance A member, but part already exists as part of WebsocketDataResponse
+	// Margin           A member, but part already exists as part of WebsocketDataResponse
+}
+
+// WebsocketUserSpotAccountResponse contains formatted data for user account data
+type WebsocketUserSpotAccountResponse struct {
+	Balance   string `json:"balance"`
+	Available string `json:"available"`
+	Currency  string `json:"currency"`
+	ID        int64  `json:"id"`
+	Hold      string `json:"hold"`
+}
+
+// WebsocketSpotMarginOrderResponse contains formatted data for user account data
+type WebsocketSpotMarginOrderResponse struct {
+	MarginMode        string `json:"margin_mode"`
+	TotalAvailBalance string `json:"total_avail_balance"`
+	// UnrealizedPnl  A member, but part already exists as part of WebsocketDataResponse
+	// Equity         A member, but part already exists as part of WebsocketDataResponse
+	// FixedBalance   A member, but part already exists as part of WebsocketDataResponse
+	// InstrumentID   A member, but part already exists as part of WebsocketDataResponse
+	// Margin         A member, but part already exists as part of WebsocketDataResponse
+	// MarginFrozen   A member, but part already exists as part of WebsocketDataResponse
+	// MarginRatio    A member, but part already exists as part of WebsocketDataResponse
+	// RealizedPnl    A member, but part already exists as part of WebsocketDataResponse
+	// Timestamp      A member, but part already exists as part of WebsocketDataResponse
+}
+
+// WebsocketUserFutureFixedMarginAccountResponse contains formatted data for user account data
+type WebsocketUserFutureFixedMarginAccountResponse map[string]WebsocketUserFutureFixedMarginAccountData
+
+type WebsocketUserFutureFixedMarginAccountData struct {
+	Contracts         []WebsocketUserSwapFutureAccountResponse `json:"contracts"`
+	Equity            string                                   `json:"equity"`
+	MarginMode        string                                   `json:"margin_mode"`
+	TotalAvailBalance string                                   `json:"total_avail_balance"`
+}
+
+// WebsocketUserOrdersResponse contains formatted data for user order data
+type WebsocketUserSwapOrdersResponse struct {
+	FilledQuantity float64 `json:"filled_qty,string,omitempty"`
+	ClientOID      string  `json:"client_oid,omitempty"`
+	Fee            float64 `json:"fee,string,omitempty"`
+	ContractValue  float64 `json:"contract_val,string,omitempty"`
+	PriceAverage   float64 `json:"price_avg,string,omitempty"`
+	OrderID        string  `json:"order_id,omitempty"`
+	// Size         A member, but part already exists as part of WebsocketDataResponse
+	// Status      A member, but part already exists as part of WebsocketDataResponse
+	// Leverage    A member, but part already exists as part of WebsocketDataResponse
+	// Price       A member, but part already exists as part of WebsocketDataResponse
+	// Type        A member, but part already exists as part of WebsocketDataResponse
+}
+
+// WebsocketUserFuturePositionResponse contains formatted data for futures positions data
+type WebsocketUserFuturePositionResponse struct {
+	LongQty              string `json:"long_qty"`
+	LongAvailQty         int64  `json:"long_avail_qty"`
+	LongAvgCost          string `json:"long_avg_cost"`
+	LongSettlementPrice  string `json:"long_settlement_price"`
+	RealisedPnl          string `json:"realised_pnl"`
+	ShortQty             string `json:"short_qty"`
+	ShortAvailQty        string `json:"short_avail_qty"`
+	ShortAvgCost         string `json:"short_avg_cost"`
+	ShortSettlementPrice string `json:"short_settlement_price"`
+	LiquidationPrice     string `json:"liquidation_price"`
+	Leverage             string `json:"leverage"`
+	CreatedAt            string `json:"created_at"`
+	UpdatedAt            string `json:"updated_at"`
+	LongMargin           string `json:"long_margin"`
+	LongLiquiPrice       string `json:"long_liqui_price"`
+	LongPnlRatio         string `json:"long_pnl_ratio"`
+	ShortMargin          string `json:"short_margin"`
+	ShortLiquiPrice      string `json:"short_liqui_price"`
+	ShortPnlRatio        string `json:"short_pnl_ratio"`
+	LongLeverage         string `json:"long_leverage"`
+	ShortLeverage        string `json:"short_leverage"`
+	// UpdatedAt          A member, but part already exists as part of WebsocketDataResponse
+	// MarginMode         A member, but part already exists as part of WebsocketDataResponse
+	// InstrumentID A member, but part already exists as part of WebsocketDataResponse
+}
+
+// WebsocketSpotOrderResponse contains formatted data for spot user orders
+type WebsocketSpotOrderResponse struct {
+	FilledNotional float64 `json:"filled_notional,string"`
+	FilledSize     float64 `json:"filled_size,string"`
+	Notional       float64 `json:"notional,string"`
+	Size           float64 `json:"size,string"`
+	Status         string  `json:"status"`
+	MarginTrading  int64   `json:"margin_trading"`
+	Type           string  `json:"type"`
+	// Price        A member, but part already exists as part of WebsocketDataResponse
+	// InstrumentID A member, but part already exists as part of WebsocketDataResponse
+	// Timestamp    A member, but part already exists as part of WebsocketDataResponse
+	// OrderID      A member, but part already exists as part of WebsocketDataResponse
+}
+
 // WebsocketErrorResponse yo
 type WebsocketErrorResponse struct {
 	Event     string `json:"event"`
 	Message   string `json:"message"`
 	ErrorCode int64  `json:"errorCode"`
 }
-
-// DepthStreamData defines orderbook depth
-type DepthStreamData struct {
-	Asks      [][]string `json:"asks"`
-	Bids      [][]string `json:"bids"`
-	Timestamp time.Time  `json:"timestamp"`
-}
-
-// SpotPrice holds date and ticker price price for contracts.
-type SpotPrice struct {
-	Date   string `json:"date"`
-	Ticker struct {
-		Buy        float64 `json:"buy,string"`
-		ContractID float64 `json:"contract_id"`
-		High       float64 `json:"high,string"`
-		Low        float64 `json:"low,string"`
-		Last       float64 `json:"last,string"`
-		Sell       float64 `json:"sell,string"`
-		UnitAmount float64 `json:"unit_amount,string"`
-		Vol        float64 `json:"vol,string"`
-	} `json:"ticker"`
-	Result bool        `json:"result"`
-	Error  interface{} `json:"error_code"`
-}
-
-// SpotDepth response depth
-type SpotDepth struct {
-	Asks   []interface{} `json:"asks"`
-	Bids   []interface{} `json:"bids"`
-	Result bool          `json:"result"`
-	Error  interface{}   `json:"error_code"`
-}
-
-// ActualSpotDepthRequestParams represents Klines request data.
-type ActualSpotDepthRequestParams struct {
-	Symbol string `json:"symbol"` // Symbol; example ltc_btc
-	Size   int64  `json:"size"`   // value: 1-200
-}
-
-// ActualSpotDepth better manipulated structure to return
-type ActualSpotDepth struct {
-	Asks []struct {
-		Price  float64
-		Volume float64
-	}
-	Bids []struct {
-		Price  float64
-		Volume float64
-	}
-}
-
-// KlinesRequestParams represents Klines request data.
-type KlinesRequestParams struct {
-	Symbol string       // Symbol; example btcusdt, bccbtc......
-	Type   TimeInterval // Kline data time interval; 1min, 5min, 15min......
-	Size   int64        // Size; [1-2000]
-	Since  int64        // Since timestamp, return data after the specified timestamp (for example, 1417536000000)
-}
-
-// TimeInterval represents interval enum.
-type TimeInterval string
-
-// vars for time intervals
-var (
-	TimeIntervalMinute         = TimeInterval("1min")
-	TimeIntervalThreeMinutes   = TimeInterval("3min")
-	TimeIntervalFiveMinutes    = TimeInterval("5min")
-	TimeIntervalFifteenMinutes = TimeInterval("15min")
-	TimeIntervalThirtyMinutes  = TimeInterval("30min")
-	TimeIntervalHour           = TimeInterval("1hour")
-	TimeIntervalFourHours      = TimeInterval("4hour")
-	TimeIntervalSixHours       = TimeInterval("6hour")
-	TimeIntervalTwelveHours    = TimeInterval("12hour")
-	TimeIntervalDay            = TimeInterval("1day")
-	TimeIntervalThreeDays      = TimeInterval("3day")
-	TimeIntervalWeek           = TimeInterval("1week")
-)

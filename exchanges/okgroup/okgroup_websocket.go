@@ -34,30 +34,31 @@ const (
 	okGroupWsFuturesSubsection = "futures/"
 	okGroupWsSpotSubsection    = "spot/"
 	// Shared API endpoints
-	okGroupWsCandle        = "candle"
-	okGroupWsCandle60s     = okGroupWsCandle + "60s"
-	okGroupWsCandle180s    = okGroupWsCandle + "180s"
-	okGroupWsCandle300s    = okGroupWsCandle + "300s"
-	okGroupWsCandle900s    = okGroupWsCandle + "900s"
-	okGroupWsCandle1800s   = okGroupWsCandle + "1800s"
-	okGroupWsCandle3600s   = okGroupWsCandle + "3600s"
-	okGroupWsCandle7200s   = okGroupWsCandle + "7200s"
-	okGroupWsCandle14400s  = okGroupWsCandle + "14400s"
-	okGroupWsCandle21600s  = okGroupWsCandle + "21600"
-	okGroupWsCandle43200s  = okGroupWsCandle + "43200s"
-	okGroupWsCandle86400s  = okGroupWsCandle + "86400s"
-	okGroupWsCandle604900s = okGroupWsCandle + "604800s"
-	okGroupWsTicker        = "ticker"
-	okGroupWsTrade         = "trade"
-	okGroupWsDepth         = "depth"
-	okGroupWsDepth5        = "depth5"
-	okGroupWsAccount       = "account"
-	okGroupWsMarginAccount = "margin_account"
-	okGroupWsOrder         = "order"
-	okGroupWsFundingRate   = "funding_rate"
-	okGroupWsPriceRange    = "price_range"
-	okGroupWsMarkPrice     = "mark_price"
-	okGroupWsPosition      = "position"
+	okGroupWsCandle         = "candle"
+	okGroupWsCandle60s      = okGroupWsCandle + "60s"
+	okGroupWsCandle180s     = okGroupWsCandle + "180s"
+	okGroupWsCandle300s     = okGroupWsCandle + "300s"
+	okGroupWsCandle900s     = okGroupWsCandle + "900s"
+	okGroupWsCandle1800s    = okGroupWsCandle + "1800s"
+	okGroupWsCandle3600s    = okGroupWsCandle + "3600s"
+	okGroupWsCandle7200s    = okGroupWsCandle + "7200s"
+	okGroupWsCandle14400s   = okGroupWsCandle + "14400s"
+	okGroupWsCandle21600s   = okGroupWsCandle + "21600"
+	okGroupWsCandle43200s   = okGroupWsCandle + "43200s"
+	okGroupWsCandle86400s   = okGroupWsCandle + "86400s"
+	okGroupWsCandle604900s  = okGroupWsCandle + "604800s"
+	okGroupWsTicker         = "ticker"
+	okGroupWsTrade          = "trade"
+	okGroupWsDepth          = "depth"
+	okGroupWsDepth5         = "depth5"
+	okGroupWsAccount        = "account"
+	okGroupWsMarginAccount  = "margin_account"
+	okGroupWsOrder          = "order"
+	okGroupWsFundingRate    = "funding_rate"
+	okGroupWsPriceRange     = "price_range"
+	okGroupWsMarkPrice      = "mark_price"
+	okGroupWsPosition       = "position"
+	okGroupWsEstimatedPrice = "estimated_price"
 	// Spot endpoints
 	okGroupWsSpotTicker        = okGroupWsSpotSubsection + okGroupWsTicker
 	okGroupWsSpotCandle60s     = okGroupWsSpotSubsection + okGroupWsCandle60s
@@ -99,6 +100,8 @@ const (
 	okGroupWsSwapPriceRange    = okGroupWsSwapSubsection + okGroupWsPriceRange
 	okGroupWsSwapMarkPrice     = okGroupWsSwapSubsection + okGroupWsMarkPrice
 	okGroupWsSwapPosition      = okGroupWsSwapSubsection + okGroupWsPosition
+	okGroupWsSwapAccount       = okGroupWsSwapSubsection + okGroupWsAccount
+	okGroupWsSwapOrder         = okGroupWsSwapSubsection + okGroupWsOrder
 	// Index endpoints
 	okGroupWsIndexTicker        = okGroupWsIndexSubsection + okGroupWsTicker
 	okGroupWsIndexCandle60s     = okGroupWsIndexSubsection + okGroupWsCandle60s
@@ -138,10 +141,13 @@ const (
 	okGroupWsFuturesOrder          = okGroupWsFuturesSubsection + okGroupWsOrder
 )
 
+// orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var orderbookMutex sync.Mutex
-var internalOrderbook orderbook.Base
-var secretTimeStampStorage []time.Time
 
+// internalOrderbook keeps up to date with all changes and allows for faster verification
+var internalOrderbook orderbook.Base
+
+// writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -234,6 +240,7 @@ func (o *OKGroup) WsReadData() (exchange.WebsocketResponse, error) {
 	return exchange.WebsocketResponse{Raw: standardMessage}, nil
 }
 
+// wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
 func (o *OKGroup) wsPingHandler() {
 	o.Websocket.Wg.Add(1)
 	defer o.Websocket.Wg.Done()
@@ -284,7 +291,7 @@ func (o *OKGroup) WsHandleData() {
 			err = common.JSONDecode(resp.Raw, &dataResponse)
 			if err == nil && dataResponse.Table != "" {
 				if len(dataResponse.Data) > 0 {
-					o.WsHandleDataResponse(dataResponse)
+					o.WsHandleDataResponse(&dataResponse)
 				}
 				continue
 			}
@@ -349,11 +356,9 @@ func (o *OKGroup) WsUnsubscribeToChannel(topic string) error {
 func (o *OKGroup) WsLogin() error {
 	utcTime := time.Now().UTC()
 	unixTime := utcTime.Unix()
-
 	signPath := "/users/self/verify"
 	hmac := common.GetHMAC(common.HashSHA256, []byte(fmt.Sprintf("%v", unixTime)+http.MethodGet+signPath), []byte(o.APISecret))
 	base64 := common.Base64Encode(hmac)
-
 	resp := WebsocketEventRequest{
 		Operation: "login",
 		Arguments: []string{o.APIKey, o.ClientID, fmt.Sprintf("%v", unixTime), base64},
@@ -379,21 +384,41 @@ func (o *OKGroup) WsHandleErrorResponse(event WebsocketErrorResponse) {
 	o.Websocket.DataHandler <- fmt.Errorf(errorMessage)
 }
 
+// GetWsChannelWithoutOrderType takes WebsocketDataResponse.Table and returns
+// The base channel name eg receive "spot/depth5:BTC-USDT" return "depth5"
+func (o *OKGroup) GetWsChannelWithoutOrderType(table string) string {
+	index := strings.Index(table, "/")
+	if index == -1 {
+		return table
+	}
+	channel := table[index+1:]
+	index = strings.Index(channel, ":")
+	// Some events do not contain a currency
+	if index == -1 {
+		return channel
+	}
+
+	return channel[:index]
+}
+
+// GetAssetTypeFromTableName gets the asset type from the table name
+// eg "spot/ticker:BTCUSD" results in "SPOT"
+func (o *OKGroup) GetAssetTypeFromTableName(table string) string {
+	assetIndex := strings.Index(table, "/")
+	return strings.ToUpper(table[:assetIndex])
+}
+
 // WsHandleDataResponse classifies the WS response and sends to appropriate handler
-func (o *OKGroup) WsHandleDataResponse(response WebsocketDataResponse) {
-	first := response.Data[0]
-	switch {
-	case len(first.WebsocketCandleResponse.Candle) > 0:
+func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
+	switch o.GetWsChannelWithoutOrderType(response.Table) {
+	case okGroupWsCandle60s, okGroupWsCandle180s, okGroupWsCandle300s, okGroupWsCandle900s,
+		okGroupWsCandle1800s, okGroupWsCandle3600s, okGroupWsCandle7200s, okGroupWsCandle14400s,
+		okGroupWsCandle21600s, okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:
 		if o.Verbose {
 			log.Debugf("%v Websocket candle data received", o.GetName())
 		}
 		o.wsProcessCandles(response)
-	case first.WebsocketFundingFeeResponse.FundingRate > 0:
-		if o.Verbose {
-			log.Debugf("%v Websocket funding fee data received", o.GetName())
-		}
-		o.wsProcessFundingFees(response)
-	case first.WebsocketOrderBooksData.Checksum != 0:
+	case okGroupWsDepth, okGroupWsDepth5:
 		if o.Verbose {
 			log.Debugf("%v Websocket orderbook data received", o.GetName())
 		}
@@ -401,32 +426,44 @@ func (o *OKGroup) WsHandleDataResponse(response WebsocketDataResponse) {
 		orderbookMutex.Lock()
 		err := o.WsProcessOrderBook(response)
 		if err != nil {
+			log.Error(err)
 			o.WsUnsubscribeToChannel(response.Table)
 			o.WsSubscribeToChannel(response.Table)
 		}
 		orderbookMutex.Unlock()
-	case first.WebsocketTickerData.Last > 0:
+	case okGroupWsTicker:
 		if o.Verbose {
 			log.Debugf("%v Websocket ticker data received", o.GetName())
 		}
 		o.wsProcessTickers(response)
-	case first.WebsocketTradeResponse.Price > 0:
+	case okGroupWsTrade:
 		if o.Verbose {
 			log.Debugf("%v Websocket trade data received", o.GetName())
 		}
 		o.wsProcessTrades(response)
 	default:
-		log.Errorf("%v unknown Websocket data receieved. Please check subscriptions. %v", o.GetName(), response)
+		logDataResponse(response)
 	}
 }
 
-func (o *OKGroup) wsProcessTickers(data WebsocketDataResponse) {
-	for _, tickerData := range data.Data {
+func logDataResponse(response *WebsocketDataResponse) {
+	for _, data := range response.Data {
+		log.Errorf("Unhandled channel: '%v'. Instrument '%v' Timestamp '%v', Data '%v",
+			response.Table,
+			data.InstrumentID,
+			data.Timestamp,
+			data)
+	}
+}
+
+// wsProcessTickers converts ticker data and sends it to the datahandler
+func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
+	for _, tickerData := range response.Data {
 		instrument := pair.NewCurrencyPairDelimiter(tickerData.InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TickerData{
 			Timestamp:  tickerData.Timestamp,
 			Exchange:   o.GetName(),
-			AssetType:  o.GetAssetTypeFromTableName(data.Table),
+			AssetType:  o.GetAssetTypeFromTableName(response.Table),
 			HighPrice:  tickerData.High24H,
 			LowPrice:   tickerData.Low24H,
 			ClosePrice: tickerData.Last,
@@ -435,101 +472,70 @@ func (o *OKGroup) wsProcessTickers(data WebsocketDataResponse) {
 	}
 }
 
-func (o *OKGroup) wsProcessTrades(data WebsocketDataResponse) {
-	for _, trade := range data.Data {
+// wsProcessTrades converts trade data and sends it to the datahandler
+func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
+	for _, trade := range response.Data {
 		instrument := pair.NewCurrencyPairDelimiter(trade.InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TradeData{
 			Amount:       trade.Qty,
-			AssetType:    o.GetAssetTypeFromTableName(data.Table),
+			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: instrument,
 			EventTime:    time.Now().Unix(),
 			Exchange:     o.GetName(),
-			Price:        trade.Price,
+			Price:        trade.WebsocketTradeResponse.Price,
 			Side:         trade.Side,
 			Timestamp:    trade.Timestamp,
 		}
 	}
 }
 
-func (o *OKGroup) GetAssetTypeFromTableName(table string) string {
-	assetIndex := strings.IndexAny(table, "/")
-	return strings.ToUpper(table[:assetIndex])
-}
-
-func (o *OKGroup) wsProcessCandles(data WebsocketDataResponse) {
-	for _, candle := range data.Data {
+// wsProcessCandles converts candle data and sends it to the data handler
+func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
+	for _, candle := range response.Data {
 		instrument := pair.NewCurrencyPairDelimiter(candle.InstrumentID, "-")
-		timeData, err := time.Parse(time.RFC3339Nano, candle.Candle[0])
+		timeData, err := time.Parse(time.RFC3339Nano, candle.WebsocketCandleResponse.Candle[0])
 		if err != nil {
 			log.Warnf("%v Time data could not be parsed: %v", o.GetName(), candle.Candle[0])
 		}
-		candleIndex := strings.LastIndex(data.Table, okGroupWsCandle)
-		secondIndex := strings.LastIndex(data.Table, "0s")
+
+		candleIndex := strings.LastIndex(response.Table, okGroupWsCandle)
+		secondIndex := strings.LastIndex(response.Table, "0s")
 		candleInterval := ""
 		if candleIndex > 0 || secondIndex > 0 {
-			candleInterval = data.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
+			candleInterval = response.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
 		}
 
 		klineData := exchange.KlineData{
-			AssetType: o.GetAssetTypeFromTableName(data.Table),
+			AssetType: o.GetAssetTypeFromTableName(response.Table),
 			Pair:      instrument,
 			Exchange:  o.GetName(),
 			Timestamp: timeData,
 			Interval:  candleInterval,
 		}
-		klineData.OpenPrice, err = strconv.ParseFloat(candle.Candle[1], 64)
-		if err != nil {
-			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candle.Candle[1])
-		}
-		klineData.HighPrice, err = strconv.ParseFloat(candle.Candle[2], 64)
-		if err != nil {
-			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candle.Candle[2])
-		}
-		klineData.LowPrice, err = strconv.ParseFloat(candle.Candle[3], 64)
-		if err != nil {
-			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candle.Candle[3])
-		}
-		klineData.ClosePrice, err = strconv.ParseFloat(candle.Candle[4], 64)
-		if err != nil {
-			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candle.Candle[4])
-		}
-		klineData.Volume, err = strconv.ParseFloat(candle.Candle[5], 64)
-		if err != nil {
-			log.Warnf("%v Candle data could not be parsed: %v", o.GetName(), candle.Candle[5])
-		}
+		klineData.OpenPrice, _ = strconv.ParseFloat(candle.Candle[1], 64)
+		klineData.HighPrice, _ = strconv.ParseFloat(candle.Candle[2], 64)
+		klineData.LowPrice, _ = strconv.ParseFloat(candle.Candle[3], 64)
+		klineData.ClosePrice, _ = strconv.ParseFloat(candle.Candle[4], 64)
+		klineData.Volume, _ = strconv.ParseFloat(candle.Candle[5], 64)
 
 		o.Websocket.DataHandler <- klineData
 	}
 }
 
-// wsProcessFundingFees handles websocket funding fees
-// There is currently no handler for this type of information
-func (o *OKGroup) wsProcessFundingFees(data WebsocketDataResponse) {
-	// This is not supported yet
-	for _, fundingFee := range data.Data {
-		if o.Verbose {
-			log.Infof("funding fee for currency %v rate %v, interest rate %v, time %v",
-				fundingFee.InstrumentID,
-				fundingFee.WebsocketFundingFeeResponse.FundingRate,
-				fundingFee.WebsocketFundingFeeResponse.InterestRate,
-				fundingFee.WebsocketFundingFeeResponse.FundingTime)
-		}
-	}
-}
-
 // WsProcessOrderBook Validates the checksum and updates internal orderbook values
-func (o *OKGroup) WsProcessOrderBook(wsEvent WebsocketDataResponse) (err error) {
-	for i := range wsEvent.Data {
-		instrument := pair.NewCurrencyPairDelimiter(wsEvent.Data[i].InstrumentID, "-")
-		if wsEvent.Action == okGroupWsOrderbookPartial {
-			err = o.WsProcessPartialOrderBook(wsEvent.Data[i], instrument, wsEvent.Table)
-		} else if wsEvent.Action == okGroupWsOrderbookUpdate {
-			err = o.WsProcessUpdateOrderbook(wsEvent.Data[i], instrument, wsEvent.Table)
+func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) (err error) {
+	for i := range response.Data {
+		instrument := pair.NewCurrencyPairDelimiter(response.Data[i].InstrumentID, "-")
+		if response.Action == okGroupWsOrderbookPartial {
+			err = o.WsProcessPartialOrderBook(&response.Data[i], instrument, response.Table)
+		} else if response.Action == okGroupWsOrderbookUpdate {
+			err = o.WsProcessUpdateOrderbook(&response.Data[i], instrument, response.Table)
 		}
 	}
 	return
 }
 
+// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
 func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) (orderbookItems []orderbook.Item) {
 	for j := range entries {
 		amount, _ := strconv.ParseFloat(entries[j][1].(string), 64)
@@ -542,24 +548,9 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) (orderbookItem
 	return
 }
 
-// WsValidateOrderBookChecksum ensures that checksum matches and handles subscription status
-func (o *OKGroup) WsValidateOrderBookChecksum(wsEvent WebsocketDataResponse) bool {
-	for i := range wsEvent.Data {
-		signedChecksum := o.CalculatePartialOrderbookChecksum(wsEvent.Data[i])
-		if signedChecksum != wsEvent.Data[i].Checksum {
-			log.Errorf("orderbook checksum does not match")
-			return false
-		}
-	}
-	if o.Verbose {
-		log.Debug("Passed checksum!")
-	}
-	return true
-}
-
 // WsProcessPartialOrderBook takes websocket orderbook data and creates an orderbook
 // Calculates checksum to ensure it is valid
-func (o *OKGroup) WsProcessPartialOrderBook(wsEventData WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
+func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
 	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
 	if signedChecksum != wsEventData.Checksum {
 		return errors.New("checksum not valid")
@@ -592,7 +583,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData WebsocketDataWrapper, in
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing orderbook
-func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
+func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
 	var err error
 	if internalOrderbook.LastUpdated.IsZero() {
 		internalOrderbook, err = o.GetOrderbookEx(instrument, o.GetAssetTypeFromTableName(tableName))
@@ -647,61 +638,37 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData WebsocketDataWrapper, ins
 
 // WsUpdateOrderbookEntry takes WS bid or ask data and merges it with existing orderbook bid or ask data
 func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}, existingOrderbookEntries []orderbook.Item) []orderbook.Item {
-	var newRange []orderbook.Item
-	for k := range existingOrderbookEntries {
-		matched := false
-		for j := range wsEntries {
-			wsEntryPrice, _ := strconv.ParseFloat(wsEntries[j][0].(string), 64)
-			wsEntryAmount, _ := strconv.ParseFloat(wsEntries[j][1].(string), 64)
-			// Check if it exists in both, update if necessary, then quit
+	for j := range wsEntries {
+		wsEntryPrice, _ := strconv.ParseFloat(wsEntries[j][0].(string), 64)
+		wsEntryAmount, _ := strconv.ParseFloat(wsEntries[j][1].(string), 64)
+		matchFound := false
+		for k := 0; k < len(existingOrderbookEntries); k++ {
 			if existingOrderbookEntries[k].Price == wsEntryPrice {
-				matched = true
+				matchFound = true
 				if wsEntryAmount == 0 {
-					if o.Verbose {
-						log.Debugf("Removing price entry %v from orderbook", wsEntryPrice)
-					}
+					existingOrderbookEntries = append(existingOrderbookEntries[:k], existingOrderbookEntries[k+1:]...)
+					k--
 					continue
 				}
-				newRange = append(newRange, orderbook.Item{
-					Amount: wsEntryAmount,
-					Price:  wsEntryPrice,
-				})
+				existingOrderbookEntries[k].Amount = wsEntryAmount
 				continue
 			}
 		}
-		if !matched {
-			newRange = append(newRange, existingOrderbookEntries[k])
+		if !matchFound {
+			existingOrderbookEntries = append(existingOrderbookEntries, orderbook.Item{
+				Amount: wsEntryAmount,
+				Price:  wsEntryPrice,
+			})
 		}
 	}
-	for j := range wsEntries {
-		isWsEntryInExistingOrderBook := false
-		wsEntryPrice, _ := strconv.ParseFloat(wsEntries[j][0].(string), 64)
-		wsEntryAmount, _ := strconv.ParseFloat(wsEntries[j][1].(string), 64)
-		for k := range newRange {
-			if newRange[k].Price == wsEntryPrice {
-				isWsEntryInExistingOrderBook = true
-			}
-		}
-		if !isWsEntryInExistingOrderBook {
-			if wsEntryAmount != 0 {
-				if o.Verbose {
-					log.Debugf("Adding new price entry %v to orderbook", wsEntryPrice)
-				}
-				newRange = append(newRange, orderbook.Item{
-					Amount: wsEntryAmount,
-					Price:  wsEntryPrice,
-				})
-			}
-		}
-	}
-	return newRange
+	return existingOrderbookEntries
 }
 
 // CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data
 // The checksum is made up of the price and the quantity with a semicolon (:) deliminating them
 // This will also work when there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData WebsocketDataWrapper) int32 {
+func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketDataWrapper) int32 {
 	var checksum string
 	iterations := 25
 	for i := 0; i < iterations; i++ {
