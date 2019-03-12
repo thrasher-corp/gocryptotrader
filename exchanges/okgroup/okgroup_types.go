@@ -1409,9 +1409,9 @@ type WebsocketUserSwapFutureAccountResponse struct {
 	MarginRatio   float64 `json:"margin_ratio,string,omitempty"`
 	RealizedPnl   float64 `json:"realized_pnl,string,omitempty"`
 	UnrealizedPnl float64 `json:"unrealized_pnl,string,omitempty"`
-	// MarginMode       A member, but part already exists as part of WebsocketDataResponse
-	//TotalAvailBalance A member, but part already exists as part of WebsocketDataResponse
-	// Margin           A member, but part already exists as part of WebsocketDataResponse
+	// MarginMode        A member, but part already exists as part of WebsocketDataResponse
+	// TotalAvailBalance A member, but part already exists as part of WebsocketDataResponse
+	// Margin            A member, but part already exists as part of WebsocketDataResponse
 }
 
 // WebsocketUserSpotAccountResponse contains formatted data for user account data

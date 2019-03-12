@@ -597,17 +597,14 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		}
 		return errors.New("updated orderbook is older than existing")
 	}
-	//Update orderbook entries with new data
 	internalOrderbook.Asks = o.WsUpdateOrderbookEntry(wsEventData.Asks, internalOrderbook.Asks)
 	internalOrderbook.Bids = o.WsUpdateOrderbookEntry(wsEventData.Bids, internalOrderbook.Bids)
-	//Validate all the checksums:
 	sort.Slice(internalOrderbook.Asks, func(i, j int) bool {
 		return internalOrderbook.Asks[i].Price < internalOrderbook.Asks[j].Price
 	})
 	sort.Slice(internalOrderbook.Bids, func(i, j int) bool {
 		return internalOrderbook.Bids[i].Price > internalOrderbook.Bids[j].Price
 	})
-	// Calculating checksum on sorted orderbook data
 	checksum := o.CalculateUpdateOrderbookChecksum(internalOrderbook)
 	if checksum == wsEventData.Checksum {
 		if o.Verbose {

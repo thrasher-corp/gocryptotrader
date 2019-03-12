@@ -455,7 +455,7 @@ func TestGetSpotOpenOrders(t *testing.T) {
 func TestGetSpotOrder(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
-		OrderID:      -1234,
+		OrderID:      "-1234",
 		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
 	}
 	_, err := o.GetSpotOrder(request)
@@ -779,7 +779,7 @@ func TestGetMarginOpenOrders(t *testing.T) {
 func TestGetMarginOrder(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
-		OrderID:      1234,
+		OrderID:      "1234",
 		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
 	}
 	_, err := o.GetMarginOrder(request)
@@ -893,7 +893,7 @@ func TestPlaceFuturesOrderBatch(t *testing.T) {
 		InstrumentID: getFutureInstrumentID(),
 		Leverage:     10,
 		OrdersData: []okgroup.PlaceFuturesOrderBatchRequestDetails{
-			okgroup.PlaceFuturesOrderBatchRequestDetails{
+			{
 				ClientOid:  "1",
 				MatchPrice: "0",
 				Price:      "100",
@@ -1155,13 +1155,13 @@ func TestPlaceMultipleSwapOrders(t *testing.T) {
 		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
 		Leverage:     10,
 		OrdersData: []okgroup.PlaceMultipleSwapOrderData{
-			okgroup.PlaceMultipleSwapOrderData{
+			{
 				ClientOID:  "hello",
 				MatchPrice: "0",
 				Price:      "10",
 				Size:       "1",
 				Type:       "1",
-			}, okgroup.PlaceMultipleSwapOrderData{
+			}, {
 				ClientOID:  "hello2",
 				MatchPrice: "0",
 				Price:      "10",
@@ -1482,7 +1482,7 @@ func TestWsLogin(t *testing.T) {
 	}
 }
 
-//TestGetAssetTypeFromTableName logic test
+// TestGetAssetTypeFromTableName logic test
 func TestGetAssetTypeFromTableName(t *testing.T) {
 	str := "spot/candle300s:BTC-USDT"
 	spot := o.GetAssetTypeFromTableName(str)
@@ -1491,7 +1491,7 @@ func TestGetAssetTypeFromTableName(t *testing.T) {
 	}
 }
 
-//TestGetWsChannelWithoutOrderType logic test
+// TestGetWsChannelWithoutOrderType logic test
 func TestGetWsChannelWithoutOrderType(t *testing.T) {
 	TestSetDefaults(t)
 	str := "spot/depth5:BTC-USDT"
