@@ -144,15 +144,12 @@ const (
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var orderbookMutex sync.Mutex
 
-// internalOrderbook keeps up to date with all changes and allows for faster verification
-var internalOrderbook orderbook.Base
-
 // writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.Verbose {
-		log.Printf("Sending message to WS: %v", message)
+		log.Debugf("Sending message to WS: %v", message)
 	}
 	return o.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
 }
@@ -175,7 +172,9 @@ func (o *OKGroup) WsConnect() error {
 	}
 
 	var err error
-	log.Printf("Attempting to connect to %v", o.Websocket.GetWebsocketURL())
+	if o.Verbose {
+		log.Debugf("Attempting to connect to %v", o.Websocket.GetWebsocketURL())
+	}
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
 	if err != nil {
@@ -183,7 +182,9 @@ func (o *OKGroup) WsConnect() error {
 			o.Name,
 			err)
 	}
-	log.Printf("Successful connection to %v", o.Websocket.GetWebsocketURL())
+	if o.Verbose {
+		log.Debugf("Successful connection to %v", o.Websocket.GetWebsocketURL())
+	}
 
 	go o.WsHandleData()
 	go o.wsPingHandler()
@@ -427,8 +428,9 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		err := o.WsProcessOrderBook(response)
 		if err != nil {
 			log.Error(err)
-			o.WsUnsubscribeToChannel(response.Table)
-			o.WsSubscribeToChannel(response.Table)
+			subscriptionChannel := fmt.Sprintf("%v:%v", response.Table, response.Data[0].InstrumentID)
+			o.WsUnsubscribeToChannel(subscriptionChannel)
+			o.WsSubscribeToChannel(subscriptionChannel)
 		}
 		orderbookMutex.Unlock()
 	case okGroupWsTicker:
@@ -553,7 +555,7 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) (orderbookItem
 func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
 	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
 	if signedChecksum != wsEventData.Checksum {
-		return errors.New("checksum not valid")
+		return fmt.Errorf("channel: %v. Orderbook partial for %v checksum invalid", tableName, instrument)
 	}
 	if o.Verbose {
 		log.Debug("Passed checksum!")
@@ -584,16 +586,13 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
-	var err error
-	if internalOrderbook.LastUpdated.IsZero() {
-		internalOrderbook, err = o.GetOrderbookEx(instrument, o.GetAssetTypeFromTableName(tableName))
-		if err != nil {
-			return errors.New("orderbook nil, could not load existing orderbook")
-		}
+	internalOrderbook, err := o.GetOrderbookEx(instrument, o.GetAssetTypeFromTableName(tableName))
+	if err != nil {
+		return errors.New("orderbook nil, could not load existing orderbook")
 	}
 	if internalOrderbook.LastUpdated.After(wsEventData.Timestamp) {
 		if o.Verbose {
-			log.Errorf("existing: %v, Attempted: %v", internalOrderbook.LastUpdated.Unix(), wsEventData.Timestamp.Unix())
+			log.Errorf("Orderbook update out of order. Existing: %v, Attempted: %v", internalOrderbook.LastUpdated.Unix(), wsEventData.Timestamp.Unix())
 		}
 		return errors.New("updated orderbook is older than existing")
 	}
@@ -628,7 +627,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		if o.Verbose {
 			log.Debug("Orderbook invalid")
 		}
-		return errors.New("orderbook update checksum invalid")
+		return fmt.Errorf("channel: %v. Orderbook update for %v checksum invalid. Received %v Calculated %v", tableName, instrument, wsEventData.Checksum, checksum)
 	}
 	return nil
 }
@@ -640,18 +639,26 @@ func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}, existingOrde
 		wsEntryAmount, _ := strconv.ParseFloat(wsEntries[j][1].(string), 64)
 		matchFound := false
 		for k := 0; k < len(existingOrderbookEntries); k++ {
-			if existingOrderbookEntries[k].Price == wsEntryPrice {
-				matchFound = true
-				if wsEntryAmount == 0 {
-					existingOrderbookEntries = append(existingOrderbookEntries[:k], existingOrderbookEntries[k+1:]...)
-					k--
-					continue
-				}
-				existingOrderbookEntries[k].Amount = wsEntryAmount
+			if existingOrderbookEntries[k].Price != wsEntryPrice {
 				continue
 			}
+			matchFound = true
+			if wsEntryAmount == 0 {
+				if o.Verbose {
+					log.Debugf("Removing entry %v", existingOrderbookEntries[k].Price)
+				}
+				existingOrderbookEntries = append(existingOrderbookEntries[:k], existingOrderbookEntries[k+1:]...)
+				k--
+				continue
+			}
+			existingOrderbookEntries[k].Amount = wsEntryAmount
+			log.Debugf("Updating entry %v", wsEntryPrice)
+			continue
 		}
 		if !matchFound {
+			if o.Verbose {
+				log.Debugf("Adding entry %v", wsEntryPrice)
+			}
 			existingOrderbookEntries = append(existingOrderbookEntries, orderbook.Item{
 				Amount: wsEntryAmount,
 				Price:  wsEntryPrice,
@@ -699,10 +706,14 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData orderbook.Base)
 		bidsMessage := ""
 		askMessage := ""
 		if len(orderbookData.Bids)-1 >= i {
-			bidsMessage = fmt.Sprintf("%v:%v:", orderbookData.Bids[i].Price, orderbookData.Bids[i].Amount)
+			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
+			bidsMessage = fmt.Sprintf("%v:%v:", price, amount)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			askMessage = fmt.Sprintf("%v:%v:", orderbookData.Asks[i].Price, orderbookData.Asks[i].Amount)
+			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
+			askMessage = fmt.Sprintf("%v:%v:", price, amount)
 		}
 		if checksum == "" {
 			checksum = fmt.Sprintf("%v%v", bidsMessage, askMessage)
@@ -711,5 +722,6 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData orderbook.Base)
 		}
 	}
 	checksum = strings.TrimSuffix(checksum, ":")
+	log.Debug(checksum)
 	return int32(crc32.ChecksumIEEE([]byte(checksum)))
 }

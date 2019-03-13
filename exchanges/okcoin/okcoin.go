@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	okCoinAuthRate     = 0
-	okCoinUnauthRate   = 0
+	okCoinAuthRate     = 600
+	okCoinUnauthRate   = 600
 	okCoinAPIPath      = "api/"
 	okCoinAPIURL       = "https://www.okcoin.com/" + okCoinAPIPath
 	okCoinAPIVersion   = "/v3/"

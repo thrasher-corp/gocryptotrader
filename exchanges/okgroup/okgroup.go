@@ -158,7 +158,7 @@ func (o *OKGroup) GetAccountCurrencies() (resp []GetAccountCurrenciesResponse, _
 // GetAccountWalletInformation returns a list of wallets and their properties
 func (o *OKGroup) GetAccountWalletInformation(currency string) (resp []WalletInformationResponse, _ error) {
 	var requestURL string
-	if len(currency) > 0 {
+	if currency != "" {
 		requestURL = fmt.Sprintf("%v/%v", okGroupGetAccountWalletInformation, currency)
 	} else {
 		requestURL = okGroupGetAccountWalletInformation
@@ -180,7 +180,7 @@ func (o *OKGroup) AccountWithdraw(request AccountWithdrawRequest) (resp AccountW
 // GetAccountWithdrawalFee retrieves the information about the recommended network transaction fee for withdrawals to digital asset addresses. The higher the fees are, the sooner the confirmations you will get.
 func (o *OKGroup) GetAccountWithdrawalFee(currency string) (resp []GetAccountWithdrawalFeeResponse, _ error) {
 	var requestURL string
-	if len(currency) > 0 {
+	if currency != "" {
 		requestURL = fmt.Sprintf("%v?currency=%v", okGroupGetWithdrawalFees, currency)
 	} else {
 		requestURL = okGroupGetAccountWalletInformation
@@ -192,7 +192,7 @@ func (o *OKGroup) GetAccountWithdrawalFee(currency string) (resp []GetAccountWit
 // GetAccountWithdrawalHistory retrieves all recent withdrawal records.
 func (o *OKGroup) GetAccountWithdrawalHistory(currency string) (resp []WithdrawalHistoryResponse, _ error) {
 	var requestURL string
-	if len(currency) > 0 {
+	if currency != "" {
 		requestURL = fmt.Sprintf("%v/%v", okGroupGetWithdrawalHistory, currency)
 	} else {
 		requestURL = okGroupGetWithdrawalHistory
@@ -219,7 +219,7 @@ func (o *OKGroup) GetAccountDepositAddressForCurrency(currency string) (resp []G
 // GetAccountDepositHistory retrieves the deposit history of all tokens.100 recent records will be returned at maximum
 func (o *OKGroup) GetAccountDepositHistory(currency string) (resp []GetAccountDepositHistoryResponse, _ error) {
 	var requestURL string
-	if len(currency) > 0 {
+	if currency != "" {
 		requestURL = fmt.Sprintf("%v/%v", OKGroupGetAccountDepositHistory, currency)
 	} else {
 		requestURL = okGroupGetWithdrawalHistory
@@ -413,7 +413,7 @@ func (o *OKGroup) GetMarginBillDetails(request GetMarginBillDetailsRequest) (res
 // including the maximum loan amount, interest rate, and maximum leverage.
 func (o *OKGroup) GetMarginAccountSettings(currency string) (resp []GetMarginAccountSettingsResponse, _ error) {
 	var requestURL string
-	if len(currency) > 0 {
+	if currency != "" {
 		requestURL = fmt.Sprintf("%v/%v/%v", OKGroupAccounts, currency, okGroupGetMarketAvailability)
 	} else {
 		requestURL = fmt.Sprintf("%v/%v", OKGroupAccounts, okGroupGetMarketAvailability)
