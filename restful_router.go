@@ -7,6 +7,8 @@ import (
 
 	"github.com/gorilla/mux"
 	log "github.com/thrasher-/gocryptotrader/logger"
+
+	_ "net/http/pprof"
 )
 
 // RESTLogger logs the requests internally
@@ -114,6 +116,12 @@ func NewRouter() *mux.Router {
 			Name(route.Name).
 			Handler(RESTLogger(route.HandlerFunc, route.Name))
 	}
+
+	if bot.config.Profiler.Enabled {
+		log.Debugln("Profiler enabled")
+		router.PathPrefix("/debug").Handler(http.DefaultServeMux)
+	}
+
 	return router
 }
 
