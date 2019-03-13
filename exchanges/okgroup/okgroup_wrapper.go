@@ -104,13 +104,13 @@ func (o *OKGroup) UpdateOrderbook(p pair.CurrencyPair, assetType string) (resp o
 	}
 
 	for x := range orderbookNew.Bids {
-		amount, err := strconv.ParseFloat(orderbookNew.Bids[x][2], 64)
+		amount, err := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if err != nil {
-			log.Errorf("Could not convert %v to float64", orderbookNew.Bids[x][2])
+			log.Errorf("Could not convert %v to float64", orderbookNew.Bids[x][1])
 		}
-		price, err := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
+		price, err := strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
 		if err != nil {
-			log.Errorf("Could not convert %v to float64", orderbookNew.Bids[x][2])
+			log.Errorf("Could not convert %v to float64", orderbookNew.Bids[x][0])
 		}
 		resp.Bids = append(resp.Bids, orderbook.Item{
 			Amount: amount,
@@ -119,13 +119,13 @@ func (o *OKGroup) UpdateOrderbook(p pair.CurrencyPair, assetType string) (resp o
 	}
 
 	for x := range orderbookNew.Asks {
-		amount, err := strconv.ParseFloat(orderbookNew.Asks[x][2], 64)
+		amount, err := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if err != nil {
-			log.Errorf("Could not convert %v to float64", orderbookNew.Asks[x][2])
+			log.Errorf("Could not convert %v to float64", orderbookNew.Asks[x][1])
 		}
 		price, err := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
 		if err != nil {
-			log.Errorf("Could not convert %v to float64", orderbookNew.Asks[x][2])
+			log.Errorf("Could not convert %v to float64", orderbookNew.Asks[x][0])
 		}
 		resp.Asks = append(resp.Asks, orderbook.Item{
 			Amount: amount,

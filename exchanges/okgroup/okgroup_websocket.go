@@ -644,21 +644,14 @@ func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}, existingOrde
 			}
 			matchFound = true
 			if wsEntryAmount == 0 {
-				if o.Verbose {
-					log.Debugf("Removing entry %v", existingOrderbookEntries[k].Price)
-				}
 				existingOrderbookEntries = append(existingOrderbookEntries[:k], existingOrderbookEntries[k+1:]...)
 				k--
 				continue
 			}
 			existingOrderbookEntries[k].Amount = wsEntryAmount
-			log.Debugf("Updating entry %v", wsEntryPrice)
 			continue
 		}
 		if !matchFound {
-			if o.Verbose {
-				log.Debugf("Adding entry %v", wsEntryPrice)
-			}
 			existingOrderbookEntries = append(existingOrderbookEntries, orderbook.Item{
 				Amount: wsEntryAmount,
 				Price:  wsEntryPrice,
@@ -722,6 +715,5 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData orderbook.Base)
 		}
 	}
 	checksum = strings.TrimSuffix(checksum, ":")
-	log.Debug(checksum)
 	return int32(crc32.ChecksumIEEE([]byte(checksum)))
 }
