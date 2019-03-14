@@ -366,7 +366,7 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := b.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
@@ -389,7 +389,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
 	}
@@ -405,7 +405,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
 	}

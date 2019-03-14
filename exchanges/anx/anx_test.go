@@ -380,7 +380,7 @@ func TestWithdraw(t *testing.T) {
 		AddressTag:  "0123456789",
 	}
 
-	_, err := a.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -398,7 +398,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := a.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := a.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -414,7 +414,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := a.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := a.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}

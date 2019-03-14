@@ -847,7 +847,7 @@ func TestWithdraw(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	_, err := b.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -880,7 +880,7 @@ func TestWithdrawFiat(t *testing.T) {
 		IsExpressWire:            false,
 	}
 
-	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -919,7 +919,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		IntermediarySwiftCode:         "Taylor",
 	}
 
-	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}

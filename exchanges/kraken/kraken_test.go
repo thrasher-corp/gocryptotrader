@@ -484,7 +484,7 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := k.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := k.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -509,7 +509,7 @@ func TestWithdrawFiat(t *testing.T) {
 		TradePassword: "someBank",
 	}
 
-	_, err := k.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := k.WithdrawFiatFunds(&withdrawFiatRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -534,7 +534,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		TradePassword: "someBank",
 	}
 
-	_, err := k.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := k.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}

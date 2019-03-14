@@ -393,7 +393,7 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := i.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := i.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected 'Not supported', received %v", err)
 	}
@@ -409,7 +409,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := i.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := i.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -425,7 +425,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := i.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := i.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}

@@ -810,7 +810,7 @@ func TestUpdateCurrencies(t *testing.T) {
 	}
 }
 
-func TestAPIURL(t *testing.T) {
+func TestSetAPIURL(t *testing.T) {
 	testURL := "https://api.something.com"
 	testURLSecondary := "https://api.somethingelse.com"
 	testURLDefault := "https://api.defaultsomething.com"

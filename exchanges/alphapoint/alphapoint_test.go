@@ -637,7 +637,7 @@ func TestWithdraw(t *testing.T) {
 		AddressTag:  "0123456789",
 	}
 
-	_, err := a.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not implemented', received %v", err)
 	}
@@ -653,7 +653,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := a.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := a.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
 	}
@@ -669,7 +669,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := a.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := a.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
 	}

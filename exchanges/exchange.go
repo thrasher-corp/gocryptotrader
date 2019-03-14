@@ -325,9 +325,9 @@ type IBotExchange interface {
 	GetOrderHistory(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
 	GetActiveOrders(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
 
-	WithdrawCryptocurrencyFunds(withdrawRequest WithdrawRequest) (string, error)
-	WithdrawFiatFunds(withdrawRequest WithdrawRequest) (string, error)
-	WithdrawFiatFundsToInternationalBank(withdrawRequest WithdrawRequest) (string, error)
+	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
+	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
+	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
 
 	GetWebsocket() (*Websocket, error)
 }

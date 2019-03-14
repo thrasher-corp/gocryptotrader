@@ -226,7 +226,7 @@ func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	if withdrawRequest.Currency.String() != symbol.BTC {
 		return "", errors.New("only BTC is supported for withdrawals")
 	}
@@ -241,13 +241,13 @@ func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LakeBTC) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (l *LakeBTC) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
