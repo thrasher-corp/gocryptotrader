@@ -102,7 +102,7 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = a.SetAPIURL(exch)
+		err = a.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

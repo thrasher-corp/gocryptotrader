@@ -114,7 +114,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = k.SetAPIURL(exch)
+		err = k.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

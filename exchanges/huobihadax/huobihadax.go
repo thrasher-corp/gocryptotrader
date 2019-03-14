@@ -122,7 +122,7 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.SetAPIURL(exch)
+		err = h.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

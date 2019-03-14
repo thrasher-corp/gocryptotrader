@@ -95,7 +95,7 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = i.SetAPIURL(exch)
+		err = i.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -108,7 +108,7 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.SetAPIURL(exch)
+		err = g.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

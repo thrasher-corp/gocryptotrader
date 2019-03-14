@@ -105,7 +105,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = y.SetAPIURL(exch)
+		err = y.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

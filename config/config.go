@@ -1304,7 +1304,7 @@ func (c *Config) LoadConfig(configPath string) error {
 }
 
 // UpdateConfig updates the config with a supplied config file
-func (c *Config) UpdateConfig(configPath string, newCfg Config) error {
+func (c *Config) UpdateConfig(configPath string, newCfg *Config) error {
 	err := newCfg.CheckConfig()
 	if err != nil {
 		return err

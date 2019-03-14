@@ -158,7 +158,7 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = o.SetAPIURL(exch)
+		err = o.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -103,7 +103,7 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = e.SetAPIURL(exch)
+		err = e.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

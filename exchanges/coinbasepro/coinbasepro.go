@@ -122,7 +122,7 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = c.SetAPIURL(exch)
+		err = c.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

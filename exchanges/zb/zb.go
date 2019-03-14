@@ -109,7 +109,7 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = z.SetAPIURL(exch)
+		err = z.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

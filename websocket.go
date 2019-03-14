@@ -349,7 +349,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	err = bot.config.UpdateConfig(bot.configFile, cfg)
+	err = bot.config.UpdateConfig(bot.configFile, &cfg)
 	if err != nil {
 		wsResp.Error = err.Error()
 		client.SendWebsocketMessage(wsResp)

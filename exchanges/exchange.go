@@ -858,7 +858,7 @@ func (o OrderSide) ToString() string {
 }
 
 // SetAPIURL sets configuration API URL for an exchange
-func (e *Base) SetAPIURL(ec config.ExchangeConfig) error {
+func (e *Base) SetAPIURL(ec *config.ExchangeConfig) error {
 	if ec.APIURL == "" || ec.APIURLSecondary == "" {
 		return errors.New("empty config API URLs")
 	}

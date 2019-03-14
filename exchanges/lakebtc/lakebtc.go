@@ -95,7 +95,7 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = l.SetAPIURL(exch)
+		err = l.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

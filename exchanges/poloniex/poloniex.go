@@ -116,7 +116,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.SetAPIURL(exch)
+		err = p.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}

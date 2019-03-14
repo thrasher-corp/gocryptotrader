@@ -820,7 +820,7 @@ func TestAPIURL(t *testing.T) {
 
 	test := config.ExchangeConfig{}
 
-	err := tester.SetAPIURL(test)
+	err := tester.SetAPIURL(&test)
 	if err == nil {
 		t.Error("test failed - setting zero value config")
 	}
@@ -831,7 +831,7 @@ func TestAPIURL(t *testing.T) {
 	tester.APIUrlDefault = testURLDefault
 	tester.APIUrlSecondaryDefault = testURLSecondaryDefault
 
-	err = tester.SetAPIURL(test)
+	err = tester.SetAPIURL(&test)
 	if err != nil {
 		t.Error("test failed", err)
 	}

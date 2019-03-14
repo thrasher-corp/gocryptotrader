@@ -75,7 +75,7 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save change the settings
-	err = bot.config.UpdateConfig(bot.configFile, responseData.Data)
+	err = bot.config.UpdateConfig(bot.configFile, &responseData.Data)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
