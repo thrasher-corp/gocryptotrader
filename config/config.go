@@ -104,6 +104,7 @@ type Config struct {
 	EncryptConfig     int                  `json:"encryptConfig"`
 	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
 	Logging           log.Logging          `json:"logging"`
+	Profiler          ProfilerConfig       `json:"profiler"`
 	Currency          CurrencyConfig       `json:"currencyConfig"`
 	Communications    CommunicationsConfig `json:"communications"`
 	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
@@ -116,6 +117,10 @@ type Config struct {
 	FiatDisplayCurrency string                    `json:"fiatDispayCurrency,omitempty"`
 	Cryptocurrencies    string                    `json:"cryptocurrencies,omitempty"`
 	SMS                 *SMSGlobalConfig          `json:"smsGlobal,omitempty"`
+}
+
+type ProfilerConfig struct {
+	Enabled bool `json:"enabled"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.

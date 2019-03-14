@@ -2,6 +2,8 @@ LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-/gocryptotrader
 LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.15.0
 LINTBIN = $(GOPATH)/bin/golangci-lint
+GCTLISTENPORT=9050
+GCTPROFILERLISTENPORT=8085
 
 get:
 	GO111MODULE=on go get $(GCTPKG)
@@ -30,3 +32,11 @@ update_deps:
 	GO111MODULE=on go mod tidy
 	rm -rf vendor
 	GO111MODULE=on go mod vendor
+
+.PHONY: profile_heap
+profile_heap:
+	go tool pprof -http "localhost:$(GCTPROFILERLISTENPORT)" 'http://localhost:$(GCTLISTENPORT)/debug/pprof/heap'
+	
+.PHONY: profile_cpu
+profile_cpu:
+	go tool pprof -http "localhost:$(GCTPROFILERLISTENPORT)" 'http://localhost:$(GCTLISTENPORT)/debug/pprof/profile'

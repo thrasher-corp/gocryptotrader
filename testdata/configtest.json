@@ -9,6 +9,9 @@
   "level": "DEBUG|WARN|INFO|ERROR|FATAL",
   "rotate": true
  },
+ "profiler": {
+    "enabled": false
+   },
  "currencyConfig": {
   "forexProviders": [
    {
