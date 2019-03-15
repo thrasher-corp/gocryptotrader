@@ -827,12 +827,8 @@ func TestWsLogin(t *testing.T) {
 	var errorReceived bool
 	for i := 0; i < 5; i++ {
 		response := <-o.Websocket.DataHandler
-		switch response.(type) {
-		case error:
-			{
-				t.Error(response)
-				errorReceived = true
-			}
+		if err, ok := response.(error); ok && err != nil {
+			errorReceived = true
 		}
 	}
 	if errorReceived {
@@ -854,13 +850,10 @@ func TestSubscribeToChannel(t *testing.T) {
 	var errorReceived bool
 	for i := 0; i < 5; i++ {
 		response := <-o.Websocket.DataHandler
-		switch response.(type) {
-		case error:
-			{
-				t.Log(response)
-				if strings.Contains(response.(error).Error(), channelName) {
-					errorReceived = true
-				}
+		if err, ok := response.(error); ok && err != nil {
+			t.Log(response)
+			if strings.Contains(response.(error).Error(), channelName) {
+				errorReceived = true
 			}
 		}
 	}
@@ -884,12 +877,10 @@ func TestSubscribeToNonExistantChannel(t *testing.T) {
 	var errorReceived bool
 	for i := 0; i < 5; i++ {
 		response := <-o.Websocket.DataHandler
-		switch response.(type) {
-		case error:
-			{
-				if strings.Contains(response.(error).Error(), channelName) {
-					errorReceived = true
-				}
+		if err, ok := response.(error); ok && err != nil {
+			t.Log(response)
+			if strings.Contains(response.(error).Error(), channelName) {
+				errorReceived = true
 			}
 		}
 	}

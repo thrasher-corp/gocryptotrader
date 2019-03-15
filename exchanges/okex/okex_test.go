@@ -1489,12 +1489,9 @@ func TestWsLogin(t *testing.T) {
 	var errorReceived bool
 	for i := 0; i < 5; i++ {
 		response := <-o.Websocket.DataHandler
-		switch response.(type) {
-		case error:
-			{
-				t.Error(response)
-				errorReceived = true
-			}
+		if err, ok := response.(error); ok && err != nil {
+			t.Log(response)
+			errorReceived = true
 		}
 	}
 	if errorReceived {
@@ -1516,16 +1513,14 @@ func TestSubscribeToChannel(t *testing.T) {
 	var errorReceived bool
 	for i := 0; i < 5; i++ {
 		response := <-o.Websocket.DataHandler
-		switch response.(type) {
-		case error:
-			{
-				t.Log(response)
-				if strings.Contains(response.(error).Error(), channelName) {
-					errorReceived = true
-				}
+		if err, ok := response.(error); ok && err != nil {
+			t.Log(response)
+			if strings.Contains(response.(error).Error(), channelName) {
+				errorReceived = true
 			}
 		}
 	}
+
 	if errorReceived {
 		t.Error("Expecting subscription to channel")
 	}
@@ -1546,15 +1541,14 @@ func TestSubscribeToNonExistantChannel(t *testing.T) {
 	var errorReceived bool
 	for i := 0; i < 5; i++ {
 		response := <-o.Websocket.DataHandler
-		switch response.(type) {
-		case error:
-			{
-				if strings.Contains(response.(error).Error(), channelName) {
-					errorReceived = true
-				}
+		if err, ok := response.(error); ok && err != nil {
+			t.Log(response)
+			if strings.Contains(response.(error).Error(), channelName) {
+				errorReceived = true
 			}
 		}
 	}
+
 	if !errorReceived {
 		t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 	}
