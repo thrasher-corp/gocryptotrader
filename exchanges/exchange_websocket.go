@@ -212,6 +212,11 @@ func (w *Websocket) Connect() error {
 	return nil
 }
 
+// IsConnected exposes websocket connection status
+func (w *Websocket) IsConnected() bool {
+	return w.connected
+}
+
 // Shutdown attempts to shut down a websocket connection and associated routines
 // by using a package defined shutdown function
 func (w *Websocket) Shutdown() error {

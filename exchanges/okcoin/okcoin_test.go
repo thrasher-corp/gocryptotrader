@@ -35,7 +35,16 @@ func TestSetDefaults(t *testing.T) {
 	}
 	TestSetup(t)
 	t.Parallel()
+}
 
+func TestSetWsDefaults(t *testing.T) {
+	if o.Name != OKGroupExchange {
+		o.SetDefaults()
+	}
+	if o.GetName() != OKGroupExchange {
+		t.Errorf("Test Failed - %v - SetDefaults() error", OKGroupExchange)
+	}
+	TestSetup(t)
 }
 
 func TestSetRealOrderDefaults(t *testing.T) {
@@ -820,6 +829,9 @@ func TestWsLogin(t *testing.T) {
 			t.Error(err)
 		}
 	}
+	if !o.Websocket.IsConnected() {
+		t.Skip()
+	}
 	err := o.WsLogin()
 	if err != nil {
 		t.Error(err)
@@ -837,7 +849,8 @@ func TestWsLogin(t *testing.T) {
 }
 
 func TestSubscribeToChannel(t *testing.T) {
-	TestSetDefaults(t)
+	defer disconnectFromWS()
+	TestSetWsDefaults(t)
 	if o.WebsocketConn == nil {
 		o.Websocket.Shutdown()
 		err := setupWSConnection()
@@ -845,8 +858,15 @@ func TestSubscribeToChannel(t *testing.T) {
 			t.Error(err)
 		}
 	}
+	if !o.Websocket.IsConnected() {
+		t.Skip()
+	}
 	channelName := "spot/depth:LTC-BTC"
-	o.WsSubscribeToChannel(channelName)
+	err := o.WsSubscribeToChannel(channelName)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	var errorReceived bool
 	for i := 0; i < 5; i++ {
 		response := <-o.Websocket.DataHandler
@@ -864,7 +884,7 @@ func TestSubscribeToChannel(t *testing.T) {
 
 func TestSubscribeToNonExistantChannel(t *testing.T) {
 	defer disconnectFromWS()
-	TestSetDefaults(t)
+	TestSetWsDefaults(t)
 	if o.WebsocketConn == nil {
 		o.Websocket.Shutdown()
 		err := setupWSConnection()
@@ -872,8 +892,15 @@ func TestSubscribeToNonExistantChannel(t *testing.T) {
 			t.Error(err)
 		}
 	}
+	if !o.Websocket.IsConnected() {
+		t.Skip()
+	}
 	channelName := "badChannel"
-	o.WsSubscribeToChannel(channelName)
+	err := o.WsSubscribeToChannel(channelName)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	var errorReceived bool
 	for i := 0; i < 5; i++ {
 		response := <-o.Websocket.DataHandler
