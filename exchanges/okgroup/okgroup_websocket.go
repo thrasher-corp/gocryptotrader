@@ -25,6 +25,9 @@ import (
 
 // List of all websocket channels to subscribe to
 const (
+	// If a checksum fails, then resubscribing to the channel fails, fatal after these attempts
+	okGroupWsResubscribeFailureLimit   = 3
+	okGroupWsResubscribeDelayInSeconds = 3
 	// Orderbook events
 	okGroupWsOrderbookUpdate  = "update"
 	okGroupWsOrderbookPartial = "partial"
@@ -429,8 +432,7 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		if err != nil {
 			log.Error(err)
 			subscriptionChannel := fmt.Sprintf("%v:%v", response.Table, response.Data[0].InstrumentID)
-			o.WsUnsubscribeToChannel(subscriptionChannel)
-			o.WsSubscribeToChannel(subscriptionChannel)
+			o.ResubscribeToChannel(subscriptionChannel)
 		}
 		orderbookMutex.Unlock()
 	case okGroupWsTicker:
@@ -448,6 +450,44 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 	}
 }
 
+// resubscribeToChannel will attempt to unsubscribe and resubscribe to a channel
+func (o *OKGroup) ResubscribeToChannel(channel string) {
+	if okGroupWsResubscribeFailureLimit > 0 {
+		var successfulUnsubscribe bool
+		for i := 0; i < okGroupWsResubscribeFailureLimit; i++ {
+			err := o.WsUnsubscribeToChannel(channel)
+			if err != nil {
+				log.Error(err)
+				time.Sleep(okGroupWsResubscribeDelayInSeconds * time.Second)
+				continue
+			}
+			successfulUnsubscribe = true
+			break
+		}
+		if !successfulUnsubscribe {
+			log.Fatalf("%v websocket channel %v failed to unsubscribe after %v attempts", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
+		}
+		successfulSubscribe := true
+		for i := 0; i < okGroupWsResubscribeFailureLimit; i++ {
+			err := o.WsSubscribeToChannel(channel)
+			if err != nil {
+				log.Error(err)
+				time.Sleep(okGroupWsResubscribeDelayInSeconds * time.Second)
+				continue
+			}
+			successfulSubscribe = true
+			break
+		}
+		if !successfulSubscribe {
+			log.Fatalf("%v websocket channel %v failed to resubscribe after %v attempts", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
+		}
+	} else {
+		log.Fatalf("%v websocket channel %v cannot resubscribe. Limit: %v", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
+	}
+}
+
+// logDataResponse will log the details of any websocket data event
+// where there is no websocket datahandler for it
 func logDataResponse(response *WebsocketDataResponse) {
 	for _, data := range response.Data {
 		log.Errorf("Unhandled channel: '%v'. Instrument '%v' Timestamp '%v', Data '%v",
