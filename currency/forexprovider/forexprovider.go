@@ -31,11 +31,14 @@ func GetAvailableForexProviders() []string {
 func NewDefaultFXProvider() *ForexProviders {
 	handler := new(ForexProviders)
 	provider := new(exchangerates.ExchangeRates)
-	provider.Setup(base.Settings{
+	err := provider.Setup(base.Settings{
 		PrimaryProvider: true,
 		Enabled:         true,
 		Name:            "ExchangeRates",
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	currencies, _ := provider.GetSupportedCurrencies()
 	providerBase := base.Provider{
@@ -81,27 +84,47 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 		switch {
 		case fxProviders[i].Name == "CurrencyConverter" && fxProviders[i].Enabled:
 			provider := new(currencyconverter.CurrencyConverter)
-			provider.Setup(fxProviders[i])
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
 			handler.SetProvider(provider)
 
 		case fxProviders[i].Name == "CurrencyLayer" && fxProviders[i].Enabled:
 			provider := new(currencylayer.CurrencyLayer)
-			provider.Setup(fxProviders[i])
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
 			handler.SetProvider(provider)
 
 		case fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled:
 			provider := new(exchangerates.ExchangeRates)
-			provider.Setup(fxProviders[i])
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
 			handler.SetProvider(provider)
 
 		case fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled:
 			provider := new(fixer.Fixer)
-			provider.Setup(fxProviders[i])
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
 			handler.SetProvider(provider)
 
 		case fxProviders[i].Name == "OpenExchangeRates" && fxProviders[i].Enabled:
 			provider := new(openexchangerates.OXR)
-			provider.Setup(fxProviders[i])
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
 			handler.SetProvider(provider)
 		}
 	}

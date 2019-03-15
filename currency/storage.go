@@ -304,7 +304,7 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 	if err != nil {
 		err = s.FetchCurrencyAnalysisData()
 		if err != nil {
-			return err
+			return s.WriteCurrencyDataToFile(s.path, false)
 		}
 
 		return s.WriteCurrencyDataToFile(s.path, true)
@@ -322,10 +322,11 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 	}
 
 	// Based on update delay update the file
-	if fromFile.LastMainUpdate.After(fromFile.LastMainUpdate.Add(s.currencyFileUpdateDelay)) {
+	if fromFile.LastMainUpdate.After(fromFile.LastMainUpdate.Add(s.currencyFileUpdateDelay)) ||
+		fromFile.LastMainUpdate.IsZero() {
 		err = s.FetchCurrencyAnalysisData()
 		if err != nil {
-			return err
+			return s.WriteCurrencyDataToFile(s.path, false)
 		}
 
 		return s.WriteCurrencyDataToFile(s.path, true)
@@ -339,7 +340,7 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 func (s *Storage) FetchCurrencyAnalysisData() error {
 	if s.currencyAnalysis == nil {
 		log.Warn("Currency analysis system offline please set api keys for coinmarketcap")
-		return nil
+		return errors.New("currency analysis system offline")
 	}
 
 	return s.UpdateCurrencies()

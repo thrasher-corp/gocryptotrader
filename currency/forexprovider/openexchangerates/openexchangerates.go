@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // These consts contain endpoint information
@@ -61,7 +62,12 @@ type OXR struct {
 }
 
 // Setup sets values for the OXR object
-func (o *OXR) Setup(config base.Settings) {
+func (o *OXR) Setup(config base.Settings) error {
+	if config.APIKeyLvl < 0 || config.APIKeyLvl > 2 {
+		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			config.Name)
+		return errors.New("apikey set failure")
+	}
 	o.APIKey = config.APIKey
 	o.APIKeyLvl = config.APIKeyLvl
 	o.Enabled = config.Enabled
@@ -73,6 +79,7 @@ func (o *OXR) Setup(config base.Settings) {
 		request.NewRateLimit(time.Second*10, authRate),
 		request.NewRateLimit(time.Second*10, unAuthRate),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
 }
 
 // GetRates is a wrapper function to return rates

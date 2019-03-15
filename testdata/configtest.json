@@ -10,8 +10,8 @@
   "rotate": true
  },
  "profiler": {
-    "enabled": false
-   },
+  "enabled": false
+ },
  "currencyConfig": {
   "forexProviders": [
    {

@@ -155,34 +155,22 @@ func TestConversionsRatesSystem(t *testing.T) {
 			SuperDuperConversionSystem.HasData())
 	}
 
-	conversionString := "USDAUD"
-	convers, err := NewConversionFromString(conversionString)
-	if err != nil {
-		t.Error("Test Failed - NewConversionFromString() error", err)
-	}
-
-	r, err := convers.Convert(1000)
-	if err != nil {
-		t.Error("Test Failed - Convert() error", err)
-	}
-
-	expectedRate := 1421.6718265999998
-
+	// * to a rate
+	p := SuperDuperConversionSystem.m[USD.Item][AUD.Item]
+	// inverse * to a rate
+	pi := SuperDuperConversionSystem.m[AUD.Item][USD.Item]
+	r := *p * 1000
+	expectedRate := 1396.9317581
 	if r != expectedRate {
-		t.Errorf("Test Failed - Convert() error expected %v but recieved %v",
+		t.Errorf("Test Failed - Convert() error expected %.13f but recieved %.13f",
 			expectedRate,
 			r)
 	}
 
-	inverseR, err := convers.ConvertInverse(expectedRate)
-	if err != nil {
-		t.Error("Test Failed - Convert() error", err)
-	}
-
+	inverseR := *pi * expectedRate
 	expectedInverseRate := float64(1000)
-
 	if inverseR != expectedInverseRate {
-		t.Errorf("Test Failed - Convert() error expected %v but recieved %v",
+		t.Errorf("Test Failed - Convert() error expected %.13f but recieved %.13f",
 			expectedInverseRate,
 			inverseR)
 	}

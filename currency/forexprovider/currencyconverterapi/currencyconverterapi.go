@@ -37,7 +37,7 @@ type CurrencyConverter struct {
 }
 
 // Setup sets appropriate values for CurrencyLayer
-func (c *CurrencyConverter) Setup(config base.Settings) {
+func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.Name = config.Name
 	c.APIKey = config.APIKey
 	c.APIKeyLvl = config.APIKeyLvl
@@ -49,6 +49,7 @@ func (c *CurrencyConverter) Setup(config base.Settings) {
 		request.NewRateLimit(time.Second*10, authRate),
 		request.NewRateLimit(time.Second*10, unAuthRate),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
 }
 
 // GetRates is a wrapper function to return rates

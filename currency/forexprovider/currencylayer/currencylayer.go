@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // const declarations consist of endpoints and APIKey privileges
@@ -53,7 +54,13 @@ type CurrencyLayer struct {
 }
 
 // Setup sets appropriate values for CurrencyLayer
-func (c *CurrencyLayer) Setup(config base.Settings) {
+func (c *CurrencyLayer) Setup(config base.Settings) error {
+	if config.APIKeyLvl < 0 || config.APIKeyLvl > 3 {
+		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			config.Name)
+		return errors.New("apikey set failure")
+	}
+
 	c.Name = config.Name
 	c.APIKey = config.APIKey
 	c.APIKeyLvl = config.APIKeyLvl
@@ -65,6 +72,8 @@ func (c *CurrencyLayer) Setup(config base.Settings) {
 		request.NewRateLimit(time.Second*10, authRate),
 		request.NewRateLimit(time.Second*10, unAuthRate),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+
+	return nil
 }
 
 // GetRates is a wrapper function to return rates for GoCryptoTrader

@@ -33,7 +33,7 @@ type ExchangeRates struct {
 }
 
 // Setup sets appropriate values for CurrencyLayer
-func (e *ExchangeRates) Setup(config base.Settings) {
+func (e *ExchangeRates) Setup(config base.Settings) error {
 	e.Name = config.Name
 	e.Enabled = config.Enabled
 	e.RESTPollingDelay = config.RESTPollingDelay
@@ -43,6 +43,7 @@ func (e *ExchangeRates) Setup(config base.Settings) {
 		request.NewRateLimit(time.Second*10, authRate),
 		request.NewRateLimit(time.Second*10, unAuthRate),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
 }
 
 func cleanCurrencies(baseCurrency, symbols string) string {

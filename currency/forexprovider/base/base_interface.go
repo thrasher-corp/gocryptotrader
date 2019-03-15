@@ -11,7 +11,7 @@ import (
 // IFXProvider enforces standard functions for all foreign exchange providers
 // supported in GoCryptoTrader
 type IFXProvider interface {
-	Setup(config Settings)
+	Setup(config Settings) error
 	GetRates(baseCurrency, symbols string) (map[string]float64, error)
 	GetName() string
 	IsEnabled() bool

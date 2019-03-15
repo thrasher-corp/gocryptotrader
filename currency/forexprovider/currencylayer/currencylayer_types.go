@@ -1,12 +1,15 @@
 package currencylayer
 
+// Error Defines the response error if an error occured
+type Error struct {
+	Code int    `json:"code"`
+	Info string `json:"info"`
+}
+
 // LiveRates is a response type holding rates priced now.
 type LiveRates struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success   bool               `json:"success"`
+	Error     Error              `json:"error"`
 	Terms     string             `json:"terms"`
 	Privacy   string             `json:"privacy"`
 	Timestamp int64              `json:"timestamp"`
@@ -16,11 +19,8 @@ type LiveRates struct {
 
 // SupportedCurrencies holds supported currency information
 type SupportedCurrencies struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success    bool              `json:"success"`
+	Error      Error             `json:"error"`
 	Terms      string            `json:"terms"`
 	Privacy    string            `json:"privacy"`
 	Currencies map[string]string `json:"currencies"`
@@ -28,11 +28,8 @@ type SupportedCurrencies struct {
 
 // HistoricalRates is a response type holding rates priced from the past.
 type HistoricalRates struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success    bool               `json:"success"`
+	Error      Error              `json:"error"`
 	Terms      string             `json:"terms"`
 	Privacy    string             `json:"privacy"`
 	Historical bool               `json:"historical"`
@@ -44,11 +41,8 @@ type HistoricalRates struct {
 
 // ConversionRate is a response type holding a converted rate.
 type ConversionRate struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success bool   `json:"success"`
+	Error   Error  `json:"error"`
 	Privacy string `json:"privacy"`
 	Terms   string `json:"terms"`
 	Query   struct {
@@ -67,11 +61,8 @@ type ConversionRate struct {
 
 // TimeFrame is a response type holding exchange rates for a time period
 type TimeFrame struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success   bool                   `json:"success"`
+	Error     Error                  `json:"error"`
 	Terms     string                 `json:"terms"`
 	Privacy   string                 `json:"privacy"`
 	Timeframe bool                   `json:"timeframe"`
@@ -83,11 +74,8 @@ type TimeFrame struct {
 
 // ChangeRate is the response type that holds rate change data.
 type ChangeRate struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code int    `json:"code"`
-		Info string `json:"info"`
-	} `json:"error"`
+	Success   bool               `json:"success"`
+	Error     Error              `json:"error"`
 	Terms     string             `json:"terms"`
 	Privacy   string             `json:"privacy"`
 	Change    bool               `json:"change"`

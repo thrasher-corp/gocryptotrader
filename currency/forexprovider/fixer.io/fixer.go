@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -47,7 +48,12 @@ type Fixer struct {
 }
 
 // Setup sets appropriate values for fixer object
-func (f *Fixer) Setup(config base.Settings) {
+func (f *Fixer) Setup(config base.Settings) error {
+	if config.APIKeyLvl < 0 || config.APIKeyLvl > 4 {
+		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			config.Name)
+		return errors.New("apikey set failure")
+	}
 	f.APIKey = config.APIKey
 	f.APIKeyLvl = config.APIKeyLvl
 	f.Enabled = config.Enabled
@@ -59,6 +65,7 @@ func (f *Fixer) Setup(config base.Settings) {
 		request.NewRateLimit(time.Second*10, authRate),
 		request.NewRateLimit(time.Second*10, unAuthRate),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
 }
 
 // GetSupportedCurrencies returns supported currencies
