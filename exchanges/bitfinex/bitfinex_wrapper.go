@@ -257,13 +257,7 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) 
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
 	walletType := "exchange"
-	resp, err := b.WithdrawFIAT(withdrawalType, walletType, withdrawRequest.WireCurrency,
-		withdrawRequest.BankAccountName, withdrawRequest.BankName, withdrawRequest.BankAddress,
-		withdrawRequest.BankCity, withdrawRequest.BankCountry, withdrawRequest.SwiftCode,
-		withdrawRequest.Description, withdrawRequest.IntermediaryBankName, withdrawRequest.IntermediaryBankAddress,
-		withdrawRequest.IntermediaryBankCity, withdrawRequest.IntermediaryBankCountry, withdrawRequest.IntermediarySwiftCode,
-		withdrawRequest.Amount, withdrawRequest.BankAccountNumber, withdrawRequest.IntermediaryBankAccountNumber,
-		withdrawRequest.IsExpressWire, withdrawRequest.RequiresIntermediaryBank)
+	resp, err := b.WithdrawFIAT(withdrawalType, walletType, withdrawRequest)
 	if err != nil {
 		return "", err
 	}
