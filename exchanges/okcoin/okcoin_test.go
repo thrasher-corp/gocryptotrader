@@ -26,6 +26,7 @@ var o = OKCoin{}
 var testSetupRan bool
 var spotCurrency = pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String()
 
+// TestSetDefaults Sets standard default settings for running a test
 func TestSetDefaults(t *testing.T) {
 	if o.Name != OKGroupExchange {
 		o.SetDefaults()
@@ -37,6 +38,7 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 }
 
+// TestSetWsDefaults Sets websocket defaults
 func TestSetWsDefaults(t *testing.T) {
 	if o.Name != OKGroupExchange {
 		o.SetDefaults()
@@ -47,6 +49,7 @@ func TestSetWsDefaults(t *testing.T) {
 	TestSetup(t)
 }
 
+// TestSetRealOrderDefaults Sets test defaults when test can impact real money/orders
 func TestSetRealOrderDefaults(t *testing.T) {
 	TestSetDefaults(t)
 	if areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -54,6 +57,7 @@ func TestSetRealOrderDefaults(t *testing.T) {
 	}
 }
 
+// TestSetup Sets defaults for test environment
 func TestSetup(t *testing.T) {
 	if testSetupRan {
 		return
@@ -679,7 +683,6 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 }
 
 // TestPlaceMultipleMarginOrdersOverCurrencyLimits API logic test
-
 func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
 	order := okgroup.PlaceSpotOrderRequest{
@@ -848,6 +851,7 @@ func TestWsLogin(t *testing.T) {
 	}
 }
 
+// TestSubscribeToChannel API endpoint test
 func TestSubscribeToChannel(t *testing.T) {
 	defer disconnectFromWS()
 	TestSetWsDefaults(t)
@@ -882,6 +886,9 @@ func TestSubscribeToChannel(t *testing.T) {
 	}
 }
 
+// TestSubscribeToNonExistantChannel Logic test
+// Attempts to subscribe to a channel that doesn't exist
+// Then captures the error response
 func TestSubscribeToNonExistantChannel(t *testing.T) {
 	defer disconnectFromWS()
 	TestSetWsDefaults(t)
@@ -893,7 +900,7 @@ func TestSubscribeToNonExistantChannel(t *testing.T) {
 		}
 	}
 	if !o.Websocket.IsConnected() {
-		t.Skip()
+		t.Skip("Could not connect to websocket. Skipping")
 	}
 	channelName := "badChannel"
 	err := o.WsSubscribeToChannel(channelName)
