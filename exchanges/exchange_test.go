@@ -853,6 +853,25 @@ func TestSetAPIURL(t *testing.T) {
 	}
 }
 
+func BenchmarkSetAPIURL(b *testing.B) {
+	tester := Base{Name: "test"}
+
+	test := config.ExchangeConfig{}
+
+	test.APIURL = "https://api.something.com"
+	test.APIURLSecondary = "https://api.somethingelse.com"
+
+	tester.APIUrlDefault = "https://api.defaultsomething.com"
+	tester.APIUrlSecondaryDefault = "https://api.defaultsomethingelse.com"
+
+	for i := 0; i < b.N; i++ {
+		err := tester.SetAPIURL(&test)
+		if err != nil {
+			b.Errorf("Benchmark failed %v", err)
+		}
+	}
+}
+
 func TestSupportsWithdrawPermissions(t *testing.T) {
 	UAC := Base{Name: defaultTestExchange}
 	UAC.APIWithdrawPermissions = AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission

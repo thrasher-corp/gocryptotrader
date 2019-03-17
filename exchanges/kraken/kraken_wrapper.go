@@ -285,7 +285,7 @@ func (k *Kraken) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return k.GetFee(feeBuilder)
 }
 

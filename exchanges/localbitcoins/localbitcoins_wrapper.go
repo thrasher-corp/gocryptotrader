@@ -286,7 +286,7 @@ func (l *LocalBitcoins) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (l *LocalBitcoins) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (l *LocalBitcoins) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return l.GetFee(feeBuilder)
 }
 

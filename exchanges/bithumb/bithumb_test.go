@@ -193,8 +193,8 @@ func TestMarketSellOrder(t *testing.T) {
 	}
 }
 
-func setFeeBuilder() exchange.FeeBuilder {
-	return exchange.FeeBuilder{
+func setFeeBuilder() *exchange.FeeBuilder {
+	return &exchange.FeeBuilder{
 		Amount:         1,
 		Delimiter:      "",
 		FeeType:        exchange.CryptocurrencyTradeFee,

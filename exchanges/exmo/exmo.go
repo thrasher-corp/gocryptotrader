@@ -405,7 +405,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (e *EXMO) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (e *EXMO) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

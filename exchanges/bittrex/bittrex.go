@@ -520,7 +520,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bittrex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bittrex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	var err error
 

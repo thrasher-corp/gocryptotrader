@@ -142,8 +142,8 @@ func TestWalletTransfer(t *testing.T) {
 	}
 }
 
-func setFeeBuilder() exchange.FeeBuilder {
-	return exchange.FeeBuilder{
+func setFeeBuilder() *exchange.FeeBuilder {
+	return &exchange.FeeBuilder{
 		Amount:              1,
 		Delimiter:           "_",
 		FeeType:             exchange.CryptocurrencyTradeFee,

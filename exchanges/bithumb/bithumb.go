@@ -607,7 +607,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bithumb) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

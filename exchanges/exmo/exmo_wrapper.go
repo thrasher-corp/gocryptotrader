@@ -298,7 +298,7 @@ func (e *EXMO) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (e *EXMO) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (e *EXMO) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return e.GetFee(feeBuilder)
 }
 

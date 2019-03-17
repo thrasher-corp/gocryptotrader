@@ -421,7 +421,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (i *ItBit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (i *ItBit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

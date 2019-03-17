@@ -302,7 +302,7 @@ func (b *Binance) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Binance) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }
 

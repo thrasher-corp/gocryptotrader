@@ -334,7 +334,7 @@ func (h *HUOBIHADAX) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (h *HUOBIHADAX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (h *HUOBIHADAX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return h.GetFee(feeBuilder)
 }
 

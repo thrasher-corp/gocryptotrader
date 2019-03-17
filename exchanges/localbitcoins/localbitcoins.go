@@ -764,7 +764,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (l *LocalBitcoins) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (l *LocalBitcoins) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	// No fees will be used
 	return 0, nil
 }

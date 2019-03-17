@@ -1001,7 +1001,7 @@ func (o *OKCoin) SetErrorDefaults() {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (o *OKCoin) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (o *OKCoin) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

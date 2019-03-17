@@ -390,7 +390,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (c *COINUT) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (c *COINUT) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

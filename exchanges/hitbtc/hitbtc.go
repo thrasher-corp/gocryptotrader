@@ -605,7 +605,7 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values ur
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (h *HitBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (h *HitBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

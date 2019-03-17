@@ -295,7 +295,7 @@ func (b *Bitmex) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bitmex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bitmex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }
 

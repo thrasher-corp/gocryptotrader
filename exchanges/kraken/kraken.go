@@ -945,7 +945,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (k *Kraken) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	currency := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
 

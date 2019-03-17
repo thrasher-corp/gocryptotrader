@@ -143,7 +143,7 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitstamp) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

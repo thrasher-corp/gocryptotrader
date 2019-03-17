@@ -145,7 +145,7 @@ func TestGetFee(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	feeBuilder := exchange.FeeBuilder{
+	feeBuilder := &exchange.FeeBuilder{
 		FeeType:        exchange.CryptocurrencyTradeFee,
 		FirstCurrency:  "BTC",
 		SecondCurrency: "USD",

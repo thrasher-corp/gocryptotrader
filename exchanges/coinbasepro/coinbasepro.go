@@ -828,7 +828,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (c *CoinbasePro) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (c *CoinbasePro) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

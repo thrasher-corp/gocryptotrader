@@ -341,6 +341,6 @@ func (b *BTSE) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *BTSE) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }

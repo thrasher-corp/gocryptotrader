@@ -339,7 +339,7 @@ func (a *ANX) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (a *ANX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return a.GetFee(feeBuilder)
 }
 

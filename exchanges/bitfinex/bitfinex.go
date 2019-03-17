@@ -953,7 +953,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bitfinex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

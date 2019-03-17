@@ -300,7 +300,7 @@ func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bithumb) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }
 

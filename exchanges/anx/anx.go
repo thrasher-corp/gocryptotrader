@@ -444,7 +444,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (a *ANX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (a *ANX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

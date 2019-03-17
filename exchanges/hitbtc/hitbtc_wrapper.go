@@ -259,7 +259,7 @@ func (h *HitBTC) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (h *HitBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (h *HitBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return h.GetFee(feeBuilder)
 }
 

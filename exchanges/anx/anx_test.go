@@ -129,8 +129,8 @@ func TestGetAPIKey(t *testing.T) {
 	}
 }
 
-func setFeeBuilder() exchange.FeeBuilder {
-	return exchange.FeeBuilder{
+func setFeeBuilder() *exchange.FeeBuilder {
+	return &exchange.FeeBuilder{
 		Amount:         1,
 		Delimiter:      "",
 		FeeType:        exchange.CryptocurrencyTradeFee,
@@ -213,6 +213,9 @@ func TestGetFee(t *testing.T) {
 	}
 }
 
+func BenchmarkGetFree(b *testing.B) {
+
+}
 func TestFormatWithdrawPermissions(t *testing.T) {
 	a.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " +

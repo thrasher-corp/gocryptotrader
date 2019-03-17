@@ -364,7 +364,7 @@ func (c *COINUT) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (c *COINUT) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return c.GetFee(feeBuilder)
 }
 

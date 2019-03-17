@@ -76,8 +76,8 @@ func TestSetup(t *testing.T) {
 // 		t.Error("Test failed - GetAccountInfo() error", err)
 // 	}
 // }
-func setFeeBuilder() exchange.FeeBuilder {
-	return exchange.FeeBuilder{
+func setFeeBuilder() *exchange.FeeBuilder {
+	return &exchange.FeeBuilder{
 		Amount:         1,
 		Delimiter:      "",
 		FeeType:        exchange.CryptocurrencyTradeFee,
