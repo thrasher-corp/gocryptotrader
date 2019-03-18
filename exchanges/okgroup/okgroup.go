@@ -665,7 +665,7 @@ func (o *OKGroup) SetCheckVarDefaults() {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (o *OKGroup) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, _ error) {
+func (o *OKGroup) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, _ error) {
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)

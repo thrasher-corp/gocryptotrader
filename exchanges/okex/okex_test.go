@@ -1970,7 +1970,7 @@ func TestWithdraw(t *testing.T) {
 		TradePassword: "Password",
 		FeeAmount:     1,
 	}
-	_, err := o.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := o.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	testStandardErrorHandling(t, err)
 }
 

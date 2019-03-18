@@ -240,7 +240,7 @@ func (o *OKGroup) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKGroup) CancelOrder(orderCancellation exchange.OrderCancellation) (err error) {
+func (o *OKGroup) CancelOrder(orderCancellation *exchange.OrderCancellation) (err error) {
 	orderID, err := strconv.ParseInt(orderCancellation.OrderID, 10, 64)
 	if err != nil {
 		return
@@ -257,7 +257,7 @@ func (o *OKGroup) CancelOrder(orderCancellation exchange.OrderCancellation) (err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, _ error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, _ error) {
 	orderIDs := strings.Split(orderCancellation.OrderID, ",")
 	var orderIDNumbers []int64
 	for _, i := range orderIDs {
@@ -314,7 +314,7 @@ func (o *OKGroup) GetDepositAddress(p pair.CurrencyItem, accountID string) (_ st
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
@@ -335,13 +335,13 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -401,7 +401,7 @@ func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKGroup) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	return o.GetFee(feeBuilder)
+	return o.GetFee(&feeBuilder)
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange

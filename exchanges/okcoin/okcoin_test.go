@@ -1040,8 +1040,8 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 }
 
 // Function tests ----------------------------------------------------------------------------------------------
-func setFeeBuilder() exchange.FeeBuilder {
-	return exchange.FeeBuilder{
+func setFeeBuilder() *exchange.FeeBuilder {
+	return &exchange.FeeBuilder{
 		Amount:              1,
 		Delimiter:           "-",
 		FeeType:             exchange.CryptocurrencyTradeFee,
@@ -1147,7 +1147,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	err := o.CancelOrder(orderCancellation)
+	err := o.CancelOrder(&orderCancellation)
 	testStandardErrorHandling(t, err)
 
 }
@@ -1163,7 +1163,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	resp, err := o.CancelAllOrders(orderCancellation)
+	resp, err := o.CancelAllOrders(&orderCancellation)
 	testStandardErrorHandling(t, err)
 	if len(resp.OrderStatus) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
@@ -1196,7 +1196,7 @@ func TestWithdraw(t *testing.T) {
 		TradePassword: "Password",
 		FeeAmount:     1,
 	}
-	_, err := o.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := o.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	testStandardErrorHandling(t, err)
 }
 
@@ -1204,7 +1204,7 @@ func TestWithdraw(t *testing.T) {
 func TestWithdrawFiat(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
-	_, err := o.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := o.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -1214,7 +1214,7 @@ func TestWithdrawFiat(t *testing.T) {
 func TestWithdrawInternationalBank(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
-	_, err := o.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := o.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
