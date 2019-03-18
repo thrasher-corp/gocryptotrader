@@ -250,7 +250,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-")
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "0b66ccaf-dfd4-4b9f-a30b-2380b9c7b66d",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -276,7 +276,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-")
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",

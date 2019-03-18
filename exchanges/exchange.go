@@ -317,8 +317,8 @@ type IBotExchange interface {
 	GetFundingHistory() ([]FundHistory, error)
 	SubmitOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
 	ModifyOrder(action ModifyOrder) (string, error)
-	CancelOrder(order OrderCancellation) error
-	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
+	CancelOrder(order *OrderCancellation) error
+	CancelAllOrders(orders *OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID string) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
 

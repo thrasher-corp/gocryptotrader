@@ -111,12 +111,12 @@ func (b *BTCC) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *BTCC) CancelOrder(order exchange.OrderCancellation) error {
+func (b *BTCC) CancelOrder(order *exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *BTCC) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (b *BTCC) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
 }
 

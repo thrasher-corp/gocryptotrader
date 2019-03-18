@@ -196,7 +196,7 @@ func (b *Bitstamp) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitstamp) CancelOrder(order exchange.OrderCancellation) error {
+func (b *Bitstamp) CancelOrder(order *exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
@@ -208,7 +208,7 @@ func (b *Bitstamp) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitstamp) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (b *Bitstamp) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	isCancelAllSuccessful, err := b.CancelAllExistingOrders()
 	if !isCancelAllSuccessful {
 		err = errors.New("cancel all orders failed. Bitstamp provides no further information. Check order status to verify")

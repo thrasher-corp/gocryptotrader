@@ -235,7 +235,7 @@ func TestCancelOrders(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	_, err := b.CancelAllExistingOrders(OrderCancelAllParams{})
 	if err == nil {
-		t.Error("test failed - CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error)", err)
+		t.Error("test failed - CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error)", err)
 	}
 }
 
@@ -531,7 +531,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -557,7 +557,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",

@@ -213,14 +213,14 @@ func (b *Bittrex) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bittrex) CancelOrder(order exchange.OrderCancellation) error {
+func (b *Bittrex) CancelOrder(order *exchange.OrderCancellation) error {
 	_, err := b.CancelExistingOrder(order.OrderID)
 
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bittrex) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (b *Bittrex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}

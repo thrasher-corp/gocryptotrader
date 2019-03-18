@@ -256,7 +256,7 @@ func (c *COINUT) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *COINUT) CancelOrder(order exchange.OrderCancellation) error {
+func (c *COINUT) CancelOrder(order *exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
@@ -278,7 +278,7 @@ func (c *COINUT) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *COINUT) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (c *COINUT) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	// TODO, this is a terrible implementation. Requires DB to improve
 	// Coinut provides no way of retrieving orders without a currency
 	// So we need to retrieve all currencies, then retrieve orders for each currency

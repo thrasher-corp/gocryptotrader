@@ -569,7 +569,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := pair.NewCurrencyPair(symbol.BTC, symbol.LTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -595,7 +595,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := pair.NewCurrencyPair(symbol.BTC, symbol.LTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
