@@ -93,19 +93,19 @@ func TestWebsocket(t *testing.T) {
 	wsTest.Websocket.SetWebsocketURL("")
 
 	// -- Set true when already true
-	err = wsTest.Websocket.SetEnabled(true)
+	err = wsTest.Websocket.SetWsStatusAndConnection(true)
 	if err == nil {
 		t.Fatal("test failed - setting enabled should not work")
 	}
 
 	// -- Set false normal
-	err = wsTest.Websocket.SetEnabled(false)
+	err = wsTest.Websocket.SetWsStatusAndConnection(false)
 	if err != nil {
 		t.Fatal("test failed - setting enabled should not work")
 	}
 
 	// -- Set true normal
-	err = wsTest.Websocket.SetEnabled(true)
+	err = wsTest.Websocket.SetWsStatusAndConnection(true)
 	if err != nil {
 		t.Fatal("test failed - setting enabled should not work")
 	}

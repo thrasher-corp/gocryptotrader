@@ -103,7 +103,7 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
-		c.Websocket.SetEnabled(exch.Websocket)
+		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")

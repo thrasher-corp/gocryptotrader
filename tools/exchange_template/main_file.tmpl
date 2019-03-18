@@ -61,7 +61,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch config.ExchangeConfig) {
 		{{.Variable}}.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		{{.Variable}}.RESTPollingDelay = exch.RESTPollingDelay
 		{{.Variable}}.Verbose = exch.Verbose
-		{{.Variable}}.Websocket.SetEnabled(exch.Websocket)
+		{{.Variable}}.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		{{.Variable}}.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		{{.Variable}}.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		{{.Variable}}.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")

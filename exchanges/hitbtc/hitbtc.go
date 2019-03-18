@@ -95,7 +95,7 @@ func (h *HitBTC) Setup(exch config.ExchangeConfig) {
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
 		h.Verbose = exch.Verbose
-		h.Websocket.SetEnabled(exch.Websocket)
+		h.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")

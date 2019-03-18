@@ -125,42 +125,39 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	var balances []exchange.AccountCurrencyInfo
 
-	for _, data := range balance.Locked {
-		for key, amountStr := range data {
-			lockedF, err := strconv.ParseFloat(amountStr, 64)
-			if err != nil {
-				return info, err
-			}
+	for key, amountStr := range balance.Locked {
 
-			balances = append(balances, exchange.AccountCurrencyInfo{
-				CurrencyName: key,
-				Hold:         lockedF,
-			})
+		lockedF, err := strconv.ParseFloat(amountStr, 64)
+		if err != nil {
+			return info, err
 		}
+
+		balances = append(balances, exchange.AccountCurrencyInfo{
+			CurrencyName: key,
+			Hold:         lockedF,
+		})
 	}
 
-	for _, data := range balance.Available {
-		for key, amountStr := range data {
-			availAmount, err := strconv.ParseFloat(amountStr, 64)
-			if err != nil {
-				return info, err
-			}
+	for key, amountStr := range balance.Available {
+		availAmount, err := strconv.ParseFloat(amountStr, 64)
+		if err != nil {
+			return info, err
+		}
 
-			var updated bool
-			for i := range balances {
-				if balances[i].CurrencyName == key {
-					balances[i].TotalValue = balances[i].Hold + availAmount
-					updated = true
-					break
-				}
+		var updated bool
+		for i := range balances {
+			if balances[i].CurrencyName == key {
+				balances[i].TotalValue = balances[i].Hold + availAmount
+				updated = true
+				break
 			}
+		}
 
-			if !updated {
-				balances = append(balances, exchange.AccountCurrencyInfo{
-					CurrencyName: key,
-					TotalValue:   availAmount,
-				})
-			}
+		if !updated {
+			balances = append(balances, exchange.AccountCurrencyInfo{
+				CurrencyName: key,
+				TotalValue:   availAmount,
+			})
 		}
 	}
 

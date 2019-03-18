@@ -87,7 +87,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		y.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		y.RESTPollingDelay = exch.RESTPollingDelay
 		y.Verbose = exch.Verbose
-		y.Websocket.SetEnabled(exch.Websocket)
+		y.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		y.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		y.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		y.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
