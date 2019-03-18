@@ -11,7 +11,8 @@ func TestRunUpdater(t *testing.T) {
 	}
 
 	mainConfig := MainConfiguration{
-		Cryptocurrencies: NewCurrenciesFromStringArray([]string{"BTC"}),
+		Cryptocurrencies:    NewCurrenciesFromStringArray([]string{"BTC"}),
+		FiatDisplayCurrency: USD,
 	}
 
 	err = newStorage.RunUpdater(BotOverrides{}, mainConfig, "", false)
@@ -21,6 +22,6 @@ func TestRunUpdater(t *testing.T) {
 
 	err = newStorage.RunUpdater(BotOverrides{}, mainConfig, "/bla", false)
 	if err != nil {
-		t.Fatal("Test Failed storage RunUpdater() error cannot be nil", err)
+		t.Fatal("Test Failed storage RunUpdater() error", err)
 	}
 }

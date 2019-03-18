@@ -604,11 +604,12 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 	asks := o.AppendWsOrderbookItems(wsEventData.Asks)
 	bids := o.AppendWsOrderbookItems(wsEventData.Bids)
 	newOrderBook := orderbook.Base{
-		Asks:        asks,
-		Bids:        bids,
-		AssetType:   o.GetAssetTypeFromTableName(tableName),
-		LastUpdated: wsEventData.Timestamp,
-		Pair:        instrument,
+		Asks:         asks,
+		Bids:         bids,
+		AssetType:    o.GetAssetTypeFromTableName(tableName),
+		LastUpdated:  wsEventData.Timestamp,
+		Pair:         instrument,
+		ExchangeName: o.GetName(),
 	}
 
 	err := o.Websocket.Orderbook.LoadSnapshot(newOrderBook, o.GetName(), true)

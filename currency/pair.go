@@ -133,20 +133,16 @@ func (p Pair) Format(delimiter string, uppercase bool) Pair {
 
 // Equal compares two currency pairs and returns whether or not they are equal
 func (p Pair) Equal(cPair Pair) bool {
-	if p.Base.Upper() == cPair.Base.Upper() &&
-		p.Quote.Upper() == cPair.Quote.Upper() {
-		return true
-	}
-	return false
+	return p.Base.Item == cPair.Base.Item && p.Quote.Item == cPair.Quote.Item
 }
 
 // EqualIncludeReciprocal compares two currency pairs and returns whether or not
 // they are the same including reciprocal currencies.
 func (p Pair) EqualIncludeReciprocal(cPair Pair) bool {
-	if p.Base.Upper() == cPair.Base.Upper() &&
-		p.Quote.Upper() == cPair.Quote.Upper() ||
-		p.Base.Upper() == cPair.Quote.Upper() &&
-			p.Quote.Upper() == cPair.Base.Upper() {
+	if p.Base.Item == cPair.Base.Item &&
+		p.Quote.Item == cPair.Quote.Item ||
+		p.Base.Item == cPair.Quote.Item &&
+			p.Quote.Item == cPair.Base.Item {
 		return true
 	}
 	return false
@@ -190,6 +186,5 @@ func (p Pair) IsEmpty() bool {
 
 // ContainsCurrency checks to see if a pair contains a specific currency
 func (p Pair) ContainsCurrency(c Code) bool {
-	return p.Base.Upper().String() == c.Upper().String() ||
-		p.Quote.Upper().String() == c.Upper().String()
+	return p.Base.Item == c.Item || p.Quote.Item == c.Item
 }

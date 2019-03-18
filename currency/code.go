@@ -464,7 +464,7 @@ func (c Code) MarshalJSON() ([]byte, error) {
 // IsEmpty returns true if the code is empty
 func (c Code) IsEmpty() bool {
 	if c.Item == nil {
-		return false
+		return true
 	}
 	return c.Item.Symbol == ""
 }

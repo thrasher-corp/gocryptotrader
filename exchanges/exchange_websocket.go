@@ -476,7 +476,7 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 	defer w.m.Unlock()
 
 	for i := range w.ob {
-		if w.ob[i].Pair == newOrderbook.Pair && w.ob[i].AssetType == newOrderbook.AssetType {
+		if w.ob[i].Pair.Equal(newOrderbook.Pair) && w.ob[i].AssetType == newOrderbook.AssetType {
 			if overwrite {
 				w.ob[i] = newOrderbook
 				return newOrderbook.Process()
