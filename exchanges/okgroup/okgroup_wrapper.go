@@ -37,7 +37,7 @@ func (o *OKGroup) Run() {
 
 	prods, err := o.GetSpotTokenPairDetails()
 	if err != nil {
-		log.Errorf("%v failed to obtain available spot instruments. Err: %d", o.Name, err)
+		log.Errorf("%v failed to obtain available spot instruments. Err: %s", o.Name, err)
 		return
 	}
 
