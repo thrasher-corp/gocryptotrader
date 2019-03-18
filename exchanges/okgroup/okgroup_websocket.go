@@ -450,7 +450,7 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 	}
 }
 
-// resubscribeToChannel will attempt to unsubscribe and resubscribe to a channel
+// ResubscribeToChannel will attempt to unsubscribe and resubscribe to a channel
 func (o *OKGroup) ResubscribeToChannel(channel string) {
 	if okGroupWsResubscribeFailureLimit > 0 {
 		var successfulUnsubscribe bool

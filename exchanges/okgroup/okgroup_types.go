@@ -1369,7 +1369,7 @@ type WebsocketEstimatedPriceResponse struct {
 	SettlementPrice float64 `json:"settlement_price,string,omitempty"`
 }
 
-// WebsocketMarkPriceResponse contains formatted data for mark prices
+// WebsocketPriceRangeResponse contains formatted data for mark prices
 type WebsocketPriceRangeResponse struct {
 	Highest float64 `json:"highest,omitempty"`
 	Lowest  float64 `json:"lowest,omitempty"`
@@ -1382,12 +1382,12 @@ type WebsocketOrderBooksData struct {
 	Checksum int32           `json:"checksum,omitempty"`
 }
 
-// WebsocketUserPositionResponse contains formatted data for user position data
+// WebsocketUserSwapPositionResponse contains formatted data for user position data
 type WebsocketUserSwapPositionResponse struct {
 	Holding []WebsocketUserSwapPositionHoldingData `json:"holding,omitempty"`
 }
 
-// WebsocketUserPositionResponse contains formatted data for user position holding data
+// WebsocketUserSwapPositionHoldingData contains formatted data for user position holding data
 type WebsocketUserSwapPositionHoldingData struct {
 	AvailablePosition float64   `json:"avail_position,string,omitempty"`
 	AverageCost       float64   `json:"avg_cost,string,omitempty"`
@@ -1401,7 +1401,7 @@ type WebsocketUserSwapPositionHoldingData struct {
 	Timestamp         time.Time `json:"timestamp,omitempty"`
 }
 
-// WebsocketUserAccountResponse contains formatted data for user account data
+// WebsocketUserSwapFutureAccountResponse contains formatted data for user account data
 type WebsocketUserSwapFutureAccountResponse struct {
 	Equity        float64 `json:"equity,string,omitempty"`
 	FixedBalance  float64 `json:"fixed_balance,string,omitempty"`
@@ -1441,6 +1441,7 @@ type WebsocketSpotMarginOrderResponse struct {
 // WebsocketUserFutureFixedMarginAccountResponse contains formatted data for user account data
 type WebsocketUserFutureFixedMarginAccountResponse map[string]WebsocketUserFutureFixedMarginAccountData
 
+// WebsocketUserFutureFixedMarginAccountData contains the user fixed margin account data
 type WebsocketUserFutureFixedMarginAccountData struct {
 	Contracts         []WebsocketUserSwapFutureAccountResponse `json:"contracts"`
 	Equity            string                                   `json:"equity"`
@@ -1448,7 +1449,7 @@ type WebsocketUserFutureFixedMarginAccountData struct {
 	TotalAvailBalance string                                   `json:"total_avail_balance"`
 }
 
-// WebsocketUserOrdersResponse contains formatted data for user order data
+// WebsocketUserSwapOrdersResponse contains formatted data for user order data
 type WebsocketUserSwapOrdersResponse struct {
 	FilledQuantity float64 `json:"filled_qty,string,omitempty"`
 	ClientOID      string  `json:"client_oid,omitempty"`

@@ -72,7 +72,6 @@ func (o *OKGroup) UpdateTicker(p pair.CurrencyPair, assetType string) (tickerDat
 	}
 
 	ticker.ProcessTicker(o.Name, p, tickerData, assetType)
-
 	return
 }
 

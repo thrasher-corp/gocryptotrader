@@ -81,7 +81,8 @@ func (o *OKEX) SetDefaults() {
 		exchange.WebsocketOrderbookSupported
 }
 
-// GetFuturesPostions Get the information of all holding positions in futures trading.Due to high energy consumption, you are advised to capture data with the "Futures Account of a Currency" API instead.
+// GetFuturesPostions Get the information of all holding positions in futures trading.
+// Due to high energy consumption, you are advised to capture data with the "Futures Account of a Currency" API instead.
 func (o *OKEX) GetFuturesPostions() (resp okgroup.GetFuturesPositionsResponse, _ error) {
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, okGroupFuturePosition, nil, &resp, true)
 }
@@ -346,60 +347,60 @@ func (o *OKEX) GetSwapTransactionDetails(request okgroup.GetSwapTransactionDetai
 
 // GetSwapContractInformation Get market data.
 func (o *OKEX) GetSwapContractInformation() (resp []okgroup.GetSwapContractInformationResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okgroup.OKGroupInstruments, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okgroup.OKGroupInstruments, nil, &resp, false)
 }
 
 // GetSwapOrderBook Get the charts of the trading pairs.
 func (o *OKEX) GetSwapOrderBook(request okgroup.GetSwapOrderBookRequest) (resp okgroup.GetSwapOrderBookResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", okgroup.OKGroupInstruments, request.InstrumentID, okGroupDepth, okgroup.FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetAllSwapTokensInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all contracts.
 func (o *OKEX) GetAllSwapTokensInformation() (resp []okgroup.GetAllSwapTokensInformationResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v", okgroup.OKGroupInstruments, okgroup.OKGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSwapTokensInformationForCurrency Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all contracts.
 func (o *OKEX) GetSwapTokensInformationForCurrency(instrumentID string) (resp okgroup.GetAllSwapTokensInformationResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupInstruments, instrumentID, okgroup.OKGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSwapFilledOrdersData Get details of the recent filled orders
 func (o *OKEX) GetSwapFilledOrdersData(request *okgroup.GetSwapFilledOrdersDataRequest) (resp []okgroup.GetSwapFilledOrdersDataResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", okgroup.OKGroupInstruments, request.InstrumentID, okgroup.OKGroupTrades, okgroup.FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSwapMarketData Get the charts of the trading pairs.
 func (o *OKEX) GetSwapMarketData(request okgroup.GetSwapMarketDataRequest) (resp []okgroup.GetSwapMarketDataResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", okgroup.OKGroupInstruments, request.InstrumentID, okgroup.OKGroupGetSpotMarketData, okgroup.FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
-// GetSwapIndeces Get Indices of tokens.
-func (o *OKEX) GetSwapIndeces(instrumentID string) (resp okgroup.GetSwapIndecesResponse, _ error) {
+// GetSwapIndices Get Indices of tokens.
+func (o *OKEX) GetSwapIndices(instrumentID string) (resp okgroup.GetSwapIndecesResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupInstruments, instrumentID, okGroupIndices)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSwapExchangeRates Get the fiat exchange rates.
 func (o *OKEX) GetSwapExchangeRates() (resp okgroup.GetSwapExchangeRatesResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okGroupRate, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okGroupRate, nil, &resp, false)
 }
 
 // GetSwapOpenInterest Get the open interest of a contract.
 func (o *OKEX) GetSwapOpenInterest(instrumentID string) (resp okgroup.GetSwapExchangeRatesResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupInstruments, instrumentID, okGroupOpenInterest)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSwapCurrentPriceLimits Get the open interest of a contract.
 func (o *OKEX) GetSwapCurrentPriceLimits(instrumentID string) (resp okgroup.GetSwapCurrentPriceLimitsResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupInstruments, instrumentID, okgroup.OKGroupPriceLimit)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSwapForceLiquidatedOrders Get force liquidated orders.
@@ -417,13 +418,13 @@ func (o *OKEX) GetSwapOnHoldAmountForOpenOrders(instrumentID string) (resp okgro
 // GetSwapNextSettlementTime Get the time of next settlement.
 func (o *OKEX) GetSwapNextSettlementTime(instrumentID string) (resp okgroup.GetSwapNextSettlementTimeResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupInstruments, instrumentID, okGroupFundingTime)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSwapMarkPrice Get the time of next settlement.
 func (o *OKEX) GetSwapMarkPrice(instrumentID string) (resp okgroup.GetSwapMarkPriceResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupInstruments, instrumentID, okgroup.OKGroupMarkPrice)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSwapFundingRateHistory Get Funding Rate History.

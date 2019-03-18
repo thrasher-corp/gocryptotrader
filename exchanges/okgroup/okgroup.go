@@ -152,7 +152,7 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 
 // GetAccountCurrencies returns a list of tradable spot instruments and their properties
 func (o *OKGroup) GetAccountCurrencies() (resp []GetAccountCurrenciesResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, okGroupGetAccountCurrencies, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, okGroupGetAccountCurrencies, nil, &resp, false)
 }
 
 // GetAccountWalletInformation returns a list of wallets and their properties
@@ -349,45 +349,45 @@ func (o *OKGroup) GetSpotOrder(request GetSpotOrderRequest) (resp GetSpotOrderRe
 // All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetSpotTransactionDetails(request GetSpotTransactionDetailsRequest) (resp []GetSpotTransactionDetailsResponse, _ error) {
 	requestURL := fmt.Sprintf("%v%v", OKGroupGetSpotTransactionDetails, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSpotTokenPairDetails Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
 // List trading pairs and get the trading limit, price, and more information of different trading pairs.
 func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, OKGroupInstruments, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, OKGroupInstruments, nil, &resp, false)
 }
 
 // GetSpotOrderBook Getting the order book of a trading pair. Pagination is not supported here.
 // The whole book will be returned for one request. WebSocket is recommended here.
 func (o *OKGroup) GetSpotOrderBook(request GetSpotOrderBookRequest) (resp GetSpotOrderBookResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotOrderBook, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSpotAllTokenPairsInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all trading pairs.
 func (o *OKGroup) GetSpotAllTokenPairsInformation() (resp []GetSpotTokenPairsInformationResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v", OKGroupInstruments, OKGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSpotAllTokenPairsInformationForCurrency Get the last traded price, best bid/ask price, 24 hour trading volume and more info of a currency
 func (o *OKGroup) GetSpotAllTokenPairsInformationForCurrency(currency string) (resp GetSpotTokenPairsInformationResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", OKGroupInstruments, currency, OKGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSpotFilledOrdersInformation Get the recent 60 transactions of all trading pairs.
 // Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKGroup) GetSpotFilledOrdersInformation(request GetSpotFilledOrdersInformationRequest) (resp []GetSpotFilledOrdersInformationResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupTrades, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSpotMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
 func (o *OKGroup) GetSpotMarketData(request GetSpotMarketDataRequest) (resp GetSpotMarketDataResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotMarketData, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
 }
 
 // GetMarginTradingAccounts List all assets under token margin trading account, including information such as balance, amount on hold and more.

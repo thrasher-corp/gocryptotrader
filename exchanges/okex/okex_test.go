@@ -1389,7 +1389,7 @@ func TestGetSwapMarketData(t *testing.T) {
 func TestGetSwapIndeces(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapIndeces(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapIndices(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
 	if err != nil {
 		t.Error(err)
 	}
