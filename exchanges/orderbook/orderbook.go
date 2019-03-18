@@ -160,7 +160,9 @@ func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Bas
 		orderbookNew.Pair = p
 	}
 	orderbookNew.CurrencyPair = p.Pair().String()
-	orderbookNew.LastUpdated = time.Now()
+	if orderbookNew.LastUpdated.IsZero() {
+		orderbookNew.LastUpdated = time.Now()
+	}
 
 	orderbook, err := GetOrderbookByExchange(exchangeName)
 	if err != nil {

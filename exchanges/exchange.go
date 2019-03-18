@@ -240,9 +240,9 @@ type OrderDetail struct {
 type FundHistory struct {
 	ExchangeName      string
 	Status            string
-	TransferID        int64
+	TransferID        string
 	Description       string
-	Timestamp         int64
+	Timestamp         time.Time
 	Currency          string
 	Amount            float64
 	Fee               float64

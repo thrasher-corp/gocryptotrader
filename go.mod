@@ -1,6 +1,7 @@
 module github.com/thrasher-/gocryptotrader
 
 require (
+	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/mux v1.7.0
 	github.com/gorilla/websocket v1.4.0
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
