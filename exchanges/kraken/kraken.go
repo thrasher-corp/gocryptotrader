@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -99,9 +100,9 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		k.RESTPollingDelay = exch.RESTPollingDelay
 		k.Verbose = exch.Verbose
-		k.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		k.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		k.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		k.BaseCurrencies = exch.BaseCurrencies
+		k.AvailablePairs = exch.AvailablePairs
+		k.EnabledPairs = exch.EnabledPairs
 		err := k.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -912,7 +913,8 @@ func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, result interface{}) (err error) {
 	if !k.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, k.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			k.Name)
 	}
 
 	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
@@ -931,39 +933,57 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 
 	encoded := params.Encode()
 	shasum := common.GetSHA256([]byte(params.Get("nonce") + encoded))
-	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512, append([]byte(path), shasum...), secret))
+	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512,
+		append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
-		log.Debugf("Sending POST request to %s, path: %s, params: %s", k.APIUrl, path, encoded)
+		log.Debugf("Sending POST request to %s, path: %s, params: %s",
+			k.APIUrl,
+			path,
+			encoded)
 	}
 
 	headers := make(map[string]string)
 	headers["API-Key"] = k.APIKey
 	headers["API-Sign"] = signature
 
-	return k.SendPayload(http.MethodPost, k.APIUrl+path, headers, strings.NewReader(encoded), result, true, k.Verbose)
+	return k.SendPayload(http.MethodPost,
+		k.APIUrl+path,
+		headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		k.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
 func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	currency := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
+	c := feeBuilder.Pair.Base.String() +
+		feeBuilder.Pair.Delimiter +
+		feeBuilder.Pair.Quote.String()
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		feePair, err := k.GetTradeVolume(true, currency)
+		feePair, err := k.GetTradeVolume(true, c)
 		if err != nil {
 			return 0, err
 		}
 		if feeBuilder.IsMaker {
-			fee = calculateTradingFee(currency, feePair.FeesMaker, feeBuilder.PurchasePrice, feeBuilder.Amount)
+			fee = calculateTradingFee(c,
+				feePair.FeesMaker,
+				feeBuilder.PurchasePrice,
+				feeBuilder.Amount)
 		} else {
-			fee = calculateTradingFee(currency, feePair.Fees, feeBuilder.PurchasePrice, feeBuilder.Amount)
+			fee = calculateTradingFee(c,
+				feePair.Fees,
+				feeBuilder.PurchasePrice,
+				feeBuilder.Amount)
 		}
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankDepositFee:
-		depositMethods, err := k.GetDepositMethods(feeBuilder.CurrencyItem)
+		depositMethods, err := k.GetDepositMethods(feeBuilder.FiatCurrency.String())
 		if err != nil {
 			return 0, err
 		}
@@ -977,10 +997,10 @@ func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 			}
 		}
 	case exchange.CyptocurrencyDepositFee:
-		fee = getCryptocurrencyDepositFee(feeBuilder.FirstCurrency)
+		fee = getCryptocurrencyDepositFee(feeBuilder.Pair.Base)
 
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.CurrencyItem)
+		fee = getWithdrawalFee(feeBuilder.FiatCurrency)
 	}
 	if fee < 0 {
 		fee = 0
@@ -989,12 +1009,12 @@ func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func getWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }
 
-func getCryptocurrencyDepositFee(currency string) float64 {
-	return DepositFees[currency]
+func getCryptocurrencyDepositFee(c currency.Code) float64 {
+	return DepositFees[c]
 }
 
 func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
@@ -1025,14 +1045,14 @@ func (k *Kraken) GetCryptoDepositAddress(method, code string) (string, error) {
 }
 
 // WithdrawStatus gets the status of recent withdrawals
-func (k *Kraken) WithdrawStatus(currency, method string) ([]WithdrawStatusResponse, error) {
+func (k *Kraken) WithdrawStatus(c currency.Code, method string) ([]WithdrawStatusResponse, error) {
 	var response struct {
 		Error  []string                 `json:"error"`
 		Result []WithdrawStatusResponse `json:"result"`
 	}
 
 	params := url.Values{}
-	params.Set("asset ", currency)
+	params.Set("asset ", c.String())
 	if method != "" {
 		params.Set("method", method)
 	}
@@ -1045,14 +1065,14 @@ func (k *Kraken) WithdrawStatus(currency, method string) ([]WithdrawStatusRespon
 }
 
 // WithdrawCancel sends a withdrawal cancelation request
-func (k *Kraken) WithdrawCancel(currency, refID string) (bool, error) {
+func (k *Kraken) WithdrawCancel(c currency.Code, refID string) (bool, error) {
 	var response struct {
 		Error  []string `json:"error"`
 		Result bool     `json:"result"`
 	}
 
 	params := url.Values{}
-	params.Set("asset ", currency)
+	params.Set("asset ", c.String())
 	params.Set("refid", refID)
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenWithdrawCancel, params, &response); err != nil {

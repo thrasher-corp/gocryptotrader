@@ -13,7 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -156,7 +156,7 @@ func (h *HUOBI) WsHandleData() {
 					Timestamp:  time.Unix(0, kline.Timestamp),
 					Exchange:   h.GetName(),
 					AssetType:  "SPOT",
-					Pair:       pair.NewCurrencyPairFromString(data[1]),
+					Pair:       currency.NewPairFromString(data[1]),
 					OpenPrice:  kline.Tick.Open,
 					ClosePrice: kline.Tick.Close,
 					HighPrice:  kline.Tick.High,
@@ -177,7 +177,7 @@ func (h *HUOBI) WsHandleData() {
 				h.Websocket.DataHandler <- exchange.TradeData{
 					Exchange:     h.GetName(),
 					AssetType:    "SPOT",
-					CurrencyPair: pair.NewCurrencyPairFromString(data[1]),
+					CurrencyPair: currency.NewPairFromString(data[1]),
 					Timestamp:    time.Unix(0, trade.Tick.Timestamp),
 				}
 			}
@@ -201,13 +201,11 @@ func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) error {
 			Amount: askLevel[0].(float64)})
 	}
 
-	p := pair.NewCurrencyPairFromString(symbol)
+	p := currency.NewPairFromString(symbol)
 
 	var newOrderbook orderbook.Base
 	newOrderbook.Asks = asks
 	newOrderbook.Bids = bids
-	newOrderbook.CurrencyPair = symbol
-	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
 	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName(), false)

@@ -7,8 +7,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -363,13 +362,10 @@ func TestGetPreviousTrades(t *testing.T) {
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:         1,
-		Delimiter:      "",
-		FeeType:        exchange.CryptocurrencyTradeFee,
-		FirstCurrency:  symbol.BTC,
-		SecondCurrency: symbol.LTC,
-		IsMaker:        false,
-		PurchasePrice:  1,
+		Amount:        1,
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		Pair:          currency.NewPair(currency.BTC, currency.LTC),
+		PurchasePrice: 1,
 	}
 }
 
@@ -429,7 +425,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	feeBuilder.CurrencyItem = symbol.HKD
+	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
@@ -438,7 +434,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.HKD
+	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
@@ -478,8 +474,9 @@ func TestGetOrderHistory(t *testing.T) {
 	TestSetup(t)
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:  exchange.AnyOrderType,
-		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+		OrderType: exchange.AnyOrderType,
+		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
+			currency.BTC)},
 	}
 
 	_, err := b.GetOrderHistory(getOrdersRequest)
@@ -508,10 +505,10 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = pair.CurrencyPair{
-		Delimiter:      "",
-		FirstCurrency:  symbol.XBT,
-		SecondCurrency: symbol.USD,
+	var p = currency.Pair{
+		Delimiter: "",
+		Base:      currency.XBT,
+		Quote:     currency.USD,
 	}
 	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -529,7 +526,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "123456789012345678901234567890123456",
@@ -555,7 +552,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "123456789012345678901234567890123456",
@@ -604,7 +601,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetup(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:          100,
-		Currency:        "XBt",
+		Currency:        currency.XBT,
 		Address:         "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description:     "WITHDRAW IT ALL",
 		OneTimePassword: 000000,
@@ -657,12 +654,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := b.GetDepositAddress(symbol.BTC, "")
+		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := b.GetDepositAddress(symbol.BTC, "")
+		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}

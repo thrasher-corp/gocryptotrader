@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -34,7 +34,7 @@ func (i *ItBit) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (i *ItBit) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (i *ItBit) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := i.GetTicker(exchange.FormatExchangeCurrency(i.Name,
 		p).String())
@@ -49,12 +49,17 @@ func (i *ItBit) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pric
 	tickerPrice.High = tick.High24h
 	tickerPrice.Low = tick.Low24h
 	tickerPrice.Volume = tick.Volume24h
-	ticker.ProcessTicker(i.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(i.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(i.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (i *ItBit) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (i *ItBit) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(i.GetName(), p, assetType)
 	if err != nil {
 		return i.UpdateTicker(p, assetType)
@@ -63,8 +68,8 @@ func (i *ItBit) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(i.GetName(), p, assetType)
+func (i *ItBit) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(i.GetName(), p, assetType)
 	if err != nil {
 		return i.UpdateOrderbook(p, assetType)
 	}
@@ -72,7 +77,7 @@ func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := i.GetOrderbook(exchange.FormatExchangeCurrency(i.Name,
 		p).String())
@@ -82,32 +87,42 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		price, err := strconv.ParseFloat(data[0], 64)
+		var price, amount float64
+		price, err = strconv.ParseFloat(data[0], 64)
 		if err != nil {
-			log.Error(err)
+			return orderBook, err
 		}
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err = strconv.ParseFloat(data[1], 64)
 		if err != nil {
-			log.Error(err)
+			return orderBook, err
 		}
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: amount, Price: price})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		price, err := strconv.ParseFloat(data[0], 64)
+		var price, amount float64
+		price, err = strconv.ParseFloat(data[0], 64)
 		if err != nil {
-			log.Error(err)
+			return orderBook, err
 		}
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err = strconv.ParseFloat(data[1], 64)
 		if err != nil {
-			log.Error(err)
+			return orderBook, err
 		}
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: amount, Price: price})
 	}
 
-	orderbook.ProcessOrderbook(i.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(i.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = i.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(i.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies
@@ -142,7 +157,7 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for key, data := range amounts {
 		fullBalance = append(fullBalance, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: currency.NewCode(key),
 			TotalValue:   data.TotalValue,
 			Hold:         data.Hold,
 		})
@@ -163,14 +178,14 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (i *ItBit) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (i *ItBit) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var wallet string
 
@@ -182,17 +197,28 @@ func (i *ItBit) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 	// Determine what wallet ID to use if there is any actual available currency to make the trade!
 	for _, i := range wallets {
 		for j := range i.Balances {
-			if i.Balances[j].Currency == p.FirstCurrency.String() && i.Balances[j].AvailableBalance >= amount {
+			if i.Balances[j].Currency == p.Base.String() &&
+				i.Balances[j].AvailableBalance >= amount {
 				wallet = i.ID
 			}
 		}
 	}
 
 	if wallet == "" {
-		return submitOrderResponse, fmt.Errorf("no wallet found with currency: %s with amount >= %v", p.FirstCurrency.String(), amount)
+		return submitOrderResponse,
+			fmt.Errorf("no wallet found with currency: %s with amount >= %v",
+				p.Base,
+				amount)
 	}
 
-	response, err := i.PlaceOrder(wallet, side.ToString(), orderType.ToString(), p.FirstCurrency.String(), amount, price, p.Pair().String(), "")
+	response, err := i.PlaceOrder(wallet,
+		side.ToString(),
+		orderType.ToString(),
+		p.Base.String(),
+		amount,
+		price,
+		p.String(),
+		"")
 
 	if response.ID != "" {
 		submitOrderResponse.OrderID = response.ID
@@ -246,7 +272,7 @@ func (i *ItBit) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 // NOTE: This has not been implemented due to the fact you need to generate a
 // a specific wallet ID and they restrict the amount of deposit address you can
 // request limiting them to 2.
-func (i *ItBit) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (i *ItBit) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
@@ -296,7 +322,8 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := pair.NewCurrencyPairDelimiter(order.Instrument, i.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewPairDelimiter(order.Instrument,
+			i.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(order.Side))
 		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
 		if err != nil {
@@ -316,7 +343,8 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
@@ -346,7 +374,8 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 			continue
 		}
 
-		symbol := pair.NewCurrencyPairDelimiter(order.Instrument, i.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewPairDelimiter(order.Instrument,
+			i.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(order.Side))
 		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
 		if err != nil {
@@ -366,7 +395,8 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 

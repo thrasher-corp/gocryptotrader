@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -40,7 +40,9 @@ func (b *BTSE) Run() {
 		for _, m := range *markets {
 			currencies = append(currencies, m.ID)
 		}
-		err = b.UpdateCurrencies(currencies, false, false)
+		err = b.UpdateCurrencies(currency.NewPairsFromStrings(currencies),
+			false,
+			false)
 		if err != nil {
 			log.Errorf("%s Failed to update available currencies.\n", b.Name)
 		}
@@ -49,7 +51,7 @@ func (b *BTSE) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTSE) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *BTSE) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	t, err := b.GetTicker(exchange.FormatExchangeCurrency(b.Name, p).String())
@@ -70,12 +72,16 @@ func (b *BTSE) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price
 	tickerPrice.Last = t.Price
 	tickerPrice.Volume = s.Volume
 	tickerPrice.High = s.High
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (b *BTSE) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *BTSE) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -84,8 +90,8 @@ func (b *BTSE) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pri
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (b *BTSE) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+func (b *BTSE) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -93,7 +99,7 @@ func (b *BTSE) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTSE) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	return orderbook.Base{}, common.ErrFunctionNotSupported
 }
 
@@ -110,7 +116,7 @@ func (b *BTSE) GetAccountInfo() (exchange.AccountInfo, error) {
 	for _, b := range *balance {
 		currencies = append(currencies,
 			exchange.AccountCurrencyInfo{
-				CurrencyName: b.Currency,
+				CurrencyName: currency.NewCode(b.Currency),
 				TotalValue:   b.Total,
 				Hold:         b.Available,
 			},
@@ -132,12 +138,12 @@ func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTSE) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (b *BTSE) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *BTSE) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var resp exchange.SubmitOrderResponse
 	r, err := b.CreateOrder(amount, price, side.ToString(),
 		orderType.ToString(), exchange.FormatExchangeCurrency(b.Name, p).String(), "GTC", clientID)
@@ -220,7 +226,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 			side = exchange.SellOrderSide
 		}
 
-		od.CurrencyPair = pair.NewCurrencyPairDelimiter(o.ProductID,
+		od.CurrencyPair = currency.NewPairDelimiter(o.ProductID,
 			b.ConfigCurrencyPairFormat.Delimiter)
 		od.Exchange = b.Name
 		od.Amount = o.Amount
@@ -253,7 +259,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTSE) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (b *BTSE) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -295,7 +301,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 		}
 
 		openOrder := exchange.OrderDetail{
-			CurrencyPair: pair.NewCurrencyPairDelimiter(order.ProductID,
+			CurrencyPair: currency.NewPairDelimiter(order.ProductID,
 				b.ConfigCurrencyPairFormat.Delimiter),
 			Exchange:  b.Name,
 			Amount:    order.Amount,

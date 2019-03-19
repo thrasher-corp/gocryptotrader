@@ -47,7 +47,7 @@ totalAsks, totalOrderbookVal := ob.CalculateTotalAsks()
 the package itself.
 
 ```go
-ob, err := orderbook.GetOrderbook(...)
+ob, err := orderbook.Get(...)
 if err != nil {
   // Handle error
 }

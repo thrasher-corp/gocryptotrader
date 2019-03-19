@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -26,7 +26,7 @@ func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(account.Currencies); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = account.Currencies[i].Name
+		exchangeCurrency.CurrencyName = currency.NewCode(account.Currencies[i].Name)
 		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
 		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)
 
@@ -41,9 +41,9 @@ func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := a.GetTicker(p.Pair().String())
+	tick, err := a.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -55,12 +55,17 @@ func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker
 	tickerPrice.High = tick.High
 	tickerPrice.Volume = tick.Volume
 	tickerPrice.Last = tick.Last
-	ticker.ProcessTicker(a.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(a.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(a.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (a *Alphapoint) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
@@ -69,30 +74,40 @@ func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair, assetType string) (tick
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *Alphapoint) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := a.GetOrderbook(p.Pair().String())
+	orderbookNew, err := a.GetOrderbook(p.String())
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Quantity, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{Amount: data.Quantity, Price: data.Price})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Quantity, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{Amount: data.Quantity, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(a.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = a.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(a.Name, p, assetType)
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
-func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
+func (a *Alphapoint) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
 	}
@@ -108,7 +123,7 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
@@ -116,10 +131,14 @@ func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (a *Alphapoint) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 
-	response, err := a.CreateOrder(p.Pair().String(), side.ToString(), orderType.ToString(), amount, price)
+	response, err := a.CreateOrder(p.String(),
+		side.ToString(),
+		orderType.ToString(),
+		amount, price)
+
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}
@@ -172,7 +191,7 @@ func (a *Alphapoint) GetOrderInfo(orderID string) (float64, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (a *Alphapoint) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
+func (a *Alphapoint) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	addreses, err := a.GetDepositAddresses()
 	if err != nil {
 		return "", err

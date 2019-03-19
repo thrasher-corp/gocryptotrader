@@ -1,6 +1,6 @@
 package exmo
 
-import "github.com/thrasher-/gocryptotrader/currency/symbol"
+import "github.com/thrasher-/gocryptotrader/currency"
 
 // Trades holds trade data
 type Trades struct {
@@ -148,30 +148,30 @@ type WalletHistory struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
-	symbol.BTC:   0.0005,
-	symbol.LTC:   0.01,
-	symbol.DOGE:  1,
-	symbol.DASH:  0.01,
-	symbol.ETH:   0.01,
-	symbol.WAVES: 0.001,
-	symbol.ZEC:   0.001,
-	symbol.USDT:  5,
-	symbol.XMR:   0.05,
-	symbol.XRP:   0.02,
-	symbol.KICK:  50,
-	symbol.ETC:   0.01,
-	symbol.BCH:   0.001,
-	symbol.BTG:   0.001,
-	symbol.HBZ:   65,
-	symbol.BTCZ:  5,
-	symbol.DXT:   20,
-	symbol.STQ:   100,
-	symbol.XLM:   0.001,
-	symbol.OMG:   0.5,
-	symbol.TRX:   1,
-	symbol.ADA:   1,
-	symbol.INK:   50,
-	symbol.ZRX:   1,
-	symbol.GNT:   1,
+var WithdrawalFees = map[currency.Code]float64{
+	currency.BTC:   0.0005,
+	currency.LTC:   0.01,
+	currency.DOGE:  1,
+	currency.DASH:  0.01,
+	currency.ETH:   0.01,
+	currency.WAVES: 0.001,
+	currency.ZEC:   0.001,
+	currency.USDT:  5,
+	currency.XMR:   0.05,
+	currency.XRP:   0.02,
+	currency.KICK:  50,
+	currency.ETC:   0.01,
+	currency.BCH:   0.001,
+	currency.BTG:   0.001,
+	currency.HBZ:   65,
+	currency.BTCZ:  5,
+	currency.DXT:   20,
+	currency.STQ:   100,
+	currency.XLM:   0.001,
+	currency.OMG:   0.5,
+	currency.TRX:   1,
+	currency.ADA:   1,
+	currency.INK:   50,
+	currency.ZRX:   1,
+	currency.GNT:   1,
 }

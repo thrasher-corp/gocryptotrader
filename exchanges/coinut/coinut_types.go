@@ -2,11 +2,10 @@ package coinut
 
 // GenericResponse is the generic response you will get from coinut
 type GenericResponse struct {
-	Nonce     int64    `json:"nonce"`
-	Reply     string   `json:"reply"`
-	Status    []string `json:"status"`
-	TransID   int64    `json:"trans_id"`
-	Timestamp int64    `json:"timestamp"`
+	Nonce   int64    `json:"nonce"`
+	Reply   string   `json:"reply"`
+	Status  []string `json:"status"`
+	TransID int64    `json:"trans_id"`
 }
 
 // InstrumentBase holds information on base currency

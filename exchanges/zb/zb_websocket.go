@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
@@ -64,7 +64,7 @@ func (z *ZB) WsSubscribe() error {
 	}
 
 	for _, c := range z.GetEnabledCurrencies() {
-		cPair := c.FirstCurrency.Lower() + c.SecondCurrency.Lower()
+		cPair := c.Base.Lower().String() + c.Quote.Lower().String()
 
 		ticker := Subscription{
 			Event:   "addChannel",
@@ -186,7 +186,7 @@ func (z *ZB) WsHandleData() {
 
 				z.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Unix(0, ticker.Date),
-					Pair:       pair.NewCurrencyPairFromString(cPair[0]),
+					Pair:       currency.NewPairFromString(cPair[0]),
 					AssetType:  "SPOT",
 					Exchange:   z.GetName(),
 					ClosePrice: ticker.Data.Last,
@@ -221,17 +221,17 @@ func (z *ZB) WsHandleData() {
 				}
 
 				channelInfo := common.SplitStrings(result.Channel, "_")
-				cPair := pair.NewCurrencyPairFromString(channelInfo[0])
+				cPair := currency.NewPairFromString(channelInfo[0])
 
 				var newOrderbook orderbook.Base
 				newOrderbook.Asks = asks
 				newOrderbook.Bids = bids
 				newOrderbook.AssetType = "SPOT"
 				newOrderbook.Pair = cPair
-				newOrderbook.CurrencyPair = channelInfo[0]
-				newOrderbook.LastUpdated = time.Now()
 
-				err = z.Websocket.Orderbook.LoadSnapshot(newOrderbook, z.GetName(), true)
+				err = z.Websocket.Orderbook.LoadSnapshot(newOrderbook,
+					z.GetName(),
+					true)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -255,7 +255,7 @@ func (z *ZB) WsHandleData() {
 				t := trades.Data[len(trades.Data)-1]
 
 				channelInfo := common.SplitStrings(result.Channel, "_")
-				cPair := pair.NewCurrencyPairFromString(channelInfo[0])
+				cPair := currency.NewPairFromString(channelInfo[0])
 
 				z.Websocket.DataHandler <- exchange.TradeData{
 					Timestamp:    time.Unix(0, t.Date),

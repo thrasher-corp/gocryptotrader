@@ -5,8 +5,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -109,13 +108,10 @@ func TestGetRequiredAmount(t *testing.T) {
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:              1,
-		Delimiter:           "",
 		FeeType:             exchange.CryptocurrencyTradeFee,
-		FirstCurrency:       symbol.BTC,
-		SecondCurrency:      symbol.LTC,
-		IsMaker:             false,
+		Pair:                currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice:       1,
-		CurrencyItem:        symbol.USD,
+		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}
 }
@@ -168,7 +164,7 @@ func TestGetFee(t *testing.T) {
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FirstCurrency = "hello"
+	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := e.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
@@ -186,7 +182,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	feeBuilder.CurrencyItem = symbol.RUB
+	feeBuilder.FiatCurrency = currency.RUB
 	if resp, err := e.GetFee(feeBuilder); resp != float64(1600) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(1600), resp)
 		t.Error(err)
@@ -195,7 +191,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	feeBuilder.CurrencyItem = symbol.PLN
+	feeBuilder.FiatCurrency = currency.PLN
 	if resp, err := e.GetFee(feeBuilder); resp != float64(30) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(30), resp)
 		t.Error(err)
@@ -204,7 +200,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.PLN
+	feeBuilder.FiatCurrency = currency.PLN
 	if resp, err := e.GetFee(feeBuilder); resp != float64(125) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(125), resp)
 		t.Error(err)
@@ -213,7 +209,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.TRY
+	feeBuilder.FiatCurrency = currency.TRY
 	if resp, err := e.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
@@ -222,7 +218,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.EUR
+	feeBuilder.FiatCurrency = currency.EUR
 	if resp, err := e.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
@@ -231,7 +227,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.RUB
+	feeBuilder.FiatCurrency = currency.RUB
 	if resp, err := e.GetFee(feeBuilder); resp != float64(3200) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(3200), resp)
 		t.Error(err)
@@ -273,9 +269,9 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
-	currPair := pair.NewCurrencyPair(symbol.BTC, symbol.USD)
+	currPair := currency.NewPair(currency.BTC, currency.USD)
 	currPair.Delimiter = "_"
-	getOrdersRequest.Currencies = []pair.CurrencyPair{currPair}
+	getOrdersRequest.Currencies = []currency.Pair{currPair}
 
 	_, err := e.GetOrderHistory(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -302,10 +298,10 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = pair.CurrencyPair{
-		Delimiter:      "_",
-		FirstCurrency:  symbol.BTC,
-		SecondCurrency: symbol.USD,
+	var p = currency.Pair{
+		Delimiter: "_",
+		Base:      currency.BTC,
+		Quote:     currency.USD,
 	}
 	response, err := e.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "1234234")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -323,7 +319,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -350,7 +346,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -384,7 +380,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetup(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:      100,
-		Currency:    symbol.LTC,
+		Currency:    currency.LTC,
 		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description: "WITHDRAW IT ALL",
 	}
@@ -436,12 +432,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := e.GetDepositAddress(symbol.LTC, "")
+		_, err := e.GetDepositAddress(currency.LTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := e.GetDepositAddress(symbol.LTC, "")
+		_, err := e.GetDepositAddress(currency.LTC, "")
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}

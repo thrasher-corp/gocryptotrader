@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -101,9 +102,9 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
 		p.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		p.BaseCurrencies = exch.BaseCurrencies
+		p.AvailablePairs = exch.AvailablePairs
+		p.EnabledPairs = exch.EnabledPairs
 		err := p.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -818,7 +819,10 @@ func (p *Poloniex) GetLendingHistory(start, end string) ([]LendingHistory, error
 	}
 
 	resp := []LendingHistory{}
-	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexLendingHistory, vals, &resp)
+	err := p.SendAuthenticatedHTTPRequest(http.MethodPost,
+		poloniexLendingHistory,
+		vals,
+		&resp)
 
 	if err != nil {
 		return nil, err
@@ -832,7 +836,10 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 	values.Set("orderNumber", strconv.FormatInt(orderNumber, 10))
 	result := GenericResponse{}
 
-	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexAutoRenew, values, &result)
+	err := p.SendAuthenticatedHTTPRequest(http.MethodPost,
+		poloniexAutoRenew,
+		values,
+		&result)
 
 	if err != nil {
 		return false, err
@@ -847,13 +854,20 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
-	return p.SendPayload(http.MethodGet, path, nil, nil, result, false, p.Verbose)
+	return p.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		p.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
 	if !p.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, p.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			p.Name)
 	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -867,12 +881,21 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	values.Set("nonce", p.Nonce.String())
 	values.Set("command", endpoint)
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(values.Encode()), []byte(p.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512,
+		[]byte(values.Encode()),
+		[]byte(p.APISecret))
+
 	headers["Sign"] = common.HexEncodeToString(hmac)
 
 	path := fmt.Sprintf("%s/%s", p.APIUrl, poloniexAPITradingEndpoint)
 
-	return p.SendPayload(method, path, headers, bytes.NewBufferString(values.Encode()), result, true, p.Verbose)
+	return p.SendPayload(method,
+		path,
+		headers,
+		bytes.NewBufferString(values.Encode()),
+		result,
+		true,
+		p.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -884,9 +907,13 @@ func (p *Poloniex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+		fee = calculateTradingFee(feeInfo,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
+
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	}
 	if fee < 0 {
 		fee = 0
@@ -904,6 +931,6 @@ func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker boo
 	return fee * amount * purchasePrice
 }
 
-func getWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }

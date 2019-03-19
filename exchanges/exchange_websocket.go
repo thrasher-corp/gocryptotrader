@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
@@ -363,7 +363,7 @@ type WebsocketOrderbookLocal struct {
 // Price target not found; append of price target
 // Price target found; amend volume of price target
 func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item,
-	p pair.CurrencyPair,
+	p currency.Pair,
 	updated time.Time,
 	exchName, assetType string) error {
 	if bidTargets == nil && askTargets == nil {
@@ -387,7 +387,7 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 	if orderbookAddress == nil {
 		return fmt.Errorf("exchange.go WebsocketOrderbookLocal Update() - orderbook.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
 			exchName,
-			p.Pair().String(),
+			p.String(),
 			assetType)
 	}
 
@@ -395,7 +395,7 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 		return errors.New("exchange.go websocket orderbook cache Update() error - snapshot incorrectly loaded")
 	}
 
-	if orderbookAddress.Pair == (pair.CurrencyPair{}) {
+	if orderbookAddress.Pair == (currency.Pair{}) {
 		return fmt.Errorf("exchange.go websocket orderbook cache Update() error - snapshot not found %v",
 			p)
 	}
@@ -460,8 +460,8 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 		}()
 	}
 
-	orderbook.ProcessOrderbook(exchName, p, *orderbookAddress, assetType)
-	return nil
+	return orderbookAddress.Process()
+
 }
 
 // LoadSnapshot loads initial snapshot of orderbook data, overite allows full
@@ -476,36 +476,22 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 	defer w.m.Unlock()
 
 	for i := range w.ob {
-		if w.ob[i].Pair == newOrderbook.Pair && w.ob[i].AssetType == newOrderbook.AssetType {
+		if w.ob[i].Pair.Equal(newOrderbook.Pair) && w.ob[i].AssetType == newOrderbook.AssetType {
 			if overwrite {
 				w.ob[i] = newOrderbook
-				w.lastUpdated = newOrderbook.LastUpdated
-
-				orderbook.ProcessOrderbook(exchName,
-					newOrderbook.Pair,
-					newOrderbook,
-					newOrderbook.AssetType)
-
-				return nil
+				return newOrderbook.Process()
 			}
 			return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - Snapshot instance already found")
 		}
 	}
 
 	w.ob = append(w.ob, newOrderbook)
-	w.lastUpdated = newOrderbook.LastUpdated
-
-	orderbook.ProcessOrderbook(exchName,
-		newOrderbook.Pair,
-		newOrderbook,
-		newOrderbook.AssetType)
-
-	return nil
+	return newOrderbook.Process()
 }
 
 // UpdateUsingID updates orderbooks using specified ID
 func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbook.Item,
-	p pair.CurrencyPair,
+	p currency.Pair,
 	exchName, assetType, action string) error {
 	w.m.Lock()
 	defer w.m.Unlock()
@@ -521,7 +507,7 @@ func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbo
 		return fmt.Errorf("exchange.go WebsocketOrderbookLocal Update() - orderbook.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
 			exchName,
 			assetType,
-			p.Pair().String())
+			p.String())
 	}
 
 	switch action {
@@ -570,8 +556,7 @@ func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbo
 		orderbookAddress.Asks = append(orderbookAddress.Asks, askTargets...)
 	}
 
-	orderbook.ProcessOrderbook(exchName, p, *orderbookAddress, assetType)
-	return nil
+	return orderbookAddress.Process()
 }
 
 // FlushCache flushes w.ob data to be garbage collected and refreshed when a
@@ -591,7 +576,7 @@ type WebsocketResponse struct {
 // WebsocketOrderbookUpdate defines a websocket event in which the orderbook
 // has been updated in the orderbook package
 type WebsocketOrderbookUpdate struct {
-	Pair     pair.CurrencyPair
+	Pair     currency.Pair
 	Asset    string
 	Exchange string
 }
@@ -599,7 +584,7 @@ type WebsocketOrderbookUpdate struct {
 // TradeData defines trade data
 type TradeData struct {
 	Timestamp    time.Time
-	CurrencyPair pair.CurrencyPair
+	CurrencyPair currency.Pair
 	AssetType    string
 	Exchange     string
 	EventType    string
@@ -612,7 +597,7 @@ type TradeData struct {
 // TickerData defines ticker feed
 type TickerData struct {
 	Timestamp  time.Time
-	Pair       pair.CurrencyPair
+	Pair       currency.Pair
 	AssetType  string
 	Exchange   string
 	ClosePrice float64
@@ -625,7 +610,7 @@ type TickerData struct {
 // KlineData defines kline feed
 type KlineData struct {
 	Timestamp  time.Time
-	Pair       pair.CurrencyPair
+	Pair       currency.Pair
 	AssetType  string
 	Exchange   string
 	StartTime  time.Time
@@ -641,7 +626,7 @@ type KlineData struct {
 // WebsocketPositionUpdated reflects a change in orders/contracts on an exchange
 type WebsocketPositionUpdated struct {
 	Timestamp time.Time
-	Pair      pair.CurrencyPair
+	Pair      currency.Pair
 	AssetType string
 	Exchange  string
 }

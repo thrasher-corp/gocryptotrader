@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -96,9 +96,9 @@ func (h *HitBTC) Setup(exch config.ExchangeConfig) {
 		h.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
 		h.Verbose = exch.Verbose
 		h.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		h.BaseCurrencies = exch.BaseCurrencies
+		h.AvailablePairs = exch.AvailablePairs
+		h.EnabledPairs = exch.EnabledPairs
 		err := h.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -322,7 +322,7 @@ func (h *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error)
 	return ob, nil
 }
 
-// GetCandles returns candles which is used for OHLC a specific symbol.
+// GetCandles returns candles which is used for OHLC a specific currency.
 // Note: Result contain candles only with non zero volume.
 func (h *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, error) {
 	// limit   Limit of candles, default 100.
@@ -573,7 +573,10 @@ func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 	values.Set("fromAccount", from)
 	values.Set("toAccount", to)
 
-	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, transferBalance, values, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost,
+		transferBalance,
+		values,
+		&result)
 
 	if err != nil {
 		return false, err
@@ -594,14 +597,21 @@ func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated http request
 func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
 	if !h.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			h.Name)
 	}
 	headers := make(map[string]string)
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(h.APIKey+":"+h.APISecret))
 
 	path := fmt.Sprintf("%s/%s", h.APIUrl, endpoint)
 
-	return h.SendPayload(method, path, headers, bytes.NewBufferString(values.Encode()), result, true, h.Verbose)
+	return h.SendPayload(method,
+		path,
+		headers,
+		bytes.NewBufferString(values.Encode()),
+		result,
+		true,
+		h.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -609,13 +619,18 @@ func (h *HitBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		feeInfo, err := h.GetFeeInfo(feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency)
+		feeInfo, err := h.GetFeeInfo(feeBuilder.Pair.Base.String() +
+			feeBuilder.Pair.Delimiter +
+			feeBuilder.Pair.Quote.String())
+
 		if err != nil {
 			return 0, err
 		}
-		fee = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+		fee = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
-		currencyInfo, err := h.GetCurrency(feeBuilder.FirstCurrency)
+		currencyInfo, err := h.GetCurrency(feeBuilder.Pair.Base.String())
 		if err != nil {
 			return 0, err
 		}
@@ -624,15 +639,16 @@ func (h *HitBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 			return 0, err
 		}
 	case exchange.CyptocurrencyDepositFee:
-		fee = calculateCryptocurrencyDepositFee(feeBuilder.FirstCurrency, feeBuilder.Amount)
+		fee = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
+			feeBuilder.Amount)
 	}
 
 	return fee, nil
 }
 
-func calculateCryptocurrencyDepositFee(currency string, amount float64) float64 {
+func calculateCryptocurrencyDepositFee(c currency.Code, amount float64) float64 {
 	var fee float64
-	if currency == symbol.BTC {
+	if c == currency.BTC {
 		fee = 0.0006
 	}
 	return fee * amount

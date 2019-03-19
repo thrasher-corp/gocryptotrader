@@ -1,6 +1,6 @@
 package btcmarkets
 
-import "github.com/thrasher-/gocryptotrader/currency/symbol"
+import "github.com/thrasher-/gocryptotrader/currency"
 
 // Response is the genralized response type
 type Response struct {
@@ -129,14 +129,14 @@ type WithdrawRequestAUD struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
-	symbol.AUD:  0,
-	symbol.BTC:  0.001,
-	symbol.ETH:  0.001,
-	symbol.ETC:  0.001,
-	symbol.LTC:  0.0001,
-	symbol.XRP:  0.15,
-	symbol.BCH:  0.0001,
-	symbol.OMG:  0.15,
-	symbol.POWR: 5,
+var WithdrawalFees = map[currency.Code]float64{
+	currency.AUD:  0,
+	currency.BTC:  0.001,
+	currency.ETH:  0.001,
+	currency.ETC:  0.001,
+	currency.LTC:  0.0001,
+	currency.XRP:  0.15,
+	currency.BCH:  0.0001,
+	currency.OMG:  0.15,
+	currency.POWR: 5,
 }

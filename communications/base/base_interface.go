@@ -80,7 +80,7 @@ func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice *tick
 		TickerStaged[exchangeName][assetType] = make(map[string]ticker.Price)
 	}
 
-	TickerStaged[exchangeName][assetType][tickerPrice.CurrencyPair] = *tickerPrice
+	TickerStaged[exchangeName][assetType][tickerPrice.Pair.String()] = *tickerPrice
 }
 
 // StageOrderbookData stages updated orderbook data for the communications
@@ -97,12 +97,11 @@ func (c IComm) StageOrderbookData(exchangeName, assetType string, ob *orderbook.
 		OrderbookStaged[exchangeName][assetType] = make(map[string]Orderbook)
 	}
 
-	_, totalAsks := ob.CalculateTotalAsks()
-	_, totalBids := ob.CalculateTotalBids()
+	_, totalAsks := ob.TotalAsksAmount()
+	_, totalBids := ob.TotalBidsAmount()
 
-	OrderbookStaged[exchangeName][assetType][ob.CurrencyPair] = Orderbook{
-		CurrencyPair: ob.CurrencyPair,
+	OrderbookStaged[exchangeName][assetType][ob.Pair.String()] = Orderbook{
+		CurrencyPair: ob.Pair.String(),
 		TotalAsks:    totalAsks,
-		TotalBids:    totalBids,
-		LastUpdated:  ob.LastUpdated.String()}
+		TotalBids:    totalBids}
 }

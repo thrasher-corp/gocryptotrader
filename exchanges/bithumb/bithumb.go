@@ -13,7 +13,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -97,9 +97,9 @@ func (b *Bithumb) Setup(exch config.ExchangeConfig) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -614,11 +614,11 @@ func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CyptocurrencyDepositFee:
-		fee = getDepositFee(feeBuilder.FirstCurrency, feeBuilder.Amount)
+		fee = getDepositFee(feeBuilder.Pair.Base, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.CurrencyItem)
+		fee = getWithdrawalFee(feeBuilder.FiatCurrency)
 	}
 	if fee < 0 {
 		fee = 0
@@ -633,31 +633,31 @@ func calculateTradingFee(purchasePrice, amount float64) float64 {
 }
 
 // getDepositFee returns fee on a currency when depositing small amounts to bithumb
-func getDepositFee(currency string, amount float64) float64 {
+func getDepositFee(c currency.Code, amount float64) float64 {
 	var fee float64
 
-	switch currency {
-	case symbol.BTC:
+	switch c {
+	case currency.BTC:
 		if amount <= 0.005 {
 			fee = 0.001
 		}
-	case symbol.LTC:
+	case currency.LTC:
 		if amount <= 0.3 {
 			fee = 0.01
 		}
-	case symbol.DASH:
+	case currency.DASH:
 		if amount <= 0.04 {
 			fee = 0.01
 		}
-	case symbol.BCH:
+	case currency.BCH:
 		if amount <= 0.03 {
 			fee = 0.001
 		}
-	case symbol.ZEC:
+	case currency.ZEC:
 		if amount <= 0.02 {
 			fee = 0.001
 		}
-	case symbol.BTG:
+	case currency.BTG:
 		if amount <= 0.15 {
 			fee = 0.001
 		}
@@ -667,8 +667,8 @@ func getDepositFee(currency string, amount float64) float64 {
 }
 
 // getWithdrawalFee returns fee on a currency when withdrawing out of bithumb
-func getWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }
 
 var errCode = map[string]string{
