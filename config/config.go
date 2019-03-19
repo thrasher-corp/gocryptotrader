@@ -104,6 +104,7 @@ type Config struct {
 	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
 	Logging           log.Logging          `json:"logging"`
 	Profiler          ProfilerConfig       `json:"profiler"`
+	Databases         Databases            `json:"databases"`
 	Currency          CurrencyConfig       `json:"currencyConfig"`
 	Communications    CommunicationsConfig `json:"communications"`
 	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
@@ -151,6 +152,7 @@ type ExchangeConfig struct {
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"configCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"requestCurrencyPairFormat"`
 	BankAccounts              []BankAccount             `json:"bankAccounts"`
+	Database                  Database                  `json:"database"`
 }
 
 // BankAccount holds differing bank account details by supported funding
@@ -202,6 +204,38 @@ type CommunicationsConfig struct {
 	SMSGlobalConfig SMSGlobalConfig `json:"smsGlobal"`
 	SMTPConfig      SMTPConfig      `json:"smtp"`
 	TelegramConfig  TelegramConfig  `json:"telegram"`
+}
+
+// Databases defines databases that are used in the trading engine
+type Databases struct {
+	Postgres DatabaseDetails `json:"postgres"`
+	Sqlite3  DatabaseDetails `json:"sqlite3"`
+}
+
+// DatabaseDetails defines database connection details
+type DatabaseDetails struct {
+	PathToDb     string `json:"pathToDB"`
+	Host         string `json:"host"`
+	Password     string `json:"password"`
+	Username     string `json:"userName"`
+	Port         string `json:"port"`
+	DatabaseName string `json:"databaseName"`
+	SSLMode      string `json:"sslMode"`
+}
+
+// Database denotes configurations for what is saved to database from the
+// loaded exchange
+type Database struct {
+	// LoadPlatformTrades loads the trades that have been matched on the
+	// exchange by all clients
+	LoadPlatformTrades bool `json:"loadPlatformTrades"`
+	// TimestampStart defines the start date at which you want the trades to be
+	// fetched, if no time is set will default to fetching the last 24 hours or
+	// what ever the max historic time is.
+	TimestampStart int64 `json:"timestampStart"`
+	// TimestampEnd defines the end date if no time is set will default to
+	// time.Now()
+	TimestampEnd int64 `json:"timestampEnd"`
 }
 
 // SlackConfig holds all variables to start and run the Slack package
@@ -371,6 +405,20 @@ func (c *Config) CheckClientBankAccounts() error {
 		}
 	}
 	return nil
+}
+
+// GetDatabaseConfig returns a exchange database configuration
+func (c *Config) GetDatabaseConfig(exchangeName string) (Database, error) {
+	m.Lock()
+	defer m.Unlock()
+	for i := range c.Exchanges {
+		if c.Exchanges[i].Name == exchangeName {
+			return c.Exchanges[i].Database, nil
+		}
+	}
+
+	return Database{},
+		fmt.Errorf("exchange %s configuration not found", exchangeName)
 }
 
 // GetCommunicationsConfig returns the communications configuration

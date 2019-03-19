@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -212,8 +213,9 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 	return resp, err
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (o *OKGroup) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

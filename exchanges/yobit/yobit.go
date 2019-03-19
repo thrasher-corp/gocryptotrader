@@ -150,13 +150,19 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 }
 
 // GetTrades returns the trades for a specific currency
-func (y *Yobit) GetTrades(symbol string) ([]Trades, error) {
+func (y *Yobit) GetTrades(symbol string, limit int64) ([]Trades, error) {
 	type Response struct {
 		Data map[string][]Trades
 	}
 
 	response := Response{}
 	path := fmt.Sprintf("%s/%s/%s/%s", y.APIUrl, apiPublicVersion, publicTrades, symbol)
+
+	if limit != 0 {
+		v := url.Values{}
+		v.Set("limit", strconv.FormatInt(limit, 10))
+		path += fmt.Sprintf("?%s", v.Encode())
+	}
 
 	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
 }

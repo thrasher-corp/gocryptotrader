@@ -154,11 +154,28 @@ func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (y *Yobit) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (y *Yobit) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
 
-	return resp, common.ErrNotYetImplemented
+	formattedPair := exchange.FormatExchangeCurrency(y.GetName(), p)
+	t, err := y.GetTrades(formattedPair.String(), 2000)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range t {
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: time.Unix(t[i].TID, 0),
+			TID:       strconv.FormatInt(t[i].TID, 10),
+			Price:     t[i].Price,
+			Amount:    t[i].Amount,
+			Exchange:  y.GetName(),
+			Type:      t[i].Type,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

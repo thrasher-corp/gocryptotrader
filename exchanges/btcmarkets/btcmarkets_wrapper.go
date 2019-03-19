@@ -3,6 +3,7 @@ package btcmarkets
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -171,11 +172,38 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (b *BTCMarkets) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+	ID, err := strconv.ParseInt(tradeID, 10, 64)
+	if err != nil {
+		return resp, err
+	}
 
-	return resp, common.ErrNotYetImplemented
+	v := url.Values{}
+	v.Set("since", strconv.FormatInt(ID, 10))
+
+	t, err := b.GetTrades(p.Base.String(), p.Quote.String(), v)
+	if err != nil {
+		return resp, err
+	}
+
+	if len(t) == 0 {
+		return resp, errors.New("no history returned")
+	}
+
+	for i := range t {
+		orderID := strconv.FormatInt(t[i].TradeID, 10)
+		resp = append(resp, exchange.PlatformTrade{
+			Amount:    t[i].Amount,
+			Exchange:  b.Name,
+			Price:     t[i].Price,
+			TID:       orderID,
+			Timestamp: time.Unix(t[i].Date, 0),
+			Type:      "Not Supplied"})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

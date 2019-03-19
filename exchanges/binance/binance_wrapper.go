@@ -16,7 +16,7 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Start starts the OKEX go routine
+// Start starts the Binance go routine
 func (b *Binance) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -25,7 +25,7 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 	}()
 }
 
-// Run implements the OKEX wrapper
+// Run implements the Binance wrapper
 func (b *Binance) Run() {
 	if b.Verbose {
 		log.Debugf("%s Websocket: %s. (url: %s).\n%s polling delay: %ds.\n%s %d currencies enabled: %s.\n",
@@ -195,10 +195,38 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-	return resp, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (b *Binance) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // set to three months prior
+	}
+	timestampEnd := timestampStart.Add(1 * time.Hour) // add 1 hr
+
+	formattedPair := exchange.FormatExchangeCurrency(b.GetName(), p)
+
+	t, err := b.GetAggregatedTrades(formattedPair.String(),
+		500,
+		common.UnixMillis(timestampStart),
+		common.UnixMillis(timestampEnd))
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range t {
+		orderID := strconv.FormatInt(t[i].LastTradeID, 10)
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: time.Unix(0, common.UnixMillisToNano(t[i].TimeStamp)),
+			TID:       orderID,
+			Price:     t[i].Price,
+			Amount:    t[i].Quantity,
+			Exchange:  b.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

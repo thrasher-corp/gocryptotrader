@@ -242,17 +242,17 @@ func (c *CoinbasePro) GetTrades(currencyPair string) ([]Trade, error) {
 
 // GetHistoricRates returns historic rates for a product. Rates are returned in
 // grouped buckets based on requested granularity.
-func (c *CoinbasePro) GetHistoricRates(currencyPair string, start, end, granularity int64) ([]History, error) {
+func (c *CoinbasePro) GetHistoricRates(currencyPair, startTime, endTime string, granularity int64) ([]History, error) {
 	var resp [][]interface{}
 	history := []History{}
 	values := url.Values{}
 
-	if start > 0 {
-		values.Set("start", strconv.FormatInt(start, 10))
+	if startTime != "" {
+		values.Set("start", startTime)
 	}
 
-	if end > 0 {
-		values.Set("end", strconv.FormatInt(end, 10))
+	if endTime != "" {
+		values.Set("end", endTime)
 	}
 
 	if granularity > 0 {

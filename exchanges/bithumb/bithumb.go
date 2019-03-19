@@ -225,9 +225,15 @@ func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 // GetTransactionHistory returns recent transactions
 //
 // symbol e.g. "btc"
-func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, error) {
+func (b *Bithumb) GetTransactionHistory(symbol string, tradeID int64) (TransactionHistory, error) {
 	response := TransactionHistory{}
 	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicTransactionHistory, common.StringToUpper(symbol))
+
+	if tradeID != 0 {
+		v := url.Values{}
+		v.Set("cont_no", strconv.FormatInt(tradeID, 10))
+		path = common.EncodeURLValues(path, v)
+	}
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {

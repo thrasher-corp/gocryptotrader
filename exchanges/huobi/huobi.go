@@ -258,7 +258,7 @@ func (h *HUOBI) GetLatestSpotPrice(symbol string) (float64, error) {
 // GetTradeHistory returns the trades for the specified symbol
 func (h *HUOBI) GetTradeHistory(symbol, size string) ([]TradeHistory, error) {
 	vals := url.Values{}
-	vals.Set("symbol", symbol)
+	vals.Set("symbol", common.StringToLower(symbol))
 
 	if size != "" {
 		vals.Set("size", size)

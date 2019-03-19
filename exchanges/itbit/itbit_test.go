@@ -3,6 +3,7 @@ package itbit
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -433,5 +434,13 @@ func TestGetDepositAddress(t *testing.T) {
 	_, err := i.GetDepositAddress(currency.BTC, "")
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+	}
+}
+
+func TestGetPlatformHistory(t *testing.T) {
+	p := currency.NewPair(currency.XBT, currency.USD)
+	_, err := i.GetPlatformHistory(p, "SPOT", time.Time{}, "")
+	if err != nil {
+		t.Error("Test Failed - GetPlatformHistory() error", err)
 	}
 }

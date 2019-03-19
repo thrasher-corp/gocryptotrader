@@ -191,7 +191,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Binance",
@@ -231,7 +236,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Bitfinex",
@@ -279,7 +289,12 @@
      "iban": "DE78660700240057016801",
      "supportedCurrencies": "JPY,GBP"
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Bitflyer",
@@ -321,7 +336,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Bithumb",
@@ -362,7 +382,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Bitstamp",
@@ -402,7 +427,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Bittrex",
@@ -443,7 +473,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "BTCC",
@@ -461,13 +496,14 @@
    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
    "proxyAddress": "",
    "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTCUSD",
-   "enabledPairs": "BTCUSD",
+   "availablePairs": "BTC_USD,BCH_USD,ETH_USD,LTC_USD,DASH_USD,BCH_BTC,ETH_BTC,LTC_BTC,DASH_BTC,BTCC_ETH",
+   "enabledPairs": "BCH_USD",
    "baseCurrencies": "USD",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": true,
    "configCurrencyPairFormat": {
-    "uppercase": true
+    "uppercase": true,
+    "delimiter": "_"
    },
    "requestCurrencyPairFormat": {
     "uppercase": true
@@ -482,7 +518,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "BTSE",
@@ -523,7 +564,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "BTC Markets",
@@ -563,7 +609,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "COINUT",
@@ -603,7 +654,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "EXMO",
@@ -645,7 +701,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "CoinbasePro",
@@ -686,7 +747,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "GateIO",
@@ -727,7 +793,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Gemini",
@@ -766,7 +837,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "HitBTC",
@@ -806,7 +882,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Huobi",
@@ -847,7 +928,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "HuobiHadax",
@@ -888,7 +974,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "ITBIT",
@@ -929,7 +1020,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Kraken",
@@ -970,7 +1066,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "LakeBTC",
@@ -1009,7 +1110,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "LocalBitcoins",
@@ -1048,7 +1154,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "OKCOIN International",
@@ -1089,7 +1200,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "OKEX",
@@ -1130,7 +1246,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Poloniex",
@@ -1171,7 +1292,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Yobit",
@@ -1214,7 +1340,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "ZB",
@@ -1255,7 +1386,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   },
   {
    "name": "Bitmex",
@@ -1294,7 +1430,12 @@
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "database": {
+    "loadPlatformTrades": false,
+    "timestampStart": 0,
+    "timestampEnd": 0
+   }
   }
  ],
  "bankAccounts": [

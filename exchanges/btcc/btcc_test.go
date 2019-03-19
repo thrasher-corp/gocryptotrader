@@ -40,41 +40,6 @@ func TestSetup(t *testing.T) {
 	}
 }
 
-// func TestGetTicker(t *testing.T) {
-// 	t.Skip()
-// 	_, err := b.GetTicker("BTCUSD")
-// 	if err != nil {
-// 		t.Error("Test failed - GetTicker() error", err)
-// 	}
-// }
-
-// func TestGetTradeHistory(t *testing.T) {
-// 	t.Skip()
-// 	_, err := b.GetTradeHistory("BTCUSD", 0, 0, time.Time{})
-// 	if err != nil {
-// 		t.Error("Test failed - GetTradeHistory() error", err)
-// 	}
-// }
-
-// func TestGetOrderBook(t *testing.T) {
-// 	t.Skip()
-// 	_, err := b.GetOrderBook("BTCUSD", 100)
-// 	if err != nil {
-// 		t.Error("Test failed - GetOrderBook() error", err)
-// 	}
-// 	_, err = b.GetOrderBook("BTCUSD", 0)
-// 	if err != nil {
-// 		t.Error("Test failed - GetOrderBook() error", err)
-// 	}
-// }
-
-// func TestGetAccountInfo(t *testing.T) {
-// 	t.Skip()
-// 	err := b.GetAccountInfo("")
-// 	if err == nil {
-// 		t.Error("Test failed - GetAccountInfo() error", err)
-// 	}
-// }
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:        1,

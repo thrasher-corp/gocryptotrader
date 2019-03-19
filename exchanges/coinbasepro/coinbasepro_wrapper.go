@@ -166,11 +166,37 @@ func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (c *CoinbasePro) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
 
-	return resp, common.ErrNotYetImplemented
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := timestampStart.Add(5 * time.Hour)
+
+	formattedPair := exchange.FormatExchangeCurrency(c.GetName(), p)
+
+	t, err := c.GetHistoricRates(formattedPair.String(),
+		timestampStart.Format(time.RFC3339),
+		timestampEnd.Format(time.RFC3339),
+		60)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range t {
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: time.Unix(t[i].Time, 0),
+			TID:       "OrderID - Not Specified",
+			Price:     t[i].Close,
+			Amount:    t[i].Volume,
+			Exchange:  c.GetName(),
+			Type:      "Trading Type - Not Specified",
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

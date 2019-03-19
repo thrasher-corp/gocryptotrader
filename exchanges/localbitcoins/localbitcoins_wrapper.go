@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -155,11 +156,32 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LocalBitcoins) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (l *LocalBitcoins) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
 
-	return resp, common.ErrNotYetImplemented
+	v := url.Values{}
+	if tradeID != "" {
+		v.Set("since", tradeID)
+	}
+
+	t, err := l.GetTrades(p.Quote.Lower().String(), v)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range t {
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: time.Unix(t[i].Date, 0),
+			TID:       strconv.FormatInt(t[i].TID, 10),
+			Price:     t[i].Price,
+			Amount:    t[i].Amount,
+			Exchange:  l.GetName(),
+			Type:      "Trading Type - Not Specified",
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

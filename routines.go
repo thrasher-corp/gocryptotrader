@@ -169,6 +169,35 @@ func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType, e
 	}
 }
 
+func printPlatformTradeSummary(t *[]exchange.PlatformTrade, exchangeName, assetType string, p currency.Pair, timestampStart, timestampEnd time.Time, err error) {
+	if err != nil {
+		log.Errorf("Failed to retrieve platform trades for %s %s %s Error: %s",
+			exchangeName,
+			p,
+			assetType,
+			err)
+		return
+	}
+
+	var totalVolume, totalValue float64
+	var totalTrades int
+	for i := range *t {
+		totalValue += (*t)[i].Price
+		totalVolume += (*t)[i].Amount
+		totalTrades++
+	}
+
+	log.Infof("%s %s %s: PLATFORM TRADES: StartTime: %s EndTime: %s TotalTrades: %d TotalVolume %f TotalValue %f",
+		exchangeName,
+		p,
+		assetType,
+		timestampStart,
+		timestampEnd,
+		totalTrades,
+		totalVolume,
+		totalValue)
+}
+
 func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
 	evt := WebsocketEvent{
 		Data:      result,
@@ -469,4 +498,167 @@ func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
 			}
 		}
 	}
+}
+
+// PlatformTradeUpdaterRoutine fetches and updates platform trade data and
+// enters said data into defined database
+func PlatformTradeUpdaterRoutine() {
+	log.Debug("Starting platform trade fetching routine..")
+	for {
+		wg.Add(len(bot.exchanges))
+		for x := range bot.exchanges {
+			go func(x int, wg *sync.WaitGroup) {
+				defer wg.Done()
+
+				if bot.exchanges[x] == nil {
+					return
+				}
+
+				if !bot.db.IsConnected() {
+					log.Errorf("Exchange %s platform trade updater failed to fetch, not connected to database",
+						bot.exchanges[x].GetName())
+					return
+				}
+
+				exchangeName := bot.exchanges[x].GetName()
+				dbconfig, err := bot.config.GetDatabaseConfig(exchangeName)
+				if err != nil {
+					log.Errorf("failed to get %s exchange database configuration. Error: %s",
+						exchangeName,
+						err)
+					return
+				}
+
+				if !dbconfig.LoadPlatformTrades {
+					log.Debugf("Exchange %s platform trade updater not enabled in config.json",
+						bot.exchanges[x].GetName())
+					return
+				}
+
+				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
+				assetTypes, err := exchange.GetExchangeAssetTypes(exchangeName)
+				if err != nil {
+					log.Errorf("failed to get %s exchange asset types. Error: %s",
+						exchangeName,
+						err)
+					return
+				}
+
+				for y := range assetTypes {
+					for z := range enabledCurrencies {
+						fetchHistory(bot.exchanges[x],
+							enabledCurrencies[z],
+							assetTypes[y],
+							time.Unix(dbconfig.TimestampStart, 0),
+							time.Unix(dbconfig.TimestampEnd, 0))
+					}
+				}
+			}(x, &wg)
+		}
+		wg.Wait()
+		log.Debugln("All enabled currency platform trades fetched.")
+		// time.Sleep(time.Second * 10)
+		return
+	}
+}
+
+func fetchHistory(exch exchange.IBotExchange, p currency.Pair, assetType string, timeStart, timeEnd time.Time) {
+	if timeEnd.IsZero() {
+		timeEnd = time.Now()
+	}
+
+	// See if there is a last historic value entered into the database
+	lastTime, tradeID, err := bot.db.GetPlatformTradeLast(exch.GetName(),
+		p.String(),
+		assetType)
+	if err != nil {
+		if err.Error() != "sql: no rows in result set" {
+			log.Debugf("Getting last platform trade for %s %s %s and in time period [%s -> %s] error %s",
+				exch.GetName(),
+				p,
+				assetType,
+				timeStart,
+				timeEnd,
+				err)
+			return
+		}
+	}
+
+	if !lastTime.IsZero() {
+		if lastTime.After(timeEnd) || time.Now().Truncate(5*time.Minute).Unix() < lastTime.Unix() {
+			log.Debugf("Fetching platform rates finished for %s %s %s and in time period [%s -> %s]",
+				exch.GetName(),
+				p,
+				assetType,
+				timeStart,
+				timeEnd)
+			return
+		}
+	}
+
+	h, err := exch.GetPlatformHistory(p,
+		assetType,
+		lastTime,
+		tradeID)
+	if err != nil {
+		log.Errorf("No platform history returned for %s %s %s and in time period [%s -> %s] with error %s",
+			exch.GetName(),
+			p,
+			assetType,
+			timeStart,
+			timeEnd,
+			err)
+		return
+	}
+
+	if len(h) < 1 {
+		log.Errorf("No platform history returned for %s %s %s and in time period [%s -> %s]",
+			exch.GetName(),
+			p,
+			assetType,
+			timeStart,
+			timeEnd)
+		return
+	}
+
+	for i := range h {
+		err := bot.db.InsertPlatformTrade(h[i].TID,
+			h[i].Exchange,
+			p.String(),
+			assetType,
+			h[i].Type,
+			h[i].Amount,
+			h[i].Price,
+			h[i].Timestamp)
+		if err != nil {
+			if common.StringContains(err.Error(), "UNIQUE constraint failed") {
+				log.Errorf("%s %s %s Price: %.8f Amount: %.8f at [%s] error: %s",
+					h[i].Exchange,
+					p,
+					assetType,
+					h[i].Price,
+					h[i].Amount,
+					h[i].Timestamp,
+					err)
+				continue
+			}
+			log.Errorf("%s %s %s Price: %.8f Amount: %.8f at [%s] error: %s",
+				h[i].Exchange,
+				p,
+				assetType,
+				h[i].Price,
+				h[i].Amount,
+				h[i].Timestamp,
+				err)
+			return
+		}
+	}
+
+	printPlatformTradeSummary(&h,
+		exch.GetName(),
+		assetType,
+		p,
+		time.Time{},
+		time.Time{},
+		err)
 }

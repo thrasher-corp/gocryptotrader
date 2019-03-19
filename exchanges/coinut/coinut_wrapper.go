@@ -210,10 +210,10 @@ func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (c *COINUT) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
 	return resp, common.ErrNotYetImplemented
 }
 

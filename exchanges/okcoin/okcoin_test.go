@@ -1218,3 +1218,11 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
+
+func TestGetPlatformHistory(t *testing.T) {
+	p := currency.NewPairDelimiter("btc_usd", "_")
+	_, err := o.GetPlatformHistory(p, "SPOT", time.Time{}, "")
+	if err != nil {
+		t.Error("test failed - OKCoin GetPlatformHistory() error", err)
+	}
+}

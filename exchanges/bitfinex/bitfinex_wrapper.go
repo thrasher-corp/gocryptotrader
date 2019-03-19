@@ -180,11 +180,39 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (b *Bitfinex) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
 
-	return resp, common.ErrNotYetImplemented
+	strippedPair := p.Base.String() + p.Quote.String()
+
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // Set three months prior
+	}
+	timeStampEnd := timestampStart.Add(1 * time.Hour) // add 1 hr
+
+	th, err := b.GetTradesV2(strippedPair,
+		common.UnixMillis(timestampStart),
+		common.UnixMillis(timeStampEnd),
+		false)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range th {
+		orderID := strconv.FormatInt(th[i].TID, 10)
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: time.Unix(0, common.UnixMillisToNano(th[i].Timestamp)),
+			TID:       orderID,
+			Price:     th[i].Price,
+			Amount:    th[i].Amount,
+			Exchange:  b.GetName(),
+			Type:      th[i].Type,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

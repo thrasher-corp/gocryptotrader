@@ -2,6 +2,7 @@ package btcc
 
 import (
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -85,8 +86,8 @@ func (b *BTCC) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Bas
 	return orderbook.Base{}, common.ErrFunctionNotSupported
 }
 
-// GetAccountInfo : Retrieves balances for all enabled currencies for
-// the Kraken exchange - TODO
+// GetAccountInfo retrieves balances for all enabled currencies for
+// the BTCC exchange - TODO
 func (b *BTCC) GetAccountInfo() (exchange.AccountInfo, error) {
 	return exchange.AccountInfo{}, common.ErrFunctionNotSupported
 }
@@ -97,9 +98,11 @@ func (b *BTCC) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCC) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (b *BTCC) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+	return resp, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

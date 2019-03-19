@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestIsEnabled(t *testing.T) {
@@ -463,6 +465,24 @@ func TestCalculateFee(t *testing.T) {
 	if expectedOutput != actualResult {
 		t.Errorf(
 			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+	}
+}
+
+func TestCountInt(t *testing.T) {
+	t.Parallel()
+	firstI := int64(123451213)
+	firstICount := 9
+	SecondI := int64(123451213123451213)
+	SecondIcount := 18
+
+	count1 := CountInt(firstI)
+	if count1 != firstICount {
+		t.Error("Test failed. Common CountInt() error - mismatched results")
+	}
+
+	count2 := CountInt(SecondI)
+	if count2 != SecondIcount {
+		t.Error("Test failed. Common CountInt() error - mismatched results")
 	}
 }
 
@@ -948,5 +968,35 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 	_, err = TimeFromUnixTimestampFloat(testString)
 	if err == nil {
 		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
+	}
+}
+
+func TestUnixMilliToNano(t *testing.T) {
+	timeOne := UnixMillis(time.Now())
+	UnixNano := UnixMillisToNano(timeOne)
+	if CountInt(UnixNano) != 19 {
+		t.Error("test failed - ConvertUnixMilliToNano() error count mistmatch")
+	}
+}
+
+func TestHashPassword(t *testing.T) {
+	h1, err := HashPassword([]byte(""))
+	if err != nil {
+		t.Error("test failed - comparing hashed password")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(h1), []byte("")); err != nil {
+		t.Error("test failed - comparing hashed password")
+	}
+
+	testHash := "$2a$04$qY88NSuF1sCqGFYnRZwaoeBZs1vxzQ2Ew9yR3sZewoY1e7OxgRPyi"
+	testHash2 := "$2a$04$68ddOizpKaMzKJij07q0POYQRSksUujd5xeh3j9KKcp.sEwo1ucsW"
+
+	if err := bcrypt.CompareHashAndPassword([]byte(testHash), []byte("")); err != nil {
+		t.Error("test failed - comparing hashed password")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(testHash2), []byte("")); err != nil {
+		t.Error("test failed - comparing hashed password")
 	}
 }

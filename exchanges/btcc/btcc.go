@@ -34,10 +34,10 @@ func (b *BTCC) SetDefaults() {
 	b.Verbose = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false

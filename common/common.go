@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/md5" // nolint:gosec
 	"crypto/rand"
@@ -27,9 +28,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	log "github.com/thrasher-/gocryptotrader/logger"
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // Vars for common.go operations
@@ -279,6 +283,15 @@ func RoundFloat(x float64, prec int) float64 {
 	}
 
 	return rounder / pow
+}
+
+// CountInt counts how many digits in an integer and returns the count
+func CountInt(i int64) (count int) {
+	for i != 0 {
+		i /= 10
+		count++
+	}
+	return count
 }
 
 // IsEnabled takes in a boolean param  and returns a string if it is enabled
@@ -542,6 +555,11 @@ func GetOSPathSlash() string {
 	return "/"
 }
 
+// UnixMillisToNano converts Unix milli time to UnixNano
+func UnixMillisToNano(milli int64) int64 {
+	return milli * int64(time.Millisecond)
+}
+
 // UnixMillis converts a UnixNano timestamp to milliseconds
 func UnixMillis(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
@@ -628,4 +646,88 @@ func CheckDir(dir string, create bool) error {
 		return fmt.Errorf("failed to create dir. Err: %s", err)
 	}
 	return nil
+}
+
+// PromptForUsername prompts for username stored in database and returns a
+// string from stdin
+func PromptForUsername() (string, error) {
+	log.Info("Please enter username to connect to the database:")
+	var username string
+	for {
+		i, err := fmt.Scanln(&username)
+		if err != nil {
+			return "", err
+		}
+		if i == 0 {
+			log.Error("Invalid input, please re-enter username, then press enter to continue.")
+			continue
+		}
+		return username, nil
+	}
+}
+
+// PromptForPassword prompts for password associated with username and returns a
+// byte array from stdin for comparison
+func PromptForPassword(newPassword bool) ([]byte, error) {
+	log.Info("Please enter password, then press enter to continue:")
+
+	var password, match []byte
+	var err error
+	for {
+		password, err = terminal.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return nil, fmt.Errorf("common.go PromptForPassword() error - %s",
+				err)
+		}
+
+		if !newPassword {
+			return []byte(password), nil
+		}
+
+		log.Info("Please re-enter password, then press enter to continue:")
+
+		match, err = terminal.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return nil, fmt.Errorf("common.go PromptForPassword() error - %s",
+				err)
+		}
+
+		if bytes.Compare(password, match) == 0 {
+			return []byte(password), nil
+		}
+		log.Error("Password mismatch, please re-enter password, then press enter to continue:")
+	}
+}
+
+// ComparePassword compares password to a stored hash in the database
+func ComparePassword(storedHash []byte) ([]byte, error) {
+	pw, err := PromptForPassword(false)
+	if err != nil {
+		return nil, err
+	}
+
+	return pw, bcrypt.CompareHashAndPassword(storedHash, pw)
+}
+
+// HashPassword returns a hash of the password for storage in the database
+func HashPassword(password []byte) (string, error) {
+	hashPw, err := bcrypt.GenerateFromPassword(password, bcrypt.MinCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashPw), nil
+}
+
+// GetDefaultDatabaseDir returns the default database directory
+func GetDefaultDatabaseDir() string {
+	// DefaultDir is the default directory for database data
+	return fmt.Sprintf("%s%sdatabase%s",
+		GetDefaultDataDir(runtime.GOOS),
+		GetOSPathSlash(),
+		GetOSPathSlash())
+}
+
+// GetDefaultSQLitePath returns the default path to a SQLite3 database
+func GetDefaultSQLitePath() string {
+	return GetDefaultDatabaseDir() + "database.db"
 }

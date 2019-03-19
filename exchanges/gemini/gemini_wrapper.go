@@ -150,11 +150,38 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
+// GetPlatformHistory returns historic platform trade data since exchange
+// intial operations
+func (g *Gemini) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
 
-	return resp, common.ErrNotYetImplemented
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, 0, -6) // 6 days earlier, any
+		// longer and the exchange returns an error
+	}
+
+	v := url.Values{}
+	v.Set("since", strconv.FormatInt(timestampStart.Unix(), 10))
+	v.Set("limit_trades", "1000")
+
+	trades, err := g.GetTrades(p.String(), v)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range trades {
+		t := common.UnixMillisToNano(trades[i].Timestampms)
+		orderID := strconv.FormatInt(trades[i].TID, 10)
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: time.Unix(0, t),
+			TID:       orderID,
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Exchange:  g.GetName(),
+			Type:      trades[i].Side,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

@@ -2,6 +2,7 @@ package exmo
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -441,5 +442,13 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}
+	}
+}
+
+func TestGetPlatformHistory(t *testing.T) {
+	p := currency.NewPairDelimiter("BTC_USD", "_")
+	_, err := e.GetPlatformHistory(p, "SPOT", time.Time{}, "")
+	if err != nil {
+		t.Error("Test failed - Exmo GetPlatformHistory() error", err)
 	}
 }

@@ -37,7 +37,7 @@ type Orderbook struct {
 // Trades stores trade information
 type Trades struct {
 	Type      string  `json:"type"`
-	Price     float64 `json:"bid"`
+	Price     float64 `json:"price"`
 	Amount    float64 `json:"amount"`
 	TID       int64   `json:"tid"`
 	Timestamp int64   `json:"timestamp"`

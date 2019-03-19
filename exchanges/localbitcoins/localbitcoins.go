@@ -666,9 +666,12 @@ func (l *LocalBitcoins) GetTradableCurrencies() ([]string, error) {
 
 // GetTrades returns all closed trades in online buy and online sell categories,
 // updated every 15 minutes.
+// currency = fiat
 func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]Trade, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/%s/trades.json", l.APIUrl+localbitcoinsAPIBitcoincharts, currency), values)
-	result := []Trade{}
+	var result []Trade
+
+	path := common.EncodeURLValues(fmt.Sprintf("%s%s/trades.json",
+		localbitcoinsAPIURL+localbitcoinsAPIBitcoincharts, currency), values)
 
 	return result, l.SendHTTPRequest(path, &result)
 }
