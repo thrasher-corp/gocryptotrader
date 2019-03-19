@@ -557,7 +557,7 @@ func PlatformTradeUpdaterRoutine() {
 		}
 		wg.Wait()
 		log.Debugln("All enabled currency platform trades fetched.")
-		// time.Sleep(time.Second * 10)
+		time.Sleep(time.Minute * 5)
 		return
 	}
 }

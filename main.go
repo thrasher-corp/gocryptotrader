@@ -172,46 +172,6 @@ func main() {
 		}
 	}
 
-	// err = database.Setup(database.DefaultDir, *verbosity)
-	// if err != nil {
-	// 	log.Fatal("Failed to set up database directory", err)
-	// }
-
-	// log.Printf("Connecting to database at %s", *dbPath)
-	// if *saveConfig {
-	// 	log.Printf("Saving configuration from %s to database", defaultPath)
-	// }
-
-	// if *configOverride {
-	// 	log.Printf("Configuration from %s will override selected database configuration",
-	// 		defaultPath)
-	// }
-
-	// if *dbSeedHistory {
-	// 	log.Println("Warning: Current database is set to fetch historical trade data")
-	// }
-
-	// bot.db, err = database.Connect(*dbPath, *verbosity)
-	// if err != nil {
-	// 	log.Fatalf("Database connection error with config %s - %s",
-	// 		bot.config.Name, err)
-	// }
-
-	// err = bot.db.UserLogin()
-	// if err != nil {
-	// 	log.Fatal("User failed to authenticate - ", err)
-	// }
-
-	// bot.config, err = bot.db.GetConfig(*configName,
-	// 	bot.configFile,
-	// 	*configOverride,
-	// 	*saveConfig)
-	// if err != nil {
-	// 	log.Fatal("Failed to get configuration -", err)
-	// }
-
-	// log.Printf("Configuration %s succesfully loaded", bot.config.Name)
-
 	err = bot.config.CheckLoggerConfig()
 	if err != nil {
 		log.Errorf("Failed to configure logger reason: %s", err)
