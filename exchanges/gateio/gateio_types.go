@@ -167,14 +167,15 @@ type TradHistoryResponse struct {
 
 // TradesResponse details trade history
 type TradesResponse struct {
-	ID       string  `json:"id"`
-	OrderID  string  `json:"orderid"`
+	ID       int64   `json:"tradeID"`
+	OrderID  int64   `json:"orderNumber"`
 	Pair     string  `json:"pair"`
 	Type     string  `json:"type"`
 	Rate     float64 `json:"rate,string"`
 	Amount   float64 `json:"amount,string"`
-	Time     string  `json:"time"`
-	TimeUnix int64   `json:"time_unix,string"`
+	Total    float64 `json:"total"`
+	Time     string  `json:"date"`
+	TimeUnix int64   `json:"time_unix"`
 }
 
 // WithdrawalFees the large list of predefined withdrawal fees
