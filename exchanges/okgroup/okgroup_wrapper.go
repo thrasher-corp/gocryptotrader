@@ -223,7 +223,7 @@ func (o *OKGroup) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 		request.Price = strconv.FormatFloat(price, 'f', -1, 64)
 	}
 
-	orderResponse, err := o.PlaceSpotOrder(request)
+	orderResponse, err := o.PlaceSpotOrder(&request)
 	if err != nil {
 		return
 	}
@@ -400,8 +400,8 @@ func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (o *OKGroup) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	return o.GetFee(&feeBuilder)
+func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	return o.GetFee(feeBuilder)
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange

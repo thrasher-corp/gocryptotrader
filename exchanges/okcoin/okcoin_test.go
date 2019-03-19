@@ -313,7 +313,7 @@ func TestPlaceSpotOrderLimit(t *testing.T) {
 		Size:          "100",
 	}
 
-	_, err := o.PlaceSpotOrder(request)
+	_, err := o.PlaceSpotOrder(&request)
 	testStandardErrorHandling(t, err)
 }
 
@@ -329,7 +329,7 @@ func TestPlaceSpotOrderMarket(t *testing.T) {
 		Notional:      "100",
 	}
 
-	_, err := o.PlaceSpotOrder(request)
+	_, err := o.PlaceSpotOrder(&request)
 	testStandardErrorHandling(t, err)
 }
 
@@ -640,7 +640,7 @@ func TestPlaceMarginOrderLimit(t *testing.T) {
 		Size:          "100",
 	}
 
-	_, err := o.PlaceMarginOrder(request)
+	_, err := o.PlaceMarginOrder(&request)
 	testStandardErrorHandling(t, err)
 }
 
@@ -656,7 +656,7 @@ func TestPlaceMarginOrderMarket(t *testing.T) {
 		Notional:      "100",
 	}
 
-	_, err := o.PlaceMarginOrder(request)
+	_, err := o.PlaceMarginOrder(&request)
 	testStandardErrorHandling(t, err)
 }
 
