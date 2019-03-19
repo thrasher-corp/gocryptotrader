@@ -375,7 +375,7 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		side := exchange.OrderSide(strings.ToUpper(trade.Type))
 		orderDate := time.Unix(trade.TimeUnix, 0)
 		orders = append(orders, exchange.OrderDetail{
-			ID:           string(trade.OrderID),
+			ID:           strconv.FormatInt(trade.OrderID, 10),
 			Amount:       trade.Amount,
 			Price:        trade.Rate,
 			OrderDate:    orderDate,
