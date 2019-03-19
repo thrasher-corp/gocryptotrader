@@ -298,8 +298,7 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int, startTime, endTi
 		return resp, err
 	}
 
-	switch err := initResp.(type) {
-	case map[string]interface{}:
+	if err, ok := initResp.(map[string]interface{}); ok {
 		return resp, errors.New(err["msg"].(string))
 	}
 

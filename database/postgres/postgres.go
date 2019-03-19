@@ -18,7 +18,6 @@ import (
 	_ "github.com/volatiletech/sqlboiler/drivers/sqlboiler-psql/driver"
 )
 
-//sslmode=require
 const (
 	conn = "user=%s password=%s dbname=%s host=%s port=%s sslmode=%s"
 )
@@ -78,14 +77,11 @@ func (p *Postgres) Setup(c base.ConnDetails) error {
 		err = common.WriteFile(fullPathToSchema, []byte(GetSchema()))
 		if err != nil {
 			return err
-		}
-		if p.Verbose {
+		} else if p.Verbose {
 			log.Debugf(base.DebugSchemaFileCreated, fullPathToSchema)
 		}
-	} else {
-		if p.Verbose {
-			log.Debugf(base.DebugSchemaFileFound, fullPathToSchema)
-		}
+	} else if p.Verbose {
+		log.Debugf(base.DebugSchemaFileFound, fullPathToSchema)
 	}
 	return nil
 }

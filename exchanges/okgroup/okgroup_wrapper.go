@@ -214,7 +214,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // GetPlatformHistory returns historic platform trade data since exchange
-// intial operations
+// initial operations
 func (o *OKGroup) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
 	return nil, common.ErrNotYetImplemented
 }

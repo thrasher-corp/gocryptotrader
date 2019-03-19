@@ -163,7 +163,8 @@ func main() {
 
 	if bot.db.IsConnected() {
 		log.Debugf("Bot is now connected to a %s database", bot.db.GetName())
-		client, err := bot.db.GetClientDetails()
+		var client string
+		client, err = bot.db.GetClientDetails()
 		if err != nil {
 			log.Error("Retrieving client data from database failure reason:",
 				err)

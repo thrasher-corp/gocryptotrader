@@ -681,7 +681,7 @@ func PromptForPassword(newPassword bool) ([]byte, error) {
 		}
 
 		if !newPassword {
-			return []byte(password), nil
+			return password, nil
 		}
 
 		log.Info("Please re-enter password, then press enter to continue:")
@@ -692,8 +692,8 @@ func PromptForPassword(newPassword bool) ([]byte, error) {
 				err)
 		}
 
-		if bytes.Compare(password, match) == 0 {
-			return []byte(password), nil
+		if bytes.Equal(password, match) {
+			return password, nil
 		}
 		log.Error("Password mismatch, please re-enter password, then press enter to continue:")
 	}

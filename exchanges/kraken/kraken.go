@@ -409,7 +409,6 @@ func (k *Kraken) GetTrades(symbol string, tradeID int64) ([]RecentTrades, error)
 						case 5:
 							r.Miscellaneous = item.(string)
 							recentTrades = append(recentTrades, r)
-							break
 						}
 					}
 				}

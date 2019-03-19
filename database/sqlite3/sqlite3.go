@@ -57,14 +57,11 @@ func (s *SQLite3) Setup(c base.ConnDetails) error {
 		err = common.WriteFile(fullPathToSchema, []byte(GetSchema()))
 		if err != nil {
 			return err
-		}
-		if s.Verbose {
+		} else if s.Verbose {
 			log.Debugf(base.DebugSchemaFileCreated, fullPathToSchema)
 		}
-	} else {
-		if s.Verbose {
-			log.Debugf(base.DebugSchemaFileFound, fullPathToSchema)
-		}
+	} else if s.Verbose {
+		log.Debugf(base.DebugSchemaFileFound, fullPathToSchema)
 	}
 	return nil
 }

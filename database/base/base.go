@@ -125,10 +125,10 @@ func (r *RelationalMap) SetupHelperFiles() error {
 
 	// Creates a configuration file that points to a database for generating new
 	// database models, located in the database folder
-	file, err := common.ReadFile(fullPathToTomlFile)
+	file, readErr := common.ReadFile(fullPathToTomlFile)
 	switch r.InstanceName {
 	case SQLite:
-		if err != nil {
+		if readErr != nil {
 			sqlBoilerFile.Sqlite.DBName = r.PathToDB
 
 			e, err := toml.Marshal(sqlBoilerFile)
@@ -170,7 +170,7 @@ func (r *RelationalMap) SetupHelperFiles() error {
 		}
 
 	case Postgres:
-		if err != nil {
+		if readErr != nil {
 			sqlBoilerFile.Postgress.DBName = r.DatabaseName
 			sqlBoilerFile.Postgress.Host = r.Host
 			sqlBoilerFile.Postgress.User = r.User
