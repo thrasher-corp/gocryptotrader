@@ -301,8 +301,9 @@ func (g *Gateio) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gateio) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (g *Gateio) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

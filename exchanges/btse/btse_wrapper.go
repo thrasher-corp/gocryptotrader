@@ -249,9 +249,11 @@ func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (b *BTSE) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order

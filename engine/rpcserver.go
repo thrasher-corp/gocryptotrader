@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/portfolio"
-
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -21,7 +19,9 @@ import (
 	"github.com/thrasher-/gocryptotrader/gctrpc"
 	"github.com/thrasher-/gocryptotrader/gctrpc/auth"
 	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/utils"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -30,7 +30,7 @@ import (
 // RPCServer struct
 type RPCServer struct{}
 
-func authenticateClient(ctx context.Context) (context.Context, error) {
+func authenticateUser(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return ctx, fmt.Errorf("unable to extract metadata")
@@ -53,10 +53,25 @@ func authenticateClient(ctx context.Context) (context.Context, error) {
 	username := common.SplitStrings(string(decoded), ":")[0]
 	password := common.SplitStrings(string(decoded), ":")[1]
 
-	if username != Bot.Config.RemoteControl.Username || password != Bot.Config.RemoteControl.Password {
-		return ctx, fmt.Errorf("username/password mismatch")
+	if username == Bot.Config.RemoteControl.Username &&
+		password == Bot.Config.RemoteControl.Password {
+		// TODO: alert CTO
+		return ctx, nil
 	}
 
+	if !Bot.DB.IsConnected() {
+		return ctx, errors.New("no database connection cannot authenticate user")
+	}
+
+	c, err := Bot.DB.GetUserRPC(ctx, username)
+	if err != nil {
+		return ctx, err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(c.Password), []byte(password))
+	if err != nil {
+		return ctx, errors.New("database password mismatch")
+	}
 	return ctx, nil
 }
 
@@ -84,7 +99,8 @@ func StartRPCServer() {
 
 	opts := []grpc.ServerOption{
 		grpc.Creds(creds),
-		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(authenticateClient)),
+		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(authenticateUser)),
+		grpc.StreamInterceptor(grpcauth.StreamServerInterceptor(authenticateUser)),
 	}
 	server := grpc.NewServer(opts...)
 	s := RPCServer{}
@@ -93,7 +109,6 @@ func StartRPCServer() {
 	go func() {
 		if err := server.Serve(lis); err != nil {
 			log.Errorf("gRPC server failed to serve: %s", err)
-			return
 		}
 	}()
 
@@ -133,27 +148,42 @@ func StartRPCRESTProxy() {
 	go func() {
 		if err := http.ListenAndServe(Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress, mux); err != nil {
 			log.Errorf("gRPC proxy failed to server: %s", err)
-			return
 		}
 	}()
 
 	log.Debugf("gRPC proxy server started!")
-	select {}
-
 }
 
 // GetInfo returns info about the current GoCryptoTrader session
 func (s *RPCServer) GetInfo(ctx context.Context, r *gctrpc.GetInfoRequest) (*gctrpc.GetInfoResponse, error) {
-	d := time.Since(Bot.Uptime)
-	resp := gctrpc.GetInfoResponse{
-		Uptime:               d.String(),
+	var dbinfo gctrpc.DatabaseInfo
+	if Bot.DB.IsConnected() {
+		dbinfo.InstanceName = Bot.DB.GetName()
+
+		var conninfo gctrpc.ConnInfo
+		if dbinfo.InstanceName == "sqlite3" {
+			conninfo.SqlitePath = Bot.Settings.SqliteDatabasePath
+		}
+		conninfo.Sslmode = Bot.Settings.DatabaseConnectionSSLMode
+		conninfo.UserName = Bot.Settings.DatabaseConnectionUserName
+		conninfo.DatabaseName = Bot.Settings.DatabaseConnectionName
+		conninfo.Host = Bot.Settings.DatabaseConnectionHostName
+		if Bot.Settings.DatabaseConnectionPort == "" {
+			conninfo.Port = "DEFAULT:5432"
+		} else {
+			conninfo.Port = Bot.Settings.DatabaseConnectionPort
+		}
+		dbinfo.ConnectionDetails = &conninfo
+	}
+
+	return &gctrpc.GetInfoResponse{
+		Uptime:               time.Since(Bot.Uptime).String(),
 		EnabledExchanges:     int64(Bot.Config.CountEnabledExchanges()),
 		AvailableExchanges:   int64(len(Bot.Config.Exchanges)),
 		DefaultFiatCurrency:  Bot.Config.Currency.FiatDisplayCurrency.String(),
 		DefaultForexProvider: Bot.Config.GetPrimaryForexProvider(),
-	}
-
-	return &resp, nil
+		DatabaseInfo:         &dbinfo,
+	}, nil
 }
 
 // GetExchanges returns a list of exchanges
@@ -182,6 +212,14 @@ func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchan
 		return nil, err
 	}
 
+	var dbHistory []*gctrpc.AvailableData
+	if Bot.DB.IsConnected() {
+		dbHistory, err = Bot.DB.GetExchangeLoadedDataRPC(ctx, r.Exchange)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &gctrpc.GetExchangeInfoResponse{
 		Name:            exchCfg.Name,
 		Enabled:         exchCfg.Enabled,
@@ -191,13 +229,10 @@ func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchan
 		HttpUseragent:   exchCfg.HTTPUserAgent,
 		HttpProxy:       exchCfg.ProxyAddress,
 		BaseCurrencies:  common.JoinStrings(exchCfg.BaseCurrencies.Strings(), ","),
-		SupportedAssets: exchCfg.CurrencyPairs.AssetTypes.JoinToString(","),
-
-		// TO-DO fix pairs
-		//EnabledPairs: common.JoinStrings(
-		//	exchCfg.CurrencyPairs.Pairs.GetPairs().Enabled.Strings(), ","),
-		//AvailablePairs: common.JoinStrings(
-		//	exchCfg.CurrencyPairs.Spot.Available.Strings(), ","),
+		SupportedAssets: exchCfg.CurrencyPairs.GetAssetTypes().JoinToString(","),
+		EnabledPairs: 	 exchCfg.CurrencyPairs.GetPairs(assets.AssetTypeSpot, true).Join(),
+		AvailablePairs:  exchCfg.CurrencyPairs.GetPairs(assets.AssetTypeSpot, false).Join(),
+		LoadedDatabaseHistories: dbHistory,
 	}, nil
 }
 
@@ -518,7 +553,7 @@ func (s *RPCServer) GetForexRates(ctx context.Context, r *gctrpc.GetForexRatesRe
 		// TODO
 		// inverseRate, err := rates[x].GetInversionRate()
 		// if err != nil {
-		//	 continue
+		//	continue
 		// }
 
 		forexRates = append(forexRates, &gctrpc.ForexRatesConversion{
@@ -580,7 +615,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	result, err := exch.SubmitOrder(p, exchange.OrderSide(r.Side),
-		exchange.OrderType(r.OrderType), r.Amount, r.Price, r.ClientId)
+		exchange.OrderType(r.OrderType), r.Amount, r.Price, r.UserId)
 
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     result.OrderID,
@@ -675,4 +710,263 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 // WithdrawFiatFunds withdraws fiat funds specified by exchange
 func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawCurrencyRequest) (*gctrpc.WithdrawResponse, error) {
 	return &gctrpc.WithdrawResponse{}, common.ErrNotYetImplemented
+}
+
+// AddUser adds a new client to a database
+func (s *RPCServer) AddUser(ctx context.Context, r *gctrpc.AddUserRequest) (*gctrpc.AddUserResponse, error) {
+	if Bot.DB.IsConnected() {
+		if r.UserName == "" {
+			return nil, errors.New("rpc server error client username undefined")
+		}
+
+		if r.Password == "" {
+			return nil, errors.New("rpc server error client password undefined")
+		}
+
+		hash, err := common.HashPassword([]byte(r.Password))
+		if err != nil {
+			return nil, err
+		}
+
+		err = Bot.DB.InsertUserRPC(ctx,
+			r.UserName,
+			hash)
+		if err != nil {
+			return nil, err
+		}
+
+		return &gctrpc.AddUserResponse{Result: "User inserted into database"},
+			nil
+	}
+	return nil, errors.New("cannot complete request, database offline")
+}
+
+// ModifyUser modifys client details within a database
+func (s *RPCServer) ModifyUser(ctx context.Context, r *gctrpc.ModifyUserRequest) (*gctrpc.ModifyUserResponse, error) {
+	if Bot.DB.IsConnected() {
+		err := Bot.DB.ModifyUserRPC(ctx, r.UserName, r.Email)
+		if err != nil {
+			return nil, err
+		}
+		return &gctrpc.ModifyUserResponse{Result: "User data has been modified"}, nil
+	}
+	return nil, errors.New("cannot complete request, database offline")
+}
+
+// ChangeUserPassword changes client password
+func (s *RPCServer) ChangeUserPassword(ctx context.Context, r *gctrpc.ChangeUserPasswordRequest) (*gctrpc.ChangeUserPasswordResponse, error) {
+	if Bot.DB.IsConnected() {
+		hash, err := common.HashPassword([]byte(r.NewPassword))
+		if err != nil {
+			return nil, err
+		}
+
+		err = Bot.DB.SetUserPasswordRPC(ctx, r.UserName, hash)
+		if err != nil {
+			return nil, err
+		}
+
+		return &gctrpc.ChangeUserPasswordResponse{
+			Result: "Password for client has been changed",
+		}, nil
+	}
+	return nil, errors.New("cannot complete request, database offline")
+}
+
+// EnableUser enables a client
+func (s *RPCServer) EnableUser(ctx context.Context, r *gctrpc.EnableUserRequest) (*gctrpc.EnableUserResponse, error) {
+	if Bot.DB.IsConnected() {
+		err := Bot.DB.EnableDisableUserRPC(ctx, r.UserName, true)
+		if err != nil {
+			return nil, err
+		}
+
+		return &gctrpc.EnableUserResponse{
+			Result: fmt.Sprintf("User %s: enabled", r.UserName),
+		}, nil
+	}
+	return nil, errors.New("cannot complete request, database offline")
+}
+
+// DisableUser disables a client
+func (s *RPCServer) DisableUser(ctx context.Context, r *gctrpc.DisableUserRequest) (*gctrpc.DisableUserResponse, error) {
+	if Bot.DB.IsConnected() {
+		err := Bot.DB.EnableDisableUserRPC(ctx, r.UserName, false)
+		if err != nil {
+			return nil, err
+		}
+
+		return &gctrpc.DisableUserResponse{
+			Result: fmt.Sprintf("User %s: disabled", r.UserName),
+		}, nil
+	}
+	return nil, errors.New("cannot complete request, database offline")
+}
+
+// Generate2FA generates a new 2FA private key
+func (s *RPCServer) Generate2FA(ctx context.Context, r *gctrpc.Generate2FARequest) (*gctrpc.Generate2FAResponse, error) {
+	return &gctrpc.Generate2FAResponse{}, common.ErrNotYetImplemented
+}
+
+// Submit2FA submits a 6 digit 2FA code for authenticating or managing work flow
+func (s *RPCServer) Submit2FA(ctx context.Context, r *gctrpc.Submit2FARequest) (*gctrpc.Submit2FAResponse, error) {
+	return &gctrpc.Submit2FAResponse{}, common.ErrNotYetImplemented
+}
+
+// GetUserInfo returns basic client information
+func (s *RPCServer) GetUserInfo(ctx context.Context, r *gctrpc.GetUserInfoRequest) (*gctrpc.GetUserInfoResponse, error) {
+	if Bot.DB.IsConnected() {
+		client, err := Bot.DB.GetUserRPC(ctx, r.UserName)
+		if err != nil {
+			return nil, err
+		}
+
+		return &gctrpc.GetUserInfoResponse{
+			User: &gctrpc.User{
+				UserName:     client.UserName,
+				UserId:       int64(client.ID),
+				Email:        client.Email,
+				LastLoggedIn: client.LastLoggedIn.String(),
+				Enabled:      client.Enabled,
+			},
+		}, nil
+
+	}
+	return nil, errors.New("cannot complete request, database offline")
+}
+
+// GetUserAuditTrail returns audit trail for client
+func (s *RPCServer) GetUserAuditTrail(ctx context.Context, r *gctrpc.GetUserAuditTrailRequest) (*gctrpc.GetUserAuditTrailResponse, error) {
+	if Bot.DB.IsConnected() {
+		auditsdb, err := Bot.DB.GetUserAuditRPC(ctx, r.UserName)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(auditsdb) == 0 {
+			return nil, errors.New("no audit trail found for client")
+		}
+
+		var rpcAudit *gctrpc.GetUserAuditTrailResponse
+		for i := range auditsdb {
+			rpcAudit.Audits = append(rpcAudit.Audits, &gctrpc.Audit{
+				UserId:   auditsdb[i].UserID,
+				Change:   auditsdb[i].Change,
+				DateTime: auditsdb[i].TimeOfChange.String(),
+			})
+		}
+		return rpcAudit, nil
+	}
+	return nil, errors.New("cannot complete request, database offline")
+}
+
+// GetExchangePlatformHistory returns full exchange history for a currency pair
+func (s *RPCServer) GetExchangePlatformHistory(r *gctrpc.GetExchangePlatformHistoryRequest, stream gctrpc.GoCryptoTrader_GetExchangePlatformHistoryServer) error {
+	if Bot.DB.IsConnected() {
+		h, err := Bot.DB.GetExchangePlatformHistoryRPC(stream.Context(),
+			r.ExchangeName,
+			r.Pair,
+			r.Asset)
+		if err != nil {
+			return err
+		}
+
+		for i := range h {
+			err := stream.Send(h[i])
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	return errors.New("cannot complete request, database offline")
+}
+
+// GetOHLC returns exchange history for a currency pair in OHLC form
+func (s *RPCServer) GetOHLC(r *gctrpc.GetOHLCRequest, stream gctrpc.GoCryptoTrader_GetOHLCServer) error {
+	if Bot.DB.IsConnected() {
+		var period time.Duration
+		switch {
+		case r.Period.OneMinute:
+			period = time.Minute
+		case r.Period.ThreeMinute:
+			period = 3 * time.Minute
+		case r.Period.FiveMinute:
+			period = 5 * time.Minute
+		case r.Period.FifteenMinute:
+			period = 15 * time.Minute
+		case r.Period.ThirtyMinute:
+			period = 30 * time.Minute
+		case r.Period.OneHour:
+			period = time.Hour
+		case r.Period.TwoHour:
+			period = 2 * time.Hour
+		case r.Period.FourHour:
+			period = 4 * time.Hour
+		case r.Period.SixHour:
+			period = 6 * time.Hour
+		case r.Period.TwelveHour:
+			period = 12 * time.Hour
+		case r.Period.OneDay:
+			period = 24 * time.Hour
+		case r.Period.ThreeDay:
+			period = 72 * time.Hour
+		case r.Period.OneWeek:
+			period = 168 * time.Hour
+		default:
+			return errors.New("time period not specified")
+		}
+
+		h, err := Bot.DB.GetFullPlatformHistory(r.ExchangeName, r.Pair, r.Asset)
+		if err != nil {
+			return err
+		}
+
+		ohlc, err := CreateOHLC(h, period)
+		if err != nil {
+			return err
+		}
+
+		for i := range ohlc {
+			err = stream.Send(&gctrpc.Candle{
+				High:             ohlc[i].High,
+				Low:              ohlc[i].Low,
+				Close:            ohlc[i].Close,
+				Open:             ohlc[i].Open,
+				Volume:           ohlc[i].Volume,
+				OpenTime:         ohlc[i].OpenTime.String(),
+				CloseTime:        ohlc[i].CloseTime.String(),
+				PercentageChange: ohlc[i].PercentageChange,
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	return errors.New("cannot complete request, database offline")
+}
+
+// GetUsers returns clients that have been loaded into the database
+func (s *RPCServer) GetUsers(ctx context.Context, _ *gctrpc.GetUsersRequest) (*gctrpc.GetUsersResponse, error) {
+	if Bot.DB.IsConnected() {
+		c, err := Bot.DB.GetUsersRPC(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		var clients gctrpc.GetUsersResponse
+		for i := range c {
+			clients.Users = append(clients.Users, &gctrpc.User{
+				UserName: c[i].UserName,
+			})
+		}
+
+		return &clients, nil
+	}
+	return nil, errors.New("cannot complete request, database offline")
 }

@@ -3,6 +3,9 @@ package bitstamp
 import (
 	"net/url"
 	"testing"
+	"time"
+
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -605,5 +608,13 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress error cannot be nil")
 		}
+	}
+}
+
+func TestGetPlatformHistory(t *testing.T) {
+	p := currency.NewPair(currency.BTC, currency.USD)
+	_, err := b.GetPlatformHistory(p, assets.AssetTypeSpot, time.Time{}, "")
+	if err != nil {
+		t.Error("test failed - GetPlatformHistory() error", err)
 	}
 }

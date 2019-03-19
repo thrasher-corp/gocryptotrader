@@ -282,9 +282,42 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HitBTC) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (h *HitBTC) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+
+	if timestampStart.Unix() == 0 {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := timestampStart.AddDate(0, 0, 1) // add 24 hrs
+
+	formattedPair := h.FormatExchangeCurrency(p, assetType)
+
+	trades, err := h.GetTrades(formattedPair.String(),
+		strconv.FormatInt(timestampStart.Unix(), 10),
+		strconv.FormatInt(timestampEnd.Unix(), 10),
+		"1000", "", "timestamp", "")
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range trades {
+		t, err := time.Parse(time.RFC3339, trades[i].Timestamp)
+		if err != nil {
+			return resp, err
+		}
+
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: t,
+			TID:       strconv.FormatInt(trades[i].ID, 10),
+			Price:     trades[i].Price,
+			Amount:    trades[i].Quantity,
+			Exchange:  h.GetName(),
+			Type:      trades[i].Side,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

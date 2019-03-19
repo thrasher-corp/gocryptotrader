@@ -230,6 +230,36 @@ func (c *Config) PurgeExchangeAPICredentials() {
 	}
 }
 
+// CheckDatabaseExchangeConfig adds an example currencypair to array and also
+// checks to see if config pair is part of the available pairs list
+func (c *Config) CheckDatabaseExchangeConfig() {
+	for x := range c.Exchanges {
+		// Sets an example configuration in array
+		if c.Exchanges[x].DatabaseExchangeConfigs == nil {
+			a := c.Exchanges[x].CurrencyPairs.GetAssetTypes()
+			c.Exchanges[x].DatabaseExchangeConfigs = append(c.Exchanges[x].DatabaseExchangeConfigs,
+						DatabaseExchangeConfig{
+							Pair:      c.Exchanges[x].CurrencyPairs.GetPairs(a[0], false).GetRandomPair(),
+							AssetType: a[0].String(),
+						})
+		}
+	}
+}
+
+// GetDatabaseConfig returns a exchange database configuration
+func (c *Config) GetDatabaseConfig(exchangeName string) ([]DatabaseExchangeConfig, error) {
+	m.Lock()
+	defer m.Unlock()
+	for i := range c.Exchanges {
+		if c.Exchanges[i].Name == exchangeName {
+			return c.Exchanges[i].DatabaseExchangeConfigs, nil
+		}
+	}
+
+	return nil,
+		fmt.Errorf("exchange %s configuration not found", exchangeName)
+}
+
 // GetCommunicationsConfig returns the communications configuration
 func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
 	m.Lock()
@@ -1023,6 +1053,9 @@ func (c *Config) CheckExchangeConfigValues() error {
 	if exchanges == 0 {
 		return errors.New(ErrNoEnabledExchanges)
 	}
+
+	c.CheckDatabaseExchangeConfig()
+
 	return nil
 }
 
@@ -1469,6 +1502,11 @@ func (c *Config) SaveConfig(configPath string) error {
 	defaultPath, err := GetFilePath(configPath)
 	if err != nil {
 		return err
+	}
+
+	if defaultPath == ConfigTestFile {
+		// if test dont save
+		return nil
 	}
 
 	payload, err := json.MarshalIndent(c, "", " ")

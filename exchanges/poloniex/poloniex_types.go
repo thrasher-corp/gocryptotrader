@@ -52,6 +52,7 @@ type Orderbook struct {
 
 // TradeHistory holds trade history data
 type TradeHistory struct {
+	Error         string  `json:"error"`
 	GlobalTradeID int64   `json:"globalTradeID"`
 	TradeID       int64   `json:"tradeID"`
 	Date          string  `json:"date"`

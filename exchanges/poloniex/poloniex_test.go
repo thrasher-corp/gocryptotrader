@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -42,7 +43,7 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetTicker()
 	if err != nil {
-		t.Error("Test faild - Poloniex GetTicker() error")
+		t.Error("Test faild - Poloniex GetTicker() error", err)
 	}
 }
 
@@ -50,7 +51,7 @@ func TestGetVolume(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetVolume()
 	if err != nil {
-		t.Error("Test faild - Poloniex GetVolume() error")
+		t.Error("Test faild - Poloniex GetVolume() error", err)
 	}
 }
 
@@ -408,5 +409,15 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress()")
 		}
+	}
+}
+
+func TestGetPlatformHistory(t *testing.T) {
+	p.SetDefaults()
+	TestSetup(t)
+	pOne := currency.NewPairDelimiter("BTC_NXT", "_")
+	_, err := p.GetPlatformHistory(pOne, "SPOT", time.Unix(0, 0), "")
+	if err != nil {
+		t.Error("Test faild - Poloniex GetPlatformHistory() error", err)
 	}
 }

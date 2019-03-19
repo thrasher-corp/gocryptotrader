@@ -94,7 +94,7 @@ type MarketHistory struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 	Result  []struct {
-		ID        int     `json:"Id"`
+		ID        int64   `json:"Id"`
 		Timestamp string  `json:"TimeStamp"`
 		Quantity  float64 `json:"Quantity"`
 		Price     float64 `json:"Price"`

@@ -59,7 +59,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRates(t *testing.T) {
-	_, err := c.GetHistoricRates("BTC-USD", 0, 0, 0)
+	_, err := c.GetHistoricRates("BTC-USD", "", "", 0)
 	if err != nil {
 		t.Error("Test failed - GetHistoricRates() error", err)
 	}
@@ -623,5 +623,13 @@ func TestGetDepositAddress(t *testing.T) {
 	_, err := c.GetDepositAddress(currency.BTC, "")
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() error", err)
+	}
+}
+
+func TestGetPlatformHistory(t *testing.T) {
+	p := currency.NewPairDelimiter("BTC-USD", "-")
+	_, err := c.GetPlatformHistory(p, "SPOT", time.Time{}, "")
+	if err == nil {
+		t.Error("Test failed - GetPlatformHistory() error", err)
 	}
 }

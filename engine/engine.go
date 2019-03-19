@@ -16,6 +16,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/connchecker"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
+	"github.com/thrasher-/gocryptotrader/database"
+	"github.com/thrasher-/gocryptotrader/database/base"
 	"github.com/thrasher-/gocryptotrader/engine/events"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
@@ -39,6 +41,7 @@ type Engine struct {
 	Settings                       Settings
 	CryptocurrencyDepositAddresses map[string]map[string]string
 	Uptime                         time.Time
+	DB                             database.Databaser
 }
 
 // Vars for engine
@@ -209,6 +212,67 @@ func ValidateSettings(b *Engine, s *Settings) {
 	}
 
 	b.Settings.GlobalHTTPProxy = s.GlobalHTTPProxy
+
+	if s.EnableSqliteDatabase {
+		b.Settings.EnableSqliteDatabase = s.EnableSqliteDatabase
+	} else {
+		b.Settings.EnableSqliteDatabase = b.Config.Databases.Sqlite3.Enabled
+	}
+
+	if s.EnablePostgresDatabase {
+		b.Settings.EnablePostgresDatabase = s.EnablePostgresDatabase
+	} else {
+		b.Settings.EnablePostgresDatabase = b.Config.Databases.Postgres.Enabled
+	}
+
+	b.Settings.InsertNewDatabaseClient = s.InsertNewDatabaseClient
+
+	b.Settings.DatabaseDirectory = s.DatabaseDirectory
+
+	b.Settings.SqliteDatabasePath = common.GetDefaultSQLitePath()
+	if b.Config.Databases.Sqlite3.PathToDb != "" {
+		b.Settings.SqliteDatabasePath = b.Config.Databases.Sqlite3.PathToDb
+	}
+
+	if s.SqliteDatabasePath != common.GetDefaultSQLitePath() {
+		b.Settings.SqliteDatabasePath = s.SqliteDatabasePath
+	}
+
+	if s.DatabaseConnectionHostName != "" {
+		b.Settings.DatabaseConnectionHostName = s.DatabaseConnectionHostName
+	} else {
+		b.Settings.DatabaseConnectionHostName = b.Config.Databases.Postgres.Host
+	}
+
+	if s.DatabaseConnectionUserName != "" {
+		b.Settings.DatabaseConnectionUserName = s.DatabaseConnectionUserName
+	} else {
+		b.Settings.DatabaseConnectionUserName = b.Config.Databases.Postgres.Username
+	}
+
+	if s.DatabaseConnectionPassword != "" {
+		b.Settings.DatabaseConnectionPassword = s.DatabaseConnectionPassword
+	} else {
+		b.Settings.DatabaseConnectionPassword = b.Config.Databases.Postgres.Password
+	}
+
+	if s.DatabaseConnectionName != "" {
+		b.Settings.DatabaseConnectionName = s.DatabaseConnectionName
+	} else {
+		b.Settings.DatabaseConnectionName = b.Config.Databases.Postgres.DatabaseName
+	}
+
+	if s.DatabaseConnectionPort != "" {
+		b.Settings.DatabaseConnectionPort = s.DatabaseConnectionPort
+	} else {
+		b.Settings.DatabaseConnectionPort = b.Config.Databases.Postgres.Port
+	}
+
+	if s.DatabaseConnectionSSLMode != "" {
+		b.Settings.DatabaseConnectionSSLMode = s.DatabaseConnectionSSLMode
+	} else {
+		b.Settings.DatabaseConnectionSSLMode = b.Config.Databases.Postgres.SSLMode
+	}
 }
 
 // PrintSettings returns the engine settings
@@ -253,6 +317,17 @@ func PrintSettings(s *Settings) {
 	log.Debugf("\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
 	log.Debugf("\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)
 	log.Debugf("\t Global HTTP proxy: %v", s.ExchangeHTTPProxy)
+	log.Debugf("- DATABASE SETTINGS:")
+	log.Debugf("\t Enable SQLite3 database: %v", s.EnableSqliteDatabase)
+	log.Debugf("\t Enable PostgreSQL database: %v", s.EnablePostgresDatabase)
+	log.Debugf("\t Database directory: %v", s.DatabaseDirectory)
+	log.Debugf("- DATABASE CONNECTION DETAILS:")
+	log.Debugf("\t SQLite3 database path: %v", s.SqliteDatabasePath)
+	log.Debugf("\t Database connection hostname: %v", s.DatabaseConnectionHostName)
+	log.Debugf("\t Database connection username: %v", s.DatabaseConnectionUserName)
+	log.Debugf("\t Database connection name: %v", s.DatabaseConnectionName)
+	log.Debugf("\t Database connection port: %v", s.DatabaseConnectionPort)
+	log.Debugf("\t Database connection SSLMode: %v", s.DatabaseConnectionSSLMode)
 	log.Debugln()
 }
 
@@ -315,6 +390,64 @@ func (e *Engine) Start() {
 	SetupExchanges()
 	if len(e.Exchanges) == 0 {
 		log.Fatalf("No exchanges were able to be loaded. Exiting")
+	}
+
+	// Database start
+	var databaseConnected bool
+	if e.Settings.EnableSqliteDatabase || e.Settings.EnablePostgresDatabase {
+		if e.Settings.EnableSqliteDatabase && e.Settings.EnablePostgresDatabase {
+			log.Fatal("Can only run one database at a time, please check config and flags")
+		}
+
+		if e.Settings.EnablePostgresDatabase {
+			e.DB = database.GetPostgresInstance()
+			err := e.DB.Setup(&base.ConnDetails{Verbose: e.Settings.Verbose,
+				DirectoryPath: e.Settings.DatabaseDirectory,
+				Host:          e.Settings.DatabaseConnectionHostName,
+				User:          e.Settings.DatabaseConnectionUserName,
+				Pass:          e.Settings.DatabaseConnectionPassword,
+				DBName:        e.Settings.DatabaseConnectionName,
+				Port:          e.Settings.DatabaseConnectionPort,
+				SSLMode:       e.Settings.DatabaseConnectionSSLMode,
+				MemCacheSize:  e.Config.Databases.MemoryAllocationInBytes,
+			})
+			if err != nil {
+				log.Fatal("PostgreSQL setup error", err)
+			}
+		}
+
+		if e.Settings.EnableSqliteDatabase {
+			e.DB = database.GetSQLite3Instance()
+			err := e.DB.Setup(&base.ConnDetails{
+				DirectoryPath: e.Settings.DatabaseDirectory,
+				SQLPath:       e.Settings.SqliteDatabasePath,
+				Verbose:       e.Settings.Verbose,
+				MemCacheSize:  e.Config.Databases.MemoryAllocationInBytes,
+			})
+			if err != nil {
+				log.Fatal("SQLite3 setup error", err)
+			}
+		}
+
+		err := e.DB.Connect()
+		if err != nil {
+			disconnectErr := e.DB.Disconnect()
+			if disconnectErr != nil {
+				log.Error(disconnectErr)
+			}
+			log.Error("Database connection error", err)
+		}
+
+		if e.DB.IsConnected() {
+			if e.Settings.Verbose {
+				log.Debugf("Bot is now connected to a %s database",
+					e.DB.GetName())
+			}
+			databaseConnected = true
+		}
+	} else {
+		// Dummy instance so DB is not nil
+		e.DB = database.GetSQLite3Instance()
 	}
 
 	if e.Settings.EnableCommsRelayer {
@@ -410,6 +543,10 @@ func (e *Engine) Start() {
 		go events.EventManger()
 	}
 
+	if databaseConnected {
+		go PlatformTradeUpdaterRoutine()
+	}
+
 	<-e.Shutdown
 	e.Stop()
 }
@@ -420,6 +557,17 @@ func (e *Engine) Stop() {
 
 	if len(portfolio.Portfolio.Addresses) != 0 {
 		e.Config.Portfolio = portfolio.Portfolio
+	}
+
+	if e.DB != nil {
+		if e.DB.IsConnected() {
+			err := e.DB.Disconnect()
+			if err != nil {
+				log.Debug("Unable to disconnect from database", err)
+			} else {
+				log.Debug("Succesfully shutdown database.")
+			}
+		}
 	}
 
 	if !e.Settings.EnableDryRun {

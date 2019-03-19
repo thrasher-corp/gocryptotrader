@@ -480,4 +480,6 @@ var CurrencyPairID = map[int]string{
 	224: "USDC_BTC",
 	226: "USDC_USDT",
 	225: "USDC_ETH",
+	231: "USDT_MANA",
+	233: "ETH_BNT",
 }

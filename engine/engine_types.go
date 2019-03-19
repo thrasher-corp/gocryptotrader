@@ -54,4 +54,17 @@ type Settings struct {
 	ExchangeHTTPTimeout   time.Duration
 	ExchangeHTTPUserAgent string
 	ExchangeHTTPProxy     string
+
+	// Database settings
+	EnableSqliteDatabase       bool
+	EnablePostgresDatabase     bool
+	InsertNewDatabaseClient    bool
+	DatabaseDirectory          string
+	SqliteDatabasePath         string
+	DatabaseConnectionHostName string
+	DatabaseConnectionUserName string
+	DatabaseConnectionPassword string
+	DatabaseConnectionName     string
+	DatabaseConnectionPort     string
+	DatabaseConnectionSSLMode  string
 }

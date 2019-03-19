@@ -11,7 +11,7 @@ import (
 
 // Const values for orderbook package
 const (
-	ErrOrderbookForExchangeNotFound = "ticker for exchange does not exist"
+	ErrOrderbookForExchangeNotFound = "orderbook for exchange does not exist"
 	ErrPrimaryCurrencyNotFound      = "primary currency for orderbook not found"
 	ErrSecondaryCurrencyNotFound    = "secondary currency for orderbook not found"
 )
@@ -100,7 +100,7 @@ func GetByExchange(exchange string) (*Orderbook, error) {
 			return &Orderbooks[x], nil
 		}
 	}
-	return nil, errors.New(ErrOrderbookForExchangeNotFound)
+	return nil, errors.New(exchange + " " + ErrOrderbookForExchangeNotFound)
 }
 
 // BaseCurrencyExists checks to see if the base currency of the orderbook map

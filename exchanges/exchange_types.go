@@ -652,3 +652,14 @@ type Base struct {
 	LoadedByConfig bool
 	Config         *config.ExchangeConfig
 }
+
+// PlatformTrade defines a trade that has been filled/matched by an exchange
+// trading engine
+type PlatformTrade struct {
+	Timestamp time.Time
+	TID       string
+	Price     float64
+	Amount    float64
+	Exchange  string
+	Type      string
+}

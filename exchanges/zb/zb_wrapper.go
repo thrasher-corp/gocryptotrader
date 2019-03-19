@@ -289,8 +289,9 @@ func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (z *ZB) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (z *ZB) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

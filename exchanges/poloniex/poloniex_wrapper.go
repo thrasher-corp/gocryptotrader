@@ -291,9 +291,46 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (p *Poloniex) GetPlatformHistory(cp currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+
+	if timestampStart.Unix() == 0 {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := timestampStart.AddDate(0, 0, 1) // add 24 hours
+
+	t, err := p.GetTradeHistory(cp.String(),
+		strconv.FormatInt(timestampStart.Unix(), 10),
+		strconv.FormatInt(timestampEnd.Unix(), 10))
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range t {
+		cTime, err := ConvertTimeStringToRFC3339(t[i].Date)
+		if err != nil {
+			return resp, err
+		}
+
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: cTime,
+			TID:       strconv.FormatInt(t[i].TradeID, 10),
+			Price:     t[i].Rate,
+			Amount:    t[i].Amount,
+			Exchange:  p.GetName(),
+			Type:      t[i].Type,
+		})
+	}
+	return resp, nil
+}
+
+// ConvertTimeStringToRFC3339 converts returned time string to time.Time
+func ConvertTimeStringToRFC3339(timestamp string) (time.Time, error) {
+	split := common.SplitStrings(timestamp, " ")
+	join := common.JoinStrings(split, "T")
+	return time.Parse(time.RFC3339, join+"Z")
 }
 
 // SubmitOrder submits a new order

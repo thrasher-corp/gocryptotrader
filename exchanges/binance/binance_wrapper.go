@@ -301,9 +301,38 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (b *Binance) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, _ string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+
+	if timestampStart.Unix() == 0 {
+		timestampStart = time.Now().AddDate(0, -3, 0) // set to three months prior
+	}
+	timestampEnd := timestampStart.Add(1 * time.Hour) // add 1 hr
+
+	formattedPair := b.FormatExchangeCurrency(p, assetType)
+
+	t, err := b.GetAggregatedTrades(formattedPair.String(),
+		1000,
+		common.UnixMillis(timestampStart),
+		common.UnixMillis(timestampEnd))
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range t {
+		orderID := strconv.FormatInt(t[i].LastTradeID, 10)
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: time.Unix(0, common.UnixMillisToNano(t[i].TimeStamp)),
+			TID:       orderID,
+			Price:     t[i].Price,
+			Amount:    t[i].Quantity,
+			Exchange:  b.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

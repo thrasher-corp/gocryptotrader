@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -110,7 +111,7 @@ func TestGetDepth(t *testing.T) {
 // TestGetTrades API endpoint test
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTrades("BCHEUR")
+	_, err := k.GetTrades("BCHEUR", 0)
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
 	}
@@ -909,5 +910,13 @@ func TestUnsubscribeFromNonExistentChannel(t *testing.T) {
 	}
 	if !unsubscriptionError {
 		t.Error("Expected error")
+	}
+}
+
+func TestGetPlatformHistory(t *testing.T) {
+	p := currency.NewPair(currency.XBT, currency.USD)
+	_, err := k.GetPlatformHistory(p, "SPOT", time.Time{}, "")
+	if err != nil {
+		t.Error("Test Failed - GetPlatformHistory() error", err)
 	}
 }

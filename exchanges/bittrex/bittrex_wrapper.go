@@ -3,6 +3,7 @@ package bittrex
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -282,9 +283,31 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bittrex) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (b *Bittrex) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+	trades, err := b.GetMarketHistory(p.String())
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range trades.Result {
+		t, err := time.Parse(time.RFC3339, trades.Result[i].Timestamp+"Z")
+		if err != nil {
+			return resp, err
+		}
+
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: t,
+			TID:       strconv.FormatInt(trades.Result[i].ID, 10),
+			Price:     trades.Result[i].Price,
+			Amount:    trades.Result[i].Quantity,
+			Exchange:  b.GetName(),
+			Type:      trades.Result[i].OrderType,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

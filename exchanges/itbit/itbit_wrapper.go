@@ -267,9 +267,33 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (i *ItBit) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+
+	trades, err := i.GetTradeHistory(p.String(), tradeID)
+	if err != nil && tradeID != "" {
+		return resp, err
+	}
+
+	for _, data := range trades.RecentTrades {
+		t, err := time.Parse(time.RFC3339, data.Timestamp)
+		if err != nil {
+			return resp, err
+		}
+
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: t,
+			TID:       data.MatchNumber,
+			Price:     data.Price,
+			Amount:    data.Amount,
+			Exchange:  i.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

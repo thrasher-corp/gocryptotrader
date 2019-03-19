@@ -6,12 +6,27 @@ package gctrpc;
 
 message GetInfoRequest {}
 
+message ConnInfo {
+    string sqlite_path = 1;
+    string host = 2;
+    string database_name = 3;
+    string port = 4;
+    string sslmode = 5;
+    string user_name = 6;
+}
+
+message DatabaseInfo {
+    string instance_name = 1;
+    ConnInfo connection_details = 2;
+}
+
 message GetInfoResponse {
     string uptime = 1;
     int64 available_exchanges = 2;
     int64 enabled_exchanges = 3;
     string default_forex_provider = 4;
     string default_fiat_currency = 5;
+    DatabaseInfo database_info = 6;
 }
 
 message GenericExchangeNameRequest {
@@ -32,6 +47,11 @@ message DisableExchangeRequest {
     string exchange = 1;
 }
 
+message AvailableData {
+    CurrencyPair pair = 1;
+    string asset = 2;
+}
+
 message GetExchangeInfoResponse {
     string name = 1;
     bool enabled = 2;
@@ -45,6 +65,7 @@ message GetExchangeInfoResponse {
     string enabled_pairs = 10;
     string available_pairs = 11;
     bool authenticated_api = 12;
+    repeated AvailableData loaded_database_histories = 13;
 }
 
 message GetTickerRequest {
@@ -273,7 +294,7 @@ message SubmitOrderRequest {
     string order_type = 4;
     double amount = 5;
     double price = 6;
-    string client_id = 7;
+    string user_id = 7;
 }
 
 message SubmitOrderResponse {
@@ -384,6 +405,160 @@ message WithdrawCurrencyRequest {
 
 message WithdrawResponse {
     string result = 1;
+}
+
+message AddUserRequest {
+    string user_name = 1;
+    string email = 2;
+    string password = 3;
+}
+
+message AddUserResponse {
+    string result = 1;
+}
+
+message ModifyUserRequest {
+    string user_name = 1;
+    string first_name = 2;
+    string last_name = 3;
+    string address = 4;
+    string date_of_birth = 5;
+    bool compliant = 6;
+    string email = 7;
+}
+
+message ModifyUserResponse {
+    string result = 1;
+}
+
+message ChangeUserPasswordRequest {
+    string user_name = 1;
+    string new_password = 2;
+}
+
+message ChangeUserPasswordResponse {
+    string result = 1;
+}
+
+message DisableUserRequest {
+   string user_name = 1; 
+}
+
+message DisableUserResponse {
+    string result = 1;
+}
+
+message EnableUserRequest {
+    string user_name = 1;
+}
+
+message EnableUserResponse {
+    string result = 1;
+}
+
+message Generate2FARequest {
+    string user_name = 1;
+}
+
+message Generate2FAResponse {
+    string result = 1;
+    string private_key = 2;
+}
+
+message Submit2FARequest {
+    string six_digit_code = 1;
+    string user_name = 2;
+}
+
+message Submit2FAResponse {
+    string result = 1;
+}
+
+message User {
+    int64 user_id = 1;
+    string user_name = 2;
+    string email = 3;
+    string last_logged_in = 6;
+    bool enabled = 7;
+}
+
+message GetUserInfoRequest {
+    string user_name = 1;
+}
+
+message GetUserInfoResponse {
+    User user = 1;
+}
+
+message GetUserAuditTrailRequest {
+    string user_name = 1;
+}
+
+message GetUserAuditTrailResponse {
+    repeated Audit audits = 1;
+}
+
+message Audit {
+    string change = 1;
+    int64 user_id = 2;
+    string date_time = 3;
+}
+
+message PlatformHistory {
+    int64 timestamp = 1;
+	string trade_id = 2;       
+	double price = 3;
+	double amount = 4;
+	string exchange_name = 5;
+    string trade_type = 6;
+    string asset_type = 7;
+    CurrencyPair pair = 8;
+}
+
+message GetExchangePlatformHistoryRequest {
+    string exchange_name = 1;
+    string pair = 2;
+    string asset = 3;
+}
+
+message Candle {
+	double high = 1;
+	double low = 2;
+    double close = 3;
+    double open = 4;
+	string close_time = 5;
+	string open_time = 6;
+    double volume = 7;
+    double percentage_change = 8;
+}
+
+message TimePeriod {
+    bool one_minute = 1;
+    bool three_minute = 2;
+    bool five_minute = 3;
+    bool fifteen_minute = 4;
+    bool thirty_minute = 5;
+    bool one_hour = 6;
+    bool two_hour = 7;
+    bool four_hour = 8;
+    bool six_hour = 9;
+    bool twelve_hour = 10;
+    bool one_day = 11;
+    bool three_day = 12;
+    bool one_week = 13; 
+}
+
+message GetOHLCRequest {
+    string exchange_name = 1;
+    string pair = 2;
+    string asset = 3;
+    TimePeriod period = 4;
+}
+
+message GetUsersRequest {}
+
+message GetUsersResponse {
+    repeated User users = 1;
 }
 
 service GoCryptoTrader {
@@ -576,6 +751,87 @@ service GoCryptoTrader {
         option (google.api.http) = {
             post: "/v1/withdrawfiatfunds"
             body: "*"
+        };
+    }
+
+    rpc AddUser(AddUserRequest) returns (AddUserResponse) {
+        option (google.api.http) = {
+            post: "/v1/addUser"
+            body: "*"
+        };
+    }
+
+    rpc ModifyUser(ModifyUserRequest) returns (ModifyUserResponse) {
+        option (google.api.http) = {
+            post: "/v1/modifyuser"
+            body: "*"
+        };
+    }
+
+    rpc ChangeUserPassword(ChangeUserPasswordRequest) returns (ChangeUserPasswordResponse) {
+        option (google.api.http) = {
+            post: "/v1/changeuserpassword"
+            body: "*"
+        };
+    }
+
+    rpc EnableUser(EnableUserRequest) returns (EnableUserResponse) {
+        option (google.api.http) = {
+            post: "/v1/enableuser"
+            body: "*"
+        };
+    }
+
+    rpc DisableUser(DisableUserRequest) returns (DisableUserResponse) {
+        option (google.api.http) = {
+            post: "/v1/disableuser"
+            body: "*"
+        };
+    }
+
+    rpc Generate2FA(Generate2FARequest) returns (Generate2FAResponse) {
+        option (google.api.http) = {
+            post: "/v1/generate2fa"
+            body: "*"
+        };
+    }
+
+    rpc Submit2FA(Submit2FARequest) returns (Submit2FAResponse) {
+        option (google.api.http) = {
+            post: "/v1/submit2fa"
+            body: "*"
+        };
+    }
+
+    rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse) {
+        option (google.api.http) = {
+            post: "/v1/getuserinfo"
+            body: "*"
+        };
+    }
+    
+    rpc GetUserAuditTrail(GetUserAuditTrailRequest) returns (GetUserAuditTrailResponse) {
+        option (google.api.http) = {
+            post: "/v1/getuseraudittrail"
+            body: "*"
+        };
+    }
+
+    rpc GetExchangePlatformHistory(GetExchangePlatformHistoryRequest) returns (stream PlatformHistory) {
+        option (google.api.http) = {
+            get: "/v1/getexchangeplatformhistory"
+        };
+    }
+
+    rpc GetOHLC(GetOHLCRequest) returns (stream Candle) {
+        option (google.api.http) = {
+            get: "/v1/getohlc"
+        };
+    }
+
+    rpc GetUsers(GetUsersRequest) returns (GetUsersResponse) {
+        option (google.api.http) = {
+            get: "/v1/getusers"
         };
     }
 }

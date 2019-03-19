@@ -2,6 +2,7 @@ package bitflyer
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -108,7 +109,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetExecutionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetExecutionHistory("BTC_JPY")
+	_, err := b.GetExecutionHistory("BTC_JPY", 0)
 	if err != nil {
 		t.Error("test failed - Bitflyer - GetExecutionHistory() error:", err)
 	}
@@ -416,5 +417,16 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
+	}
+}
+
+func TestGetPlatformHistory(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	p := currency.NewPairDelimiter("BTC_JPY", "_")
+	_, err := b.GetPlatformHistory(p, "SPOT", time.Time{}, "")
+	if err != nil {
+		t.Error("test failed - Bitflyer - GetPlatformHistory() error", err)
 	}
 }

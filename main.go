@@ -72,6 +72,19 @@ func main() {
 	flag.StringVar(&settings.GlobalHTTPUserAgent, "globalhttpuseragent", "", "sets the common HTTP client's user agent")
 	flag.StringVar(&settings.GlobalHTTPProxy, "globalhttpproxy", "", "sets the common HTTP client's proxy server")
 
+	// Database settings
+	flag.StringVar(&settings.DatabaseDirectory, "dbdirectory", common.GetDefaultDatabaseDir(), "Sets a non default path to a database data directory")
+	flag.BoolVar(&settings.EnableSqliteDatabase, "sqlite", false, "initiates and connects to a sqlite3 database")
+	flag.StringVar(&settings.SqliteDatabasePath, "sqlitepath", common.GetDefaultSQLitePath(), "Sets a non default path to a SQLite3 database")
+	flag.BoolVar(&settings.EnablePostgresDatabase, "postgres", false, "initiates a postgres connection")
+	flag.StringVar(&settings.DatabaseConnectionHostName, "dbhost", "", "Sets database host")
+	flag.StringVar(&settings.DatabaseConnectionUserName, "dbuser", "", "Sets database user")
+	flag.StringVar(&settings.DatabaseConnectionPassword, "dbpass", "", "Sets database password")
+	flag.StringVar(&settings.DatabaseConnectionName, "dbname", "", "Sets database name")
+	flag.StringVar(&settings.DatabaseConnectionPort, "dbport", "", "Sets database port, does not need to be set")
+	flag.StringVar(&settings.DatabaseConnectionSSLMode, "dbsslmode", "", "Sets database SSL mode")
+	flag.BoolVar(&settings.InsertNewDatabaseClient, "newclient", false, "Creates a new client to load in database")
+
 	flag.Parse()
 
 	if *versionFlag {

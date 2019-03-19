@@ -15,6 +15,32 @@
     "application/json"
   ],
   "paths": {
+    "/v1/addUser": {
+      "post": {
+        "operationId": "AddUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcAddUserResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcAddUserRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/addevent": {
       "post": {
         "operationId": "AddEvent",
@@ -119,6 +145,32 @@
         ]
       }
     },
+    "/v1/changeuserpassword": {
+      "post": {
+        "operationId": "ChangeUserPassword",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcChangeUserPasswordResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcChangeUserPasswordRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/disableexchange": {
       "post": {
         "operationId": "DisableExchange",
@@ -145,6 +197,32 @@
         ]
       }
     },
+    "/v1/disableuser": {
+      "post": {
+        "operationId": "DisableUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcDisableUserResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcDisableUserRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/enableexchange": {
       "post": {
         "operationId": "EnableExchange",
@@ -163,6 +241,58 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/gctrpcGenericExchangeNameRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/enableuser": {
+      "post": {
+        "operationId": "EnableUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcEnableUserResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcEnableUserRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/generate2fa": {
+      "post": {
+        "operationId": "Generate2FA",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenerate2FAResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenerate2FARequest"
             }
           }
         ],
@@ -303,6 +433,42 @@
         ]
       }
     },
+    "/v1/getexchangeplatformhistory": {
+      "get": {
+        "operationId": "GetExchangePlatformHistory",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/gctrpcPlatformHistory"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange_name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getexchanges": {
       "get": {
         "operationId": "GetExchanges",
@@ -371,6 +537,133 @@
             }
           }
         },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getohlc": {
+      "get": {
+        "operationId": "GetOHLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/gctrpcCandle"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange_name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "period.one_minute",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.three_minute",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.five_minute",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.fifteen_minute",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.thirty_minute",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.one_hour",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.two_hour",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.four_hour",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.six_hour",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.twelve_hour",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.one_day",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.three_day",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "period.one_week",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
         "tags": [
           "GoCryptoTrader"
         ]
@@ -544,6 +837,100 @@
         ]
       }
     },
+    "/v1/getuseraudittrail": {
+      "post": {
+        "operationId": "GetUserAuditTrail",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetUserAuditTrailResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetUserAuditTrailRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getuserinfo": {
+      "post": {
+        "operationId": "GetUserInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetUserInfoResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetUserInfoRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getusers": {
+      "get": {
+        "operationId": "GetUsers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetUsersResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/modifyuser": {
+      "post": {
+        "operationId": "ModifyUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcModifyUserResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcModifyUserRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/removeevent": {
       "post": {
         "operationId": "RemoveEvent",
@@ -588,6 +975,32 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/gctrpcRemovePortfolioAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/submit2fa": {
+      "post": {
+        "operationId": "Submit2FA",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSubmit2FAResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSubmit2FARequest"
             }
           }
         ],
@@ -773,6 +1186,54 @@
     "gctrpcAddPortfolioAddressResponse": {
       "type": "object"
     },
+    "gctrpcAddUserRequest": {
+      "type": "object",
+      "properties": {
+        "user_name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcAddUserResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcAudit": {
+      "type": "object",
+      "properties": {
+        "change": {
+          "type": "string"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "date_time": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcAvailableData": {
+      "type": "object",
+      "properties": {
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "asset": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCancelAllOrdersRequest": {
       "type": "object",
       "properties": {
@@ -821,6 +1282,60 @@
     "gctrpcCancelOrderResponse": {
       "type": "object"
     },
+    "gctrpcCandle": {
+      "type": "object",
+      "properties": {
+        "high": {
+          "type": "number",
+          "format": "double"
+        },
+        "low": {
+          "type": "number",
+          "format": "double"
+        },
+        "close": {
+          "type": "number",
+          "format": "double"
+        },
+        "open": {
+          "type": "number",
+          "format": "double"
+        },
+        "close_time": {
+          "type": "string"
+        },
+        "open_time": {
+          "type": "string"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "percentage_change": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcChangeUserPasswordRequest": {
+      "type": "object",
+      "properties": {
+        "user_name": {
+          "type": "string"
+        },
+        "new_password": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcChangeUserPasswordResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCoin": {
       "type": "object",
       "properties": {
@@ -864,6 +1379,29 @@
         }
       }
     },
+    "gctrpcConnInfo": {
+      "type": "object",
+      "properties": {
+        "sqlite_path": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "database_name": {
+          "type": "string"
+        },
+        "port": {
+          "type": "string"
+        },
+        "sslmode": {
+          "type": "string"
+        },
+        "user_name": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCurrencyPair": {
       "type": "object",
       "properties": {
@@ -874,6 +1412,49 @@
           "type": "string"
         },
         "quote": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcDatabaseInfo": {
+      "type": "object",
+      "properties": {
+        "instance_name": {
+          "type": "string"
+        },
+        "connection_details": {
+          "$ref": "#/definitions/gctrpcConnInfo"
+        }
+      }
+    },
+    "gctrpcDisableUserRequest": {
+      "type": "object",
+      "properties": {
+        "user_name": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcDisableUserResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcEnableUserRequest": {
+      "type": "object",
+      "properties": {
+        "user_name": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcEnableUserResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
           "type": "string"
         }
       }
@@ -924,6 +1505,25 @@
         "inverse_rate": {
           "type": "number",
           "format": "double"
+        }
+      }
+    },
+    "gctrpcGenerate2FARequest": {
+      "type": "object",
+      "properties": {
+        "user_name": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGenerate2FAResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        },
+        "private_key": {
+          "type": "string"
         }
       }
     },
@@ -1069,6 +1669,12 @@
         "authenticated_api": {
           "type": "boolean",
           "format": "boolean"
+        },
+        "loaded_database_histories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcAvailableData"
+          }
         }
       }
     },
@@ -1121,6 +1727,9 @@
         },
         "default_fiat_currency": {
           "type": "string"
+        },
+        "database_info": {
+          "$ref": "#/definitions/gctrpcDatabaseInfo"
         }
       }
     },
@@ -1253,6 +1862,87 @@
           "items": {
             "$ref": "#/definitions/gctrpcTickers"
           }
+        }
+      }
+    },
+    "gctrpcGetUserAuditTrailRequest": {
+      "type": "object",
+      "properties": {
+        "user_name": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetUserAuditTrailResponse": {
+      "type": "object",
+      "properties": {
+        "audits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcAudit"
+          }
+        }
+      }
+    },
+    "gctrpcGetUserInfoRequest": {
+      "type": "object",
+      "properties": {
+        "user_name": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetUserInfoResponse": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "#/definitions/gctrpcUser"
+        }
+      }
+    },
+    "gctrpcGetUsersResponse": {
+      "type": "object",
+      "properties": {
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcUser"
+          }
+        }
+      }
+    },
+    "gctrpcModifyUserRequest": {
+      "type": "object",
+      "properties": {
+        "user_name": {
+          "type": "string"
+        },
+        "first_name": {
+          "type": "string"
+        },
+        "last_name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "date_of_birth": {
+          "type": "string"
+        },
+        "compliant": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "email": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcModifyUserResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
         }
       }
     },
@@ -1413,6 +2103,38 @@
         }
       }
     },
+    "gctrpcPlatformHistory": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "int64"
+        },
+        "trade_id": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "exchange_name": {
+          "type": "string"
+        },
+        "trade_type": {
+          "type": "string"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        }
+      }
+    },
     "gctrpcPortfolioAddress": {
       "type": "object",
       "properties": {
@@ -1460,6 +2182,25 @@
     "gctrpcRemovePortfolioAddressResponse": {
       "type": "object"
     },
+    "gctrpcSubmit2FARequest": {
+      "type": "object",
+      "properties": {
+        "six_digit_code": {
+          "type": "string"
+        },
+        "user_name": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcSubmit2FAResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcSubmitOrderRequest": {
       "type": "object",
       "properties": {
@@ -1483,7 +2224,7 @@
           "type": "number",
           "format": "double"
         },
-        "client_id": {
+        "user_id": {
           "type": "string"
         }
       }
@@ -1557,6 +2298,85 @@
         }
       }
     },
+    "gctrpcTimePeriod": {
+      "type": "object",
+      "properties": {
+        "one_minute": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "three_minute": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "five_minute": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "fifteen_minute": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "thirty_minute": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "one_hour": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "two_hour": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "four_hour": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "six_hour": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "twelve_hour": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "one_day": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "three_day": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "one_week": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "gctrpcUser": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "user_name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "last_logged_in": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
     "gctrpcWithdrawCurrencyRequest": {
       "type": "object",
       "properties": {
@@ -1623,6 +2443,69 @@
           "type": "string"
         }
       }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeStreamError": {
+      "type": "object",
+      "properties": {
+        "grpc_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "http_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "http_status": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  },
+  "x-stream-definitions": {
+    "gctrpcCandle": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcCandle"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcCandle"
+    },
+    "gctrpcPlatformHistory": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcPlatformHistory"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcPlatformHistory"
     }
   }
 }

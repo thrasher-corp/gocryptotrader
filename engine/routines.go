@@ -3,11 +3,13 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/database/base"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -168,6 +170,46 @@ func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType as
 			)
 		}
 	}
+}
+
+func printPlatformTradeSummary(t *[]exchange.PlatformTrade, exchangeName string, assetType assets.AssetType, p currency.Pair, timestampStart, timestampEnd time.Time, err error) {
+	if err != nil {
+		log.Errorf("Failed to retrieve platform trades for %s %s %s Error: %s",
+			exchangeName,
+			p,
+			assetType,
+			err)
+		return
+	}
+
+	var totalVolume, totalValue float64
+	var totalTrades int
+	for i := range *t {
+		totalValue += (*t)[i].Price
+		totalVolume += (*t)[i].Amount
+		totalTrades++
+	}
+
+	if timestampStart.Unix() == 0 && timestampEnd.Unix() == 0 {
+		log.Infof("%s %s %s: PLATFORM TRADES: StartTime: Exchange Wrapper Defined EndTime: Time.Now() TotalTrades: %d TotalVolume %f TotalValue %f",
+			exchangeName,
+			p,
+			assetType,
+			totalTrades,
+			totalVolume,
+			totalValue)
+		return
+	}
+
+	log.Infof("%s %s %s: PLATFORM TRADES: StartTime: %s EndTime: %s TotalTrades: %d TotalVolume %f TotalValue %f",
+		exchangeName,
+		p,
+		assetType,
+		timestampStart,
+		timestampEnd,
+		totalTrades,
+		totalVolume,
+		totalValue)
 }
 
 func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
@@ -475,4 +517,197 @@ func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
 			}
 		}
 	}
+}
+
+// PlatformTradeUpdaterRoutine fetches and updates platform trade data and
+// enters said data into defined database
+func PlatformTradeUpdaterRoutine() {
+	log.Debug("Starting platform trade fetching routine..")
+
+	wg.Add(len(Bot.Exchanges))
+	for x := range Bot.Exchanges {
+		go func(x int, wg *sync.WaitGroup) {
+			defer wg.Done()
+
+			if Bot.Exchanges[x] == nil {
+				return
+			}
+
+			if !Bot.DB.IsConnected() {
+				log.Errorf("Exchange %s platform trade updater failed to fetch, not connected to database",
+					Bot.Exchanges[x].GetName())
+				return
+			}
+
+			exchangeName := Bot.Exchanges[x].GetName()
+			dbconfig, err := Bot.Config.GetDatabaseConfig(exchangeName)
+			if err != nil {
+				log.Errorf("failed to get %s exchange database configuration. Error: %s",
+					exchangeName,
+					err)
+				return
+			}
+
+			for y := range dbconfig {
+				if !dbconfig[y].Enabled {
+					continue
+				}
+				go fetchHistory(Bot.Exchanges[x],
+					dbconfig[y].Pair,
+					assets.AssetType(dbconfig[y].AssetType),
+					dbconfig[y].TradeIDStart,
+					time.Unix(dbconfig[y].TimestampStart, 0),
+					time.Unix(dbconfig[y].TimestampEnd, 0))
+			}
+		}(x, &wg)
+	}
+	wg.Wait()
+}
+
+func fetchHistory(exch exchange.IBotExchange, p currency.Pair, asset assets.AssetType, tradeIDStart string, timeStart, timeEnd time.Time) {
+	log.Debugf("Fetching platform trading history for %s %s %s",
+		exch.GetName(),
+		p,
+		asset)
+
+	var lastDBTime time.Time
+	var lastTradeID string
+
+	var err error
+	// See if there is a last historic value entered into the database
+	lastDBTime, lastTradeID, err = Bot.DB.GetPlatformTradeLast(exch.GetName(),
+		p.String(),
+		asset.String())
+	if err != nil {
+		if err.Error() != "sql: no rows in result set" {
+			log.Errorf("Getting last platform trade for %s %s %s error %s",
+				exch.GetName(),
+				p,
+				asset,
+				err)
+			return
+		}
+	}
+
+	for {
+		if timeEnd.Unix() == 0 && !lastDBTime.IsZero() {
+			// if within 5 minutes of last fulfilled time just return
+			if time.Now().Truncate(5 * time.Minute).Before(lastDBTime) {
+				log.Info("Up to date sleeping routine")
+				time.Sleep(5 * time.Minute)
+				continue
+			}
+		}
+
+		if timeEnd.Unix() != 0 && !lastDBTime.IsZero() {
+			if timeEnd.Equal(lastDBTime) || timeEnd.Before(lastDBTime) {
+				// If last entered is after the designated end time then all is
+				// updated
+				log.Info("Routine finished updating historic rates")
+				return
+			}
+		}
+
+		if lastDBTime.IsZero() && lastTradeID == "" {
+			lastDBTime = timeStart
+			lastTradeID = tradeIDStart
+		}
+
+		receivedHistory, err := exch.GetPlatformHistory(p,
+			asset,
+			lastDBTime,
+			lastTradeID)
+		if err != nil || len(receivedHistory) < 1 {
+			if timeEnd.Unix() == 0 {
+				log.Errorf("No platform history returned for %s %s %s and in time period [%s -> %s] with error %s",
+					exch.GetName(),
+					p,
+					asset,
+					lastDBTime,
+					"time.Now()",
+					err)
+			} else {
+				log.Errorf("No platform history returned for %s %s %s and in time period [%s -> %s] with error %s",
+					exch.GetName(),
+					p,
+					asset,
+					lastDBTime,
+					timeEnd,
+					err)
+			}
+			return
+		}
+
+		var allTrades []*base.PlatformTrades
+		for i := range receivedHistory {
+			allTrades = append(allTrades, &base.PlatformTrades{
+				OrderID:      receivedHistory[i].TID,
+				ExchangeName: exch.GetName(),
+				Pair:         p.String(),
+				AssetType:    asset.String(),
+				OrderType:    receivedHistory[i].Type,
+				Amount:       receivedHistory[i].Amount,
+				Rate:         receivedHistory[i].Price,
+				FullfilledOn: receivedHistory[i].Timestamp,
+			})
+		}
+
+		err = Bot.DB.InsertPlatformTrades(exch.GetName(), allTrades)
+		if err != nil {
+			if common.StringContains(err.Error(), "UNIQUE constraint failed") {
+				log.Errorf("%s %s %s error: %s",
+					exch.GetName(),
+					p,
+					asset,
+					err)
+				log.Info("Up to date sleeping routine")
+				time.Sleep(5 * time.Minute)
+				continue
+			}
+			log.Errorf("%s %s %s error: %s",
+				exch.GetName(),
+				p,
+				asset,
+				err)
+			return
+		}
+
+		// Gets and assigns the most recent trade data so we dont keep querying
+		// db
+		lastDBTime, lastTradeID = GetRecentTimestampAndID(allTrades)
+
+		printPlatformTradeSummary(&receivedHistory,
+			exch.GetName(),
+			asset,
+			p,
+			timeStart,
+			timeEnd,
+			err)
+	}
+}
+
+// GetRecentTimestampAndID returns the most recent timestamp, hopefully
+func GetRecentTimestampAndID(trades SortTrades) (recentTime time.Time, recentID string) {
+	if trades.Len() == 0 {
+		return time.Time{}, ""
+	}
+
+	sort.Sort(trades)
+	recent := trades[trades.Len()-1]
+	return recent.FullfilledOn, recent.OrderID
+}
+
+// SortTrades implements the sort.Interface
+type SortTrades []*base.PlatformTrades
+
+func (s SortTrades) Len() int {
+	return len(s)
+}
+
+func (s SortTrades) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s SortTrades) Less(i, j int) bool {
+	return s[i].FullfilledOn.Before(s[j].FullfilledOn)
 }

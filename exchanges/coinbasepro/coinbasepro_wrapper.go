@@ -274,8 +274,11 @@ func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (c *CoinbasePro) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	// TODO: Need to implement a unique ID before we can implement this as this
+	// endpoint returns OHLC data and we are getting contraint errors.
 	return nil, common.ErrNotYetImplemented
 }
 

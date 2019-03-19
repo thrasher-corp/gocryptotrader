@@ -31,6 +31,7 @@ const (
 	currencyPairPath                = "..%s..%scurrency%spair%s"
 	currencySymbolPath              = "..%s..%scurrency%ssymbol%s"
 	currencyTranslationPath         = "..%s..%scurrency%stranslation%s"
+	databasePath                    = "..%s..%sdatabase%s"
 	eventsPath                      = "..%s..%sevents%s"
 	exchangesPath                   = "..%s..%sexchanges%s"
 	exchangesNoncePath              = "..%s..%sexchanges%snonce%s"
@@ -203,6 +204,8 @@ func addPaths() {
 	codebasePaths["currency symbol"] = fmt.Sprintf(currencySymbolPath, path, path, path, path)
 	codebasePaths["currency translation"] = fmt.Sprintf(currencyTranslationPath, path, path, path, path)
 
+	codebasePaths["database"] = fmt.Sprintf(databasePath, path, path, path)
+
 	codebasePaths["events"] = fmt.Sprintf(eventsPath, path, path, path)
 
 	codebasePaths["portfolio"] = fmt.Sprintf(portfolioPath, path, path, path)
@@ -301,6 +304,7 @@ var globS = []string{
 	fmt.Sprintf("communications_templates%s*", common.GetOSPathSlash()),
 	fmt.Sprintf("config_templates%s*", common.GetOSPathSlash()),
 	fmt.Sprintf("currency_templates%s*", common.GetOSPathSlash()),
+	fmt.Sprintf("database_templates%s*", common.GetOSPathSlash()),
 	fmt.Sprintf("events_templates%s*", common.GetOSPathSlash()),
 	fmt.Sprintf("exchanges_templates%s*", common.GetOSPathSlash()),
 	fmt.Sprintf("portfolio_templates%s*", common.GetOSPathSlash()),

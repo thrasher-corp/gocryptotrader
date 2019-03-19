@@ -175,9 +175,10 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 // GetAggregatedTrades returns aggregated trade activity
 //
 // symbol: string of currency pair
-// limit: Optional. Default 500; max 1000.
-func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTrade, error) {
-	resp := []AggregatedTrade{}
+// limit: returned limit amount WARNING: MAX 500!
+func (b *Binance) GetAggregatedTrades(symbol string, limit int, startTime, endTime int64) ([]AggregatedTrade, error) {
+	var initResp interface{}
+	var resp []AggregatedTrade
 
 	if err := b.CheckLimit(limit); err != nil {
 		return resp, err
@@ -185,11 +186,37 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.Itoa(limit))
+	params.Set("limit", strconv.FormatInt(int64(limit), 10))
+	params.Set("startTime", strconv.FormatInt(startTime, 10))
+	params.Set("endTime", strconv.FormatInt(endTime, 10))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, aggregatedTrades, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	err := b.SendHTTPRequest(path, &initResp)
+	if err != nil {
+		return resp, err
+	}
+
+	if err, ok := initResp.(map[string]interface{}); ok {
+		return resp, errors.New(err["msg"].(string))
+	}
+
+	for i := range initResp.([]interface{}) {
+		price, _ := strconv.ParseFloat(initResp.([]interface{})[i].(map[string]interface{})["p"].(string), 64)
+		quantity, _ := strconv.ParseFloat(initResp.([]interface{})[i].(map[string]interface{})["q"].(string), 64)
+		resp = append(resp, AggregatedTrade{
+			ATradeID:       int64(initResp.([]interface{})[i].(map[string]interface{})["a"].(float64)),
+			Price:          price,
+			Quantity:       quantity,
+			FirstTradeID:   int64(initResp.([]interface{})[i].(map[string]interface{})["f"].(float64)),
+			LastTradeID:    int64(initResp.([]interface{})[i].(map[string]interface{})["l"].(float64)),
+			TimeStamp:      int64(initResp.([]interface{})[i].(map[string]interface{})["T"].(float64)),
+			Maker:          initResp.([]interface{})[i].(map[string]interface{})["m"].(bool),
+			BestMatchPrice: initResp.([]interface{})[i].(map[string]interface{})["M"].(bool),
+		})
+	}
+
+	return resp, nil
 }
 
 // GetSpotKline returns kline data

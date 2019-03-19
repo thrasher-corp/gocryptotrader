@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -31,7 +32,7 @@ type IBotExchange interface {
 	GetAuthenticatedAPISupport() bool
 	SetPairs(pairs currency.Pairs, assetType assets.AssetType, enabled bool) error
 	GetAssetTypes() assets.AssetTypes
-	GetExchangeHistory(currencyPair currency.Pair, assetType assets.AssetType) ([]TradeHistory, error)
+	GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]PlatformTrade, error)
 	SupportsAutoPairUpdates() bool
 	SupportsRESTTickerBatchUpdates() bool
 	GetFeeByType(feeBuilder *FeeBuilder) (float64, error)

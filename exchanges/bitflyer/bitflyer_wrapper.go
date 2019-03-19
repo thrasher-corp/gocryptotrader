@@ -2,6 +2,7 @@ package bitflyer
 
 import (
 	"errors"
+	"strconv"
 	"sync"
 	"time"
 
@@ -270,9 +271,38 @@ func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitflyer) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (b *Bitflyer) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+	ID, err := strconv.ParseInt(tradeID, 10, 64)
+	if err != nil && tradeID != "" {
+		return nil, err
+	}
+
+	trades, err := b.GetExecutionHistory(p.String(), ID)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range trades {
+		t, err := time.Parse(time.RFC3339, trades[i].ExecDate+"Z")
+		if err != nil {
+			return resp, err
+		}
+
+		orderID := strconv.FormatInt(trades[i].ID, 10)
+
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: t,
+			TID:       orderID,
+			Price:     trades[i].Price,
+			Amount:    trades[i].Size,
+			Exchange:  b.GetName(),
+			Type:      trades[i].Side,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

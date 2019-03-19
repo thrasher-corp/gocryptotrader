@@ -268,7 +268,8 @@ func (k *Kraken) WsHandleDataResponse(response WebsocketDataResponse) {
 	}
 }
 
-// WsHandleEventResponse classifies the WS response and sends to appropriate handler
+// WsHandleEventResponse classifies the WS response and sends to an appropriate
+// handler
 func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 	switch response.Event {
 	case krakenWsHeartbeat:

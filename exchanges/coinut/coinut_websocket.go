@@ -83,8 +83,11 @@ func (c *COINUT) WsHandleData() {
 					continue
 				}
 
+				p := currency.NewPairFromString(instrumentListByCode[ticker.InstID])
+
 				c.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Unix(0, ticker.Timestamp),
+					Pair:       p,
 					Exchange:   c.GetName(),
 					AssetType:  assets.AssetTypeSpot,
 					HighPrice:  ticker.HighestBuy,

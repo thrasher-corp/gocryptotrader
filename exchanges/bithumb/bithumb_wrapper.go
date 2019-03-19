@@ -264,9 +264,41 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetPlatformHistory returns historic platform trade data since exchange
+// initial operations
+func (b *Bithumb) GetPlatformHistory(p currency.Pair, assetType assets.AssetType, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
+	var resp []exchange.PlatformTrade
+	ID, err := strconv.ParseInt(tradeID, 10, 64)
+	if err != nil && tradeID != "" {
+		return nil, err
+	}
+
+	t, err := b.GetTransactionHistory(p.Base.String(), ID)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range t.Data {
+		orderID := strconv.FormatInt(t.Data[i].ContNumber, 10)
+		resp = append(resp, exchange.PlatformTrade{
+			Timestamp: ConvertToRFC3339(t.Data[i].TransactionDate),
+			TID:       orderID,
+			Price:     t.Data[i].Price,
+			Amount:    t.Data[i].UnitsTraded,
+			Exchange:  b.GetName(),
+			Type:      t.Data[i].Type,
+		})
+	}
+	return resp, nil
+}
+
+// ConvertToRFC3339 converts string from bithumb to a RFC3339 format
+func ConvertToRFC3339(t string) time.Time {
+	split := common.SplitStrings(t, " ")
+	join := common.JoinStrings(split, "T")
+	join += "Z"
+	newTime, _ := time.Parse(time.RFC3339, join)
+	return newTime
 }
 
 // SubmitOrder submits a new order

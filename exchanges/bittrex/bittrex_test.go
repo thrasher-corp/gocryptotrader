@@ -2,6 +2,9 @@ package bittrex
 
 import (
 	"testing"
+	"time"
+
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -516,5 +519,13 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}
+	}
+}
+
+func TestGetPlatformHistory(t *testing.T) {
+	p := currency.NewPairDelimiter("BTC-DOGE", "-")
+	_, err := b.GetPlatformHistory(p, assets.AssetTypeSpot, time.Time{}, "")
+	if err != nil {
+		t.Error("Test Failed - Bittrex - GetPlatformHistory() error", err)
 	}
 }

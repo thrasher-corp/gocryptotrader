@@ -674,7 +674,7 @@ func genCert(targetDir string) error {
 	notAfter := notBefore.Add(time.Hour * 24 * 365)
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit) // nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to generate serial number: %s", err)
 	}

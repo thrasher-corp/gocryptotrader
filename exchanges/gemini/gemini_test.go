@@ -3,6 +3,7 @@ package gemini
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -551,5 +552,12 @@ func TestGetDepositAddress(t *testing.T) {
 	_, err := Session[1].GetDepositAddress(currency.BTC, "")
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress error cannot be nil")
+	}
+}
+func TestGetPlatformHistory(t *testing.T) {
+	p := currency.NewPair(currency.BTC, currency.USD)
+	_, err := Session[2].GetPlatformHistory(p, "SPOT", time.Time{}, "")
+	if err == nil {
+		t.Error("Test Failed - GetPlatformHistory() error", err)
 	}
 }

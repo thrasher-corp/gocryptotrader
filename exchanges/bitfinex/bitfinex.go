@@ -344,6 +344,8 @@ func (b *Bitfinex) GetTradesV2(currencyPair string, timestampStart, timestampEnd
 	var resp [][]interface{}
 	var actualHistory []TradeStructureV2
 
+	currencyPair = "t" + currencyPair // bitfinex flair
+
 	path := fmt.Sprintf(bitfinexTradesV2,
 		currencyPair,
 		strconv.FormatInt(timestampStart, 10),

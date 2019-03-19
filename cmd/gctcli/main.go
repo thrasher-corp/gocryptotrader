@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,9 +18,10 @@ import (
 )
 
 var (
-	host     string
-	username string
-	password string
+	host       string
+	username   string
+	password   string
+	cliContext = context.Background()
 )
 
 func jsonOutput(in interface{}) {
@@ -43,12 +45,7 @@ func setupClient() (*grpc.ClientConn, error) {
 			Password: password,
 		}),
 	}
-	conn, err := grpc.Dial(host, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, err
+	return grpc.DialContext(cliContext, host, opts...)
 }
 
 func main() {
@@ -106,6 +103,18 @@ func main() {
 		getCryptocurrencyDepositAddressCommand,
 		withdrawCryptocurrencyFundsCommand,
 		withdrawFiatFundsCommand,
+		addUserCommand,
+		modifyUserCommand,
+		changeUserPasswordCommand,
+		enableUserCommand,
+		disableUserCommand,
+		generate2FACommand,
+		submit2FACommand,
+		getUserInfoCommand,
+		getUserAuditTrailCommand,
+		getExchangePlatformHistoryCommand,
+		getOHLCCommand,
+		getUsersCommand,
 	}
 
 	err := app.Run(os.Args)

@@ -26,6 +26,7 @@ type Config struct {
 	Portfolio         portfolio.Base          `json:"portfolioAddresses"`
 	Exchanges         []ExchangeConfig        `json:"exchanges"`
 	BankAccounts      []BankAccount           `json:"bankAccounts"`
+	Databases         Databases            `json:"databases"`
 
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
@@ -58,6 +59,7 @@ type ExchangeConfig struct {
 	API             APIConfig              `json:"api"`
 	Features        *FeaturesConfig        `json:"features"`
 	BankAccounts    []BankAccount          `json:"bankAccounts,omitempty"`
+	DatabaseExchangeConfigs []DatabaseExchangeConfig `json:"databaseExchangeConfigs"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs            *currency.Pairs      `json:"availablePairs,omitempty"`
@@ -342,4 +344,44 @@ type HTTPRateConfig struct {
 type HTTPRateLimitConfig struct {
 	Unauthenticated HTTPRateConfig `json:"unauthenticated"`
 	Authenticated   HTTPRateConfig `json:"authenticated"`
+}
+
+// Databases defines databases that are used in the trading engine
+type Databases struct {
+	MemoryAllocationInBytes int64           `json:"memoryAllocationInBytes"`
+	Postgres                DatabaseDetails `json:"postgres"`
+	Sqlite3                 DatabaseDetails `json:"sqlite3"`
+}
+
+// DatabaseDetails defines database connection details
+type DatabaseDetails struct {
+	Enabled      bool   `json:"enabled"`
+	PathToDb     string `json:"pathToDB"`
+	Host         string `json:"host"`
+	Password     string `json:"password"`
+	Username     string `json:"userName"`
+	Port         string `json:"port"`
+	DatabaseName string `json:"databaseName"`
+	SSLMode      string `json:"sslMode"`
+}
+
+// DatabaseExchangeConfig denotes configurations for what is saved to database
+// from the loaded exchange
+type DatabaseExchangeConfig struct {
+	Enabled   bool          `json:"enabled"`
+	Pair      currency.Pair `json:"currencyPair"`
+	AssetType string        `json:"assetType"`
+
+	// TimestampStart defines the start date at which you want the trades to be
+	// fetched, if no time is set will default to fetching the last 24 hours or
+	// what ever the max historic time is.
+	TimestampStart int64 `json:"timestampStart"`
+
+	// TradeIDStart defines a start point by trade ID if not set will default to
+	// either a pre-determined default or zero value.
+	TradeIDStart string `json:"tradeIDStart"`
+
+	// TimestampEnd defines the end date if no time is set will default to
+	// time.Now()
+	TimestampEnd int64 `json:"timestampEnd"`
 }
