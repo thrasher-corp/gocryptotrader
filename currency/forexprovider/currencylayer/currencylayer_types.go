@@ -1,6 +1,6 @@
 package currencylayer
 
-// Error Defines the response error if an error occured
+// Error Defines the response error if an error occurred
 type Error struct {
 	Code int    `json:"code"`
 	Info string `json:"info"`
