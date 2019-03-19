@@ -272,7 +272,7 @@ func (y *Yobit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (y *Yobit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := y.GetOpenOrders(exchange.FormatExchangeCurrency(y.Name, currency).String())
@@ -304,7 +304,7 @@ func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (y *Yobit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var allOrders []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := y.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks.Unix(), getOrdersRequest.EndTicks.Unix(), "DESC", exchange.FormatExchangeCurrency(y.Name, currency).String())

@@ -318,7 +318,7 @@ func (g *Gateio) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var currPair string
 	if len(getOrdersRequest.Currencies) == 1 {
 		currPair = getOrdersRequest.Currencies[0].Pair().String()
@@ -359,7 +359,7 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var trades []TradesResponse
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := g.GetTradeHistory(currency.Pair().String())

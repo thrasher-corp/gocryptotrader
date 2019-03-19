@@ -259,7 +259,7 @@ func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, er
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var respOrders []GeneralizedOrderResponse
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"open", "pending", "active"}, exchange.FormatExchangeCurrency(c.Name, currency).String())
@@ -301,7 +301,7 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var respOrders []GeneralizedOrderResponse
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"done", "settled"}, exchange.FormatExchangeCurrency(c.Name, currency).String())

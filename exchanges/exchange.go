@@ -322,8 +322,8 @@ type IBotExchange interface {
 	GetOrderInfo(orderID string) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
 
-	GetOrderHistory(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
-	GetActiveOrders(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
+	GetOrderHistory(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
+	GetActiveOrders(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
 
 	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)

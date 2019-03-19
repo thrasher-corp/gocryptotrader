@@ -344,7 +344,7 @@ func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (a *ANX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := a.GetOrderList(true)
 	if err != nil {
 		return nil, err
@@ -378,7 +378,7 @@ func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (a *ANX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := a.GetOrderList(false)
 	if err != nil {
 		return nil, err

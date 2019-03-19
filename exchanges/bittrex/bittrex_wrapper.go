@@ -286,7 +286,7 @@ func (b *Bittrex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bittrex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Bittrex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var currPair string
 	if len(getOrdersRequest.Currencies) == 1 {
 		currPair = getOrdersRequest.Currencies[0].Pair().String()
@@ -329,7 +329,7 @@ func (b *Bittrex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bittrex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Bittrex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var currPair string
 	if len(getOrdersRequest.Currencies) == 1 {
 		currPair = getOrdersRequest.Currencies[0].Pair().String()

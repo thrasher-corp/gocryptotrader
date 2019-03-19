@@ -290,7 +290,7 @@ func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := k.GetOpenOrders(OrderInfoOptions{})
 	if err != nil {
 		return nil, err
@@ -324,7 +324,7 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	req := GetClosedOrdersOptions{}
 	if getOrdersRequest.StartTicks.Unix() > 0 {
 		req.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks.Unix())

@@ -240,7 +240,7 @@ func (g *Gemini) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := g.GetOrders()
 	if err != nil {
 		return nil, err
@@ -283,7 +283,7 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}

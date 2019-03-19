@@ -236,7 +236,7 @@ func TestGetActiveOrders(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := a.GetActiveOrders(getOrdersRequest)
+	_, err := a.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -252,7 +252,7 @@ func TestGetOrderHistory(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := a.GetOrderHistory(getOrdersRequest)
+	_, err := a.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {

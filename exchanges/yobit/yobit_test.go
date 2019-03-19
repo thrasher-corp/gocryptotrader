@@ -307,7 +307,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
 	}
 
-	_, err := y.GetActiveOrders(getOrdersRequest)
+	_, err := y.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -326,7 +326,7 @@ func TestGetOrderHistory(t *testing.T) {
 		EndTicks:   time.Unix(math.MaxInt64, 0),
 	}
 
-	_, err := y.GetOrderHistory(getOrdersRequest)
+	_, err := y.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {

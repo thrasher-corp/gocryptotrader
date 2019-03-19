@@ -307,7 +307,7 @@ func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Binance) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
@@ -347,7 +347,7 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}

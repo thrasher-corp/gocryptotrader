@@ -263,7 +263,7 @@ func (l *LakeBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LakeBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := l.GetOpenOrders()
 	if err != nil {
 		return nil, err
@@ -295,7 +295,7 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := l.GetOrders([]int64{})
 	if err != nil {
 		return nil, err

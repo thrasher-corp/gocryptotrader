@@ -305,7 +305,7 @@ func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bithumb) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	resp, err := b.GetOrders("", "", "1000", "", "")
 	if err != nil {
@@ -347,7 +347,7 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bithumb) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	resp, err := b.GetOrders("", "", "1000", "", "")
 	if err != nil {

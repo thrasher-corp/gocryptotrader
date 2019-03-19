@@ -288,7 +288,7 @@ func (p *Poloniex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (p *Poloniex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (p *Poloniex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := p.GetOpenOrdersForAllCurrencies()
 	if err != nil {
 		return nil, err
@@ -327,7 +327,7 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (p *Poloniex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := p.GetAuthenticatedTradeHistory(getOrdersRequest.StartTicks.Unix(), getOrdersRequest.EndTicks.Unix(), 10000)
 	if err != nil {
 		return nil, err

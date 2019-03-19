@@ -170,13 +170,13 @@ func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*exchange.Websocket, erro
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

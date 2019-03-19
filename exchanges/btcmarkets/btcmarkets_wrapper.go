@@ -312,7 +312,7 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *BTCMarkets) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := b.GetOpenOrders()
 	if err != nil {
 		return nil, err
@@ -367,7 +367,7 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *BTCMarkets) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("requires at least one currency pair to retrieve history")
 	}

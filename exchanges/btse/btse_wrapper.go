@@ -281,7 +281,7 @@ func (b *BTSE) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTSE) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := b.GetOrders("")
 	if err != nil {
 		return nil, err
@@ -336,7 +336,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTSE) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *BTSE) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

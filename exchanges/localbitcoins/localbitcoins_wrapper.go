@@ -291,7 +291,7 @@ func (l *LocalBitcoins) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := l.GetDashboardInfo()
 	if err != nil {
 		return nil, err
@@ -332,7 +332,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest exchange.GetOrdersReque
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var allTrades []DashBoardInfo
 	resp, err := l.GetDashboardCancelledTrades()
 	if err != nil {

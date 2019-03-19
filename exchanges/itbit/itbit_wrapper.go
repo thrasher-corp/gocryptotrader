@@ -279,7 +279,7 @@ func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (i *ItBit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err
@@ -325,7 +325,7 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (i *ItBit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (i *ItBit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err

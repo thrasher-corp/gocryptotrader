@@ -346,7 +346,7 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKGroup) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
+func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
 			InstrumentID: exchange.FormatExchangeCurrency(o.Name, currency).String(),
@@ -371,7 +371,7 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (r
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKGroup) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
+func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
 			InstrumentID: exchange.FormatExchangeCurrency(o.Name, currency).String(),

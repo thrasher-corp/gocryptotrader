@@ -264,7 +264,7 @@ func (h *HitBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HitBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (h *HitBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
@@ -307,7 +307,7 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HitBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (h *HitBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}

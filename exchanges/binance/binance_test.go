@@ -337,14 +337,14 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
-	_, err := b.GetActiveOrders(getOrdersRequest)
+	_, err := b.GetActiveOrders(&getOrdersRequest)
 	if err == nil {
 		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
 
 	getOrdersRequest.Currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)}
 
-	_, err = b.GetActiveOrders(getOrdersRequest)
+	_, err = b.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -360,14 +360,14 @@ func TestGetOrderHistory(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := b.GetOrderHistory(getOrdersRequest)
+	_, err := b.GetOrderHistory(&getOrdersRequest)
 	if err == nil {
 		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
 
 	getOrdersRequest.Currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)}
 
-	_, err = b.GetOrderHistory(getOrdersRequest)
+	_, err = b.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
