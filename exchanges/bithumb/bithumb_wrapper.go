@@ -180,7 +180,7 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetPlatformHistory returns historic platform trade data since exchange
-// intial operations
+// initial operations
 func (b *Bithumb) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
 	var resp []exchange.PlatformTrade
 	ID, err := strconv.ParseInt(tradeID, 10, 64)

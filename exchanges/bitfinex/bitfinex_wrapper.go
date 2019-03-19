@@ -181,7 +181,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetPlatformHistory returns historic platform trade data since exchange
-// intial operations
+// initial operations
 func (b *Bitfinex) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
 	var resp []exchange.PlatformTrade
 

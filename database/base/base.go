@@ -115,9 +115,9 @@ func (r *RelationalMap) IsConnected() bool {
 // SetupHelperFiles sets up helper files for SQLBoiler model generation
 func (r *RelationalMap) SetupHelperFiles() error {
 	// Checks to see if default directory is made
-	err := common.CheckDir(r.PathDBDir, true)
-	if err != nil {
-		return err
+	mainErr := common.CheckDir(r.PathDBDir, true)
+	if mainErr != nil {
+		return mainErr
 	}
 
 	var sqlBoilerFile RelativeDbPaths
@@ -125,10 +125,10 @@ func (r *RelationalMap) SetupHelperFiles() error {
 
 	// Creates a configuration file that points to a database for generating new
 	// database models, located in the database folder
-	file, readErr := common.ReadFile(fullPathToTomlFile)
+	file, mainErr := common.ReadFile(fullPathToTomlFile)
 	switch r.InstanceName {
 	case SQLite:
-		if readErr != nil {
+		if mainErr != nil {
 			sqlBoilerFile.Sqlite.DBName = r.PathToDB
 
 			e, err := toml.Marshal(sqlBoilerFile)
@@ -149,7 +149,7 @@ func (r *RelationalMap) SetupHelperFiles() error {
 				log.Debugf(DebugFoundLog, fullPathToTomlFile)
 			}
 
-			err = toml.Unmarshal(file, &sqlBoilerFile)
+			err := toml.Unmarshal(file, &sqlBoilerFile)
 			if err != nil {
 				return err
 			}
@@ -170,7 +170,7 @@ func (r *RelationalMap) SetupHelperFiles() error {
 		}
 
 	case Postgres:
-		if readErr != nil {
+		if mainErr != nil {
 			sqlBoilerFile.Postgress.DBName = r.DatabaseName
 			sqlBoilerFile.Postgress.Host = r.Host
 			sqlBoilerFile.Postgress.User = r.User
@@ -195,7 +195,7 @@ func (r *RelationalMap) SetupHelperFiles() error {
 				log.Debugf(DebugFoundLog, fullPathToTomlFile)
 			}
 
-			err = toml.Unmarshal(file, &sqlBoilerFile)
+			err := toml.Unmarshal(file, &sqlBoilerFile)
 			if err != nil {
 				return err
 			}

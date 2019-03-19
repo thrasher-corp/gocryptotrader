@@ -674,7 +674,7 @@ func PromptForPassword(newPassword bool) ([]byte, error) {
 	var password, match []byte
 	var err error
 	for {
-		password, err = terminal.ReadPassword(int(syscall.Stdin))
+		password, err = terminal.ReadPassword(int(syscall.Stdin)) // nolint:unconvert
 		if err != nil {
 			return nil, fmt.Errorf("common.go PromptForPassword() error - %s",
 				err)
@@ -686,7 +686,7 @@ func PromptForPassword(newPassword bool) ([]byte, error) {
 
 		log.Info("Please re-enter password, then press enter to continue:")
 
-		match, err = terminal.ReadPassword(int(syscall.Stdin))
+		match, err = terminal.ReadPassword(int(syscall.Stdin)) // nolint:unconvert
 		if err != nil {
 			return nil, fmt.Errorf("common.go PromptForPassword() error - %s",
 				err)
