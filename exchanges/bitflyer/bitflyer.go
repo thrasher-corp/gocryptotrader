@@ -10,7 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -115,9 +115,9 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -400,9 +400,9 @@ func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.InternationalBankDepositFee:
-		fee = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.CurrencyItem)
+		fee = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.BankTransactionType, feeBuilder.CurrencyItem, feeBuilder.Amount)
+		fee = getWithdrawalFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -417,16 +417,18 @@ func calculateTradingFee(purchasePrice, amount float64) float64 {
 	return fee * amount * purchasePrice
 }
 
-func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, currency string) (fee float64) {
-	if bankTransactionType == exchange.WireTransfer && currency == symbol.JPY {
-		fee = 324
+func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, c currency.Code) (fee float64) {
+	if bankTransactionType == exchange.WireTransfer {
+		if c.Item == currency.JPY.Item {
+			fee = 324
+		}
 	}
 	return fee
 }
 
-func getWithdrawalFee(bankTransactionType exchange.InternationalBankTransactionType, currency string, amount float64) (fee float64) {
+func getWithdrawalFee(bankTransactionType exchange.InternationalBankTransactionType, c currency.Code, amount float64) (fee float64) {
 	if bankTransactionType == exchange.WireTransfer {
-		if currency == symbol.JPY {
+		if c.Item == currency.JPY.Item {
 			if amount < 30000 {
 				fee = 540
 			} else {

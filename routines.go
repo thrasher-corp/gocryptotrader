@@ -8,8 +8,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -18,7 +16,7 @@ import (
 )
 
 func printCurrencyFormat(price float64) string {
-	displaySymbol, err := symbol.GetSymbolByCurrencyName(bot.config.Currency.FiatDisplayCurrency)
+	displaySymbol, err := currency.GetSymbolByCurrencyName(bot.config.Currency.FiatDisplayCurrency)
 	if err != nil {
 		log.Errorf("Failed to get display symbol: %s", err)
 	}
@@ -26,21 +24,25 @@ func printCurrencyFormat(price float64) string {
 	return fmt.Sprintf("%s%.8f", displaySymbol, price)
 }
 
-func printConvertCurrencyFormat(origCurrency string, origPrice float64) string {
+func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) string {
 	displayCurrency := bot.config.Currency.FiatDisplayCurrency
-	conv, err := currency.ConvertCurrency(origPrice, origCurrency, displayCurrency)
+	conv, err := currency.ConvertCurrency(origPrice,
+		origCurrency,
+		displayCurrency)
 	if err != nil {
 		log.Errorf("Failed to convert currency: %s", err)
 	}
 
-	displaySymbol, err := symbol.GetSymbolByCurrencyName(displayCurrency)
+	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
 	if err != nil {
 		log.Errorf("Failed to get display symbol: %s", err)
 	}
 
-	origSymbol, err := symbol.GetSymbolByCurrencyName(origCurrency)
+	origSymbol, err := currency.GetSymbolByCurrencyName(origCurrency)
 	if err != nil {
-		log.Errorf("Failed to get original currency symbol: %s", err)
+		log.Errorf("Failed to get original currency symbol for %s: %s",
+			origCurrency,
+			err)
 	}
 
 	return fmt.Sprintf("%s%.2f %s (%s%.2f %s)",
@@ -53,18 +55,19 @@ func printConvertCurrencyFormat(origCurrency string, origPrice float64) string {
 	)
 }
 
-func printTickerSummary(result *ticker.Price, p pair.CurrencyPair, assetType, exchangeName string, err error) {
+func printTickerSummary(result *ticker.Price, p currency.Pair, assetType, exchangeName string, err error) {
 	if err != nil {
 		log.Errorf("Failed to get %s %s ticker. Error: %s",
-			p.Pair().String(),
+			p.String(),
 			exchangeName,
 			err)
 		return
 	}
 
 	stats.Add(exchangeName, p, assetType, result.Last, result.Volume)
-	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.Currency.FiatDisplayCurrency {
-		origCurrency := p.SecondCurrency.Upper().String()
+	if p.Quote.IsFiatCurrency() &&
+		p.Quote != bot.config.Currency.FiatDisplayCurrency {
+		origCurrency := p.Quote.Upper()
 		log.Infof("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 			exchangeName,
 			exchange.FormatCurrency(p).String(),
@@ -76,7 +79,8 @@ func printTickerSummary(result *ticker.Price, p pair.CurrencyPair, assetType, ex
 			printConvertCurrencyFormat(origCurrency, result.Low),
 			result.Volume)
 	} else {
-		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.Currency.FiatDisplayCurrency {
+		if p.Quote.IsFiatCurrency() &&
+			p.Quote == bot.config.Currency.FiatDisplayCurrency {
 			log.Infof("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
@@ -102,46 +106,49 @@ func printTickerSummary(result *ticker.Price, p pair.CurrencyPair, assetType, ex
 	}
 }
 
-func printOrderbookSummary(result *orderbook.Base, p pair.CurrencyPair, assetType, exchangeName string, err error) {
+func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType, exchangeName string, err error) {
 	if err != nil {
-		log.Errorf("Failed to get %s %s orderbook. Error: %s",
-			p.Pair().String(),
+		log.Errorf("Failed to get %s %s orderbook of type %s. Error: %s",
+			p,
 			exchangeName,
+			assetType,
 			err)
 		return
 	}
 
-	bidsAmount, bidsValue := result.CalculateTotalBids()
-	asksAmount, asksValue := result.CalculateTotalAsks()
+	bidsAmount, bidsValue := result.TotalBidsAmount()
+	asksAmount, asksValue := result.TotalAsksAmount()
 
-	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.Currency.FiatDisplayCurrency {
-		origCurrency := p.SecondCurrency.Upper().String()
+	if p.Quote.IsFiatCurrency() &&
+		p.Quote != bot.config.Currency.FiatDisplayCurrency {
+		origCurrency := p.Quote.Upper()
 		log.Infof("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s",
 			exchangeName,
 			exchange.FormatCurrency(p).String(),
 			assetType,
 			len(result.Bids),
 			bidsAmount,
-			p.FirstCurrency.String(),
+			p.Base.String(),
 			printConvertCurrencyFormat(origCurrency, bidsValue),
 			len(result.Asks),
 			asksAmount,
-			p.FirstCurrency.String(),
+			p.Base.String(),
 			printConvertCurrencyFormat(origCurrency, asksValue),
 		)
 	} else {
-		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.Currency.FiatDisplayCurrency {
+		if p.Quote.IsFiatCurrency() &&
+			p.Quote == bot.config.Currency.FiatDisplayCurrency {
 			log.Infof("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
 				assetType,
 				len(result.Bids),
 				bidsAmount,
-				p.FirstCurrency.String(),
+				p.Base.String(),
 				printCurrencyFormat(bidsValue),
 				len(result.Asks),
 				asksAmount,
-				p.FirstCurrency.String(),
+				p.Base.String(),
 				printCurrencyFormat(asksValue),
 			)
 		} else {
@@ -151,11 +158,11 @@ func printOrderbookSummary(result *orderbook.Base, p pair.CurrencyPair, assetTyp
 				assetType,
 				len(result.Bids),
 				bidsAmount,
-				p.FirstCurrency.String(),
+				p.Base.String(),
 				bidsValue,
 				len(result.Asks),
 				asksAmount,
-				p.FirstCurrency.String(),
+				p.Base.String(),
 				asksValue,
 			)
 		}
@@ -199,7 +206,7 @@ func TickerUpdaterRoutine() {
 					return
 				}
 
-				processTicker := func(exch exchange.IBotExchange, update bool, c pair.CurrencyPair, assetType string) {
+				processTicker := func(exch exchange.IBotExchange, update bool, c currency.Pair, assetType string) {
 					var result ticker.Price
 					var err error
 					if update {
@@ -256,7 +263,7 @@ func OrderbookUpdaterRoutine() {
 					return
 				}
 
-				processOrderbook := func(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) {
+				processOrderbook := func(exch exchange.IBotExchange, c currency.Pair, assetType string) {
 					result, err := exch.UpdateOrderbook(c, assetType)
 					printOrderbookSummary(&result, c, assetType, exchangeName, err)
 					if err == nil {

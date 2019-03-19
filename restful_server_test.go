@@ -36,9 +36,11 @@ func TestConfigAllJsonResponse(t *testing.T) {
 	cfg := loadConfig(t)
 	resp := makeHTTPGetRequest(t, cfg)
 	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
 		t.Error("Test failed. Body not readable", err)
 	}
+
 	var responseConfig config.Config
 	jsonErr := json.Unmarshal(body, &responseConfig)
 	if jsonErr != nil {

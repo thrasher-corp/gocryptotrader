@@ -1,6 +1,6 @@
 package anx
 
-import "github.com/thrasher-/gocryptotrader/currency/symbol"
+import "github.com/thrasher-/gocryptotrader/currency"
 
 // List of strings
 const (
@@ -9,8 +9,8 @@ const (
 	CancelOrderWrongState  string = "ORDER_CANCEL_WRONG_STATE"
 )
 
-// Currency holds the currency information
-type Currency struct {
+// CurrencyData holds the currency information
+type CurrencyData struct {
 	Decimals               int     `json:"decimals"`
 	MinOrderSize           float64 `json:"minOrderSize"`
 	MaxOrderSize           float64 `json:"maxOrderSize"`
@@ -41,10 +41,10 @@ type Currency struct {
 }
 
 // Currencies stores a list of currencies
-type Currencies map[string]Currency
+type Currencies map[string]CurrencyData
 
-// CurrencyPair holds the currency information
-type CurrencyPair struct {
+// CurrencyPairData holds the currency information
+type CurrencyPairData struct {
 	PriceDecimals  int `json:"priceDecimals"`
 	EngineSettings struct {
 		TradingEnabled bool `json:"tradingEnabled"`
@@ -88,7 +88,7 @@ type Amount struct {
 }
 
 // CurrencyPairs stores currency pair info
-type CurrencyPairs map[string]CurrencyPair
+type CurrencyPairs map[string]CurrencyPairData
 
 // CurrenciesStore stores the available cryptocurrencies
 // and fiat currencies
@@ -195,13 +195,13 @@ type Depth struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
-	symbol.BTC:  0.002,
-	symbol.DOGE: 0.1,
-	symbol.ETH:  0.005,
-	symbol.GNT:  0.001,
-	symbol.LTC:  0.02,
-	symbol.OAX:  0.001,
-	symbol.XRP:  1,
-	symbol.HKD:  0.01,
+var WithdrawalFees = map[currency.Code]float64{
+	currency.BTC:  0.002,
+	currency.DOGE: 0.1,
+	currency.ETH:  0.005,
+	currency.GNT:  0.001,
+	currency.LTC:  0.02,
+	currency.OAX:  0.001,
+	currency.XRP:  1,
+	currency.HKD:  0.01,
 }

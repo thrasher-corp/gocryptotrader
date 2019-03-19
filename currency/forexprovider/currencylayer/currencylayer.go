@@ -14,11 +14,15 @@ package currencylayer
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // const declarations consist of endpoints and APIKey privileges
@@ -36,6 +40,9 @@ const (
 	APIEndpointConversion = "convert"
 	APIEndpointTimeframe  = "timeframe"
 	APIEndpointChange     = "change"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // CurrencyLayer is a foreign exchange rate provider at
@@ -43,10 +50,17 @@ const (
 // account. Has automatic upgrade to a SSL connection.
 type CurrencyLayer struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets appropriate values for CurrencyLayer
-func (c *CurrencyLayer) Setup(config base.Settings) {
+func (c *CurrencyLayer) Setup(config base.Settings) error {
+	if config.APIKeyLvl < 0 || config.APIKeyLvl > 3 {
+		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			config.Name)
+		return errors.New("apikey set failure")
+	}
+
 	c.Name = config.Name
 	c.APIKey = config.APIKey
 	c.APIKeyLvl = config.APIKeyLvl
@@ -54,6 +68,12 @@ func (c *CurrencyLayer) Setup(config base.Settings) {
 	c.RESTPollingDelay = config.RESTPollingDelay
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
+	c.Requester = request.New(c.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+
+	return nil
 }
 
 // GetRates is a wrapper function to return rates for GoCryptoTrader
@@ -62,7 +82,7 @@ func (c *CurrencyLayer) GetRates(baseCurrency, symbols string) (map[string]float
 }
 
 // GetSupportedCurrencies returns supported currencies
-func (c *CurrencyLayer) GetSupportedCurrencies() (map[string]string, error) {
+func (c *CurrencyLayer) GetSupportedCurrencies() ([]string, error) {
 	var resp SupportedCurrencies
 
 	if err := c.SendHTTPRequest(APIEndpointList, url.Values{}, &resp); err != nil {
@@ -72,7 +92,13 @@ func (c *CurrencyLayer) GetSupportedCurrencies() (map[string]string, error) {
 	if !resp.Success {
 		return nil, errors.New(resp.Error.Info)
 	}
-	return resp.Currencies, nil
+
+	var currencies []string
+	for key := range resp.Currencies {
+		currencies = append(currencies, key)
+	}
+
+	return currencies, nil
 }
 
 // GetliveData returns live quotes for foreign exchange currencies
@@ -198,12 +224,20 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 	var path string
 	values.Set("access_key", c.APIKey)
 
+	var auth bool
 	if c.APIKeyLvl == AccountFree {
 		path = fmt.Sprintf("%s%s%s", APIEndpointURL, endPoint, "?")
 	} else {
+		auth = true
 		path = fmt.Sprintf("%s%s%s", APIEndpointURLSSL, endPoint, "?")
 	}
 	path += values.Encode()
 
-	return common.SendHTTPGetRequest(path, true, c.Verbose, result)
+	return c.Requester.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		&result,
+		auth,
+		c.Verbose)
 }

@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
@@ -54,7 +54,7 @@ func (g *Gemini) WsSubscribe(dialer websocket.Dialer) error {
 		val.Set("heartbeat", "true")
 
 		endpoint := fmt.Sprintf(g.Websocket.GetWebsocketURL(),
-			c.Pair().String(),
+			c.String(),
 			val.Encode())
 
 		conn, _, err := dialer.Dial(endpoint, http.Header{})
@@ -76,7 +76,7 @@ func (g *Gemini) WsSubscribe(dialer websocket.Dialer) error {
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
-func (g *Gemini) WsReadData(ws *websocket.Conn, c pair.CurrencyPair, feedType string) {
+func (g *Gemini) WsReadData(ws *websocket.Conn, c currency.Pair, feedType string) {
 	g.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -157,8 +157,6 @@ func (g *Gemini) WsHandleData() {
 						newOrderbook.Asks = asks
 						newOrderbook.Bids = bids
 						newOrderbook.AssetType = "SPOT"
-						newOrderbook.CurrencyPair = resp.Currency.Pair().String()
-						newOrderbook.LastUpdated = time.Now()
 						newOrderbook.Pair = resp.Currency
 
 						err := g.Websocket.Orderbook.LoadSnapshot(newOrderbook,

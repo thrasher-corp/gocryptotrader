@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/thrasher-/gocryptotrader/portfolio"
@@ -60,6 +59,12 @@ func main() {
 	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
 	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 	verbosity := flag.Bool("verbose", false, "increases logging verbosity for GoCryptoTrader")
+
+	Coinmarketcap := flag.Bool("c", false, "overrides config and runs currency analaysis")
+	FxCurrencyConverter := flag.Bool("fxa", false, "overrides config and sets up foreign exchange Currency Converter")
+	FxCurrencyLayer := flag.Bool("fxb", false, "overrides config and sets up foreign exchange Currency Layer")
+	FxFixer := flag.Bool("fxc", false, "overrides config and sets up foreign exchange Fixer.io")
+	FxOpenExchangeRates := flag.Bool("fxd", false, "overrides config and sets up foreign exchange Open Exchange Rates")
 
 	flag.Parse()
 
@@ -119,40 +124,30 @@ func main() {
 	bot.comms = communications.NewComm(&cfg)
 	bot.comms.GetEnabledCommunicationMediums()
 
-	if bot.config.GetCryptocurrencyProviderConfig().Enabled {
-		log.Debug("Seeding full market data...")
-		err = currency.SeedCryptocurrencyMarketData(coinmarketcap.Settings(bot.config.GetCryptocurrencyProviderConfig()))
-		if err != nil {
-			log.Warnf("Failure seeding cryptocurrency market data %s", err)
-		} else if *verbosity {
-			log.Debugf("Total market cryptocurrencies: %d",
-				len(currency.GetTotalMarketCryptocurrencies()))
-		}
-
-		err = currency.SeedExchangeMarketData(coinmarketcap.Settings(bot.config.GetCryptocurrencyProviderConfig()))
-		if err != nil {
-			log.Warnf("Failure seeding exchange market data %s", err)
-		} else if *verbosity {
-			log.Debugf("Total market exchanges: %d",
-				len(currency.GetTotalMarketExchanges()))
-		}
-	} else {
-		log.Debug("Cryptocurrency provider not enabled.")
+	var newFxSettings []currency.FXSettings
+	for _, d := range bot.config.Currency.ForexProviders {
+		newFxSettings = append(newFxSettings, currency.FXSettings(d))
 	}
 
-	log.Debugf("Fiat display currency: %s.", bot.config.Currency.FiatDisplayCurrency)
-	currency.BaseCurrency = bot.config.Currency.FiatDisplayCurrency
-	currency.FXProviders = forexprovider.StartFXService(bot.config.GetCurrencyConfig().ForexProviders)
-	log.Debugf("Primary forex conversion provider: %s.\n", bot.config.GetPrimaryForexProvider())
-	err = bot.config.RetrieveConfigCurrencyPairs(true)
+	err = currency.RunStorageUpdater(currency.BotOverrides{
+		Coinmarketcap:       *Coinmarketcap,
+		FxCurrencyConverter: *FxCurrencyConverter,
+		FxCurrencyLayer:     *FxCurrencyLayer,
+		FxFixer:             *FxFixer,
+		FxOpenExchangeRates: *FxOpenExchangeRates,
+	},
+		currency.MainConfiguration{
+			ForexProviders:         newFxSettings,
+			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider),
+			Cryptocurrencies:       bot.config.Currency.Cryptocurrencies,
+			FiatDisplayCurrency:    bot.config.Currency.FiatDisplayCurrency,
+			CurrencyDelay:          bot.config.Currency.CurrencyFileUpdateDuration,
+			FxRateDelay:            bot.config.Currency.ForeignExchangeUpdateDuration,
+		},
+		bot.dataDir,
+		*verbosity)
 	if err != nil {
-		log.Fatalf("Failed to retrieve config currency pairs. Error: %s", err)
-	}
-	log.Debugf("Successfully retrieved config currencies.")
-	log.Debugf("Fetching currency data from forex provider..")
-	err = currency.SeedCurrencyData(common.JoinStrings(currency.FiatCurrencies, ","))
-	if err != nil {
-		log.Fatalf("Unable to fetch forex data. Error: %s", err)
+		log.Warn("currency updater system failed to start", err)
 	}
 
 	bot.portfolio = &portfolio.Portfolio

@@ -5,8 +5,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -146,11 +145,10 @@ func TestGetFee(t *testing.T) {
 	TestSetup(t)
 
 	feeBuilder := exchange.FeeBuilder{
-		FeeType:        exchange.CryptocurrencyTradeFee,
-		FirstCurrency:  "BTC",
-		SecondCurrency: "USD",
-		IsMaker:        true,
-		Amount:         1000,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair:    currency.NewPair(currency.BTC, currency.USD),
+		IsMaker: true,
+		Amount:  1000,
 	}
 
 	if resp, err := b.GetFee(feeBuilder); resp != 0.00050 || err != nil {
@@ -170,7 +168,7 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 
-	feeBuilder.FirstCurrency = "USDT"
+	feeBuilder.Pair.Base = currency.USDT
 	if resp, err := b.GetFee(feeBuilder); resp != float64(5) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(5), resp)
 		t.Error(err)
@@ -227,10 +225,10 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = pair.CurrencyPair{
-		Delimiter:      "",
-		FirstCurrency:  symbol.BTC,
-		SecondCurrency: symbol.USD,
+	var p = currency.Pair{
+		Delimiter: "",
+		Base:      currency.BTC,
+		Quote:     currency.USD,
 	}
 	response, err := b.SubmitOrder(p, exchange.SellOrderSide, exchange.LimitOrderType, 0.01, 1000000, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -248,7 +246,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-")
+	currencyPair := currency.NewPairWithDelimiter(currency.BTC.String(),
+		currency.USD.String(),
+		"-")
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "0b66ccaf-dfd4-4b9f-a30b-2380b9c7b66d",
@@ -274,7 +274,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-")
+	currencyPair := currency.NewPairWithDelimiter(currency.BTC.String(),
+		currency.USD.String(),
+		"-")
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",

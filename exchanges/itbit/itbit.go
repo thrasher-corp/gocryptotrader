@@ -12,7 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -80,9 +80,9 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		i.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
-		i.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		i.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		i.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		i.BaseCurrencies = exch.BaseCurrencies
+		i.AvailablePairs = exch.AvailablePairs
+		i.EnabledPairs = exch.EnabledPairs
 		err := i.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -427,7 +427,7 @@ func (i *ItBit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.BankTransactionType)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.BankTransactionType)
 	}
 
 	if fee < 0 {
@@ -447,11 +447,15 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	return feePercent * purchasePrice * amount
 }
 
-func getInternationalBankWithdrawalFee(currency string, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+func getInternationalBankWithdrawalFee(c currency.Code, bankTransactionType exchange.InternationalBankTransactionType) float64 {
 	var fee float64
-	if (bankTransactionType == exchange.Swift || bankTransactionType == exchange.WireTransfer) && currency == symbol.USD {
+	if (bankTransactionType == exchange.Swift ||
+		bankTransactionType == exchange.WireTransfer) &&
+		c == currency.USD {
 		fee = 40
-	} else if (bankTransactionType == exchange.SEPA || bankTransactionType == exchange.WireTransfer) && currency == symbol.EUR {
+	} else if (bankTransactionType == exchange.SEPA ||
+		bankTransactionType == exchange.WireTransfer) &&
+		c == currency.EUR {
 		fee = 1
 	}
 	return fee

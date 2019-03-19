@@ -138,9 +138,9 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
-		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		g.BaseCurrencies = exch.BaseCurrencies
+		g.AvailablePairs = exch.AvailablePairs
+		g.EnabledPairs = exch.EnabledPairs
 
 		err := g.SetCurrencyPairFormat()
 		if err != nil {

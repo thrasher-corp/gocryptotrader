@@ -2,259 +2,125 @@ package currency
 
 import (
 	"testing"
-
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
 )
 
-func TestSetDefaults(t *testing.T) {
-	FXRates = nil
-	BaseCurrency = "BLAH"
-	FXProviders = nil
-
-	SetDefaults()
-
-	if FXRates == nil {
-		t.Fatal("Expected FXRates to be non-nil")
-	}
-
-	if BaseCurrency != DefaultBaseCurrency {
-		t.Fatal("Expected BaseCurrency to be 'USD'")
-	}
-
-	if FXProviders == nil {
-		t.Fatal("Expected FXRates to be non-nil")
-	}
-}
-
-func TestSeedCurrencyData(t *testing.T) {
-	err := SeedCurrencyData("AUD")
+func TestGetDefaultExchangeRates(t *testing.T) {
+	rates, err := GetDefaultExchangeRates()
 	if err != nil {
-		t.Fatal(err)
+		t.Error("Test failed - GetDefaultExchangeRates() err", err)
+	}
+
+	for _, val := range rates {
+		if !val.IsFiat() {
+			t.Errorf("Test failed - GetDefaultExchangeRates() %s is not fiat pair",
+				val)
+		}
 	}
 }
 
 func TestGetExchangeRates(t *testing.T) {
-	result := make(map[string]float64)
-	for k, v := range GetExchangeRates() {
-		result[k] = v
-	}
-	backup := FXRates
-
-	FXRates = nil
-	result = GetExchangeRates()
-	if result != nil {
-		t.Fatal("Expected nil map")
+	rates, err := GetExchangeRates()
+	if err != nil {
+		t.Error("Test failed - GetExchangeRates() err", err)
 	}
 
-	FXRates = backup
-}
-
-func TestIsDefaultCurrency(t *testing.T) {
-	t.Parallel()
-
-	var str1, str2, str3 string = "USD", "usd", "cats123"
-
-	if !IsDefaultCurrency(str1) {
-		t.Errorf(
-			"Test Failed. TestIsDefaultCurrency: \nCannot match currency, %s.", str1,
-		)
-	}
-	if !IsDefaultCurrency(str2) {
-		t.Errorf(
-			"Test Failed. TestIsDefaultCurrency: \nCannot match currency, %s.", str2,
-		)
-	}
-	if IsDefaultCurrency(str3) {
-		t.Errorf(
-			"Test Failed. TestIsDefaultCurrency: \nFunction return is incorrect with, %s.",
-			str3,
-		)
+	for _, val := range rates {
+		if !val.IsFiat() {
+			t.Errorf("Test failed - GetExchangeRates() %s is not fiat pair",
+				val)
+		}
 	}
 }
 
-func TestIsDefaultCryptocurrency(t *testing.T) {
-	t.Parallel()
-
-	var str1, str2, str3 string = symbol.BTC, symbol.BTC, "dogs123"
-
-	if !IsDefaultCryptocurrency(str1) {
-		t.Errorf(
-			"Test Failed. TestIsDefaultCryptocurrency: \nCannot match currency, %s.",
-			str1,
-		)
+func TestUpdateBaseCurrency(t *testing.T) {
+	err := UpdateBaseCurrency(AUD)
+	if err != nil {
+		t.Error("Test failed - UpdateBaseCurrency() err", err)
 	}
-	if !IsDefaultCryptocurrency(str2) {
-		t.Errorf(
-			"Test Failed. TestIsDefaultCryptocurrency: \nCannot match currency, %s.",
-			str2,
-		)
+
+	err = UpdateBaseCurrency(LTC)
+	if err == nil {
+		t.Error("Test failed - UpdateBaseCurrency() cannot be nil")
 	}
-	if IsDefaultCryptocurrency(str3) {
-		t.Errorf(
-			"Test Failed. TestIsDefaultCryptocurrency: \nFunction return is incorrect with, %s.",
-			str3,
-		)
+
+	if GetBaseCurrency() != AUD {
+		t.Errorf("Test failed - GetBaseCurrency() expected %s but recieved %s",
+			AUD, GetBaseCurrency())
 	}
 }
 
-func TestIsFiatCurrency(t *testing.T) {
-	if IsFiatCurrency("") {
-		t.Error("Test failed. TestIsFiatCurrency returned true on an empty string")
-	}
-
-	FiatCurrencies = []string{"USD", "AUD"}
-	var str1, str2, str3 string = symbol.BTC, "USD", "birds123"
-
-	if IsFiatCurrency(str1) {
-		t.Errorf(
-			"Test Failed. TestIsFiatCurrency: \nCannot match currency, %s.", str1,
-		)
-	}
-	if !IsFiatCurrency(str2) {
-		t.Errorf(
-			"Test Failed. TestIsFiatCurrency: \nCannot match currency, %s.", str2,
-		)
-	}
-	if IsFiatCurrency(str3) {
-		t.Errorf(
-			"Test Failed. TestIsFiatCurrency: \nCannot match currency, %s.", str3,
-		)
+func TestGetDefaultBaseCurrency(t *testing.T) {
+	if GetDefaultBaseCurrency() != USD {
+		t.Errorf("Test failed - GetDefaultBaseCurrency() expected %s but recieved %s",
+			USD, GetDefaultBaseCurrency())
 	}
 }
 
-func TestIsCryptocurrency(t *testing.T) {
-	if IsCryptocurrency("") {
-		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
-	}
-
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	var str1, str2, str3 string = "USD", symbol.BTC, "pterodactyl123"
-
-	if IsCryptocurrency(str1) {
-		t.Errorf(
-			"Test Failed. TestIsFiatCurrency: \nCannot match currency, %s.", str1,
-		)
-	}
-	if !IsCryptocurrency(str2) {
-		t.Errorf(
-			"Test Failed. TestIsFiatCurrency: \nCannot match currency, %s.", str2,
-		)
-	}
-	if IsCryptocurrency(str3) {
-		t.Errorf(
-			"Test Failed. TestIsFiatCurrency: \nCannot match currency, %s.", str3,
-		)
+func TestGetDefaulCryptoCurrencies(t *testing.T) {
+	expected := Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR}
+	if !GetDefaultCryptocurrencies().Match(expected) {
+		t.Errorf("Test failed - GetDefaultCryptocurrencies() expected %s but recieved %s",
+			expected, GetDefaultCryptocurrencies())
 	}
 }
 
-func TestIsCryptoPair(t *testing.T) {
-	if IsCryptocurrency("") {
-		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
-	}
-
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	FiatCurrencies = []string{"USD"}
-
-	if !IsCryptoPair(pair.NewCurrencyPair(symbol.BTC, symbol.LTC)) {
-		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
-	}
-
-	if IsCryptoPair(pair.NewCurrencyPair(symbol.BTC, "USD")) {
-		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
+func TestGetDefaultFiatCurrencies(t *testing.T) {
+	expected := Currencies{USD, AUD, EUR, CNY}
+	if !GetDefaultFiatCurrencies().Match(expected) {
+		t.Errorf("Test failed - GetDefaultFiatCurrencies() expected %s but recieved %s",
+			expected, GetDefaultFiatCurrencies())
 	}
 }
 
-func TestIsCryptoFiatPair(t *testing.T) {
-	if IsCryptocurrency("") {
-		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
+func TestUpdateCurrencies(t *testing.T) {
+	fiat := Currencies{HKN, JPY}
+	UpdateCurrencies(fiat, false)
+	rFiat := GetFiatCurrencies()
+	if !rFiat.Contains(HKN) || !rFiat.Contains(JPY) {
+		t.Error("Test failed - UpdateCurrencies() currencies did not update")
 	}
 
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	FiatCurrencies = []string{"USD"}
-
-	if !IsCryptoFiatPair(pair.NewCurrencyPair(symbol.BTC, "USD")) {
-		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
-	}
-
-	if IsCryptoFiatPair(pair.NewCurrencyPair(symbol.BTC, symbol.LTC)) {
-		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
-	}
-}
-
-func TestIsFiatPair(t *testing.T) {
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	FiatCurrencies = []string{"USD", "AUD", "EUR"}
-
-	if !IsFiatPair(pair.NewCurrencyPair("AUD", "USD")) {
-		t.Error("Test Failed. TestIsFiatPair. Expected true result")
-	}
-
-	if IsFiatPair(pair.NewCurrencyPair(symbol.BTC, "AUD")) {
-		t.Error("Test Failed. TestIsFiatPair. Expected false result")
+	crypto := Currencies{ZAR, ZCAD, B2}
+	UpdateCurrencies(crypto, true)
+	rCrypto := GetCryptocurrencies()
+	if !rCrypto.Contains(ZAR) || !rCrypto.Contains(ZCAD) || !rCrypto.Contains(B2) {
+		t.Error("Test failed - UpdateCurrencies() currencies did not update")
 	}
 }
 
-func TestUpdate(t *testing.T) {
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	FiatCurrencies = []string{"USD", "AUD"}
-
-	Update([]string{"ETH"}, true)
-	Update([]string{"JPY"}, false)
-
-	if !IsCryptocurrency("ETH") {
-		t.Error(
-			"Test Failed. TestUpdate: \nCannot match currency: ETH",
-		)
-	}
-
-	if !IsFiatCurrency("JPY") {
-		t.Errorf(
-			"Test Failed. TestUpdate: \nCannot match currency: JPY",
-		)
-	}
-}
-
-func TestExtractBaseCurrency(t *testing.T) {
-	backup := FXRates
-	FXRates = nil
-	FXRates = make(map[string]float64)
-
-	if extractBaseCurrency() != "" {
-		t.Fatalf("Test failed. Expected '' as base currency")
-	}
-
-	FXRates["USDAUD"] = 120
-
-	if extractBaseCurrency() != "USD" {
-		t.Fatalf("Test failed. Expected 'USD' as base currency")
-	}
-	FXRates = backup
-}
 func TestConvertCurrency(t *testing.T) {
-	_, err := ConvertCurrency(100, "AUD", "USD")
+	_, err := ConvertCurrency(100, AUD, USD)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(100, "USD", "AUD")
+	r, err := ConvertCurrency(100, AUD, AUD)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(100, "CNY", "AUD")
+	if r != 100 {
+		t.Errorf("Test Failed - ConvertCurrency error, incorrect rate return %2.f but received %2.f",
+			100.00, r)
+	}
+
+	_, err = ConvertCurrency(100, USD, AUD)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(100, "meow", "USD")
+	_, err = ConvertCurrency(100, CNY, AUD)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ConvertCurrency(100, LTC, USD)
 	if err == nil {
 		t.Fatal("Expected err on non-existent currency")
 	}
 
-	_, err = ConvertCurrency(100, "USD", "meow")
+	_, err = ConvertCurrency(100, USD, LTC)
 	if err == nil {
 		t.Fatal("Expected err on non-existent currency")
 	}
-
 }

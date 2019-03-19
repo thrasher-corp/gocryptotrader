@@ -133,22 +133,22 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 			continue
 		}
 		for _, x := range currencies {
-			currency := x
+			pair := x
 
 			var ob orderbook.Base
 			if len(assetTypes) > 1 {
 				for y := range assetTypes {
-					ob, err = individualBot.GetOrderbookEx(currency,
+					ob, err = individualBot.GetOrderbookEx(pair,
 						assetTypes[y])
 				}
 			} else {
-				ob, err = individualBot.GetOrderbookEx(currency,
+				ob, err = individualBot.GetOrderbookEx(pair,
 					assetTypes[0])
 			}
 
 			if err != nil {
 				log.Errorf("failed to get %s %s orderbook. Error: %s",
-					currency.Pair().String(),
+					pair,
 					exchangeName,
 					err)
 				continue
@@ -221,7 +221,7 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 		individualExchange.ExchangeName = exchangeName
 		currencies := individualBot.GetEnabledCurrencies()
 		for _, x := range currencies {
-			currency := x
+			pair := x
 			assetTypes, err := exchange.GetExchangeAssetTypes(exchangeName)
 			if err != nil {
 				log.Errorf("failed to get %s exchange asset types. Error: %s",
@@ -231,17 +231,17 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 			var tickerPrice ticker.Price
 			if len(assetTypes) > 1 {
 				for y := range assetTypes {
-					tickerPrice, err = individualBot.GetTickerPrice(currency,
+					tickerPrice, err = individualBot.GetTickerPrice(pair,
 						assetTypes[y])
 				}
 			} else {
-				tickerPrice, err = individualBot.GetTickerPrice(currency,
+				tickerPrice, err = individualBot.GetTickerPrice(pair,
 					assetTypes[0])
 			}
 
 			if err != nil {
 				log.Errorf("failed to get %s %s ticker. Error: %s",
-					currency.Pair().String(),
+					pair,
 					exchangeName,
 					err)
 				continue

@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -94,9 +95,9 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 		z.RESTPollingDelay = exch.RESTPollingDelay
 		z.Verbose = exch.Verbose
 		z.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		z.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		z.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		z.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		z.BaseCurrencies = exch.BaseCurrencies
+		z.AvailablePairs = exch.AvailablePairs
+		z.EnabledPairs = exch.EnabledPairs
 		err := z.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -347,7 +348,7 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 // NOTE - PLEASE BE AWARE THAT YOU NEED TO GENERATE A DEPOSIT ADDRESS VIA
 // LOGGING IN AND NOT BY USING THIS ENDPOINT OTHERWISE THIS WILL GIVE YOU A
 // GENERAL ERROR RESPONSE.
-func (z *ZB) GetCryptoAddress(currency pair.CurrencyItem) (UserAddress, error) {
+func (z *ZB) GetCryptoAddress(currency currency.Code) (UserAddress, error) {
 	var resp UserAddress
 
 	vals := url.Values{}
@@ -420,7 +421,7 @@ func (z *ZB) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	}
 	if fee < 0 {
 		fee = 0
@@ -434,8 +435,8 @@ func calculateTradingFee(purchasePrice, amount float64) (fee float64) {
 	return fee * amount * purchasePrice
 }
 
-func getWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }
 
 var errorCode = map[int64]string{

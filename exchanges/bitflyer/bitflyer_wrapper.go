@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -49,12 +49,12 @@ func (b *Bitflyer) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitflyer) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	p = b.CheckFXString(p)
 
-	tickerNew, err := b.GetTicker(p.Pair().String())
+	tickerNew, err := b.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -66,12 +66,16 @@ func (b *Bitflyer) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.P
 	tickerPrice.Last = tickerNew.Last
 	tickerPrice.Volume = tickerNew.Volume
 	// tickerPrice.High
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (b *Bitflyer) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *Bitflyer) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p, ticker.Spot)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -80,17 +84,17 @@ func (b *Bitflyer) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker
 }
 
 // CheckFXString upgrades currency pair if needed
-func (b *Bitflyer) CheckFXString(p pair.CurrencyPair) pair.CurrencyPair {
-	if common.StringContains(p.FirstCurrency.String(), "FX") {
-		p.FirstCurrency = "FX_BTC"
+func (b *Bitflyer) CheckFXString(p currency.Pair) currency.Pair {
+	if common.StringContains(p.Base.String(), "FX") {
+		p.Base = currency.FX_BTC
 		return p
 	}
 	return p
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
-func (b *Bitflyer) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+func (b *Bitflyer) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -98,12 +102,12 @@ func (b *Bitflyer) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitflyer) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 
 	p = b.CheckFXString(p)
 
-	orderbookNew, err := b.GetOrderBook(p.Pair().String())
+	orderbookNew, err := b.GetOrderBook(p.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -116,8 +120,16 @@ func (b *Bitflyer) UpdateOrderbook(p pair.CurrencyPair, assetType string) (order
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Bids[x].Price, Amount: orderbookNew.Bids[x].Size})
 	}
 
-	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(b.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies on the
@@ -146,14 +158,14 @@ func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitflyer) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *Bitflyer) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (b *Bitflyer) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *Bitflyer) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 
 	return submitOrderResponse, common.ErrNotYetImplemented
@@ -184,7 +196,7 @@ func (b *Bitflyer) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitflyer) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (b *Bitflyer) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

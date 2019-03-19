@@ -2,12 +2,26 @@ package exchangerates
 
 import (
 	"testing"
+
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 )
 
 var e ExchangeRates
 
+var initialSetup bool
+
+func setup() {
+	e.Setup(base.Settings{
+		Name:    "ExchangeRates",
+		Enabled: true,
+	})
+	initialSetup = true
+}
+
 func TestGetLatestRates(t *testing.T) {
-	e.Verbose = true
+	if !initialSetup {
+		setup()
+	}
 	result, err := e.GetLatestRates("USD", "")
 	if err != nil {
 		t.Fatalf("failed to GetLatestRates. Err: %s", err)
@@ -40,6 +54,9 @@ func TestGetLatestRates(t *testing.T) {
 }
 
 func TestCleanCurrencies(t *testing.T) {
+	if !initialSetup {
+		setup()
+	}
 	result := cleanCurrencies("USD", "USD,AUD")
 	if result != "AUD" {
 		t.Fatalf("unexpected result. AUD should be the only symbol")
@@ -60,6 +77,9 @@ func TestCleanCurrencies(t *testing.T) {
 }
 
 func TestGetRates(t *testing.T) {
+	if !initialSetup {
+		setup()
+	}
 	_, err := e.GetRates("USD", "AUD")
 	if err != nil {
 		t.Fatalf("failed to GetRates. Err: %s", err)
@@ -67,7 +87,9 @@ func TestGetRates(t *testing.T) {
 }
 
 func TestGetHistoricalRates(t *testing.T) {
-	e.Verbose = true
+	if !initialSetup {
+		setup()
+	}
 	_, err := e.GetHistoricalRates("-1", "USD", []string{"AUD"})
 	if err == nil {
 		t.Fatalf("unexpected result. Invalid date should throw an error")
@@ -80,6 +102,9 @@ func TestGetHistoricalRates(t *testing.T) {
 }
 
 func TestGetTimeSeriesRates(t *testing.T) {
+	if !initialSetup {
+		setup()
+	}
 	_, err := e.GetTimeSeriesRates("", "", "USD", []string{"EUR", "USD"})
 	if err == nil {
 		t.Fatal("unexpected result. Empty startDate endDate params should throw an error")

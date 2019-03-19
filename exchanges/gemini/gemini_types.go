@@ -1,6 +1,6 @@
 package gemini
 
-import "github.com/thrasher-/gocryptotrader/currency/pair"
+import "github.com/thrasher-/gocryptotrader/currency"
 
 // Ticker holds returned ticker data from the exchange
 type Ticker struct {
@@ -220,6 +220,6 @@ type Event struct {
 // ReadData defines read data from the websocket connection
 type ReadData struct {
 	Raw      []byte
-	Currency pair.CurrencyPair
+	Currency currency.Pair
 	FeedType string
 }
