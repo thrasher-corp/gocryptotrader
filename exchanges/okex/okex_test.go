@@ -1996,7 +1996,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetPlatformHistory(t *testing.T) {
 	p := currency.NewPairDelimiter("ltc_btc", "_")
 	_, err := o.GetPlatformHistory(p, "SPOT", time.Time{}, "")
-	if err != nil {
-		t.Error("Test failed - okex GetPlatformHistory() error", err)
+	if err == nil {
+		t.Error("Test failed - okex GetPlatformHistory() error cannot be nil")
 	}
 }

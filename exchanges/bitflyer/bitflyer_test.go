@@ -409,6 +409,9 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetPlatformHistory(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
 	p := currency.NewPairDelimiter("BTC_JPY", "_")
 	_, err := b.GetPlatformHistory(p, "SPOT", time.Time{}, "")
 	if err != nil {

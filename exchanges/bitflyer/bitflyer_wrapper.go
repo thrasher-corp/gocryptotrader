@@ -164,7 +164,7 @@ func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
 func (b *Bitflyer) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
 	var resp []exchange.PlatformTrade
 	ID, err := strconv.ParseInt(tradeID, 10, 64)
-	if err != nil {
+	if err != nil && tradeID != "" {
 		return nil, err
 	}
 

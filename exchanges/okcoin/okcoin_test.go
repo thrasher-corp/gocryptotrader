@@ -1222,7 +1222,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetPlatformHistory(t *testing.T) {
 	p := currency.NewPairDelimiter("btc_usd", "_")
 	_, err := o.GetPlatformHistory(p, "SPOT", time.Time{}, "")
-	if err != nil {
-		t.Error("test failed - OKCoin GetPlatformHistory() error", err)
+	if err == nil {
+		t.Error("test failed - OKCoin GetPlatformHistory() error cannot be nil")
 	}
 }

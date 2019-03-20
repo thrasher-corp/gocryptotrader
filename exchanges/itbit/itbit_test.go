@@ -438,6 +438,9 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestGetPlatformHistory(t *testing.T) {
+	i.SetDefaults()
+	TestSetup(t)
+
 	p := currency.NewPair(currency.XBT, currency.USD)
 	_, err := i.GetPlatformHistory(p, "SPOT", time.Time{}, "")
 	if err != nil {

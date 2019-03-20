@@ -183,7 +183,7 @@ func (i *ItBit) GetPlatformHistory(p currency.Pair, assetType string, timestampS
 	var resp []exchange.PlatformTrade
 
 	trades, err := i.GetTradeHistory(p.String(), tradeID)
-	if err != nil {
+	if err != nil && tradeID != "" {
 		return resp, err
 	}
 
