@@ -272,13 +272,11 @@ func (p *Postgres) InsertNewClient() error {
 
 	err = newuser.Insert(base.Ctx, p.C, boil.Infer())
 	if err != nil {
-		log.Error("Test Insert")
 		return err
 	}
 
 	err = newuser.Reload(base.Ctx, p.C)
 	if err != nil {
-		log.Error("Test Reload")
 		return err
 	}
 
