@@ -5,7 +5,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -29,9 +29,12 @@ func (b *BTCC) Run() {
 		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	if common.StringDataContains(b.EnabledPairs, "CNY") || common.StringDataContains(b.AvailablePairs, "CNY") || common.StringDataContains(b.BaseCurrencies, "CNY") {
+	if common.StringDataContains(b.EnabledPairs.Strings(), "CNY") ||
+		common.StringDataContains(b.AvailablePairs.Strings(), "CNY") ||
+		common.StringDataContains(b.BaseCurrencies.Strings(), "CNY") {
 		log.Warn("BTCC only supports BTCUSD now, upgrading available, enabled and base currencies to BTCUSD/USD")
-		pairs := []string{"BTCUSD"}
+		pairs := currency.Pairs{currency.Pair{Base: currency.BTC,
+			Quote: currency.USD}}
 		cfg := config.GetConfig()
 		exchCfg, err := cfg.GetExchangeConfig(b.Name)
 		if err != nil {
@@ -39,10 +42,10 @@ func (b *BTCC) Run() {
 			return
 		}
 
-		exchCfg.BaseCurrencies = "USD"
-		exchCfg.AvailablePairs = pairs[0]
-		exchCfg.EnabledPairs = pairs[0]
-		b.BaseCurrencies = []string{"USD"}
+		exchCfg.BaseCurrencies = currency.Currencies{currency.USD}
+		exchCfg.AvailablePairs = pairs
+		exchCfg.EnabledPairs = pairs
+		b.BaseCurrencies = currency.Currencies{currency.USD}
 
 		err = b.UpdateCurrencies(pairs, false, true)
 		if err != nil {
@@ -63,22 +66,22 @@ func (b *BTCC) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTCC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *BTCC) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	return ticker.Price{}, common.ErrFunctionNotSupported
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (b *BTCC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *BTCC) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	return ticker.Price{}, common.ErrFunctionNotSupported
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
-func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *BTCC) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
 	return orderbook.Base{}, common.ErrFunctionNotSupported
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTCC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *BTCC) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	return orderbook.Base{}, common.ErrFunctionNotSupported
 }
 
@@ -95,12 +98,12 @@ func (b *BTCC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *BTCC) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (b *BTCC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *BTCC) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	return exchange.SubmitOrderResponse{}, common.ErrNotYetImplemented
 }
 
@@ -126,7 +129,7 @@ func (b *BTCC) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTCC) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (b *BTCC) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

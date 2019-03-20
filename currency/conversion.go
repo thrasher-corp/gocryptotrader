@@ -1,0 +1,361 @@
+package currency
+
+import (
+	"errors"
+	"fmt"
+	"sync"
+
+	log "github.com/thrasher-/gocryptotrader/logger"
+)
+
+// ConversionRates defines protected conversion rate map for concurrent updating
+// and retrieval of foreign exchange rates for mainly fiat currencies
+type ConversionRates struct {
+	m   map[*Item]map[*Item]*float64
+	mtx sync.Mutex
+}
+
+// HasData returns if conversion rates are present
+func (c *ConversionRates) HasData() bool {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	if c.m == nil {
+		return false
+	}
+	return len(c.m) != 0
+}
+
+// GetRate returns a rate from the conversion rate list
+func (c *ConversionRates) GetRate(from, to Code) (float64, error) {
+	if from.Item == USDT.Item {
+		from = USD
+	}
+
+	if to.Item == USDT.Item {
+		to = USD
+	}
+
+	if from.Item == RUR.Item {
+		from = RUB
+	}
+
+	if to.Item == RUR.Item {
+		to = RUB
+	}
+
+	if from.Item == to.Item {
+		return 1, nil
+	}
+
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	p, ok := c.m[from.Item][to.Item]
+	if !ok {
+		return 0, fmt.Errorf("rate not found for from %s to %s conversion",
+			from,
+			to)
+	}
+
+	return *p, nil
+}
+
+// Register registers a new conversion rate if not found adds it and allows for
+// quick updates
+func (c *ConversionRates) Register(from, to Code) (Conversion, error) {
+	if from.IsCryptocurrency() {
+		return Conversion{}, errors.New("from currency is a cryptocurrency value")
+	}
+
+	if to.IsCryptocurrency() {
+		return Conversion{}, errors.New("to currency is a cryptocurrency value")
+	}
+
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	p, ok := c.m[from.Item][to.Item]
+	if !ok {
+		log.Errorf("currency conversion rate not found from %s to %s", from, to)
+		return Conversion{}, errors.New("no rate found")
+	}
+
+	i, ok := c.m[to.Item][from.Item]
+	if !ok {
+		log.Errorf("currency conversion inversion rate not found from %s to %s",
+			to,
+			from)
+		return Conversion{}, errors.New("no rate found")
+	}
+
+	return Conversion{From: from, To: to, rate: p, mtx: &c.mtx, inverseRate: i},
+		nil
+}
+
+// Update updates the full conversion rate values including inversion and
+// cross rates
+func (c *ConversionRates) Update(m map[string]float64) error {
+	if len(m) == 0 {
+		return errors.New("no data given")
+	}
+
+	if storage.IsVerbose() {
+		log.Debug("Conversion rates are being updated.")
+	}
+
+	solidvalues := make(map[Code]map[Code]float64)
+
+	var list []Code // Verification list, cross check all currencies coming in
+
+	var mainBaseCurrency Code
+
+	for key, val := range m {
+		code1, err := storage.ValidateFiatCode(key[:3])
+		if err != nil {
+			return err
+		}
+
+		if mainBaseCurrency == (Code{}) {
+			mainBaseCurrency = code1
+		}
+
+		code2, err := storage.ValidateFiatCode(key[3:])
+		if err != nil {
+			return err
+		}
+
+		if code1 == code2 { // Get rid of same conversions
+			continue
+		}
+
+		var codeOneFound, codeTwoFound bool
+		// Check and add to our funky list
+		for i := range list {
+			if list[i] == code1 {
+				codeOneFound = true
+				if codeTwoFound {
+					break
+				}
+			}
+
+			if list[i] == code2 {
+				codeTwoFound = true
+				if codeOneFound {
+					break
+				}
+			}
+		}
+
+		if !codeOneFound {
+			list = append(list, code1)
+		}
+
+		if !codeTwoFound {
+			list = append(list, code2)
+		}
+
+		if solidvalues[code1] == nil {
+			solidvalues[code1] = make(map[Code]float64)
+		}
+
+		solidvalues[code1][code2] = val
+
+		// Input inverse values 1/val to swap from -> to and vice versa
+
+		if solidvalues[code2] == nil {
+			solidvalues[code2] = make(map[Code]float64)
+		}
+
+		solidvalues[code2][code1] = 1 / val
+	}
+
+	for _, base := range list {
+		for _, term := range list {
+			if base == term {
+				continue
+			}
+			_, ok := solidvalues[base][term]
+			if !ok {
+				var crossRate float64
+				// Check inversion to speed things up
+				v, ok := solidvalues[term][base]
+				if !ok {
+					v1, ok := solidvalues[mainBaseCurrency][base]
+					if !ok {
+						return fmt.Errorf("value not found base %s term %s",
+							mainBaseCurrency,
+							base)
+					}
+					v2, ok := solidvalues[mainBaseCurrency][term]
+					if !ok {
+						return fmt.Errorf("value not found base %s term %s",
+							mainBaseCurrency,
+							term)
+					}
+					crossRate = v2 / v1
+				} else {
+					crossRate = 1 / v
+				}
+				if storage.IsVerbose() {
+					log.Debugf("Conversion from %s to %s deriving cross rate value %f",
+						base,
+						term,
+						crossRate)
+				}
+				solidvalues[base][term] = crossRate
+			}
+		}
+	}
+
+	c.m = nil
+	for key, val := range solidvalues {
+		for key2, val2 := range val {
+			if c.m == nil {
+				c.m = make(map[*Item]map[*Item]*float64)
+			}
+
+			if c.m[key.Item] == nil {
+				c.m[key.Item] = make(map[*Item]*float64)
+			}
+
+			p := c.m[key.Item][key2.Item]
+			if p == nil {
+				newPalsAndFriends := val2
+				c.m[key.Item][key2.Item] = &newPalsAndFriends
+			} else {
+				*p = val2
+			}
+		}
+	}
+	return nil
+}
+
+// GetFullRates returns the full conversion list
+func (c *ConversionRates) GetFullRates() Conversions {
+	var conversions Conversions
+	c.mtx.Lock()
+	for key, val := range c.m {
+		for key2, val2 := range val {
+			conversions = append(conversions, Conversion{
+				From: Code{Item: key},
+				To:   Code{Item: key2},
+				rate: val2,
+				mtx:  &c.mtx,
+			})
+		}
+	}
+	c.mtx.Unlock()
+	return conversions
+}
+
+// Conversions define a list of conversion data
+type Conversions []Conversion
+
+// Slice exposes the underlying Conversion slice type
+func (c Conversions) Slice() []Conversion {
+	return c
+}
+
+// NewConversionFromString splits a string from a foreign exchange provider
+func NewConversionFromString(p string) (Conversion, error) {
+	return NewConversionFromStrings(p[:3], p[3:])
+}
+
+// NewConversion returns a conversion rate object that allows for
+// obtaining efficient rate values when needed
+func NewConversion(from, to Code) (Conversion, error) {
+	return storage.NewConversion(from, to)
+}
+
+// NewConversionFromStrings assigns or finds a new conversion unit
+func NewConversionFromStrings(from, to string) (Conversion, error) {
+	return NewConversion(NewCode(from), NewCode(to))
+}
+
+// Conversion defines a specific currency conversion for a rate
+type Conversion struct {
+	From        Code
+	To          Code
+	rate        *float64
+	inverseRate *float64
+	mtx         *sync.Mutex
+}
+
+// IsInvalid returns true if both from and to currencies are the same
+func (c Conversion) IsInvalid() bool {
+	if c.From.Item == nil || c.To.Item == nil {
+		return true
+	}
+	return c.From.Item == c.To.Item
+}
+
+// IsFiat checks to see if the from and to currency is a fiat e.g. EURUSD
+func (c Conversion) IsFiat() bool {
+	return storage.IsFiatCurrency(c.From) && storage.IsFiatCurrency(c.To)
+}
+
+// String returns the stringed fields
+func (c Conversion) String() string {
+	return c.From.String() + c.To.String()
+}
+
+// GetRate returns system rate if availabled
+func (c Conversion) GetRate() (float64, error) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	if c.rate == nil {
+		return 0, errors.New("rate undefined")
+	}
+	return *c.rate, nil
+}
+
+// GetInversionRate returns the rate of the inversion of the conversion pair
+func (c Conversion) GetInversionRate() (float64, error) {
+	if c.mtx == nil {
+		return 0, errors.New("mutex copy failure")
+	}
+
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	if c.rate == nil {
+		return 0, errors.New("rate undefined")
+	}
+	return *c.inverseRate, nil
+}
+
+// Convert for example converts $1 USD to the equivalent Japanese Yen or vice
+// versa.
+func (c Conversion) Convert(fromAmount float64) (float64, error) {
+	if c.IsInvalid() {
+		return fromAmount, nil
+	}
+
+	if !c.IsFiat() {
+		return 0, errors.New("not fiat pair")
+	}
+
+	r, err := c.GetRate()
+	if err != nil {
+		return 0, err
+	}
+
+	return r * fromAmount, nil
+}
+
+// ConvertInverse converts backwards if needed
+func (c Conversion) ConvertInverse(fromAmount float64) (float64, error) {
+	if c.IsInvalid() {
+		return fromAmount, nil
+	}
+
+	if !c.IsFiat() {
+		return 0, errors.New("not fiat pair")
+	}
+
+	r, err := c.GetInversionRate()
+	if err != nil {
+		return 0, err
+	}
+
+	return r * fromAmount, nil
+}

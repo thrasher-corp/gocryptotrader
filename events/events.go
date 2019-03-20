@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -42,7 +42,7 @@ type Event struct {
 	Exchange  string
 	Item      string
 	Condition string
-	Pair      pair.CurrencyPair
+	Pair      currency.Pair
 	Asset     string
 	Action    string
 	Executed  bool
@@ -60,7 +60,7 @@ func SetComms(commsP *communications.Communications) {
 
 // AddEvent adds an event to the Events chain and returns an index/eventID
 // and an error
-func AddEvent(exchange, item, condition string, currencyPair pair.CurrencyPair, asset, action string) (int, error) {
+func AddEvent(exchange, item, condition string, currencyPair currency.Pair, asset, action string) (int, error) {
 	err := IsValidEvent(exchange, item, condition, action)
 	if err != nil {
 		return 0, err
@@ -129,8 +129,13 @@ func (e *Event) ExecuteAction() bool {
 func (e *Event) String() string {
 	condition := common.SplitStrings(e.Condition, ",")
 	return fmt.Sprintf(
-		"If the %s%s [%s] %s on %s is %s then %s.", e.Pair.FirstCurrency.String(),
-		e.Pair.SecondCurrency.String(), e.Asset, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action,
+		"If the %s%s [%s] %s on %s is %s then %s.", e.Pair.Base.String(),
+		e.Pair.Quote.String(),
+		e.Asset,
+		e.Item,
+		e.Exchange,
+		condition[0]+" "+condition[1],
+		e.Action,
 	)
 }
 

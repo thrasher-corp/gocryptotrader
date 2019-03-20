@@ -1,6 +1,6 @@
 package kraken
 
-import "github.com/thrasher-/gocryptotrader/currency/symbol"
+import "github.com/thrasher-/gocryptotrader/currency"
 
 // TimeResponse type
 type TimeResponse struct {
@@ -331,39 +331,39 @@ type CancelOrderResponse struct {
 
 // DepositFees the large list of predefined deposit fees
 // Prone to change
-var DepositFees = map[string]float64{
-	symbol.XTZ: 0.05,
+var DepositFees = map[currency.Code]float64{
+	currency.XTZ: 0.05,
 }
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
-	symbol.ZUSD: 5,
-	symbol.ZEUR: 5,
-	symbol.USD:  5,
-	symbol.EUR:  5,
-	symbol.REP:  0.01,
-	symbol.XXBT: 0.0005,
-	symbol.BTC:  0.0005,
-	symbol.XBT:  0.0005,
-	symbol.BCH:  0.0001,
-	symbol.ADA:  0.3,
-	symbol.DASH: 0.005,
-	symbol.XDG:  2,
-	symbol.EOS:  0.05,
-	symbol.ETH:  0.005,
-	symbol.ETC:  0.005,
-	symbol.GNO:  0.005,
-	symbol.ICN:  0.2,
-	symbol.LTC:  0.001,
-	symbol.MLN:  0.003,
-	symbol.XMR:  0.05,
-	symbol.QTUM: 0.01,
-	symbol.XRP:  0.02,
-	symbol.XLM:  0.00002,
-	symbol.USDT: 5,
-	symbol.XTZ:  0.05,
-	symbol.ZEC:  0.0001,
+var WithdrawalFees = map[currency.Code]float64{
+	currency.ZUSD: 5,
+	currency.ZEUR: 5,
+	currency.USD:  5,
+	currency.EUR:  5,
+	currency.REP:  0.01,
+	currency.XXBT: 0.0005,
+	currency.BTC:  0.0005,
+	currency.XBT:  0.0005,
+	currency.BCH:  0.0001,
+	currency.ADA:  0.3,
+	currency.DASH: 0.005,
+	currency.XDG:  2,
+	currency.EOS:  0.05,
+	currency.ETH:  0.005,
+	currency.ETC:  0.005,
+	currency.GNO:  0.005,
+	currency.ICN:  0.2,
+	currency.LTC:  0.001,
+	currency.MLN:  0.003,
+	currency.XMR:  0.05,
+	currency.QTUM: 0.01,
+	currency.XRP:  0.02,
+	currency.XLM:  0.00002,
+	currency.USDT: 5,
+	currency.XTZ:  0.05,
+	currency.ZEC:  0.0001,
 }
 
 // DepositAddress defines a deposit address

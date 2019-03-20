@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
@@ -28,11 +28,11 @@ func (b *BTSE) WebsocketSubscriber() error {
 		Channels: []websocketChannel{
 			{
 				Name:       "snapshot",
-				ProductIDs: b.EnabledPairs,
+				ProductIDs: b.EnabledPairs.Strings(),
 			},
 			{
 				Name:       "ticker",
-				ProductIDs: b.EnabledPairs,
+				ProductIDs: b.EnabledPairs.Strings(),
 			},
 		},
 	}
@@ -146,7 +146,7 @@ func (b *BTSE) WsHandleData() {
 
 				b.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp: time.Now(),
-					Pair:      pair.NewCurrencyPairDelimiter(t.ProductID, "-"),
+					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
 					AssetType: "SPOT",
 					Exchange:  b.GetName(),
 					OpenPrice: price,
@@ -206,12 +206,16 @@ func (b *BTSE) wsProcessSnapshot(snapshot websocketOrderbookSnapshot) error {
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	p := pair.NewCurrencyPairDelimiter(snapshot.ProductID, "-")
+	p := currency.NewPairDelimiter(snapshot.ProductID, "-")
 	base.AssetType = "SPOT"
 	base.Pair = p
-	base.CurrencyPair = snapshot.ProductID
 	base.LastUpdated = time.Now()
-	orderbook.ProcessOrderbook(b.Name, p, base, "SPOT")
+	base.ExchangeName = b.Name
+
+	err := base.Process()
+	if err != nil {
+		return err
+	}
 
 	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Pair:     p,

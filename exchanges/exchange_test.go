@@ -8,8 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -354,13 +353,13 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 
 	if b.ConfigCurrencyPairFormat.Delimiter != "" &&
-		b.ConfigCurrencyPairFormat.Index != symbol.BTC &&
+		b.ConfigCurrencyPairFormat.Index != currency.BTC.String() &&
 		b.ConfigCurrencyPairFormat.Uppercase {
 		t.Fatal("Test failed. TestSetCurrencyPairFormat ConfigCurrencyPairFormat values are incorrect")
 	}
 
 	if b.RequestCurrencyPairFormat.Delimiter != "" &&
-		b.RequestCurrencyPairFormat.Index != symbol.BTC &&
+		b.RequestCurrencyPairFormat.Index != currency.BTC.String() &&
 		b.RequestCurrencyPairFormat.Uppercase {
 		t.Fatal("Test failed. TestSetCurrencyPairFormat RequestCurrencyPairFormat values are incorrect")
 	}
@@ -398,7 +397,7 @@ func TestGetEnabledCurrencies(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.EnabledPairs = []string{defaultTestCurrencyPair}
+	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTC-USD"})
 	format := config.CurrencyPairFormatConfig{
 		Delimiter: "-",
 		Index:     "",
@@ -407,53 +406,53 @@ func TestGetEnabledCurrencies(t *testing.T) {
 	b.RequestCurrencyPairFormat = format
 	b.ConfigCurrencyPairFormat = format
 	c := b.GetEnabledCurrencies()
-	if c[0].Pair().String() != defaultTestCurrencyPair {
+	if c[0].String() != defaultTestCurrencyPair {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
 	format.Delimiter = "~"
 	b.RequestCurrencyPairFormat = format
 	c = b.GetEnabledCurrencies()
-	if c[0].Pair().String() != defaultTestCurrencyPair {
+	if c[0].String() != defaultTestCurrencyPair {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
 	format.Delimiter = ""
 	b.ConfigCurrencyPairFormat = format
 	c = b.GetEnabledCurrencies()
-	if c[0].Pair().String() != defaultTestCurrencyPair {
+	if c[0].String() != "BTCUSD" {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
-	b.EnabledPairs = []string{"BTCDOGE"}
-	format.Index = symbol.BTC
+	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
+	format.Index = "BTC"
 	b.ConfigCurrencyPairFormat = format
 	c = b.GetEnabledCurrencies()
-	if c[0].FirstCurrency.String() != symbol.BTC && c[0].SecondCurrency.String() != "DOGE" {
+	if c[0].Base.String() != "BTC" && c[0].Quote.String() != "DOGE" {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
-	b.EnabledPairs = []string{"BTC_USD"}
+	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTC_USD"})
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Delimiter = "_"
 	c = b.GetEnabledCurrencies()
-	if c[0].FirstCurrency.String() != symbol.BTC && c[0].SecondCurrency.String() != symbol.USD {
+	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
-	b.EnabledPairs = []string{"BTCDOGE"}
+	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Index = symbol.BTC
+	b.ConfigCurrencyPairFormat.Index = currency.BTC.String()
 	c = b.GetEnabledCurrencies()
-	if c[0].FirstCurrency.String() != symbol.BTC && c[0].SecondCurrency.String() != "DOGE" {
+	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
-	b.EnabledPairs = []string{"BTCUSD"}
+	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTCUSD"})
 	b.ConfigCurrencyPairFormat.Index = ""
 	c = b.GetEnabledCurrencies()
-	if c[0].FirstCurrency.String() != symbol.BTC && c[0].SecondCurrency.String() != symbol.USD {
+	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 }
@@ -463,7 +462,7 @@ func TestGetAvailableCurrencies(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.AvailablePairs = []string{defaultTestCurrencyPair}
+	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTC-USD"})
 	format := config.CurrencyPairFormatConfig{
 		Delimiter: "-",
 		Index:     "",
@@ -472,53 +471,53 @@ func TestGetAvailableCurrencies(t *testing.T) {
 	b.RequestCurrencyPairFormat = format
 	b.ConfigCurrencyPairFormat = format
 	c := b.GetAvailableCurrencies()
-	if c[0].Pair().String() != defaultTestCurrencyPair {
+	if c[0].String() != defaultTestCurrencyPair {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
 	format.Delimiter = "~"
 	b.RequestCurrencyPairFormat = format
 	c = b.GetAvailableCurrencies()
-	if c[0].Pair().String() != defaultTestCurrencyPair {
+	if c[0].String() != defaultTestCurrencyPair {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
 	format.Delimiter = ""
 	b.ConfigCurrencyPairFormat = format
 	c = b.GetAvailableCurrencies()
-	if c[0].Pair().String() != defaultTestCurrencyPair {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+	if c[0].String() != "BTCUSD" {
+		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string", c[0])
 	}
 
-	b.AvailablePairs = []string{"BTCDOGE"}
-	format.Index = symbol.BTC
+	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
+	format.Index = currency.BTC.String()
 	b.ConfigCurrencyPairFormat = format
 	c = b.GetAvailableCurrencies()
-	if c[0].FirstCurrency.String() != symbol.BTC && c[0].SecondCurrency.String() != "DOGE" {
+	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
-	b.AvailablePairs = []string{"BTC_USD"}
+	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTC_USD"})
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Delimiter = "_"
 	c = b.GetAvailableCurrencies()
-	if c[0].FirstCurrency.String() != symbol.BTC && c[0].SecondCurrency.String() != symbol.USD {
+	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
-	b.AvailablePairs = []string{"BTCDOGE"}
+	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Index = symbol.BTC
+	b.ConfigCurrencyPairFormat.Index = currency.BTC.String()
 	c = b.GetAvailableCurrencies()
-	if c[0].FirstCurrency.String() != symbol.BTC && c[0].SecondCurrency.String() != "DOGE" {
+	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 
-	b.AvailablePairs = []string{"BTCUSD"}
+	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTCUSD"})
 	b.ConfigCurrencyPairFormat.Index = ""
 	c = b.GetAvailableCurrencies()
-	if c[0].FirstCurrency.String() != symbol.BTC && c[0].SecondCurrency.String() != symbol.USD {
+	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
 		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
 	}
 }
@@ -528,8 +527,8 @@ func TestSupportsCurrency(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.AvailablePairs = []string{defaultTestCurrencyPair, "ETH-USD"}
-	b.EnabledPairs = []string{defaultTestCurrencyPair}
+	b.AvailablePairs = currency.NewPairsFromStrings([]string{defaultTestCurrencyPair, "ETH-USD"})
+	b.EnabledPairs = currency.NewPairsFromStrings([]string{defaultTestCurrencyPair})
 
 	format := config.CurrencyPairFormatConfig{
 		Delimiter: "-",
@@ -539,15 +538,15 @@ func TestSupportsCurrency(t *testing.T) {
 	b.RequestCurrencyPairFormat = format
 	b.ConfigCurrencyPairFormat = format
 
-	if !b.SupportsCurrency(pair.NewCurrencyPair(symbol.BTC, symbol.USD), true) {
+	if !b.SupportsCurrency(currency.NewPairFromStrings("BTC", "USD"), true) {
 		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
 	}
 
-	if !b.SupportsCurrency(pair.NewCurrencyPair("ETH", symbol.USD), false) {
+	if !b.SupportsCurrency(currency.NewPairFromStrings("ETH", "USD"), false) {
 		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
 	}
 
-	if b.SupportsCurrency(pair.NewCurrencyPair("ASD", "ASDF"), true) {
+	if b.SupportsCurrency(currency.NewPairFromStrings("ASD", "ASDF"), true) {
 		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
 	}
 }
@@ -590,18 +589,18 @@ func TestGetAndFormatExchangeCurrencies(t *testing.T) {
 		t.Fatalf("Failed to load config file. Error: %s", err)
 	}
 
-	var pairs = []pair.CurrencyPair{
-		pair.NewCurrencyPairDelimiter("BTC_USD", "_"),
-		pair.NewCurrencyPairDelimiter("LTC_BTC", "_"),
+	var pairs = []currency.Pair{
+		currency.NewPairDelimiter("BTC_USD", "_"),
+		currency.NewPairDelimiter("LTC_BTC", "_"),
 	}
 
 	actual, err := GetAndFormatExchangeCurrencies("Yobit", pairs)
 	if err != nil {
 		t.Errorf("Test failed - Exchange TestGetAndFormatExchangeCurrencies error %s", err)
 	}
-	expected := pair.CurrencyItem("btc_usd-ltc_btc")
+	expected := "btc_usd-ltc_btc"
 
-	if actual.String() != expected.String() {
+	if actual != expected {
 		t.Errorf("Test failed - Exchange TestGetAndFormatExchangeCurrencies %s != %s",
 			actual, expected)
 	}
@@ -619,7 +618,7 @@ func TestFormatExchangeCurrency(t *testing.T) {
 		t.Fatalf("Failed to load config file. Error: %s", err)
 	}
 
-	p := pair.NewCurrencyPair(symbol.BTC, symbol.USD)
+	p := currency.NewPair(currency.BTC, currency.USD)
 	expected := defaultTestCurrencyPair
 	actual := FormatExchangeCurrency("CoinbasePro", p)
 
@@ -636,9 +635,9 @@ func TestFormatCurrency(t *testing.T) {
 		t.Fatalf("Failed to load config file. Error: %s", err)
 	}
 
-	currency := pair.NewCurrencyPair(symbol.BTC, symbol.USD)
+	p := currency.NewPair(currency.BTC, currency.USD)
 	expected := defaultTestCurrencyPair
-	actual := FormatCurrency(currency).String()
+	actual := FormatCurrency(p).String()
 	if actual != expected {
 		t.Errorf("Test failed - Exchange TestFormatCurrency %s != %s",
 			actual, expected)
@@ -696,11 +695,11 @@ func TestSetCurrencies(t *testing.T) {
 	}
 
 	UAC := Base{Name: "ASDF"}
-	UAC.AvailablePairs = []string{"ETHLTC", "LTCBTC"}
-	UAC.EnabledPairs = []string{"ETHLTC"}
-	newPair := pair.NewCurrencyPairDelimiter("ETH_USDT", "_")
+	UAC.AvailablePairs = currency.NewPairsFromStrings([]string{"ETHLTC", "LTCBTC"})
+	UAC.EnabledPairs = currency.NewPairsFromStrings([]string{"ETHLTC"})
+	newPair := currency.NewPairDelimiter("ETH_USDT", "_")
 
-	err = UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
+	err = UAC.SetCurrencies([]currency.Pair{newPair}, true)
 	if err == nil {
 		t.Fatal("Test failed. TestSetCurrencies returned nil error on non-existent exchange")
 	}
@@ -712,13 +711,13 @@ func TestSetCurrencies(t *testing.T) {
 
 	UAC.Name = defaultTestExchange
 	UAC.ConfigCurrencyPairFormat.Delimiter = anxCfg.ConfigCurrencyPairFormat.Delimiter
-	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
-	if !pair.Contains(UAC.GetEnabledCurrencies(), newPair, true) {
+	UAC.SetCurrencies(currency.Pairs{newPair}, true)
+	if !UAC.GetEnabledCurrencies().Contains(newPair, true) {
 		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
 	}
 
-	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, false)
-	if !pair.Contains(UAC.GetAvailableCurrencies(), newPair, true) {
+	UAC.SetCurrencies(currency.Pairs{newPair}, false)
+	if !UAC.GetAvailableCurrencies().Contains(newPair, true) {
 		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
 	}
 
@@ -735,8 +734,8 @@ func TestUpdateCurrencies(t *testing.T) {
 		t.Fatal("Test failed. TestUpdateEnabledCurrencies failed to load config")
 	}
 
-	UAC := Base{Name: defaultTestExchange}
-	exchangeProducts := []string{"ltc", symbol.BTC, symbol.USD, "aud", ""}
+	UAC := Base{Name: "ANX"}
+	exchangeProducts := currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud", ""})
 
 	// Test updating exchange products for an exchange which doesn't exist
 	UAC.Name = "Blah"
@@ -760,13 +759,13 @@ func TestUpdateCurrencies(t *testing.T) {
 	}
 
 	// Test force updating to only one product
-	exchangeProducts = []string{symbol.BTC}
+	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
 	err = UAC.UpdateCurrencies(exchangeProducts, true, true)
 	if err != nil {
 		t.Errorf("Test Failed - Forced Exchange TestUpdateCurrencies error: %s", err)
 	}
 
-	exchangeProducts = []string{"ltc", symbol.BTC, symbol.USD, "aud"}
+	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud"})
 	// Test updating exchange products for an exchange which doesn't exist
 	UAC.Name = "Blah"
 	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
@@ -789,14 +788,14 @@ func TestUpdateCurrencies(t *testing.T) {
 	}
 
 	// Test force updating to only one product
-	exchangeProducts = []string{symbol.BTC}
+	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
 	err = UAC.UpdateCurrencies(exchangeProducts, false, true)
 	if err != nil {
 		t.Errorf("Test Failed - Forced Exchange UpdateCurrencies() error: %s", err)
 	}
 
 	// Test update currency pairs with btc excluded
-	exchangeProducts = []string{"ltc", "eth"}
+	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "eth"})
 	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
 	if err != nil {
 		t.Errorf("Test Failed - Forced Exchange UpdateCurrencies() error: %s", err)
@@ -1047,35 +1046,38 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 func TestFilterOrdersByCurrencies(t *testing.T) {
 	var orders = []OrderDetail{
 		{
-			CurrencyPair: pair.NewCurrencyPair(symbol.BTC, symbol.USD),
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 		},
 		{
-			CurrencyPair: pair.NewCurrencyPair(symbol.LTC, symbol.EUR),
+			CurrencyPair: currency.NewPair(currency.LTC, currency.EUR),
 		},
 		{
-			CurrencyPair: pair.NewCurrencyPair(symbol.DOGE, symbol.RUB),
+			CurrencyPair: currency.NewPair(currency.DOGE, currency.RUB),
 		},
 	}
 
-	currencies := []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD), pair.NewCurrencyPair(symbol.LTC, symbol.EUR), pair.NewCurrencyPair(symbol.DOGE, symbol.RUB)}
+	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.LTC, currency.EUR),
+		currency.NewPair(currency.DOGE, currency.RUB)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD), pair.NewCurrencyPair(symbol.LTC, symbol.EUR)}
+	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.LTC, currency.EUR)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
-	currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD)}
+	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
-	currencies = []pair.CurrencyPair{}
+	currencies = []currency.Pair{}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -1117,38 +1119,56 @@ func TestSortOrdersByDate(t *testing.T) {
 
 	SortOrdersByDate(&orders, false)
 	if orders[0].OrderDate.Unix() != time.Unix(0, 0).Unix() {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", time.Unix(0, 0).Unix(), orders[0].OrderDate.Unix())
+		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+			time.Unix(0, 0).Unix(),
+			orders[0].OrderDate.Unix())
 	}
 
 	SortOrdersByDate(&orders, true)
 	if orders[0].OrderDate.Unix() != time.Unix(2, 0).Unix() {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", time.Unix(2, 0).Unix(), orders[0].OrderDate.Unix())
+		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+			time.Unix(2, 0).Unix(),
+			orders[0].OrderDate.Unix())
 	}
 }
 
 func TestSortOrdersByCurrency(t *testing.T) {
 	orders := []OrderDetail{
 		{
-			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-"),
+			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+				currency.USD.String(),
+				"-"),
 		}, {
-			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USD, "-"),
+			CurrencyPair: currency.NewPairWithDelimiter(currency.DOGE.String(),
+				currency.USD.String(),
+				"-"),
 		}, {
-			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.RUB, "-"),
+			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+				currency.RUB.String(),
+				"-"),
 		}, {
-			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.EUR, "-"),
+			CurrencyPair: currency.NewPairWithDelimiter(currency.LTC.String(),
+				currency.EUR.String(),
+				"-"),
 		}, {
-			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.AUD, "-"),
+			CurrencyPair: currency.NewPairWithDelimiter(currency.LTC.String(),
+				currency.AUD.String(),
+				"-"),
 		},
 	}
 
 	SortOrdersByCurrency(&orders, false)
-	if orders[0].CurrencyPair.Pair().String() != symbol.BTC+"-"+symbol.RUB {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", symbol.BTC+"-"+symbol.RUB, orders[0].CurrencyPair.Pair().String())
+	if orders[0].CurrencyPair.String() != currency.BTC.String()+"-"+currency.RUB.String() {
+		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+			currency.BTC.String()+"-"+currency.RUB.String(),
+			orders[0].CurrencyPair.String())
 	}
 
 	SortOrdersByCurrency(&orders, true)
-	if orders[0].CurrencyPair.Pair().String() != symbol.LTC+"-"+symbol.EUR {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", symbol.LTC+"-"+symbol.EUR, orders[0].CurrencyPair.Pair().String())
+	if orders[0].CurrencyPair.String() != currency.LTC.String()+"-"+currency.EUR.String() {
+		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+			currency.LTC.String()+"-"+currency.EUR.String(),
+			orders[0].CurrencyPair.String())
 	}
 }
 
@@ -1167,14 +1187,16 @@ func TestSortOrdersByOrderSide(t *testing.T) {
 
 	SortOrdersBySide(&orders, false)
 	if !strings.EqualFold(orders[0].OrderSide.ToString(), BuyOrderSide.ToString()) {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", BuyOrderSide, orders[0].OrderSide)
+		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+			BuyOrderSide,
+			orders[0].OrderSide)
 	}
-
-	t.Log(orders)
 
 	SortOrdersBySide(&orders, true)
 	if !strings.EqualFold(orders[0].OrderSide.ToString(), SellOrderSide.ToString()) {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", SellOrderSide, orders[0].OrderSide)
+		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+			SellOrderSide,
+			orders[0].OrderSide)
 	}
 }
 

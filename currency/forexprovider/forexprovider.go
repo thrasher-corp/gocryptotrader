@@ -3,68 +3,135 @@
 package forexprovider
 
 import (
+	"errors"
+
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	currencyconverter "github.com/thrasher-/gocryptotrader/currency/forexprovider/currencyconverterapi"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/currencylayer"
 	exchangerates "github.com/thrasher-/gocryptotrader/currency/forexprovider/exchangeratesapi.io"
 	fixer "github.com/thrasher-/gocryptotrader/currency/forexprovider/fixer.io"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/openexchangerates"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// ForexProviders is an array of foreign exchange interfaces
+// ForexProviders is a foreign exchange handler type
 type ForexProviders struct {
-	base.IFXProviders
+	base.FXHandler
 }
 
 // GetAvailableForexProviders returns a list of supported forex providers
 func GetAvailableForexProviders() []string {
-	return []string{"CurrencyConverter", "CurrencyLayer", "ExchangeRates", "Fixer", "OpenExchangeRates"}
+	return []string{"CurrencyConverter",
+		"CurrencyLayer",
+		"ExchangeRates",
+		"Fixer",
+		"OpenExchangeRates"}
 }
 
 // NewDefaultFXProvider returns the default forex provider (currencyconverterAPI)
 func NewDefaultFXProvider() *ForexProviders {
-	fxp := new(ForexProviders)
-	currencyC := new(exchangerates.ExchangeRates)
-	currencyC.PrimaryProvider = true
-	currencyC.Enabled = true
-	currencyC.Name = "ExchangeRates"
-	fxp.IFXProviders = append(fxp.IFXProviders, currencyC)
-	return fxp
+	handler := new(ForexProviders)
+	provider := new(exchangerates.ExchangeRates)
+	err := provider.Setup(base.Settings{
+		PrimaryProvider: true,
+		Enabled:         true,
+		Name:            "ExchangeRates",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	currencies, _ := provider.GetSupportedCurrencies()
+	providerBase := base.Provider{
+		Provider:            provider,
+		SupportedCurrencies: currencies,
+	}
+
+	handler.FXHandler = base.FXHandler{
+		Primary: providerBase,
+	}
+
+	return handler
+}
+
+// SetProvider sets provider to the FX handler
+func (f *ForexProviders) SetProvider(b base.IFXProvider) error {
+	currencies, err := b.GetSupportedCurrencies()
+	if err != nil {
+		return err
+	}
+
+	providerBase := base.Provider{
+		Provider:            b,
+		SupportedCurrencies: currencies,
+	}
+
+	if b.IsPrimaryProvider() {
+		f.FXHandler = base.FXHandler{
+			Primary: providerBase,
+		}
+		return nil
+	}
+
+	f.FXHandler.Support = append(f.FXHandler.Support, providerBase)
+	return nil
 }
 
 // StartFXService starts the forex provider service and returns a pointer to it
-func StartFXService(fxProviders []base.Settings) *ForexProviders {
-	fxp := new(ForexProviders)
+func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
+	handler := new(ForexProviders)
+
 	for i := range fxProviders {
-		if fxProviders[i].Name == "CurrencyConverter" && fxProviders[i].Enabled {
-			currencyC := new(currencyconverter.CurrencyConverter)
-			currencyC.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, currencyC)
-		}
-		if fxProviders[i].Name == "CurrencyLayer" && fxProviders[i].Enabled {
-			currencyLayerP := new(currencylayer.CurrencyLayer)
-			currencyLayerP.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, currencyLayerP)
-		}
-		if fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled {
-			exchangeRatesP := new(exchangerates.ExchangeRates)
-			exchangeRatesP.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, exchangeRatesP)
-		}
-		if fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled {
-			fixerP := new(fixer.Fixer)
-			fixerP.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, fixerP)
-		}
-		if fxProviders[i].Name == "OpenExchangeRates" && fxProviders[i].Enabled {
-			OpenExchangeRatesP := new(openexchangerates.OXR)
-			OpenExchangeRatesP.Setup(fxProviders[i])
-			fxp.IFXProviders = append(fxp.IFXProviders, OpenExchangeRatesP)
+		switch {
+		case fxProviders[i].Name == "CurrencyConverter" && fxProviders[i].Enabled:
+			provider := new(currencyconverter.CurrencyConverter)
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
+			handler.SetProvider(provider)
+
+		case fxProviders[i].Name == "CurrencyLayer" && fxProviders[i].Enabled:
+			provider := new(currencylayer.CurrencyLayer)
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
+			handler.SetProvider(provider)
+
+		case fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled:
+			provider := new(exchangerates.ExchangeRates)
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
+			handler.SetProvider(provider)
+
+		case fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled:
+			provider := new(fixer.Fixer)
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
+			handler.SetProvider(provider)
+
+		case fxProviders[i].Name == "OpenExchangeRates" && fxProviders[i].Enabled:
+			provider := new(openexchangerates.OXR)
+			err := provider.Setup(fxProviders[i])
+			if err != nil {
+				return nil, err
+			}
+
+			handler.SetProvider(provider)
 		}
 	}
-	if len(fxp.IFXProviders) == 0 {
-		log.Error("No foreign exchange providers enabled")
+
+	if handler.Primary.Provider == nil {
+		return nil, errors.New("no foreign exchange providers enabled")
 	}
-	return fxp
+
+	return handler, nil
 }

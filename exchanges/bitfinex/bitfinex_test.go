@@ -8,8 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -613,13 +612,10 @@ func TestCloseMarginFunding(t *testing.T) {
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
-		Amount:         1,
-		Delimiter:      "",
-		FeeType:        exchange.CryptocurrencyTradeFee,
-		FirstCurrency:  symbol.BTC,
-		SecondCurrency: symbol.LTC,
-		IsMaker:        false,
-		PurchasePrice:  1,
+		Amount:        1,
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		Pair:          currency.NewPair(currency.BTC, currency.LTC),
+		PurchasePrice: 1,
 	}
 }
 
@@ -680,7 +676,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	feeBuilder.CurrencyItem = symbol.HKD
+	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 		t.Error(err)
@@ -689,7 +685,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.HKD
+	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 		t.Error(err)
@@ -756,10 +752,10 @@ func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	var p = pair.CurrencyPair{
-		Delimiter:      "",
-		FirstCurrency:  symbol.LTC,
-		SecondCurrency: symbol.BTC,
+	var p = currency.Pair{
+		Delimiter: "",
+		Base:      currency.LTC,
+		Quote:     currency.BTC,
 	}
 	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -777,7 +773,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
@@ -803,7 +799,7 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
@@ -842,7 +838,7 @@ func TestWithdraw(t *testing.T) {
 
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:      100,
-		Currency:    symbol.BTC,
+		Currency:    currency.BTC,
 		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description: "WITHDRAW IT ALL",
 	}
@@ -866,7 +862,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
 		Amount:                   100,
-		Currency:                 symbol.BTC,
+		Currency:                 currency.BTC,
 		Description:              "WITHDRAW IT ALL",
 		BankAccountName:          "Satoshi Nakamoto",
 		BankAccountNumber:        12345,
@@ -874,7 +870,7 @@ func TestWithdrawFiat(t *testing.T) {
 		BankCity:                 "Tarry Town",
 		BankCountry:              "Hyrule",
 		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             symbol.USD,
+		WireCurrency:             currency.USD.String(),
 		SwiftCode:                "Taylor",
 		RequiresIntermediaryBank: false,
 		IsExpressWire:            false,
@@ -899,7 +895,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
 		Amount:                        100,
-		Currency:                      symbol.BTC,
+		Currency:                      currency.BTC,
 		Description:                   "WITHDRAW IT ALL",
 		BankAccountName:               "Satoshi Nakamoto",
 		BankAccountNumber:             12345,
@@ -907,7 +903,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		BankCity:                      "Tarry Town",
 		BankCountry:                   "Hyrule",
 		BankName:                      "Federal Reserve Bank",
-		WireCurrency:                  symbol.USD,
+		WireCurrency:                  currency.USD.String(),
 		SwiftCode:                     "Taylor",
 		RequiresIntermediaryBank:      true,
 		IsExpressWire:                 false,
@@ -930,12 +926,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := b.GetDepositAddress(symbol.BTC, "deposit")
+		_, err := b.GetDepositAddress(currency.BTC, "deposit")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := b.GetDepositAddress(symbol.BTC, "deposit")
+		_, err := b.GetDepositAddress(currency.BTC, "deposit")
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}

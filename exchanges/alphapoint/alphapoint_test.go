@@ -4,8 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -541,10 +540,10 @@ func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	var p = pair.CurrencyPair{
-		Delimiter:      "_",
-		FirstCurrency:  symbol.BTC,
-		SecondCurrency: symbol.USD,
+	var p = currency.Pair{
+		Delimiter: "_",
+		Base:      currency.BTC,
+		Quote:     currency.USD,
 	}
 	response, err := a.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if !areTestAPIKeysSet(a) && err == nil {
@@ -567,7 +566,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.BTC, symbol.LTC)
+	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
 
 	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
@@ -593,7 +592,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.BTC, symbol.LTC)
+	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
 
 	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
@@ -631,7 +630,7 @@ func TestWithdraw(t *testing.T) {
 	a.SetDefaults()
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:      100,
-		Currency:    symbol.BTC,
+		Currency:    currency.BTC,
 		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description: "WITHDRAW IT ALL",
 		AddressTag:  "0123456789",

@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -104,9 +104,9 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
 		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		c.BaseCurrencies = exch.BaseCurrencies
+		c.AvailablePairs = exch.AvailablePairs
+		c.EnabledPairs = exch.EnabledPairs
 		if exch.UseSandbox {
 			c.APIUrl = coinbaseproSandboxAPIURL
 		}
@@ -798,7 +798,8 @@ func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
 func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
 	if !c.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			c.Name)
 	}
 
 	payload := []byte("")
@@ -824,7 +825,13 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 	headers["CB-ACCESS-PASSPHRASE"] = c.ClientID
 	headers["Content-Type"] = "application/json"
 
-	return c.SendPayload(method, c.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, c.Verbose)
+	return c.SendPayload(method,
+		c.APIUrl+path,
+		headers,
+		bytes.NewBuffer(payload),
+		result,
+		true,
+		c.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -836,11 +843,17 @@ func (c *CoinbasePro) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = c.calculateTradingFee(trailingVolume, feeBuilder.FirstCurrency, feeBuilder.Delimiter, feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+		fee = c.calculateTradingFee(trailingVolume,
+			feeBuilder.Pair.Base,
+			feeBuilder.Pair.Quote,
+			feeBuilder.Pair.Delimiter,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem)
+		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency)
 	}
 
 	if fee < 0 {
@@ -850,10 +863,10 @@ func (c *CoinbasePro) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, firstCurrency, delimiter, secondCurrency string, purchasePrice, amount float64, isMaker bool) float64 {
+func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, base, quote currency.Code, delimiter string, purchasePrice, amount float64, isMaker bool) float64 {
 	var fee float64
 	for _, i := range trailingVolume {
-		if strings.EqualFold(i.ProductID, firstCurrency+delimiter+secondCurrency) {
+		if strings.EqualFold(i.ProductID, base.String()+delimiter+quote.String()) {
 			switch {
 			case isMaker:
 				fee = 0
@@ -870,24 +883,24 @@ func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, firstCurrency
 	return fee * amount * purchasePrice
 }
 
-func getInternationalBankWithdrawalFee(currency string) float64 {
+func getInternationalBankWithdrawalFee(c currency.Code) float64 {
 	var fee float64
 
-	if currency == symbol.USD {
+	if c == currency.USD {
 		fee = 25
-	} else if currency == symbol.EUR {
+	} else if c == currency.EUR {
 		fee = 0.15
 	}
 
 	return fee
 }
 
-func getInternationalBankDepositFee(currency string) float64 {
+func getInternationalBankDepositFee(c currency.Code) float64 {
 	var fee float64
 
-	if currency == symbol.USD {
+	if c == currency.USD {
 		fee = 10
-	} else if currency == symbol.EUR {
+	} else if c == currency.EUR {
 		fee = 0.15
 	}
 

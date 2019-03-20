@@ -10,7 +10,7 @@
 import "github.com/thrasher-/gocryptotrader/currency/pair"
 
 // Create new pair
-newPair := pair.NewCurrencyPair("BTC", "USD")
+newPair := currency.NewPairFromStrings("BTC", "USD")
 
 // Retrieve different parts of the pair
 bitcoinString := newPair.GetFirstCurrency

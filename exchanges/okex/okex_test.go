@@ -8,8 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
 )
@@ -25,7 +24,7 @@ const (
 
 var testSetupRan bool
 var o = OKEX{}
-var spotCurrency = pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String()
+var spotCurrency = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "-").Lower().String()
 
 // TestSetDefaults Sets standard default settings for running a test
 func TestSetDefaults(t *testing.T) {
@@ -141,13 +140,13 @@ func TestGetAccountWalletInformation(t *testing.T) {
 func TestGetAccountWalletInformationForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	resp, err := o.GetAccountWalletInformation(symbol.BTC)
+	resp, err := o.GetAccountWalletInformation(currency.BTC.String())
 	if areTestAPIKeysSet() {
 		if err != nil {
 			t.Error(err)
 		}
 		if len(resp) != 1 {
-			t.Errorf("Error receiving wallet information for currency: %v", symbol.BTC)
+			t.Errorf("Error receiving wallet information for currency: %v", currency.BTC)
 		}
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -160,7 +159,7 @@ func TestTransferAccountFunds(t *testing.T) {
 	t.Parallel()
 	request := okgroup.TransferAccountFundsRequest{
 		Amount:   10,
-		Currency: symbol.BTC,
+		Currency: currency.BTC.String(),
 		From:     6,
 		To:       1,
 	}
@@ -175,7 +174,7 @@ func TestAccountWithdrawRequest(t *testing.T) {
 	t.Parallel()
 	request := okgroup.AccountWithdrawRequest{
 		Amount:      10,
-		Currency:    symbol.BTC,
+		Currency:    currency.BTC.String(),
 		TradePwd:    "1234",
 		Destination: 4,
 		ToAddress:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -207,7 +206,7 @@ func TestGetAccountWithdrawalFee(t *testing.T) {
 func TestGetAccountWithdrawalFeeForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	resp, err := o.GetAccountWithdrawalFee(symbol.BTC)
+	resp, err := o.GetAccountWithdrawalFee(currency.BTC.String())
 	if areTestAPIKeysSet() {
 		if err != nil {
 			t.Error(err)
@@ -232,7 +231,7 @@ func TestGetAccountWithdrawalHistory(t *testing.T) {
 func TestGetAccountWithdrawalHistoryForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetAccountWithdrawalHistory(symbol.BTC)
+	_, err := o.GetAccountWithdrawalHistory(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -248,7 +247,7 @@ func TestGetAccountBillDetails(t *testing.T) {
 func TestGetAccountDepositAddressForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetAccountDepositAddressForCurrency(symbol.BTC)
+	_, err := o.GetAccountDepositAddressForCurrency(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -264,7 +263,7 @@ func TestGetAccountDepositHistory(t *testing.T) {
 func TestGetAccountDepositHistoryForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetAccountDepositHistory(symbol.BTC)
+	_, err := o.GetAccountDepositHistory(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -280,7 +279,7 @@ func TestGetSpotTradingAccounts(t *testing.T) {
 func TestGetSpotTradingAccountsForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSpotTradingAccountForCurrency(symbol.BTC)
+	_, err := o.GetSpotTradingAccountForCurrency(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -289,7 +288,7 @@ func TestGetSpotBillDetailsForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	request := okgroup.GetSpotBillDetailsForCurrencyRequest{
-		Currency: symbol.BTC,
+		Currency: currency.BTC.String(),
 		Limit:    100,
 	}
 	_, err := o.GetSpotBillDetailsForCurrency(request)
@@ -301,7 +300,7 @@ func TestGetSpotBillDetailsForCurrencyBadLimit(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	request := okgroup.GetSpotBillDetailsForCurrencyRequest{
-		Currency: symbol.BTC,
+		Currency: currency.BTC.String(),
 		Limit:    -1,
 	}
 	_, err := o.GetSpotBillDetailsForCurrency(request)
@@ -411,13 +410,13 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 		order,
 	}
 
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.LTC.String(), currency.USDT.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.DOGE.String(), currency.USDT.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.XMR.String(), currency.USDT.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.BCH.String(), currency.USDT.String(), "-").Lower().String()
 	request = append(request, order)
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -502,7 +501,7 @@ func TestGetSpotOrder(t *testing.T) {
 	t.Parallel()
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      "-1234",
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
+		InstrumentID: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "-").Upper().String(),
 	}
 	_, err := o.GetSpotOrder(request)
 	testStandardErrorHandling(t, err)
@@ -642,7 +641,7 @@ func TestOpenMarginLoan(t *testing.T) {
 	request := okgroup.OpenMarginLoanRequest{
 		Amount:        100,
 		InstrumentID:  spotCurrency,
-		QuoteCurrency: symbol.USDT,
+		QuoteCurrency: currency.USDT.String(),
 	}
 
 	_, err := o.OpenMarginLoan(request)
@@ -656,7 +655,7 @@ func TestRepayMarginLoan(t *testing.T) {
 	request := okgroup.RepayMarginLoanRequest{
 		Amount:        100,
 		InstrumentID:  spotCurrency,
-		QuoteCurrency: symbol.USDT,
+		QuoteCurrency: currency.USDT.String(),
 		BorrowID:      1,
 	}
 
@@ -765,13 +764,13 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 		order,
 	}
 
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.LTC.String(), currency.USDT.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.DOGE.String(), currency.USDT.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.XMR.String(), currency.USDT.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USDT, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.BCH.String(), currency.USDT.String(), "-").Lower().String()
 	request = append(request, order)
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -850,7 +849,7 @@ func TestGetMarginOrder(t *testing.T) {
 	t.Parallel()
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      "1234",
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
+		InstrumentID: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "-").Upper().String(),
 	}
 	_, err := o.GetMarginOrder(request)
 	testStandardErrorHandling(t, err)
@@ -913,7 +912,7 @@ func TestGetFuturesAccountOfAllCurrencies(t *testing.T) {
 func TestGetFuturesAccountOfACurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetFuturesAccountOfACurrency(symbol.BTC)
+	_, err := o.GetFuturesAccountOfACurrency(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -921,7 +920,7 @@ func TestGetFuturesAccountOfACurrency(t *testing.T) {
 func TestGetFuturesLeverage(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetFuturesLeverage(symbol.BTC)
+	_, err := o.GetFuturesLeverage(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -929,7 +928,7 @@ func TestGetFuturesLeverage(t *testing.T) {
 func TestSetFuturesLeverage(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.SetFuturesLeverageRequest{
-		Currency:     symbol.BTC,
+		Currency:     currency.BTC.String(),
 		InstrumentID: getFutureInstrumentID(),
 		Leverage:     10,
 		Direction:    "Long",
@@ -943,7 +942,7 @@ func TestGetFuturesBillDetails(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetFuturesBillDetails(okgroup.GetSpotBillDetailsForCurrencyRequest{
-		Currency: symbol.BTC,
+		Currency: currency.BTC.String(),
 	})
 	testStandardErrorHandling(t, err)
 }
@@ -1178,7 +1177,7 @@ func TestGetSwapPostions(t *testing.T) {
 func TestGetSwapPostionsForContract(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapPostionsForContract(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapPostionsForContract(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	testStandardErrorHandling(t, err)
 }
 
@@ -1194,7 +1193,7 @@ func TestGetSwapAccountOfAllCurrency(t *testing.T) {
 func TestGetSwapAccountSettingsOfAContract(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapAccountSettingsOfAContract(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapAccountSettingsOfAContract(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	testStandardErrorHandling(t, err)
 }
 
@@ -1203,7 +1202,7 @@ func TestSetSwapLeverageLevelOfAContract(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.SetSwapLeverageLevelOfAContract(okgroup.SetSwapLeverageLevelOfAContractRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Leverage:     10,
 		Side:         1,
 	})
@@ -1216,7 +1215,7 @@ func TestGetSwapBillDetails(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapBillDetails(okgroup.GetSpotBillDetailsForCurrencyRequest{
-		Currency: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Currency: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Limit:    100,
 	})
 	testStandardErrorHandling(t, err)
@@ -1227,7 +1226,7 @@ func TestPlaceSwapOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	_, err := o.PlaceSwapOrder(okgroup.PlaceSwapOrderRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Size:         1,
 		Type:         1,
 		Price:        1,
@@ -1240,7 +1239,7 @@ func TestPlaceMultipleSwapOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	_, err := o.PlaceMultipleSwapOrders(okgroup.PlaceMultipleSwapOrdersRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Leverage:     10,
 		OrdersData: []okgroup.PlaceMultipleSwapOrderData{
 			{
@@ -1265,7 +1264,7 @@ func TestCancelSwapOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	_, err := o.CancelSwapOrder(okgroup.CancelSwapOrderRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		OrderID:      "64-2a-26132f931-3",
 	})
 	testStandardErrorHandling(t, err)
@@ -1276,7 +1275,7 @@ func TestCancelMultipleSwapOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	_, err := o.CancelMultipleSwapOrders(okgroup.CancelMultipleSwapOrdersRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		OrderIDs:     []int64{1, 2, 3, 4},
 	})
 	testStandardErrorHandling(t, err)
@@ -1287,7 +1286,7 @@ func TestGetSwapOrderList(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapOrderList(okgroup.GetSwapOrderListRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Status:       6,
 	})
 	testStandardErrorHandling(t, err)
@@ -1298,7 +1297,7 @@ func TestGetSwapOrderDetails(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapOrderDetails(okgroup.GetSwapOrderDetailsRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		OrderID:      "64-2a-26132f931-3",
 	})
 	testStandardErrorHandling(t, err)
@@ -1309,7 +1308,7 @@ func TestGetSwapTransactionDetails(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapTransactionDetails(okgroup.GetSwapTransactionDetailsRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		OrderID:      "64-2a-26132f931-3",
 	})
 	testStandardErrorHandling(t, err)
@@ -1330,7 +1329,7 @@ func TestGetSwapOrderBook(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapOrderBook(okgroup.GetSwapOrderBookRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Size:         200,
 	})
 	if err != nil {
@@ -1352,7 +1351,7 @@ func TestGetAllSwapTokensInformation(t *testing.T) {
 func TestGetSwapTokensInformationForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapTokensInformationForCurrency(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapTokensInformationForCurrency(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1363,7 +1362,7 @@ func TestGetSwapFilledOrdersData(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapFilledOrdersData(&okgroup.GetSwapFilledOrdersDataRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Limit:        100,
 	})
 	if err != nil {
@@ -1376,7 +1375,7 @@ func TestGetSwapMarketData(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	request := okgroup.GetSwapMarketDataRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Granularity:  604800,
 	}
 	_, err := o.GetSwapMarketData(request)
@@ -1389,7 +1388,7 @@ func TestGetSwapMarketData(t *testing.T) {
 func TestGetSwapIndeces(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapIndices(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapIndices(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1409,7 +1408,7 @@ func TestGetSwapExchangeRates(t *testing.T) {
 func TestGetSwapOpenInterest(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapOpenInterest(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapOpenInterest(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1419,7 +1418,7 @@ func TestGetSwapOpenInterest(t *testing.T) {
 func TestGetSwapCurrentPriceLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapCurrentPriceLimits(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapCurrentPriceLimits(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1430,7 +1429,7 @@ func TestGetSwapForceLiquidatedOrders(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapForceLiquidatedOrders(okgroup.GetSwapForceLiquidatedOrdersRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Status:       "0",
 	})
 	if err != nil {
@@ -1442,7 +1441,7 @@ func TestGetSwapForceLiquidatedOrders(t *testing.T) {
 func TestGetSwapOnHoldAmountForOpenOrders(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapOnHoldAmountForOpenOrders(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapOnHoldAmountForOpenOrders(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	testStandardErrorHandling(t, err)
 }
 
@@ -1450,7 +1449,7 @@ func TestGetSwapOnHoldAmountForOpenOrders(t *testing.T) {
 func TestGetSwapNextSettlementTime(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapNextSettlementTime(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapNextSettlementTime(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1460,7 +1459,7 @@ func TestGetSwapNextSettlementTime(t *testing.T) {
 func TestGetSwapMarkPrice(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetSwapMarkPrice(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	_, err := o.GetSwapMarkPrice(fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1471,7 +1470,7 @@ func TestGetSwapFundingRateHistory(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapFundingRateHistory(okgroup.GetSwapFundingRateHistoryRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Limit:        100,
 	})
 	if err != nil {
@@ -1491,7 +1490,7 @@ func TestGetETT(t *testing.T) {
 func TestGetETTAccountInformationForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetETTBillsDetails(symbol.BTC)
+	_, err := o.GetETTBillsDetails(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -1499,7 +1498,7 @@ func TestGetETTAccountInformationForCurrency(t *testing.T) {
 func TestGetETTBillsDetails(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	_, err := o.GetETTBillsDetails(symbol.BTC)
+	_, err := o.GetETTBillsDetails(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -1797,16 +1796,16 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 	}
 }
 
+// Function tests ----------------------------------------------------------------------------------------------
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
-		Amount:              1,
-		Delimiter:           "-",
-		FeeType:             exchange.CryptocurrencyTradeFee,
-		FirstCurrency:       symbol.LTC,
-		SecondCurrency:      symbol.BTC,
-		IsMaker:             false,
+		Amount:  1,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			currency.BTC.String(),
+			"-"),
 		PurchasePrice:       1,
-		CurrencyItem:        symbol.USD,
+		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}
 }
@@ -1866,7 +1865,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.USD
+	feeBuilder.FiatCurrency = currency.USD
 	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
@@ -1890,10 +1889,10 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	var p = pair.CurrencyPair{
-		Delimiter:      "",
-		FirstCurrency:  symbol.BTC,
-		SecondCurrency: symbol.USDT,
+	var p = currency.Pair{
+		Delimiter: "",
+		Base:      currency.BTC,
+		Quote:     currency.USDT,
 	}
 	response, err := o.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -1907,16 +1906,15 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelExchangeOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
-
-	var orderCancellation = &exchange.OrderCancellation{
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
+	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
 
-	err := o.CancelOrder(orderCancellation)
+	err := o.CancelOrder(&orderCancellation)
 	testStandardErrorHandling(t, err)
 
 }
@@ -1925,16 +1923,15 @@ func TestCancelExchangeOrder(t *testing.T) {
 func TestCancelAllExchangeOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
-
-	var orderCancellation = &exchange.OrderCancellation{
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
+	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
 
-	resp, err := o.CancelAllOrders(orderCancellation)
+	resp, err := o.CancelAllOrders(&orderCancellation)
 	testStandardErrorHandling(t, err)
 
 	if len(resp.OrderStatus) > 0 {
@@ -1964,7 +1961,7 @@ func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:        100,
-		Currency:      symbol.BTC,
+		Currency:      currency.BTC,
 		Address:       "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",

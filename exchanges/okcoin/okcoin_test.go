@@ -7,8 +7,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
 )
@@ -24,7 +23,7 @@ const (
 
 var o = OKCoin{}
 var testSetupRan bool
-var spotCurrency = pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Lower().String()
+var spotCurrency = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Lower().String()
 
 // TestSetDefaults Sets standard default settings for running a test
 func TestSetDefaults(t *testing.T) {
@@ -148,13 +147,13 @@ func TestGetAccountWalletInformation(t *testing.T) {
 // TestGetAccountWalletInformationForCurrency API endpoint test
 func TestGetAccountWalletInformationForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	resp, err := o.GetAccountWalletInformation(symbol.BTC)
+	resp, err := o.GetAccountWalletInformation(currency.BTC.String())
 	if areTestAPIKeysSet() {
 		if err != nil {
 			t.Error(err)
 		}
 		if len(resp) != 1 {
-			t.Errorf("Error receiving wallet information for currency: %v", symbol.BTC)
+			t.Errorf("Error receiving wallet information for currency: %v", currency.BTC)
 		}
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -166,7 +165,7 @@ func TestTransferAccountFunds(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.TransferAccountFundsRequest{
 		Amount:   10,
-		Currency: symbol.BTC,
+		Currency: currency.BTC.String(),
 		From:     6,
 		To:       1,
 	}
@@ -179,7 +178,7 @@ func TestAccountWithdrawRequest(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	request := okgroup.AccountWithdrawRequest{
 		Amount:      10,
-		Currency:    symbol.BTC,
+		Currency:    currency.BTC.String(),
 		TradePwd:    "1234",
 		Destination: 4,
 		ToAddress:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -208,7 +207,7 @@ func TestGetAccountWithdrawalFee(t *testing.T) {
 // TestGetWithdrawalFeeForCurrency API endpoint test
 func TestGetAccountWithdrawalFeeForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	resp, err := o.GetAccountWithdrawalFee(symbol.BTC)
+	resp, err := o.GetAccountWithdrawalFee(currency.BTC.String())
 	if areTestAPIKeysSet() {
 		if err != nil {
 			t.Error(err)
@@ -231,7 +230,7 @@ func TestGetAccountWithdrawalHistory(t *testing.T) {
 // TestGetAccountWithdrawalHistoryForCurrency API endpoint test
 func TestGetAccountWithdrawalHistoryForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	_, err := o.GetAccountWithdrawalHistory(symbol.BTC)
+	_, err := o.GetAccountWithdrawalHistory(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -245,7 +244,7 @@ func TestGetAccountBillDetails(t *testing.T) {
 // TestGetAccountDepositAddressForCurrency API endpoint test
 func TestGetAccountDepositAddressForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	_, err := o.GetAccountDepositAddressForCurrency(symbol.BTC)
+	_, err := o.GetAccountDepositAddressForCurrency(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -259,7 +258,7 @@ func TestGetAccountDepositHistory(t *testing.T) {
 // TestGetAccountDepositHistoryForCurrency API endpoint test
 func TestGetAccountDepositHistoryForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	_, err := o.GetAccountDepositHistory(symbol.BTC)
+	_, err := o.GetAccountDepositHistory(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -273,7 +272,7 @@ func TestGetSpotTradingAccounts(t *testing.T) {
 // TestGetSpotTradingAccountsForCurrency API endpoint test
 func TestGetSpotTradingAccountsForCurrency(t *testing.T) {
 	TestSetDefaults(t)
-	_, err := o.GetSpotTradingAccountForCurrency(symbol.BTC)
+	_, err := o.GetSpotTradingAccountForCurrency(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
@@ -281,7 +280,7 @@ func TestGetSpotTradingAccountsForCurrency(t *testing.T) {
 func TestGetSpotBillDetailsForCurrency(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotBillDetailsForCurrencyRequest{
-		Currency: symbol.BTC,
+		Currency: currency.BTC.String(),
 		Limit:    100,
 	}
 	_, err := o.GetSpotBillDetailsForCurrency(request)
@@ -292,7 +291,7 @@ func TestGetSpotBillDetailsForCurrency(t *testing.T) {
 func TestGetSpotBillDetailsForCurrencyBadLimit(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotBillDetailsForCurrencyRequest{
-		Currency: symbol.BTC,
+		Currency: currency.BTC.String(),
 		Limit:    -1,
 	}
 	_, err := o.GetSpotBillDetailsForCurrency(request)
@@ -397,13 +396,13 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 		order,
 	}
 
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USD, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.LTC.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USD, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.DOGE.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USD, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.XMR.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USD, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.BCH.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -481,7 +480,7 @@ func TestGetSpotOrder(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      "-1234",
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Upper().String(),
+		InstrumentID: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Upper().String(),
 	}
 	_, err := o.GetSpotOrder(request)
 	testStandardErrorHandling(t, err)
@@ -607,7 +606,7 @@ func TestOpenMarginLoan(t *testing.T) {
 	request := okgroup.OpenMarginLoanRequest{
 		Amount:        100,
 		InstrumentID:  spotCurrency,
-		QuoteCurrency: symbol.USD,
+		QuoteCurrency: currency.USD.String(),
 	}
 
 	_, err := o.OpenMarginLoan(request)
@@ -620,7 +619,7 @@ func TestRepayMarginLoan(t *testing.T) {
 	request := okgroup.RepayMarginLoanRequest{
 		Amount:        100,
 		InstrumentID:  spotCurrency,
-		QuoteCurrency: symbol.USD,
+		QuoteCurrency: currency.USD.String(),
 		BorrowID:      1,
 	}
 
@@ -724,13 +723,13 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 		order,
 	}
 
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USD, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.LTC.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USD, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.DOGE.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USD, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.XMR.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
-	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USD, "-").Pair().Lower().String()
+	order.InstrumentID = currency.NewPairWithDelimiter(currency.BCH.String(), currency.USD.String(), "-").Lower().String()
 	request = append(request, order)
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -803,7 +802,7 @@ func TestGetMarginOrder(t *testing.T) {
 	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      "1234",
-		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-").Pair().Upper().String(),
+		InstrumentID: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Upper().String(),
 	}
 	_, err := o.GetMarginOrder(request)
 	testStandardErrorHandling(t, err)
@@ -1042,14 +1041,14 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 // Function tests ----------------------------------------------------------------------------------------------
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
-		Amount:              1,
-		Delimiter:           "-",
-		FeeType:             exchange.CryptocurrencyTradeFee,
-		FirstCurrency:       symbol.LTC,
-		SecondCurrency:      symbol.BTC,
+		Amount:  1,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			currency.BTC.String(),
+			"-"),
 		IsMaker:             false,
 		PurchasePrice:       1,
-		CurrencyItem:        symbol.USD,
+		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}
 }
@@ -1101,7 +1100,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.USD
+	feeBuilder.FiatCurrency = currency.USD
 	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
@@ -1123,10 +1122,10 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 // TestSubmitOrder Wrapper test
 func TestSubmitOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	var p = pair.CurrencyPair{
-		Delimiter:      "",
-		FirstCurrency:  symbol.BTC,
-		SecondCurrency: symbol.EUR,
+	var p = currency.Pair{
+		Delimiter: "",
+		Base:      currency.BTC,
+		Quote:     currency.EUR,
 	}
 	response, err := o.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -1139,7 +1138,7 @@ func TestSubmitOrder(t *testing.T) {
 // TestCancelExchangeOrder Wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -1155,7 +1154,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 // TestCancelAllExchangeOrders Wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -1190,7 +1189,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:        100,
-		Currency:      symbol.BTC,
+		Currency:      currency.BTC,
 		Address:       "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",

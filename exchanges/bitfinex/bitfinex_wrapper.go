@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -38,7 +38,13 @@ func (b *Bitfinex) Run() {
 	if err != nil {
 		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
-		err = b.UpdateCurrencies(exchangeProducts, false, false)
+		var newExchangeProducts currency.Pairs
+		for _, p := range exchangeProducts {
+			newExchangeProducts = append(newExchangeProducts,
+				currency.NewPairFromString(p))
+		}
+
+		err = b.UpdateCurrencies(newExchangeProducts, false, false)
 		if err != nil {
 			log.Errorf("%s Failed to update available symbols.\n", b.GetName())
 		}
@@ -46,13 +52,13 @@ func (b *Bitfinex) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	enabledPairs := b.GetEnabledCurrencies()
 
 	var pairs []string
 	for x := range enabledPairs {
-		pairs = append(pairs, "t"+enabledPairs[x].Pair().String())
+		pairs = append(pairs, "t"+enabledPairs[x].String())
 	}
 
 	tickerNew, err := b.GetTickersV2(common.JoinStrings(pairs, ","))
@@ -61,7 +67,9 @@ func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.P
 	}
 
 	for x := range tickerNew {
-		newP := pair.NewCurrencyPair(tickerNew[x].Symbol[1:4], tickerNew[x].Symbol[4:])
+		newP := currency.NewPairFromStrings(tickerNew[x].Symbol[1:4],
+			tickerNew[x].Symbol[4:])
+
 		var tick ticker.Price
 		tick.Pair = newP
 		tick.Ask = tickerNew[x].Ask
@@ -70,13 +78,17 @@ func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.P
 		tick.Last = tickerNew[x].Last
 		tick.Volume = tickerNew[x].Volume
 		tick.High = tickerNew[x].High
-		ticker.ProcessTicker(b.Name, tick.Pair, tick, assetType)
+
+		err = ticker.ProcessTicker(b.Name, tick, assetType)
+		if err != nil {
+			return tickerPrice, err
+		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *Bitfinex) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p, ticker.Spot)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -85,8 +97,8 @@ func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
-func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+func (b *Bitfinex) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -94,26 +106,38 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitfinex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	urlVals := url.Values{}
 	urlVals.Set("limit_bids", "100")
 	urlVals.Set("limit_asks", "100")
-	orderbookNew, err := b.GetOrderbook(p.Pair().String(), urlVals)
+	orderbookNew, err := b.GetOrderbook(p.String(), urlVals)
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: orderbookNew.Asks[x].Price, Amount: orderbookNew.Asks[x].Amount})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{Price: orderbookNew.Asks[x].Price,
+				Amount: orderbookNew.Asks[x].Amount})
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Bids[x].Price, Amount: orderbookNew.Bids[x].Amount})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{Price: orderbookNew.Bids[x].Price,
+				Amount: orderbookNew.Bids[x].Amount})
 	}
 
-	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(b.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies on the
@@ -137,7 +161,7 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 			if Accounts[i].ID == bal.Type {
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: bal.Currency,
+						CurrencyName: currency.NewCode(bal.Currency),
 						TotalValue:   bal.Amount,
 						Hold:         bal.Amount - bal.Available,
 					})
@@ -157,14 +181,14 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (b *Bitfinex) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var isBuying bool
 
@@ -172,7 +196,12 @@ func (b *Bitfinex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, ord
 		isBuying = true
 	}
 
-	response, err := b.NewOrder(p.Pair().String(), amount, price, isBuying, orderType.ToString(), false)
+	response, err := b.NewOrder(p.String(),
+		amount,
+		price,
+		isBuying,
+		orderType.ToString(),
+		false)
 
 	if response.OrderID > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
@@ -217,8 +246,8 @@ func (b *Bitfinex) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitfinex) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
-	method, err := b.ConvertSymbolToDepositMethod(cryptocurrency.String())
+func (b *Bitfinex) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
+	method, err := b.ConvertSymbolToDepositMethod(cryptocurrency)
 	if err != nil {
 		return "", err
 	}
@@ -233,12 +262,17 @@ func (b *Bitfinex) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	withdrawalType := b.ConvertSymbolToWithdrawalType(withdrawRequest.Currency.String())
+	withdrawalType := b.ConvertSymbolToWithdrawalType(withdrawRequest.Currency)
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
 	walletType := "exchange"
-	resp, err := b.WithdrawCryptocurrency(withdrawalType, walletType, withdrawRequest.Address, withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.Amount)
+	resp, err := b.WithdrawCryptocurrency(withdrawalType,
+		walletType,
+		withdrawRequest.Address,
+		withdrawRequest.Description,
+		withdrawRequest.Amount,
+		withdrawRequest.Currency)
 	if err != nil {
 		return "", err
 	}
@@ -322,7 +356,7 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 			OrderSide:       orderSide,
 			Price:           order.Price,
 			RemainingAmount: order.RemainingAmount,
-			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
+			CurrencyPair:    currency.NewPairFromString(order.Symbol),
 			ExecutedAmount:  order.ExecutedAmount,
 		}
 
@@ -383,7 +417,7 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 			Price:           order.Price,
 			RemainingAmount: order.RemainingAmount,
 			ExecutedAmount:  order.ExecutedAmount,
-			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
+			CurrencyPair:    currency.NewPairFromString(order.Symbol),
 		}
 
 		switch {

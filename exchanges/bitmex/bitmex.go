@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -149,9 +149,9 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -705,13 +705,13 @@ func (b *Bitmex) ConfirmWithdrawal(token string) (TransactionInfo, error) {
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurency
-func (b *Bitmex) GetCryptoDepositAddress(currency string) (string, error) {
+func (b *Bitmex) GetCryptoDepositAddress(cryptoCurrency string) (string, error) {
 	var address string
 
-	if !strings.EqualFold(currency, symbol.XBT) {
+	if !strings.EqualFold(cryptoCurrency, currency.XBT.String()) {
 		return "",
 			fmt.Errorf("cryptocurrency %s deposits are not supported by exchange only bitcoin",
-				currency)
+				cryptoCurrency)
 	}
 
 	return address, b.SendAuthenticatedHTTPRequest(http.MethodGet,

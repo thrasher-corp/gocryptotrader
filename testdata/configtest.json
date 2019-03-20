@@ -72,7 +72,9 @@
    "uppercase": true,
    "delimiter": "-"
   },
-  "fiatDisplayCurrency": "USD"
+  "fiatDisplayCurrency": "USD",
+  "currencyFileUpdateDuration": 0,
+  "foreignExchangeUpdateDuration": 0
  },
  "communications": {
   "slack": {
@@ -1307,5 +1309,6 @@
    "supportedCurrencies": "USD",
    "supportedExchanges": "ANX,Kraken"
   }
- ]
+ ],
+ "fiatDispayCurrency": ""
 }

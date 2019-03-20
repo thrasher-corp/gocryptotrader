@@ -3,11 +3,14 @@ package exchangerates
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -15,23 +18,32 @@ const (
 	exchangeRatesAPI                 = "https://api.exchangeratesapi.io"
 	exchangeRatesLatest              = "latest"
 	exchangeRatesHistory             = "history"
-	exchangeRatesSupportedCurrencies = "USD,ISK,CAD,MXN,CHF,AUD,CNY,GBP,SEK,NOK,TRY,IDR,ZAR," +
-		"HRK,EUR,HKD,ILS,NZD,MYR,JPY,CZK,JPY,CZK,SGD,RUB,RON,HUF,BGN,INR,KRW," +
-		"DKK,THB,PHP,PLN,BRL"
+	exchangeRatesSupportedCurrencies = "EUR,CHF,USD,BRL,ISK,PHP,KRW,BGN,MXN," +
+		"RON,CAD,SGD,NZD,THB,HKD,JPY,NOK,HRK,ILS,GBP,DKK,HUF,MYR,RUB,TRY,IDR," +
+		"ZAR,INR,AUD,CZK,SEK,CNY,PLN"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // ExchangeRates stores the struct for the ExchangeRatesAPI API
 type ExchangeRates struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets appropriate values for CurrencyLayer
-func (e *ExchangeRates) Setup(config base.Settings) {
+func (e *ExchangeRates) Setup(config base.Settings) error {
 	e.Name = config.Name
 	e.Enabled = config.Enabled
 	e.RESTPollingDelay = config.RESTPollingDelay
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
+	e.Requester = request.New(e.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
 }
 
 func cleanCurrencies(baseCurrency, symbols string) string {
@@ -150,10 +162,21 @@ func (e *ExchangeRates) GetRates(baseCurrency, symbols string) (map[string]float
 	return standardisedRates, nil
 }
 
+// GetSupportedCurrencies returns the supported currency list
+func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
+	return common.SplitStrings(exchangeRatesSupportedCurrencies, ","), nil
+}
+
 // SendHTTPRequest sends a HTTPS request to the desired endpoint and returns the result
 func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
 	path := common.EncodeURLValues(exchangeRatesAPI+"/"+endPoint, values)
-	err := common.SendHTTPGetRequest(path, true, e.Verbose, &result)
+	err := e.Requester.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		&result,
+		false,
+		e.Verbose)
 	if err != nil {
 		return fmt.Errorf("exchangeRatesAPI SendHTTPRequest error %s with path %s",
 			err,

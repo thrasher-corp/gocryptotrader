@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -107,9 +107,9 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
-		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		h.BaseCurrencies = exch.BaseCurrencies
+		h.AvailablePairs = exch.AvailablePairs
+		h.EnabledPairs = exch.EnabledPairs
 		err := h.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -768,7 +768,7 @@ func (h *HUOBIHADAX) GetMarginAccountBalance(symbol string) ([]MarginAccountBala
 }
 
 // Withdraw withdraws the desired amount and currency
-func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
+func (h *HUOBIHADAX) Withdraw(c currency.Code, address, addrTag string, amount, fee float64) (int64, error) {
 	type response struct {
 		Response
 		WithdrawID int64 `json:"data"`
@@ -781,7 +781,7 @@ func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee flo
 		AddrTag  string `json:"addr-tag,omitempty"`
 	}{
 		Address:  address,
-		Currency: currency,
+		Currency: c.Lower().String(),
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
@@ -789,7 +789,7 @@ func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee flo
 		data.Fee = strconv.FormatFloat(fee, 'f', -1, 64)
 	}
 
-	if currency == symbol.XRP {
+	if c == currency.XRP {
 		data.AddrTag = addrTag
 	}
 

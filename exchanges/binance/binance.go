@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -111,9 +112,9 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -706,7 +707,7 @@ func (b *Binance) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		}
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	}
 	if fee < 0 {
 		fee = 0
@@ -735,8 +736,8 @@ func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 }
 
 // getCryptocurrencyWithdrawalFee returns the fee for withdrawing from the exchange
-func getCryptocurrencyWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }
 
 // WithdrawCrypto sends cryptocurrency to the address of your choosing

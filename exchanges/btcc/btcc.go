@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -60,9 +61,9 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -100,9 +101,9 @@ func (b *BTCC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -110,10 +111,10 @@ func (b *BTCC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
-	return WithdrawalFees[currency] * amount
+func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 {
+	return WithdrawalFees[c] * amount
 }

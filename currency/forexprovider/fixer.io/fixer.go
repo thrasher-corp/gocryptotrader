@@ -10,11 +10,15 @@ package fixer
 
 import (
 	"errors"
+	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -24,22 +28,32 @@ const (
 	fixerAPIProfessionalPlus
 	fixerAPIEnterprise
 
-	fixerAPI            = "http://data.fixer.io/api/"
-	fixerAPISSL         = "https://data.fixer.io/api/"
-	fixerAPILatest      = "latest"
-	fixerAPIConvert     = "convert"
-	fixerAPITimeSeries  = "timeseries"
-	fixerAPIFluctuation = "fluctuation"
+	fixerAPI                 = "http://data.fixer.io/api/"
+	fixerAPISSL              = "https://data.fixer.io/api/"
+	fixerAPILatest           = "latest"
+	fixerAPIConvert          = "convert"
+	fixerAPITimeSeries       = "timeseries"
+	fixerAPIFluctuation      = "fluctuation"
+	fixerSupportedCurrencies = "symbols"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // Fixer is a foreign exchange rate provider at https://fixer.io/
 // NOTE DEFAULT BASE CURRENCY IS EUR upgrade to basic to change
 type Fixer struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets appropriate values for fixer object
-func (f *Fixer) Setup(config base.Settings) {
+func (f *Fixer) Setup(config base.Settings) error {
+	if config.APIKeyLvl < 0 || config.APIKeyLvl > 4 {
+		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			config.Name)
+		return errors.New("apikey set failure")
+	}
 	f.APIKey = config.APIKey
 	f.APIKeyLvl = config.APIKeyLvl
 	f.Enabled = config.Enabled
@@ -47,6 +61,32 @@ func (f *Fixer) Setup(config base.Settings) {
 	f.RESTPollingDelay = config.RESTPollingDelay
 	f.Verbose = config.Verbose
 	f.PrimaryProvider = config.PrimaryProvider
+	f.Requester = request.New(f.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
+}
+
+// GetSupportedCurrencies returns supported currencies
+func (f *Fixer) GetSupportedCurrencies() ([]string, error) {
+	var resp Symbols
+
+	err := f.SendOpenHTTPRequest(fixerSupportedCurrencies, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, errors.New(resp.Error.Type + resp.Error.Info)
+	}
+
+	var currencies []string
+	for key := range resp.Map {
+		currencies = append(currencies, key)
+	}
+
+	return currencies, nil
 }
 
 // GetRates is a wrapper function to return rates
@@ -209,10 +249,19 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 	var path string
 	v.Set("access_key", f.APIKey)
 
+	var auth bool
 	if f.APIKeyLvl == fixerAPIFree {
 		path = fixerAPI + endpoint + "?" + v.Encode()
 	} else {
 		path = fixerAPISSL + endpoint + "?" + v.Encode()
+		auth = true
 	}
-	return common.SendHTTPGetRequest(path, true, f.Verbose, result)
+
+	return f.Requester.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		auth,
+		f.Verbose)
 }

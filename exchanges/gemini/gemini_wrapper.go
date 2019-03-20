@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -37,7 +37,13 @@ func (g *Gemini) Run() {
 	if err != nil {
 		log.Errorf("%s Failed to get available symbols.\n", g.GetName())
 	} else {
-		err = g.UpdateCurrencies(exchangeProducts, false, false)
+		var newExchangeProducts currency.Pairs
+		for _, p := range exchangeProducts {
+			newExchangeProducts = append(newExchangeProducts,
+				currency.NewPairFromString(p))
+		}
+
+		err = g.UpdateCurrencies(newExchangeProducts, false, false)
 		if err != nil {
 			log.Errorf("%s Failed to update available currencies.\n", g.GetName())
 		}
@@ -57,7 +63,7 @@ func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
 	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
 		currencies = append(currencies, exchangeCurrency)
@@ -71,9 +77,9 @@ func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gemini) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (g *Gemini) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := g.GetTicker(p.Pair().String())
+	tick, err := g.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -82,12 +88,17 @@ func (g *Gemini) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	tickerPrice.Bid = tick.Bid
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Volume.USD
-	ticker.ProcessTicker(g.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(g.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(g.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (g *Gemini) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (g *Gemini) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateTicker(p, assetType)
@@ -96,8 +107,8 @@ func (g *Gemini) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (g *Gemini) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(g.GetName(), p, assetType)
+func (g *Gemini) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
 	}
@@ -105,9 +116,9 @@ func (g *Gemini) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gemini) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := g.GetOrderbook(p.Pair().String(), url.Values{})
+	orderbookNew, err := g.GetOrderbook(p.String(), url.Values{})
 	if err != nil {
 		return orderBook, err
 	}
@@ -120,8 +131,16 @@ func (g *Gemini) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderbook.ProcessOrderbook(g.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(g.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = g.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(g.Name, p, assetType)
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -132,16 +151,20 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (g *Gemini) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (g *Gemini) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	response, err := g.NewOrder(p.Pair().String(), amount, price, side.ToString(), orderType.ToString())
+	response, err := g.NewOrder(p.String(),
+		amount,
+		price,
+		side.ToString(),
+		orderType.ToString())
 
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
@@ -195,7 +218,7 @@ func (g *Gemini) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gemini) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
+func (g *Gemini) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	addr, err := g.GetCryptoDepositAddress("", cryptocurrency.String())
 	if err != nil {
 		return "", err
@@ -248,7 +271,8 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, g.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewPairDelimiter(order.Symbol,
+			g.ConfigCurrencyPairFormat.Delimiter)
 		var orderType exchange.OrderType
 		if order.Type == "exchange limit" {
 			orderType = exchange.LimitOrderType
@@ -273,7 +297,8 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
@@ -290,14 +315,15 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var trades []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := g.GetTradeHistory(exchange.FormatExchangeCurrency(g.Name, currency).String(), getOrdersRequest.StartTicks.Unix())
+		resp, err := g.GetTradeHistory(exchange.FormatExchangeCurrency(g.Name, currency).String(),
+			getOrdersRequest.StartTicks.Unix())
 		if err != nil {
 			return nil, err
 		}
 
 		for _, trade := range resp {
-			trade.BaseCurrency = currency.FirstCurrency.String()
-			trade.QuoteCurrency = currency.SecondCurrency.String()
+			trade.BaseCurrency = currency.Base.String()
+			trade.QuoteCurrency = currency.Quote.String()
 			trades = append(trades, trade)
 		}
 	}
@@ -308,18 +334,21 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		orderDate := time.Unix(trade.Timestamp, 0)
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:       trade.Amount,
-			ID:           fmt.Sprintf("%v", trade.OrderID),
-			Exchange:     g.Name,
-			OrderDate:    orderDate,
-			OrderSide:    side,
-			Fee:          trade.FeeAmount,
-			Price:        trade.Price,
-			CurrencyPair: pair.NewCurrencyPairWithDelimiter(trade.BaseCurrency, trade.QuoteCurrency, g.ConfigCurrencyPairFormat.Delimiter),
+			Amount:    trade.Amount,
+			ID:        fmt.Sprintf("%v", trade.OrderID),
+			Exchange:  g.Name,
+			OrderDate: orderDate,
+			OrderSide: side,
+			Fee:       trade.FeeAmount,
+			Price:     trade.Price,
+			CurrencyPair: currency.NewPairWithDelimiter(trade.BaseCurrency,
+				trade.QuoteCurrency,
+				g.ConfigCurrencyPairFormat.Delimiter),
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil

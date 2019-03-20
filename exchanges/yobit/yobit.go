@@ -11,7 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -88,9 +88,9 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		y.RESTPollingDelay = exch.RESTPollingDelay
 		y.Verbose = exch.Verbose
 		y.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		y.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		y.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		y.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		y.BaseCurrencies = exch.BaseCurrencies
+		y.AvailablePairs = exch.AvailablePairs
+		y.EnabledPairs = exch.EnabledPairs
 		y.SetHTTPClientTimeout(exch.HTTPTimeout)
 		y.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		err := y.SetCurrencyPairFormat()
@@ -330,13 +330,20 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
-	return y.SendPayload(http.MethodGet, path, nil, nil, result, false, y.Verbose)
+	return y.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		y.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
 func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, result interface{}) (err error) {
 	if !y.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, y.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			y.Name)
 	}
 
 	if params == nil {
@@ -352,10 +359,15 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	params.Set("method", path)
 
 	encoded := params.Encode()
-	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(y.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512,
+		[]byte(encoded),
+		[]byte(y.APISecret))
 
 	if y.Verbose {
-		log.Debugf("Sending POST request to %s calling path %s with params %s\n", apiPrivateURL, path, encoded)
+		log.Debugf("Sending POST request to %s calling path %s with params %s\n",
+			apiPrivateURL,
+			path,
+			encoded)
 	}
 
 	headers := make(map[string]string)
@@ -363,7 +375,13 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return y.SendPayload(http.MethodPost, apiPrivateURL, headers, strings.NewReader(encoded), result, true, y.Verbose)
+	return y.SendPayload(http.MethodPost,
+		apiPrivateURL,
+		headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		y.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -373,11 +391,14 @@ func (y *Yobit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.BankTransactionType)
+		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
+			feeBuilder.BankTransactionType)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount, feeBuilder.BankTransactionType)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount,
+			feeBuilder.BankTransactionType)
 	}
 	if fee < 0 {
 		fee = 0
@@ -391,38 +412,38 @@ func calculateTradingFee(purchasePrice, amount float64) (fee float64) {
 	return fee * amount * purchasePrice
 }
 
-func getWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
 	var fee float64
 
 	switch bankTransactionType {
 	case exchange.PerfectMoney:
-		if currency == symbol.USD {
+		if c == currency.USD {
 			fee = 0.02 * amount
 		}
 	case exchange.Payeer:
-		switch currency {
-		case symbol.USD:
+		switch c {
+		case currency.USD:
 			fee = 0.03 * amount
-		case symbol.RUR:
+		case currency.RUR:
 			fee = 0.006 * amount
 		}
 	case exchange.AdvCash:
-		switch currency {
-		case symbol.USD:
+		switch c {
+		case currency.USD:
 			fee = 0.04 * amount
-		case symbol.RUR:
+		case currency.RUR:
 			fee = 0.03 * amount
 		}
 	case exchange.Qiwi:
-		if currency == symbol.RUR {
+		if c == currency.RUR {
 			fee = 0.04 * amount
 		}
 	case exchange.Capitalist:
-		if currency == symbol.USD {
+		if c == currency.USD {
 			fee = 0.06 * amount
 		}
 	}
@@ -431,36 +452,36 @@ func getInternationalBankWithdrawalFee(currency string, amount float64, bankTran
 }
 
 // getInternationalBankDepositFee; No real fees for yobit deposits, but want to be explicit on what each payment type supports
-func getInternationalBankDepositFee(currency string, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+func getInternationalBankDepositFee(c currency.Code, bankTransactionType exchange.InternationalBankTransactionType) float64 {
 	var fee float64
 	switch bankTransactionType {
 	case exchange.PerfectMoney:
-		if currency == symbol.USD {
+		if c == currency.USD {
 			fee = 0
 		}
 	case exchange.Payeer:
-		switch currency {
-		case symbol.USD:
+		switch c {
+		case currency.USD:
 			fee = 0
-		case symbol.RUR:
+		case currency.RUR:
 			fee = 0
 		}
 	case exchange.AdvCash:
-		switch currency {
-		case symbol.USD:
+		switch c {
+		case currency.USD:
 			fee = 0
-		case symbol.RUR:
+		case currency.RUR:
 			fee = 0
 		}
 	case exchange.Qiwi:
-		if currency == symbol.RUR {
+		if c == currency.RUR {
 			fee = 0
 		}
 	case exchange.Capitalist:
-		switch currency {
-		case symbol.USD:
+		switch c {
+		case currency.USD:
 			fee = 0
-		case symbol.RUR:
+		case currency.RUR:
 			fee = 0
 		}
 	}

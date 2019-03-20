@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -36,7 +36,8 @@ func (k *Kraken) Run() {
 		log.Errorf("%s Failed to get available symbols.\n", k.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(k.EnabledPairs, "-") || !common.StringDataContains(k.AvailablePairs, "-") {
+		if !common.StringDataContains(k.EnabledPairs.Strings(), "-") ||
+			!common.StringDataContains(k.AvailablePairs.Strings(), "-") {
 			forceUpgrade = true
 		}
 
@@ -57,7 +58,9 @@ func (k *Kraken) Run() {
 		}
 
 		if forceUpgrade {
-			enabledPairs := []string{"XBT-USD"}
+			enabledPairs := currency.Pairs{currency.Pair{
+				Base: currency.XBT, Quote: currency.USD, Delimiter: "-"}}
+
 			log.Warn("Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 
 			err = k.UpdateCurrencies(enabledPairs, true, true)
@@ -65,7 +68,14 @@ func (k *Kraken) Run() {
 				log.Errorf("%s Failed to get config.\n", k.GetName())
 			}
 		}
-		err = k.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
+
+		var newExchangeProducts currency.Pairs
+		for _, p := range exchangeProducts {
+			newExchangeProducts = append(newExchangeProducts,
+				currency.NewPairFromString(p))
+		}
+
+		err = k.UpdateCurrencies(newExchangeProducts, false, forceUpgrade)
 		if err != nil {
 			log.Errorf("%s Failed to get config.\n", k.GetName())
 		}
@@ -73,21 +83,22 @@ func (k *Kraken) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (k *Kraken) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	pairs := k.GetEnabledCurrencies()
 	pairsCollated, err := exchange.GetAndFormatExchangeCurrencies(k.Name, pairs)
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickers, err := k.GetTickers(pairsCollated.String())
+	tickers, err := k.GetTickers(pairsCollated)
 	if err != nil {
 		return tickerPrice, err
 	}
 
 	for _, x := range pairs {
 		for y, z := range tickers {
-			if !common.StringContains(y, x.FirstCurrency.Upper().String()) && !common.StringContains(y, x.SecondCurrency.Upper().String()) {
+			if !common.StringContains(y, x.Base.Upper().String()) &&
+				!common.StringContains(y, x.Quote.Upper().String()) {
 				continue
 			}
 			var tp ticker.Price
@@ -98,14 +109,14 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 			tp.High = z.High
 			tp.Low = z.Low
 			tp.Volume = z.Volume
-			ticker.ProcessTicker(k.GetName(), x, tp, assetType)
+			ticker.ProcessTicker(k.GetName(), tp, assetType)
 		}
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (k *Kraken) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (k *Kraken) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(k.GetName(), p, assetType)
 	if err != nil {
 		return k.UpdateTicker(p, assetType)
@@ -114,8 +125,8 @@ func (k *Kraken) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (k *Kraken) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(k.GetName(), p, assetType)
+func (k *Kraken) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(k.GetName(), p, assetType)
 	if err != nil {
 		return k.UpdateOrderbook(p, assetType)
 	}
@@ -123,7 +134,7 @@ func (k *Kraken) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (k *Kraken) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := k.GetDepth(exchange.FormatExchangeCurrency(k.GetName(), p).String())
 	if err != nil {
@@ -138,8 +149,16 @@ func (k *Kraken) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderbook.ProcessOrderbook(k.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(k.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = k.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(k.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -156,7 +175,7 @@ func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balances []exchange.AccountCurrencyInfo
 	for key, data := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: currency.NewCode(key),
 			TotalValue:   data,
 		})
 	}
@@ -176,18 +195,25 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (k *Kraken) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (k *Kraken) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var args = AddOrderOptions{}
 
-	response, err := k.AddOrder(p.Pair().String(), side.ToString(), orderType.ToString(), amount, price, 0, 0, args)
+	response, err := k.AddOrder(p.String(),
+		side.ToString(),
+		orderType.ToString(),
+		amount,
+		price,
+		0,
+		0,
+		args)
 
 	if len(response.TransactionIds) > 0 {
 		submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
@@ -243,7 +269,7 @@ func (k *Kraken) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (k *Kraken) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
+func (k *Kraken) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	methods, err := k.GetDepositMethods(cryptocurrency.String())
 	if err != nil {
 		return "", err
@@ -298,7 +324,8 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for ID, order := range resp.Open {
-		symbol := pair.NewCurrencyPairDelimiter(order.Descr.Pair, k.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewPairDelimiter(order.Descr.Pair,
+			k.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.StartTm), 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
 
@@ -315,7 +342,8 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
@@ -340,7 +368,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for ID, order := range resp.Closed {
-		symbol := pair.NewCurrencyPairDelimiter(order.Descr.Pair, k.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewPairDelimiter(order.Descr.Pair,
+			k.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.StartTm), 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
 

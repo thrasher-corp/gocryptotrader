@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -41,9 +41,9 @@ func (o *OKGroup) Run() {
 		return
 	}
 
-	var pairs []string
+	var pairs currency.Pairs
 	for x := range prods {
-		pairs = append(pairs, prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency)
+		pairs = append(pairs, currency.NewPairFromString(prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency))
 	}
 
 	err = o.UpdateCurrencies(pairs, false, false)
@@ -54,29 +54,28 @@ func (o *OKGroup) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKGroup) UpdateTicker(p pair.CurrencyPair, assetType string) (tickerData ticker.Price, err error) {
+func (o *OKGroup) UpdateTicker(p currency.Pair, assetType string) (tickerData ticker.Price, err error) {
 	resp, err := o.GetSpotAllTokenPairsInformationForCurrency(exchange.FormatExchangeCurrency(o.Name, p).String())
 	if err != nil {
 		return
 	}
 	tickerData = ticker.Price{
-		Ask:          resp.BestAsk,
-		Bid:          resp.BestBid,
-		CurrencyPair: exchange.FormatExchangeCurrency(o.Name, p).String(),
-		High:         resp.High24h,
-		Last:         resp.Last,
-		LastUpdated:  resp.Timestamp,
-		Low:          resp.Low24h,
-		Pair:         p,
-		Volume:       resp.BaseVolume24h,
+		Ask:         resp.BestAsk,
+		Bid:         resp.BestBid,
+		High:        resp.High24h,
+		Last:        resp.Last,
+		LastUpdated: resp.Timestamp,
+		Low:         resp.Low24h,
+		Pair:        exchange.FormatExchangeCurrency(o.Name, p),
+		Volume:      resp.BaseVolume24h,
 	}
 
-	ticker.ProcessTicker(o.Name, p, tickerData, assetType)
+	err = ticker.ProcessTicker(o.Name, tickerData, assetType)
 	return
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (o *OKGroup) GetTickerPrice(p pair.CurrencyPair, assetType string) (tickerData ticker.Price, err error) {
+func (o *OKGroup) GetTickerPrice(p currency.Pair, assetType string) (tickerData ticker.Price, err error) {
 	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
 	if err != nil {
 		return o.UpdateTicker(p, assetType)
@@ -85,8 +84,8 @@ func (o *OKGroup) GetTickerPrice(p pair.CurrencyPair, assetType string) (tickerD
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (o *OKGroup) GetOrderbookEx(p pair.CurrencyPair, assetType string) (resp orderbook.Base, err error) {
-	ob, err := orderbook.GetOrderbook(o.GetName(), p, assetType)
+func (o *OKGroup) GetOrderbookEx(p currency.Pair, assetType string) (resp orderbook.Base, err error) {
+	ob, err := orderbook.Get(o.GetName(), p, assetType)
 	if err != nil {
 		return o.UpdateOrderbook(p, assetType)
 	}
@@ -94,7 +93,7 @@ func (o *OKGroup) GetOrderbookEx(p pair.CurrencyPair, assetType string) (resp or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKGroup) UpdateOrderbook(p pair.CurrencyPair, assetType string) (resp orderbook.Base, err error) {
+func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType string) (resp orderbook.Base, err error) {
 	orderbookNew, err := o.GetSpotOrderBook(GetSpotOrderBookRequest{
 		InstrumentID: exchange.FormatExchangeCurrency(o.Name, p).String(),
 	})
@@ -103,12 +102,12 @@ func (o *OKGroup) UpdateOrderbook(p pair.CurrencyPair, assetType string) (resp o
 	}
 
 	for x := range orderbookNew.Bids {
-		amount, err := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
-		if err != nil {
+		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
+		if convErr != nil {
 			log.Errorf("Could not convert %v to float64", orderbookNew.Bids[x][1])
 		}
-		price, err := strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
-		if err != nil {
+		price, convErr := strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
+		if convErr != nil {
 			log.Errorf("Could not convert %v to float64", orderbookNew.Bids[x][0])
 		}
 		resp.Bids = append(resp.Bids, orderbook.Item{
@@ -118,12 +117,12 @@ func (o *OKGroup) UpdateOrderbook(p pair.CurrencyPair, assetType string) (resp o
 	}
 
 	for x := range orderbookNew.Asks {
-		amount, err := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
-		if err != nil {
+		amount, convErr := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
+		if convErr != nil {
 			log.Errorf("Could not convert %v to float64", orderbookNew.Asks[x][1])
 		}
-		price, err := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
-		if err != nil {
+		price, convErr := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
+		if convErr != nil {
 			log.Errorf("Could not convert %v to float64", orderbookNew.Asks[x][0])
 		}
 		resp.Asks = append(resp.Asks, orderbook.Item{
@@ -132,8 +131,16 @@ func (o *OKGroup) UpdateOrderbook(p pair.CurrencyPair, assetType string) (resp o
 		})
 	}
 
-	orderbook.ProcessOrderbook(o.GetName(), p, resp, assetType)
-	return orderbook.GetOrderbook(o.Name, p, assetType)
+	resp.Pair = p
+	resp.AssetType = assetType
+	resp.ExchangeName = o.Name
+
+	err = resp.Process()
+	if err != nil {
+		return
+	}
+
+	return orderbook.Get(o.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies
@@ -152,7 +159,7 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 			log.Errorf("Could not convert %v to float64", curr.Balance)
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies, exchange.AccountCurrencyInfo{
-			CurrencyName: curr.ID,
+			CurrencyName: currency.NewCode(curr.ID),
 			Hold:         hold,
 			TotalValue:   totalValue,
 		})
@@ -206,12 +213,12 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKGroup) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (resp exchange.SubmitOrderResponse, err error) {
+func (o *OKGroup) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (resp exchange.SubmitOrderResponse, err error) {
 	request := PlaceSpotOrderRequest{
 		ClientOID:    clientID,
 		InstrumentID: exchange.FormatExchangeCurrency(o.Name, p).String(),
@@ -292,8 +299,9 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err e
 		return
 	}
 	resp = exchange.OrderDetail{
-		Amount:         order.Size,
-		CurrencyPair:   pair.NewCurrencyPairDelimiter(order.InstrumentID, o.ConfigCurrencyPairFormat.Delimiter),
+		Amount: order.Size,
+		CurrencyPair: currency.NewPairDelimiter(order.InstrumentID,
+			o.ConfigCurrencyPairFormat.Delimiter),
 		Exchange:       o.Name,
 		OrderDate:      order.Timestamp,
 		ExecutedAmount: order.FilledSize,
@@ -304,7 +312,7 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err e
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKGroup) GetDepositAddress(p pair.CurrencyItem, accountID string) (_ string, err error) {
+func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (_ string, err error) {
 	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())
 	if err != nil {
 		return
