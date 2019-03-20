@@ -200,7 +200,7 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 func (k *Kraken) GetPlatformHistory(p currency.Pair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.PlatformTrade, error) {
 	var resp []exchange.PlatformTrade
 	ID, err := strconv.ParseInt(tradeID, 10, 64)
-	if err != nil {
+	if err != nil && tradeID != "" {
 		return resp, err
 	}
 
