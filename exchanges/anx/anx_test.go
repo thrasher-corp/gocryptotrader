@@ -210,9 +210,6 @@ func TestGetFee(t *testing.T) {
 	}
 }
 
-func BenchmarkGetFree(b *testing.B) {
-
-}
 func TestFormatWithdrawPermissions(t *testing.T) {
 	a.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " +
