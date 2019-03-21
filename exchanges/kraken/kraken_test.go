@@ -581,3 +581,155 @@ func TestWithdrawCancel(t *testing.T) {
 		t.Errorf("Test Failed - WithdrawCancel() error - expecting an error when no keys are set but received nil")
 	}
 }
+
+// ---------------------------- Websocket tests -----------------------------------------
+
+func websocketSetup(t *testing.T) {
+	if k.WebsocketConn == nil {
+		k.Websocket.Shutdown()
+		if !k.Websocket.IsEnabled() {
+			err := k.WebsocketSetup(k.WsConnect,
+				k.Name,
+				true,
+				krakenWSURL,
+				krakenWSURL)
+			if err != nil {
+				t.Error(err)
+			}
+			k.Websocket.DataHandler = make(chan interface{}, 500)
+			k.Websocket.SetWsStatusAndConnection(true)
+		}
+	}
+	if !k.Websocket.IsConnected() {
+		t.Skip("Could not connect to websocket. Skipping")
+	}
+}
+
+func TestConnectToWebsocket(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+	websocketSetup(t)
+}
+
+func TestSubscribeToChannel(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+	websocketSetup(t)
+	err := k.WsSubscribeToChannel("ticker", []string{"XBT/USD"}, 1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubscribeToPewdiepie(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+	websocketSetup(t)
+	err := k.WsSubscribeToChannel("ticker", []string{"pewdiepie"}, 1)
+	if err != nil {
+		t.Error(err)
+	}
+	subscriptionError := false
+	for i := 0; i < 3; i++ {
+		response := <-k.Websocket.DataHandler
+		if err, ok := response.(error); ok && err != nil {
+			subscriptionError = true
+			t.Log(err)
+			break
+		}
+	}
+	if !subscriptionError {
+		t.Error("Expected error")
+	}
+}
+
+func TestSubscribeUnsubscribeToChannel(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+	websocketSetup(t)
+	err := k.WsSubscribeToChannel("ticker", []string{"XBT/USD"}, 1)
+	if err != nil {
+		t.Error(err)
+	}
+	err = k.WsUnsubscribeToChannel("ticker", []string{"XBT/USD"}, 2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUnsubscribeWithoutSubscription(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+	websocketSetup(t)
+	err := k.WsUnsubscribeToChannel("ticker", []string{"XBT/USD"}, 3)
+	if err != nil {
+		t.Error(err)
+	}
+	unsubscriptionError := false
+	for i := 0; i < 5; i++ {
+		response := <-k.Websocket.DataHandler
+		if err, ok := response.(error); ok && err != nil {
+			t.Log(err)
+			if err.Error() == "Subscription Not Found" {
+				unsubscriptionError = true
+				break
+			}
+		}
+	}
+	if !unsubscriptionError {
+		t.Error("Expected error")
+	}
+}
+
+func TestUnsubscribeWithChannelID(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+	websocketSetup(t)
+	err := k.WsUnsubscribeToChannelByChannelID(3)
+	if err != nil {
+		t.Error(err)
+	}
+	unsubscriptionError := false
+	for i := 0; i < 5; i++ {
+		response := <-k.Websocket.DataHandler
+		if err, ok := response.(error); ok && err != nil {
+			t.Log(err)
+			if err.Error() == "Subscription Not Found" {
+				unsubscriptionError = true
+				break
+			}
+		}
+	}
+	if !unsubscriptionError {
+		t.Error("Expected error")
+	}
+}
+
+func TestUnsubscribeFromTSeries(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+	websocketSetup(t)
+	err := k.WsUnsubscribeToChannel("ticker", []string{"tseries"}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	unsubscriptionError := false
+	for i := 0; i < 3; i++ {
+		response := <-k.Websocket.DataHandler
+		if err, ok := response.(error); ok && err != nil {
+			t.Log(err)
+			unsubscriptionError = true
+			break
+		}
+	}
+	if !unsubscriptionError {
+		t.Error("Expected error")
+	}
+}

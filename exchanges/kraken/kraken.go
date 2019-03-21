@@ -7,8 +7,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -56,7 +58,9 @@ const (
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
+	WebsocketConn      *websocket.Conn
 	CryptoFee, FiatFee float64
+	mu                 sync.Mutex
 }
 
 // SetDefaults sets current default settings
@@ -85,6 +89,7 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
+	k.WebsocketURL = krakenWSURL
 	k.WebsocketInit()
 }
 
@@ -120,6 +125,14 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = k.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = k.WebsocketSetup(k.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			krakenWSURL,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}
