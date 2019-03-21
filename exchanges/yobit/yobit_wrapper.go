@@ -184,7 +184,7 @@ func (y *Yobit) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType 
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (y *Yobit) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (y *Yobit) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

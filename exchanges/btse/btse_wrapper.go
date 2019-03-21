@@ -161,7 +161,7 @@ func (b *BTSE) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType e
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTSE) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (b *BTSE) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

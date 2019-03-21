@@ -209,7 +209,7 @@ func (h *HitBTC) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HitBTC) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (h *HitBTC) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

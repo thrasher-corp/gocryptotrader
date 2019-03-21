@@ -231,7 +231,7 @@ func (l *LocalBitcoins) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ 
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LocalBitcoins) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (l *LocalBitcoins) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

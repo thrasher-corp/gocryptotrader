@@ -236,7 +236,7 @@ func (g *Gateio) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchang
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gateio) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (g *Gateio) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

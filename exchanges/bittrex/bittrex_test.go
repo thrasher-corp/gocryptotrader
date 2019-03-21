@@ -436,7 +436,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	_, err := b.ModifyOrder(exchange.ModifyOrder{})
+	_, err := b.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
 	}

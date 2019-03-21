@@ -202,7 +202,7 @@ func (b *BTCMarkets) SubmitOrder(p currency.Pair, side exchange.OrderSide, order
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTCMarkets) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (b *BTCMarkets) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

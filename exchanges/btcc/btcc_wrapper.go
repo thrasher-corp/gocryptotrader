@@ -109,7 +109,7 @@ func (b *BTCC) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType e
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTCC) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (b *BTCC) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
