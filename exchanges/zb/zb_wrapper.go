@@ -217,7 +217,7 @@ func (z *ZB) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.Or
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (z *ZB) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (z *ZB) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

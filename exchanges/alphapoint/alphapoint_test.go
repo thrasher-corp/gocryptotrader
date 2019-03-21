@@ -619,7 +619,7 @@ func TestModifyOrder(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
 
-	_, err := a.ModifyOrder(exchange.ModifyOrder{})
+	_, err := a.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
 	}

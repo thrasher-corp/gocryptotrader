@@ -207,7 +207,7 @@ func (b *Bitmex) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitmex) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (b *Bitmex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	var params OrderAmendParams
 
 	if math.Mod(action.Amount, 1) != 0 {

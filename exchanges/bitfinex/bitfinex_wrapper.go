@@ -216,7 +216,7 @@ func (b *Bitfinex) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTy
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitfinex) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (b *Bitfinex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

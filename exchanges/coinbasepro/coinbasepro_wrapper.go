@@ -214,7 +214,7 @@ func (c *CoinbasePro) SubmitOrder(p currency.Pair, side exchange.OrderSide, orde
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *CoinbasePro) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (c *CoinbasePro) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

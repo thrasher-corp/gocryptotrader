@@ -1949,7 +1949,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	_, err := o.ModifyOrder(exchange.ModifyOrder{})
+	_, err := o.ModifyOrder(&exchange.ModifyOrder{})
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}

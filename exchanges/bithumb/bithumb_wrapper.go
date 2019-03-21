@@ -215,7 +215,7 @@ func (b *Bithumb) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchan
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bithumb) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (b *Bithumb) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	order, err := b.ModifyTrade(action.OrderID,
 		action.CurrencyPair.Base.String(),
 		common.StringToLower(action.OrderSide.ToString()),
