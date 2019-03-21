@@ -21,24 +21,12 @@ const (
 	canManipulateRealOrders = false
 )
 
-var o = OKCoin{}
+var o OKCoin
 var testSetupRan bool
 var spotCurrency = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Lower().String()
 
 // TestSetDefaults Sets standard default settings for running a test
 func TestSetDefaults(t *testing.T) {
-	if o.Name != OKGroupExchange {
-		o.SetDefaults()
-	}
-	if o.GetName() != OKGroupExchange {
-		t.Errorf("Test Failed - %v - SetDefaults() error", OKGroupExchange)
-	}
-	TestSetup(t)
-	t.Parallel()
-}
-
-// TestSetWsDefaults Sets websocket defaults
-func TestSetWsDefaults(t *testing.T) {
 	if o.Name != OKGroupExchange {
 		o.SetDefaults()
 	}
@@ -852,10 +840,8 @@ func TestWsLogin(t *testing.T) {
 
 // TestSubscribeToChannel API endpoint test
 func TestSubscribeToChannel(t *testing.T) {
-	defer disconnectFromWS()
-	TestSetWsDefaults(t)
+	TestSetDefaults(t)
 	if o.WebsocketConn == nil {
-		o.Websocket.Shutdown()
 		err := setupWSConnection()
 		if err != nil {
 			t.Error(err)
@@ -864,6 +850,7 @@ func TestSubscribeToChannel(t *testing.T) {
 	if !o.Websocket.IsConnected() {
 		t.Skip()
 	}
+	defer disconnectFromWS()
 	channelName := "spot/depth:LTC-BTC"
 	err := o.WsSubscribeToChannel(channelName)
 	if err != nil {
@@ -890,7 +877,7 @@ func TestSubscribeToChannel(t *testing.T) {
 // Then captures the error response
 func TestSubscribeToNonExistantChannel(t *testing.T) {
 	defer disconnectFromWS()
-	TestSetWsDefaults(t)
+	TestSetDefaults(t)
 	if o.WebsocketConn == nil {
 		o.Websocket.Shutdown()
 		err := setupWSConnection()
