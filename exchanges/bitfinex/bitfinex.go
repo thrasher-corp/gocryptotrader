@@ -145,7 +145,7 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(exch)
+		err = b.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -616,48 +616,35 @@ func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, payment
 			&response)
 }
 
-// WithdrawFIAT requests a withdrawal from one of your wallets.
-// For Cryptocurrency, use WithdrawCryptocurrency
-func (b *Bitfinex) WithdrawFIAT(withdrawType, wallet, wireCurrency,
-	accountName, bankName, bankAddress, bankCity, bankCountry, swift,
-	transactionMessage, intermediaryBankName, intermediaryBankAddress,
-	intermediaryBankCity, intermediaryBankCountry, intermediaryBankSwift string,
-	amount, accountNumber, intermediaryBankAccountNumber float64, isExpressWire,
-	requiresIntermediaryBank bool) ([]Withdrawal, error) {
+func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *exchange.WithdrawRequest) ([]Withdrawal, error) {
 	response := []Withdrawal{}
 	req := make(map[string]interface{})
-	req["withdraw_type"] = withdrawType
-	req["walletselected"] = wallet
-	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	req["account_name"] = accountName
-	req["account_number"] = strconv.FormatFloat(accountNumber, 'f', -1, 64)
-	req["bank_name"] = bankName
-	req["bank_address"] = bankAddress
-	req["bank_city"] = bankCity
-	req["bank_country"] = bankCountry
-	req["expressWire"] = isExpressWire
-	req["swift"] = swift
-	req["detail_payment"] = transactionMessage
-	req["currency"] = wireCurrency
-	req["account_address"] = bankAddress
 
-	if requiresIntermediaryBank {
-		req["intermediary_bank_name"] = intermediaryBankName
-		req["intermediary_bank_address"] = intermediaryBankAddress
-		req["intermediary_bank_city"] = intermediaryBankCity
-		req["intermediary_bank_country"] = intermediaryBankCountry
-		req["intermediary_bank_account"] = strconv.FormatFloat(intermediaryBankAccountNumber,
-			'f',
-			-1,
-			64)
-		req["intermediary_bank_swift"] = intermediaryBankSwift
+	req["withdraw_type"] = withdrawalType
+	req["walletselected"] = walletType
+	req["amount"] = strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
+	req["account_name"] = withdrawRequest.BankAccountName
+	req["account_number"] = strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64)
+	req["bank_name"] = withdrawRequest.BankName
+	req["bank_address"] = withdrawRequest.BankAddress
+	req["bank_city"] = withdrawRequest.BankCity
+	req["bank_country"] = withdrawRequest.BankCountry
+	req["expressWire"] = withdrawRequest.IsExpressWire
+	req["swift"] = withdrawRequest.SwiftCode
+	req["detail_payment"] = withdrawRequest.Description
+	req["currency"] = withdrawRequest.WireCurrency
+	req["account_address"] = withdrawRequest.BankAddress
+
+	if withdrawRequest.RequiresIntermediaryBank {
+		req["intermediary_bank_name"] = withdrawRequest.IntermediaryBankName
+		req["intermediary_bank_address"] = withdrawRequest.IntermediaryBankAddress
+		req["intermediary_bank_city"] = withdrawRequest.IntermediaryBankCity
+		req["intermediary_bank_country"] = withdrawRequest.IntermediaryBankCountry
+		req["intermediary_bank_account"] = strconv.FormatFloat(withdrawRequest.IntermediaryBankAccountNumber, 'f', -1, 64)
+		req["intermediary_bank_swift"] = withdrawRequest.IntermediarySwiftCode
 	}
 
-	return response,
-		b.SendAuthenticatedHTTPRequest(http.MethodPost,
-			bitfinexWithdrawal,
-			req,
-			&response)
+	return response, b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexWithdrawal, req, &response)
 }
 
 // NewOrder submits a new order and returns a order information
@@ -1065,7 +1052,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bitfinex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

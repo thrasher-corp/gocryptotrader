@@ -115,7 +115,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = k.SetAPIURL(exch)
+		err = k.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -957,7 +957,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (k *Kraken) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	c := feeBuilder.Pair.Base.String() +
 		feeBuilder.Pair.Delimiter +

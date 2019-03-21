@@ -127,12 +127,12 @@ func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action exchange.ModifyOrder) 
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order exchange.OrderCancellation) error {
+func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order *exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
 }
 
@@ -148,19 +148,19 @@ func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency pair.Cur
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
@@ -170,13 +170,13 @@ func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*exchange.Websocket, erro
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

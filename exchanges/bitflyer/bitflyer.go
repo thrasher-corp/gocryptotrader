@@ -130,7 +130,7 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(exch)
+		err = b.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -393,7 +393,7 @@ func (b *Bitflyer) SendAuthHTTPRequest() {
 
 // GetFee returns an estimate of fee based on type of transaction
 // TODO: Figure out the weird fee structure. Do we use Bitcoin Easy Exchange,Lightning Spot,Bitcoin Market,Lightning FX/Futures ???
-func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bitflyer) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

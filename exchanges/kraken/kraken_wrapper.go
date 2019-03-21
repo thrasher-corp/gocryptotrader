@@ -233,14 +233,14 @@ func (k *Kraken) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (k *Kraken) CancelOrder(order exchange.OrderCancellation) error {
+func (k *Kraken) CancelOrder(order *exchange.OrderCancellation) error {
 	_, err := k.CancelExistingOrder(order.OrderID)
 
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (k *Kraken) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (k *Kraken) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -289,19 +289,19 @@ func (k *Kraken) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal
 // Populate exchange.WithdrawRequest.TradePassword with withdrawal key name, as set up on your account
-func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (k *Kraken) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return k.WithdrawCryptocurrencyFunds(withdrawRequest)
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return k.WithdrawCryptocurrencyFunds(withdrawRequest)
 }
 
@@ -311,12 +311,12 @@ func (k *Kraken) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return k.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := k.GetOpenOrders(OrderInfoOptions{})
 	if err != nil {
 		return nil, err
@@ -352,7 +352,7 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	req := GetClosedOrdersOptions{}
 	if getOrdersRequest.StartTicks.Unix() > 0 {
 		req.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks.Unix())

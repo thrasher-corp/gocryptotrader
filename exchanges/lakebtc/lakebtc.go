@@ -95,7 +95,7 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = l.SetAPIURL(exch)
+		err = l.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -375,7 +375,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (l *LakeBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (l *LakeBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

@@ -317,17 +317,17 @@ type IBotExchange interface {
 	GetFundingHistory() ([]FundHistory, error)
 	SubmitOrder(p currency.Pair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
 	ModifyOrder(action ModifyOrder) (string, error)
-	CancelOrder(order OrderCancellation) error
-	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
+	CancelOrder(order *OrderCancellation) error
+	CancelAllOrders(orders *OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID string) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
 
-	GetOrderHistory(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
-	GetActiveOrders(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
+	GetOrderHistory(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
+	GetActiveOrders(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
 
-	WithdrawCryptocurrencyFunds(withdrawRequest WithdrawRequest) (string, error)
-	WithdrawFiatFunds(withdrawRequest WithdrawRequest) (string, error)
-	WithdrawFiatFundsToInternationalBank(withdrawRequest WithdrawRequest) (string, error)
+	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
+	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
+	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
 
 	GetWebsocket() (*Websocket, error)
 }
@@ -858,7 +858,7 @@ func (o OrderSide) ToString() string {
 }
 
 // SetAPIURL sets configuration API URL for an exchange
-func (e *Base) SetAPIURL(ec config.ExchangeConfig) error {
+func (e *Base) SetAPIURL(ec *config.ExchangeConfig) error {
 	if ec.APIURL == "" || ec.APIURLSecondary == "" {
 		return errors.New("empty config API URLs")
 	}

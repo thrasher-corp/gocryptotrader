@@ -809,7 +809,7 @@ func TestUpdateCurrencies(t *testing.T) {
 	}
 }
 
-func TestAPIURL(t *testing.T) {
+func TestSetAPIURL(t *testing.T) {
 	testURL := "https://api.something.com"
 	testURLSecondary := "https://api.somethingelse.com"
 	testURLDefault := "https://api.defaultsomething.com"
@@ -819,7 +819,7 @@ func TestAPIURL(t *testing.T) {
 
 	test := config.ExchangeConfig{}
 
-	err := tester.SetAPIURL(test)
+	err := tester.SetAPIURL(&test)
 	if err == nil {
 		t.Error("test failed - setting zero value config")
 	}
@@ -830,7 +830,7 @@ func TestAPIURL(t *testing.T) {
 	tester.APIUrlDefault = testURLDefault
 	tester.APIUrlSecondaryDefault = testURLSecondaryDefault
 
-	err = tester.SetAPIURL(test)
+	err = tester.SetAPIURL(&test)
 	if err != nil {
 		t.Error("test failed", err)
 	}
@@ -849,6 +849,25 @@ func TestAPIURL(t *testing.T) {
 
 	if tester.GetAPIURLSecondaryDefault() != testURLSecondaryDefault {
 		t.Error("test failed - incorrect return URL")
+	}
+}
+
+func BenchmarkSetAPIURL(b *testing.B) {
+	tester := Base{Name: "test"}
+
+	test := config.ExchangeConfig{}
+
+	test.APIURL = "https://api.something.com"
+	test.APIURLSecondary = "https://api.somethingelse.com"
+
+	tester.APIUrlDefault = "https://api.defaultsomething.com"
+	tester.APIUrlSecondaryDefault = "https://api.defaultsomethingelse.com"
+
+	for i := 0; i < b.N; i++ {
+		err := tester.SetAPIURL(&test)
+		if err != nil {
+			b.Errorf("Benchmark failed %v", err)
+		}
 	}
 }
 

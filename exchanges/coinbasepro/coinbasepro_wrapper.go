@@ -219,12 +219,12 @@ func (c *CoinbasePro) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *CoinbasePro) CancelOrder(order exchange.OrderCancellation) error {
+func (c *CoinbasePro) CancelOrder(order *exchange.OrderCancellation) error {
 	return c.CancelExistingOrder(order.OrderID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *CoinbasePro) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (c *CoinbasePro) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	// CancellAllExisting orders returns a list of successful cancellations, we're only interested in failures
 	_, err := c.CancelAllExistingOrders("")
 	return exchange.CancelAllOrdersResponse{}, err
@@ -243,14 +243,14 @@ func (c *CoinbasePro) GetDepositAddress(cryptocurrency currency.Code, accountID 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	resp, err := c.WithdrawCrypto(withdrawRequest.Amount, withdrawRequest.Currency.String(), withdrawRequest.Address)
 	return resp.ID, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	paymentMethods, err := c.GetPayMethods()
 	if err != nil {
 		return "", err
@@ -277,7 +277,7 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return c.WithdrawFiatFunds(withdrawRequest)
 }
 
@@ -287,12 +287,12 @@ func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (c *CoinbasePro) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return c.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var respOrders []GeneralizedOrderResponse
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"open", "pending", "active"},
@@ -336,7 +336,7 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var respOrders []GeneralizedOrderResponse
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"done", "settled"},

@@ -221,7 +221,7 @@ func (b *Bitfinex) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitfinex) CancelOrder(order exchange.OrderCancellation) error {
+func (b *Bitfinex) CancelOrder(order *exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
@@ -234,7 +234,7 @@ func (b *Bitfinex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitfinex) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (b *Bitfinex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	_, err := b.CancelAllExistingOrders()
 	return exchange.CancelAllOrdersResponse{}, err
 }
@@ -261,7 +261,7 @@ func (b *Bitfinex) GetDepositAddress(cryptocurrency currency.Code, accountID str
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	withdrawalType := b.ConvertSymbolToWithdrawalType(withdrawRequest.Currency)
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -285,19 +285,13 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdraw
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
-func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	withdrawalType := "wire"
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
 	walletType := "exchange"
-	resp, err := b.WithdrawFIAT(withdrawalType, walletType, withdrawRequest.WireCurrency,
-		withdrawRequest.BankAccountName, withdrawRequest.BankName, withdrawRequest.BankAddress,
-		withdrawRequest.BankCity, withdrawRequest.BankCountry, withdrawRequest.SwiftCode,
-		withdrawRequest.Description, withdrawRequest.IntermediaryBankName, withdrawRequest.IntermediaryBankAddress,
-		withdrawRequest.IntermediaryBankCity, withdrawRequest.IntermediaryBankCountry, withdrawRequest.IntermediarySwiftCode,
-		withdrawRequest.Amount, withdrawRequest.BankAccountNumber, withdrawRequest.IntermediaryBankAccountNumber,
-		withdrawRequest.IsExpressWire, withdrawRequest.RequiresIntermediaryBank)
+	resp, err := b.WithdrawFIAT(withdrawalType, walletType, withdrawRequest)
 	if err != nil {
 		return "", err
 	}
@@ -324,7 +318,7 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
-func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return b.WithdrawFiatFunds(withdrawRequest)
 }
 
@@ -334,12 +328,12 @@ func (b *Bitfinex) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bitfinex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Bitfinex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	resp, err := b.GetOpenOrders()
 	if err != nil {
@@ -399,7 +393,7 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Bitfinex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	resp, err := b.GetInactiveOrders()
 	if err != nil {

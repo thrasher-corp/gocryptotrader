@@ -97,7 +97,7 @@ func (b *BTSE) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(exch)
+		err = b.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -305,7 +305,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *BTSE) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *BTSE) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

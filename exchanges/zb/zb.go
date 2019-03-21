@@ -110,7 +110,7 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = z.SetAPIURL(exch)
+		err = z.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -415,7 +415,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (z *ZB) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (z *ZB) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
