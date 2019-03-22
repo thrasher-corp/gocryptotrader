@@ -122,7 +122,7 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = c.SetAPIURL(exch)
+		err = c.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -835,7 +835,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (c *CoinbasePro) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (c *CoinbasePro) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

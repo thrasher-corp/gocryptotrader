@@ -164,7 +164,7 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(exch)
+		err = b.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -935,7 +935,7 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitmex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *Bitmex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	var err error
 

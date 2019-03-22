@@ -131,7 +131,7 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = o.SetAPIURL(exch)
+		err = o.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -247,7 +247,7 @@ func (o *OKGroup) GetSpotBillDetailsForCurrency(request GetSpotBillDetailsForCur
 // PlaceSpotOrder token trading only supports limit and market orders (more order types will become available in the future).
 // You can place an order only if you have enough funds.
 // Once your order is placed, the amount will be put on hold.
-func (o *OKGroup) PlaceSpotOrder(request PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
+func (o *OKGroup) PlaceSpotOrder(request *PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupOrders, request, &resp, true)
 }
 
@@ -448,7 +448,7 @@ func (o *OKGroup) RepayMarginLoan(request RepayMarginLoanRequest) (resp RepayMar
 
 // PlaceMarginOrder OKEx API only supports limit and market orders (more orders will become available in the future).
 // You can place an order only if you have enough funds. Once your order is placed, the amount will be put on hold.
-func (o *OKGroup) PlaceMarginOrder(request PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
+func (o *OKGroup) PlaceMarginOrder(request *PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, OKGroupOrders, request, &resp, true)
 }
 
@@ -665,7 +665,7 @@ func (o *OKGroup) SetCheckVarDefaults() {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (o *OKGroup) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, _ error) {
+func (o *OKGroup) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, _ error) {
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)

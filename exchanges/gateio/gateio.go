@@ -109,7 +109,7 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.SetAPIURL(exch)
+		err = g.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -508,7 +508,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (g *Gateio) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, err error) {
+func (g *Gateio) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, err error) {
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		feePairs, err := g.GetMarketInfo()

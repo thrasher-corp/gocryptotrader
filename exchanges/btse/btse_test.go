@@ -110,7 +110,7 @@ func TestGetActiveOrders(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := b.GetActiveOrders(getOrdersRequest)
+	_, err := b.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -125,7 +125,7 @@ func TestGetOrderHistory(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := b.GetOrderHistory(getOrdersRequest)
+	_, err := b.GetOrderHistory(&getOrdersRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Fatal("Test failed. Expected different result")
 	}
@@ -144,7 +144,7 @@ func TestGetFee(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	feeBuilder := exchange.FeeBuilder{
+	feeBuilder := &exchange.FeeBuilder{
 		FeeType: exchange.CryptocurrencyTradeFee,
 		Pair:    currency.NewPair(currency.BTC, currency.USD),
 		IsMaker: true,
@@ -250,7 +250,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		currency.USD.String(),
 		"-")
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "0b66ccaf-dfd4-4b9f-a30b-2380b9c7b66d",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -278,7 +278,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		currency.USD.String(),
 		"-")
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",

@@ -104,7 +104,7 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(exch)
+		err = b.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -487,7 +487,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *BTCMarkets) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

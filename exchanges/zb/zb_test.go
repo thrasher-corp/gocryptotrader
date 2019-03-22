@@ -125,8 +125,8 @@ func TestGetSpotKline(t *testing.T) {
 	}
 }
 
-func setFeeBuilder() exchange.FeeBuilder {
-	return exchange.FeeBuilder{
+func setFeeBuilder() *exchange.FeeBuilder {
+	return &exchange.FeeBuilder{
 		Amount:  1,
 		FeeType: exchange.CryptocurrencyTradeFee,
 		Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
@@ -237,7 +237,7 @@ func TestGetActiveOrders(t *testing.T) {
 			currency.BTC)},
 	}
 
-	_, err := z.GetActiveOrders(getOrdersRequest)
+	_, err := z.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -256,7 +256,7 @@ func TestGetOrderHistory(t *testing.T) {
 			currency.BTC)},
 	}
 
-	_, err := z.GetOrderHistory(getOrdersRequest)
+	_, err := z.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -313,7 +313,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -339,7 +339,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -396,7 +396,7 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := z.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := z.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -415,7 +415,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := z.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := z.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -431,7 +431,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := z.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := z.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}

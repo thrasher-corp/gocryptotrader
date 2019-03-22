@@ -234,7 +234,7 @@ func TestCancelOrders(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	_, err := b.CancelAllExistingOrders(OrderCancelAllParams{})
 	if err == nil {
-		t.Error("test failed - CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error)", err)
+		t.Error("test failed - CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error)", err)
 	}
 }
 
@@ -360,8 +360,8 @@ func TestGetPreviousTrades(t *testing.T) {
 	}
 }
 
-func setFeeBuilder() exchange.FeeBuilder {
-	return exchange.FeeBuilder{
+func setFeeBuilder() *exchange.FeeBuilder {
+	return &exchange.FeeBuilder{
 		Amount:        1,
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
@@ -461,7 +461,7 @@ func TestGetActiveOrders(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := b.GetActiveOrders(getOrdersRequest)
+	_, err := b.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -479,7 +479,7 @@ func TestGetOrderHistory(t *testing.T) {
 			currency.BTC)},
 	}
 
-	_, err := b.GetOrderHistory(getOrdersRequest)
+	_, err := b.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -528,7 +528,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -554,7 +554,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -611,7 +611,7 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := b.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -630,7 +630,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -646,7 +646,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}

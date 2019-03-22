@@ -76,7 +76,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(exch)
+		err = b.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -96,7 +96,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *BTCC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (b *BTCC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

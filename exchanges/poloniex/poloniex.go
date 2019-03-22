@@ -117,7 +117,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.SetAPIURL(exch)
+		err = p.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -899,7 +899,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (p *Poloniex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (p *Poloniex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

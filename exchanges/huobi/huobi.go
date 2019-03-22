@@ -128,7 +128,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.SetAPIURL(exch)
+		err = h.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -912,7 +912,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (h *HUOBI) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (h *HUOBI) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)

@@ -220,8 +220,8 @@ func TestCancelExistingOrder(t *testing.T) {
 	}
 }
 
-func setFeeBuilder() exchange.FeeBuilder {
-	return exchange.FeeBuilder{
+func setFeeBuilder() *exchange.FeeBuilder {
+	return &exchange.FeeBuilder{
 		Amount:              1,
 		FeeType:             exchange.CryptocurrencyTradeFee,
 		Pair:                currency.NewPair(currency.XXBT, currency.ZUSD),
@@ -332,7 +332,7 @@ func TestGetActiveOrders(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := k.GetActiveOrders(getOrdersRequest)
+	_, err := k.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -348,7 +348,7 @@ func TestGetOrderHistory(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := k.GetOrderHistory(getOrdersRequest)
+	_, err := k.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -397,7 +397,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -423,7 +423,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -480,7 +480,7 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := k.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := k.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -505,7 +505,7 @@ func TestWithdrawFiat(t *testing.T) {
 		TradePassword: "someBank",
 	}
 
-	_, err := k.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := k.WithdrawFiatFunds(&withdrawFiatRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -530,7 +530,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		TradePassword: "someBank",
 	}
 
-	_, err := k.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := k.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}

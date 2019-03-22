@@ -294,14 +294,14 @@ func (a *ANX) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *ANX) CancelOrder(order exchange.OrderCancellation) error {
+func (a *ANX) CancelOrder(order *exchange.OrderCancellation) error {
 	orderIDs := []string{order.OrderID}
 	_, err := a.CancelOrderByIDs(orderIDs)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (a *ANX) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (a *ANX) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -342,20 +342,20 @@ func (a *ANX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string,
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.Address, "", fmt.Sprintf("%v", withdrawRequest.Amount))
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (a *ANX) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	// Fiat withdrawals available via website
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (a *ANX) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	// Fiat withdrawals available via website
 	return "", common.ErrFunctionNotSupported
 }
@@ -366,12 +366,12 @@ func (a *ANX) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (a *ANX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return a.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (a *ANX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := a.GetOrderList(true)
 	if err != nil {
 		return nil, err
@@ -407,7 +407,7 @@ func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (a *ANX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := a.GetOrderList(false)
 	if err != nil {
 		return nil, err

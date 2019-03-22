@@ -105,7 +105,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = y.SetAPIURL(exch)
+		err = y.SetAPIURL(&exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -385,7 +385,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (y *Yobit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (y *Yobit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

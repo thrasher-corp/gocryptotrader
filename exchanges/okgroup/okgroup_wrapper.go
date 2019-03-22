@@ -230,7 +230,7 @@ func (o *OKGroup) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTyp
 		request.Price = strconv.FormatFloat(price, 'f', -1, 64)
 	}
 
-	orderResponse, err := o.PlaceSpotOrder(request)
+	orderResponse, err := o.PlaceSpotOrder(&request)
 	if err != nil {
 		return
 	}
@@ -247,7 +247,7 @@ func (o *OKGroup) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKGroup) CancelOrder(orderCancellation exchange.OrderCancellation) (err error) {
+func (o *OKGroup) CancelOrder(orderCancellation *exchange.OrderCancellation) (err error) {
 	orderID, err := strconv.ParseInt(orderCancellation.OrderID, 10, 64)
 	if err != nil {
 		return
@@ -264,7 +264,7 @@ func (o *OKGroup) CancelOrder(orderCancellation exchange.OrderCancellation) (err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, _ error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, _ error) {
 	orderIDs := strings.Split(orderCancellation.OrderID, ",")
 	var orderIDNumbers []int64
 	for _, i := range orderIDs {
@@ -322,7 +322,7 @@ func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (_ string
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
@@ -343,18 +343,18 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKGroup) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
+func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
 			InstrumentID: exchange.FormatExchangeCurrency(o.Name, currency).String(),
@@ -379,7 +379,7 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (r
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKGroup) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
+func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
 			InstrumentID: exchange.FormatExchangeCurrency(o.Name, currency).String(),
@@ -408,7 +408,7 @@ func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (o *OKGroup) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return o.GetFee(feeBuilder)
 }
 

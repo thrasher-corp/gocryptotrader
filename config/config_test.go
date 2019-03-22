@@ -916,23 +916,37 @@ func TestUpdateConfig(t *testing.T) {
 	}
 
 	newCfg := c
-	err = c.UpdateConfig(ConfigTestFile, newCfg)
+	err = c.UpdateConfig(ConfigTestFile, &newCfg)
 	if err != nil {
 		t.Fatalf("Test failed. %s", err)
 	}
 
-	err = c.UpdateConfig("//non-existantpath\\", newCfg)
+	err = c.UpdateConfig("//non-existantpath\\", &newCfg)
 	if err == nil {
 		t.Fatalf("Test failed. Error should of been thrown for invalid path")
 	}
 
 	newCfg.Currency.Cryptocurrencies = currency.NewCurrenciesFromStringArray([]string{""})
-	err = c.UpdateConfig(ConfigTestFile, newCfg)
+	err = c.UpdateConfig(ConfigTestFile, &newCfg)
 	if err != nil {
 		t.Errorf("Test failed. %s", err)
 	}
 	if c.Currency.Cryptocurrencies.Join() == "" {
 		t.Fatalf("Test failed. Cryptocurrencies should have been repopulated")
+	}
+}
+
+func BenchmarkUpdateConfig(b *testing.B) {
+	var c Config
+
+	err := c.LoadConfig(ConfigTestFile)
+	if err != nil {
+		b.Errorf("Unable to benchmark UpdateConfig(): %s", err)
+	}
+
+	newCfg := c
+	for i := 0; i < b.N; i++ {
+		_ = c.UpdateConfig(ConfigTestFile, &newCfg)
 	}
 }
 
