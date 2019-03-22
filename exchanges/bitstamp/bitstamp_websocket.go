@@ -107,7 +107,7 @@ func (b *Bitstamp) WsConnect() error {
 			return err
 		}
 
-		var newOrderbook orderbook.Base
+		var newOrderBook orderbook.Base
 
 		var asks []orderbook.Item
 		for _, ask := range orderbookSeed.Asks {
@@ -125,12 +125,12 @@ func (b *Bitstamp) WsConnect() error {
 			bids = append(bids, item)
 		}
 
-		newOrderbook.Asks = asks
-		newOrderbook.Bids = bids
-		newOrderbook.Pair = p
-		newOrderbook.AssetType = "SPOT"
+		newOrderBook.Asks = asks
+		newOrderBook.Bids = bids
+		newOrderBook.Pair = p
+		newOrderBook.AssetType = "SPOT"
 
-		err = b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
+		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 		if err != nil {
 			return err
 		}

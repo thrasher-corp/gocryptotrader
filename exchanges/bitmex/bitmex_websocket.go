@@ -321,7 +321,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 	switch action {
 	case bitmexActionInitialData:
 		if !snapshotloaded[currencyPair][assetType] {
-			var newOrderbook orderbook.Base
+			var newOrderBook orderbook.Base
 			var bids, asks []orderbook.Item
 
 			for _, orderbookItem := range data {
@@ -342,12 +342,12 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 				return errors.New("bitmex_websocket.go error - snapshot not initialised correctly")
 			}
 
-			newOrderbook.Asks = asks
-			newOrderbook.Bids = bids
-			newOrderbook.AssetType = assetType
-			newOrderbook.Pair = currencyPair
+			newOrderBook.Asks = asks
+			newOrderBook.Bids = bids
+			newOrderBook.AssetType = assetType
+			newOrderBook.Pair = currencyPair
 
-			err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
+			err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 			if err != nil {
 				return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 					err)

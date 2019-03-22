@@ -403,14 +403,14 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 		bids = append(bids, orderbook.Item{Price: data.Price, Amount: newSize})
 	}
 
-	var newOrderbook orderbook.Base
+	var newOrderBook orderbook.Base
 
-	newOrderbook.Asks = asks
-	newOrderbook.AssetType = "SPOT"
-	newOrderbook.Bids = bids
-	newOrderbook.Pair = currency.NewPairFromString(ob.Symbol)
+	newOrderBook.Asks = asks
+	newOrderBook.AssetType = "SPOT"
+	newOrderBook.Bids = bids
+	newOrderBook.Pair = currency.NewPairFromString(ob.Symbol)
 
-	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
+	err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 	if err != nil {
 		return err
 	}

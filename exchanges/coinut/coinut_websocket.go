@@ -330,13 +330,13 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 		})
 	}
 
-	var newOrderbook orderbook.Base
-	newOrderbook.Asks = asks
-	newOrderbook.Bids = bids
-	newOrderbook.Pair = currency.NewPairFromString(instrumentListByCode[ob.InstID])
-	newOrderbook.AssetType = "SPOT"
+	var newOrderBook orderbook.Base
+	newOrderBook.Asks = asks
+	newOrderBook.Bids = bids
+	newOrderBook.Pair = currency.NewPairFromString(instrumentListByCode[ob.InstID])
+	newOrderBook.AssetType = "SPOT"
 
-	return c.Websocket.Orderbook.LoadSnapshot(newOrderbook, c.GetName(), false)
+	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook, c.GetName(), false)
 }
 
 // WsProcessOrderbookUpdate process an orderbook update
