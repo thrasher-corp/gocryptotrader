@@ -203,12 +203,12 @@ func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) error {
 
 	p := currency.NewPairFromString(symbol)
 
-	var newOrderbook orderbook.Base
-	newOrderbook.Asks = asks
-	newOrderbook.Bids = bids
-	newOrderbook.Pair = p
+	var newOrderBook orderbook.Base
+	newOrderBook.Asks = asks
+	newOrderBook.Bids = bids
+	newOrderBook.Pair = p
 
-	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName(), false)
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, h.GetName(), false)
 	if err != nil {
 		return err
 	}

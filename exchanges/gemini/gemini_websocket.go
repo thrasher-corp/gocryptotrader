@@ -153,13 +153,13 @@ func (g *Gemini) WsHandleData() {
 							}
 						}
 
-						var newOrderbook orderbook.Base
-						newOrderbook.Asks = asks
-						newOrderbook.Bids = bids
-						newOrderbook.AssetType = "SPOT"
-						newOrderbook.Pair = resp.Currency
+						var newOrderBook orderbook.Base
+						newOrderBook.Asks = asks
+						newOrderBook.Bids = bids
+						newOrderBook.AssetType = "SPOT"
+						newOrderBook.Pair = resp.Currency
 
-						err := g.Websocket.Orderbook.LoadSnapshot(newOrderbook,
+						err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
 							g.GetName(),
 							false)
 						if err != nil {

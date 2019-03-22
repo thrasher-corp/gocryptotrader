@@ -240,13 +240,13 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 
 	p := currency.NewPairFromString(ob.Params.Symbol)
 
-	var newOrderbook orderbook.Base
-	newOrderbook.Asks = asks
-	newOrderbook.Bids = bids
-	newOrderbook.AssetType = "SPOT"
-	newOrderbook.Pair = p
+	var newOrderBook orderbook.Base
+	newOrderBook.Asks = asks
+	newOrderBook.Bids = bids
+	newOrderBook.AssetType = "SPOT"
+	newOrderBook.Pair = p
 
-	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName(), false)
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, h.GetName(), false)
 	if err != nil {
 		return err
 	}

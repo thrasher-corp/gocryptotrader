@@ -352,7 +352,7 @@ func (w *Websocket) GetName() string {
 // WebsocketOrderbookLocal defines a local cache of orderbooks for amending,
 // appending and deleting changes and updates the main store in orderbook.go
 type WebsocketOrderbookLocal struct {
-	ob          []orderbook.Base
+	ob          []*orderbook.Base
 	lastUpdated time.Time
 	m           sync.Mutex
 }
@@ -380,7 +380,7 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 	var orderbookAddress *orderbook.Base
 	for i := range w.ob {
 		if w.ob[i].Pair == p && w.ob[i].AssetType == assetType {
-			orderbookAddress = &w.ob[i]
+			orderbookAddress = w.ob[i]
 		}
 	}
 
@@ -467,7 +467,7 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 // LoadSnapshot loads initial snapshot of orderbook data, overite allows full
 // orderbook to be completely rewritten because the exchange is a doing a full
 // update not an incremental one
-func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exchName string, overwrite bool) error {
+func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exchName string, overwrite bool) error {
 	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
 		return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - snapshot ask and bids are nil")
 	}
@@ -499,7 +499,7 @@ func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbo
 	var orderbookAddress *orderbook.Base
 	for i := range w.ob {
 		if w.ob[i].Pair == p && w.ob[i].AssetType == assetType {
-			orderbookAddress = &w.ob[i]
+			orderbookAddress = w.ob[i]
 		}
 	}
 

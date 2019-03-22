@@ -612,7 +612,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 		ExchangeName: o.GetName(),
 	}
 
-	err := o.Websocket.Orderbook.LoadSnapshot(newOrderBook, o.GetName(), true)
+	err := o.Websocket.Orderbook.LoadSnapshot(&newOrderBook, o.GetName(), true)
 	if err != nil {
 		return err
 	}
@@ -655,7 +655,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 			log.Debug("Internalising orderbook")
 		}
 
-		err := o.Websocket.Orderbook.LoadSnapshot(internalOrderbook, o.GetName(), true)
+		err := o.Websocket.Orderbook.LoadSnapshot(&internalOrderbook, o.GetName(), true)
 		if err != nil {
 			log.Error(err)
 		}
