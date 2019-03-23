@@ -115,7 +115,6 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType string)
 		if !ok {
 			continue
 		}
-		orderBook.Pair = x
 
 		var obItems []orderbook.Item
 		for y := range data.Bids {
@@ -132,7 +131,7 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType string)
 				orderbook.Item{Amount: obData.Amount, Price: obData.Price})
 		}
 
-		orderBook.Pair = currencyPair
+		orderBook.Pair = x
 		orderBook.Asks = obItems
 		orderBook.ExchangeName = p.GetName()
 		orderBook.AssetType = assetType
