@@ -124,7 +124,6 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Bas
 		if !ok {
 			continue
 		}
-		orderBook.Pair = x
 
 		var obItems []orderbook.Item
 		for y := range data.Ask {
@@ -144,7 +143,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Bas
 		}
 
 		orderBook.Bids = obItems
-		orderBook.Pair = p
+		orderBook.Pair = x
 		orderBook.ExchangeName = e.GetName()
 		orderBook.AssetType = assetType
 

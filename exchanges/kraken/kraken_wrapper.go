@@ -97,7 +97,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 
 	for _, x := range pairs {
 		for y, z := range tickers {
-			if !common.StringContains(y, x.Base.Upper().String()) &&
+			if !common.StringContains(y, x.Base.Upper().String()) ||
 				!common.StringContains(y, x.Quote.Upper().String()) {
 				continue
 			}

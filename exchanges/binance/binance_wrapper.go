@@ -224,11 +224,12 @@ func (b *Binance) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTyp
 	}
 
 	var orderRequest = NewOrderRequest{
-		Symbol:    p.Base.String() + p.Quote.String(),
-		Side:      sideType,
-		Price:     price,
-		Quantity:  amount,
-		TradeType: requestParamsOrderType,
+		Symbol:      p.Base.String() + p.Quote.String(),
+		Side:        sideType,
+		Price:       price,
+		Quantity:    amount,
+		TradeType:   requestParamsOrderType,
+		TimeInForce: BinanceRequestParamsTimeGTC,
 	}
 
 	response, err := b.NewOrder(orderRequest)
