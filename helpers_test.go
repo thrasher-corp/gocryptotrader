@@ -168,6 +168,14 @@ func TestIsRelatablePairs(t *testing.T) {
 	if !result {
 		t.Fatal("Unexpected result")
 	}
+
+	// Test edge case between two pairs when currency translations were causing
+	// non-relational pairs to be relatable
+	result = IsRelatablePairs(currency.NewPairFromStrings("EUR", "USD"),
+		currency.NewPairFromStrings("BTC", "USD"), false)
+	if result {
+		t.Fatal("Unexpected result")
+	}
 }
 
 func TestGetRelatableCryptocurrencies(t *testing.T) {

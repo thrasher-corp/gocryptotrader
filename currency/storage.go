@@ -581,6 +581,10 @@ func (s *Storage) IsFiatCurrency(c Code) bool {
 		return c.Item.Role == Fiat
 	}
 
+	if c == USDT {
+		return false
+	}
+
 	t, _ := GetTranslation(c)
 	for _, d := range s.fiatCurrencies {
 		if d.Match(c) || d.Match(t) {
@@ -596,6 +600,10 @@ func (s *Storage) IsFiatCurrency(c Code) bool {
 func (s *Storage) IsCryptocurrency(c Code) bool {
 	if c.Item.Role != Unset {
 		return c.Item.Role == Cryptocurrency
+	}
+
+	if c == USD {
+		return false
 	}
 
 	t, _ := GetTranslation(c)
