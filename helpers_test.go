@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -236,7 +235,6 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	log.Println(pairs)
 	if len(pairs) != 2 {
 		t.Fatal("Unexpected result")
 	}

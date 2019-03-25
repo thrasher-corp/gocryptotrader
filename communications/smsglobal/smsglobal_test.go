@@ -1,7 +1,6 @@
 package smsglobal
 
 import (
-	"log"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/communications/base"
@@ -65,7 +64,6 @@ func TestAddContact(t *testing.T) {
 	if err != nil {
 		t.Error("test failed - SMSGlobal AddContact() error", err)
 	}
-	log.Println(s.Contacts)
 	err = s.AddContact(Contact{Name: "StyleGherkin", Number: "1231424", Enabled: true})
 	if err == nil {
 		t.Error("test failed - SMSGlobal AddContact() error")
