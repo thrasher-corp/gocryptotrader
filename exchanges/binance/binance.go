@@ -275,34 +275,43 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 // start: epoch timestamp of beginning of query
 // end: epoch timestamp of end of query
 func (b *Binance) GetTradesBetween(symbol string, start, end time.Time) ([]AggregatedTrade, error) {
-	collectedTrades := []AggregatedTrade{}
-	for {
-		queryEnd := start.Add(1 * time.Hour)
-		if start.Equal(end) {
-			break
-		}
-		if start.Before(end) {
-			params := url.Values{}
-			params.Set("symbol", symbol)
-			params.Set("startTime", fmt.Sprintf("%v",start.Unix() * 1000))
-			params.Set("endTime", fmt.Sprintf("%v",queryEnd.Unix() * 1000))
-
-			path := fmt.Sprintf("%s%s?%s", b.APIUrl, aggregatedTrades, params.Encode())
-
-			nTrades := []AggregatedTrade{}
-			err := b.SendHTTPRequest(path, &nTrades)
-			if err != nil {
-				fmt.Println(err.Error())
-				return collectedTrades, err
-			}
-			collectedTrades = append(collectedTrades, nTrades...)
-
-			start = start.Add(1 * time.Hour)
-			queryEnd = queryEnd.Add(1 * time.Hour)
-		}
+	var collectedTrades []AggregatedTrade
+	if symbol == "" {
+		return nil, errors.New("invalid symbol")
 	}
 
-	return collectedTrades, nil
+	if start.Equal(end) || start.After(end) {
+		return nil, errors.New("invalid start and end times")
+	}
+
+	for {
+		if start.After(end) {
+			return nil, errors.New("start time is after end time")
+		}
+
+		if start.Equal(end) {
+			return collectedTrades, nil
+		}
+
+		queryEnd := start.Add(time.Hour)
+		params := url.Values{}
+		params.Set("symbol", symbol)
+		params.Set("startTime", fmt.Sprintf("%v", start.Unix()*1000))
+		params.Set("endTime", fmt.Sprintf("%v", queryEnd.Unix()*1000))
+
+		path := fmt.Sprintf("%s%s?%s",
+			b.APIUrl,
+			aggregatedTrades,
+			params.Encode())
+
+		nTrades := []AggregatedTrade{}
+		err := b.SendHTTPRequest(path, &nTrades)
+		if err != nil {
+			return nil, err
+		}
+		collectedTrades = append(collectedTrades, nTrades...)
+		start = start.Add(time.Hour)
+	}
 }
 
 // GetAggregatedTrades returns aggregated trade activity
