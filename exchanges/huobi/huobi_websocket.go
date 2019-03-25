@@ -140,7 +140,7 @@ func (h *HUOBI) WsHandleData() {
 
 				data := common.SplitStrings(depth.Channel, ".")
 
-				h.WsProcessOrderbook(depth, data[1])
+				h.WsProcessOrderbook(&depth, data[1])
 
 			case common.StringContains(init.Channel, "kline"):
 				var kline WsKline
@@ -186,7 +186,7 @@ func (h *HUOBI) WsHandleData() {
 }
 
 // WsProcessOrderbook processes new orderbook data
-func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) error {
+func (h *HUOBI) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 	var bids []orderbook.Item
 	for _, data := range ob.Tick.Bids {
 		bidLevel := data.([]interface{})

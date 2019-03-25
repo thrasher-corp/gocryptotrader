@@ -32,7 +32,7 @@ func (b *Bitmex) Run() {
 		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	marketInfo, err := b.GetActiveInstruments(GenericRequestParams{})
+	marketInfo, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
 
@@ -60,7 +60,7 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 	var tickerPrice ticker.Price
 	currency := exchange.FormatExchangeCurrency(b.Name, p)
 
-	tick, err := b.GetTrade(GenericRequestParams{
+	tick, err := b.GetTrade(&GenericRequestParams{
 		Symbol:    currency.String(),
 		StartTime: time.Now().Format(time.RFC3339),
 		Reverse:   true,
@@ -193,7 +193,7 @@ func (b *Bitmex) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType
 		orderNewParams.Price = price
 	}
 
-	response, err := b.CreateOrder(orderNewParams)
+	response, err := b.CreateOrder(&orderNewParams)
 	if response.OrderID != "" {
 		submitOrderResponse.OrderID = response.OrderID
 	}
@@ -218,7 +218,7 @@ func (b *Bitmex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	params.OrderQty = int32(action.Amount)
 	params.Price = action.Price
 
-	order, err := b.AmendOrder(params)
+	order, err := b.AmendOrder(&params)
 	if err != nil {
 		return "", err
 	}
@@ -231,7 +231,7 @@ func (b *Bitmex) CancelOrder(order *exchange.OrderCancellation) error {
 	var params = OrderCancelParams{
 		OrderID: order.OrderID,
 	}
-	_, err := b.CancelOrders(params)
+	_, err := b.CancelOrders(&params)
 
 	return err
 }
@@ -315,7 +315,7 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	params := OrdersRequest{}
 	params.Filter = "{\"open\":true}"
 
-	resp, err := b.GetOrders(params)
+	resp, err := b.GetOrders(&params)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +358,7 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 func (b *Bitmex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	params := OrdersRequest{}
-	resp, err := b.GetOrders(params)
+	resp, err := b.GetOrders(&params)
 	if err != nil {
 		return nil, err
 	}

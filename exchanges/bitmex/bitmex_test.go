@@ -110,14 +110,14 @@ func TestGetTrollboxConnectedUsers(t *testing.T) {
 }
 
 func TestGetAccountExecutions(t *testing.T) {
-	_, err := b.GetAccountExecutions(GenericRequestParams{})
+	_, err := b.GetAccountExecutions(&GenericRequestParams{})
 	if err == nil {
 		t.Error("test failed - GetAccountExecutions() error", err)
 	}
 }
 
 func TestGetAccountExecutionTradeHistory(t *testing.T) {
-	_, err := b.GetAccountExecutionTradeHistory(GenericRequestParams{})
+	_, err := b.GetAccountExecutionTradeHistory(&GenericRequestParams{})
 	if err == nil {
 		t.Error("test failed - GetAccountExecutionTradeHistory() error", err)
 	}
@@ -131,14 +131,14 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestGetInstruments(t *testing.T) {
-	_, err := b.GetInstruments(GenericRequestParams{})
+	_, err := b.GetInstruments(&GenericRequestParams{})
 	if err != nil {
 		t.Error("test failed - GetInstruments() error", err)
 	}
 }
 
 func TestGetActiveInstruments(t *testing.T) {
-	_, err := b.GetActiveInstruments(GenericRequestParams{})
+	_, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		t.Error("test failed - GetActiveInstruments() error", err)
 	}
@@ -159,7 +159,7 @@ func TestGetActiveIntervals(t *testing.T) {
 }
 
 func TestGetCompositeIndex(t *testing.T) {
-	_, err := b.GetCompositeIndex(GenericRequestParams{})
+	_, err := b.GetCompositeIndex(&GenericRequestParams{})
 	if err == nil {
 		t.Error("test failed - GetCompositeIndex() error", err)
 	}
@@ -173,7 +173,7 @@ func TestGetIndices(t *testing.T) {
 }
 
 func TestGetInsuranceFundHistory(t *testing.T) {
-	_, err := b.GetInsuranceFundHistory(GenericRequestParams{})
+	_, err := b.GetInsuranceFundHistory(&GenericRequestParams{})
 	if err != nil {
 		t.Error("test failed - GetInsuranceFundHistory() error", err)
 	}
@@ -194,7 +194,7 @@ func TestGetAliasOnLeaderboard(t *testing.T) {
 }
 
 func TestGetLiquidationOrders(t *testing.T) {
-	_, err := b.GetLiquidationOrders(GenericRequestParams{})
+	_, err := b.GetLiquidationOrders(&GenericRequestParams{})
 	if err != nil {
 		t.Error("test failed - GetLiquidationOrders() error", err)
 	}
@@ -208,14 +208,14 @@ func TestGetCurrentNotifications(t *testing.T) {
 }
 
 func TestAmendOrder(t *testing.T) {
-	_, err := b.AmendOrder(OrderAmendParams{})
+	_, err := b.AmendOrder(&OrderAmendParams{})
 	if err == nil {
 		t.Error("test failed - AmendOrder() error", err)
 	}
 }
 
 func TestCreateOrder(t *testing.T) {
-	_, err := b.CreateOrder(OrderNewParams{Symbol: "XBTM15",
+	_, err := b.CreateOrder(&OrderNewParams{Symbol: "XBTM15",
 		Price:    219.0,
 		ClOrdID:  "mm_bitmex_1a/oemUeQ4CAJZgP3fjHsA",
 		OrderQty: 98})
@@ -225,7 +225,7 @@ func TestCreateOrder(t *testing.T) {
 }
 
 func TestCancelOrders(t *testing.T) {
-	_, err := b.CancelOrders(OrderCancelParams{})
+	_, err := b.CancelOrders(&OrderCancelParams{})
 	if err == nil {
 		t.Error("test failed - CancelOrders() error", err)
 	}
@@ -309,14 +309,14 @@ func TestTransferMargin(t *testing.T) {
 }
 
 func TestGetQuotesByBuckets(t *testing.T) {
-	_, err := b.GetQuotesByBuckets(QuoteGetBucketedParams{})
+	_, err := b.GetQuotesByBuckets(&QuoteGetBucketedParams{})
 	if err == nil {
 		t.Error("test failed - GetQuotesByBuckets() error", err)
 	}
 }
 
 func TestGetSettlementHistory(t *testing.T) {
-	_, err := b.GetSettlementHistory(GenericRequestParams{})
+	_, err := b.GetSettlementHistory(&GenericRequestParams{})
 	if err != nil {
 		t.Error("test failed - GetSettlementHistory() error", err)
 	}
@@ -344,7 +344,7 @@ func TestGetStatSummary(t *testing.T) {
 }
 
 func TestGetTrade(t *testing.T) {
-	_, err := b.GetTrade(GenericRequestParams{
+	_, err := b.GetTrade(&GenericRequestParams{
 		Symbol:    "XBTUSD",
 		StartTime: time.Now().Format(time.RFC3339),
 		Reverse:   true})
@@ -354,7 +354,7 @@ func TestGetTrade(t *testing.T) {
 }
 
 func TestGetPreviousTrades(t *testing.T) {
-	_, err := b.GetPreviousTrades(TradeGetBucketedParams{})
+	_, err := b.GetPreviousTrades(&TradeGetBucketedParams{})
 	if err == nil {
 		t.Error("test failed - GetPreviousTrades() error", err)
 	}

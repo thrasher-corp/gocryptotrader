@@ -100,7 +100,7 @@ func (c *COINUT) WsHandleData() {
 					continue
 				}
 
-				err = c.WsProcessOrderbookSnapshot(orderbooksnapshot)
+				err = c.WsProcessOrderbookSnapshot(&orderbooksnapshot)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -122,7 +122,7 @@ func (c *COINUT) WsHandleData() {
 					continue
 				}
 
-				err = c.WsProcessOrderbookUpdate(orderbookUpdate)
+				err = c.WsProcessOrderbookUpdate(&orderbookUpdate)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -313,7 +313,7 @@ func (c *COINUT) WsSubscribe() error {
 }
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
-func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
+func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var bids []orderbook.Item
 	for _, bid := range ob.Buy {
 		bids = append(bids, orderbook.Item{
@@ -340,7 +340,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 }
 
 // WsProcessOrderbookUpdate process an orderbook update
-func (c *COINUT) WsProcessOrderbookUpdate(ob WsOrderbookUpdate) error {
+func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 	p := currency.NewPairFromString(instrumentListByCode[ob.InstID])
 
 	if ob.Side == "buy" {

@@ -1514,7 +1514,7 @@ func TestPlaceETTOrder(t *testing.T) {
 		ETT:           "OK06",
 	}
 
-	_, err := o.PlaceETTOrder(request)
+	_, err := o.PlaceETTOrder(&request)
 	testStandardErrorHandling(t, err)
 }
 

@@ -143,7 +143,7 @@ func TestNewOrder(t *testing.T) {
 	if testAPIKey == "" || testAPISecret == "" {
 		t.Skip()
 	}
-	_, err := b.NewOrder(NewOrderRequest{
+	_, err := b.NewOrder(&NewOrderRequest{
 		Symbol:      "BTCUSDT",
 		Side:        BinanceRequestParamsSideSell,
 		TradeType:   BinanceRequestParamsOrderLimit,
