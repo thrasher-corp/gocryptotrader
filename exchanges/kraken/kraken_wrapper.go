@@ -213,7 +213,7 @@ func (k *Kraken) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType
 		price,
 		0,
 		0,
-		args)
+		&args)
 
 	if len(response.TransactionIds) > 0 {
 		submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")

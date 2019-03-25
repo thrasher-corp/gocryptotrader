@@ -455,7 +455,7 @@ func (o *OKEX) GetETTBillsDetails(currency string) (resp []okgroup.GetETTBillsDe
 // You can place an order only if you have enough funds. Once your order is placed,
 // the amount will be put on hold in the order lifecycle.
 // The assets and amount on hold depends on the order's specific type and parameters.
-func (o *OKEX) PlaceETTOrder(request okgroup.PlaceETTOrderRequest) (resp okgroup.PlaceETTOrderResponse, _ error) {
+func (o *OKEX) PlaceETTOrder(request *okgroup.PlaceETTOrderRequest) (resp okgroup.PlaceETTOrderResponse, _ error) {
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupETTSubsection, okgroup.OKGroupOrders, nil, &resp, true)
 }
 

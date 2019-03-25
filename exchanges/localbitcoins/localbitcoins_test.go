@@ -89,7 +89,7 @@ func TestEditAd(t *testing.T) {
 		t.Skip()
 	}
 	edit := AdEdit{}
-	err := l.EditAd(edit, "1337")
+	err := l.EditAd(&edit, "1337")
 	if err == nil {
 		t.Error("Test Failed - EditAd() error", err)
 	}

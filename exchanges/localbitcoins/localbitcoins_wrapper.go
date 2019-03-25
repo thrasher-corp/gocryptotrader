@@ -188,7 +188,7 @@ func (l *LocalBitcoins) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ 
 	}
 
 	// Does not return any orderID, so create the add, then get the order
-	err := l.CreateAd(params)
+	err := l.CreateAd(&params)
 	if err != nil {
 		return submitOrderResponse, err
 	}

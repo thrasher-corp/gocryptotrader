@@ -316,7 +316,7 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 		return err
 	}
 
-	err = s.LoadFileCurrencyData(fromFile)
+	err = s.LoadFileCurrencyData(&fromFile)
 	if err != nil {
 		return err
 	}
@@ -369,37 +369,42 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 }
 
 // LoadFileCurrencyData loads currencies into the currency codes
-func (s *Storage) LoadFileCurrencyData(f File) error {
+func (s *Storage) LoadFileCurrencyData(f *File) error {
 	for _, contract := range f.Contracts {
-		err := s.currencyCodes.LoadItem(contract)
+		contract := contract
+		err := s.currencyCodes.LoadItem(&contract)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, crypto := range f.Cryptocurrency {
-		err := s.currencyCodes.LoadItem(crypto)
+		crypto := crypto
+		err := s.currencyCodes.LoadItem(&crypto)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, fiat := range f.FiatCurrency {
-		err := s.currencyCodes.LoadItem(fiat)
+		fiat := fiat
+		err := s.currencyCodes.LoadItem(&fiat)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, token := range f.Token {
-		err := s.currencyCodes.LoadItem(token)
+		token := token
+		err := s.currencyCodes.LoadItem(&token)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, unset := range f.UnsetCurrency {
-		err := s.currencyCodes.LoadItem(unset)
+		unset := unset
+		err := s.currencyCodes.LoadItem(&unset)
 		if err != nil {
 			return err
 		}

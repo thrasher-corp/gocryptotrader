@@ -43,11 +43,11 @@ func (g *Gemini) WsConnect() error {
 
 	go g.WsHandleData()
 
-	return g.WsSubscribe(dialer)
+	return g.WsSubscribe(&dialer)
 }
 
 // WsSubscribe subscribes to the full websocket suite on gemini exchange
-func (g *Gemini) WsSubscribe(dialer websocket.Dialer) error {
+func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i, c := range enabledCurrencies {
 		val := url.Values{}
