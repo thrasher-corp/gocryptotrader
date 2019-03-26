@@ -147,7 +147,8 @@ func main() {
 		bot.dataDir,
 		*verbosity)
 	if err != nil {
-		log.Warn("currency updater system failed to start", err)
+		log.Fatalf("currency updater system failed to start %v", err)
+
 	}
 
 	bot.portfolio = &portfolio.Portfolio
