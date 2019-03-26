@@ -122,7 +122,7 @@ func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(p currency.Pair, side exchang
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

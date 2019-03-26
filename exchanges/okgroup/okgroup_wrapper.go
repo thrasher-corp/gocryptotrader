@@ -242,7 +242,7 @@ func (o *OKGroup) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTyp
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKGroup) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (o *OKGroup) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

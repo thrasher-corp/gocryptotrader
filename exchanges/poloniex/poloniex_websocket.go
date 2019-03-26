@@ -318,13 +318,13 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 		})
 	}
 
-	var newOrderbook orderbook.Base
-	newOrderbook.Asks = asks
-	newOrderbook.Bids = bids
-	newOrderbook.AssetType = "SPOT"
-	newOrderbook.Pair = currency.NewPairFromString(symbol)
+	var newOrderBook orderbook.Base
+	newOrderBook.Asks = asks
+	newOrderBook.Bids = bids
+	newOrderBook.AssetType = "SPOT"
+	newOrderBook.Pair = currency.NewPairFromString(symbol)
 
-	return p.Websocket.Orderbook.LoadSnapshot(newOrderbook, p.GetName(), false)
+	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook, p.GetName(), false)
 }
 
 // WsProcessOrderbookUpdate processses new orderbook updates

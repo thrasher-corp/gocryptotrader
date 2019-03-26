@@ -206,7 +206,7 @@ func TestGetTradeVolume(t *testing.T) {
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
 	args := AddOrderOptions{Oflags: "fcib"}
-	_, err := k.AddOrder("XXBTZUSD", "sell", "market", 0.00000001, 0, 0, 0, args)
+	_, err := k.AddOrder("XXBTZUSD", "sell", "market", 0.00000001, 0, 0, 0, &args)
 	if err == nil {
 		t.Error("Test Failed - AddOrder() error", err)
 	}
@@ -459,7 +459,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	_, err := k.ModifyOrder(exchange.ModifyOrder{})
+	_, err := k.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
 	}

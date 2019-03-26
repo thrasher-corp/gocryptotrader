@@ -223,13 +223,13 @@ func (z *ZB) WsHandleData() {
 				channelInfo := common.SplitStrings(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
 
-				var newOrderbook orderbook.Base
-				newOrderbook.Asks = asks
-				newOrderbook.Bids = bids
-				newOrderbook.AssetType = "SPOT"
-				newOrderbook.Pair = cPair
+				var newOrderBook orderbook.Base
+				newOrderBook.Asks = asks
+				newOrderBook.Bids = bids
+				newOrderBook.AssetType = "SPOT"
+				newOrderBook.Pair = cPair
 
-				err = z.Websocket.Orderbook.LoadSnapshot(newOrderbook,
+				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
 					z.GetName(),
 					true)
 				if err != nil {

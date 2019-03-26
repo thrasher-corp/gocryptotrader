@@ -191,13 +191,13 @@ func (b *BTCC) WsHandleData() {
 
 				switch orderbook.Type {
 				case "F":
-					err = b.WsProcessOrderbookSnapshot(orderbook)
+					err = b.WsProcessOrderbookSnapshot(&orderbook)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 					}
 
 				case "I":
-					err = b.WsProcessOrderbookUpdate(orderbook)
+					err = b.WsProcessOrderbookUpdate(&orderbook)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 					}
@@ -380,7 +380,7 @@ func (b *BTCC) WsSubcribeToTrades() error {
 }
 
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot
-func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
+func (b *BTCC) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var asks, bids []orderbook.Item
 	for _, data := range ob.List {
 		var newSize float64
@@ -403,14 +403,14 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 		bids = append(bids, orderbook.Item{Price: data.Price, Amount: newSize})
 	}
 
-	var newOrderbook orderbook.Base
+	var newOrderBook orderbook.Base
 
-	newOrderbook.Asks = asks
-	newOrderbook.AssetType = "SPOT"
-	newOrderbook.Bids = bids
-	newOrderbook.Pair = currency.NewPairFromString(ob.Symbol)
+	newOrderBook.Asks = asks
+	newOrderBook.AssetType = "SPOT"
+	newOrderBook.Bids = bids
+	newOrderBook.Pair = currency.NewPairFromString(ob.Symbol)
 
-	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
+	err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 	if err != nil {
 		return err
 	}
@@ -425,7 +425,7 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 }
 
 // WsProcessOrderbookUpdate processes an orderbook update
-func (b *BTCC) WsProcessOrderbookUpdate(ob WsOrderbookSnapshot) error {
+func (b *BTCC) WsProcessOrderbookUpdate(ob *WsOrderbookSnapshot) error {
 	var asks, bids []orderbook.Item
 	for _, data := range ob.List {
 		var newSize float64

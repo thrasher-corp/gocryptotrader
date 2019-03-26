@@ -143,7 +143,7 @@ func TestNewOrder(t *testing.T) {
 	if testAPIKey == "" || testAPISecret == "" {
 		t.Skip()
 	}
-	_, err := b.NewOrder(NewOrderRequest{
+	_, err := b.NewOrder(&NewOrderRequest{
 		Symbol:      "BTCUSDT",
 		Side:        BinanceRequestParamsSideSell,
 		TradeType:   BinanceRequestParamsOrderLimit,
@@ -466,7 +466,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	_, err := b.ModifyOrder(exchange.ModifyOrder{})
+	_, err := b.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
 	}

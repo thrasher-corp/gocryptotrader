@@ -232,7 +232,7 @@ func (b *Binance) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTyp
 		TimeInForce: BinanceRequestParamsTimeGTC,
 	}
 
-	response, err := b.NewOrder(orderRequest)
+	response, err := b.NewOrder(&orderRequest)
 
 	if response.OrderID > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
@@ -247,7 +247,7 @@ func (b *Binance) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTyp
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Binance) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (b *Binance) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

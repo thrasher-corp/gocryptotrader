@@ -269,7 +269,7 @@ func (c *COINUT) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *COINUT) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (c *COINUT) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

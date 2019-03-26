@@ -289,7 +289,7 @@ func (a *ANX) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType ex
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *ANX) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (a *ANX) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

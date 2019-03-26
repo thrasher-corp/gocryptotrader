@@ -61,11 +61,11 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	newOrderBook.Pair = currency.NewPairFromString(formattedPair.String())
 	newOrderBook.AssetType = ticker.Spot
 
-	return b.Websocket.Orderbook.LoadSnapshot(newOrderBook, b.GetName(), false)
+	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 }
 
 // UpdateLocalCache updates and returns the most recent iteration of the orderbook
-func (b *Binance) UpdateLocalCache(ob WebsocketDepthStream) error {
+func (b *Binance) UpdateLocalCache(ob *WebsocketDepthStream) error {
 	m.Lock()
 	ID, ok := lastUpdateID[ob.Pair]
 	if !ok {
@@ -323,7 +323,7 @@ func (b *Binance) WsHandleData() {
 						continue
 					}
 
-					err = b.UpdateLocalCache(depth)
+					err = b.UpdateLocalCache(&depth)
 					if err != nil {
 						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - UpdateLocalCache error: %s",
 							err)

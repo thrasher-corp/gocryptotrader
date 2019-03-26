@@ -522,13 +522,13 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 		return errors.New("bitfinex.go error - no orderbooks in item lists")
 	}
 
-	var newOrderbook orderbook.Base
-	newOrderbook.Asks = ask
-	newOrderbook.AssetType = assetType
-	newOrderbook.Bids = bid
-	newOrderbook.Pair = p
+	var newOrderBook orderbook.Base
+	newOrderBook.Asks = ask
+	newOrderBook.AssetType = assetType
+	newOrderBook.Bids = bid
+	newOrderBook.Pair = p
 
-	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
+	err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 	if err != nil {
 		return fmt.Errorf("bitfinex.go error - %s", err)
 	}

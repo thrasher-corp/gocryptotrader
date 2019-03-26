@@ -612,7 +612,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 		ExchangeName: o.GetName(),
 	}
 
-	err := o.Websocket.Orderbook.LoadSnapshot(newOrderBook, o.GetName(), true)
+	err := o.Websocket.Orderbook.LoadSnapshot(&newOrderBook, o.GetName(), true)
 	if err != nil {
 		return err
 	}
@@ -645,7 +645,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 	sort.Slice(internalOrderbook.Bids, func(i, j int) bool {
 		return internalOrderbook.Bids[i].Price > internalOrderbook.Bids[j].Price
 	})
-	checksum := o.CalculateUpdateOrderbookChecksum(internalOrderbook)
+	checksum := o.CalculateUpdateOrderbookChecksum(&internalOrderbook)
 	if checksum == wsEventData.Checksum {
 		if o.Verbose {
 			log.Debug("Orderbook valid")
@@ -655,7 +655,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 			log.Debug("Internalising orderbook")
 		}
 
-		err := o.Websocket.Orderbook.LoadSnapshot(internalOrderbook, o.GetName(), true)
+		err := o.Websocket.Orderbook.LoadSnapshot(&internalOrderbook, o.GetName(), true)
 		if err != nil {
 			log.Error(err)
 		}
@@ -733,7 +733,7 @@ func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketData
 // The checksum is made up of the price and the quantity with a semicolon (:) deliminating them
 // This will also work when there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData orderbook.Base) int32 {
+func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base) int32 {
 	var checksum string
 	iterations := 25
 	for i := 0; i < iterations; i++ {

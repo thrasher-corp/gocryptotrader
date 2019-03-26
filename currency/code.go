@@ -347,7 +347,7 @@ func (b *BaseCodes) RegisterFiat(c string) (Code, error) {
 }
 
 // LoadItem sets item data
-func (b *BaseCodes) LoadItem(item Item) error {
+func (b *BaseCodes) LoadItem(item *Item) error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
@@ -386,7 +386,7 @@ func (b *BaseCodes) LoadItem(item Item) error {
 		}
 	}
 
-	b.Items = append(b.Items, &item)
+	b.Items = append(b.Items, item)
 	return nil
 }
 
@@ -414,7 +414,7 @@ type Item struct {
 }
 
 // String conforms to the stringer interface
-func (i Item) String() string {
+func (i *Item) String() string {
 	return i.FullName
 }
 
