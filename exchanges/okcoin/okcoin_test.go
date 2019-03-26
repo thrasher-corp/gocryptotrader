@@ -39,7 +39,7 @@ func TestSetDefaults(t *testing.T) {
 // TestSetRealOrderDefaults Sets test defaults when test can impact real money/orders
 func TestSetRealOrderDefaults(t *testing.T) {
 	TestSetDefaults(t)
-	if areTestAPIKeysSet() || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("Ensure canManipulateRealOrders is true and your API keys are set")
 	}
 }
