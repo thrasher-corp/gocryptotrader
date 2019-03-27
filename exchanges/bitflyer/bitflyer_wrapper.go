@@ -233,3 +233,8 @@ func (b *Bitflyer) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 func (b *Bitflyer) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }
+
+// GetFeeByType returns an estimate of fee based on the type of transaction
+func (b *Bitflyer) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	return b.GetFee(feeBuilder)
+}

@@ -180,4 +180,9 @@ func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest *exchang
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetFeeByType returns an estimate of fee based on the type of transaction
+func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	return 0, common.ErrNotYetImplemented
+}
+
 {{end}}
