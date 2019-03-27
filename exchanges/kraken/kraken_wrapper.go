@@ -109,7 +109,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 			tp.High = z.High
 			tp.Low = z.Low
 			tp.Volume = z.Volume
-			ticker.ProcessTicker(k.GetName(), tp, assetType)
+			ticker.ProcessTicker(k.GetName(), &tp, assetType)
 		}
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)

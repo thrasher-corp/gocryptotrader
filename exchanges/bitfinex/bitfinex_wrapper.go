@@ -79,7 +79,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 		tick.Volume = tickerNew[x].Volume
 		tick.High = tickerNew[x].High
 
-		err = ticker.ProcessTicker(b.Name, tick, assetType)
+		err = ticker.ProcessTicker(b.Name, &tick, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}

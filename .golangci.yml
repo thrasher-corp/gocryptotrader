@@ -65,7 +65,7 @@ linters-settings:
       - experimental
     disabled-checks:
       - wrapperFunc
-      - hugeParam
+     # - hugeParam
       - importShadow
       - rangeValCopy
       - methodExprCall

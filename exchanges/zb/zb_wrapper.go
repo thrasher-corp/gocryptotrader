@@ -76,7 +76,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, erro
 		tp.Low = result[currency].Low
 		tp.Volume = result[currency].Vol
 
-		err = ticker.ProcessTicker(z.Name, tp, assetType)
+		err = ticker.ProcessTicker(z.Name, &tp, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}

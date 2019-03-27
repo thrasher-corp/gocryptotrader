@@ -84,7 +84,7 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 		tp.Volume = tickers[currency].Volume1Day
 		tp.High = tickers[currency].MaxPrice
 
-		err = ticker.ProcessTicker(b.Name, tp, assetType)
+		err = ticker.ProcessTicker(b.Name, &tp, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}

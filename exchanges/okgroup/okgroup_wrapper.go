@@ -70,7 +70,7 @@ func (o *OKGroup) UpdateTicker(p currency.Pair, assetType string) (tickerData ti
 		Volume:      resp.BaseVolume24h,
 	}
 
-	err = ticker.ProcessTicker(o.Name, tickerData, assetType)
+	err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
 	return
 }
 

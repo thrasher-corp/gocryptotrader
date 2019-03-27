@@ -75,7 +75,7 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType string) (t
 		tp.Low = tick[curr].Low24Hr
 		tp.Volume = tick[curr].BaseVolume
 
-		err = ticker.ProcessTicker(p.GetName(), tp, assetType)
+		err = ticker.ProcessTicker(p.GetName(), &tp, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}

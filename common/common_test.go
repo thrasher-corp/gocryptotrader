@@ -935,6 +935,7 @@ func TestInt64FromString(t *testing.T) {
 
 func TestTimeFromUnixTimestampFloat(t *testing.T) {
 	t.Parallel()
+
 	testTimestamp := float64(1414456320000)
 	expectedOutput := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
 

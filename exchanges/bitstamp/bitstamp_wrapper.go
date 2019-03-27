@@ -75,7 +75,7 @@ func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 	tickerPrice.Volume = tick.Volume
 	tickerPrice.High = tick.High
 
-	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}

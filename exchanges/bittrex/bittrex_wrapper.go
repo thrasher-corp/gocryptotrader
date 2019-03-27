@@ -121,7 +121,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 			tickerPrice.Bid = tick.Result[y].Bid
 			tickerPrice.Last = tick.Result[y].Last
 			tickerPrice.Volume = tick.Result[y].Volume
-			ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+			ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
