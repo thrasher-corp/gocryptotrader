@@ -233,7 +233,7 @@ func (e *EXMO) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType e
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (e *EXMO) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (e *EXMO) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

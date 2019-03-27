@@ -185,7 +185,7 @@ func (l *LakeBTC) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchan
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LakeBTC) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (l *LakeBTC) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

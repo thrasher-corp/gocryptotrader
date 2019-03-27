@@ -40,7 +40,7 @@ func TestSetDefaults(t *testing.T) {
 // TestSetRealOrderDefaults Sets test defaults when test can impact real money/orders
 func TestSetRealOrderDefaults(t *testing.T) {
 	TestSetDefaults(t)
-	if areTestAPIKeysSet() || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("Ensure canManipulateRealOrders is true and your API keys are set")
 	}
 }
@@ -1514,7 +1514,7 @@ func TestPlaceETTOrder(t *testing.T) {
 		ETT:           "OK06",
 	}
 
-	_, err := o.PlaceETTOrder(request)
+	_, err := o.PlaceETTOrder(&request)
 	testStandardErrorHandling(t, err)
 }
 
@@ -1949,7 +1949,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	_, err := o.ModifyOrder(exchange.ModifyOrder{})
+	_, err := o.ModifyOrder(&exchange.ModifyOrder{})
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}

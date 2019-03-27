@@ -159,7 +159,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.AssetType = "SPOT"
 	snapShot1.Pair = currency.NewPairFromString("BTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot1, "ExchangeTest", false)
+	wsTest.Websocket.Orderbook.LoadSnapshot(&snapShot1, "ExchangeTest", false)
 
 	var snapShot2 orderbook.Base
 	asks = []orderbook.Item{
@@ -195,7 +195,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.AssetType = "SPOT"
 	snapShot2.Pair = currency.NewPairFromString("LTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot2, "ExchangeTest", false)
+	wsTest.Websocket.Orderbook.LoadSnapshot(&snapShot2, "ExchangeTest", false)
 
 	var snapShot3 orderbook.Base
 	asks = []orderbook.Item{
@@ -231,7 +231,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot3, "ExchangeTest", false)
+	wsTest.Websocket.Orderbook.LoadSnapshot(&snapShot3, "ExchangeTest", false)
 
 	if len(wsTest.Websocket.Orderbook.ob) != 3 {
 		t.Error("test failed - inserting orderbook data")

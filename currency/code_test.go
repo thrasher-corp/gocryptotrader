@@ -213,7 +213,7 @@ func TestBaseCode(t *testing.T) {
 			true)
 	}
 
-	err = main.LoadItem(Item{
+	err = main.LoadItem(&Item{
 		ID:       0,
 		FullName: "Cardano",
 		Role:     Cryptocurrency,
@@ -421,6 +421,6 @@ func TestItemString(t *testing.T) {
 	if newItem.String() != expected {
 		t.Errorf("Test Failed - Item String() error expected %s but recieved %s",
 			expected,
-			newItem)
+			&newItem)
 	}
 }

@@ -141,7 +141,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 
 				data := common.SplitStrings(depth.Channel, ".")
 
-				h.WsProcessOrderbook(depth, data[1])
+				h.WsProcessOrderbook(&depth, data[1])
 
 			case common.StringContains(init.Channel, "kline"):
 				var kline WsKline
@@ -187,7 +187,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 }
 
 // WsProcessOrderbook processes new orderbook data
-func (h *HUOBIHADAX) WsProcessOrderbook(ob WsDepth, symbol string) error {
+func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 	var bids []orderbook.Item
 	for _, data := range ob.Tick.Bids {
 		bidLevel := data.([]interface{})
@@ -204,12 +204,12 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob WsDepth, symbol string) error {
 
 	p := currency.NewPairFromString(symbol)
 
-	var newOrderbook orderbook.Base
-	newOrderbook.Asks = asks
-	newOrderbook.Bids = bids
-	newOrderbook.Pair = p
+	var newOrderBook orderbook.Base
+	newOrderBook.Asks = asks
+	newOrderBook.Bids = bids
+	newOrderBook.Pair = p
 
-	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName(), false)
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, h.GetName(), false)
 	if err != nil {
 		return err
 	}

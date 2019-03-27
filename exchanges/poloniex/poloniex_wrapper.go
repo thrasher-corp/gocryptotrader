@@ -209,7 +209,7 @@ func (p *Poloniex) SubmitOrder(currencyPair currency.Pair, side exchange.OrderSi
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (p *Poloniex) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (p *Poloniex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	oID, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
 		return "", err

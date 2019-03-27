@@ -278,7 +278,7 @@ func (b *Bitmex) GetTrollboxConnectedUsers() (ConnectedUsers, error) {
 // GetAccountExecutions returns all raw transactions, which includes order
 // opening and cancelation, and order status changes. It can be quite noisy.
 // More focused information is available at /execution/tradeHistory.
-func (b *Bitmex) GetAccountExecutions(params GenericRequestParams) ([]Execution, error) {
+func (b *Bitmex) GetAccountExecutions(params *GenericRequestParams) ([]Execution, error) {
 	var executionList []Execution
 
 	return executionList, b.SendAuthenticatedHTTPRequest(http.MethodGet,
@@ -289,7 +289,7 @@ func (b *Bitmex) GetAccountExecutions(params GenericRequestParams) ([]Execution,
 
 // GetAccountExecutionTradeHistory returns all balance-affecting executions.
 // This includes each trade, insurance charge, and settlement.
-func (b *Bitmex) GetAccountExecutionTradeHistory(params GenericRequestParams) ([]Execution, error) {
+func (b *Bitmex) GetAccountExecutionTradeHistory(params *GenericRequestParams) ([]Execution, error) {
 	var tradeHistory []Execution
 
 	return tradeHistory, b.SendAuthenticatedHTTPRequest(http.MethodGet,
@@ -308,7 +308,7 @@ func (b *Bitmex) GetFullFundingHistory() ([]Funding, error) {
 }
 
 // GetInstruments returns instrument data
-func (b *Bitmex) GetInstruments(params GenericRequestParams) ([]Instrument, error) {
+func (b *Bitmex) GetInstruments(params *GenericRequestParams) ([]Instrument, error) {
 	var instruments []Instrument
 
 	return instruments, b.SendHTTPRequest(bitmexEndpointInstruments,
@@ -317,7 +317,7 @@ func (b *Bitmex) GetInstruments(params GenericRequestParams) ([]Instrument, erro
 }
 
 // GetActiveInstruments returns active instruments
-func (b *Bitmex) GetActiveInstruments(params GenericRequestParams) ([]Instrument, error) {
+func (b *Bitmex) GetActiveInstruments(params *GenericRequestParams) ([]Instrument, error) {
 	var activeInstruments []Instrument
 
 	return activeInstruments, b.SendHTTPRequest(bitmexEndpointActiveInstruments,
@@ -345,7 +345,7 @@ func (b *Bitmex) GetActiveIntervals() (InstrumentInterval, error) {
 }
 
 // GetCompositeIndex returns composite index
-func (b *Bitmex) GetCompositeIndex(params GenericRequestParams) ([]IndexComposite, error) {
+func (b *Bitmex) GetCompositeIndex(params *GenericRequestParams) ([]IndexComposite, error) {
 	var compositeIndices []IndexComposite
 
 	return compositeIndices, b.SendHTTPRequest(bitmexEndpointCompositeIndex,
@@ -361,7 +361,7 @@ func (b *Bitmex) GetIndices() ([]Instrument, error) {
 }
 
 // GetInsuranceFundHistory returns insurance fund history
-func (b *Bitmex) GetInsuranceFundHistory(params GenericRequestParams) ([]Insurance, error) {
+func (b *Bitmex) GetInsuranceFundHistory(params *GenericRequestParams) ([]Insurance, error) {
 	var history []Insurance
 
 	return history, b.SendHTTPRequest(bitmexEndpointIndices, params, &history)
@@ -382,7 +382,7 @@ func (b *Bitmex) GetAliasOnLeaderboard() (Alias, error) {
 }
 
 // GetLiquidationOrders returns liquidation orders
-func (b *Bitmex) GetLiquidationOrders(params GenericRequestParams) ([]Liquidation, error) {
+func (b *Bitmex) GetLiquidationOrders(params *GenericRequestParams) ([]Liquidation, error) {
 	var orders []Liquidation
 
 	return orders, b.SendHTTPRequest(bitmexEndpointLiquidation,
@@ -401,7 +401,7 @@ func (b *Bitmex) GetCurrentNotifications() ([]Notification, error) {
 }
 
 // GetOrders returns all the orders, open and closed
-func (b *Bitmex) GetOrders(params OrdersRequest) ([]Order, error) {
+func (b *Bitmex) GetOrders(params *OrdersRequest) ([]Order, error) {
 	var orders []Order
 
 	return orders, b.SendAuthenticatedHTTPRequest(http.MethodGet,
@@ -411,7 +411,7 @@ func (b *Bitmex) GetOrders(params OrdersRequest) ([]Order, error) {
 }
 
 // AmendOrder amends the quantity or price of an open order
-func (b *Bitmex) AmendOrder(params OrderAmendParams) (Order, error) {
+func (b *Bitmex) AmendOrder(params *OrderAmendParams) (Order, error) {
 	var order Order
 
 	return order, b.SendAuthenticatedHTTPRequest(http.MethodPut,
@@ -421,7 +421,7 @@ func (b *Bitmex) AmendOrder(params OrderAmendParams) (Order, error) {
 }
 
 // CreateOrder creates a new order
-func (b *Bitmex) CreateOrder(params OrderNewParams) (Order, error) {
+func (b *Bitmex) CreateOrder(params *OrderNewParams) (Order, error) {
 	var orderInfo Order
 
 	return orderInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
@@ -432,7 +432,7 @@ func (b *Bitmex) CreateOrder(params OrderNewParams) (Order, error) {
 
 // CancelOrders cancels one or a batch of orders on the exchange and returns
 // a cancelled order list
-func (b *Bitmex) CancelOrders(params OrderCancelParams) ([]Order, error) {
+func (b *Bitmex) CancelOrders(params *OrderCancelParams) ([]Order, error) {
 	var cancelledOrders []Order
 
 	return cancelledOrders, b.SendAuthenticatedHTTPRequest(http.MethodDelete,
@@ -551,7 +551,7 @@ func (b *Bitmex) TransferMargin(params PositionTransferIsolatedMarginParams) (Po
 }
 
 // GetQuotes returns quotations
-func (b *Bitmex) GetQuotes(params GenericRequestParams) ([]Quote, error) {
+func (b *Bitmex) GetQuotes(params *GenericRequestParams) ([]Quote, error) {
 	var quotations []Quote
 
 	return quotations, b.SendHTTPRequest(bitmexEndpointQuote,
@@ -560,7 +560,7 @@ func (b *Bitmex) GetQuotes(params GenericRequestParams) ([]Quote, error) {
 }
 
 // GetQuotesByBuckets returns previous quotes in time buckets
-func (b *Bitmex) GetQuotesByBuckets(params QuoteGetBucketedParams) ([]Quote, error) {
+func (b *Bitmex) GetQuotesByBuckets(params *QuoteGetBucketedParams) ([]Quote, error) {
 	var quotations []Quote
 
 	return quotations, b.SendHTTPRequest(bitmexEndpointQuoteBucketed,
@@ -569,7 +569,7 @@ func (b *Bitmex) GetQuotesByBuckets(params QuoteGetBucketedParams) ([]Quote, err
 }
 
 // GetSettlementHistory returns settlement history
-func (b *Bitmex) GetSettlementHistory(params GenericRequestParams) ([]Settlement, error) {
+func (b *Bitmex) GetSettlementHistory(params *GenericRequestParams) ([]Settlement, error) {
 	var history []Settlement
 
 	return history, b.SendHTTPRequest(bitmexEndpointSettlement,
@@ -599,14 +599,14 @@ func (b *Bitmex) GetStatSummary() ([]StatsUSD, error) {
 }
 
 // GetTrade returns executed trades on the desk
-func (b *Bitmex) GetTrade(params GenericRequestParams) ([]Trade, error) {
+func (b *Bitmex) GetTrade(params *GenericRequestParams) ([]Trade, error) {
 	var trade []Trade
 
 	return trade, b.SendHTTPRequest(bitmexEndpointTrade, params, &trade)
 }
 
 // GetPreviousTrades previous trade history in time buckets
-func (b *Bitmex) GetPreviousTrades(params TradeGetBucketedParams) ([]Trade, error) {
+func (b *Bitmex) GetPreviousTrades(params *TradeGetBucketedParams) ([]Trade, error) {
 	var trade []Trade
 
 	return trade, b.SendHTTPRequest(bitmexEndpointTradeBucketed,
@@ -625,7 +625,7 @@ func (b *Bitmex) GetUserInfo() (User, error) {
 }
 
 // UpdateUserInfo updates user information
-func (b *Bitmex) UpdateUserInfo(params UserUpdateParams) (User, error) {
+func (b *Bitmex) UpdateUserInfo(params *UserUpdateParams) (User, error) {
 	var userInfo User
 
 	return userInfo, b.SendAuthenticatedHTTPRequest(http.MethodPut,

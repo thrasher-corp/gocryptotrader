@@ -309,26 +309,22 @@ type IBotExchange interface {
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool
-
+	GetFeeByType(feeBuilder *FeeBuilder) (float64, error)
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
 	SupportsWithdrawPermissions(permissions uint32) bool
-
 	GetFundingHistory() ([]FundHistory, error)
 	SubmitOrder(p currency.Pair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
-	ModifyOrder(action ModifyOrder) (string, error)
+	ModifyOrder(action *ModifyOrder) (string, error)
 	CancelOrder(order *OrderCancellation) error
 	CancelAllOrders(orders *OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID string) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
-
 	GetOrderHistory(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
 	GetActiveOrders(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
-
 	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
-
 	GetWebsocket() (*Websocket, error)
 }
 

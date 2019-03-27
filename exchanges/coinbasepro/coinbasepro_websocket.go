@@ -173,7 +173,7 @@ func (c *CoinbasePro) WsHandleData() {
 					continue
 				}
 
-				err = c.ProcessSnapshot(snapshot)
+				err = c.ProcessSnapshot(&snapshot)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -198,8 +198,8 @@ func (c *CoinbasePro) WsHandleData() {
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
-func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookSnapshot) error {
-	var base orderbook.Base
+func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
+	var base *orderbook.Base
 	for _, bid := range snapshot.Bids {
 		price, err := strconv.ParseFloat(bid[0].(string), 64)
 		if err != nil {

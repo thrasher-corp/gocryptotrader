@@ -31,12 +31,12 @@ type Trades []Trade
 
 // Ticker stores the ticker data
 type Ticker struct {
-	Price  float64
-	Size   float64
-	Bid    float64
-	Ask    float64
-	Volume float64
-	Time   string
+	Price  float64 `json:"price,string"`
+	Size   float64 `json:"size,string"`
+	Bid    float64 `json:"bid,string"`
+	Ask    float64 `json:"ask,string"`
+	Volume float64 `json:"volume,string"`
+	Time   string  `json:"time"`
 }
 
 // MarketStatistics stores market statistics for a particular product

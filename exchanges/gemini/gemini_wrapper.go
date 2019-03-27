@@ -179,7 +179,7 @@ func (g *Gemini) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gemini) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (g *Gemini) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

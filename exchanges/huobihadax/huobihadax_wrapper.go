@@ -272,7 +272,7 @@ func (h *HUOBIHADAX) SubmitOrder(p currency.Pair, side exchange.OrderSide, order
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HUOBIHADAX) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (h *HUOBIHADAX) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

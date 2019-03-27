@@ -1,13 +1,13 @@
 package bitflyer
 
 import (
-	"log"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -77,7 +77,7 @@ func TestGetAddressInfoCA(t *testing.T) {
 		t.Error("test failed - Bitflyer - GetAddressInfoCA() error:", err)
 	}
 	if v.UnconfirmedBalance == 0 || v.ConfirmedBalance == 0 {
-		log.Println("WARNING!: Donation wallet is empty :( - please consider donating")
+		log.Warn("Donation wallet is empty :( - please consider donating")
 	}
 }
 
@@ -369,7 +369,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	_, err := b.ModifyOrder(exchange.ModifyOrder{})
+	_, err := b.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
 	}

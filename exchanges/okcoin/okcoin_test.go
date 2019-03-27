@@ -39,7 +39,7 @@ func TestSetDefaults(t *testing.T) {
 // TestSetRealOrderDefaults Sets test defaults when test can impact real money/orders
 func TestSetRealOrderDefaults(t *testing.T) {
 	TestSetDefaults(t)
-	if areTestAPIKeysSet() || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("Ensure canManipulateRealOrders is true and your API keys are set")
 	}
 }
@@ -1165,7 +1165,7 @@ func TestGetAccountInfo(t *testing.T) {
 // TestModifyOrder Wrapper test
 func TestModifyOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	_, err := o.ModifyOrder(exchange.ModifyOrder{})
+	_, err := o.ModifyOrder(&exchange.ModifyOrder{})
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}

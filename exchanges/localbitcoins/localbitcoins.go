@@ -219,7 +219,7 @@ func (l *LocalBitcoins) Getads(args ...string) (AdData, error) {
 // params - see localbitcoins_types.go AdEdit for reference
 // adID - string for the ad you already created
 // TODO
-func (l *LocalBitcoins) EditAd(_ AdEdit, adID string) error {
+func (l *LocalBitcoins) EditAd(_ *AdEdit, adID string) error {
 	type response struct {
 		Data AdData `json:"data"`
 	}
@@ -232,7 +232,7 @@ func (l *LocalBitcoins) EditAd(_ AdEdit, adID string) error {
 //
 // params - see localbitcoins_types.go AdCreate for reference
 // TODO
-func (l *LocalBitcoins) CreateAd(_ AdCreate) error {
+func (l *LocalBitcoins) CreateAd(_ *AdCreate) error {
 	return l.SendAuthenticatedHTTPRequest(http.MethodPost, localbitcoinsAPIAdCreate, nil, nil)
 }
 

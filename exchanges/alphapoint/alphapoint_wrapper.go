@@ -152,7 +152,7 @@ func (a *Alphapoint) SubmitOrder(p currency.Pair, side exchange.OrderSide, order
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *Alphapoint) ModifyOrder(_ exchange.ModifyOrder) (string, error) {
+func (a *Alphapoint) ModifyOrder(_ *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

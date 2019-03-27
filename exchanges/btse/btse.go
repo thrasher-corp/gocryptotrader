@@ -132,36 +132,13 @@ func (b *BTSE) GetTrades(symbol string) (*Trades, error) {
 
 // GetTicker returns the ticker for a specified symbol
 func (b *BTSE) GetTicker(symbol string) (*Ticker, error) {
-	type tickerResponse struct {
-		Price  interface{} `json:"price"`
-		Size   float64     `json:"size,string"`
-		Bid    float64     `json:"bid,string"`
-		Ask    float64     `json:"ask,string"`
-		Volume float64     `json:"volume,string"`
-		Time   string      `json:"time"`
-	}
-
-	var r tickerResponse
+	var t Ticker
 	endpoint := fmt.Sprintf("%s/%s", btseTicker, symbol)
-	err := b.SendHTTPRequest(http.MethodGet, endpoint, &r)
+	err := b.SendHTTPRequest(http.MethodGet, endpoint, &t)
 	if err != nil {
 		return nil, err
 	}
-
-	p := strings.Replace(r.Price.(string), ",", "", -1)
-	price, err := strconv.ParseFloat(p, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Ticker{
-		Price:  price,
-		Size:   r.Size,
-		Bid:    r.Bid,
-		Ask:    r.Ask,
-		Volume: r.Volume,
-		Time:   r.Time,
-	}, nil
+	return &t, nil
 }
 
 // GetMarketStatistics gets market statistics for a specificed market

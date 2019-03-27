@@ -375,7 +375,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	_, err := z.ModifyOrder(exchange.ModifyOrder{})
+	_, err := z.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
 	}

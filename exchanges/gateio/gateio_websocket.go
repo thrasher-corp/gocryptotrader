@@ -264,13 +264,13 @@ func (g *Gateio) WsHandleData() {
 						g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access bid data")
 					}
 
-					var newOrderbook orderbook.Base
-					newOrderbook.Asks = asks
-					newOrderbook.Bids = bids
-					newOrderbook.AssetType = "SPOT"
-					newOrderbook.Pair = currency.NewPairFromString(c)
+					var newOrderBook orderbook.Base
+					newOrderBook.Asks = asks
+					newOrderBook.Bids = bids
+					newOrderBook.AssetType = "SPOT"
+					newOrderBook.Pair = currency.NewPairFromString(c)
 
-					err = g.Websocket.Orderbook.LoadSnapshot(newOrderbook,
+					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
 						g.GetName(),
 						false)
 					if err != nil {

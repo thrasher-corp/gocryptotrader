@@ -173,7 +173,7 @@ func (b *Bitflyer) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTy
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitflyer) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (b *Bitflyer) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -232,4 +232,9 @@ func (b *Bitflyer) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 // Can Limit response to specific order status
 func (b *Bitflyer) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetFeeByType returns an estimate of fee based on the type of transaction
+func (b *Bitflyer) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	return b.GetFee(feeBuilder)
 }

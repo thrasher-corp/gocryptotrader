@@ -159,7 +159,7 @@ func (b *BTSE) WsHandleData() {
 					continue
 				}
 
-				err = b.wsProcessSnapshot(snapshot)
+				err = b.wsProcessSnapshot(&snapshot)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -170,7 +170,7 @@ func (b *BTSE) WsHandleData() {
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
-func (b *BTSE) wsProcessSnapshot(snapshot websocketOrderbookSnapshot) error {
+func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	var base orderbook.Base
 	for _, bid := range snapshot.Bids {
 		p := strings.Replace(bid[0].(string), ",", "", -1)

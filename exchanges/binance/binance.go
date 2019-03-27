@@ -437,7 +437,7 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 }
 
 // NewOrder sends a new order to Binance
-func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
+func (b *Binance) NewOrder(o *NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
 
 	path := fmt.Sprintf("%s%s", b.APIUrl, newOrder)
