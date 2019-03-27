@@ -409,31 +409,28 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		side = strings.ToLower(string(getOrdersRequest.OrderSide))
 	}
 
-	var allOrders []OrderInfo
+	var orders []exchange.OrderDetail
+
 	for _, c := range getOrdersRequest.Currencies {
 		resp, err := h.GetOpenOrders(h.ClientID, c.Lower().String(), side, 500)
 		if err != nil {
 			return nil, err
 		}
-		allOrders = append(allOrders, resp...)
-	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Symbol,
-			h.ConfigCurrencyPairFormat.Delimiter)
-		orderDate := time.Unix(order.CreatedAt, 0)
+		for _, order := range resp {
+			orderDate := time.Unix(order.CreatedAt, 0)
 
-		orders = append(orders, exchange.OrderDetail{
-			ID:              fmt.Sprintf("%v", order.ID),
-			Exchange:        h.Name,
-			Amount:          order.Amount,
-			Price:           order.Price,
-			OrderDate:       orderDate,
-			ExecutedAmount:  order.FilledAmount,
-			RemainingAmount: (order.Amount - order.FilledAmount),
-			CurrencyPair:    symbol,
-		})
+			orders = append(orders, exchange.OrderDetail{
+				ID:              fmt.Sprintf("%v", order.ID),
+				Exchange:        h.Name,
+				Amount:          order.Amount,
+				Price:           order.Price,
+				OrderDate:       orderDate,
+				ExecutedAmount:  order.FilledAmount,
+				RemainingAmount: (order.Amount - order.FilledAmount),
+				CurrencyPair:    c,
+			})
+		}
 	}
 
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
@@ -450,9 +447,9 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	}
 
 	states := "partial-canceled,filled,canceled"
-	var allOrders []OrderInfo
-	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := h.GetOrders(currency.Lower().String(),
+	var orders []exchange.OrderDetail
+	for _, c := range getOrdersRequest.Currencies {
+		resp, err := h.GetOrders(c.Lower().String(),
 			"",
 			"",
 			"",
@@ -463,23 +460,19 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		if err != nil {
 			return nil, err
 		}
-		allOrders = append(allOrders, resp...)
-	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Symbol,
-			h.ConfigCurrencyPairFormat.Delimiter)
-		orderDate := time.Unix(order.CreatedAt, 0)
+		for _, order := range resp {
+			orderDate := time.Unix(order.CreatedAt, 0)
 
-		orders = append(orders, exchange.OrderDetail{
-			ID:           fmt.Sprintf("%v", order.ID),
-			Exchange:     h.Name,
-			Amount:       order.Amount,
-			Price:        order.Price,
-			OrderDate:    orderDate,
-			CurrencyPair: symbol,
-		})
+			orders = append(orders, exchange.OrderDetail{
+				ID:           fmt.Sprintf("%v", order.ID),
+				Exchange:     h.Name,
+				Amount:       order.Amount,
+				Price:        order.Price,
+				OrderDate:    orderDate,
+				CurrencyPair: c,
+			})
+		}
 	}
 
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
