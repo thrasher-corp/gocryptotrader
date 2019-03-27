@@ -242,7 +242,7 @@ func (o *OKGroup) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTyp
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKGroup) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (o *OKGroup) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -382,6 +382,7 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
+			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
 			InstrumentID: exchange.FormatExchangeCurrency(o.Name, currency).String(),
 		})
 		if err != nil {
@@ -389,9 +390,13 @@ func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 		for _, openOrder := range spotOpenOrders {
 			resp = append(resp, exchange.OrderDetail{
+				ID:             openOrder.OrderID,
+				Price:          openOrder.Price,
 				Amount:         openOrder.Size,
 				CurrencyPair:   currency,
 				Exchange:       o.Name,
+				OrderSide:      exchange.OrderSide(openOrder.Side),
+				OrderType:      exchange.OrderType(openOrder.Type),
 				ExecutedAmount: openOrder.FilledSize,
 				OrderDate:      openOrder.Timestamp,
 				Status:         openOrder.Status,
