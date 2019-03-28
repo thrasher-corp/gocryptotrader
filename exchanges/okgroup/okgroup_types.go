@@ -216,7 +216,7 @@ type GetSpotOrderResponse struct {
 	FilledNotional float64   `json:"filled_notional,string"`
 	FilledSize     float64   `json:"filled_size,string"`
 	InstrumentID   string    `json:"instrument_id"`
-	Notional       float64   `json:"notional,string"`
+	Notional       string    `json:"notional"`
 	OrderID        string    `json:"order_id"`
 	Price          float64   `json:"price,string"`
 	Side           string    `json:"side"`
