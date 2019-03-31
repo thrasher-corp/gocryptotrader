@@ -438,20 +438,6 @@ type WebsocketStatusResponse struct {
 
 type WebsocketDataResponse []interface{}
 
-
-
-type WebsocketTickerResponseData struct {
-	A []interface{} `json:"a"`
-	B []interface{} `json:"b"`
-	C []string      `json:"c"`
-	V []string      `json:"v"`
-	P []string      `json:"p"`
-	T []int64       `json:"t"`
-	L []string      `json:"l"`
-	H []string      `json:"h"`
-	O []string      `json:"o"`
-}
-
 type WebsocketErrorResponse struct {
 	ErrorMessage string `json:"errorMessage"`
 }

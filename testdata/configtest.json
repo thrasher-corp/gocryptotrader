@@ -934,8 +934,8 @@
   {
    "name": "Kraken",
    "enabled": true,
-   "verbose": false,
-   "websocket": false,
+   "verbose": true,
+   "websocket": true,
    "useSandbox": false,
    "restPollingDelay": 10,
    "httpTimeout": 15000000000,
@@ -1052,7 +1052,7 @@
   },
   {
    "name": "OKCOIN International",
-   "enabled": true,
+   "enabled": false,
    "verbose": false,
    "websocket": false,
    "useSandbox": false,
@@ -1093,7 +1093,7 @@
   },
   {
    "name": "OKEX",
-   "enabled": true,
+   "enabled": false,
    "verbose": false,
    "websocket": false,
    "useSandbox": false,

@@ -609,7 +609,24 @@ func TestConnectToWebsocket(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
 	k.Verbose = true
-	websocketSetup(t)
+	if k.WebsocketConn == nil {
+		k.Websocket.Shutdown()
+		if !k.Websocket.IsEnabled() {
+			err := k.WebsocketSetup(k.WsConnect,
+				k.Name,
+				true,
+				krakenWSURL,
+				krakenWSURL)
+			if err != nil {
+				t.Error(err)
+			}
+			k.Websocket.DataHandler = make(chan interface{}, 500)
+			k.Websocket.SetWsStatusAndConnection(true)
+		}
+	}
+	if !k.Websocket.IsConnected() {
+		t.Error("Could not connect to websocket")
+	}
 }
 
 func TestSubscribeToChannel(t *testing.T) {
