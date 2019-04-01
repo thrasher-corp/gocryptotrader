@@ -110,7 +110,7 @@ func (p *APIKeyParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *APIKeyParams) IsNil() bool {
-	return p == (&APIKeyParams{})
+	return (APIKeyParams{}) == *p
 }
 
 // ChatGetParams contains all the parameters to send to the API endpoint
@@ -230,7 +230,7 @@ func (p *GenericRequestParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *GenericRequestParams) IsNil() bool {
-	return p == (&GenericRequestParams{})
+	return *p == (GenericRequestParams{})
 }
 
 // LeaderboardGetParams contains all the parameters to send to the API endpoint
@@ -409,7 +409,7 @@ func (p *OrderAmendParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *OrderAmendParams) IsNil() bool {
-	return p == (&OrderAmendParams{})
+	return *p == (OrderAmendParams{})
 }
 
 // OrderCancelParams contains all the parameters to send to the API endpoint
@@ -883,7 +883,7 @@ func (p *UserUpdateParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *UserUpdateParams) IsNil() bool {
-	return p == (&UserUpdateParams{})
+	return *p == (UserUpdateParams{})
 }
 
 // UserTokenParams contains all the parameters to send to the API endpoint
@@ -1063,5 +1063,5 @@ func (p *OrdersRequest) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *OrdersRequest) IsNil() bool {
-	return p == (&OrdersRequest{})
+	return *p == (OrdersRequest{})
 }
