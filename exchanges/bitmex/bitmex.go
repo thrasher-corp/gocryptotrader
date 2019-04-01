@@ -218,7 +218,7 @@ func (b *Bitmex) RemoveAPIKey(params APIKeyParams) (bool, error) {
 
 	return keyDeleted, b.SendAuthenticatedHTTPRequest(http.MethodDelete,
 		bitmexEndpointAPIkeys,
-		params,
+		&params,
 		&keyDeleted)
 }
 
@@ -228,7 +228,7 @@ func (b *Bitmex) DisableAPIKey(params APIKeyParams) (APIKey, error) {
 
 	return keyInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointDisableAPIkey,
-		params,
+		&params,
 		&keyInfo)
 }
 
@@ -238,7 +238,7 @@ func (b *Bitmex) EnableAPIKey(params APIKeyParams) (APIKey, error) {
 
 	return keyInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointEnableAPIkey,
-		params,
+		&params,
 		&keyInfo)
 }
 
