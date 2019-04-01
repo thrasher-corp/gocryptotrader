@@ -43,6 +43,8 @@ const (
 	krakenWsTrade              = "trade"
 	krakenWsSpread             = "spread"
 	krakenWsOrderbook          = "book"
+	// Only supported asset type
+	krakenWsAssetType = "SPOT"
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
@@ -89,10 +91,9 @@ func (k *Kraken) WsConnect() error {
 	if k.Verbose {
 		log.Debugf("Successful connection to %v", k.Websocket.GetWebsocketURL())
 	}
-
+	k.Websocket.Connected <- struct{}{}
 	go k.WsHandleData()
 	go k.wsPingHandler()
-
 	err = k.WsSubscribeToDefaults()
 	if err != nil {
 		return fmt.Errorf("could not subscribe to the %v websocket %s",
@@ -123,7 +124,6 @@ func (k *Kraken) WsReadData() (exchange.WebsocketResponse, error) {
 	if err != nil {
 		return exchange.WebsocketResponse{}, err
 	}
-
 	k.Websocket.TrafficAlert <- struct{}{}
 	var standardMessage []byte
 	switch mType {
@@ -198,7 +198,7 @@ func (k *Kraken) WsHandleData() {
 				k.WsHandleEventResponse(&eventResponse)
 				continue
 			}
-			// Data respone handling
+			// Data response handling
 			var dataResponse WebsocketDataResponse
 			err = common.JSONDecode(resp.Raw, &dataResponse)
 			if err == nil && dataResponse[0].(float64) >= 0 {
@@ -340,7 +340,7 @@ func (k *Kraken) WsUnsubscribeToChannel(topic string, currencies []string, reque
 
 // WsUnsubscribeToChannelByChannelID sends a request to WS to unsubscribe to supplied channel ID
 func (k *Kraken) WsUnsubscribeToChannelByChannelID(channelID int64) error {
-	resp := WebsocketUnsubscribeEventRequest{
+	resp := WebsocketUnsubscribeByChannelIDEventRequest{
 		Event:     krakenWsUnsubscribe,
 		ChannelID: channelID,
 	}
@@ -355,6 +355,8 @@ func (k *Kraken) WsUnsubscribeToChannelByChannelID(channelID int64) error {
 	return nil
 }
 
+// addNewSubscriptionChannelData stores channel ids, pairs and subscription types to an array
+// allowing correlation between subscriptions and returned data
 func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 	for i := range subscriptionChannelPair {
 		if response.ChannelID == subscriptionChannelPair[i].ChannelID {
@@ -362,10 +364,8 @@ func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 		}
 	}
 
-	base := strings.Replace(response.Pair.Base.String(), "/", "", -1)
-	quote := strings.Replace(response.Pair.Quote.String(), "/", "", -1)
-	// We change the / to - to maintain compatability with REST/config
-	pair := currency.NewPairWithDelimiter(base, quote, "-")
+	// We change the / to - to maintain compatibility with REST/config
+	pair := currency.NewPairWithDelimiter(response.Pair.Base.String(), response.Pair.Quote.String(), "-")
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
 		Subscription: response.Subscription.Name,
 		Pair:         pair,
@@ -373,6 +373,7 @@ func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 	})
 }
 
+// getSubscriptionChannelData retrieves WebsocketChannelData based on response ID
 func getSubscriptionChannelData(id float64) WebsocketChannelData {
 	for i := range subscriptionChannelPair {
 		if id == subscriptionChannelPair[i].ChannelID {
@@ -440,7 +441,7 @@ func (k *Kraken) wsProcessTickers(channelData WebsocketChannelData, data interfa
 	k.Websocket.DataHandler <- exchange.TickerData{
 		Timestamp:  time.Now(),
 		Exchange:   k.GetName(),
-		AssetType:  "SPOT",
+		AssetType:  krakenWsAssetType,
 		Pair:       channelData.Pair,
 		ClosePrice: closePrice,
 		OpenPrice:  openPrice,
@@ -475,7 +476,7 @@ func (k *Kraken) wsProcessTrades(channelData WebsocketChannelData, data interfac
 		amount, _ := strconv.ParseFloat(trade[1].(string), 64)
 
 		k.Websocket.DataHandler <- exchange.TradeData{
-			AssetType:    "SPOT",
+			AssetType:    krakenWsAssetType,
 			CurrencyPair: channelData.Pair,
 			EventTime:    time.Now().Unix(),
 			Exchange:     k.GetName(),
@@ -487,6 +488,8 @@ func (k *Kraken) wsProcessTrades(channelData WebsocketChannelData, data interfac
 	}
 }
 
+// wsProcessOrderBook determines if the orderbook data is partial or update
+// Then sends to appropriate fun
 func (k *Kraken) wsProcessOrderBook(channelData WebsocketChannelData, data interface{}) {
 	obData := data.(map[string]interface{})
 	if _, ok := obData["as"]; ok {
@@ -496,8 +499,12 @@ func (k *Kraken) wsProcessOrderBook(channelData WebsocketChannelData, data inter
 	}
 }
 
+// wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookPartial(channelData WebsocketChannelData, obData map[string]interface{}) {
-	ob := orderbook.Base{}
+	ob := orderbook.Base{
+		Pair:      channelData.Pair,
+		AssetType: krakenWsAssetType,
+	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is timestamped per entry
 	// Using the highest last update time, we can attempt to respect both within a reasonable degree
 	var highestLastUpdate time.Time
@@ -538,26 +545,28 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData WebsocketChannelData, obD
 	}
 
 	ob.LastUpdated = highestLastUpdate
-	err := k.Websocket.Orderbook.LoadSnapshot(ob, k.GetName(), true)
+	err := k.Websocket.Orderbook.LoadSnapshot(&ob, k.GetName(), true)
 	if err != nil {
 		log.Error(err)
 	}
 
 	k.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: k.GetName(),
-		Asset:    "SPOT",
+		Asset:    krakenWsAssetType,
 		Pair:     channelData.Pair,
 	}
 }
 
+// wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData, obData map[string]interface{}) {
-	ob, err := k.GetOrderbookEx(channelData.Pair, "SPOT")
+	ob, err := k.GetOrderbookEx(channelData.Pair, krakenWsAssetType)
 	if err != nil {
 		k.Websocket.DataHandler <- err
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is timestamped per entry
 	// Using the highest last update time, we can attempt to respect both within a reasonable degree
 	var highestLastUpdate time.Time
+	// Ask data is not always sent
 	if _, ok := obData["a"]; ok {
 		askData := obData["a"].([]interface{})
 		for i := range askData {
@@ -587,7 +596,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData, obDa
 			}
 		}
 	}
-
+	// Bid data is not always sent
 	if _, ok := obData["b"]; ok {
 		bidData := obData["b"].([]interface{})
 		for i := range bidData {
@@ -625,13 +634,13 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData, obDa
 		return
 	}
 	ob.LastUpdated = highestLastUpdate
-	err = k.Websocket.Orderbook.LoadSnapshot(ob, k.GetName(), true)
+	err = k.Websocket.Orderbook.LoadSnapshot(&ob, k.GetName(), true)
 	if err != nil {
 		log.Error(err)
 	}
 	k.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: k.GetName(),
-		Asset:    "SPOT",
+		Asset:    krakenWsAssetType,
 		Pair:     channelData.Pair,
 	}
 }
@@ -643,24 +652,25 @@ func (k *Kraken) wsProcessCandles(channelData WebsocketChannelData, data interfa
 	startTimeUnix := time.Unix(startTimeData, 0)
 	endTimeData, _ := strconv.ParseInt(candleData[1].(string), 10, 64)
 	endTimeUnix := time.Unix(endTimeData, 0)
-	high, _ := strconv.ParseFloat(candleData[3].(string), 64)
-	low, _ := strconv.ParseFloat(candleData[4].(string), 64)
-	open, _ := strconv.ParseFloat(candleData[2].(string), 64)
-	close, _ := strconv.ParseFloat(candleData[5].(string), 64)
+	openPrice, _ := strconv.ParseFloat(candleData[2].(string), 64)
+	highPrice, _ := strconv.ParseFloat(candleData[3].(string), 64)
+	lowPrice, _ := strconv.ParseFloat(candleData[4].(string), 64)
+	closePrice, _ := strconv.ParseFloat(candleData[5].(string), 64)
 	volume, _ := strconv.ParseFloat(candleData[7].(string), 64)
 
 	k.Websocket.DataHandler <- exchange.KlineData{
-		AssetType:  "SPOT",
-		Pair:       channelData.Pair,
-		Timestamp:  time.Now(),
-		Exchange:   k.GetName(),
-		StartTime:  startTimeUnix,
-		CloseTime:  endTimeUnix,
+		AssetType: krakenWsAssetType,
+		Pair:      channelData.Pair,
+		Timestamp: time.Now(),
+		Exchange:  k.GetName(),
+		StartTime: startTimeUnix,
+		CloseTime: endTimeUnix,
+		// Candles are sent every 60 seconds
 		Interval:   "60",
-		HighPrice:  high,
-		LowPrice:   low,
-		OpenPrice:  open,
-		ClosePrice: close,
+		HighPrice:  highPrice,
+		LowPrice:   lowPrice,
+		OpenPrice:  openPrice,
+		ClosePrice: closePrice,
 		Volume:     volume,
 	}
 }

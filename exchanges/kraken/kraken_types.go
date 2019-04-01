@@ -396,13 +396,19 @@ type WebsocketSubscriptionEventRequest struct {
 }
 
 // WebsocketUnsubscribeEventRequest  handles WS unsubscribe events
-// You can choose to fill (requestID, pairs, subscription) OR ChannelID
 type WebsocketUnsubscribeEventRequest struct {
 	Event        string                    `json:"event"`           // unsubscribe
 	RequestID    int64                     `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
 	Pairs        []string                  `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
 	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
-	ChannelID    int64                     `json:"channelID,omitempty"`
+}
+
+// WebsocketUnsubscribeByChannelIDEventRequest  handles WS unsubscribe events
+type WebsocketUnsubscribeByChannelIDEventRequest struct {
+	Event     string   `json:"event"`           // unsubscribe
+	RequestID int64    `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	Pairs     []string `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
+	ChannelID int64    `json:"channelID,omitempty"`
 }
 
 // WebsocketSubscriptionData contains details on WS channel

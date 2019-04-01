@@ -89,8 +89,13 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
-	k.WebsocketURL = krakenWSURL
 	k.WebsocketInit()
+	k.WebsocketURL = krakenWSURL
+	k.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketKlineSupported |
+		exchange.WebsocketOrderbookSupported
+
 }
 
 // Setup sets current exchange configuration
@@ -105,6 +110,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		k.RESTPollingDelay = exch.RESTPollingDelay
 		k.Verbose = exch.Verbose
+		k.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		k.BaseCurrencies = exch.BaseCurrencies
 		k.AvailablePairs = exch.AvailablePairs
 		k.EnabledPairs = exch.EnabledPairs

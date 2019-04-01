@@ -934,7 +934,7 @@
   {
    "name": "Kraken",
    "enabled": true,
-   "verbose": true,
+   "verbose": false,
    "websocket": true,
    "useSandbox": false,
    "restPollingDelay": 10,
@@ -1093,7 +1093,7 @@
   },
   {
    "name": "OKEX",
-   "enabled": false,
+   "enabled": true,
    "verbose": false,
    "websocket": false,
    "useSandbox": false,

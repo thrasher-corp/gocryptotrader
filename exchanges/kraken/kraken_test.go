@@ -18,10 +18,12 @@ const (
 	canManipulateRealOrders = false
 )
 
+// TestSetDefaults setup func
 func TestSetDefaults(t *testing.T) {
 	k.SetDefaults()
 }
 
+// TestSetup setup func
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
@@ -33,10 +35,11 @@ func TestSetup(t *testing.T) {
 	krakenConfig.APIKey = apiKey
 	krakenConfig.APISecret = apiSecret
 	krakenConfig.ClientID = clientID
-
+	krakenConfig.WebsocketURL = k.WebsocketURL
 	k.Setup(krakenConfig)
 }
 
+// TestGetServerTime API endpoint test
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetServerTime()
@@ -45,6 +48,7 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
+// TestGetAssets API endpoint test
 func TestGetAssets(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetAssets()
@@ -53,6 +57,7 @@ func TestGetAssets(t *testing.T) {
 	}
 }
 
+// TestGetAssetPairs API endpoint test
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetAssetPairs()
@@ -61,6 +66,7 @@ func TestGetAssetPairs(t *testing.T) {
 	}
 }
 
+// TestGetTicker API endpoint test
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetTicker("BCHEUR")
@@ -69,6 +75,7 @@ func TestGetTicker(t *testing.T) {
 	}
 }
 
+// TestGetTickers API endpoint test
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetTickers("LTCUSD,ETCUSD")
@@ -77,6 +84,7 @@ func TestGetTickers(t *testing.T) {
 	}
 }
 
+// TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetOHLC("BCHEUR")
@@ -85,6 +93,7 @@ func TestGetOHLC(t *testing.T) {
 	}
 }
 
+// TestGetDepth API endpoint test
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetDepth("BCHEUR")
@@ -93,6 +102,7 @@ func TestGetDepth(t *testing.T) {
 	}
 }
 
+// TestGetTrades API endpoint test
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetTrades("BCHEUR")
@@ -101,6 +111,7 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
+// TestGetSpread API endpoint test
 func TestGetSpread(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetSpread("BCHEUR")
@@ -109,6 +120,7 @@ func TestGetSpread(t *testing.T) {
 	}
 }
 
+// TestGetBalance API endpoint test
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetBalance()
@@ -117,6 +129,7 @@ func TestGetBalance(t *testing.T) {
 	}
 }
 
+// TestGetTradeBalance API endpoint test
 func TestGetTradeBalance(t *testing.T) {
 	t.Parallel()
 	args := TradeBalanceOptions{Asset: "ZEUR"}
@@ -126,6 +139,7 @@ func TestGetTradeBalance(t *testing.T) {
 	}
 }
 
+// TestGetOpenOrders API endpoint test
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 	args := OrderInfoOptions{Trades: true}
@@ -135,6 +149,7 @@ func TestGetOpenOrders(t *testing.T) {
 	}
 }
 
+// TestGetClosedOrders API endpoint test
 func TestGetClosedOrders(t *testing.T) {
 	t.Parallel()
 	args := GetClosedOrdersOptions{Trades: true, Start: "OE4KV4-4FVQ5-V7XGPU"}
@@ -144,6 +159,7 @@ func TestGetClosedOrders(t *testing.T) {
 	}
 }
 
+// TestQueryOrdersInfo API endpoint test
 func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
 	args := OrderInfoOptions{Trades: true}
@@ -153,6 +169,7 @@ func TestQueryOrdersInfo(t *testing.T) {
 	}
 }
 
+// TestGetTradesHistory API endpoint test
 func TestGetTradesHistory(t *testing.T) {
 	t.Parallel()
 	args := GetTradesHistoryOptions{Trades: true, Start: "TMZEDR-VBJN2-NGY6DX", End: "TVRXG2-R62VE-RWP3UW"}
@@ -162,6 +179,7 @@ func TestGetTradesHistory(t *testing.T) {
 	}
 }
 
+// TestQueryTrades API endpoint test
 func TestQueryTrades(t *testing.T) {
 	t.Parallel()
 	_, err := k.QueryTrades(true, "TMZEDR-VBJN2-NGY6DX", "TFLWIB-KTT7L-4TWR3L", "TDVRAH-2H6OS-SLSXRX")
@@ -170,6 +188,7 @@ func TestQueryTrades(t *testing.T) {
 	}
 }
 
+// TestOpenPositions API endpoint test
 func TestOpenPositions(t *testing.T) {
 	t.Parallel()
 	_, err := k.OpenPositions(false)
@@ -178,6 +197,7 @@ func TestOpenPositions(t *testing.T) {
 	}
 }
 
+// TestGetLedgers API endpoint test
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
 	args := GetLedgersOptions{Start: "LRUHXI-IWECY-K4JYGO", End: "L5NIY7-JZQJD-3J4M2V", Ofs: 15}
@@ -187,6 +207,7 @@ func TestGetLedgers(t *testing.T) {
 	}
 }
 
+// TestQueryLedgers API endpoint test
 func TestQueryLedgers(t *testing.T) {
 	t.Parallel()
 	_, err := k.QueryLedgers("LVTSFS-NHZVM-EXNZ5M")
@@ -195,6 +216,7 @@ func TestQueryLedgers(t *testing.T) {
 	}
 }
 
+// TestGetTradeVolume API endpoint test
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetTradeVolume(true, "OAVY7T-MV5VK-KHDF5X")
@@ -203,6 +225,7 @@ func TestGetTradeVolume(t *testing.T) {
 	}
 }
 
+// TestAddOrder API endpoint test
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
 	args := AddOrderOptions{Oflags: "fcib"}
@@ -212,6 +235,7 @@ func TestAddOrder(t *testing.T) {
 	}
 }
 
+// TestCancelExistingOrder API endpoint test
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	_, err := k.CancelExistingOrder("OAVY7T-MV5VK-KHDF5X")
@@ -231,6 +255,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+// TestGetFee logic test
 func TestGetFee(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -313,6 +338,7 @@ func TestGetFee(t *testing.T) {
 	}
 }
 
+// TestFormatWithdrawPermissions logic test
 func TestFormatWithdrawPermissions(t *testing.T) {
 	k.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.AutoWithdrawFiatWithSetupText + " & " + exchange.WithdrawFiatWith2FAText
@@ -324,6 +350,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
+// TestGetActiveOrders wrapper test
 func TestGetActiveOrders(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -340,6 +367,7 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
+// TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -366,6 +394,7 @@ func areTestAPIKeysSet() bool {
 	return false
 }
 
+// TestSubmitOrder wrapper test
 func TestSubmitOrder(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -387,6 +416,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 }
 
+// TestCancelExchangeOrder wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -413,6 +443,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
+// TestCancelAllExchangeOrders wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -444,6 +475,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
+// TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
 	if apiKey != "" || apiSecret != "" || clientID != "" {
 		_, err := k.GetAccountInfo()
@@ -458,6 +490,7 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 }
 
+// TestModifyOrder wrapper test
 func TestModifyOrder(t *testing.T) {
 	_, err := k.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
@@ -465,6 +498,7 @@ func TestModifyOrder(t *testing.T) {
 	}
 }
 
+// TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -489,6 +523,7 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
+// TestWithdrawFiat wrapper test
 func TestWithdrawFiat(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -514,6 +549,7 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 }
 
+// TestWithdrawInternationalBank wrapper test
 func TestWithdrawInternationalBank(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -539,6 +575,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 }
 
+// TestGetDepositAddress wrapper test
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
 		_, err := k.GetDepositAddress(currency.BTC, "")
@@ -553,6 +590,7 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
+// TestWithdrawStatus wrapper test
 func TestWithdrawStatus(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
@@ -570,10 +608,10 @@ func TestWithdrawStatus(t *testing.T) {
 	}
 }
 
+// TestWithdrawCancel wrapper test
 func TestWithdrawCancel(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
-
 	_, err := k.WithdrawCancel(currency.BTC, "")
 	if areTestAPIKeysSet() && err == nil {
 		t.Error("Test Failed - WithdrawCancel() error cannot be nil")
@@ -584,67 +622,32 @@ func TestWithdrawCancel(t *testing.T) {
 
 // ---------------------------- Websocket tests -----------------------------------------
 
-func websocketSetup(t *testing.T) {
-	if k.WebsocketConn == nil {
-		k.Websocket.Shutdown()
-		if !k.Websocket.IsEnabled() {
-			err := k.WebsocketSetup(k.WsConnect,
-				k.Name,
-				true,
-				krakenWSURL,
-				krakenWSURL)
-			if err != nil {
-				t.Error(err)
-			}
-			k.Websocket.DataHandler = make(chan interface{}, 500)
-			k.Websocket.SetWsStatusAndConnection(true)
-		}
-	}
-	if !k.Websocket.IsConnected() {
-		t.Skip("Could not connect to websocket. Skipping")
-	}
-}
-
-func TestConnectToWebsocket(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-	k.Verbose = true
-	if k.WebsocketConn == nil {
-		k.Websocket.Shutdown()
-		if !k.Websocket.IsEnabled() {
-			err := k.WebsocketSetup(k.WsConnect,
-				k.Name,
-				true,
-				krakenWSURL,
-				krakenWSURL)
-			if err != nil {
-				t.Error(err)
-			}
-			k.Websocket.DataHandler = make(chan interface{}, 500)
-			k.Websocket.SetWsStatusAndConnection(true)
-		}
-	}
-	if !k.Websocket.IsConnected() {
-		t.Error("Could not connect to websocket")
-	}
-}
-
+// TestSubscribeToChannel websocket test
 func TestSubscribeToChannel(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
-	k.Verbose = true
-	websocketSetup(t)
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	defer k.Websocket.Shutdown()
+	k.Websocket.Connect()
+	<-k.Websocket.TrafficAlert
 	err := k.WsSubscribeToChannel("ticker", []string{"XBT/USD"}, 1)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestSubscribeToPewdiepie(t *testing.T) {
+// TestSubscribeToNonExistentChannel websocket test
+func TestSubscribeToNonExistentChannel(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
-	k.Verbose = true
-	websocketSetup(t)
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	defer k.Websocket.Shutdown()
+	k.Websocket.Connect()
+	<-k.Websocket.TrafficAlert
 	err := k.WsSubscribeToChannel("ticker", []string{"pewdiepie"}, 1)
 	if err != nil {
 		t.Error(err)
@@ -663,11 +666,16 @@ func TestSubscribeToPewdiepie(t *testing.T) {
 	}
 }
 
+// TestSubscribeUnsubscribeToChannel websocket test
 func TestSubscribeUnsubscribeToChannel(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
-	k.Verbose = true
-	websocketSetup(t)
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	defer k.Websocket.Shutdown()
+	k.Websocket.Connect()
+	<-k.Websocket.TrafficAlert
 	err := k.WsSubscribeToChannel("ticker", []string{"XBT/USD"}, 1)
 	if err != nil {
 		t.Error(err)
@@ -678,11 +686,16 @@ func TestSubscribeUnsubscribeToChannel(t *testing.T) {
 	}
 }
 
+// TestUnsubscribeWithoutSubscription websocket test
 func TestUnsubscribeWithoutSubscription(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
-	k.Verbose = true
-	websocketSetup(t)
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	defer k.Websocket.Shutdown()
+	k.Websocket.Connect()
+	<-k.Websocket.TrafficAlert
 	err := k.WsUnsubscribeToChannel("ticker", []string{"XBT/USD"}, 3)
 	if err != nil {
 		t.Error(err)
@@ -703,11 +716,16 @@ func TestUnsubscribeWithoutSubscription(t *testing.T) {
 	}
 }
 
+// TestUnsubscribeWithChannelID websocket test
 func TestUnsubscribeWithChannelID(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
-	k.Verbose = true
-	websocketSetup(t)
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	defer k.Websocket.Shutdown()
+	k.Websocket.Connect()
+	<-k.Websocket.TrafficAlert
 	err := k.WsUnsubscribeToChannelByChannelID(3)
 	if err != nil {
 		t.Error(err)
@@ -728,11 +746,16 @@ func TestUnsubscribeWithChannelID(t *testing.T) {
 	}
 }
 
-func TestUnsubscribeFromTSeries(t *testing.T) {
+// TestUnsubscribeFromNonExistentChennel websocket test
+func TestUnsubscribeFromNonExistentChennel(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
-	k.Verbose = true
-	websocketSetup(t)
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	defer k.Websocket.Shutdown()
+	k.Websocket.Connect()
+	<-k.Websocket.DataHandler
 	err := k.WsUnsubscribeToChannel("ticker", []string{"tseries"}, 0)
 	if err != nil {
 		t.Error(err)
