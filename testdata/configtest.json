@@ -1052,7 +1052,7 @@
   },
   {
    "name": "OKCOIN International",
-   "enabled": false,
+   "enabled": true,
    "verbose": false,
    "websocket": false,
    "useSandbox": false,

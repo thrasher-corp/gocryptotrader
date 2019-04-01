@@ -317,7 +317,7 @@ func (k *Kraken) WsSubscribeToChannel(topic string, currencies []string, request
 
 // WsUnsubscribeToChannel sends a request to WS to unsubscribe to supplied channel name and pairs
 func (k *Kraken) WsUnsubscribeToChannel(topic string, currencies []string, requestID int64) error {
-	resp := WebsocketUnsubscribeEventRequest{
+	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsUnsubscribe,
 		Pairs: currencies,
 		Subscription: WebsocketSubscriptionData{
