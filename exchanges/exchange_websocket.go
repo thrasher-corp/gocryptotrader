@@ -141,8 +141,6 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 		select {
 		case <-w.ShutdownC: // Returns on shutdown channel close
 			return
-		case <-w.Connected:
-			w.connected = true
 		case <-w.TrafficAlert: // Resets timer on traffic
 			if !w.connected {
 				w.Connected <- struct{}{}
@@ -195,17 +193,22 @@ func (w *Websocket) Connect() error {
 
 	w.ShutdownC = make(chan struct{}, 1)
 
-	var anotherWG sync.WaitGroup
-	anotherWG.Add(1)
-	go w.trafficMonitor(&anotherWG)
-	anotherWG.Wait()
-
 	err := w.connector()
 	if err != nil {
 		return fmt.Errorf("exchange_websocket.go connection error %s",
 			err)
 	}
-	w.connected = true
+
+	if !w.connected {
+		w.Connected <- struct{}{}
+		w.connected = true
+	}
+
+	var anotherWG sync.WaitGroup
+	anotherWG.Add(1)
+	go w.trafficMonitor(&anotherWG)
+	anotherWG.Wait()
+
 	return nil
 }
 

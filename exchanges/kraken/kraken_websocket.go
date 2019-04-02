@@ -56,7 +56,7 @@ func (k *Kraken) writeToWebsocket(message []byte) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	if k.Verbose {
-		log.Debugf("Sending message to WS: %v", message)
+		log.Debugf("Sending message to WS: %v", string(message))
 	}
 	return k.WebsocketConn.WriteMessage(websocket.TextMessage, message)
 }
