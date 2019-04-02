@@ -129,14 +129,14 @@ type ChatGetParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p ChatGetParams) VerifyData() error {
+func (p *ChatGetParams) VerifyData() error {
 	return nil
 }
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p ChatGetParams) ToURLVals(path string) (string, error) {
-	values, err := StructValsToURLVals(&p)
+func (p *ChatGetParams) ToURLVals(path string) (string, error) {
+	values, err := StructValsToURLVals(p)
 	if err != nil {
 		return "", err
 	}
@@ -144,8 +144,8 @@ func (p ChatGetParams) ToURLVals(path string) (string, error) {
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p ChatGetParams) IsNil() bool {
-	return p == (ChatGetParams{})
+func (p *ChatGetParams) IsNil() bool {
+	return *p == (ChatGetParams{})
 }
 
 // ChatSendParams contains all the parameters to send to the API endpoint
@@ -172,8 +172,8 @@ func (p ChatSendParams) ToURLVals(path string) (string, error) {
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p ChatSendParams) IsNil() bool {
-	return p == (ChatSendParams{})
+func (p *ChatSendParams) IsNil() bool {
+	return *p == (ChatSendParams{})
 }
 
 // GenericRequestParams contains all the parameters for some general functions

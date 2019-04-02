@@ -246,7 +246,7 @@ func (b *Bitmex) EnableAPIKey(params APIKeyParams) (APIKey, error) {
 func (b *Bitmex) GetTrollboxMessages(params ChatGetParams) ([]Chat, error) {
 	var messages []Chat
 
-	return messages, b.SendHTTPRequest(bitmexEndpointTrollbox, params, &messages)
+	return messages, b.SendHTTPRequest(bitmexEndpointTrollbox, &params, &messages)
 }
 
 // SendTrollboxMessage sends a message to the bitmex trollbox
@@ -255,7 +255,7 @@ func (b *Bitmex) SendTrollboxMessage(params ChatSendParams) ([]Chat, error) {
 
 	return messages, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointTrollboxSend,
-		params,
+		&params,
 		&messages)
 }
 
