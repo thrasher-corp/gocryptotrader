@@ -205,11 +205,7 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("exchange_websocket.go connection error %s",
 			err)
 	}
-
-	if !w.connected {
-		w.Connected <- struct{}{}
-	}
-
+	w.connected = true
 	return nil
 }
 

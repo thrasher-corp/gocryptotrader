@@ -629,13 +629,13 @@ func TestSubscribeToChannel(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	defer k.Websocket.Shutdown()
 	k.Websocket.Connect()
 	<-k.Websocket.TrafficAlert
 	err := k.WsSubscribeToChannel("ticker", []string{"XBT/USD"}, 1)
 	if err != nil {
 		t.Error(err)
 	}
+	k.Websocket.Shutdown()
 }
 
 // TestSubscribeToNonExistentChannel websocket test
@@ -653,11 +653,10 @@ func TestSubscribeToNonExistentChannel(t *testing.T) {
 		t.Error(err)
 	}
 	subscriptionError := false
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 7; i++ {
 		response := <-k.Websocket.DataHandler
 		if err, ok := response.(error); ok && err != nil {
 			subscriptionError = true
-			t.Log(err)
 			break
 		}
 	}
@@ -673,7 +672,6 @@ func TestSubscribeUnsubscribeToChannel(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	defer k.Websocket.Shutdown()
 	k.Websocket.Connect()
 	<-k.Websocket.TrafficAlert
 	err := k.WsSubscribeToChannel("ticker", []string{"XBT/USD"}, 1)
@@ -684,6 +682,7 @@ func TestSubscribeUnsubscribeToChannel(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	k.Websocket.Shutdown()
 }
 
 // TestUnsubscribeWithoutSubscription websocket test
@@ -693,7 +692,6 @@ func TestUnsubscribeWithoutSubscription(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	defer k.Websocket.Shutdown()
 	k.Websocket.Connect()
 	<-k.Websocket.TrafficAlert
 	err := k.WsUnsubscribeToChannel("ticker", []string{"XBT/USD"}, 3)
@@ -701,10 +699,9 @@ func TestUnsubscribeWithoutSubscription(t *testing.T) {
 		t.Error(err)
 	}
 	unsubscriptionError := false
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 7; i++ {
 		response := <-k.Websocket.DataHandler
 		if err, ok := response.(error); ok && err != nil {
-			t.Log(err)
 			if err.Error() == "Subscription Not Found" {
 				unsubscriptionError = true
 				break
@@ -714,6 +711,7 @@ func TestUnsubscribeWithoutSubscription(t *testing.T) {
 	if !unsubscriptionError {
 		t.Error("Expected error")
 	}
+	k.Websocket.Shutdown()
 }
 
 // TestUnsubscribeWithChannelID websocket test
@@ -723,7 +721,6 @@ func TestUnsubscribeWithChannelID(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	defer k.Websocket.Shutdown()
 	k.Websocket.Connect()
 	<-k.Websocket.TrafficAlert
 	err := k.WsUnsubscribeToChannelByChannelID(3)
@@ -731,10 +728,9 @@ func TestUnsubscribeWithChannelID(t *testing.T) {
 		t.Error(err)
 	}
 	unsubscriptionError := false
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 7; i++ {
 		response := <-k.Websocket.DataHandler
 		if err, ok := response.(error); ok && err != nil {
-			t.Log(err)
 			if err.Error() == "Subscription Not Found" {
 				unsubscriptionError = true
 				break
@@ -744,6 +740,7 @@ func TestUnsubscribeWithChannelID(t *testing.T) {
 	if !unsubscriptionError {
 		t.Error("Expected error")
 	}
+	k.Websocket.Shutdown()
 }
 
 // TestUnsubscribeFromNonExistentChennel websocket test
@@ -753,7 +750,6 @@ func TestUnsubscribeFromNonExistentChennel(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	defer k.Websocket.Shutdown()
 	k.Websocket.Connect()
 	<-k.Websocket.DataHandler
 	err := k.WsUnsubscribeToChannel("ticker", []string{"tseries"}, 0)
@@ -761,10 +757,9 @@ func TestUnsubscribeFromNonExistentChennel(t *testing.T) {
 		t.Error(err)
 	}
 	unsubscriptionError := false
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 7; i++ {
 		response := <-k.Websocket.DataHandler
 		if err, ok := response.(error); ok && err != nil {
-			t.Log(err)
 			unsubscriptionError = true
 			break
 		}
@@ -772,4 +767,5 @@ func TestUnsubscribeFromNonExistentChennel(t *testing.T) {
 	if !unsubscriptionError {
 		t.Error("Expected error")
 	}
+	k.Websocket.Shutdown()
 }

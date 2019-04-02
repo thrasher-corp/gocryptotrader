@@ -52,13 +52,13 @@ var orderbookMutex sync.Mutex
 var subscriptionChannelPair []WebsocketChannelData
 
 // writeToWebsocket sends a message to the websocket endpoint
-func (k *Kraken) writeToWebsocket(message string) error {
+func (k *Kraken) writeToWebsocket(message []byte) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	if k.Verbose {
 		log.Debugf("Sending message to WS: %v", message)
 	}
-	return k.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
+	return k.WebsocketConn.WriteMessage(websocket.TextMessage, message)
 }
 
 // WsConnect initiates a websocket connection
@@ -91,31 +91,25 @@ func (k *Kraken) WsConnect() error {
 	if k.Verbose {
 		log.Debugf("Successful connection to %v", k.Websocket.GetWebsocketURL())
 	}
-	k.Websocket.Connected <- struct{}{}
 	go k.WsHandleData()
 	go k.wsPingHandler()
-	err = k.WsSubscribeToDefaults()
-	if err != nil {
-		return fmt.Errorf("could not subscribe to the %v websocket %s",
-			k.GetName(), err)
-	}
+	k.WsSubscribeToDefaults()
 	return nil
 }
 
 // WsSubscribeToDefaults subscribes to the websocket channels
-func (k *Kraken) WsSubscribeToDefaults() (err error) {
+func (k *Kraken) WsSubscribeToDefaults() {
 	channelsToSubscribe := []string{krakenWsTicker, krakenWsTrade, krakenWsOrderbook, krakenWsOHLC, krakenWsSpread}
 	for _, pair := range k.EnabledPairs {
 		// Kraken WS formats pairs with / but config and REST use -
 		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "-", "/", 1))
 		for _, channel := range channelsToSubscribe {
-			err = k.WsSubscribeToChannel(channel, []string{formattedPair}, 0)
+			err := k.WsSubscribeToChannel(channel, []string{formattedPair}, 0)
 			if err != nil {
 				k.Websocket.DataHandler <- err
 			}
 		}
 	}
-	return nil
 }
 
 // WsReadData reads data from the websocket connection
@@ -157,13 +151,12 @@ func (k *Kraken) wsPingHandler() {
 
 		case <-ticker.C:
 			pingEvent := fmt.Sprintf("{\"event\":\"%v\"}", krakenWsPing)
-			err := k.writeToWebsocket(pingEvent)
 			if k.Verbose {
 				log.Debugf("%v sending ping", k.GetName())
 			}
+			err := k.writeToWebsocket([]byte(pingEvent))
 			if err != nil {
 				k.Websocket.DataHandler <- err
-				return
 			}
 		}
 	}
@@ -308,11 +301,7 @@ func (k *Kraken) WsSubscribeToChannel(topic string, currencies []string, request
 	if err != nil {
 		return err
 	}
-	err = k.writeToWebsocket(string(json))
-	if err != nil {
-		return err
-	}
-	return nil
+	return k.writeToWebsocket(json)
 }
 
 // WsUnsubscribeToChannel sends a request to WS to unsubscribe to supplied channel name and pairs
@@ -331,11 +320,7 @@ func (k *Kraken) WsUnsubscribeToChannel(topic string, currencies []string, reque
 	if err != nil {
 		return err
 	}
-	err = k.writeToWebsocket(string(json))
-	if err != nil {
-		return err
-	}
-	return nil
+	return k.writeToWebsocket(json)
 }
 
 // WsUnsubscribeToChannelByChannelID sends a request to WS to unsubscribe to supplied channel ID
@@ -348,11 +333,7 @@ func (k *Kraken) WsUnsubscribeToChannelByChannelID(channelID int64) error {
 	if err != nil {
 		return err
 	}
-	err = k.writeToWebsocket(string(json))
-	if err != nil {
-		return err
-	}
-	return nil
+	return k.writeToWebsocket(json)
 }
 
 // addNewSubscriptionChannelData stores channel ids, pairs and subscription types to an array
@@ -547,7 +528,8 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData WebsocketChannelData, obD
 	ob.LastUpdated = highestLastUpdate
 	err := k.Websocket.Orderbook.LoadSnapshot(&ob, k.GetName(), true)
 	if err != nil {
-		log.Error(err)
+		k.Websocket.DataHandler <- err
+		return
 	}
 
 	k.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
@@ -562,6 +544,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData, obDa
 	ob, err := k.GetOrderbookEx(channelData.Pair, krakenWsAssetType)
 	if err != nil {
 		k.Websocket.DataHandler <- err
+		return
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is timestamped per entry
 	// Using the highest last update time, we can attempt to respect both within a reasonable degree
@@ -636,7 +619,8 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData, obDa
 	ob.LastUpdated = highestLastUpdate
 	err = k.Websocket.Orderbook.LoadSnapshot(&ob, k.GetName(), true)
 	if err != nil {
-		log.Error(err)
+		k.Websocket.DataHandler <- err
+		return
 	}
 	k.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: k.GetName(),
