@@ -199,7 +199,7 @@ func (c *CoinbasePro) WsHandleData() {
 
 // ProcessSnapshot processes the initial orderbook snap shot
 func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
-	var base *orderbook.Base
+	var base orderbook.Base
 	for _, bid := range snapshot.Bids {
 		price, err := strconv.ParseFloat(bid[0].(string), 64)
 		if err != nil {
@@ -234,7 +234,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	base.AssetType = "SPOT"
 	base.Pair = pair
 
-	err := c.Websocket.Orderbook.LoadSnapshot(base, c.GetName(), false)
+	err := c.Websocket.Orderbook.LoadSnapshot(&base, c.GetName(), false)
 	if err != nil {
 		return err
 	}
