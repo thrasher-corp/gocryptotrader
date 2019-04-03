@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/url"
 	"os"
+	"path"
 	"reflect"
 	"runtime"
 	"strings"
@@ -991,15 +992,13 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Errorf("got err: %v", err)
 		}
-		dir, _ = os.LookupEnv("~")
-		dir = dir + GetOSPathSlash() + "GoCryptoTrader/TestFileASDFG"
+		dir = path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
 		if err != nil {
 			t.Errorf("Err: %s", err)
 		}
 		os.Remove(dir)
-		dir, _ = os.LookupEnv("")
-		err = CreateDir(dir)
+		err = CreateDir("")
 		if err == nil {
 			t.Errorf("Expected err due to invalid path, got err: %v", err)
 		}
@@ -1010,15 +1009,13 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Errorf("got err: %v", err)
 		}
-		dir, _ = os.LookupEnv("~")
-		dir = dir + GetOSPathSlash() + "GoCryptoTrader/TestFileASDFG"
+		dir = path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
 		if err != nil {
 			t.Errorf("Err: %s", err)
 		}
 		os.Remove(dir)
-		dir, _ = os.LookupEnv(":")
-		err = CreateDir(dir)
+		err = CreateDir(":")
 		if err == nil {
 			t.Errorf("Expected err due to invalid path, got err: %v", err)
 		}
