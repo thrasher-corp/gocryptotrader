@@ -1003,7 +1003,7 @@ func TestCreateDir(t *testing.T) {
 		if err == nil {
 			t.Errorf("Expected err due to invalid path, got err: %v", err)
 		}
-		//same tests for macs
+		// Same tests for macs
 	case "darwin":
 		dir := "/home"
 		err := CreateDir(dir)

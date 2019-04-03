@@ -610,7 +610,7 @@ func GetDefaultDataDir(env string) string {
 	return path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader")
 }
 
-//CreateDir creates a directory based on the supplied parameter
+// CreateDir creates a directory based on the supplied parameter
 func CreateDir(dir string) error {
 	_, err := os.Stat(dir)
 	if !os.IsNotExist(err) {
