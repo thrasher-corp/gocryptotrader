@@ -344,7 +344,7 @@ func (p *OrderNewParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *OrderNewParams) IsNil() bool {
-	return p == (&OrderNewParams{})
+	return *p == (OrderNewParams{})
 }
 
 // OrderAmendParams contains all the parameters to send to the API endpoint
@@ -785,7 +785,7 @@ func (p *QuoteGetBucketedParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *QuoteGetBucketedParams) IsNil() bool {
-	return p == (&QuoteGetBucketedParams{})
+	return *p == (QuoteGetBucketedParams{})
 }
 
 // TradeGetBucketedParams contains all the parameters to send to the API
@@ -846,7 +846,7 @@ func (p *TradeGetBucketedParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *TradeGetBucketedParams) IsNil() bool {
-	return p == (&TradeGetBucketedParams{})
+	return *p == TradeGetBucketedParams{})
 }
 
 // UserUpdateParams contains all the parameters to send to the API endpoint
