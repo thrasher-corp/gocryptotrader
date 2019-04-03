@@ -3,7 +3,9 @@ package common
 import (
 	"bytes"
 	"net/url"
+	"os"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -948,5 +950,77 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 	_, err = TimeFromUnixTimestampFloat(testString)
 	if err == nil {
 		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
+	}
+}
+
+func TestGetDefaultDataDir(t *testing.T) {
+	expectedOutput := os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
+	actualOutput := GetDefaultDataDir("windows")
+	t.Log(actualOutput)
+	if actualOutput != expectedOutput {
+		t.Errorf("Unexpected result. Got: %v Expected: %v", actualOutput, expectedOutput)
+	}
+}
+
+func TestCreateDir(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		// test for a directory that exists
+		dir := "c:\\temp"
+		err := CreateDir(dir)
+		if err != nil {
+			t.Errorf("got err: %v", err)
+		}
+		// test for creating a directory
+		dir, _ = os.LookupEnv("APPDATA")
+		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
+		err = CreateDir(dir)
+		if err != nil {
+			t.Errorf("Err: %s", err)
+		}
+		os.Remove(dir)
+		dir, _ = os.LookupEnv("*")
+		err = CreateDir(dir)
+		if err == nil {
+			t.Errorf("Expected err due to invalid path, got err: %v", err)
+		}
+		// same tests for linux
+	case "linux":
+		dir := "/home"
+		err := CreateDir(dir)
+		if err != nil {
+			t.Errorf("got err: %v", err)
+		}
+		dir, _ = os.LookupEnv("~")
+		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
+		err = CreateDir(dir)
+		if err != nil {
+			t.Errorf("Err: %s", err)
+		}
+		os.Remove(dir)
+		dir, _ = os.LookupEnv("")
+		err = CreateDir(dir)
+		if err == nil {
+			t.Errorf("Expected err due to invalid path, got err: %v", err)
+		}
+		//same tests for macs
+	case "darwin":
+		dir := "/home"
+		err := CreateDir(dir)
+		if err != nil {
+			t.Errorf("got err: %v", err)
+		}
+		dir, _ = os.LookupEnv("~")
+		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
+		err = CreateDir(dir)
+		if err != nil {
+			t.Errorf("Err: %s", err)
+		}
+		os.Remove(dir)
+		dir, _ = os.LookupEnv(":")
+		err = CreateDir(dir)
+		if err == nil {
+			t.Errorf("Expected err due to invalid path, got err: %v", err)
+		}
 	}
 }

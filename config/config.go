@@ -1077,7 +1077,7 @@ func (c *Config) CheckLoggerConfig() error {
 
 	if len(c.Logging.File) > 0 {
 		logPath := path.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
-		err := common.CheckDir(logPath, true)
+		err := common.CreateDir(logPath)
 		if err != nil {
 			return err
 		}
@@ -1106,7 +1106,7 @@ func GetFilePath(file string) (string, error) {
 	oldDirs := []string{oldDir + ConfigFile, oldDir + EncryptedConfigFile}
 
 	newDir := common.GetDefaultDataDir(runtime.GOOS) + common.GetOSPathSlash()
-	err = common.CheckDir(newDir, true)
+	err = common.CreateDir(newDir)
 	if err != nil {
 		return "", err
 	}

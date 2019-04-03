@@ -610,22 +610,13 @@ func GetDefaultDataDir(env string) string {
 	return path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader")
 }
 
-// CheckDir checks to see if a particular directory exists
-// and attempts to create it if desired, if it doesn't exist
-func CheckDir(dir string, create bool) error {
+//CreateDir creates a directory based on the supplied parameter
+func CreateDir(dir string) error {
 	_, err := os.Stat(dir)
 	if !os.IsNotExist(err) {
 		return nil
 	}
 
-	if !create {
-		return fmt.Errorf("directory %s does not exist. Err: %s", dir, err)
-	}
-
 	log.Warnf("Directory %s does not exist.. creating.", dir)
-	err = os.MkdirAll(dir, 0777)
-	if err != nil {
-		return fmt.Errorf("failed to create dir. Err: %s", err)
-	}
-	return nil
+	return os.MkdirAll(dir, 0770)
 }
