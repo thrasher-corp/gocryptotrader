@@ -992,7 +992,7 @@ func TestCreateDir(t *testing.T) {
 			t.Errorf("got err: %v", err)
 		}
 		dir, _ = os.LookupEnv("~")
-		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
+		dir = dir + GetOSPathSlash() + "GoCryptoTrader/TestFileASDFG"
 		err = CreateDir(dir)
 		if err != nil {
 			t.Errorf("Err: %s", err)
@@ -1011,7 +1011,7 @@ func TestCreateDir(t *testing.T) {
 			t.Errorf("got err: %v", err)
 		}
 		dir, _ = os.LookupEnv("~")
-		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
+		dir = dir + GetOSPathSlash() + "GoCryptoTrader/TestFileASDFG"
 		err = CreateDir(dir)
 		if err != nil {
 			t.Errorf("Err: %s", err)
