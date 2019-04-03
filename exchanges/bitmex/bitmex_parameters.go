@@ -846,7 +846,7 @@ func (p *TradeGetBucketedParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p *TradeGetBucketedParams) IsNil() bool {
-	return *p == TradeGetBucketedParams{})
+	return *p == (TradeGetBucketedParams{})
 }
 
 // UserUpdateParams contains all the parameters to send to the API endpoint
