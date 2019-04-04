@@ -708,11 +708,17 @@ func (b *Binance) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 // getMultiplier retrieves account based taker/maker fees

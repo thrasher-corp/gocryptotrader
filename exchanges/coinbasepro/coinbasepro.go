@@ -854,6 +854,8 @@ func (c *CoinbasePro) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
 	case exchange.InternationalBankDepositFee:
 		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency)
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -861,6 +863,10 @@ func (c *CoinbasePro) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, base, quote currency.Code, delimiter string, purchasePrice, amount float64, isMaker bool) float64 {

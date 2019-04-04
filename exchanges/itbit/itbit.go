@@ -428,6 +428,8 @@ func (i *ItBit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.BankTransactionType)
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -435,6 +437,10 @@ func (i *ItBit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {

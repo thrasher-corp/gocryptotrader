@@ -409,6 +409,8 @@ func (c *COINUT) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	case exchange.InternationalBankDepositFee:
 		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
 			feeBuilder.Amount)
+		case exchange.SimulatedTransactionFee:
+			fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -416,6 +418,10 @@ func (c *COINUT) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func (c *COINUT) calculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, isMaker bool) float64 {

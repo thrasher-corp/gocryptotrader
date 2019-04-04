@@ -680,12 +680,18 @@ func (o *OKGroup) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, _ error)
 				break
 			}
 		}
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {

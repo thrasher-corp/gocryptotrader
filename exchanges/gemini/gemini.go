@@ -546,12 +546,18 @@ func (g *Gemini) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		// Could do via trade history, but would require analysis of response and dates to determine level of fee
 	case exchange.InternationalBankWithdrawalFee:
 		fee = 0
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(notionVolume *NotionalVolume, purchasePrice, amount float64, isMaker bool) float64 {

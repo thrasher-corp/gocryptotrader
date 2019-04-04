@@ -885,14 +885,21 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPRequest(method, endpoint string, value
 // GetFee returns an estimate of fee based on type of transaction
 func (h *HUOBIHADAX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(purchasePrice, amount float64) float64 {

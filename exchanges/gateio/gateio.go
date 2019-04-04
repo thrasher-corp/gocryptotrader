@@ -538,6 +538,8 @@ func (g *Gateio) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, err error
 
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -545,6 +547,10 @@ func (g *Gateio) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, err error
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {

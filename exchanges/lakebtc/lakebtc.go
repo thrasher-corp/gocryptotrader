@@ -388,6 +388,8 @@ func (l *LakeBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		// fees for withdrawals are dynamic. They cannot be calculated in
 		// advance as they are manually performed via the website, it can only
 		// be determined when submitting the request
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -395,6 +397,10 @@ func (l *LakeBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {

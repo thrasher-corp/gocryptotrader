@@ -298,8 +298,14 @@ func (b *BTSE) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getInternationalBankDepositFee(feeBuilder.Amount)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
+	case exchange.SimulatedTransactionFee:
+		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 // getInternationalBankDepositFee returns international deposit fee

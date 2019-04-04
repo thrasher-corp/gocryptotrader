@@ -432,6 +432,8 @@ func (e *EXMO) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
 			feeBuilder.Amount,
 			feeBuilder.BankTransactionType)
+		case exchange.SimulatedTransactionFee:
+			fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -439,6 +441,10 @@ func (e *EXMO) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
+}
+
+func getSimulatedFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {

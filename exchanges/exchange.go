@@ -44,6 +44,7 @@ const (
 	CryptocurrencyTradeFee         FeeType = "cryptocurrencyTradeFee"
 	CyptocurrencyDepositFee        FeeType = "cyptocurrencyDepositFee"
 	CryptocurrencyWithdrawalFee    FeeType = "cryptocurrencyWithdrawalFee"
+	SimulatedTransactionFee        FeeType = "simulatedTransactionFee"
 )
 
 // Const declarations for international transaction types
