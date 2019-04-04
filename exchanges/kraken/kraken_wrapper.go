@@ -109,7 +109,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 			tp.High = z.High
 			tp.Low = z.Low
 			tp.Volume = z.Volume
-			ticker.ProcessTicker(k.GetName(), tp, assetType)
+			ticker.ProcessTicker(k.GetName(), &tp, assetType)
 		}
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)
@@ -307,7 +307,7 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (k *Kraken) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, common.ErrFunctionNotSupported
+	return k.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

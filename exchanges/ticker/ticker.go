@@ -131,7 +131,7 @@ func SecondCurrencyExists(exchange string, p currency.Pair) bool {
 }
 
 // CreateNewTicker creates a new Ticker
-func CreateNewTicker(exchangeName string, tickerNew Price, tickerType string) Ticker {
+func CreateNewTicker(exchangeName string, tickerNew *Price, tickerType string) Ticker {
 	m.Lock()
 	defer m.Unlock()
 	ticker := Ticker{}
@@ -139,7 +139,7 @@ func CreateNewTicker(exchangeName string, tickerNew Price, tickerType string) Ti
 	ticker.Price = make(map[string]map[string]map[string]Price)
 	a := make(map[string]map[string]Price)
 	b := make(map[string]Price)
-	b[tickerType] = tickerNew
+	b[tickerType] = *tickerNew
 	a[tickerNew.Pair.Quote.Upper().String()] = b
 	ticker.Price[tickerNew.Pair.Base.Upper().String()] = a
 	Tickers = append(Tickers, ticker)
@@ -148,7 +148,7 @@ func CreateNewTicker(exchangeName string, tickerNew Price, tickerType string) Ti
 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers
 // list
-func ProcessTicker(exchangeName string, tickerNew Price, tickerType string) error {
+func ProcessTicker(exchangeName string, tickerNew *Price, tickerType string) error {
 	if tickerNew.Pair.String() == "" {
 		return errors.New("")
 	}
@@ -164,7 +164,7 @@ func ProcessTicker(exchangeName string, tickerNew Price, tickerType string) erro
 	if FirstCurrencyExists(exchangeName, tickerNew.Pair.Base) {
 		m.Lock()
 		a := make(map[string]Price)
-		a[tickerType] = tickerNew
+		a[tickerType] = *tickerNew
 		ticker.Price[tickerNew.Pair.Base.Upper().String()][tickerNew.Pair.Quote.Upper().String()] = a
 		m.Unlock()
 		return nil
@@ -173,7 +173,7 @@ func ProcessTicker(exchangeName string, tickerNew Price, tickerType string) erro
 	m.Lock()
 	a := make(map[string]map[string]Price)
 	b := make(map[string]Price)
-	b[tickerType] = tickerNew
+	b[tickerType] = *tickerNew
 	a[tickerNew.Pair.Quote.Upper().String()] = b
 	ticker.Price[tickerNew.Pair.Base.Upper().String()] = a
 	m.Unlock()

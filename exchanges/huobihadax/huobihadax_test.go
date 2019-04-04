@@ -65,7 +65,7 @@ func TestSetup(t *testing.T) {
 	hadaxConfig.APIKey = apiKey
 	hadaxConfig.APISecret = apiSecret
 
-	h.Setup(hadaxConfig)
+	h.Setup(&hadaxConfig)
 }
 
 func TestGetSpotKline(t *testing.T) {

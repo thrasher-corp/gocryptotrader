@@ -84,7 +84,7 @@ func ReloadExchange(name string) error {
 	}
 
 	e := GetExchangeByName(nameLower)
-	e.Setup(exchCfg)
+	e.Setup(&exchCfg)
 	log.Debugf("%s exchange reloaded successfully.\n", name)
 	return nil
 }
@@ -207,7 +207,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	}
 
 	exchCfg.Enabled = true
-	exch.Setup(exchCfg)
+	exch.Setup(&exchCfg)
 
 	if useWG {
 		exch.Start(wg)

@@ -73,7 +73,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, er
 	tickerPrice.Volume = s.Volume
 	tickerPrice.High = s.High
 
-	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}

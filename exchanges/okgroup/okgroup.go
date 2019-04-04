@@ -103,7 +103,7 @@ type OKGroup struct {
 }
 
 // Setup method sets current configuration details if enabled
-func (o *OKGroup) Setup(exch config.ExchangeConfig) {
+func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		o.SetEnabled(false)
 	} else {
@@ -131,7 +131,7 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = o.SetAPIURL(&exch)
+		err = o.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

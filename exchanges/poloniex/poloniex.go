@@ -90,7 +90,7 @@ func (p *Poloniex) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (p *Poloniex) Setup(exch config.ExchangeConfig) {
+func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		p.SetEnabled(false)
 	} else {
@@ -117,7 +117,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.SetAPIURL(&exch)
+		err = p.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

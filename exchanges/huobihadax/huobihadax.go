@@ -94,7 +94,7 @@ func (h *HUOBIHADAX) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
+func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 	} else {
@@ -122,7 +122,7 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.SetAPIURL(&exch)
+		err = h.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

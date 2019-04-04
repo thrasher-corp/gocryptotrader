@@ -136,7 +136,7 @@ func main() {
 		FxFixer:             *FxFixer,
 		FxOpenExchangeRates: *FxOpenExchangeRates,
 	},
-		currency.MainConfiguration{
+		&currency.MainConfiguration{
 			ForexProviders:         newFxSettings,
 			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider),
 			Cryptocurrencies:       bot.config.Currency.Cryptocurrencies,

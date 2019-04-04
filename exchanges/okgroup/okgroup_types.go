@@ -1135,12 +1135,12 @@ type GetSwapForceLiquidatedOrdersRequest struct {
 
 // GetSwapForceLiquidatedOrdersResponse response data for GetSwapForceLiquidatedOrders
 type GetSwapForceLiquidatedOrdersResponse struct {
-	Loss         float64 `json:"loss"`
-	Size         int64   `json:"size"`
-	Price        float64 `json:"price"`
+	Loss         float64 `json:"loss,string"`
+	Size         int64   `json:"size,string"`
+	Price        float64 `json:"price,string"`
 	CreatedAt    string  `json:"created_at"`
 	InstrumentID string  `json:"instrument_id"`
-	Type         int64   `json:"type"`
+	Type         int64   `json:"type,string"`
 }
 
 // GetSwapOnHoldAmountForOpenOrdersResponse response data for GetSwapOnHoldAmountForOpenOrders

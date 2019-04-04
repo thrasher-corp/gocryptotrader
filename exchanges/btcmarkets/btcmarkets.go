@@ -78,7 +78,7 @@ func (b *BTCMarkets) SetDefaults() {
 }
 
 // Setup takes in an exchange configuration and sets all parameters
-func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
+func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -104,7 +104,7 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

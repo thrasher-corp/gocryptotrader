@@ -137,7 +137,7 @@ func QuoteCurrencyExists(exchange string, p currency.Pair) bool {
 }
 
 // CreateNewOrderbook creates a new orderbook
-func CreateNewOrderbook(exchangeName string, orderbookNew Base, orderbookType string) *Orderbook {
+func CreateNewOrderbook(exchangeName string, orderbookNew *Base, orderbookType string) *Orderbook {
 	m.Lock()
 	defer m.Unlock()
 	orderbook := Orderbook{}
@@ -145,7 +145,7 @@ func CreateNewOrderbook(exchangeName string, orderbookNew Base, orderbookType st
 	orderbook.Orderbook = make(map[*currency.Item]map[*currency.Item]map[string]Base)
 	a := make(map[*currency.Item]map[string]Base)
 	b := make(map[string]Base)
-	b[orderbookType] = orderbookNew
+	b[orderbookType] = *orderbookNew
 	a[orderbookNew.Pair.Quote.Item] = b
 	orderbook.Orderbook[orderbookNew.Pair.Base.Item] = a
 	Orderbooks = append(Orderbooks, orderbook)
@@ -154,7 +154,7 @@ func CreateNewOrderbook(exchangeName string, orderbookNew Base, orderbookType st
 
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
-func (o Base) Process() error {
+func (o *Base) Process() error {
 	if o.Pair.IsEmpty() {
 		return errors.New("orderbook currency pair not populated")
 	}
@@ -176,7 +176,7 @@ func (o Base) Process() error {
 	if BaseCurrencyExists(o.ExchangeName, o.Pair.Base) {
 		m.Lock()
 		a := make(map[string]Base)
-		a[o.AssetType] = o
+		a[o.AssetType] = *o
 		orderbook.Orderbook[o.Pair.Base.Item][o.Pair.Quote.Item] = a
 		m.Unlock()
 		return nil
@@ -185,7 +185,7 @@ func (o Base) Process() error {
 	m.Lock()
 	a := make(map[*currency.Item]map[string]Base)
 	b := make(map[string]Base)
-	b[o.AssetType] = o
+	b[o.AssetType] = *o
 	a[o.Pair.Quote.Item] = b
 	orderbook.Orderbook[o.Pair.Base.Item] = a
 	m.Unlock()

@@ -7,8 +7,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -56,7 +58,9 @@ const (
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
+	WebsocketConn      *websocket.Conn
 	CryptoFee, FiatFee float64
+	mu                 sync.Mutex
 }
 
 // SetDefaults sets current default settings
@@ -86,10 +90,16 @@ func (k *Kraken) SetDefaults() {
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
 	k.WebsocketInit()
+	k.WebsocketURL = krakenWSURL
+	k.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketKlineSupported |
+		exchange.WebsocketOrderbookSupported
+
 }
 
 // Setup sets current exchange configuration
-func (k *Kraken) Setup(exch config.ExchangeConfig) {
+func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		k.SetEnabled(false)
 	} else {
@@ -100,6 +110,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		k.RESTPollingDelay = exch.RESTPollingDelay
 		k.Verbose = exch.Verbose
+		k.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		k.BaseCurrencies = exch.BaseCurrencies
 		k.AvailablePairs = exch.AvailablePairs
 		k.EnabledPairs = exch.EnabledPairs
@@ -115,11 +126,19 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = k.SetAPIURL(&exch)
+		err = k.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
 		err = k.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = k.WebsocketSetup(k.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			krakenWSURL,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

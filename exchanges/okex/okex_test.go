@@ -68,7 +68,7 @@ func TestSetup(t *testing.T) {
 	okexConfig.APISecret = apiSecret
 	okexConfig.ClientID = passphrase
 	okexConfig.WebsocketURL = o.WebsocketURL
-	o.Setup(okexConfig)
+	o.Setup(&okexConfig)
 	testSetupRan = true
 }
 
@@ -1662,7 +1662,7 @@ func TestSubscribeToNonExistantChannel(t *testing.T) {
 		return
 	}
 	var errorReceived bool
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 7; i++ {
 		response := <-o.Websocket.DataHandler
 		if err, ok := response.(error); ok && err != nil {
 			t.Log(response)

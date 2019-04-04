@@ -98,7 +98,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 			tickerPrice.Last = tick[y].LastPrice
 			tickerPrice.Low = tick[y].LowPrice
 			tickerPrice.Volume = tick[y].Volume
-			ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+			ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)

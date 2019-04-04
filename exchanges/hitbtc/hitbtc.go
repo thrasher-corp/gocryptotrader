@@ -84,7 +84,7 @@ func (h *HitBTC) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (h *HitBTC) Setup(exch config.ExchangeConfig) {
+func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 	} else {
@@ -111,7 +111,7 @@ func (h *HitBTC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.SetAPIURL(&exch)
+		err = h.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -74,7 +74,7 @@ func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType string) (ticker.Pri
 		tickerPrice.Bid = tick.Bid[0]
 	}
 
-	err = ticker.ProcessTicker(h.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}

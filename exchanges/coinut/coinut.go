@@ -81,7 +81,7 @@ func (c *COINUT) SetDefaults() {
 }
 
 // Setup sets the current exchange configuration
-func (c *COINUT) Setup(exch config.ExchangeConfig) {
+func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 	} else {
@@ -108,7 +108,7 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = c.SetAPIURL(&exch)
+		err = c.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

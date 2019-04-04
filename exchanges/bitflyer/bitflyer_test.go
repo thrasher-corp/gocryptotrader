@@ -35,7 +35,7 @@ func TestSetup(t *testing.T) {
 	bitflyerConfig.APIKey = testAPIKey
 	bitflyerConfig.APISecret = testAPISecret
 
-	b.Setup(bitflyerConfig)
+	b.Setup(&bitflyerConfig)
 }
 
 func TestGetLatestBlockCA(t *testing.T) {

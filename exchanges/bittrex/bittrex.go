@@ -89,7 +89,7 @@ func (b *Bittrex) SetDefaults() {
 }
 
 // Setup method sets current configuration details if enabled
-func (b *Bittrex) Setup(exch config.ExchangeConfig) {
+func (b *Bittrex) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -115,7 +115,7 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

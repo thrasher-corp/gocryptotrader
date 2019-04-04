@@ -139,7 +139,7 @@ func (b *Bitmex) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitmex) Setup(exch config.ExchangeConfig) {
+func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -164,7 +164,7 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -218,7 +218,7 @@ func (b *Bitmex) RemoveAPIKey(params APIKeyParams) (bool, error) {
 
 	return keyDeleted, b.SendAuthenticatedHTTPRequest(http.MethodDelete,
 		bitmexEndpointAPIkeys,
-		params,
+		&params,
 		&keyDeleted)
 }
 
@@ -228,7 +228,7 @@ func (b *Bitmex) DisableAPIKey(params APIKeyParams) (APIKey, error) {
 
 	return keyInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointDisableAPIkey,
-		params,
+		&params,
 		&keyInfo)
 }
 
@@ -238,7 +238,7 @@ func (b *Bitmex) EnableAPIKey(params APIKeyParams) (APIKey, error) {
 
 	return keyInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointEnableAPIkey,
-		params,
+		&params,
 		&keyInfo)
 }
 
@@ -246,7 +246,7 @@ func (b *Bitmex) EnableAPIKey(params APIKeyParams) (APIKey, error) {
 func (b *Bitmex) GetTrollboxMessages(params ChatGetParams) ([]Chat, error) {
 	var messages []Chat
 
-	return messages, b.SendHTTPRequest(bitmexEndpointTrollbox, params, &messages)
+	return messages, b.SendHTTPRequest(bitmexEndpointTrollbox, &params, &messages)
 }
 
 // SendTrollboxMessage sends a message to the bitmex trollbox
@@ -255,7 +255,7 @@ func (b *Bitmex) SendTrollboxMessage(params ChatSendParams) ([]Chat, error) {
 
 	return messages, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointTrollboxSend,
-		params,
+		&params,
 		&messages)
 }
 

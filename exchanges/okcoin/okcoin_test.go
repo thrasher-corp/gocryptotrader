@@ -67,7 +67,7 @@ func TestSetup(t *testing.T) {
 	okcoinConfig.APISecret = apiSecret
 	okcoinConfig.ClientID = passphrase
 	okcoinConfig.WebsocketURL = o.WebsocketURL
-	o.Setup(okcoinConfig)
+	o.Setup(&okcoinConfig)
 	testSetupRan = true
 }
 

@@ -82,7 +82,7 @@ func (z *ZB) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (z *ZB) Setup(exch config.ExchangeConfig) {
+func (z *ZB) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		z.SetEnabled(false)
 	} else {
@@ -110,7 +110,7 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = z.SetAPIURL(&exch)
+		err = z.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

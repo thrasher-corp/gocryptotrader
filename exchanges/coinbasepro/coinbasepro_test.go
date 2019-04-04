@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	gdxConfig.APIKey = apiKey
 	gdxConfig.APISecret = apiSecret
 	gdxConfig.AuthenticatedAPISupport = true
-	c.Setup(gdxConfig)
+	c.Setup(&gdxConfig)
 }
 
 func TestGetProducts(t *testing.T) {

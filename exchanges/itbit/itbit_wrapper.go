@@ -50,7 +50,7 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, e
 	tickerPrice.Low = tick.Low24h
 	tickerPrice.Volume = tick.Volume24h
 
-	err = ticker.ProcessTicker(i.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(i.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
