@@ -428,8 +428,8 @@ func (i *ItBit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.BankTransactionType)
-	case exchange.SimulatedTransactionFee:
-		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -439,16 +439,17 @@ func (i *ItBit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func getSimulatedFee(price, amount float64) float64 {
-	return 0.002 * price * amount
+// getOfflineTradeFeecalculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0035 * price * amount
 }
 
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	// TODO: Itbit has volume discounts, but not API endpoint to get the exact volume numbers
 	// When support is added, this needs to be updated to calculate the accurate volume fee
-	feePercent := 0.0025
+	feePercent := 0.0035
 	if isMaker {
-		feePercent = 0
+		feePercent = -0.0003
 	}
 	return feePercent * purchasePrice * amount
 }

@@ -916,9 +916,9 @@ func (h *HUOBI) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	case exchange.SimulatedTransactionFee:
-		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -928,11 +928,21 @@ func (h *HUOBI) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func getSimulatedFee(price, amount float64) float64 {
-	return 0.002 * price * amount
+// getOfflineTradeFeecalculates the worst case-scenario trading fee
+func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
+	if c.IsCryptoFiatPair() {
+		return 0.001 * price * amount
+
+	} else {
+		return 0.002 * price * amount
+	}
 }
 
-func calculateTradingFee(purchasePrice, amount float64) float64 {
-	feePercent := 0.002
-	return feePercent * purchasePrice * amount
+func calculateTradingFee(c currency.Pair, price, amount float64) float64 {
+	if c.IsCryptoFiatPair() {
+		return 0.001 * price * amount
+
+	} else {
+		return 0.002 * price * amount
+	}
 }

@@ -454,8 +454,8 @@ func (a *ANX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.Amount)
-	case exchange.SimulatedTransactionFee:
-		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -463,7 +463,8 @@ func (a *ANX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func getSimulatedFee(price, amount float64) float64 {
+// getOfflineTradeFeecalculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.002 * price * amount
 }
 

@@ -680,8 +680,8 @@ func (o *OKGroup) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, _ error)
 				break
 			}
 		}
-	case exchange.SimulatedTransactionFee:
-		fee = getSimulatedFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -690,14 +690,15 @@ func (o *OKGroup) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, _ error)
 	return fee, nil
 }
 
-func getSimulatedFee(price, amount float64) float64 {
-	return 0.002 * price * amount
+// getOfflineTradeFeecalculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0015 * price * amount
 }
 
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
 	// TODO volume based fees
 	if isMaker {
-		fee = 0.001
+		fee = 0.0005
 	} else {
 		fee = 0.0015
 	}
