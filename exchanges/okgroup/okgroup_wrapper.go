@@ -159,7 +159,7 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 			log.Errorf("Could not convert %v to float64", curr.Balance)
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(curr.ID),
+			CurrencyName: currency.NewCode(curr.Currency),
 			Hold:         hold,
 			TotalValue:   totalValue,
 		})
