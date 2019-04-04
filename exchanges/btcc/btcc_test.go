@@ -30,7 +30,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - BTCC Setup() init error")
 	}
-	b.Setup(bConfig)
+	b.Setup(&bConfig)
 
 	if !b.IsEnabled() || b.AuthenticatedAPISupport ||
 		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||

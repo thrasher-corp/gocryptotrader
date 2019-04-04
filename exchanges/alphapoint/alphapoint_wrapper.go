@@ -56,7 +56,7 @@ func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType string) (ticker.Pri
 	tickerPrice.Volume = tick.Volume
 	tickerPrice.Last = tick.Last
 
-	err = ticker.ProcessTicker(a.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}

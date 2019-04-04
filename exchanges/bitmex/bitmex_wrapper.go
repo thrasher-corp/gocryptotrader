@@ -76,7 +76,7 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 	tickerPrice.Pair = p
 	tickerPrice.Last = tick[0].Price
 	tickerPrice.Volume = float64(tick[0].Size)
-	return tickerPrice, ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+	return tickerPrice, ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair

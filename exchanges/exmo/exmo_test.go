@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	exmoConf.APIKey = APIKey
 	exmoConf.APISecret = APISecret
 
-	e.Setup(exmoConf)
+	e.Setup(&exmoConf)
 
 	e.AuthenticatedAPISupport = true
 	e.APIKey = APIKey

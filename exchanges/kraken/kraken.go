@@ -99,7 +99,7 @@ func (k *Kraken) SetDefaults() {
 }
 
 // Setup sets current exchange configuration
-func (k *Kraken) Setup(exch config.ExchangeConfig) {
+func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		k.SetEnabled(false)
 	} else {
@@ -126,7 +126,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = k.SetAPIURL(&exch)
+		err = k.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

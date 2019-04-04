@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	zbConfig.APIKey = apiKey
 	zbConfig.APISecret = apiSecret
 
-	z.Setup(zbConfig)
+	z.Setup(&zbConfig)
 }
 
 func TestSpotNewOrder(t *testing.T) {

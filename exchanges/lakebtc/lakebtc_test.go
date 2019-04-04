@@ -33,7 +33,7 @@ func TestSetup(t *testing.T) {
 	lakebtcConfig.APIKey = apiKey
 	lakebtcConfig.APISecret = apiSecret
 
-	l.Setup(lakebtcConfig)
+	l.Setup(&lakebtcConfig)
 }
 
 func TestGetTradablePairs(t *testing.T) {

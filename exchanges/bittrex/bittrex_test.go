@@ -37,7 +37,7 @@ func TestSetup(t *testing.T) {
 	bConfig.APISecret = apiSecret
 	bConfig.AuthenticatedAPISupport = true
 
-	b.Setup(bConfig)
+	b.Setup(&bConfig)
 
 	if !b.IsEnabled() ||
 		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||

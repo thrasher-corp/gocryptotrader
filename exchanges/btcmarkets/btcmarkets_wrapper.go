@@ -79,7 +79,7 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType string) (ticker.Pri
 	tickerPrice.Bid = tick.BestBID
 	tickerPrice.Last = tick.LastPrice
 
-	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}

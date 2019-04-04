@@ -33,7 +33,7 @@ func TestSetup(t *testing.T) {
 	hitbtcConfig.APIKey = apiKey
 	hitbtcConfig.APISecret = apiSecret
 
-	h.Setup(hitbtcConfig)
+	h.Setup(&hitbtcConfig)
 }
 
 func TestGetOrderbook(t *testing.T) {

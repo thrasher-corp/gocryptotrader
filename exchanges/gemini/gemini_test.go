@@ -63,8 +63,8 @@ func TestSetup(t *testing.T) {
 
 	geminiConfig.AuthenticatedAPISupport = true
 
-	Session[1].Setup(geminiConfig)
-	Session[2].Setup(geminiConfig)
+	Session[1].Setup(&geminiConfig)
+	Session[2].Setup(&geminiConfig)
 
 	Session[1].APIKey = apiKey1
 	Session[1].APISecret = apiSecret1

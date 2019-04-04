@@ -29,7 +29,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bitfinex Setup() init error")
 	}
-	b.Setup(bfxConfig)
+	b.Setup(&bfxConfig)
 	b.APIKey = testAPIKey
 	b.APISecret = testAPISecret
 	if !b.Enabled || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||

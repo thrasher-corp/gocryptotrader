@@ -150,7 +150,7 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, err
 		tickerPrice.High = 0
 	}
 
-	err = ticker.ProcessTicker(a.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}

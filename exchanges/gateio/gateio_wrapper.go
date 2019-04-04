@@ -68,7 +68,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 		tp.Low = result[currency].Low
 		tp.Volume = result[currency].Volume
 
-		err = ticker.ProcessTicker(g.Name, tp, assetType)
+		err = ticker.ProcessTicker(g.Name, &tp, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}

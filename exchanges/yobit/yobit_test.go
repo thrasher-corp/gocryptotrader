@@ -35,7 +35,7 @@ func TestSetup(t *testing.T) {
 	conf.APISecret = apiSecret
 	conf.AuthenticatedAPISupport = true
 
-	y.Setup(conf)
+	y.Setup(&conf)
 }
 
 func TestGetInfo(t *testing.T) {

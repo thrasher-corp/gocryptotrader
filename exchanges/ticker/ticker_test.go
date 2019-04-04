@@ -25,7 +25,7 @@ func TestPriceToString(t *testing.T) {
 		PriceATH: 1337,
 	}
 
-	newTicker := CreateNewTicker("ANX", priceStruct, Spot)
+	newTicker := CreateNewTicker("ANX", &priceStruct, Spot)
 
 	if newTicker.PriceToString(newPair, "last", Spot) != "1200" {
 		t.Error("Test Failed - ticker PriceToString last value is incorrect")
@@ -66,7 +66,7 @@ func TestGetTicker(t *testing.T) {
 		PriceATH: 1337,
 	}
 
-	err := ProcessTicker("bitfinex", priceStruct, Spot)
+	err := ProcessTicker("bitfinex", &priceStruct, Spot)
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
@@ -98,7 +98,7 @@ func TestGetTicker(t *testing.T) {
 
 	priceStruct.PriceATH = 9001
 	priceStruct.Pair.Base = currency.ETH
-	err = ProcessTicker("bitfinex", priceStruct, "futures_3m")
+	err = ProcessTicker("bitfinex", &priceStruct, "futures_3m")
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
@@ -126,7 +126,7 @@ func TestGetTickerByExchange(t *testing.T) {
 		PriceATH: 1337,
 	}
 
-	anxTicker := CreateNewTicker("ANX", priceStruct, Spot)
+	anxTicker := CreateNewTicker("ANX", &priceStruct, Spot)
 	Tickers = append(Tickers, anxTicker)
 
 	tickerPtr, err := GetTickerByExchange("ANX")
@@ -151,7 +151,7 @@ func TestFirstCurrencyExists(t *testing.T) {
 		PriceATH: 1337,
 	}
 
-	alphaTicker := CreateNewTicker("alphapoint", priceStruct, Spot)
+	alphaTicker := CreateNewTicker("alphapoint", &priceStruct, Spot)
 	Tickers = append(Tickers, alphaTicker)
 
 	if !FirstCurrencyExists("alphapoint", currency.BTC) {
@@ -177,7 +177,7 @@ func TestSecondCurrencyExists(t *testing.T) {
 		PriceATH: 1337,
 	}
 
-	bitstampTicker := CreateNewTicker("bitstamp", priceStruct, "SPOT")
+	bitstampTicker := CreateNewTicker("bitstamp", &priceStruct, "SPOT")
 	Tickers = append(Tickers, bitstampTicker)
 
 	if !SecondCurrencyExists("bitstamp", newPair) {
@@ -204,7 +204,7 @@ func TestCreateNewTicker(t *testing.T) {
 		PriceATH: 1337,
 	}
 
-	newTicker := CreateNewTicker("ANX", priceStruct, Spot)
+	newTicker := CreateNewTicker("ANX", &priceStruct, Spot)
 
 	if reflect.ValueOf(newTicker).NumField() != 2 {
 		t.Error("Test Failed - ticker CreateNewTicker struct change/or updated")
@@ -259,12 +259,12 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		PriceATH: 1337,
 	}
 
-	err := ProcessTicker("btcc", Price{}, Spot)
+	err := ProcessTicker("btcc", &Price{}, Spot)
 	if err == nil {
 		t.Fatal("Test failed. ProcessTicker error cannot be nil")
 	}
 
-	err = ProcessTicker("btcc", priceStruct, Spot)
+	err = ProcessTicker("btcc", &priceStruct, Spot)
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
@@ -280,7 +280,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	secondPair := currency.NewPairFromStrings("BTC", "AUD")
 	priceStruct.Pair = secondPair
-	err = ProcessTicker("btcc", priceStruct, Spot)
+	err = ProcessTicker("btcc", &priceStruct, Spot)
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
@@ -326,7 +326,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 			}
 
 			sm.Lock()
-			err = ProcessTicker(newName, tp, Spot)
+			err = ProcessTicker(newName, &tp, Spot)
 			if err != nil {
 				log.Error(err)
 				catastrophicFailure = true

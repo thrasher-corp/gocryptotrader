@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	bitConfig.APIKey = testAPIKey
 	bitConfig.APISecret = testAPISecret
 
-	b.Setup(bitConfig)
+	b.Setup(&bitConfig)
 }
 
 func TestGetTradablePairs(t *testing.T) {

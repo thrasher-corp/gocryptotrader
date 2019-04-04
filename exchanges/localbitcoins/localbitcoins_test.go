@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	localbitcoinsConfig.APIKey = apiKey
 	localbitcoinsConfig.APISecret = apiSecret
 
-	l.Setup(localbitcoinsConfig)
+	l.Setup(&localbitcoinsConfig)
 }
 
 func TestGetTicker(t *testing.T) {

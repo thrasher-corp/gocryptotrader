@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	poloniexConfig.APIKey = apiKey
 	poloniexConfig.APISecret = apiSecret
 
-	p.Setup(poloniexConfig)
+	p.Setup(&poloniexConfig)
 }
 
 func TestGetTicker(t *testing.T) {

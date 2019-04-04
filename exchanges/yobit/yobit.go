@@ -78,7 +78,7 @@ func (y *Yobit) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters for Yobit
-func (y *Yobit) Setup(exch config.ExchangeConfig) {
+func (y *Yobit) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		y.SetEnabled(false)
 	} else {
@@ -105,7 +105,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = y.SetAPIURL(&exch)
+		err = y.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

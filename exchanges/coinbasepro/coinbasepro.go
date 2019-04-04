@@ -92,7 +92,7 @@ func (c *CoinbasePro) SetDefaults() {
 }
 
 // Setup initialises the exchange parameters with the current configuration
-func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
+func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 	} else {
@@ -122,7 +122,7 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = c.SetAPIURL(&exch)
+		err = c.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

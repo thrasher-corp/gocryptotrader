@@ -138,7 +138,7 @@ func (l *LocalBitcoins) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters
-func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
+func (l *LocalBitcoins) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 	} else {
@@ -160,7 +160,7 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = l.SetAPIURL(&exch)
+		err = l.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

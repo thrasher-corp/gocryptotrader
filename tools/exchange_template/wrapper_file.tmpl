@@ -50,7 +50,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType s
 		//		tickerPrice.Last = tick[y].LastPrice
 		//		tickerPrice.Low = tick[y].LowPrice
 		//		tickerPrice.Volume = tick[y].Volume
-		//		ticker.ProcessTicker({{.Variable}}.Name, x, tickerPrice, assetType)
+		//		ticker.ProcessTicker({{.Variable}}.Name, x, &tickerPrice, assetType)
 		//	}
 	//	}
 	//}

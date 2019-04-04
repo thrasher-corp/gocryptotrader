@@ -91,7 +91,7 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType string) (tic
 		tp.Low = tick[curr].Low
 		tp.Volume = tick[curr].Volume
 
-		err = ticker.ProcessTicker(h.GetName(), tp, assetType)
+		err = ticker.ProcessTicker(h.GetName(), &tp, assetType)
 		if err != nil {
 			return ticker.Price{}, err
 		}

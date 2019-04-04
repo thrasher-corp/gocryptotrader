@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	bConfig.APISecret = apiSecret
 	bConfig.AuthenticatedAPISupport = true
 
-	b.Setup(bConfig)
+	b.Setup(&bConfig)
 }
 
 func TestGetMarkets(t *testing.T) {

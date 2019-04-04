@@ -53,7 +53,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - ANX Setup() init error")
 	}
-	a.Setup(anxConfig)
+	a.Setup(&anxConfig)
 	a.APIKey = testAPIKey
 	a.APISecret = testAPISecret
 	a.AuthenticatedAPISupport = true

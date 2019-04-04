@@ -33,7 +33,7 @@ func TestSetup(t *testing.T) {
 	binanceConfig.AuthenticatedAPISupport = true
 	binanceConfig.APIKey = testAPIKey
 	binanceConfig.APISecret = testAPISecret
-	b.Setup(binanceConfig)
+	b.Setup(&binanceConfig)
 }
 
 func TestGetExchangeValidCurrencyPairs(t *testing.T) {
