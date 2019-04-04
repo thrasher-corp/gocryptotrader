@@ -49,7 +49,7 @@ func (b *BTCC) SetDefaults() {
 }
 
 // Setup is run on startup to setup exchange with config values
-func (b *BTCC) Setup(exch config.ExchangeConfig) {
+func (b *BTCC) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -76,7 +76,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -127,7 +127,7 @@ func (g *Gemini) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters
-func (g *Gemini) Setup(exch config.ExchangeConfig) {
+func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
@@ -154,7 +154,7 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.SetAPIURL(&exch)
+		err = g.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

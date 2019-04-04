@@ -36,7 +36,7 @@ func TestSetup(t *testing.T) {
 	itbitConfig.APISecret = apiSecret
 	itbitConfig.ClientID = clientID
 
-	i.Setup(itbitConfig)
+	i.Setup(&itbitConfig)
 }
 
 func TestGetTicker(t *testing.T) {

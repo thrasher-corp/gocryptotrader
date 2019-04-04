@@ -32,7 +32,7 @@ func TestSetup(t *testing.T) {
 	}
 	bConfig.AuthenticatedAPISupport = true
 	bConfig.APIKey = apiKey
-	c.Setup(bConfig)
+	c.Setup(&bConfig)
 	c.ClientID = clientID
 
 	if !c.IsEnabled() ||

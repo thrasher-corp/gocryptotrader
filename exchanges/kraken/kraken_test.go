@@ -36,7 +36,7 @@ func TestSetup(t *testing.T) {
 	krakenConfig.APISecret = apiSecret
 	krakenConfig.ClientID = clientID
 	krakenConfig.WebsocketURL = k.WebsocketURL
-	k.Setup(krakenConfig)
+	k.Setup(&krakenConfig)
 }
 
 // TestGetServerTime API endpoint test

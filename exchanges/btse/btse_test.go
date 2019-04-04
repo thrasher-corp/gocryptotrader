@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	btseConfig.APIKey = apiKey
 	btseConfig.APISecret = apiSecret
 
-	b.Setup(btseConfig)
+	b.Setup(&btseConfig)
 }
 
 func TestGetMarkets(t *testing.T) {

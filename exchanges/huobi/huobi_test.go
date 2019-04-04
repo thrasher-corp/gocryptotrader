@@ -69,7 +69,7 @@ func TestSetup(t *testing.T) {
 	hConfig.APIKey = apiKey
 	hConfig.APISecret = apiSecret
 
-	h.Setup(hConfig)
+	h.Setup(&hConfig)
 }
 
 func TestGetSpotKline(t *testing.T) {

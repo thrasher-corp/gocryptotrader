@@ -69,7 +69,7 @@ func (i *ItBit) SetDefaults() {
 }
 
 // Setup sets the exchange parameters from exchange config
-func (i *ItBit) Setup(exch config.ExchangeConfig) {
+func (i *ItBit) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		i.SetEnabled(false)
 	} else {
@@ -95,7 +95,7 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = i.SetAPIURL(&exch)
+		err = i.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

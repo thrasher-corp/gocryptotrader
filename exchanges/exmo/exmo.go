@@ -77,7 +77,7 @@ func (e *EXMO) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (e *EXMO) Setup(exch config.ExchangeConfig) {
+func (e *EXMO) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		e.SetEnabled(false)
 	} else {
@@ -103,7 +103,7 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = e.SetAPIURL(&exch)
+		err = e.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

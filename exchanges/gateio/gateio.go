@@ -82,7 +82,7 @@ func (g *Gateio) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (g *Gateio) Setup(exch config.ExchangeConfig) {
+func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
@@ -109,7 +109,7 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.SetAPIURL(&exch)
+		err = g.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

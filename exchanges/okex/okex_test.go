@@ -68,7 +68,7 @@ func TestSetup(t *testing.T) {
 	okexConfig.APISecret = apiSecret
 	okexConfig.ClientID = passphrase
 	okexConfig.WebsocketURL = o.WebsocketURL
-	o.Setup(okexConfig)
+	o.Setup(&okexConfig)
 	testSetupRan = true
 }
 

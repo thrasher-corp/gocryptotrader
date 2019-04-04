@@ -289,7 +289,7 @@ type Base struct {
 // IBotExchange enforces standard functions for all exchanges supported in
 // GoCryptoTrader
 type IBotExchange interface {
-	Setup(exch config.ExchangeConfig)
+	Setup(exch *config.ExchangeConfig)
 	Start(wg *sync.WaitGroup)
 	SetDefaults()
 	GetName() string

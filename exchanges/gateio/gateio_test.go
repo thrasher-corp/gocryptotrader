@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	gateioConfig.APIKey = apiKey
 	gateioConfig.APISecret = apiSecret
 
-	g.Setup(gateioConfig)
+	g.Setup(&gateioConfig)
 }
 
 func TestGetSymbols(t *testing.T) {

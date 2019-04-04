@@ -35,7 +35,7 @@ func TestSetup(t *testing.T) {
 	bitmexConfig.APIKey = testAPIKey
 	bitmexConfig.APISecret = testAPISecret
 
-	b.Setup(bitmexConfig)
+	b.Setup(&bitmexConfig)
 }
 
 func TestStart(t *testing.T) {

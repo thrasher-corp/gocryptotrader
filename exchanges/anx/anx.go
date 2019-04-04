@@ -76,7 +76,7 @@ func (a *ANX) SetDefaults() {
 }
 
 // Setup is run on startup to setup exchange with config values
-func (a *ANX) Setup(exch config.ExchangeConfig) {
+func (a *ANX) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		a.SetEnabled(false)
 	} else {
@@ -102,7 +102,7 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = a.SetAPIURL(&exch)
+		err = a.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
