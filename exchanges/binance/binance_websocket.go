@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -171,6 +172,7 @@ func (b *Binance) WSConnect() error {
 		}
 	}
 
+	log.Debugf("%v", wsurl)
 	b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
 	if err != nil {
 		return fmt.Errorf("binance_websocket.go - Unable to connect to Websocket. Error: %s",
@@ -275,17 +277,18 @@ func (b *Binance) WsHandleData() {
 
 					var wsTicker exchange.TickerData
 
-					wsTicker.Timestamp = time.Unix(0, t.EventTime)
+					wsTicker.Timestamp = time.Unix(t.EventTime/1000, 0)
 					wsTicker.Pair = currency.NewPairFromString(t.Symbol)
 					wsTicker.AssetType = ticker.Spot
 					wsTicker.Exchange = b.GetName()
-					wsTicker.ClosePrice, _ = strconv.ParseFloat(t.CurrDayClose, 64)
+					wsTicker.ClosePrice, _ = strconv.ParseFloat(t.PrevDayClose, 64)
 					wsTicker.Quantity, _ = strconv.ParseFloat(t.TotalTradedVolume, 64)
 					wsTicker.OpenPrice, _ = strconv.ParseFloat(t.OpenPrice, 64)
 					wsTicker.HighPrice, _ = strconv.ParseFloat(t.HighPrice, 64)
 					wsTicker.LowPrice, _ = strconv.ParseFloat(t.LowPrice, 64)
 
 					b.Websocket.DataHandler <- wsTicker
+
 					continue
 				case "kline":
 					kline := KlineStream{}
