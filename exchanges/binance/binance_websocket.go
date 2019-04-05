@@ -185,6 +185,7 @@ func (b *Binance) WSConnect() error {
 // WSReadData reads from the websocket connection and returns the response
 func (b *Binance) WSReadData() (exchange.WebsocketResponse, error) {
 	msgType, resp, err := b.WebsocketConn.ReadMessage()
+
 	if err != nil {
 		return exchange.WebsocketResponse{}, err
 	}
@@ -226,8 +227,8 @@ func (b *Binance) WsHandleData() {
 						string(read.Raw))
 					continue
 				}
-
-				switch multiStreamData.Stream {
+				streamType := strings.Split(multiStreamData.Stream, "@")
+				switch streamType[1] {
 				case "trade":
 					trade := TradeStream{}
 

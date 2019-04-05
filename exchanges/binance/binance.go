@@ -94,6 +94,7 @@ func (b *Binance) SetDefaults() {
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
 	b.WebsocketInit()
+	b.WebsocketURL = binanceDefaultWebsocketURL
 	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketTickerSupported |
 		exchange.WebsocketKlineSupported |
@@ -112,6 +113,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
 		b.EnabledPairs = exch.EnabledPairs
