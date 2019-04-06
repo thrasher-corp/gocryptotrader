@@ -279,7 +279,7 @@ func (b *Binance) WsHandleData() {
 					wsTicker.Pair = currency.NewPairFromString(t.Symbol)
 					wsTicker.AssetType = ticker.Spot
 					wsTicker.Exchange = b.GetName()
-					wsTicker.ClosePrice, _ = strconv.ParseFloat(t.PrevDayClose, 64)
+					wsTicker.ClosePrice, _ = strconv.ParseFloat(t.CurrDayClose, 64)
 					wsTicker.Quantity, _ = strconv.ParseFloat(t.TotalTradedVolume, 64)
 					wsTicker.OpenPrice, _ = strconv.ParseFloat(t.OpenPrice, 64)
 					wsTicker.HighPrice, _ = strconv.ParseFloat(t.HighPrice, 64)
