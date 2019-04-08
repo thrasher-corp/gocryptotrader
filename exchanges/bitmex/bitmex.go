@@ -950,7 +950,7 @@ func (b *Bitmex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, err
 }
 
-// getOfflineTradeFeecalculates the worst case-scenario trading fee
+// getOfflineTradeFee calculates the worst case-scenario trading fee
 func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.000750 * price * amount
 }

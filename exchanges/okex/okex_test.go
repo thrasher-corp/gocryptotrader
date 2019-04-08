@@ -1551,26 +1551,6 @@ func TestGetETTOrderDetails(t *testing.T) {
 	testStandardErrorHandling(t, err)
 }
 
-// TestGetETTConstituents API endpoint test
-func TestGetETTConstituents(t *testing.T) {
-	TestSetDefaults(t)
-	t.Parallel()
-	_, err := o.GetETTConstituents("OK06ETT")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// TestGetETTSettlementPriceHistory API endpoint test
-func TestGetETTSettlementPriceHistory(t *testing.T) {
-	TestSetDefaults(t)
-	t.Parallel()
-	_, err := o.GetETTSettlementPriceHistory("OK06ETT")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 // Websocket tests ----------------------------------------------------------------------------------------------
 
 // TestWsLogin API endpoint test
@@ -1811,6 +1791,22 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 // TestGetFee fee calcuation test
+
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	o.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
@@ -1833,8 +1829,8 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+	if resp, err := o.GetFee(feeBuilder); resp != float64(0.0005) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
 		t.Error(err)
 	}
 

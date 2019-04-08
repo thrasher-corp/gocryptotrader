@@ -14,8 +14,8 @@ import (
 
 // Please supply your own keys here to do better tests
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
+	apiKey              = ""
+	apiSecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -30,8 +30,8 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Bitfinex Setup() init error")
 	}
 	b.Setup(&bfxConfig)
-	b.APIKey = testAPIKey
-	b.APISecret = testAPISecret
+	b.APIKey = apiKey
+	b.APISecret = apiSecret
 	if !b.Enabled || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
@@ -619,12 +619,27 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	b.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
-	if testAPIKey != "" || testAPISecret != "" {
+	if apiKey != "" || apiSecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
 			t.Error(err)

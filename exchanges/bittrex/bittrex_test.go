@@ -12,8 +12,8 @@ import (
 
 // Please supply you own test keys here to run better tests.
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey              = ""
+	apiSecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -225,6 +225,21 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
+	}
+}
+
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	b.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
 	}
 }
 

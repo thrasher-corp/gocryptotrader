@@ -247,6 +247,24 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	TestAddSession(t)
+	TestSetDefaults(t)
+	TestSetup(t)
+	var feeBuilder = setFeeBuilder()
+	Session[1].GetFeeByType(feeBuilder)
+	if apiKey1 == "" || apiSecret1 == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	if apiKey1 != "" && apiSecret1 != "" {
@@ -342,7 +360,6 @@ func TestGetActiveOrders(t *testing.T) {
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
-	Session[1].Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType:  exchange.AnyOrderType,
@@ -361,7 +378,6 @@ func TestGetOrderHistory(t *testing.T) {
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
-	Session[1].Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType:  exchange.AnyOrderType,

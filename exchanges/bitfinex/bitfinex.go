@@ -1095,7 +1095,7 @@ func (b *Bitfinex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-// getOfflineTradeFeecalculates the worst case-scenario trading fee
+// getOfflineTradeFee calculates the worst case-scenario trading fee
 // does not require an API request, requires manual updating
 func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.001 * price * amount

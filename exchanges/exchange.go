@@ -41,7 +41,7 @@ const (
 	CryptocurrencyTradeFee         FeeType = 3
 	CyptocurrencyDepositFee        FeeType = 4
 	CryptocurrencyWithdrawalFee    FeeType = 5
-	OfflineTradeFee        FeeType = 6
+	OfflineTradeFee                FeeType = 6
 )
 
 // InternationalBankTransactionType custom type for calculating fees based on fiat transaction types

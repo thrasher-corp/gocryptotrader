@@ -11,8 +11,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
+	apiKey              = ""
+	apiSecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -31,8 +31,8 @@ func TestSetup(t *testing.T) {
 	}
 
 	bitConfig.AuthenticatedAPISupport = true
-	bitConfig.APIKey = testAPIKey
-	bitConfig.APISecret = testAPISecret
+	bitConfig.APIKey = apiKey
+	bitConfig.APISecret = apiSecret
 
 	b.Setup(&bitConfig)
 }
@@ -79,7 +79,7 @@ func TestGetTransactionHistory(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
@@ -90,7 +90,7 @@ func TestGetAccountBalance(t *testing.T) {
 }
 
 func TestGetWalletAddress(t *testing.T) {
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
@@ -159,7 +159,7 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestRequestKRWDepositDetails(t *testing.T) {
 	t.Parallel()
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 	_, err := b.RequestKRWDepositDetails()
@@ -198,6 +198,21 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
+	}
+}
+
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	b.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
 	}
 }
 
@@ -406,7 +421,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if testAPIKey != "" || testAPISecret != "" {
+	if apiKey != "" || apiSecret != "" {
 		_, err := b.GetAccountInfo()
 		if err != nil {
 			t.Error("test failed - Bithumb GetAccountInfo() error", err)
@@ -505,7 +520,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	if testAPIKey != "" && testAPISecret != "" {
+	if apiKey != "" && apiSecret != "" {
 		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)

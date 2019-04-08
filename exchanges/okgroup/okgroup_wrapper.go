@@ -414,6 +414,10 @@ func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (o.APIKey == "" || o.APISecret == "") && // Todo check connection status
+	feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return o.GetFee(feeBuilder)
 }
 

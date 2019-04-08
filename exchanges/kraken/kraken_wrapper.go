@@ -312,6 +312,10 @@ func (k *Kraken) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (k.APIKey == "" || k.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return k.GetFee(feeBuilder)
 }
 

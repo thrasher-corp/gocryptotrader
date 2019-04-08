@@ -329,6 +329,10 @@ func (b *Bitfinex) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bitfinex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+	feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 }
 
