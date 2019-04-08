@@ -404,17 +404,12 @@ func (b *Bitflyer) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency, feeBuilder.Amount)
 	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 	return fee, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0012 * price * amount
 }
 
 // calculateTradingFee returns fee when performing a trade

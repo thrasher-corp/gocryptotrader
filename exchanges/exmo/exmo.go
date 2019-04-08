@@ -433,7 +433,7 @@ func (e *EXMO) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 			feeBuilder.Amount,
 			feeBuilder.BankTransactionType)
 	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -441,11 +441,6 @@ func (e *EXMO) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.002 * price * amount
 }
 
 func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {

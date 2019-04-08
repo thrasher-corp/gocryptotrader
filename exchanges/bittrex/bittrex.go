@@ -531,7 +531,7 @@ func (b *Bittrex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee, err = b.GetWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -553,11 +553,6 @@ func (b *Bittrex) GetWithdrawalFee(c currency.Code) (float64, error) {
 		}
 	}
 	return fee, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0025 * price * amount
 }
 
 // calculateTradingFee returns the fee for trading any currency on Bittrex

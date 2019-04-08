@@ -620,7 +620,7 @@ func (b *Bithumb) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FiatCurrency)
 	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -628,15 +628,9 @@ func (b *Bithumb) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.002 * price * amount
-}
-
 // calculateTradingFee returns fee when performing a trade
 func calculateTradingFee(purchasePrice, amount float64) float64 {
-	fee := 0.0015
-	return fee * amount * purchasePrice
+	return 0.0025 * amount * purchasePrice
 }
 
 // getDepositFee returns fee on a currency when depositing small amounts to bithumb

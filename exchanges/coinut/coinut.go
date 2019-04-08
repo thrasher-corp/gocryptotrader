@@ -424,7 +424,6 @@ func (c *COINUT) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
 	if c.IsCryptoFiatPair() {
 		return 0.0035 * price * amount
-
 	} else {
 		return 0.002 * price * amount
 	}

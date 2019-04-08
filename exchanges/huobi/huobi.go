@@ -913,29 +913,12 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 
 // GetFee returns an estimate of fee based on type of transaction
 func (h *HUOBI) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
-		fee = calculateTradingFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-
+	var fee = calculateTradingFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
-	if c.IsCryptoFiatPair() {
-		return 0.001 * price * amount
-
-	} else {
-		return 0.002 * price * amount
-	}
 }
 
 func calculateTradingFee(c currency.Pair, price, amount float64) float64 {
