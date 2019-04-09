@@ -256,9 +256,11 @@ func (o *OKGroup) PlaceSpotOrder(request *PlaceSpotOrderRequest) (resp PlaceSpot
 func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[string][]PlaceSpotOrderResponse, []error) {
 	currencyPairOrders := make(map[string]int)
 	resp := make(map[string][]PlaceSpotOrderResponse)
-	for _, order := range request {
-		currencyPairOrders[order.InstrumentID]++
+
+	for i := range request {
+		currencyPairOrders[request[i].InstrumentID]++
 	}
+
 	if len(currencyPairOrders) > 4 {
 		return resp, []error{errors.New("up to 4 trading pairs")}
 	}
@@ -456,8 +458,8 @@ func (o *OKGroup) PlaceMarginOrder(request *PlaceSpotOrderRequest) (resp PlaceSp
 func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (map[string][]PlaceSpotOrderResponse, []error) {
 	currencyPairOrders := make(map[string]int)
 	resp := make(map[string][]PlaceSpotOrderResponse)
-	for _, order := range request {
-		currencyPairOrders[order.InstrumentID]++
+	for i := range request {
+		currencyPairOrders[request[i].InstrumentID]++
 	}
 	if len(currencyPairOrders) > 4 {
 		return resp, []error{errors.New("up to 4 trading pairs")}

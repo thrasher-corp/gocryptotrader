@@ -156,9 +156,9 @@ func (b *Binance) GetExchangeValidCurrencyPairs() ([]string, error) {
 		return nil, err
 	}
 
-	for _, symbol := range info.Symbols {
-		if symbol.Status == "TRADING" {
-			validCurrencyPairs = append(validCurrencyPairs, symbol.BaseAsset+"-"+symbol.QuoteAsset)
+	for i := range info.Symbols {
+		if info.Symbols[i].Status == "TRADING" {
+			validCurrencyPairs = append(validCurrencyPairs, info.Symbols[i].BaseAsset+"-"+info.Symbols[i].QuoteAsset)
 		}
 	}
 	return validCurrencyPairs, nil

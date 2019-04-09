@@ -270,28 +270,28 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range resp {
-		symbol := currency.NewPairDelimiter(order.Symbol,
+	for i := range resp {
+		symbol := currency.NewPairDelimiter(resp[i].Symbol,
 			g.ConfigCurrencyPairFormat.Delimiter)
 		var orderType exchange.OrderType
-		if order.Type == "exchange limit" {
+		if resp[i].Type == "exchange limit" {
 			orderType = exchange.LimitOrderType
-		} else if order.Type == "market buy" || order.Type == "market sell" {
+		} else if resp[i].Type == "market buy" || resp[i].Type == "market sell" {
 			orderType = exchange.MarketOrderType
 		}
 
-		side := exchange.OrderSide(strings.ToUpper(order.Type))
-		orderDate := time.Unix(order.Timestamp, 0)
+		side := exchange.OrderSide(strings.ToUpper(resp[i].Type))
+		orderDate := time.Unix(resp[i].Timestamp, 0)
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:          order.OriginalAmount,
-			RemainingAmount: order.RemainingAmount,
-			ID:              fmt.Sprintf("%v", order.OrderID),
-			ExecutedAmount:  order.ExecutedAmount,
+			Amount:          resp[i].OriginalAmount,
+			RemainingAmount: resp[i].RemainingAmount,
+			ID:              fmt.Sprintf("%v", resp[i].OrderID),
+			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        g.Name,
 			OrderType:       orderType,
 			OrderSide:       side,
-			Price:           order.Price,
+			Price:           resp[i].Price,
 			CurrencyPair:    symbol,
 			OrderDate:       orderDate,
 		})
@@ -321,28 +321,28 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			return nil, err
 		}
 
-		for _, trade := range resp {
-			trade.BaseCurrency = currency.Base.String()
-			trade.QuoteCurrency = currency.Quote.String()
-			trades = append(trades, trade)
+		for i := range resp {
+			resp[i].BaseCurrency = currency.Base.String()
+			resp[i].QuoteCurrency = currency.Quote.String()
+			trades = append(trades, resp[i])
 		}
 	}
 
 	var orders []exchange.OrderDetail
-	for _, trade := range trades {
-		side := exchange.OrderSide(strings.ToUpper(trade.Type))
-		orderDate := time.Unix(trade.Timestamp, 0)
+	for i := range trades {
+		side := exchange.OrderSide(strings.ToUpper(trades[i].Type))
+		orderDate := time.Unix(trades[i].Timestamp, 0)
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:    trade.Amount,
-			ID:        fmt.Sprintf("%v", trade.OrderID),
+			Amount:    trades[i].Amount,
+			ID:        fmt.Sprintf("%v", trades[i].OrderID),
 			Exchange:  g.Name,
 			OrderDate: orderDate,
 			OrderSide: side,
-			Fee:       trade.FeeAmount,
-			Price:     trade.Price,
-			CurrencyPair: currency.NewPairWithDelimiter(trade.BaseCurrency,
-				trade.QuoteCurrency,
+			Fee:       trades[i].FeeAmount,
+			Price:     trades[i].Price,
+			CurrencyPair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
+				trades[i].QuoteCurrency,
 				g.ConfigCurrencyPairFormat.Delimiter),
 		})
 	}

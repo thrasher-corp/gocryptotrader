@@ -275,10 +275,10 @@ func (b *Binance) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cance
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, order := range openOrders {
-		_, err = b.CancelExistingOrder(order.Symbol, order.OrderID, "")
+	for i := range openOrders {
+		_, err = b.CancelExistingOrder(openOrders[i].Symbol, openOrders[i].OrderID, "")
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.OrderID, 10)] = err.Error()
+			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
 		}
 	}
 
@@ -340,21 +340,21 @@ func (b *Binance) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 			return nil, err
 		}
 
-		for _, order := range resp {
-			orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
-			orderType := exchange.OrderType(strings.ToUpper(order.Type))
-			orderDate := time.Unix(int64(order.Time), 0)
+		for i := range resp {
+			orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
+			orderType := exchange.OrderType(strings.ToUpper(resp[i].Type))
+			orderDate := time.Unix(int64(resp[i].Time), 0)
 
 			orders = append(orders, exchange.OrderDetail{
-				Amount:       order.OrigQty,
+				Amount:       resp[i].OrigQty,
 				OrderDate:    orderDate,
 				Exchange:     b.Name,
-				ID:           fmt.Sprintf("%v", order.OrderID),
+				ID:           fmt.Sprintf("%v", resp[i].OrderID),
 				OrderSide:    orderSide,
 				OrderType:    orderType,
-				Price:        order.Price,
-				Status:       order.Status,
-				CurrencyPair: currency.NewPairFromString(order.Symbol),
+				Price:        resp[i].Price,
+				Status:       resp[i].Status,
+				CurrencyPair: currency.NewPairFromString(resp[i].Symbol),
 			})
 		}
 	}
@@ -380,25 +380,25 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 			return nil, err
 		}
 
-		for _, order := range resp {
-			orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
-			orderType := exchange.OrderType(strings.ToUpper(order.Type))
-			orderDate := time.Unix(int64(order.Time), 0)
+		for i := range resp {
+			orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
+			orderType := exchange.OrderType(strings.ToUpper(resp[i].Type))
+			orderDate := time.Unix(int64(resp[i].Time), 0)
 			// New orders are covered in GetOpenOrders
-			if order.Status == "NEW" {
+			if resp[i].Status == "NEW" {
 				continue
 			}
 
 			orders = append(orders, exchange.OrderDetail{
-				Amount:       order.OrigQty,
+				Amount:       resp[i].OrigQty,
 				OrderDate:    orderDate,
 				Exchange:     b.Name,
-				ID:           fmt.Sprintf("%v", order.OrderID),
+				ID:           fmt.Sprintf("%v", resp[i].OrderID),
 				OrderSide:    orderSide,
 				OrderType:    orderType,
-				Price:        order.Price,
-				CurrencyPair: currency.NewPairFromString(order.Symbol),
-				Status:       order.Status,
+				Price:        resp[i].Price,
+				CurrencyPair: currency.NewPairFromString(resp[i].Symbol),
+				Status:       resp[i].Status,
 			})
 		}
 	}

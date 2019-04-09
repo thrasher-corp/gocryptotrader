@@ -263,12 +263,12 @@ func (g *Gateio) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 	}
 
 	uniqueSymbols := make(map[string]string)
-	for _, openOrder := range openOrders.Orders {
-		uniqueSymbols[openOrder.CurrencyPair] = openOrder.CurrencyPair
+	for i := range openOrders.Orders {
+		uniqueSymbols[openOrders.Orders[i].CurrencyPair] = openOrders.Orders[i].CurrencyPair
 	}
 
-	for _, uniqueSymbol := range uniqueSymbols {
-		err = g.CancelAllExistingOrders(-1, uniqueSymbol)
+	for unique := range uniqueSymbols {
+		err = g.CancelAllExistingOrders(-1, uniqueSymbols[unique])
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -348,21 +348,21 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range resp.Orders {
-		if order.Status != "open" {
+	for i := range resp.Orders {
+		if resp.Orders[i].Status != "open" {
 			continue
 		}
 
-		symbol := currency.NewPairDelimiter(order.CurrencyPair,
+		symbol := currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
 			g.ConfigCurrencyPairFormat.Delimiter)
-		side := exchange.OrderSide(strings.ToUpper(order.Type))
-		orderDate := time.Unix(order.Timestamp, 0)
+		side := exchange.OrderSide(strings.ToUpper(resp.Orders[i].Type))
+		orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:              order.OrderNumber,
-			Amount:          order.Amount,
-			Price:           order.Rate,
-			RemainingAmount: order.FilledAmount,
+			ID:              resp.Orders[i].OrderNumber,
+			Amount:          resp.Orders[i].Amount,
+			Price:           resp.Orders[i].Rate,
+			RemainingAmount: resp.Orders[i].FilledAmount,
 			OrderDate:       orderDate,
 			OrderSide:       side,
 			Exchange:        g.Name,

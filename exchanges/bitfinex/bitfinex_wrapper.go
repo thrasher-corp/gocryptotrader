@@ -340,32 +340,32 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 		return nil, err
 	}
 
-	for _, order := range resp {
-		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
-		timestamp, err := strconv.ParseInt(order.Timestamp, 10, 64)
+	for i := range resp {
+		orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
+		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
 		if err != nil {
-			log.Warnf("Unable to convert timestamp '%v', leaving blank", order.Timestamp)
+			log.Warnf("Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
 		}
 		orderDate := time.Unix(timestamp, 0)
 
 		orderDetail := exchange.OrderDetail{
-			Amount:          order.OriginalAmount,
+			Amount:          resp[i].OriginalAmount,
 			OrderDate:       orderDate,
 			Exchange:        b.Name,
-			ID:              fmt.Sprintf("%v", order.OrderID),
+			ID:              fmt.Sprintf("%v", resp[i].OrderID),
 			OrderSide:       orderSide,
-			Price:           order.Price,
-			RemainingAmount: order.RemainingAmount,
-			CurrencyPair:    currency.NewPairFromString(order.Symbol),
-			ExecutedAmount:  order.ExecutedAmount,
+			Price:           resp[i].Price,
+			RemainingAmount: resp[i].RemainingAmount,
+			CurrencyPair:    currency.NewPairFromString(resp[i].Symbol),
+			ExecutedAmount:  resp[i].ExecutedAmount,
 		}
 
 		switch {
-		case order.IsLive:
+		case resp[i].IsLive:
 			orderDetail.Status = string(exchange.ActiveOrderStatus)
-		case order.IsCancelled:
+		case resp[i].IsCancelled:
 			orderDetail.Status = string(exchange.CancelledOrderStatus)
-		case order.IsHidden:
+		case resp[i].IsHidden:
 			orderDetail.Status = string(exchange.HiddenOrderStatus)
 		default:
 			orderDetail.Status = string(exchange.UnknownOrderStatus)
@@ -373,7 +373,7 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 
 		// API docs discrepency. Example contains prefixed "exchange "
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-		orderType := strings.Replace(order.Type, "exchange ", "", 1)
+		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {
 			orderDetail.OrderType = exchange.TrailingStopOrderType
 		} else {
@@ -400,32 +400,32 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 		return nil, err
 	}
 
-	for _, order := range resp {
-		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
-		timestamp, err := strconv.ParseInt(order.Timestamp, 10, 64)
+	for i := range resp {
+		orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
+		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
 		if err != nil {
-			log.Warnf("Unable to convert timestamp '%v', leaving blank", order.Timestamp)
+			log.Warnf("Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
 		}
 		orderDate := time.Unix(timestamp, 0)
 
 		orderDetail := exchange.OrderDetail{
-			Amount:          order.OriginalAmount,
+			Amount:          resp[i].OriginalAmount,
 			OrderDate:       orderDate,
 			Exchange:        b.Name,
-			ID:              fmt.Sprintf("%v", order.OrderID),
+			ID:              fmt.Sprintf("%v", resp[i].OrderID),
 			OrderSide:       orderSide,
-			Price:           order.Price,
-			RemainingAmount: order.RemainingAmount,
-			ExecutedAmount:  order.ExecutedAmount,
-			CurrencyPair:    currency.NewPairFromString(order.Symbol),
+			Price:           resp[i].Price,
+			RemainingAmount: resp[i].RemainingAmount,
+			ExecutedAmount:  resp[i].ExecutedAmount,
+			CurrencyPair:    currency.NewPairFromString(resp[i].Symbol),
 		}
 
 		switch {
-		case order.IsLive:
+		case resp[i].IsLive:
 			orderDetail.Status = string(exchange.ActiveOrderStatus)
-		case order.IsCancelled:
+		case resp[i].IsCancelled:
 			orderDetail.Status = string(exchange.CancelledOrderStatus)
-		case order.IsHidden:
+		case resp[i].IsHidden:
 			orderDetail.Status = string(exchange.HiddenOrderStatus)
 		default:
 			orderDetail.Status = string(exchange.UnknownOrderStatus)
@@ -433,7 +433,7 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 		// API docs discrepency. Example contains prefixed "exchange "
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-		orderType := strings.Replace(order.Type, "exchange ", "", 1)
+		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {
 			orderDetail.OrderType = exchange.TrailingStopOrderType
 		} else {
