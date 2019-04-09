@@ -1551,6 +1551,26 @@ func TestGetETTOrderDetails(t *testing.T) {
 	testStandardErrorHandling(t, err)
 }
 
+// TestGetETTConstituents API endpoint test
+func TestGetETTConstituents(t *testing.T) {
+	TestSetDefaults(t)
+	t.Parallel()
+	_, err := o.GetETTConstituents("OK06ETT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestGetETTSettlementPriceHistory API endpoint test
+func TestGetETTSettlementPriceHistory(t *testing.T) {
+	TestSetDefaults(t)
+	t.Parallel()
+	_, err := o.GetETTSettlementPriceHistory("OK06ETT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // Websocket tests ----------------------------------------------------------------------------------------------
 
 // TestWsLogin API endpoint test
@@ -1789,8 +1809,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		BankTransactionType: exchange.WireTransfer,
 	}
 }
-
-// TestGetFee fee calcuation test
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {

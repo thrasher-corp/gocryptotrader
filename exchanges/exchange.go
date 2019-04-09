@@ -31,42 +31,42 @@ const (
 )
 
 // FeeType custom type for calculating fees based on method
-type FeeType int
+type FeeType uint8
 
 // Const declarations for fee types
 const (
-	BankFee                        FeeType = 0
-	InternationalBankDepositFee    FeeType = 1
-	InternationalBankWithdrawalFee FeeType = 2
-	CryptocurrencyTradeFee         FeeType = 3
-	CyptocurrencyDepositFee        FeeType = 4
-	CryptocurrencyWithdrawalFee    FeeType = 5
-	OfflineTradeFee                FeeType = 6
+	BankFee FeeType = iota
+	InternationalBankDepositFee
+	InternationalBankWithdrawalFee
+	CryptocurrencyTradeFee
+	CyptocurrencyDepositFee
+	CryptocurrencyWithdrawalFee
+	OfflineTradeFee
 )
 
 // InternationalBankTransactionType custom type for calculating fees based on fiat transaction types
-type InternationalBankTransactionType int
+type InternationalBankTransactionType uint8
 
 // Const declarations for international transaction types
 const (
-	WireTransfer    InternationalBankTransactionType = 0
-	PerfectMoney    InternationalBankTransactionType = 1
-	Neteller        InternationalBankTransactionType = 2
-	AdvCash         InternationalBankTransactionType = 3
-	Payeer          InternationalBankTransactionType = 4
-	Skrill          InternationalBankTransactionType = 5
-	Simplex         InternationalBankTransactionType = 6
-	SEPA            InternationalBankTransactionType = 7
-	Swift           InternationalBankTransactionType = 8
-	RapidTransfer   InternationalBankTransactionType = 9
-	MisterTangoSEPA InternationalBankTransactionType = 10
-	Qiwi            InternationalBankTransactionType = 11
-	VisaMastercard  InternationalBankTransactionType = 12
-	WebMoney        InternationalBankTransactionType = 13
-	Capitalist      InternationalBankTransactionType = 14
-	WesternUnion    InternationalBankTransactionType = 15
-	MoneyGram       InternationalBankTransactionType = 16
-	Contact         InternationalBankTransactionType = 17
+	WireTransfer InternationalBankTransactionType = iota
+	PerfectMoney
+	Neteller
+	AdvCash
+	Payeer
+	Skrill
+	Simplex
+	SEPA
+	Swift
+	RapidTransfer
+	MisterTangoSEPA
+	Qiwi
+	VisaMastercard
+	WebMoney
+	Capitalist
+	WesternUnion
+	MoneyGram
+	Contact
 )
 
 // SubmitOrderResponse is what is returned after submitting an order to an
