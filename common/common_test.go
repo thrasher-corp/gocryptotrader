@@ -957,7 +957,6 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 func TestGetDefaultDataDir(t *testing.T) {
 	expectedOutput := os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
 	actualOutput := GetDefaultDataDir("windows")
-	t.Log(actualOutput)
 	if actualOutput != expectedOutput {
 		t.Errorf("Unexpected result. Got: %v Expected: %v", actualOutput, expectedOutput)
 	}
@@ -967,7 +966,7 @@ func TestCreateDir(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows":
 		// test for a directory that exists
-		dir := "c:\\temp"
+		dir, _ := os.LookupEnv("TEMP")
 		err := CreateDir(dir)
 		if err != nil {
 			t.Errorf("got err: %v", err)
@@ -983,7 +982,7 @@ func TestCreateDir(t *testing.T) {
 		dir, _ = os.LookupEnv("*")
 		err = CreateDir(dir)
 		if err == nil {
-			t.Errorf("Expected err due to invalid path, got err: %v", err)
+			t.Errorf("Expected err due to invalid path, but got nil")
 		}
 		// same tests for linux
 	case "linux":
