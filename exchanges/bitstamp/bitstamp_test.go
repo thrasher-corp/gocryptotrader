@@ -12,8 +12,8 @@ import (
 
 // Please add your private keys and customerID for better tests
 const (
-	apiKey              = ""
-	apiSecret           = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	customerID              = "" // This is the customer id you use to log in
 	canManipulateRealOrders = false
 )

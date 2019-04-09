@@ -12,8 +12,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey              = ""
-	apiSecret           = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 

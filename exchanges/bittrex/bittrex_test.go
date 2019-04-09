@@ -12,8 +12,8 @@ import (
 
 // Please supply you own test keys here to run better tests.
 const (
-	apiKey              = ""
-	apiSecret           = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
