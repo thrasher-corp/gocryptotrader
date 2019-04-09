@@ -104,6 +104,7 @@ type Config struct {
 	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
 	Logging           log.Logging          `json:"logging"`
 	Profiler          ProfilerConfig       `json:"profiler"`
+	NTPClient         NTPClientConfig      `json:"ntpclient"`
 	Currency          CurrencyConfig       `json:"currencyConfig"`
 	Communications    CommunicationsConfig `json:"communications"`
 	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
@@ -120,6 +121,11 @@ type Config struct {
 
 type ProfilerConfig struct {
 	Enabled bool `json:"enabled"`
+}
+
+type NTPClientConfig struct {
+	Pool              []string      `json:"pool"`
+	AllowedDifference time.Duration `json:"alloweddifference"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.

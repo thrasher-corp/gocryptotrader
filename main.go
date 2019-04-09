@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-/gocryptotrader/ntpclient"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -102,6 +104,16 @@ func main() {
 	if err != nil {
 		log.Errorf("Failed to setup logger reason: %s", err)
 	}
+
+	NTPTime, err := ntpclient.NTPClient(bot.config.NTPClient.Pool)
+	currentTime := time.Now()
+	NTPcurrentTimeDifference := currentTime.Sub(NTPTime)
+	if NTPcurrentTimeDifference >= bot.config.NTPClient.AllowedDifference || (bot.config.NTPClient.AllowedDifference <= NTPcurrentTimeDifference) {
+		log.Infof("Time out of sync NTP: %v | time.Now() %v | difference: %v | allowed: %v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference)
+	}
+
+	log.Infof("NTP: %v | time.Now() %v | difference: %v | allowed: %v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference)
+	os.Exit(0)
 
 	AdjustGoMaxProcs()
 	log.Debugf("Bot '%s' started.\n", bot.config.Name)
