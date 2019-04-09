@@ -422,7 +422,7 @@ type WebsocketEventResponse struct {
 }
 
 type WebsocketSubscriptionEventResponse struct {
-	ChannelID float64 `json:"channelID"`
+	ChannelID int64 `json:"channelID"`
 }
 
 type WebsocketSubscriptionResponseData struct {
@@ -444,5 +444,5 @@ type WebsocketErrorResponse struct {
 type WebsocketChannelData struct {
 	Subscription string
 	Pair         currency.Pair
-	ChannelID    float64
+	ChannelID    int64
 }
