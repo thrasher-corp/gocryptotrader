@@ -854,6 +854,8 @@ func (c *CoinbasePro) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
 	case exchange.InternationalBankDepositFee:
 		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -861,6 +863,11 @@ func (c *CoinbasePro) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0025 * price * amount
 }
 
 func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, base, quote currency.Code, delimiter string, purchasePrice, amount float64, isMaker bool) float64 {

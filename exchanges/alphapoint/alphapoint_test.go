@@ -10,8 +10,8 @@ import (
 
 const (
 	onlineTest              = false
-	testAPIKey              = ""
-	testAPISecret           = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -29,13 +29,13 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func testSetAPIKey(a *Alphapoint) {
-	a.APIKey = testAPIKey
-	a.APISecret = testAPISecret
+	a.APIKey = apiKey
+	a.APISecret = apiSecret
 	a.AuthenticatedAPISupport = true
 }
 
 func testIsAPIKeysSet(a *Alphapoint) bool {
-	if testAPIKey != "" && testAPISecret != "" && a.AuthenticatedAPISupport {
+	if apiKey != "" && apiSecret != "" && a.AuthenticatedAPISupport {
 		return true
 	}
 	return false

@@ -409,6 +409,8 @@ func (c *COINUT) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	case exchange.InternationalBankDepositFee:
 		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
 			feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -416,6 +418,14 @@ func (c *COINUT) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
+	if c.IsCryptoFiatPair() {
+		return 0.0035 * price * amount
+	}
+	return 0.002 * price * amount
 }
 
 func (c *COINUT) calculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, isMaker bool) float64 {

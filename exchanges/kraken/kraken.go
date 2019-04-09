@@ -1020,12 +1020,19 @@ func (k *Kraken) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FiatCurrency)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0016 * price * amount
 }
 
 func getWithdrawalFee(c currency.Code) float64 {

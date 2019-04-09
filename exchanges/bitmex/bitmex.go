@@ -938,9 +938,11 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 func (b *Bitmex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	var err error
-
-	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -948,10 +950,14 @@ func (b *Bitmex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, err
 }
 
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.000750 * price * amount
+}
+
 // calculateTradingFee returns the fee for trading any currency on Bittrex
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	var fee = 0.000750
-
 	if isMaker {
 		fee -= 0.000250
 	}

@@ -11,8 +11,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -31,8 +31,8 @@ func TestSetup(t *testing.T) {
 	}
 
 	binanceConfig.AuthenticatedAPISupport = true
-	binanceConfig.APIKey = testAPIKey
-	binanceConfig.APISecret = testAPISecret
+	binanceConfig.APIKey = apiKey
+	binanceConfig.APISecret = apiSecret
 	b.Setup(&binanceConfig)
 }
 
@@ -140,7 +140,7 @@ func TestGetBestPrice(t *testing.T) {
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 	_, err := b.NewOrder(&NewOrderRequest{
@@ -160,7 +160,7 @@ func TestNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
@@ -173,7 +173,7 @@ func TestCancelExistingOrder(t *testing.T) {
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
@@ -186,7 +186,7 @@ func TestQueryOrder(t *testing.T) {
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
@@ -199,7 +199,7 @@ func TestOpenOrders(t *testing.T) {
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
@@ -210,7 +210,7 @@ func TestAllOrders(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 	t.Parallel()
@@ -240,13 +240,28 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	b.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
 	var feeBuilder = setFeeBuilder()
 
-	if testAPIKey != "" || testAPISecret != "" {
+	if apiKey != "" || apiSecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.1) || err != nil {
 			t.Error(err)
@@ -455,7 +470,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
