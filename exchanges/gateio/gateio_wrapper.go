@@ -68,7 +68,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 		tp.Low = result[currency].Low
 		tp.Volume = result[currency].Volume
 
-		err = ticker.ProcessTicker(g.Name, tp, assetType)
+		err = ticker.ProcessTicker(g.Name, &tp, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}
@@ -332,6 +332,10 @@ func (g *Gateio) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (g *Gateio) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (g.APIKey == "" || g.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return g.GetFee(feeBuilder)
 }
 

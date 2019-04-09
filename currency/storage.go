@@ -96,7 +96,7 @@ func (s *Storage) SetDefaults() {
 // dump file and keep foreign exchange rates updated as fast as possible without
 // triggering rate limiters, it will also run a full cryptocurrency check
 // through coin market cap and expose analytics for exchange services
-func (s *Storage) RunUpdater(overrides BotOverrides, settings MainConfiguration, filePath string, verbose bool) error {
+func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration, filePath string, verbose bool) error {
 	s.mtx.Lock()
 
 	if !settings.Cryptocurrencies.HasData() {

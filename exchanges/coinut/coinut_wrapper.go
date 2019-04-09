@@ -147,7 +147,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 	tickerPrice.High = tick.HighestBuy
 	tickerPrice.Low = tick.LowestSell
 
-	err = ticker.ProcessTicker(c.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(c.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -383,6 +383,10 @@ func (c *COINUT) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if c.APIKey == "" && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return c.GetFee(feeBuilder)
 }
 

@@ -13,8 +13,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -32,10 +32,10 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Bitmex Setup() init error")
 	}
 	bitmexConfig.AuthenticatedAPISupport = true
-	bitmexConfig.APIKey = testAPIKey
-	bitmexConfig.APISecret = testAPISecret
+	bitmexConfig.APIKey = apiKey
+	bitmexConfig.APISecret = apiSecret
 
-	b.Setup(bitmexConfig)
+	b.Setup(&bitmexConfig)
 }
 
 func TestStart(t *testing.T) {
@@ -369,12 +369,26 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	b.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
 	var feeBuilder = setFeeBuilder()
-
 	// CryptocurrencyTradeFee Basic
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.00075) || err != nil {
 		t.Error(err)
@@ -576,7 +590,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if testAPIKey != "" || testAPISecret != "" {
+	if apiKey != "" || apiSecret != "" {
 		_, err := b.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

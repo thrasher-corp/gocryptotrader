@@ -121,7 +121,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 			tickerPrice.Bid = tick.Result[y].Bid
 			tickerPrice.Last = tick.Result[y].Last
 			tickerPrice.Volume = tick.Result[y].Volume
-			ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+			ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
@@ -300,6 +300,10 @@ func (b *Bittrex) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bittrex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 
 }

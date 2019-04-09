@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -49,5 +50,35 @@ func TestConfigAllJsonResponse(t *testing.T) {
 
 	if reflect.DeepEqual(responseConfig, cfg) {
 		t.Error("Test failed. Json not equal to config")
+	}
+}
+
+func TestInvalidHostRequest(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = "invalidsite.com"
+
+	resp := httptest.NewRecorder()
+	NewRouter().ServeHTTP(resp, req)
+
+	if status := resp.Code; status != http.StatusNotFound {
+		t.Errorf("Test failed. Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
+	}
+}
+
+func TestValidHostRequest(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = common.ExtractHost(bot.config.Webserver.ListenAddress)
+
+	resp := httptest.NewRecorder()
+	NewRouter().ServeHTTP(resp, req)
+
+	if status := resp.Code; status != http.StatusOK {
+		t.Errorf("Test failed. Response returned wrong status code expected %v got %v", http.StatusOK, status)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/thrasher-/gocryptotrader/common"
 	log "github.com/thrasher-/gocryptotrader/logger"
 
 	_ "net/http/pprof"
@@ -45,6 +46,7 @@ var routes = Routes{}
 // router
 func NewRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
+	listenAddr := bot.config.Webserver.ListenAddress
 
 	routes = Routes{
 		Route{
@@ -114,7 +116,8 @@ func NewRouter() *mux.Router {
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(RESTLogger(route.HandlerFunc, route.Name))
+			Handler(RESTLogger(route.HandlerFunc, route.Name)).
+			Host(common.ExtractHost(listenAddr))
 	}
 
 	if bot.config.Profiler.Enabled {

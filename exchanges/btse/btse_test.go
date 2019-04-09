@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	btseConfig.APIKey = apiKey
 	btseConfig.APISecret = apiSecret
 
-	b.Setup(btseConfig)
+	b.Setup(&btseConfig)
 }
 
 func TestGetMarkets(t *testing.T) {
@@ -137,6 +137,27 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	actual := b.FormatWithdrawPermissions()
 	if actual != expected {
 		t.Errorf("Expected: %s, Received: %s", expected, actual)
+	}
+}
+
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	feeBuilder := &exchange.FeeBuilder{
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair:    currency.NewPair(currency.BTC, currency.USD),
+		IsMaker: true,
+		Amount:  1000,
+	}
+
+	b.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
 	}
 }
 

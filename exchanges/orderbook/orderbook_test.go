@@ -79,7 +79,7 @@ func TestGetOrderbook(t *testing.T) {
 		Bids: []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", base, Spot)
+	CreateNewOrderbook("Exchange", &base, Spot)
 
 	result, err := Get("Exchange", c, Spot)
 	if err != nil {
@@ -116,7 +116,7 @@ func TestGetOrderbookByExchange(t *testing.T) {
 		Bids: []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", base, Spot)
+	CreateNewOrderbook("Exchange", &base, Spot)
 
 	_, err := GetByExchange("Exchange")
 	if err != nil {
@@ -138,7 +138,7 @@ func TestFirstCurrencyExists(t *testing.T) {
 		Bids: []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", base, Spot)
+	CreateNewOrderbook("Exchange", &base, Spot)
 
 	if !BaseCurrencyExists("Exchange", c.Base) {
 		t.Fatal("Test failed. TestFirstCurrencyExists expected first currency doesn't exist")
@@ -158,7 +158,7 @@ func TestSecondCurrencyExists(t *testing.T) {
 		Bids: []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", base, Spot)
+	CreateNewOrderbook("Exchange", &base, Spot)
 
 	if !QuoteCurrencyExists("Exchange", c) {
 		t.Fatal("Test failed. TestSecondCurrencyExists expected first currency doesn't exist")
@@ -178,7 +178,7 @@ func TestCreateNewOrderbook(t *testing.T) {
 		Bids: []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", base, Spot)
+	CreateNewOrderbook("Exchange", &base, Spot)
 
 	result, err := Get("Exchange", c, Spot)
 	if err != nil {

@@ -90,7 +90,7 @@ func (p *Poloniex) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (p *Poloniex) Setup(exch config.ExchangeConfig) {
+func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		p.SetEnabled(false)
 	} else {
@@ -117,7 +117,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.SetAPIURL(&exch)
+		err = p.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -914,12 +914,19 @@ func (p *Poloniex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker bool) (fee float64) {

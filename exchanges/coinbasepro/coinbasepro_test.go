@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	gdxConfig.APIKey = apiKey
 	gdxConfig.APISecret = apiSecret
 	gdxConfig.AuthenticatedAPISupport = true
-	c.Setup(gdxConfig)
+	c.Setup(&gdxConfig)
 }
 
 func TestGetProducts(t *testing.T) {
@@ -227,6 +227,21 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
+	}
+}
+
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	c.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
 	}
 }
 

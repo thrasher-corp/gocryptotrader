@@ -78,7 +78,7 @@ func (y *Yobit) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters for Yobit
-func (y *Yobit) Setup(exch config.ExchangeConfig) {
+func (y *Yobit) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		y.SetEnabled(false)
 	} else {
@@ -105,7 +105,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = y.SetAPIURL(&exch)
+		err = y.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -399,6 +399,8 @@ func (y *Yobit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
 			feeBuilder.Amount,
 			feeBuilder.BankTransactionType)
+	case exchange.OfflineTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -407,9 +409,8 @@ func (y *Yobit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func calculateTradingFee(purchasePrice, amount float64) (fee float64) {
-	fee = 0.002
-	return fee * amount * purchasePrice
+func calculateTradingFee(price, amount float64) (fee float64) {
+	return 0.002 * price * amount
 }
 
 func getWithdrawalFee(c currency.Code) float64 {

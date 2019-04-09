@@ -150,7 +150,7 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, err
 		tickerPrice.High = 0
 	}
 
-	err = ticker.ProcessTicker(a.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -367,6 +367,10 @@ func (a *ANX) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (a.APIKey == "" || a.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return a.GetFee(feeBuilder)
 }
 

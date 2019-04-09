@@ -69,7 +69,7 @@ func (l *LakeBTC) SetDefaults() {
 }
 
 // Setup sets exchange configuration profile
-func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
+func (l *LakeBTC) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 	} else {
@@ -95,7 +95,7 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = l.SetAPIURL(&exch)
+		err = l.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -388,6 +388,8 @@ func (l *LakeBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		// fees for withdrawals are dynamic. They cannot be calculated in
 		// advance as they are manually performed via the website, it can only
 		// be determined when submitting the request
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -395,6 +397,11 @@ func (l *LakeBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {

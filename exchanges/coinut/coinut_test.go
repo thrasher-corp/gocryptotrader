@@ -32,7 +32,7 @@ func TestSetup(t *testing.T) {
 	}
 	bConfig.AuthenticatedAPISupport = true
 	bConfig.APIKey = apiKey
-	c.Setup(bConfig)
+	c.Setup(&bConfig)
 	c.ClientID = clientID
 
 	if !c.IsEnabled() ||
@@ -56,6 +56,21 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
+	}
+}
+
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	c.GetFeeByType(feeBuilder)
+	if apiKey == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
 	}
 }
 

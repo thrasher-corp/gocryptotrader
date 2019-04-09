@@ -103,7 +103,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType string) (ticker.Pr
 	tickerPrice.High = stats.High
 	tickerPrice.Low = stats.Low
 
-	err = ticker.ProcessTicker(c.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(c.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -288,6 +288,10 @@ func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (c.APIKey == "" || c.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return c.GetFee(feeBuilder)
 }
 

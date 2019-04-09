@@ -59,7 +59,7 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, e
 		tickerPrice.Low = result[currency].Low
 		tickerPrice.Volume = result[currency].VolumeCurrent
 
-		err = ticker.ProcessTicker(y.Name, tickerPrice, assetType)
+		err = ticker.ProcessTicker(y.Name, &tickerPrice, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}
@@ -280,6 +280,10 @@ func (y *Yobit) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (y *Yobit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (y.APIKey == "" || y.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return y.GetFee(feeBuilder)
 }
 

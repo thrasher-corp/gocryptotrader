@@ -67,7 +67,7 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 		tickerPrice.Low = tick[currency].Low
 		tickerPrice.Last = tick[currency].Last
 
-		err = ticker.ProcessTicker(l.GetName(), tickerPrice, assetType)
+		err = ticker.ProcessTicker(l.GetName(), &tickerPrice, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}
@@ -276,6 +276,10 @@ func (l *LakeBTC) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (l *LakeBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (l.APIKey == "" || l.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return l.GetFee(feeBuilder)
 }
 

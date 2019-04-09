@@ -94,6 +94,7 @@ func (b *Binance) SetDefaults() {
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
 	b.WebsocketInit()
+	b.WebsocketURL = binanceDefaultWebsocketURL
 	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketTickerSupported |
 		exchange.WebsocketKlineSupported |
@@ -101,7 +102,7 @@ func (b *Binance) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Binance) Setup(exch config.ExchangeConfig) {
+func (b *Binance) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -112,6 +113,7 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
 		b.EnabledPairs = exch.EnabledPairs
@@ -127,7 +129,7 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -708,11 +710,18 @@ func (b *Binance) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 // getMultiplier retrieves account based taker/maker fees

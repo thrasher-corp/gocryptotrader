@@ -91,7 +91,7 @@ type APIKeyParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p APIKeyParams) VerifyData() error {
+func (p *APIKeyParams) VerifyData() error {
 	if p.APIKeyID == "" {
 		return errors.New("verifydata APIKeyParams error - APIKeyID not set")
 	}
@@ -100,7 +100,7 @@ func (p APIKeyParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p APIKeyParams) ToURLVals(path string) (string, error) {
+func (p *APIKeyParams) ToURLVals(path string) (string, error) {
 	values, err := StructValsToURLVals(&p)
 	if err != nil {
 		return "", err
@@ -109,8 +109,8 @@ func (p APIKeyParams) ToURLVals(path string) (string, error) {
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p APIKeyParams) IsNil() bool {
-	return p == (APIKeyParams{})
+func (p *APIKeyParams) IsNil() bool {
+	return (APIKeyParams{}) == *p
 }
 
 // ChatGetParams contains all the parameters to send to the API endpoint
@@ -129,14 +129,14 @@ type ChatGetParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p ChatGetParams) VerifyData() error {
+func (p *ChatGetParams) VerifyData() error {
 	return nil
 }
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p ChatGetParams) ToURLVals(path string) (string, error) {
-	values, err := StructValsToURLVals(&p)
+func (p *ChatGetParams) ToURLVals(path string) (string, error) {
+	values, err := StructValsToURLVals(p)
 	if err != nil {
 		return "", err
 	}
@@ -144,8 +144,8 @@ func (p ChatGetParams) ToURLVals(path string) (string, error) {
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p ChatGetParams) IsNil() bool {
-	return p == (ChatGetParams{})
+func (p *ChatGetParams) IsNil() bool {
+	return *p == (ChatGetParams{})
 }
 
 // ChatSendParams contains all the parameters to send to the API endpoint
@@ -172,8 +172,8 @@ func (p ChatSendParams) ToURLVals(path string) (string, error) {
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p ChatSendParams) IsNil() bool {
-	return p == (ChatSendParams{})
+func (p *ChatSendParams) IsNil() bool {
+	return *p == (ChatSendParams{})
 }
 
 // GenericRequestParams contains all the parameters for some general functions
@@ -214,14 +214,14 @@ type GenericRequestParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p GenericRequestParams) VerifyData() error {
+func (p *GenericRequestParams) VerifyData() error {
 	return nil
 }
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p GenericRequestParams) ToURLVals(path string) (string, error) {
-	values, err := StructValsToURLVals(&p)
+func (p *GenericRequestParams) ToURLVals(path string) (string, error) {
+	values, err := StructValsToURLVals(p)
 	if err != nil {
 		return "", err
 	}
@@ -229,8 +229,8 @@ func (p GenericRequestParams) ToURLVals(path string) (string, error) {
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p GenericRequestParams) IsNil() bool {
-	return p == (GenericRequestParams{})
+func (p *GenericRequestParams) IsNil() bool {
+	return *p == (GenericRequestParams{})
 }
 
 // LeaderboardGetParams contains all the parameters to send to the API endpoint
@@ -332,19 +332,19 @@ type OrderNewParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p OrderNewParams) VerifyData() error {
+func (p *OrderNewParams) VerifyData() error {
 	return nil
 }
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrderNewParams) ToURLVals(path string) (string, error) {
+func (p *OrderNewParams) ToURLVals(path string) (string, error) {
 	return "", nil
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p OrderNewParams) IsNil() bool {
-	return p == (OrderNewParams{})
+func (p *OrderNewParams) IsNil() bool {
+	return *p == (OrderNewParams{})
 }
 
 // OrderAmendParams contains all the parameters to send to the API endpoint
@@ -394,7 +394,7 @@ type OrderAmendParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p OrderAmendParams) VerifyData() error {
+func (p *OrderAmendParams) VerifyData() error {
 	if p.OrderID == "" {
 		return errors.New("verifydata() OrderNewParams error - OrderID not set")
 	}
@@ -403,13 +403,13 @@ func (p OrderAmendParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrderAmendParams) ToURLVals(path string) (string, error) {
+func (p *OrderAmendParams) ToURLVals(path string) (string, error) {
 	return "", nil
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p OrderAmendParams) IsNil() bool {
-	return p == (OrderAmendParams{})
+func (p *OrderAmendParams) IsNil() bool {
+	return *p == (OrderAmendParams{})
 }
 
 // OrderCancelParams contains all the parameters to send to the API endpoint
@@ -773,19 +773,19 @@ type QuoteGetBucketedParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p QuoteGetBucketedParams) VerifyData() error {
+func (p *QuoteGetBucketedParams) VerifyData() error {
 	return nil
 }
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p QuoteGetBucketedParams) ToURLVals(path string) (string, error) {
+func (p *QuoteGetBucketedParams) ToURLVals(path string) (string, error) {
 	return "", nil
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p QuoteGetBucketedParams) IsNil() bool {
-	return p == (QuoteGetBucketedParams{})
+func (p *QuoteGetBucketedParams) IsNil() bool {
+	return *p == (QuoteGetBucketedParams{})
 }
 
 // TradeGetBucketedParams contains all the parameters to send to the API
@@ -834,19 +834,19 @@ type TradeGetBucketedParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p TradeGetBucketedParams) VerifyData() error {
+func (p *TradeGetBucketedParams) VerifyData() error {
 	return nil
 }
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p TradeGetBucketedParams) ToURLVals(path string) (string, error) {
+func (p *TradeGetBucketedParams) ToURLVals(path string) (string, error) {
 	return "", nil
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p TradeGetBucketedParams) IsNil() bool {
-	return p == (TradeGetBucketedParams{})
+func (p *TradeGetBucketedParams) IsNil() bool {
+	return *p == (TradeGetBucketedParams{})
 }
 
 // UserUpdateParams contains all the parameters to send to the API endpoint
@@ -871,19 +871,19 @@ type UserUpdateParams struct {
 }
 
 // VerifyData verifies outgoing data sets
-func (p UserUpdateParams) VerifyData() error {
+func (p *UserUpdateParams) VerifyData() error {
 	return nil
 }
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p UserUpdateParams) ToURLVals(path string) (string, error) {
+func (p *UserUpdateParams) ToURLVals(path string) (string, error) {
 	return "", nil
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p UserUpdateParams) IsNil() bool {
-	return p == (UserUpdateParams{})
+func (p *UserUpdateParams) IsNil() bool {
+	return *p == (UserUpdateParams{})
 }
 
 // UserTokenParams contains all the parameters to send to the API endpoint
@@ -1051,17 +1051,17 @@ type OrdersRequest struct {
 }
 
 // VerifyData verifies parameter data during SendAuthenticatedHTTPRequest
-func (p OrdersRequest) VerifyData() error {
+func (p *OrdersRequest) VerifyData() error {
 	return nil
 }
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrdersRequest) ToURLVals(path string) (string, error) {
+func (p *OrdersRequest) ToURLVals(path string) (string, error) {
 	return "", nil
 }
 
 // IsNil checks to see if any values has been set for the paramater
-func (p OrdersRequest) IsNil() bool {
-	return p == (OrdersRequest{})
+func (p *OrdersRequest) IsNil() bool {
+	return *p == (OrdersRequest{})
 }

@@ -68,7 +68,7 @@ func TestSetup(t *testing.T) {
 	okexConfig.APISecret = apiSecret
 	okexConfig.ClientID = passphrase
 	okexConfig.WebsocketURL = o.WebsocketURL
-	o.Setup(okexConfig)
+	o.Setup(&okexConfig)
 	testSetupRan = true
 }
 
@@ -1553,6 +1553,7 @@ func TestGetETTOrderDetails(t *testing.T) {
 
 // TestGetETTConstituents API endpoint test
 func TestGetETTConstituents(t *testing.T) {
+	t.Skip("ETT currently unavailable")
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetETTConstituents("OK06ETT")
@@ -1563,6 +1564,7 @@ func TestGetETTConstituents(t *testing.T) {
 
 // TestGetETTSettlementPriceHistory API endpoint test
 func TestGetETTSettlementPriceHistory(t *testing.T) {
+	t.Skip("ETT currently unavailable")
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetETTSettlementPriceHistory("OK06ETT")
@@ -1662,7 +1664,7 @@ func TestSubscribeToNonExistantChannel(t *testing.T) {
 		return
 	}
 	var errorReceived bool
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 7; i++ {
 		response := <-o.Websocket.DataHandler
 		if err, ok := response.(error); ok && err != nil {
 			t.Log(response)
@@ -1810,7 +1812,21 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-// TestGetFee fee calcuation test
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	o.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
@@ -1833,8 +1849,8 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+	if resp, err := o.GetFee(feeBuilder); resp != float64(0.0005) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
 		t.Error(err)
 	}
 

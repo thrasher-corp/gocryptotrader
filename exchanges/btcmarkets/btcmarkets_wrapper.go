@@ -79,7 +79,7 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType string) (ticker.Pri
 	tickerPrice.Bid = tick.BestBID
 	tickerPrice.Last = tick.LastPrice
 
-	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -332,6 +332,10 @@ func (b *BTCMarkets) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 }
 

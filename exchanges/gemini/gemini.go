@@ -127,7 +127,7 @@ func (g *Gemini) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters
-func (g *Gemini) Setup(exch config.ExchangeConfig) {
+func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
@@ -154,7 +154,7 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.SetAPIURL(&exch)
+		err = g.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -546,12 +546,19 @@ func (g *Gemini) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		// Could do via trade history, but would require analysis of response and dates to determine level of fee
 	case exchange.InternationalBankWithdrawalFee:
 		fee = 0
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.01 * price * amount
 }
 
 func calculateTradingFee(notionVolume *NotionalVolume, purchasePrice, amount float64, isMaker bool) float64 {

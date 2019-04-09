@@ -50,7 +50,7 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, e
 	tickerPrice.Low = tick.Low24h
 	tickerPrice.Volume = tick.Volume24h
 
-	err = ticker.ProcessTicker(i.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(i.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -301,6 +301,10 @@ func (i *ItBit) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (i.APIKey == "" || i.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return i.GetFee(feeBuilder)
 }
 

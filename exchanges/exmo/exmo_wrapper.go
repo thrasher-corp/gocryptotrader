@@ -79,7 +79,7 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, er
 		tickerPrice.Low = result[currency].Low
 		tickerPrice.Volume = result[currency].Volume
 
-		err = ticker.ProcessTicker(e.Name, tickerPrice, assetType)
+		err = ticker.ProcessTicker(e.Name, &tickerPrice, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}
@@ -316,6 +316,10 @@ func (e *EXMO) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (e *EXMO) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (e.APIKey == "" || e.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return e.GetFee(feeBuilder)
 }
 

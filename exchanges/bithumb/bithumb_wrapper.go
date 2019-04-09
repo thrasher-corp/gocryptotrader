@@ -84,7 +84,7 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 		tp.Volume = tickers[currency].Volume1Day
 		tp.High = tickers[currency].MaxPrice
 
-		err = ticker.ProcessTicker(b.Name, tp, assetType)
+		err = ticker.ProcessTicker(b.Name, &tp, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}
@@ -326,6 +326,10 @@ func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 }
 

@@ -82,7 +82,7 @@ func (z *ZB) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (z *ZB) Setup(exch config.ExchangeConfig) {
+func (z *ZB) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		z.SetEnabled(false)
 	} else {
@@ -110,7 +110,7 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = z.SetAPIURL(&exch)
+		err = z.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -422,12 +422,19 @@ func (z *ZB) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(purchasePrice, amount float64) (fee float64) {

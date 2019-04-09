@@ -74,7 +74,7 @@ func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType string) (ticker.Pri
 		tickerPrice.Bid = tick.Bid[0]
 	}
 
-	err = ticker.ProcessTicker(h.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -349,6 +349,10 @@ func (h *HUOBIHADAX) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HUOBIHADAX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (h.APIKey == "" || h.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return h.GetFee(feeBuilder)
 }
 

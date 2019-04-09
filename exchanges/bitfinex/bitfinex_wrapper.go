@@ -79,7 +79,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 		tick.Volume = tickerNew[x].Volume
 		tick.High = tickerNew[x].High
 
-		err = ticker.ProcessTicker(b.Name, tick, assetType)
+		err = ticker.ProcessTicker(b.Name, &tick, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}
@@ -329,6 +329,10 @@ func (b *Bitfinex) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bitfinex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 }
 

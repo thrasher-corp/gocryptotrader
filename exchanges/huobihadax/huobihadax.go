@@ -94,7 +94,7 @@ func (h *HUOBIHADAX) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
+func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 	} else {
@@ -122,7 +122,7 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.SetAPIURL(&exch)
+		err = h.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -885,8 +885,8 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPRequest(method, endpoint string, value
 // GetFee returns an estimate of fee based on type of transaction
 func (h *HUOBIHADAX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
-		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	if feeBuilder.FeeType == exchange.OfflineTradeFee || feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		fee = calculateTradingFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -895,9 +895,11 @@ func (h *HUOBIHADAX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func calculateTradingFee(purchasePrice, amount float64) float64 {
-	feePercent := 0.002
-	return feePercent * purchasePrice * amount
+func calculateTradingFee(c currency.Pair, price, amount float64) float64 {
+	if c.IsCryptoFiatPair() {
+		return 0.001 * price * amount
+	}
+	return 0.002 * price * amount
 }
 
 // GetDepositWithdrawalHistory returns deposit or withdrawal data

@@ -66,7 +66,7 @@ func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 	tickerPrice.Last = tickerNew.Last
 	tickerPrice.Volume = tickerNew.Volume
 	// tickerPrice.High
-	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -236,5 +236,9 @@ func (b *Bitflyer) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (b *Bitflyer) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 }

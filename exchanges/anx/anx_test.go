@@ -11,8 +11,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -53,9 +53,9 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - ANX Setup() init error")
 	}
-	a.Setup(anxConfig)
-	a.APIKey = testAPIKey
-	a.APISecret = testAPISecret
+	a.Setup(&anxConfig)
+	a.APIKey = apiKey
+	a.APISecret = apiSecret
 	a.AuthenticatedAPISupport = true
 
 	if !a.Enabled {
@@ -135,6 +135,21 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		IsMaker:       false,
 		PurchasePrice: 1,
+	}
+}
+
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	a.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
 	}
 }
 
@@ -341,7 +356,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if testAPIKey != "" || testAPISecret != "" {
+	if apiKey != "" || apiSecret != "" {
 		_, err := a.GetAccountInfo()
 		if err != nil {
 			t.Error("test failed - GetAccountInfo() error:", err)

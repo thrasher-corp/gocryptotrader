@@ -11,8 +11,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -31,10 +31,10 @@ func TestSetup(t *testing.T) {
 	}
 
 	bitConfig.AuthenticatedAPISupport = true
-	bitConfig.APIKey = testAPIKey
-	bitConfig.APISecret = testAPISecret
+	bitConfig.APIKey = apiKey
+	bitConfig.APISecret = apiSecret
 
-	b.Setup(bitConfig)
+	b.Setup(&bitConfig)
 }
 
 func TestGetTradablePairs(t *testing.T) {
@@ -79,7 +79,7 @@ func TestGetTransactionHistory(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
@@ -90,7 +90,7 @@ func TestGetAccountBalance(t *testing.T) {
 }
 
 func TestGetWalletAddress(t *testing.T) {
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
@@ -159,7 +159,7 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestRequestKRWDepositDetails(t *testing.T) {
 	t.Parallel()
-	if testAPIKey == "" || testAPISecret == "" {
+	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 	_, err := b.RequestKRWDepositDetails()
@@ -201,31 +201,46 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	b.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0025) || err != nil {
 		t.Error(err)
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0015), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0025), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(1500) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(1500), resp)
+	if resp, err := b.GetFee(feeBuilder); resp != float64(2500) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2500), resp)
 		t.Error(err)
 	}
 
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0015), resp)
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0025) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0025), resp)
 		t.Error(err)
 	}
 
@@ -406,7 +421,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if testAPIKey != "" || testAPISecret != "" {
+	if apiKey != "" || apiSecret != "" {
 		_, err := b.GetAccountInfo()
 		if err != nil {
 			t.Error("test failed - Bithumb GetAccountInfo() error", err)
@@ -505,7 +520,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	if testAPIKey != "" && testAPISecret != "" {
+	if apiKey != "" && apiSecret != "" {
 		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)

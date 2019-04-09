@@ -70,7 +70,7 @@ func (o *OKGroup) UpdateTicker(p currency.Pair, assetType string) (tickerData ti
 		Volume:      resp.BaseVolume24h,
 	}
 
-	err = ticker.ProcessTicker(o.Name, tickerData, assetType)
+	err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
 	return
 }
 
@@ -159,7 +159,7 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 			log.Errorf("Could not convert %v to float64", curr.Balance)
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(curr.ID),
+			CurrencyName: currency.NewCode(curr.Currency),
 			Hold:         hold,
 			TotalValue:   totalValue,
 		})
@@ -414,6 +414,10 @@ func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (o.APIKey == "" || o.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return o.GetFee(feeBuilder)
 }
 

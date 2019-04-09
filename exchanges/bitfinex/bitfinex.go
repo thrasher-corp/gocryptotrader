@@ -118,7 +118,7 @@ func (b *Bitfinex) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
+func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -145,7 +145,7 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -1086,11 +1086,19 @@ func (b *Bitfinex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getInternationalBankDepositFee(feeBuilder.Amount)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+// does not require an API request, requires manual updating
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.001 * price * amount
 }
 
 // GetCryptocurrencyWithdrawalFee returns an estimate of fee based on type of transaction

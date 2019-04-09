@@ -49,7 +49,7 @@ func (b *BTCC) SetDefaults() {
 }
 
 // Setup is run on startup to setup exchange with config values
-func (b *BTCC) Setup(exch config.ExchangeConfig) {
+func (b *BTCC) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -76,7 +76,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -104,11 +104,18 @@ func (b *BTCC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.001 * price * amount
 }
 
 func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {

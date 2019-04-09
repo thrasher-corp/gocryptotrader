@@ -139,7 +139,7 @@ func (b *Bitmex) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitmex) Setup(exch config.ExchangeConfig) {
+func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -164,7 +164,7 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -218,7 +218,7 @@ func (b *Bitmex) RemoveAPIKey(params APIKeyParams) (bool, error) {
 
 	return keyDeleted, b.SendAuthenticatedHTTPRequest(http.MethodDelete,
 		bitmexEndpointAPIkeys,
-		params,
+		&params,
 		&keyDeleted)
 }
 
@@ -228,7 +228,7 @@ func (b *Bitmex) DisableAPIKey(params APIKeyParams) (APIKey, error) {
 
 	return keyInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointDisableAPIkey,
-		params,
+		&params,
 		&keyInfo)
 }
 
@@ -238,7 +238,7 @@ func (b *Bitmex) EnableAPIKey(params APIKeyParams) (APIKey, error) {
 
 	return keyInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointEnableAPIkey,
-		params,
+		&params,
 		&keyInfo)
 }
 
@@ -246,7 +246,7 @@ func (b *Bitmex) EnableAPIKey(params APIKeyParams) (APIKey, error) {
 func (b *Bitmex) GetTrollboxMessages(params ChatGetParams) ([]Chat, error) {
 	var messages []Chat
 
-	return messages, b.SendHTTPRequest(bitmexEndpointTrollbox, params, &messages)
+	return messages, b.SendHTTPRequest(bitmexEndpointTrollbox, &params, &messages)
 }
 
 // SendTrollboxMessage sends a message to the bitmex trollbox
@@ -255,7 +255,7 @@ func (b *Bitmex) SendTrollboxMessage(params ChatSendParams) ([]Chat, error) {
 
 	return messages, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitmexEndpointTrollboxSend,
-		params,
+		&params,
 		&messages)
 }
 
@@ -938,9 +938,11 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 func (b *Bitmex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	var err error
-
-	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -948,10 +950,14 @@ func (b *Bitmex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, err
 }
 
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.000750 * price * amount
+}
+
 // calculateTradingFee returns the fee for trading any currency on Bittrex
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	var fee = 0.000750
-
 	if isMaker {
 		fee -= 0.000250
 	}

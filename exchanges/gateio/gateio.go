@@ -82,7 +82,7 @@ func (g *Gateio) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (g *Gateio) Setup(exch config.ExchangeConfig) {
+func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
@@ -109,7 +109,7 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.SetAPIURL(&exch)
+		err = g.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -538,6 +538,8 @@ func (g *Gateio) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, err error
 
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -545,6 +547,11 @@ func (g *Gateio) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, err error
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {

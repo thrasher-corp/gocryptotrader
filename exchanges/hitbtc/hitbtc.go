@@ -84,7 +84,7 @@ func (h *HitBTC) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (h *HitBTC) Setup(exch config.ExchangeConfig) {
+func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 	} else {
@@ -111,7 +111,7 @@ func (h *HitBTC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.SetAPIURL(&exch)
+		err = h.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -641,9 +641,19 @@ func (h *HitBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	case exchange.CyptocurrencyDepositFee:
 		fee = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
 			feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateCryptocurrencyDepositFee(c currency.Code, amount float64) float64 {

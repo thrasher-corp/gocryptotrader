@@ -34,7 +34,7 @@ func TestSetup(t *testing.T) {
 	gateioConfig.APIKey = apiKey
 	gateioConfig.APISecret = apiSecret
 
-	g.Setup(gateioConfig)
+	g.Setup(&gateioConfig)
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -153,6 +153,21 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
+	}
+}
+
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	g.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
 	}
 }
 

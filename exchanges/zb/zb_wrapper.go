@@ -76,7 +76,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, erro
 		tp.Low = result[currency].Low
 		tp.Volume = result[currency].Vol
 
-		err = ticker.ProcessTicker(z.Name, tp, assetType)
+		err = ticker.ProcessTicker(z.Name, &tp, assetType)
 		if err != nil {
 			return tickerPrice, err
 		}
@@ -307,6 +307,10 @@ func (z *ZB) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (z.APIKey == "" || z.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return z.GetFee(feeBuilder)
 }
 

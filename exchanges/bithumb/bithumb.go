@@ -85,7 +85,7 @@ func (b *Bithumb) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bithumb) Setup(exch config.ExchangeConfig) {
+func (b *Bithumb) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -112,7 +112,7 @@ func (b *Bithumb) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.SetAPIURL(&exch)
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -619,6 +619,8 @@ func (b *Bithumb) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FiatCurrency)
+	case exchange.OfflineTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -628,8 +630,7 @@ func (b *Bithumb) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // calculateTradingFee returns fee when performing a trade
 func calculateTradingFee(purchasePrice, amount float64) float64 {
-	fee := 0.0015
-	return fee * amount * purchasePrice
+	return 0.0025 * amount * purchasePrice
 }
 
 // getDepositFee returns fee on a currency when depositing small amounts to bithumb
