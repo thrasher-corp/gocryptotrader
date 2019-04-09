@@ -1553,6 +1553,7 @@ func TestGetETTOrderDetails(t *testing.T) {
 
 // TestGetETTConstituents API endpoint test
 func TestGetETTConstituents(t *testing.T) {
+	t.Skip("ETT currently unavailable")
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetETTConstituents("OK06ETT")
@@ -1563,6 +1564,7 @@ func TestGetETTConstituents(t *testing.T) {
 
 // TestGetETTSettlementPriceHistory API endpoint test
 func TestGetETTSettlementPriceHistory(t *testing.T) {
+	t.Skip("ETT currently unavailable")
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetETTSettlementPriceHistory("OK06ETT")
