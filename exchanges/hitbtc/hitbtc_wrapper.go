@@ -287,7 +287,7 @@ func (h *HitBTC) GetWebsocket() (*exchange.Websocket, error) {
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HitBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if (h.APIKey == "" || h.APISecret == "") && // Todo check connection status
-	feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return h.GetFee(feeBuilder)

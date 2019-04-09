@@ -260,7 +260,7 @@ func (g *Gemini) GetWebsocket() (*exchange.Websocket, error) {
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (g *Gemini) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if (g.APIKey == "" || g.APISecret == "") && // Todo check connection status
-	feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return g.GetFee(feeBuilder)
