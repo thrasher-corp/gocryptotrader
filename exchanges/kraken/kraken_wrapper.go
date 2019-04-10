@@ -42,7 +42,8 @@ func (k *Kraken) Run() {
 		}
 
 		var exchangeProducts []string
-		for _, v := range assetPairs {
+		for i := range assetPairs {
+			v := assetPairs[i]
 			if common.StringContains(v.Altname, ".d") {
 				continue
 			}
