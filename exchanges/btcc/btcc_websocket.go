@@ -301,9 +301,9 @@ func (b *BTCC) WsUpdateCurrencyPairs() error {
 			}
 
 			var availableTickers currency.Pairs
-			for _, tickerData := range tickers {
+			for i := range tickers {
 				availableTickers = append(availableTickers,
-					currency.NewPairFromString(tickerData.Symbol))
+					currency.NewPairFromString(tickers[i].Symbol))
 			}
 
 			err = b.UpdateCurrencies(availableTickers, false, true)

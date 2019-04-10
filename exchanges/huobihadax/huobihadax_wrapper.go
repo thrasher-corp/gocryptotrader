@@ -382,19 +382,19 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Symbol,
+	for i := range allOrders {
+		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
-		orderDate := time.Unix(order.CreatedAt, 0)
+		orderDate := time.Unix(allOrders[i].CreatedAt, 0)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:              fmt.Sprintf("%v", order.ID),
+			ID:              fmt.Sprintf("%v", allOrders[i].ID),
 			Exchange:        h.Name,
-			Amount:          order.Amount,
-			Price:           order.Price,
+			Amount:          allOrders[i].Amount,
+			Price:           allOrders[i].Price,
 			OrderDate:       orderDate,
-			ExecutedAmount:  order.FilledAmount,
-			RemainingAmount: (order.Amount - order.FilledAmount),
+			ExecutedAmount:  allOrders[i].FilledAmount,
+			RemainingAmount: (allOrders[i].Amount - allOrders[i].FilledAmount),
 			CurrencyPair:    symbol,
 		})
 	}
@@ -430,16 +430,16 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Symbol,
+	for i := range allOrders {
+		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
-		orderDate := time.Unix(order.CreatedAt, 0)
+		orderDate := time.Unix(allOrders[i].CreatedAt, 0)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:           fmt.Sprintf("%v", order.ID),
+			ID:           fmt.Sprintf("%v", allOrders[i].ID),
 			Exchange:     h.Name,
-			Amount:       order.Amount,
-			Price:        order.Price,
+			Amount:       allOrders[i].Amount,
+			Price:        allOrders[i].Price,
 			OrderDate:    orderDate,
 			CurrencyPair: symbol,
 		})

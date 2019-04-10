@@ -236,8 +236,8 @@ func (h *HitBTC) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, order := range resp {
-		cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.ID, 10)] = fmt.Sprintf("Could not cancel order %v. Status: %v", order.ID, order.Status)
+	for i := range resp {
+		cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(resp[i].ID, 10)] = fmt.Sprintf("Could not cancel order %v. Status: %v", resp[i].ID, resp[i].Status)
 	}
 
 	return cancelAllOrdersResponse, nil
@@ -309,21 +309,21 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Symbol,
+	for i := range allOrders {
+		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
-		side := exchange.OrderSide(strings.ToUpper(order.Side))
-		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
+		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
+		orderDate, err := time.Parse(time.RFC3339, allOrders[i].CreatedAt)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				h.Name, "GetActiveOrders", order.ID, order.CreatedAt)
+				h.Name, "GetActiveOrders", allOrders[i].ID, allOrders[i].CreatedAt)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:           order.ID,
-			Amount:       order.Quantity,
+			ID:           allOrders[i].ID,
+			Amount:       allOrders[i].Quantity,
 			Exchange:     h.Name,
-			Price:        order.Price,
+			Price:        allOrders[i].Price,
 			OrderDate:    orderDate,
 			OrderSide:    side,
 			CurrencyPair: symbol,
@@ -354,21 +354,21 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Symbol,
+	for i := range allOrders {
+		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
-		side := exchange.OrderSide(strings.ToUpper(order.Side))
-		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
+		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
+		orderDate, err := time.Parse(time.RFC3339, allOrders[i].CreatedAt)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				h.Name, "GetOrderHistory", order.ID, order.CreatedAt)
+				h.Name, "GetOrderHistory", allOrders[i].ID, allOrders[i].CreatedAt)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:           order.ID,
-			Amount:       order.Quantity,
+			ID:           allOrders[i].ID,
+			Amount:       allOrders[i].Quantity,
 			Exchange:     h.Name,
-			Price:        order.Price,
+			Price:        allOrders[i].Price,
 			OrderDate:    orderDate,
 			OrderSide:    side,
 			CurrencyPair: symbol,

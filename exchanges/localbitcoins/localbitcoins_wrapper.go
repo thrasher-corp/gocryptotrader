@@ -200,23 +200,23 @@ func (l *LocalBitcoins) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ 
 	// The only details we have are the params above
 	var adID string
 	ads, err := l.Getads()
-	for _, i := range ads.AdList {
-		if i.Data.PriceEquation == params.PriceEquation &&
-			i.Data.Lat == float64(params.Latitude) &&
-			i.Data.Lon == float64(params.Longitude) &&
-			i.Data.City == params.City &&
-			i.Data.Location == params.Location &&
-			i.Data.CountryCode == params.CountryCode &&
-			i.Data.Currency == params.Currency &&
-			i.Data.AccountInfo == params.AccountInfo &&
-			i.Data.BankName == params.BankName &&
-			i.Data.SMSVerficationRequired == params.SMSVerficationRequired &&
-			i.Data.TrackMaxAmount == params.TrackMaxAmount &&
-			i.Data.RequireTrustedByAdvertiser == params.RequireTrustedByAdvertiser &&
-			i.Data.OnlineProvider == params.OnlineProvider &&
-			i.Data.TradeType == params.TradeType &&
-			i.Data.MinAmount == fmt.Sprintf("%v", params.MinAmount) {
-			adID = fmt.Sprintf("%v", i.Data.AdID)
+	for i := range ads.AdList {
+		if ads.AdList[i].Data.PriceEquation == params.PriceEquation &&
+			ads.AdList[i].Data.Lat == float64(params.Latitude) &&
+			ads.AdList[i].Data.Lon == float64(params.Longitude) &&
+			ads.AdList[i].Data.City == params.City &&
+			ads.AdList[i].Data.Location == params.Location &&
+			ads.AdList[i].Data.CountryCode == params.CountryCode &&
+			ads.AdList[i].Data.Currency == params.Currency &&
+			ads.AdList[i].Data.AccountInfo == params.AccountInfo &&
+			ads.AdList[i].Data.BankName == params.BankName &&
+			ads.AdList[i].Data.SMSVerficationRequired == params.SMSVerficationRequired &&
+			ads.AdList[i].Data.TrackMaxAmount == params.TrackMaxAmount &&
+			ads.AdList[i].Data.RequireTrustedByAdvertiser == params.RequireTrustedByAdvertiser &&
+			ads.AdList[i].Data.OnlineProvider == params.OnlineProvider &&
+			ads.AdList[i].Data.TradeType == params.TradeType &&
+			ads.AdList[i].Data.MinAmount == fmt.Sprintf("%v", params.MinAmount) {
+			adID = fmt.Sprintf("%v", ads.AdList[i].Data.AdID)
 		}
 	}
 
@@ -250,11 +250,11 @@ func (l *LocalBitcoins) CancelAllOrders(_ *exchange.OrderCancellation) (exchange
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, ad := range ads.AdList {
-		adIDString := strconv.FormatInt(ad.Data.AdID, 10)
+	for i := range ads.AdList {
+		adIDString := strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
 		err = l.DeleteAd(adIDString)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(ad.Data.AdID, 10)] = err.Error()
+			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(ads.AdList[i].Data.AdID, 10)] = err.Error()
 		}
 	}
 
@@ -318,32 +318,32 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequ
 	}
 
 	var orders []exchange.OrderDetail
-	for _, trade := range resp {
-		orderDate, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
+	for i := range resp {
+		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",
-				trade.Data.Advertisement.ID,
-				trade.Data.CreatedAt)
+				resp[i].Data.Advertisement.ID,
+				resp[i].Data.CreatedAt)
 		}
 
 		var side exchange.OrderSide
-		if trade.Data.IsBuying {
+		if resp[i].Data.IsBuying {
 			side = exchange.BuyOrderSide
-		} else if trade.Data.IsSelling {
+		} else if resp[i].Data.IsSelling {
 			side = exchange.SellOrderSide
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:    trade.Data.AmountBTC,
-			Price:     trade.Data.Amount,
-			ID:        fmt.Sprintf("%v", trade.Data.Advertisement.ID),
+			Amount:    resp[i].Data.AmountBTC,
+			Price:     resp[i].Data.Amount,
+			ID:        fmt.Sprintf("%v", resp[i].Data.Advertisement.ID),
 			OrderDate: orderDate,
-			Fee:       trade.Data.FeeBTC,
+			Fee:       resp[i].Data.FeeBTC,
 			OrderSide: side,
 			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
-				trade.Data.Currency,
+				resp[i].Data.Currency,
 				l.ConfigCurrencyPairFormat.Delimiter),
 			Exchange: l.Name,
 		})
@@ -379,44 +379,44 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequ
 	allTrades = append(allTrades, resp...)
 
 	var orders []exchange.OrderDetail
-	for _, trade := range allTrades {
-		orderDate, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
+	for i := range allTrades {
+		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",
-				trade.Data.Advertisement.ID,
-				trade.Data.CreatedAt)
+				allTrades[i].Data.Advertisement.ID,
+				allTrades[i].Data.CreatedAt)
 		}
 
 		var side exchange.OrderSide
-		if trade.Data.IsBuying {
+		if allTrades[i].Data.IsBuying {
 			side = exchange.BuyOrderSide
-		} else if trade.Data.IsSelling {
+		} else if allTrades[i].Data.IsSelling {
 			side = exchange.SellOrderSide
 		}
 
 		status := ""
 
 		switch {
-		case trade.Data.ReleasedAt != "" && trade.Data.ReleasedAt != null:
+		case allTrades[i].Data.ReleasedAt != "" && allTrades[i].Data.ReleasedAt != null:
 			status = "Released"
-		case trade.Data.CanceledAt != "" && trade.Data.CanceledAt != null:
+		case allTrades[i].Data.CanceledAt != "" && allTrades[i].Data.CanceledAt != null:
 			status = "Cancelled"
-		case trade.Data.ClosedAt != "" && trade.Data.ClosedAt != null:
+		case allTrades[i].Data.ClosedAt != "" && allTrades[i].Data.ClosedAt != null:
 			status = "Closed"
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:    trade.Data.AmountBTC,
-			Price:     trade.Data.Amount,
-			ID:        fmt.Sprintf("%v", trade.Data.Advertisement.ID),
+			Amount:    allTrades[i].Data.AmountBTC,
+			Price:     allTrades[i].Data.Amount,
+			ID:        fmt.Sprintf("%v", allTrades[i].Data.Advertisement.ID),
 			OrderDate: orderDate,
-			Fee:       trade.Data.FeeBTC,
+			Fee:       allTrades[i].Data.FeeBTC,
 			OrderSide: side,
 			Status:    status,
 			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
-				trade.Data.Currency,
+				allTrades[i].Data.Currency,
 				l.ConfigCurrencyPairFormat.Delimiter),
 			Exchange: l.Name,
 		})
