@@ -999,7 +999,7 @@ func TestCreateDir(t *testing.T) {
 		os.Remove(dir)
 		err = CreateDir("")
 		if err == nil {
-			t.Errorf("Expected err due to invalid path, got err: %v", err)
+			t.Errorf("Expected err due to invalid path, but got nil")
 		}
 		// Same tests for macs
 	case "darwin":
@@ -1016,7 +1016,7 @@ func TestCreateDir(t *testing.T) {
 		os.Remove(dir)
 		err = CreateDir(":")
 		if err == nil {
-			t.Errorf("Expected err due to invalid path, got err: %v", err)
+			t.Errorf("Expected err due to invalid path, but got nil")
 		}
 	}
 }
