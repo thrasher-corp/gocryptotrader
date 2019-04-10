@@ -421,7 +421,7 @@ func (e *EXMO) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = e.calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
@@ -432,6 +432,8 @@ func (e *EXMO) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
 			feeBuilder.Amount,
 			feeBuilder.BankTransactionType)
+	case exchange.OfflineTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -445,14 +447,8 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 	return WithdrawalFees[c]
 }
 
-func (e *EXMO) calculateTradingFee(purchasePrice, amount float64) float64 {
-	fee := 0.002
-	return fee * amount * purchasePrice
-}
-
-func calculateTradingFee(purchasePrice, amount float64) float64 {
-	fee := 0.002
-	return fee * amount * purchasePrice
+func calculateTradingFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {

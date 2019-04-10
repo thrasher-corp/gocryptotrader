@@ -154,21 +154,36 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+// TestGetFeeByTypeOfflineTradeFee logic test
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = setFeeBuilder()
+	i.GetFeeByType(feeBuilder)
+	if apiKey == "" || apiSecret == "" {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
-	if resp, err := i.GetFee(feeBuilder); resp != float64(0.0025) || err != nil {
+	if resp, err := i.GetFee(feeBuilder); resp != float64(0.0035) || err != nil {
 		t.Error(err)
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0035), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := i.GetFee(feeBuilder); resp != float64(2500) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2500), resp)
+	if resp, err := i.GetFee(feeBuilder); resp != float64(3500) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(3500), resp)
 		t.Error(err)
 	}
 

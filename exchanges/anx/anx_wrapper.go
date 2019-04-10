@@ -367,6 +367,10 @@ func (a *ANX) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (a.APIKey == "" || a.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return a.GetFee(feeBuilder)
 }
 

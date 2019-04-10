@@ -301,6 +301,10 @@ func (i *ItBit) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (i.APIKey == "" || i.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return i.GetFee(feeBuilder)
 }
 

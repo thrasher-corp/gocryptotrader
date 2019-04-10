@@ -383,6 +383,10 @@ func (c *COINUT) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if c.APIKey == "" && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return c.GetFee(feeBuilder)
 }
 
