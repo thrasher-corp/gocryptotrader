@@ -492,7 +492,10 @@ func (k *Kraken) wsProcessOrderBook(channelData WebsocketChannelData, data inter
 		defer k.mu.Unlock()
 		k.wsProcessOrderBookBuffer(channelData, obData)
 		if len(orderbookBuffer[channelData.ChannelID]) >= orderbookBufferLimit {
-			k.wsProcessOrderBookUpdate(channelData)
+			err := k.wsProcessOrderBookUpdate(channelData)
+			if err != nil {
+				k.ResubscribeToChannel(channelData.Subscription, channelData.Pair)
+			}
 		}
 	}
 }
@@ -642,7 +645,7 @@ func (k *Kraken) wsProcessOrderBookBuffer(channelData WebsocketChannelData, obDa
 }
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
-func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData) {
+func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData) error {
 	ob := krakenOrderBooks[channelData.ChannelID]
 	if k.Verbose {
 		log.Debugf("Current orderbook 'LastUpdated': %v", krakenOrderBooks[channelData.ChannelID].LastUpdated)
@@ -661,9 +664,9 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData) {
 	}
 	// The earliest update has to be after the previously stored orderbook
 	if ob.LastUpdated.After(lowestLastUpdated) {
-		log.Errorf("orderbook update out of order. Existing: %v, Attempted: %v", ob.LastUpdated, lowestLastUpdated)
-		k.ResubscribeToChannel(channelData.Subscription, channelData.Pair)
-		return
+		err := fmt.Errorf("orderbook update out of order. Existing: %v, Attempted: %v", ob.LastUpdated, lowestLastUpdated)
+		k.Websocket.DataHandler <- err
+		return err
 	}
 
 	for i := range orderbookBuffer[channelData.ChannelID] {
@@ -679,7 +682,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData) {
 	err := k.Websocket.Orderbook.LoadSnapshot(&ob, k.GetName(), true)
 	if err != nil {
 		k.Websocket.DataHandler <- err
-		return
+		return err
 	}
 
 	k.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
@@ -690,6 +693,8 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData) {
 	// Reset the buffer
 	orderbookBuffer[channelData.ChannelID] = []orderbook.Base{}
 	krakenOrderBooks[channelData.ChannelID] = ob
+
+	return nil
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
