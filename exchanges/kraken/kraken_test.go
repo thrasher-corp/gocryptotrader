@@ -3,6 +3,7 @@ package kraken
 import (
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -721,6 +722,90 @@ func TestUnsubscribeWithoutSubscription(t *testing.T) {
 	}
 	if !unsubscriptionError {
 		t.Error("Expected error")
+	}
+}
+
+// TestOrderbookBufferReset websocket test
+func TestOrderbookBufferReset(t *testing.T) {
+	if k.Name == "" {
+		k.SetDefaults()
+		TestSetup(t)
+	}
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	dumbData := `[0,{"as":[["5541.30000","2.50700000","0"]],"bs":[["5541.20000","1.52900000","0"]]}]`
+	obupdate1 := `[0,{"a":[["5541.30000","0.00000000","1"]],"b":[["5541.30000","0.00000000","1"]]}]`
+	obupdate2 := `[0,{"a":[["5541.30000","2.50700000","2"]],"b":[["5541.30000","0.00000000","2"]]}]`
+	obupdate3 := `[0,{"a":[["5541.30000","2.50700000","3"]],"b":[["5541.30000","0.00000000","3"]]}]`
+	obupdate4 := `[0,{"a":[["5541.30000","2.50700000","4"]],"b":[["5541.30000","0.00000000","4"]]}]`
+	obupdate5 := `[0,{"a":[["5541.30000","2.50700000","5"]],"b":[["5541.30000","1.00000000","5"]]}]`
+	obupdate6 := `[0,{"a":[["5541.30000","2.50700000","6"]],"b":[["5541.30000","1.00000000","6"]]}]`
+
+	k.Websocket.DataHandler = make(chan interface{}, 10)
+	var dataResponse WebsocketDataResponse
+	err := common.JSONDecode([]byte(dumbData), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData := dataResponse[1].(map[string]interface{})
+	channelData := WebsocketChannelData{
+		ChannelID:    0,
+		Subscription: "orderbook",
+		Pair:         currency.NewPairWithDelimiter("XBT", "USD", "/"),
+	}
+
+	k.wsProcessOrderBook(
+		channelData,
+		obData,
+	)
+
+	err = common.JSONDecode([]byte(obupdate1), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData = dataResponse[1].(map[string]interface{})
+	k.wsProcessOrderBook(channelData, obData)
+
+	err = common.JSONDecode([]byte(obupdate2), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData = dataResponse[1].(map[string]interface{})
+	k.wsProcessOrderBook(channelData, obData)
+
+	err = common.JSONDecode([]byte(obupdate3), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData = dataResponse[1].(map[string]interface{})
+	k.wsProcessOrderBook(channelData, obData)
+
+	err = common.JSONDecode([]byte(obupdate4), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData = dataResponse[1].(map[string]interface{})
+	k.wsProcessOrderBook(channelData, obData)
+
+	err = common.JSONDecode([]byte(obupdate5), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData = dataResponse[1].(map[string]interface{})
+	k.wsProcessOrderBook(channelData, obData)
+	if len(orderbookBuffer[channelData.ChannelID]) != 0 {
+		t.Errorf("Buffer should reset to 0 after 5 entries, has %v", len(orderbookBuffer[channelData.ChannelID]))
+	}
+
+	err = common.JSONDecode([]byte(obupdate6), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData = dataResponse[1].(map[string]interface{})
+	k.wsProcessOrderBook(channelData, obData)
+	if len(orderbookBuffer[channelData.ChannelID]) != 1 {
+		t.Error("Buffer should have 1 entry after being reset")
 	}
 }
 
