@@ -46,7 +46,7 @@ const (
 	krakenWsOrderbook          = "book"
 	// Only supported asset type
 	krakenWsAssetType    = "SPOT"
-	orderbookBufferLimit = 5
+	orderbookBufferLimit = 3
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
