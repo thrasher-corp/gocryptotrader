@@ -1020,3 +1020,10 @@ func TestCreateDir(t *testing.T) {
 		}
 	}
 }
+
+func TestChangePerm(t *testing.T) {
+	err := ChangePerm(GetDefaultDataDir("windows"))
+	if err != nil {
+		t.Error("Something bad happened", err)
+	}
+}

@@ -620,3 +620,41 @@ func CreateDir(dir string) error {
 	log.Warnf("Directory %s does not exist.. creating.", dir)
 	return os.MkdirAll(dir, 0770)
 }
+
+// ChangePerm is checking if directory exists and changing the permissions from 0777 to 0770
+func ChangePerm(targetDir string) error {
+	// log.Println(*exec.Command("dir"))
+	// s, err := os.Stat(targetDir)
+	// if err != nil {
+	// 	return err
+	// }
+	// isDir := s.IsDir()
+	// if !isDir {
+	// 	return errors.New("Somethign is fucked")
+	// }
+
+	// log.Println("its not a directory")
+	// return nil
+
+	return filepath.Walk(targetDir, POOP)
+}
+
+func POOP(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		return err
+	} 
+	fmt.Printf("%v, %#o\n", path, info.Mode().Perm())
+	//
+	return nil
+})
+
+
+func WALKIES(s string, fn func(path string, info os.FileInfo, err error) error) {
+	log.Println(s)
+	for {
+		err := fn(s, os.FileInfo{}, nil)
+	if err != nil {
+		return err
+	}
+	}
+}
