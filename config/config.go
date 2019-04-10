@@ -124,6 +124,7 @@ type ProfilerConfig struct {
 }
 
 type NTPClientConfig struct {
+	Enabled           bool          `json:"enabled"`
 	Pool              []string      `json:"pool"`
 	AllowedDifference time.Duration `json:"alloweddifference"`
 }

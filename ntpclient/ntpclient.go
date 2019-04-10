@@ -2,6 +2,7 @@ package ntpclient
 
 import (
 	"encoding/binary"
+	"errors"
 	"net"
 	"time"
 
@@ -52,7 +53,7 @@ func NTPClient(pool []string) (time.Time, error) {
 		secs := float64(rsp.TxTimeSec) - 2208988800
 		nanos := (int64(rsp.TxTimeFrac) * 1e9) >> 32
 
-		t = time.Unix(int64(secs), nanos)
+		return time.Unix(int64(secs), nanos), nil
 	}
-	return t, nil
+	return t, errors.New("no valid time servers found")
 }
