@@ -645,23 +645,23 @@ func (k *Kraken) wsProcessOrderBookBuffer(channelData WebsocketChannelData, obDa
 func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData) {
 	ob := krakenOrderBooks[channelData.ChannelID]
 	if k.Verbose {
-		log.Debugf("Current orderbook lastupdated: %v", krakenOrderBooks[channelData.ChannelID].LastUpdated)
+		log.Debugf("Current orderbook 'LastUpdated': %v", krakenOrderBooks[channelData.ChannelID].LastUpdated)
 	}
-	highestLastUpdate := orderbookBuffer[channelData.ChannelID][len(orderbookBuffer[channelData.ChannelID])-1].LastUpdated
+	lowestLastUpdated := orderbookBuffer[channelData.ChannelID][0].LastUpdated
 	if k.Verbose {
-		log.Debugf("Sorting orderbook. Before 'LastUpdated' %v", highestLastUpdate)
+		log.Debugf("Sorting orderbook. Earliest 'LastUpdated' entry: %v", lowestLastUpdated)
 	}
 	sort.Slice(orderbookBuffer[channelData.ChannelID], func(i, j int) bool {
 		return orderbookBuffer[channelData.ChannelID][i].LastUpdated.Before(orderbookBuffer[channelData.ChannelID][j].LastUpdated)
 	})
 
-	highestLastUpdate = orderbookBuffer[channelData.ChannelID][len(orderbookBuffer[channelData.ChannelID])-1].LastUpdated
+	lowestLastUpdated = orderbookBuffer[channelData.ChannelID][0].LastUpdated
 	if k.Verbose {
-		log.Debugf("Sorted orderbook. After 'LastUpdated' %v", highestLastUpdate)
+		log.Debugf("Sorted orderbook. Earliest 'LastUpdated' entry: %v", lowestLastUpdated)
 	}
-
-	if ob.LastUpdated.After(highestLastUpdate) {
-		log.Errorf("orderbook update out of order. Existing: %v, Attempted: %v", ob.LastUpdated, highestLastUpdate)
+	// The earliest update has to be after the previously stored orderbook
+	if ob.LastUpdated.After(lowestLastUpdated) {
+		log.Errorf("orderbook update out of order. Existing: %v, Attempted: %v", ob.LastUpdated, lowestLastUpdated)
 		k.ResubscribeToChannel(channelData.Subscription, channelData.Pair)
 		return
 	}
@@ -671,11 +671,11 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData WebsocketChannelData) {
 		ob.Bids = append(ob.Bids, orderbookBuffer[channelData.ChannelID][i].Bids...)
 	}
 
+	highestLastUpdate := orderbookBuffer[channelData.ChannelID][len(orderbookBuffer[channelData.ChannelID])-1].LastUpdated
 	if k.Verbose {
 		log.Debugf("Saving orderbook. Lastupdated: %v", highestLastUpdate)
 	}
 	ob.LastUpdated = highestLastUpdate
-
 	err := k.Websocket.Orderbook.LoadSnapshot(&ob, k.GetName(), true)
 	if err != nil {
 		k.Websocket.DataHandler <- err
