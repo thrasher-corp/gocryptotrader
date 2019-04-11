@@ -60,7 +60,7 @@ var krakenOrderBooks map[int64]orderbook.Base
 
 // orderbookBuffer Stores orderbook updates per channel
 var orderbookBuffer map[int64][]orderbook.Base
-var subscribeToDefaultChannels bool = true
+var subscribeToDefaultChannels = true
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (k *Kraken) writeToWebsocket(message []byte) error {
@@ -300,7 +300,7 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 		}
 		if response.Status != "subscribed" {
 			if response.RequestID > 0 {
-				k.Websocket.DataHandler <- fmt.Errorf("Request: '%v'. Error: %v", response.RequestID, response.WebsocketErrorResponse.ErrorMessage)
+				k.Websocket.DataHandler <- fmt.Errorf("requestID: '%v'. Error: %v", response.RequestID, response.WebsocketErrorResponse.ErrorMessage)
 			} else {
 				k.Websocket.DataHandler <- fmt.Errorf(response.WebsocketErrorResponse.ErrorMessage)
 			}
