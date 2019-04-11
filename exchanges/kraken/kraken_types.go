@@ -415,6 +415,7 @@ type WebsocketEventResponse struct {
 	Event        string                            `json:"event"`
 	Status       string                            `json:"status"`
 	Pair         currency.Pair                     `json:"pair,omitempty"`
+	RequestID    int64                             `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
 	Subscription WebsocketSubscriptionResponseData `json:"subscription,omitempty"`
 	WebsocketSubscriptionEventResponse
 	WebsocketStatusResponse

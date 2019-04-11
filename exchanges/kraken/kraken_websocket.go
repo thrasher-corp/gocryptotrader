@@ -60,6 +60,7 @@ var krakenOrderBooks map[int64]orderbook.Base
 
 // orderbookBuffer Stores orderbook updates per channel
 var orderbookBuffer map[int64][]orderbook.Base
+var subscribeToDefaultChannels bool = true
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (k *Kraken) writeToWebsocket(message []byte) error {
@@ -70,7 +71,7 @@ func (k *Kraken) writeToWebsocket(message []byte) error {
 			string(message))
 	}
 	// Really basic WS rate limit
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(30 * time.Millisecond)
 	return k.WebsocketConn.WriteMessage(websocket.TextMessage, message)
 }
 
@@ -108,7 +109,9 @@ func (k *Kraken) WsConnect() error {
 	}
 	go k.WsHandleData()
 	go k.wsPingHandler()
-	k.WsSubscribeToDefaults()
+	if subscribeToDefaultChannels {
+		k.WsSubscribeToDefaults()
+	}
 	return nil
 }
 
@@ -296,8 +299,11 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 				k.GetName())
 		}
 		if response.Status != "subscribed" {
-			k.Websocket.DataHandler <- fmt.Errorf(response.WebsocketErrorResponse.ErrorMessage)
-			k.ResubscribeToChannel(response.Subscription.Name, response.Pair)
+			if response.RequestID > 0 {
+				k.Websocket.DataHandler <- fmt.Errorf("Request: '%v'. Error: %v", response.RequestID, response.WebsocketErrorResponse.ErrorMessage)
+			} else {
+				k.Websocket.DataHandler <- fmt.Errorf(response.WebsocketErrorResponse.ErrorMessage)
+			}
 			return
 		}
 		addNewSubscriptionChannelData(response)
