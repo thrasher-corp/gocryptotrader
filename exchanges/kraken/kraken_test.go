@@ -746,7 +746,7 @@ func TestSubscribeToChannel(t *testing.T) {
 		k.Websocket.Connect()
 	}
 
-	err := k.WsSubscribeToChannel("ticker", []string{"XTZ-USD"}, 1)
+	err := k.WsSubscribeToChannel("ticker", []string{"XTZ/USD"}, 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -824,7 +824,7 @@ func TestUnsubscribeWithoutSubscription(t *testing.T) {
 		response := <-k.Websocket.DataHandler
 		t.Log(response)
 		if err, ok := response.(error); ok && err != nil {
-			if err.Error() == "Request: '3'. Error: Subscription Not Found" {
+			if err.Error() == "requestID: '3'. Error: Subscription Not Found" {
 				unsubscriptionError = true
 				break
 			}
