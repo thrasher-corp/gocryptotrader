@@ -1143,10 +1143,6 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 			return "Future notications for out time sync have been disabled", nil
 		}
 	}
-	err := c.SaveConfig("")
-	if err != nil {
-		return "", err
-	}
 	return "", nil
 }
 

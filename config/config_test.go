@@ -982,19 +982,19 @@ func TestDisableNTPCheck(t *testing.T) {
 
 	warn, err := c.DisableNTPCheck(strings.NewReader("w\n"))
 	if err != nil {
-		t.Errorf("test failed reason: %v", err)
+		t.Errorf("Failed reason: %v", err)
 	}
 	if warn != "Time sync has been set to warn only" {
-		t.Errorf("test failed expected %v got %v", "Time sync has been set to warn only", warn)
+		t.Errorf("Failed expected %v got %v", "Time sync has been set to warn only", warn)
 	}
 	alert, _ := c.DisableNTPCheck(strings.NewReader("a\n"))
 	if alert != "Time sync has been set to alert" {
-		t.Errorf("test failed expected %v got %v", "Time sync has been set to alert", alert)
+		t.Errorf("Failed expected %v got %v", "Time sync has been set to alert", alert)
 	}
 
 	disable, _ := c.DisableNTPCheck(strings.NewReader("d\n"))
 	if disable != "Future notications for out time sync have been disabled" {
-		t.Errorf("test failed expected %v got %v", "Future notications for out time sync have been disabled", disable)
+		t.Errorf("Failed expected %v got %v", "Future notications for out time sync have been disabled", disable)
 	}
 }
 
