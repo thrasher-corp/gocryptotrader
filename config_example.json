@@ -13,7 +13,7 @@
     "enabled": false
    },
   "ntpclient": {
-    "enabled": 1,
+    "enabled": 0,
     "pool": [
      "pool.ntp.org:123"
     ],

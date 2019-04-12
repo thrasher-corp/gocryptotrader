@@ -127,10 +127,10 @@ type ProfilerConfig struct {
 }
 
 type NTPClientConfig struct {
-	Enabled                   int           `json:"enabled"`
-	Pool                      []string      `json:"pool"`
-	AllowedDifference         time.Duration `json:"allowedDifference"`
-	AllowedNegativeDifference time.Duration `json:"allowedNegativeDifference"`
+	Level                     int            `json:"enabled"`
+	Pool                      []string       `json:"pool"`
+	AllowedDifference         *time.Duration `json:"allowedDifference"`
+	AllowedNegativeDifference *time.Duration `json:"allowedNegativeDifference"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -1102,11 +1102,19 @@ func (c *Config) CheckNTPConfig() {
 	m.Lock()
 	defer m.Unlock()
 
-	if c.NTPClient.Enabled >= 1 {
-		if len(c.NTPClient.Pool) < 1 {
-			log.Warn("NTPClient enabled with no servers configured enabling default pool")
-			c.NTPClient.Pool = []string{"pool.ntp.org:123"}
-		}
+	if c.NTPClient.AllowedDifference == nil {
+		c.NTPClient.AllowedDifference = new(time.Duration)
+		*c.NTPClient.AllowedDifference = 50000000
+	}
+
+	if c.NTPClient.AllowedNegativeDifference == nil {
+		c.NTPClient.AllowedNegativeDifference = new(time.Duration)
+		*c.NTPClient.AllowedNegativeDifference = 50000000
+	}
+
+	if len(c.NTPClient.Pool) < 1 {
+		log.Warn("NTPClient enabled with no servers configured enabling default pool")
+		c.NTPClient.Pool = []string{"pool.ntp.org:123"}
 	}
 }
 
@@ -1129,15 +1137,15 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 		answer = strings.Replace(answer, "\n", "", -1)
 		switch answer {
 		case "a":
-			c.NTPClient.Enabled = 1
+			c.NTPClient.Level = 0
 			answered = true
 			return "Time sync has been set to alert", nil
 		case "w":
-			c.NTPClient.Enabled = 2
+			c.NTPClient.Level = 1
 			answered = true
 			return "Time sync has been set to warn only", nil
 		case "d":
-			c.NTPClient.Enabled = 0
+			c.NTPClient.Level = -1
 			answered = true
 			return "Future notications for out time sync have been disabled", nil
 		}

@@ -1007,12 +1007,23 @@ func TestDisableNTPCheck(t *testing.T) {
 func TestCheckNTPConfig(t *testing.T) {
 	c := GetConfig()
 
-	c.NTPClient.Enabled = 1
+	c.NTPClient.Level = 0
 	c.NTPClient.Pool = nil
+	c.NTPClient.AllowedNegativeDifference = nil
+	c.NTPClient.AllowedDifference = nil
 
 	_, _ = ntpclient.NTPClient(c.NTPClient.Pool)
 	c.CheckNTPConfig()
+
 	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
 		t.Error("NTPClient with no valid pool should default to pool.ntp.org ")
+	}
+
+	if c.NTPClient.AllowedDifference == nil {
+		t.Error("NTPClient with nil AllowedDifference should default to sane vale")
+	}
+
+	if c.NTPClient.AllowedNegativeDifference == nil {
+		t.Error("NTPClient with nil AllowedNegativeDifference should default to sane vale")
 	}
 }
