@@ -490,26 +490,26 @@ func (o *OKGroup) ResubscribeToChannel(channel string) {
 // logDataResponse will log the details of any websocket data event
 // where there is no websocket datahandler for it
 func logDataResponse(response *WebsocketDataResponse) {
-	for _, data := range response.Data {
+	for i := range response.Data {
 		log.Errorf("Unhandled channel: '%v'. Instrument '%v' Timestamp '%v', Data '%v",
 			response.Table,
-			data.InstrumentID,
-			data.Timestamp,
-			data)
+			response.Data[i].InstrumentID,
+			response.Data[i].Timestamp,
+			response.Data[i])
 	}
 }
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
 func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
-	for _, tickerData := range response.Data {
-		instrument := currency.NewPairDelimiter(tickerData.InstrumentID, "-")
+	for i := range response.Data {
+		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TickerData{
-			Timestamp:  tickerData.Timestamp,
+			Timestamp:  response.Data[i].Timestamp,
 			Exchange:   o.GetName(),
 			AssetType:  o.GetAssetTypeFromTableName(response.Table),
-			HighPrice:  tickerData.High24H,
-			LowPrice:   tickerData.Low24H,
-			ClosePrice: tickerData.Last,
+			HighPrice:  response.Data[i].High24H,
+			LowPrice:   response.Data[i].Low24H,
+			ClosePrice: response.Data[i].Last,
 			Pair:       instrument,
 		}
 	}
@@ -517,28 +517,28 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
-	for _, trade := range response.Data {
-		instrument := currency.NewPairDelimiter(trade.InstrumentID, "-")
+	for i := range response.Data {
+		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TradeData{
-			Amount:       trade.Qty,
+			Amount:       response.Data[i].Qty,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: instrument,
 			EventTime:    time.Now().Unix(),
 			Exchange:     o.GetName(),
-			Price:        trade.WebsocketTradeResponse.Price,
-			Side:         trade.Side,
-			Timestamp:    trade.Timestamp,
+			Price:        response.Data[i].WebsocketTradeResponse.Price,
+			Side:         response.Data[i].Side,
+			Timestamp:    response.Data[i].Timestamp,
 		}
 	}
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
 func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
-	for _, candle := range response.Data {
-		instrument := currency.NewPairDelimiter(candle.InstrumentID, "-")
-		timeData, err := time.Parse(time.RFC3339Nano, candle.WebsocketCandleResponse.Candle[0])
+	for i := range response.Data {
+		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
+		timeData, err := time.Parse(time.RFC3339Nano, response.Data[i].WebsocketCandleResponse.Candle[0])
 		if err != nil {
-			log.Warnf("%v Time data could not be parsed: %v", o.GetName(), candle.Candle[0])
+			log.Warnf("%v Time data could not be parsed: %v", o.GetName(), response.Data[i].Candle[0])
 		}
 
 		candleIndex := strings.LastIndex(response.Table, okGroupWsCandle)
@@ -555,11 +555,11 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 			Timestamp: timeData,
 			Interval:  candleInterval,
 		}
-		klineData.OpenPrice, _ = strconv.ParseFloat(candle.Candle[1], 64)
-		klineData.HighPrice, _ = strconv.ParseFloat(candle.Candle[2], 64)
-		klineData.LowPrice, _ = strconv.ParseFloat(candle.Candle[3], 64)
-		klineData.ClosePrice, _ = strconv.ParseFloat(candle.Candle[4], 64)
-		klineData.Volume, _ = strconv.ParseFloat(candle.Candle[5], 64)
+		klineData.OpenPrice, _ = strconv.ParseFloat(response.Data[i].Candle[1], 64)
+		klineData.HighPrice, _ = strconv.ParseFloat(response.Data[i].Candle[2], 64)
+		klineData.LowPrice, _ = strconv.ParseFloat(response.Data[i].Candle[3], 64)
+		klineData.ClosePrice, _ = strconv.ParseFloat(response.Data[i].Candle[4], 64)
+		klineData.Volume, _ = strconv.ParseFloat(response.Data[i].Candle[5], 64)
 
 		o.Websocket.DataHandler <- klineData
 	}

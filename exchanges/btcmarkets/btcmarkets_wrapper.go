@@ -228,10 +228,10 @@ func (b *BTCMarkets) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Ca
 	}
 
 	var orderList []int64
-	for _, order := range openOrders {
-		orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+	for i := range openOrders {
+		orderIDInt, err := strconv.ParseInt(openOrders[i].ID, 10, 64)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[order.ID] = err.Error()
+			cancelAllOrdersResponse.OrderStatus[openOrders[i].ID] = err.Error()
 		}
 		orderList = append(orderList, orderIDInt)
 	}
@@ -242,9 +242,9 @@ func (b *BTCMarkets) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Ca
 			return cancelAllOrdersResponse, err
 		}
 
-		for _, order := range orders {
+		for i := range orders {
 			if err != nil {
-				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.ID, 10)] = err.Error()
+				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(orders[i].ID, 10)] = err.Error()
 			}
 		}
 	}
@@ -273,27 +273,27 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (exchange.OrderDetail, error) 
 		return OrderDetail, errors.New("no orders found")
 	}
 
-	for _, order := range orders {
+	for i := range orders {
 		var side exchange.OrderSide
-		if strings.EqualFold(order.OrderSide, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(orders[i].OrderSide, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
-		} else if strings.EqualFold(order.OrderSide, exchange.BidOrderSide.ToString()) {
+		} else if strings.EqualFold(orders[i].OrderSide, exchange.BidOrderSide.ToString()) {
 			side = exchange.BuyOrderSide
 		}
-		orderDate := time.Unix(int64(order.CreationTime), 0)
-		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
+		orderDate := time.Unix(int64(orders[i].CreationTime), 0)
+		orderType := exchange.OrderType(strings.ToUpper(orders[i].OrderType))
 
-		OrderDetail.Amount = order.Volume
+		OrderDetail.Amount = orders[i].Volume
 		OrderDetail.OrderDate = orderDate
 		OrderDetail.Exchange = b.GetName()
-		OrderDetail.ID = order.ID
-		OrderDetail.RemainingAmount = order.OpenVolume
+		OrderDetail.ID = orders[i].ID
+		OrderDetail.RemainingAmount = orders[i].OpenVolume
 		OrderDetail.OrderSide = side
 		OrderDetail.OrderType = orderType
-		OrderDetail.Price = order.Price
-		OrderDetail.Status = order.Status
-		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(order.Instrument,
-			order.Currency,
+		OrderDetail.Price = orders[i].Price
+		OrderDetail.Status = orders[i].Status
+		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[i].Instrument,
+			orders[i].Currency,
 			b.ConfigCurrencyPairFormat.Delimiter)
 	}
 
@@ -347,41 +347,41 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range resp {
+	for i := range resp {
 		var side exchange.OrderSide
-		if strings.EqualFold(order.OrderSide, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(resp[i].OrderSide, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
-		} else if strings.EqualFold(order.OrderSide, exchange.BidOrderSide.ToString()) {
+		} else if strings.EqualFold(resp[i].OrderSide, exchange.BidOrderSide.ToString()) {
 			side = exchange.BuyOrderSide
 		}
-		orderDate := time.Unix(int64(order.CreationTime), 0)
-		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
+		orderDate := time.Unix(int64(resp[i].CreationTime), 0)
+		orderType := exchange.OrderType(strings.ToUpper(resp[i].OrderType))
 
 		openOrder := exchange.OrderDetail{
-			ID:              order.ID,
-			Amount:          order.Volume,
+			ID:              resp[i].ID,
+			Amount:          resp[i].Volume,
 			Exchange:        b.Name,
-			RemainingAmount: order.OpenVolume,
+			RemainingAmount: resp[i].OpenVolume,
 			OrderDate:       orderDate,
 			OrderSide:       side,
 			OrderType:       orderType,
-			Price:           order.Price,
-			Status:          order.Status,
-			CurrencyPair: currency.NewPairWithDelimiter(order.Instrument,
-				order.Currency,
+			Price:           resp[i].Price,
+			Status:          resp[i].Status,
+			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Instrument,
+				resp[i].Currency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
-		for _, trade := range order.Trades {
-			tradeDate := time.Unix(int64(trade.CreationTime), 0)
+		for j := range resp[i].Trades {
+			tradeDate := time.Unix(int64(resp[i].Trades[j].CreationTime), 0)
 			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
-				Amount:      trade.Volume,
+				Amount:      resp[i].Trades[j].Volume,
 				Exchange:    b.Name,
-				Price:       trade.Price,
-				TID:         trade.ID,
+				Price:       resp[i].Trades[j].Price,
+				TID:         resp[i].Trades[j].ID,
 				Timestamp:   tradeDate,
-				Fee:         trade.Fee,
-				Description: trade.Description,
+				Fee:         resp[i].Trades[j].Fee,
+				Description: resp[i].Trades[j].Description,
 			})
 		}
 
@@ -417,41 +417,41 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range respOrders {
+	for i := range respOrders {
 		var side exchange.OrderSide
-		if strings.EqualFold(order.OrderSide, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(respOrders[i].OrderSide, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
-		} else if strings.EqualFold(order.OrderSide, exchange.BidOrderSide.ToString()) {
+		} else if strings.EqualFold(respOrders[i].OrderSide, exchange.BidOrderSide.ToString()) {
 			side = exchange.BuyOrderSide
 		}
-		orderDate := time.Unix(int64(order.CreationTime), 0)
-		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
+		orderDate := time.Unix(int64(respOrders[i].CreationTime), 0)
+		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].OrderType))
 
 		openOrder := exchange.OrderDetail{
-			ID:              order.ID,
-			Amount:          order.Volume,
+			ID:              respOrders[i].ID,
+			Amount:          respOrders[i].Volume,
 			Exchange:        b.Name,
-			RemainingAmount: order.OpenVolume,
+			RemainingAmount: respOrders[i].OpenVolume,
 			OrderDate:       orderDate,
 			OrderSide:       side,
 			OrderType:       orderType,
-			Price:           order.Price,
-			Status:          order.Status,
-			CurrencyPair: currency.NewPairWithDelimiter(order.Instrument,
-				order.Currency,
+			Price:           respOrders[i].Price,
+			Status:          respOrders[i].Status,
+			CurrencyPair: currency.NewPairWithDelimiter(respOrders[i].Instrument,
+				respOrders[i].Currency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
-		for _, trade := range order.Trades {
-			tradeDate := time.Unix(int64(trade.CreationTime), 0)
+		for j := range respOrders[i].Trades {
+			tradeDate := time.Unix(int64(respOrders[i].Trades[j].CreationTime), 0)
 			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
-				Amount:      trade.Volume,
+				Amount:      respOrders[i].Trades[j].Volume,
 				Exchange:    b.Name,
-				Price:       trade.Price,
-				TID:         trade.ID,
+				Price:       respOrders[i].Trades[j].Price,
+				TID:         respOrders[i].Trades[j].ID,
 				Timestamp:   tradeDate,
-				Fee:         trade.Fee,
-				Description: trade.Description,
+				Fee:         respOrders[i].Trades[j].Fee,
+				Description: respOrders[i].Trades[j].Description,
 			})
 		}
 

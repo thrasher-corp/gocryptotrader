@@ -1,8 +1,11 @@
 package kraken
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -36,6 +39,7 @@ func TestSetup(t *testing.T) {
 	krakenConfig.APISecret = apiSecret
 	krakenConfig.ClientID = clientID
 	krakenConfig.WebsocketURL = k.WebsocketURL
+	subscribeToDefaultChannels = false
 	k.Setup(&krakenConfig)
 }
 
@@ -638,6 +642,113 @@ func TestWithdrawCancel(t *testing.T) {
 
 // ---------------------------- Websocket tests -----------------------------------------
 
+// TestOrderbookBufferReset websocket test
+func TestOrderbookBufferReset(t *testing.T) {
+	if k.Name == "" {
+		k.SetDefaults()
+		TestSetup(t)
+	}
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	if k.WebsocketConn == nil {
+		k.Websocket.Connect()
+	}
+	var obUpdates []string
+	obpartial := `[0,{"as":[["5541.30000","2.50700000","0"]],"bs":[["5541.20000","1.52900000","0"]]}]`
+	for i := 1; i < orderbookBufferLimit+2; i++ {
+		obUpdates = append(obUpdates, fmt.Sprintf(`[0,{"a":[["5541.30000","2.50700000","%v"]],"b":[["5541.30000","1.00000000","%v"]]}]`, i, i))
+	}
+	k.Websocket.DataHandler = make(chan interface{}, 10)
+	var dataResponse WebsocketDataResponse
+	err := common.JSONDecode([]byte(obpartial), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData := dataResponse[1].(map[string]interface{})
+	channelData := WebsocketChannelData{
+		ChannelID:    0,
+		Subscription: "orderbook",
+		Pair:         currency.NewPairWithDelimiter("XBT", "USD", "/"),
+	}
+
+	k.wsProcessOrderBookPartial(
+		&channelData,
+		obData,
+	)
+
+	for i := 0; i < len(obUpdates); i++ {
+		err = common.JSONDecode([]byte(obUpdates[i]), &dataResponse)
+		if err != nil {
+			t.Errorf("Could not parse, %v", err)
+		}
+		obData = dataResponse[1].(map[string]interface{})
+		if i < len(obUpdates)-1 {
+			k.wsProcessOrderBookBuffer(&channelData, obData)
+		} else if i == len(obUpdates)-1 {
+			k.wsProcessOrderBookUpdate(&channelData)
+			k.wsProcessOrderBookBuffer(&channelData, obData)
+			if len(orderbookBuffer[channelData.ChannelID]) != 1 {
+				t.Error("Buffer should have 1 entry after being reset")
+			}
+		}
+	}
+}
+
+// TestOrderbookBufferReset websocket test
+func TestOrderBookOutOfOrder(t *testing.T) {
+	if k.Name == "" {
+		k.SetDefaults()
+		TestSetup(t)
+	}
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled, skipping")
+	}
+	if k.WebsocketConn == nil {
+		k.Websocket.Connect()
+	}
+	obpartial := `[0,{"as":[["5541.30000","2.50700000","0"]],"bs":[["5541.20000","1.52900000","5"]]}]`
+	obupdate1 := `[0,{"a":[["5541.30000","0.00000000","1"]],"b":[["5541.30000","0.00000000","3"]]}]`
+	obupdate2 := `[0,{"a":[["5541.30000","2.50700000","2"]],"b":[["5541.30000","0.00000000","1"]]}]`
+
+	k.Websocket.DataHandler = make(chan interface{}, 10)
+	var dataResponse WebsocketDataResponse
+	err := common.JSONDecode([]byte(obpartial), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData := dataResponse[1].(map[string]interface{})
+	channelData := WebsocketChannelData{
+		ChannelID:    0,
+		Subscription: "orderbook",
+		Pair:         currency.NewPairWithDelimiter("XBT", "USD", "/"),
+	}
+
+	k.wsProcessOrderBookPartial(
+		&channelData,
+		obData,
+	)
+
+	err = common.JSONDecode([]byte(obupdate1), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData = dataResponse[1].(map[string]interface{})
+	k.wsProcessOrderBookBuffer(&channelData, obData)
+
+	err = common.JSONDecode([]byte(obupdate2), &dataResponse)
+	if err != nil {
+		t.Errorf("Could not parse, %v", err)
+	}
+	obData = dataResponse[1].(map[string]interface{})
+	k.wsProcessOrderBookBuffer(&channelData, obData)
+
+	err = k.wsProcessOrderBookUpdate(&channelData)
+	if !strings.Contains(err.Error(), "orderbook update out of order") {
+		t.Error("Expected out of order orderbook error")
+	}
+}
+
 // TestSubscribeToChannel websocket test
 func TestSubscribeToChannel(t *testing.T) {
 	if k.Name == "" {
@@ -647,12 +758,11 @@ func TestSubscribeToChannel(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !k.Websocket.IsConnected() {
+	if k.WebsocketConn == nil {
 		k.Websocket.Connect()
 	}
 
-	<-k.Websocket.TrafficAlert
-	err := k.WsSubscribeToChannel("ticker", []string{"XBT/USD"}, 1)
+	err := k.WsSubscribeToChannel("ticker", []string{"XTZ/USD"}, 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -667,7 +777,7 @@ func TestSubscribeToNonExistentChannel(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !k.Websocket.IsConnected() {
+	if k.WebsocketConn == nil {
 		k.Websocket.Connect()
 	}
 	err := k.WsSubscribeToChannel("ticker", []string{"pewdiepie"}, 1)
@@ -696,14 +806,14 @@ func TestSubscribeUnsubscribeToChannel(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !k.Websocket.IsConnected() {
+	if k.WebsocketConn == nil {
 		k.Websocket.Connect()
 	}
-	err := k.WsSubscribeToChannel("ticker", []string{"XBT/USD"}, 1)
+	err := k.WsSubscribeToChannel("ticker", []string{"XRP/JPY"}, 1)
 	if err != nil {
 		t.Error(err)
 	}
-	err = k.WsUnsubscribeToChannel("ticker", []string{"XBT/USD"}, 2)
+	err = k.WsUnsubscribeToChannel("ticker", []string{"XRP/JPY"}, 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -718,18 +828,19 @@ func TestUnsubscribeWithoutSubscription(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !k.Websocket.IsConnected() {
+	if k.WebsocketConn == nil {
 		k.Websocket.Connect()
 	}
-	err := k.WsUnsubscribeToChannel("ticker", []string{"XBT/USD"}, 3)
+	err := k.WsUnsubscribeToChannel("ticker", []string{"QTUM/EUR"}, 3)
 	if err != nil {
 		t.Error(err)
 	}
 	unsubscriptionError := false
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 5; i++ {
 		response := <-k.Websocket.DataHandler
+		t.Log(response)
 		if err, ok := response.(error); ok && err != nil {
-			if err.Error() == "Subscription Not Found" {
+			if err.Error() == "requestID: '3'. Error: Subscription Not Found" {
 				unsubscriptionError = true
 				break
 			}
@@ -749,18 +860,18 @@ func TestUnsubscribeWithChannelID(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !k.Websocket.IsConnected() {
+	if k.WebsocketConn == nil {
 		k.Websocket.Connect()
 	}
-	err := k.WsUnsubscribeToChannelByChannelID(3)
+	err := k.WsUnsubscribeToChannelByChannelID(100)
 	if err != nil {
 		t.Error(err)
 	}
 	unsubscriptionError := false
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 5; i++ {
 		response := <-k.Websocket.DataHandler
 		if err, ok := response.(error); ok && err != nil {
-			if err.Error() == "Subscription Not Found" {
+			if err.Error() == "Not subscribed to the requested channelID" {
 				unsubscriptionError = true
 				break
 			}
@@ -771,8 +882,8 @@ func TestUnsubscribeWithChannelID(t *testing.T) {
 	}
 }
 
-// TestUnsubscribeFromNonExistentChennel websocket test
-func TestUnsubscribeFromNonExistentChennel(t *testing.T) {
+// TestUnsubscribeFromNonExistentChannel websocket test
+func TestUnsubscribeFromNonExistentChannel(t *testing.T) {
 	if k.Name == "" {
 		k.SetDefaults()
 		TestSetup(t)
@@ -780,7 +891,7 @@ func TestUnsubscribeFromNonExistentChennel(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !k.Websocket.IsConnected() {
+	if k.WebsocketConn == nil {
 		k.Websocket.Connect()
 	}
 	err := k.WsUnsubscribeToChannel("ticker", []string{"tseries"}, 0)
@@ -788,11 +899,13 @@ func TestUnsubscribeFromNonExistentChennel(t *testing.T) {
 		t.Error(err)
 	}
 	unsubscriptionError := false
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 5; i++ {
 		response := <-k.Websocket.DataHandler
 		if err, ok := response.(error); ok && err != nil {
-			unsubscriptionError = true
-			break
+			if err.Error() == "Currency pair not in ISO 4217-A3 format tseries" {
+				unsubscriptionError = true
+				break
+			}
 		}
 	}
 	if !unsubscriptionError {

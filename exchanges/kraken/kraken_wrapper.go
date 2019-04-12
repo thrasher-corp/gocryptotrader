@@ -42,7 +42,8 @@ func (k *Kraken) Run() {
 		}
 
 		var exchangeProducts []string
-		for _, v := range assetPairs {
+		for i := range assetPairs {
+			v := assetPairs[i]
 			if common.StringContains(v.Altname, ".d") {
 				continue
 			}
@@ -327,20 +328,20 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for ID, order := range resp.Open {
-		symbol := currency.NewPairDelimiter(order.Descr.Pair,
+	for i := range resp.Open {
+		symbol := currency.NewPairDelimiter(resp.Open[i].Descr.Pair,
 			k.ConfigCurrencyPairFormat.Delimiter)
-		orderDate := time.Unix(int64(order.StartTm), 0)
-		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
+		orderDate := time.Unix(int64(resp.Open[i].StartTm), 0)
+		side := exchange.OrderSide(strings.ToUpper(resp.Open[i].Descr.Type))
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:              ID,
-			Amount:          order.Vol,
-			RemainingAmount: (order.Vol - order.VolExec),
-			ExecutedAmount:  order.VolExec,
+			ID:              i,
+			Amount:          resp.Open[i].Vol,
+			RemainingAmount: (resp.Open[i].Vol - resp.Open[i].VolExec),
+			ExecutedAmount:  resp.Open[i].VolExec,
 			Exchange:        k.Name,
 			OrderDate:       orderDate,
-			Price:           order.Price,
+			Price:           resp.Open[i].Price,
 			OrderSide:       side,
 			CurrencyPair:    symbol,
 		})
@@ -371,20 +372,20 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for ID, order := range resp.Closed {
-		symbol := currency.NewPairDelimiter(order.Descr.Pair,
+	for i := range resp.Closed {
+		symbol := currency.NewPairDelimiter(resp.Closed[i].Descr.Pair,
 			k.ConfigCurrencyPairFormat.Delimiter)
-		orderDate := time.Unix(int64(order.StartTm), 0)
-		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
+		orderDate := time.Unix(int64(resp.Closed[i].StartTm), 0)
+		side := exchange.OrderSide(strings.ToUpper(resp.Closed[i].Descr.Type))
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:              ID,
-			Amount:          order.Vol,
-			RemainingAmount: (order.Vol - order.VolExec),
-			ExecutedAmount:  order.VolExec,
+			ID:              i,
+			Amount:          resp.Closed[i].Vol,
+			RemainingAmount: (resp.Closed[i].Vol - resp.Closed[i].VolExec),
+			ExecutedAmount:  resp.Closed[i].VolExec,
 			Exchange:        k.Name,
 			OrderDate:       orderDate,
-			Price:           order.Price,
+			Price:           resp.Closed[i].Price,
 			OrderSide:       side,
 			CurrencyPair:    symbol,
 		})

@@ -988,9 +988,9 @@ func FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
 	}
 
 	var filteredOrders []OrderDetail
-	for _, orderDetail := range *orders {
-		if strings.EqualFold(string(orderDetail.OrderSide), string(orderSide)) {
-			filteredOrders = append(filteredOrders, orderDetail)
+	for i := range *orders {
+		if strings.EqualFold(string((*orders)[i].OrderSide), string(orderSide)) {
+			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
@@ -1004,9 +1004,9 @@ func FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
 	}
 
 	var filteredOrders []OrderDetail
-	for _, orderDetail := range *orders {
-		if strings.EqualFold(string(orderDetail.OrderType), string(orderType)) {
-			filteredOrders = append(filteredOrders, orderDetail)
+	for i := range *orders {
+		if strings.EqualFold(string((*orders)[i].OrderType), string(orderType)) {
+			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
@@ -1021,9 +1021,9 @@ func FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Ti
 	}
 
 	var filteredOrders []OrderDetail
-	for _, orderDetail := range *orders {
-		if orderDetail.OrderDate.Unix() >= startTicks.Unix() && orderDetail.OrderDate.Unix() <= endTicks.Unix() {
-			filteredOrders = append(filteredOrders, orderDetail)
+	for i := range *orders {
+		if (*orders)[i].OrderDate.Unix() >= startTicks.Unix() && (*orders)[i].OrderDate.Unix() <= endTicks.Unix() {
+			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
@@ -1038,16 +1038,16 @@ func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []currency.Pair)
 	}
 
 	var filteredOrders []OrderDetail
-	for _, orderDetail := range *orders {
+	for i := range *orders {
 		matchFound := false
 		for _, c := range currencies {
-			if !matchFound && orderDetail.CurrencyPair.EqualIncludeReciprocal(c) {
+			if !matchFound && (*orders)[i].CurrencyPair.EqualIncludeReciprocal(c) {
 				matchFound = true
 			}
 		}
 
 		if matchFound {
-			filteredOrders = append(filteredOrders, orderDetail)
+			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
