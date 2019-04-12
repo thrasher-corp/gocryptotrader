@@ -1110,7 +1110,7 @@ func (c *Config) CheckNTPConfig() {
 	}
 }
 
-// DisableNTPCheck
+// DisableNTPCheck() allows the user to change how they are prompted for timesync alerts
 func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	m.Lock()
 	defer m.Unlock()
@@ -1143,7 +1143,7 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 			return "Future notications for out time sync have been disabled", nil
 		}
 	}
-	return "", nil
+	return "", errors.New("something went wrong NTPCheck should never make it this far")
 }
 
 // GetFilePath returns the desired config file or the default config file name

@@ -108,10 +108,10 @@ func main() {
 	if bot.config.NTPClient.Enabled >= 1 {
 		bot.config.CheckNTPConfig()
 		NTPTime, errNTP := ntpclient.NTPClient(bot.config.NTPClient.Pool)
+		currentTime := time.Now()
 		if errNTP != nil {
 			log.Warnf("NTPClient failed to create: %v", errNTP)
 		}
-		currentTime := time.Now()
 		NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
 		if bot.config.NTPClient.Enabled == 1 {
 			if NTPcurrentTimeDifference >= bot.config.NTPClient.AllowedDifference || NTPcurrentTimeDifference <= bot.config.NTPClient.AllowedNegativeDifference {

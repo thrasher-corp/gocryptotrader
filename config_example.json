@@ -12,6 +12,14 @@
  "profiler": {
     "enabled": false
    },
+  "ntpclient": {
+    "enabled": 1,
+    "pool": [
+     "pool.ntp.org:123"
+    ],
+    "allowedDifference": 50000000,
+    "allowedNegativeDifference": 50000000
+   },
  "currencyConfig": {
   "forexProviders": [
    {
