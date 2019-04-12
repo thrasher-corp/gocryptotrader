@@ -1127,7 +1127,6 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 		}
 
 		answer = strings.Replace(answer, "\n", "", -1)
-
 		switch answer {
 		case "a":
 			c.NTPClient.Enabled = 1
