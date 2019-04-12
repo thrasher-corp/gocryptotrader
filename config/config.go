@@ -1,14 +1,17 @@
 package config
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -124,9 +127,10 @@ type ProfilerConfig struct {
 }
 
 type NTPClientConfig struct {
-	Enabled           bool          `json:"enabled"`
-	Pool              []string      `json:"pool"`
-	AllowedDifference time.Duration `json:"alloweddifference"`
+	Enabled                   int           `json:"enabled"`
+	Pool                      []string      `json:"pool"`
+	AllowedDifference         time.Duration `json:"allowedDifference"`
+	AllowedNegativeDifference time.Duration `json:"allowedNegativeDifference"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -1091,6 +1095,59 @@ func (c *Config) CheckLoggerConfig() error {
 		log.LogPath = logPath
 	}
 	return nil
+}
+
+// CheckNTPConfig() check for incorrectly configured NTP server config entires and load sane defaults
+func (c *Config) CheckNTPConfig() {
+	m.Lock()
+	defer m.Unlock()
+
+	if c.NTPClient.Enabled >= 1 {
+		if len(c.NTPClient.Pool) < 1 {
+			log.Warn("NTPClient enabled with no servers configured enabling default pool")
+			c.NTPClient.Pool = []string{"pool.ntp.org:123"}
+		}
+	}
+}
+
+// DisableNTPCheck
+func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	reader := bufio.NewReader(input)
+	log.Warn("Your system time is out of sync this may cause issues with trading")
+	log.Warn("How would you like to show future notifications? (a)lert / (w)arn / (d)isable \n")
+
+	var answered = false
+	for ok := true; ok; ok = (!answered) {
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+
+		answer = strings.Replace(answer, "\n", "", -1)
+
+		switch answer {
+		case "a":
+			c.NTPClient.Enabled = 1
+			answered = true
+			return "Time sync has been set to alert", nil
+		case "w":
+			c.NTPClient.Enabled = 2
+			answered = true
+			return "Time sync has been set to warn only", nil
+		case "d":
+			c.NTPClient.Enabled = 0
+			answered = true
+			return "Future notications for out time sync have been disabled", nil
+		}
+	}
+	err := c.SaveConfig("")
+	if err != nil {
+		return "", err
+	}
+	return "", nil
 }
 
 // GetFilePath returns the desired config file or the default config file name

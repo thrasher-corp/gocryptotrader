@@ -105,17 +105,26 @@ func main() {
 		log.Errorf("Failed to setup logger reason: %s", err)
 	}
 
-	if bot.config.NTPClient.Enabled {
+	if bot.config.NTPClient.Enabled >= 1 {
+		bot.config.CheckNTPConfig()
 		NTPTime, errNTP := ntpclient.NTPClient(bot.config.NTPClient.Pool)
 		if errNTP != nil {
-			log.Fatal(errNTP)
+			log.Warnf("NTPClient failed to create: %v", errNTP)
 		}
 		currentTime := time.Now()
 		NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
-		if NTPcurrentTimeDifference >= bot.config.NTPClient.AllowedDifference {
-			log.Fatalf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): %v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference)
+		if bot.config.NTPClient.Enabled == 1 {
+			if NTPcurrentTimeDifference >= bot.config.NTPClient.AllowedDifference || NTPcurrentTimeDifference <= bot.config.NTPClient.AllowedNegativeDifference {
+				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
+				disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
+				if errNTP != nil {
+					log.Errorf("failed to disable ntp time check reason: %v", err)
+				}
+				log.Info(disable)
+			}
+		} else {
+			log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
 		}
-		log.Infof("(NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): %v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference)
 	}
 
 	AdjustGoMaxProcs()

@@ -1,7 +1,10 @@
 package config
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/thrasher-/gocryptotrader/ntpclient"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -966,4 +969,45 @@ func TestCheckLoggerConfig(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create logger with user settings: reason: %v", err)
 	}
+}
+
+func TestDisableNTPCheck(t *testing.T) {
+	c := GetConfig()
+	err := c.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _ = ntpclient.NTPClient(c.NTPClient.Pool)
+
+	warn, err := c.DisableNTPCheck(strings.NewReader("w\n"))
+	if err != nil {
+		t.Errorf("test failed reason: %v", err)
+	}
+	if warn != "Time sync has been set to warn only" {
+		t.Errorf("test failed expected %v got %v", "Time sync has been set to warn only", warn)
+	}
+	alert, _ := c.DisableNTPCheck(strings.NewReader("a\n"))
+	if alert != "Time sync has been set to alert" {
+		t.Errorf("test failed expected %v got %v", "Time sync has been set to alert", alert)
+	}
+
+	disable, _ := c.DisableNTPCheck(strings.NewReader("d\n"))
+	if disable != "Future notications for out time sync have been disabled" {
+		t.Errorf("test failed expected %v got %v", "Future notications for out time sync have been disabled", disable)
+	}
+}
+
+func TestCheckNTPConfig(t *testing.T) {
+	c := GetConfig()
+
+	c.NTPClient.Enabled = 1
+	c.NTPClient.Pool = nil
+
+	_, _ = ntpclient.NTPClient(c.NTPClient.Pool)
+	c.CheckNTPConfig()
+	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
+		t.Error("NTPClient with no valid pool should default to pool.ntp.org ")
+	}
+
 }

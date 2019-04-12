@@ -29,7 +29,6 @@ type ntppacket struct {
 
 // NTPClient create's a new NTPClient and returns local based on ntp servers provided timestamp
 func NTPClient(pool []string) (time.Time, error) {
-
 	for i := range pool {
 		con, err := net.Dial("udp", pool[i])
 		if err != nil {
@@ -38,10 +37,13 @@ func NTPClient(pool []string) (time.Time, error) {
 		}
 
 		defer con.Close()
+
 		con.SetDeadline(time.Now().Add(5 * time.Second))
 
 		req := &ntppacket{Settings: 0x1B}
-		binary.Write(con, binary.BigEndian, req)
+		if err := binary.Write(con, binary.BigEndian, req); err != nil {
+			continue
+		}
 
 		rsp := &ntppacket{}
 		if err := binary.Read(con, binary.BigEndian, rsp); err != nil {
