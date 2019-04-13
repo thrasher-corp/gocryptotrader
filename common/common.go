@@ -621,40 +621,29 @@ func CreateDir(dir string) error {
 	return os.MkdirAll(dir, 0770)
 }
 
-// ChangePerm is checking if directory exists and changing the permissions from 0777 to 0770
-func ChangePerm(targetDir string) error {
-	// log.Println(*exec.Command("dir"))
-	// s, err := os.Stat(targetDir)
-	// if err != nil {
-	// 	return err
-	// }
-	// isDir := s.IsDir()
-	// if !isDir {
-	// 	return errors.New("Somethign is fucked")
-	// }
-
-	// log.Println("its not a directory")
-	// return nil
-
-	return filepath.Walk(targetDir, POOP)
+// ListAllDir lists all the directories and files in an array
+func ListAllDir(directory string) ([]string, error) {
+	var list []string
+	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			list = append(list, path)
+		}
+		return nil
+	})
+	return list, err
 }
 
-func POOP(path string, info os.FileInfo, err error) error {
+// ChangePerm changes file permissions in a given directory to 0770
+func ChangePerm(env string) error {
+	a, err := ListAllDir(GetDefaultDataDir(env))
 	if err != nil {
-		return err
-	} 
-	fmt.Printf("%v, %#o\n", path, info.Mode().Perm())
-	//
+		return errors.New("Directory provided is invalid")
+	}
+	for i := range a {
+		b, _ := os.Stat(a[i])
+		if b.Mode().Perm() != 0770 {
+			os.Chmod(a[i], 0770)
+		}
+	}
 	return nil
-})
-
-
-func WALKIES(s string, fn func(path string, info os.FileInfo, err error) error) {
-	log.Println(s)
-	for {
-		err := fn(s, os.FileInfo{}, nil)
-	if err != nil {
-		return err
-	}
-	}
 }
