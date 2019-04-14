@@ -198,14 +198,14 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 		})
 	}
 	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory("")
-	for _, withdrawal := range accountWithdrawlHistory {
+	for i := range accountWithdrawlHistory {
 		resp = append(resp, exchange.FundHistory{
-			Amount:       withdrawal.Amount,
-			Currency:     withdrawal.Currency,
+			Amount:       accountWithdrawlHistory[i].Amount,
+			Currency:     accountWithdrawlHistory[i].Currency,
 			ExchangeName: o.Name,
-			Status:       OrderStatus[withdrawal.Status],
-			Timestamp:    withdrawal.Timestamp,
-			TransferID:   withdrawal.Txid,
+			Status:       OrderStatus[accountWithdrawlHistory[i].Status],
+			Timestamp:    accountWithdrawlHistory[i].Timestamp,
+			TransferID:   accountWithdrawlHistory[i].Txid,
 			TransferType: "withdrawal",
 		})
 	}
@@ -362,14 +362,14 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		if err != nil {
 			return resp, err
 		}
-		for _, openOrder := range spotOpenOrders {
+		for i := range spotOpenOrders {
 			resp = append(resp, exchange.OrderDetail{
-				Amount:         openOrder.Size,
+				Amount:         spotOpenOrders[i].Size,
 				CurrencyPair:   currency,
 				Exchange:       o.Name,
-				ExecutedAmount: openOrder.FilledSize,
-				OrderDate:      openOrder.Timestamp,
-				Status:         openOrder.Status,
+				ExecutedAmount: spotOpenOrders[i].FilledSize,
+				OrderDate:      spotOpenOrders[i].Timestamp,
+				Status:         spotOpenOrders[i].Status,
 			})
 		}
 	}
@@ -388,18 +388,18 @@ func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		if err != nil {
 			return resp, err
 		}
-		for _, openOrder := range spotOpenOrders {
+		for i := range spotOpenOrders {
 			resp = append(resp, exchange.OrderDetail{
-				ID:             openOrder.OrderID,
-				Price:          openOrder.Price,
-				Amount:         openOrder.Size,
+				ID:             spotOpenOrders[i].OrderID,
+				Price:          spotOpenOrders[i].Price,
+				Amount:         spotOpenOrders[i].Size,
 				CurrencyPair:   currency,
 				Exchange:       o.Name,
-				OrderSide:      exchange.OrderSide(openOrder.Side),
-				OrderType:      exchange.OrderType(openOrder.Type),
-				ExecutedAmount: openOrder.FilledSize,
-				OrderDate:      openOrder.Timestamp,
-				Status:         openOrder.Status,
+				OrderSide:      exchange.OrderSide(spotOpenOrders[i].Side),
+				OrderType:      exchange.OrderType(spotOpenOrders[i].Type),
+				ExecutedAmount: spotOpenOrders[i].FilledSize,
+				OrderDate:      spotOpenOrders[i].Timestamp,
+				Status:         spotOpenOrders[i].Status,
 			})
 		}
 	}
@@ -414,6 +414,10 @@ func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (o.APIKey == "" || o.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return o.GetFee(feeBuilder)
 }
 

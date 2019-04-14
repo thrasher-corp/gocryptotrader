@@ -256,12 +256,12 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 		allOrders = append(allOrders, orders.Data...)
 	}
 
-	for _, order := range allOrders {
+	for i := range allOrders {
 		_, err := b.CancelTrade(orderCancellation.Side.ToString(),
-			order.OrderID,
+			allOrders[i].OrderID,
 			orderCancellation.CurrencyPair.Base.String())
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[order.OrderID] = err.Error()
+			cancelAllOrdersResponse.OrderStatus[allOrders[i].OrderID] = err.Error()
 		}
 	}
 
@@ -326,6 +326,10 @@ func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 }
 
@@ -337,28 +341,28 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		return nil, err
 	}
 
-	for _, order := range resp.Data {
-		if order.Status != "placed" {
+	for i := range resp.Data {
+		if resp.Data[i].Status != "placed" {
 			continue
 		}
 
-		orderDate := time.Unix(order.OrderDate, 0)
+		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
 		orderDetail := exchange.OrderDetail{
-			Amount:          order.Units,
+			Amount:          resp.Data[i].Units,
 			Exchange:        b.Name,
-			ID:              order.OrderID,
+			ID:              resp.Data[i].OrderID,
 			OrderDate:       orderDate,
-			Price:           order.Price,
-			RemainingAmount: order.UnitsRemaining,
+			Price:           resp.Data[i].Price,
+			RemainingAmount: resp.Data[i].UnitsRemaining,
 			Status:          string(exchange.ActiveOrderStatus),
-			CurrencyPair: currency.NewPairWithDelimiter(order.OrderCurrency,
-				order.PaymentCurrency,
+			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+				resp.Data[i].PaymentCurrency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
-		if order.Type == "bid" {
+		if resp.Data[i].Type == "bid" {
 			orderDetail.OrderSide = exchange.BuyOrderSide
-		} else if order.Type == "ask" {
+		} else if resp.Data[i].Type == "ask" {
 			orderDetail.OrderSide = exchange.SellOrderSide
 		}
 
@@ -382,27 +386,27 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		return nil, err
 	}
 
-	for _, order := range resp.Data {
-		if order.Status == "placed" {
+	for i := range resp.Data {
+		if resp.Data[i].Status == "placed" {
 			continue
 		}
 
-		orderDate := time.Unix(order.OrderDate, 0)
+		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
 		orderDetail := exchange.OrderDetail{
-			Amount:          order.Units,
+			Amount:          resp.Data[i].Units,
 			Exchange:        b.Name,
-			ID:              order.OrderID,
+			ID:              resp.Data[i].OrderID,
 			OrderDate:       orderDate,
-			Price:           order.Price,
-			RemainingAmount: order.UnitsRemaining,
-			CurrencyPair: currency.NewPairWithDelimiter(order.OrderCurrency,
-				order.PaymentCurrency,
+			Price:           resp.Data[i].Price,
+			RemainingAmount: resp.Data[i].UnitsRemaining,
+			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+				resp.Data[i].PaymentCurrency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
-		if order.Type == "bid" {
+		if resp.Data[i].Type == "bid" {
 			orderDetail.OrderSide = exchange.BuyOrderSide
-		} else if order.Type == "ask" {
+		} else if resp.Data[i].Type == "ask" {
 			orderDetail.OrderSide = exchange.SellOrderSide
 		}
 

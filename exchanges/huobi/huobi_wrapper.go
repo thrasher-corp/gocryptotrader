@@ -393,6 +393,10 @@ func (h *HUOBI) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HUOBI) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (h.APIKey == "" || h.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return h.GetFee(feeBuilder)
 }
 
@@ -417,17 +421,17 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			return nil, err
 		}
 
-		for _, order := range resp {
-			orderDate := time.Unix(order.CreatedAt, 0)
+		for i := range resp {
+			orderDate := time.Unix(resp[i].CreatedAt, 0)
 
 			orders = append(orders, exchange.OrderDetail{
-				ID:              fmt.Sprintf("%v", order.ID),
+				ID:              fmt.Sprintf("%v", resp[i].ID),
 				Exchange:        h.Name,
-				Amount:          order.Amount,
-				Price:           order.Price,
+				Amount:          resp[i].Amount,
+				Price:           resp[i].Price,
 				OrderDate:       orderDate,
-				ExecutedAmount:  order.FilledAmount,
-				RemainingAmount: (order.Amount - order.FilledAmount),
+				ExecutedAmount:  resp[i].FilledAmount,
+				RemainingAmount: (resp[i].Amount - resp[i].FilledAmount),
 				CurrencyPair:    c,
 			})
 		}
@@ -461,14 +465,14 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			return nil, err
 		}
 
-		for _, order := range resp {
-			orderDate := time.Unix(order.CreatedAt, 0)
+		for i := range resp {
+			orderDate := time.Unix(resp[i].CreatedAt, 0)
 
 			orders = append(orders, exchange.OrderDetail{
-				ID:           fmt.Sprintf("%v", order.ID),
+				ID:           fmt.Sprintf("%v", resp[i].ID),
 				Exchange:     h.Name,
-				Amount:       order.Amount,
-				Price:        order.Price,
+				Amount:       resp[i].Amount,
+				Price:        resp[i].Price,
 				OrderDate:    orderDate,
 				CurrencyPair: c,
 			})

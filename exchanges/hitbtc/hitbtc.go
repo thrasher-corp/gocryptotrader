@@ -211,9 +211,9 @@ func (h *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
 			return nil, err
 		}
 
-		for _, item := range resp1 {
-			if item.Symbol != "" {
-				ret[item.Symbol] = item
+		for i := range resp1 {
+			if resp1[i].Symbol != "" {
+				ret[resp1[i].Symbol] = resp1[i]
 			}
 		}
 	} else {
@@ -222,36 +222,36 @@ func (h *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
 	}
 
 	if err == nil {
-		for x, y := range ret {
+		for i := range ret {
 			tick := Ticker{}
 
-			ask, _ := strconv.ParseFloat(y.Ask, 64)
+			ask, _ := strconv.ParseFloat(ret[i].Ask, 64)
 			tick.Ask = ask
 
-			bid, _ := strconv.ParseFloat(y.Bid, 64)
+			bid, _ := strconv.ParseFloat(ret[i].Bid, 64)
 			tick.Bid = bid
 
-			high, _ := strconv.ParseFloat(y.High, 64)
+			high, _ := strconv.ParseFloat(ret[i].High, 64)
 			tick.High = high
 
-			last, _ := strconv.ParseFloat(y.Last, 64)
+			last, _ := strconv.ParseFloat(ret[i].Last, 64)
 			tick.Last = last
 
-			low, _ := strconv.ParseFloat(y.Low, 64)
+			low, _ := strconv.ParseFloat(ret[i].Low, 64)
 			tick.Low = low
 
-			open, _ := strconv.ParseFloat(y.Open, 64)
+			open, _ := strconv.ParseFloat(ret[i].Open, 64)
 			tick.Open = open
 
-			vol, _ := strconv.ParseFloat(y.Volume, 64)
+			vol, _ := strconv.ParseFloat(ret[i].Volume, 64)
 			tick.Volume = vol
 
-			volQuote, _ := strconv.ParseFloat(y.VolumeQuote, 64)
+			volQuote, _ := strconv.ParseFloat(ret[i].VolumeQuote, 64)
 			tick.VolumeQuote = volQuote
 
-			tick.Symbol = y.Symbol
-			tick.Timestamp = y.Timestamp
-			result[x] = tick
+			tick.Symbol = ret[i].Symbol
+			tick.Timestamp = ret[i].Timestamp
+			result[i] = tick
 		}
 	}
 
@@ -641,9 +641,19 @@ func (h *HitBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	case exchange.CyptocurrencyDepositFee:
 		fee = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
 			feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }
 
 func calculateCryptocurrencyDepositFee(c currency.Code, amount float64) float64 {

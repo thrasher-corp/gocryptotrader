@@ -216,16 +216,16 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 		return tick, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
-	for _, y := range resp.Data {
-		tick.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		tick.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		tick.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		tick.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		tick.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
-		tick.Trades = y.Trades[1]
-		tick.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		tick.High, _ = strconv.ParseFloat(y.High[1], 64)
-		tick.Open, _ = strconv.ParseFloat(y.Open, 64)
+	for i := range resp.Data {
+		tick.Ask, _ = strconv.ParseFloat(resp.Data[i].Ask[0], 64)
+		tick.Bid, _ = strconv.ParseFloat(resp.Data[i].Bid[0], 64)
+		tick.Last, _ = strconv.ParseFloat(resp.Data[i].Last[0], 64)
+		tick.Volume, _ = strconv.ParseFloat(resp.Data[i].Volume[1], 64)
+		tick.VWAP, _ = strconv.ParseFloat(resp.Data[i].VWAP[1], 64)
+		tick.Trades = resp.Data[i].Trades[1]
+		tick.Low, _ = strconv.ParseFloat(resp.Data[i].Low[1], 64)
+		tick.High, _ = strconv.ParseFloat(resp.Data[i].High[1], 64)
+		tick.Open, _ = strconv.ParseFloat(resp.Data[i].Open, 64)
 	}
 	return tick, nil
 }
@@ -256,18 +256,18 @@ func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
 
 	tickers := make(Tickers)
 
-	for x, y := range resp.Data {
+	for i := range resp.Data {
 		tick := Ticker{}
-		tick.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		tick.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		tick.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		tick.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		tick.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
-		tick.Trades = y.Trades[1]
-		tick.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		tick.High, _ = strconv.ParseFloat(y.High[1], 64)
-		tick.Open, _ = strconv.ParseFloat(y.Open, 64)
-		tickers[x] = tick
+		tick.Ask, _ = strconv.ParseFloat(resp.Data[i].Ask[0], 64)
+		tick.Bid, _ = strconv.ParseFloat(resp.Data[i].Bid[0], 64)
+		tick.Last, _ = strconv.ParseFloat(resp.Data[i].Last[0], 64)
+		tick.Volume, _ = strconv.ParseFloat(resp.Data[i].Volume[1], 64)
+		tick.VWAP, _ = strconv.ParseFloat(resp.Data[i].VWAP[1], 64)
+		tick.Trades = resp.Data[i].Trades[1]
+		tick.Low, _ = strconv.ParseFloat(resp.Data[i].Low[1], 64)
+		tick.High, _ = strconv.ParseFloat(resp.Data[i].High[1], 64)
+		tick.Open, _ = strconv.ParseFloat(resp.Data[i].Open, 64)
+		tickers[i] = tick
 	}
 	return tickers, nil
 }
@@ -1020,12 +1020,19 @@ func (k *Kraken) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FiatCurrency)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0016 * price * amount
 }
 
 func getWithdrawalFee(c currency.Code) float64 {

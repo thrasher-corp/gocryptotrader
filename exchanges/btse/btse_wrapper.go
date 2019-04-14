@@ -216,7 +216,8 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		return od, errors.New("no orders found")
 	}
 
-	for _, o := range *o {
+	for i := range *o {
+		o := (*o)[i]
 		if o.ID != orderID {
 			continue
 		}
@@ -242,7 +243,8 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 			return od, fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
 
-		for _, f := range *fills {
+		for i := range *fills {
+			f := (*fills)[i]
 			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
 			od.Trades = append(od.Trades, exchange.TradeHistory{
 				Timestamp: createdAt,
@@ -294,7 +296,8 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range *resp {
+	for i := range *resp {
+		order := (*resp)[i]
 		var side = exchange.BuyOrderSide
 		if strings.EqualFold(order.Side, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
@@ -319,7 +322,8 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 			continue
 		}
 
-		for _, f := range *fills {
+		for i := range *fills {
+			f := (*fills)[i]
 			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
 			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
 				Timestamp: createdAt,
@@ -348,5 +352,9 @@ func (b *BTSE) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 }

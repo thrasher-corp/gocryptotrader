@@ -403,6 +403,8 @@ func (b *Bitflyer) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency, feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -411,10 +413,9 @@ func (b *Bitflyer) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // calculateTradingFee returns fee when performing a trade
-func calculateTradingFee(purchasePrice, amount float64) float64 {
-	fee := 0.0015
+func calculateTradingFee(price, amount float64) float64 {
 	// bitflyer has fee tiers, but does not disclose them via API, so the largest has to be assumed
-	return fee * amount * purchasePrice
+	return 0.0012 * price * amount
 }
 
 func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, c currency.Code) (fee float64) {

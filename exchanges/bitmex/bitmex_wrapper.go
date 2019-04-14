@@ -38,8 +38,8 @@ func (b *Bitmex) Run() {
 
 	} else {
 		var exchangeProducts []string
-		for _, info := range marketInfo {
-			exchangeProducts = append(exchangeProducts, info.Symbol)
+		for i := range marketInfo {
+			exchangeProducts = append(exchangeProducts, marketInfo[i].Symbol)
 		}
 
 		var NewExchangeProducts currency.Pairs
@@ -145,10 +145,10 @@ func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	// Need to update to add Margin/Liquidity availibilty
 	var balances []exchange.AccountCurrencyInfo
-	for _, data := range bal {
+	for i := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(data.Currency),
-			TotalValue:   float64(data.WalletBalance),
+			CurrencyName: currency.NewCode(bal[i].Currency),
+			TotalValue:   float64(bal[i].WalletBalance),
 		})
 	}
 
@@ -247,8 +247,8 @@ func (b *Bitmex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, order := range orders {
-		cancelAllOrdersResponse.OrderStatus[order.OrderID] = order.OrdRejReason
+	for i := range orders {
+		cancelAllOrdersResponse.OrderStatus[orders[i].OrderID] = orders[i].OrdRejReason
 	}
 
 	return cancelAllOrdersResponse, nil
@@ -305,6 +305,10 @@ func (b *Bitmex) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bitmex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return b.GetFee(feeBuilder)
 }
 
@@ -320,23 +324,23 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		return nil, err
 	}
 
-	for _, order := range resp {
-		orderSide := orderSideMap[order.Side]
-		orderType := orderTypeMap[order.OrdType]
+	for i := range resp {
+		orderSide := orderSideMap[resp[i].Side]
+		orderType := orderTypeMap[resp[i].OrdType]
 		if orderType == "" {
 			orderType = exchange.UnknownOrderType
 		}
 
 		orderDetail := exchange.OrderDetail{
-			Price:     order.Price,
-			Amount:    float64(order.OrderQty),
+			Price:     resp[i].Price,
+			Amount:    float64(resp[i].OrderQty),
 			Exchange:  b.Name,
-			ID:        order.OrderID,
+			ID:        resp[i].OrderID,
 			OrderSide: orderSide,
 			OrderType: orderType,
-			Status:    order.OrdStatus,
-			CurrencyPair: currency.NewPairWithDelimiter(order.Symbol,
-				order.SettlCurrency,
+			Status:    resp[i].OrdStatus,
+			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
+				resp[i].SettlCurrency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
@@ -363,23 +367,23 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		return nil, err
 	}
 
-	for _, order := range resp {
-		orderSide := orderSideMap[order.Side]
-		orderType := orderTypeMap[order.OrdType]
+	for i := range resp {
+		orderSide := orderSideMap[resp[i].Side]
+		orderType := orderTypeMap[resp[i].OrdType]
 		if orderType == "" {
 			orderType = exchange.UnknownOrderType
 		}
 
 		orderDetail := exchange.OrderDetail{
-			Price:     order.Price,
-			Amount:    float64(order.OrderQty),
+			Price:     resp[i].Price,
+			Amount:    float64(resp[i].OrderQty),
 			Exchange:  b.Name,
-			ID:        order.OrderID,
+			ID:        resp[i].OrderID,
 			OrderSide: orderSide,
 			OrderType: orderType,
-			Status:    order.OrdStatus,
-			CurrencyPair: currency.NewPairWithDelimiter(order.Symbol,
-				order.SettlCurrency,
+			Status:    resp[i].OrdStatus,
+			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
+				resp[i].SettlCurrency,
 				b.ConfigCurrencyPairFormat.Delimiter),
 		}
 

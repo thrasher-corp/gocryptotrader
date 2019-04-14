@@ -383,6 +383,10 @@ func (c *COINUT) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if c.APIKey == "" && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return c.GetFee(feeBuilder)
 }
 
@@ -472,17 +476,17 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range allTheOrders {
+	for i := range allTheOrders {
 		for instrument, allInstrumentData := range instruments.Instruments {
-			for _, instrumentData := range allInstrumentData {
-				if instrumentData.InstID == int(order.Order.InstrumentID) {
+			for j := range allInstrumentData {
+				if allInstrumentData[j].InstID == int(allTheOrders[i].Order.InstrumentID) {
 					currPair := currency.NewPairDelimiter(instrument, "")
-					orderSide := exchange.OrderSide(strings.ToUpper(order.Order.Side))
-					orderDate := time.Unix(order.Order.Timestamp, 0)
+					orderSide := exchange.OrderSide(strings.ToUpper(allTheOrders[i].Order.Side))
+					orderDate := time.Unix(allTheOrders[i].Order.Timestamp, 0)
 					orders = append(orders, exchange.OrderDetail{
-						ID:           strconv.FormatInt(order.Order.OrderID, 10),
-						Amount:       order.Order.Quantity,
-						Price:        order.Order.Price,
+						ID:           strconv.FormatInt(allTheOrders[i].Order.OrderID, 10),
+						Amount:       allTheOrders[i].Order.Quantity,
+						Price:        allTheOrders[i].Order.Price,
 						Exchange:     c.Name,
 						OrderSide:    orderSide,
 						OrderDate:    orderDate,

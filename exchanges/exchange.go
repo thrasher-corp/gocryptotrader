@@ -31,41 +31,42 @@ const (
 )
 
 // FeeType custom type for calculating fees based on method
-type FeeType string
-
-// InternationalBankTransactionType custom type for calculating fees based on fiat transaction types
-type InternationalBankTransactionType string
+type FeeType uint8
 
 // Const declarations for fee types
 const (
-	BankFee                        FeeType = "bankFee"
-	InternationalBankDepositFee    FeeType = "internationalBankDepositFee"
-	InternationalBankWithdrawalFee FeeType = "internationalBankWithdrawalFee"
-	CryptocurrencyTradeFee         FeeType = "cryptocurrencyTradeFee"
-	CyptocurrencyDepositFee        FeeType = "cyptocurrencyDepositFee"
-	CryptocurrencyWithdrawalFee    FeeType = "cryptocurrencyWithdrawalFee"
+	BankFee FeeType = iota
+	InternationalBankDepositFee
+	InternationalBankWithdrawalFee
+	CryptocurrencyTradeFee
+	CyptocurrencyDepositFee
+	CryptocurrencyWithdrawalFee
+	OfflineTradeFee
 )
+
+// InternationalBankTransactionType custom type for calculating fees based on fiat transaction types
+type InternationalBankTransactionType uint8
 
 // Const declarations for international transaction types
 const (
-	WireTransfer    InternationalBankTransactionType = "wireTransfer"
-	PerfectMoney    InternationalBankTransactionType = "perfectMoney"
-	Neteller        InternationalBankTransactionType = "neteller"
-	AdvCash         InternationalBankTransactionType = "advCash"
-	Payeer          InternationalBankTransactionType = "payeer"
-	Skrill          InternationalBankTransactionType = "skrill"
-	Simplex         InternationalBankTransactionType = "simplex"
-	SEPA            InternationalBankTransactionType = "sepa"
-	Swift           InternationalBankTransactionType = "swift"
-	RapidTransfer   InternationalBankTransactionType = "rapidTransfer"
-	MisterTangoSEPA InternationalBankTransactionType = "misterTangoSepa"
-	Qiwi            InternationalBankTransactionType = "qiwi"
-	VisaMastercard  InternationalBankTransactionType = "visaMastercard"
-	WebMoney        InternationalBankTransactionType = "webMoney"
-	Capitalist      InternationalBankTransactionType = "capitalist"
-	WesternUnion    InternationalBankTransactionType = "westernUnion"
-	MoneyGram       InternationalBankTransactionType = "moneyGram"
-	Contact         InternationalBankTransactionType = "contact"
+	WireTransfer InternationalBankTransactionType = iota
+	PerfectMoney
+	Neteller
+	AdvCash
+	Payeer
+	Skrill
+	Simplex
+	SEPA
+	Swift
+	RapidTransfer
+	MisterTangoSEPA
+	Qiwi
+	VisaMastercard
+	WebMoney
+	Capitalist
+	WesternUnion
+	MoneyGram
+	Contact
 )
 
 // SubmitOrderResponse is what is returned after submitting an order to an
@@ -78,25 +79,22 @@ type SubmitOrderResponse struct {
 // FeeBuilder is the type which holds all parameters required to calculate a fee
 // for an exchange
 type FeeBuilder struct {
-	FeeType FeeType
-	// Used for calculating crypto trading fees, deposits & withdrawals
-	Pair    currency.Pair
-	IsMaker bool
-	// Fiat currency used for bank deposits & withdrawals
+	IsMaker             bool
+	PurchasePrice       float64
+	Amount              float64
+	FeeType             FeeType
 	FiatCurrency        currency.Code
 	BankTransactionType InternationalBankTransactionType
-	// Used to multiply for fee calculations
-	PurchasePrice float64
-	Amount        float64
+	Pair                currency.Pair
 }
 
 // OrderCancellation type required when requesting to cancel an order
 type OrderCancellation struct {
 	AccountID     string
 	OrderID       string
-	CurrencyPair  currency.Pair
 	WalletAddress string
 	Side          OrderSide
+	CurrencyPair  currency.Pair
 }
 
 // WithdrawRequest used for wrapper crypto and FIAT withdraw methods
@@ -990,9 +988,9 @@ func FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
 	}
 
 	var filteredOrders []OrderDetail
-	for _, orderDetail := range *orders {
-		if strings.EqualFold(string(orderDetail.OrderSide), string(orderSide)) {
-			filteredOrders = append(filteredOrders, orderDetail)
+	for i := range *orders {
+		if strings.EqualFold(string((*orders)[i].OrderSide), string(orderSide)) {
+			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
@@ -1006,9 +1004,9 @@ func FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
 	}
 
 	var filteredOrders []OrderDetail
-	for _, orderDetail := range *orders {
-		if strings.EqualFold(string(orderDetail.OrderType), string(orderType)) {
-			filteredOrders = append(filteredOrders, orderDetail)
+	for i := range *orders {
+		if strings.EqualFold(string((*orders)[i].OrderType), string(orderType)) {
+			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
@@ -1023,9 +1021,9 @@ func FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Ti
 	}
 
 	var filteredOrders []OrderDetail
-	for _, orderDetail := range *orders {
-		if orderDetail.OrderDate.Unix() >= startTicks.Unix() && orderDetail.OrderDate.Unix() <= endTicks.Unix() {
-			filteredOrders = append(filteredOrders, orderDetail)
+	for i := range *orders {
+		if (*orders)[i].OrderDate.Unix() >= startTicks.Unix() && (*orders)[i].OrderDate.Unix() <= endTicks.Unix() {
+			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
@@ -1040,16 +1038,16 @@ func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []currency.Pair)
 	}
 
 	var filteredOrders []OrderDetail
-	for _, orderDetail := range *orders {
+	for i := range *orders {
 		matchFound := false
 		for _, c := range currencies {
-			if !matchFound && orderDetail.CurrencyPair.EqualIncludeReciprocal(c) {
+			if !matchFound && (*orders)[i].CurrencyPair.EqualIncludeReciprocal(c) {
 				matchFound = true
 			}
 		}
 
 		if matchFound {
-			filteredOrders = append(filteredOrders, orderDetail)
+			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 

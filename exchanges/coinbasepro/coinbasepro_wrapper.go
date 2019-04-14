@@ -257,9 +257,9 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawReques
 	}
 
 	selectedWithdrawalMethod := PaymentMethod{}
-	for _, paymentMethod := range paymentMethods {
-		if withdrawRequest.BankName == paymentMethod.Name {
-			selectedWithdrawalMethod = paymentMethod
+	for i := range paymentMethods {
+		if withdrawRequest.BankName == paymentMethods[i].Name {
+			selectedWithdrawalMethod = paymentMethods[i]
 			break
 		}
 	}
@@ -288,15 +288,19 @@ func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (c.APIKey == "" || c.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return c.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var respOrders []GeneralizedOrderResponse
-	for _, currency := range getOrdersRequest.Currencies {
+	for i := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"open", "pending", "active"},
-			exchange.FormatExchangeCurrency(c.Name, currency).String())
+			exchange.FormatExchangeCurrency(c.Name, getOrdersRequest.Currencies[i]).String())
 		if err != nil {
 			return nil, err
 		}
@@ -304,21 +308,21 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersReques
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range respOrders {
-		currency := currency.NewPairDelimiter(order.ProductID,
+	for i := range respOrders {
+		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
 			c.ConfigCurrencyPairFormat.Delimiter)
-		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
-		orderType := exchange.OrderType(strings.ToUpper(order.Type))
-		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
+		orderSide := exchange.OrderSide(strings.ToUpper(respOrders[i].Side))
+		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
+		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				c.Name, "GetActiveOrders", order.ID, order.CreatedAt)
+				c.Name, "GetActiveOrders", respOrders[i].ID, respOrders[i].CreatedAt)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:             order.ID,
-			Amount:         order.Size,
-			ExecutedAmount: order.FilledSize,
+			ID:             respOrders[i].ID,
+			Amount:         respOrders[i].Size,
+			ExecutedAmount: respOrders[i].FilledSize,
 			OrderType:      orderType,
 			OrderDate:      orderDate,
 			OrderSide:      orderSide,
@@ -348,21 +352,21 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range respOrders {
-		currency := currency.NewPairDelimiter(order.ProductID,
+	for i := range respOrders {
+		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
 			c.ConfigCurrencyPairFormat.Delimiter)
-		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
-		orderType := exchange.OrderType(strings.ToUpper(order.Type))
-		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
+		orderSide := exchange.OrderSide(strings.ToUpper(respOrders[i].Side))
+		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
+		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				c.Name, "GetActiveOrders", order.ID, order.CreatedAt)
+				c.Name, "GetActiveOrders", respOrders[i].ID, respOrders[i].CreatedAt)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:             order.ID,
-			Amount:         order.Size,
-			ExecutedAmount: order.FilledSize,
+			ID:             respOrders[i].ID,
+			Amount:         respOrders[i].Size,
+			ExecutedAmount: respOrders[i].FilledSize,
 			OrderType:      orderType,
 			OrderDate:      orderDate,
 			OrderSide:      orderSide,

@@ -268,15 +268,15 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 		return nil, errors.New(resp.ErrorMessage)
 	}
 
-	for _, order := range resp.Orders {
-		order.Price /= common.SatoshisPerBTC
-		order.OpenVolume /= common.SatoshisPerBTC
-		order.Volume /= common.SatoshisPerBTC
+	for i := range resp.Orders {
+		resp.Orders[i].Price /= common.SatoshisPerBTC
+		resp.Orders[i].OpenVolume /= common.SatoshisPerBTC
+		resp.Orders[i].Volume /= common.SatoshisPerBTC
 
-		for _, trade := range order.Trades {
-			trade.Fee /= common.SatoshisPerBTC
-			trade.Price /= common.SatoshisPerBTC
-			trade.Volume /= common.SatoshisPerBTC
+		for j := range resp.Orders[i].Trades {
+			resp.Orders[i].Trades[j].Fee /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[j].Price /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[j].Volume /= common.SatoshisPerBTC
 		}
 	}
 
@@ -301,15 +301,15 @@ func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
 		return nil, errors.New(resp.ErrorMessage)
 	}
 
-	for _, order := range resp.Orders {
-		order.Price /= common.SatoshisPerBTC
-		order.OpenVolume /= common.SatoshisPerBTC
-		order.Volume /= common.SatoshisPerBTC
+	for i := range resp.Orders {
+		resp.Orders[i].Price /= common.SatoshisPerBTC
+		resp.Orders[i].OpenVolume /= common.SatoshisPerBTC
+		resp.Orders[i].Volume /= common.SatoshisPerBTC
 
-		for _, trade := range order.Trades {
-			trade.Fee /= common.SatoshisPerBTC
-			trade.Price /= common.SatoshisPerBTC
-			trade.Volume /= common.SatoshisPerBTC
+		for j := range resp.Orders[i].Trades {
+			resp.Orders[i].Trades[j].Fee /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[j].Price /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[j].Volume /= common.SatoshisPerBTC
 		}
 	}
 
@@ -506,11 +506,18 @@ func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
 	}
 	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0085 * price * amount
 }
 
 func calculateTradingFee(tradingFee TradingFee, purchasePrice, amount float64) (fee float64) {

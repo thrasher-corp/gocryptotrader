@@ -185,6 +185,7 @@ func (b *Binance) WSConnect() error {
 // WSReadData reads from the websocket connection and returns the response
 func (b *Binance) WSReadData() (exchange.WebsocketResponse, error) {
 	msgType, resp, err := b.WebsocketConn.ReadMessage()
+
 	if err != nil {
 		return exchange.WebsocketResponse{}, err
 	}
@@ -226,8 +227,8 @@ func (b *Binance) WsHandleData() {
 						string(read.Raw))
 					continue
 				}
-
-				switch multiStreamData.Stream {
+				streamType := strings.Split(multiStreamData.Stream, "@")
+				switch streamType[1] {
 				case "trade":
 					trade := TradeStream{}
 
@@ -274,7 +275,7 @@ func (b *Binance) WsHandleData() {
 
 					var wsTicker exchange.TickerData
 
-					wsTicker.Timestamp = time.Unix(0, t.EventTime)
+					wsTicker.Timestamp = time.Unix(t.EventTime/1000, 0)
 					wsTicker.Pair = currency.NewPairFromString(t.Symbol)
 					wsTicker.AssetType = ticker.Spot
 					wsTicker.Exchange = b.GetName()
@@ -285,6 +286,7 @@ func (b *Binance) WsHandleData() {
 					wsTicker.LowPrice, _ = strconv.ParseFloat(t.LowPrice, 64)
 
 					b.Websocket.DataHandler <- wsTicker
+
 					continue
 				case "kline":
 					kline := KlineStream{}

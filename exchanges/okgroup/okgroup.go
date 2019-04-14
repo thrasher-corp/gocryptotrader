@@ -256,9 +256,11 @@ func (o *OKGroup) PlaceSpotOrder(request *PlaceSpotOrderRequest) (resp PlaceSpot
 func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[string][]PlaceSpotOrderResponse, []error) {
 	currencyPairOrders := make(map[string]int)
 	resp := make(map[string][]PlaceSpotOrderResponse)
-	for _, order := range request {
-		currencyPairOrders[order.InstrumentID]++
+
+	for i := range request {
+		currencyPairOrders[request[i].InstrumentID]++
 	}
+
 	if len(currencyPairOrders) > 4 {
 		return resp, []error{errors.New("up to 4 trading pairs")}
 	}
@@ -456,8 +458,8 @@ func (o *OKGroup) PlaceMarginOrder(request *PlaceSpotOrderRequest) (resp PlaceSp
 func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (map[string][]PlaceSpotOrderResponse, []error) {
 	currencyPairOrders := make(map[string]int)
 	resp := make(map[string][]PlaceSpotOrderResponse)
-	for _, order := range request {
-		currencyPairOrders[order.InstrumentID]++
+	for i := range request {
+		currencyPairOrders[request[i].InstrumentID]++
 	}
 	if len(currencyPairOrders) > 4 {
 		return resp, []error{errors.New("up to 4 trading pairs")}
@@ -680,6 +682,8 @@ func (o *OKGroup) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, _ error)
 				break
 			}
 		}
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -688,10 +692,15 @@ func (o *OKGroup) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, _ error)
 	return fee, nil
 }
 
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0015 * price * amount
+}
+
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
 	// TODO volume based fees
 	if isMaker {
-		fee = 0.001
+		fee = 0.0005
 	} else {
 		fee = 0.0015
 	}

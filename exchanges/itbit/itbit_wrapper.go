@@ -252,10 +252,10 @@ func (i *ItBit) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, openOrder := range openOrders {
-		err = i.CancelExistingOrder(orderCancellation.WalletAddress, openOrder.ID)
+	for j := range openOrders {
+		err = i.CancelExistingOrder(orderCancellation.WalletAddress, openOrders[j].ID)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[openOrder.ID] = err.Error()
+			cancelAllOrdersResponse.OrderStatus[openOrders[j].ID] = err.Error()
 		}
 	}
 
@@ -301,6 +301,10 @@ func (i *ItBit) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (i.APIKey == "" || i.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	return i.GetFee(feeBuilder)
 }
 
@@ -321,22 +325,22 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Instrument,
+	for j := range allOrders {
+		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
 			i.ConfigCurrencyPairFormat.Delimiter)
-		side := exchange.OrderSide(strings.ToUpper(order.Side))
-		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
+		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
+		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				i.Name, "GetActiveOrders", order.ID, order.CreatedTime)
+				i.Name, "GetActiveOrders", allOrders[j].ID, allOrders[j].CreatedTime)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:              order.ID,
+			ID:              allOrders[j].ID,
 			OrderSide:       side,
-			Amount:          order.Amount,
-			ExecutedAmount:  order.AmountFilled,
-			RemainingAmount: (order.Amount - order.AmountFilled),
+			Amount:          allOrders[j].Amount,
+			ExecutedAmount:  allOrders[j].AmountFilled,
+			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
 			Exchange:        i.Name,
 			OrderDate:       orderDate,
 			CurrencyPair:    symbol,
@@ -369,26 +373,26 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	}
 
 	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		if order.Type == "open" {
+	for j := range allOrders {
+		if allOrders[j].Type == "open" {
 			continue
 		}
 
-		symbol := currency.NewPairDelimiter(order.Instrument,
+		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
 			i.ConfigCurrencyPairFormat.Delimiter)
-		side := exchange.OrderSide(strings.ToUpper(order.Side))
-		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
+		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
+		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				i.Name, "GetActiveOrders", order.ID, order.CreatedTime)
+				i.Name, "GetActiveOrders", allOrders[j].ID, allOrders[j].CreatedTime)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:              order.ID,
+			ID:              allOrders[j].ID,
 			OrderSide:       side,
-			Amount:          order.Amount,
-			ExecutedAmount:  order.AmountFilled,
-			RemainingAmount: (order.Amount - order.AmountFilled),
+			Amount:          allOrders[j].Amount,
+			ExecutedAmount:  allOrders[j].AmountFilled,
+			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
 			Exchange:        i.Name,
 			OrderDate:       orderDate,
 			CurrencyPair:    symbol,
