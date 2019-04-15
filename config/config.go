@@ -35,6 +35,8 @@ const (
 	configPairsLastUpdatedWarningThreshold = 30 // 30 days
 	configDefaultHTTPTimeout               = time.Second * 15
 	configMaxAuthFailres                   = 3
+	allowedDifference                      = 50000000
+	allowedNegativeDifference              = 50000000
 )
 
 // Constants here hold some messages
@@ -1102,14 +1104,14 @@ func (c *Config) CheckNTPConfig() {
 	m.Lock()
 	defer m.Unlock()
 
-	if c.NTPClient.AllowedDifference == nil {
+	if c.NTPClient.AllowedDifference == nil || *c.NTPClient.AllowedDifference == 0 {
 		c.NTPClient.AllowedDifference = new(time.Duration)
-		*c.NTPClient.AllowedDifference = 50000000
+		*c.NTPClient.AllowedDifference = allowedDifference
 	}
 
-	if c.NTPClient.AllowedNegativeDifference == nil {
+	if c.NTPClient.AllowedNegativeDifference == nil || *c.NTPClient.AllowedNegativeDifference == 0 {
 		c.NTPClient.AllowedNegativeDifference = new(time.Duration)
-		*c.NTPClient.AllowedNegativeDifference = 50000000
+		*c.NTPClient.AllowedNegativeDifference = allowedNegativeDifference
 	}
 
 	if len(c.NTPClient.Pool) < 1 {
@@ -1134,7 +1136,7 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 			return "", err
 		}
 
-		answer = strings.Replace(answer, "\n", "", -1)
+		answer = strings.TrimRight(answer, "\r\n")
 		switch answer {
 		case "a":
 			c.NTPClient.Level = 0

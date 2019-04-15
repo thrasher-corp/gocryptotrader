@@ -214,7 +214,7 @@ comm method and add in your contact list if available.
 
 ## Configure Network Time Server 
 
-+ To configure and enable a NPT server you need to set the "enabled" field to one of 3 values -1 is disabled 0 is enabled and alert at start up 1 is enabled and warn at start up
++ To configure and enable a NTP server you need to set the "enabled" field to one of 3 values -1 is disabled 0 is enabled and alert at start up 1 is enabled and warn at start up
 servers are configured by the pool array and attempted first to last allowedDifference and allowedNegativeDifference are how far ahead and behind is acceptable for the time to be out in nanoseconds
 
 ```js
