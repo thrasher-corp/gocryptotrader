@@ -1019,10 +1019,10 @@ func TestCheckNTPConfig(t *testing.T) {
 	}
 
 	if c.NTPClient.AllowedDifference == nil {
-		t.Error("ntpclient with nil alloweddifference should default to sane vale")
+		t.Error("ntpclient with nil alloweddifference should default to sane value")
 	}
 
 	if c.NTPClient.AllowedNegativeDifference == nil {
-		t.Error("ntpclient with nil allowednegativedifference should default to sane vale")
+		t.Error("ntpclient with nil allowednegativedifference should default to sane value")
 	}
 }
