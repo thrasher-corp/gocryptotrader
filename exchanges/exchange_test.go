@@ -401,6 +401,7 @@ func TestGetEnabledCurrencies(t *testing.T) {
 	format := config.CurrencyPairFormatConfig{
 		Delimiter: "-",
 		Index:     "",
+		Uppercase: true,
 	}
 
 	b.RequestCurrencyPairFormat = format
@@ -466,6 +467,7 @@ func TestGetAvailableCurrencies(t *testing.T) {
 	format := config.CurrencyPairFormatConfig{
 		Delimiter: "-",
 		Index:     "",
+		Uppercase: true,
 	}
 
 	b.RequestCurrencyPairFormat = format

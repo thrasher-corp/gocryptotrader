@@ -50,13 +50,19 @@ func TestPairsFormat(t *testing.T) {
 	expected = "btc:usd,btc:aud,btc:ltc"
 	if pairs.Format(":", "", false).Join() != expected {
 		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
-			expected, pairs.Format("-", "", true).Join())
+			expected, pairs.Format(":", "", false).Join())
 	}
 
-	expected = "btc:krw,btc:krw,btc:krw"
-	if pairs.Format(":", "krw", false).Join() != expected {
+	if pairs.Format(":", "KRW", false).Join() != "" {
 		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
-			expected, pairs.Format("-", "", true).Join())
+			expected, pairs.Format(":", "KRW", true).Join())
+	}
+
+	pairs = NewPairsFromStrings([]string{"DASHKRW", "BTCKRW"})
+	expected = "dash-krw,btc-krw"
+	if pairs.Format("-", "KRW", false).Join() != expected {
+		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
+			expected, pairs.Format("-", "KRW", false).Join())
 	}
 }
 

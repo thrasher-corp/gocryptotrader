@@ -610,7 +610,7 @@ func (c *Config) GetEnabledPairs(exchName string) (currency.Pairs, error) {
 		return nil, err
 	}
 
-	return exchCfg.AvailablePairs.Format(exchCfg.ConfigCurrencyPairFormat.Delimiter,
+	return exchCfg.EnabledPairs.Format(exchCfg.ConfigCurrencyPairFormat.Delimiter,
 		exchCfg.ConfigCurrencyPairFormat.Index,
 		exchCfg.ConfigCurrencyPairFormat.Uppercase), nil
 }
