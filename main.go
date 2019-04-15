@@ -115,7 +115,7 @@ func main() {
 			NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
 			if bot.config.NTPClient.Level == 0 {
 				if NTPcurrentTimeDifference >= *bot.config.NTPClient.AllowedDifference || NTPcurrentTimeDifference <= *bot.config.NTPClient.AllowedNegativeDifference {
-					log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
+					log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / -%v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
 					disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
 					if errNTP != nil {
 						log.Errorf("failed to disable ntp time check reason: %v", err)
@@ -123,7 +123,7 @@ func main() {
 					log.Info(disable)
 				}
 			} else {
-				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
+				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / -%v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
 			}
 		}
 	}
