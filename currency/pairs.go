@@ -4,6 +4,7 @@ import (
 	"math/rand"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -41,19 +42,25 @@ func (p Pairs) Join() string {
 func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
 	var pairs Pairs
 	for i := range p {
-		var formattedPair Pair
-		formattedPair.Delimiter = delimiter
-		formattedPair.Base = p[i].Base
-		formattedPair.Quote = p[i].Quote
-
+		var formattedPair = Pair{
+			Delimiter: delimiter,
+			Base:      p[i].Base,
+			Quote:     p[i].Quote,
+		}
 		if index != "" {
-			formattedPair.Quote = NewCode(index)
+			newP, err := NewPairFromIndex(p[i].String(), index)
+			if err != nil {
+				log.Errorf("failed to create NewPairFromIndex. Err: %s", err)
+				continue
+			}
+			formattedPair.Base = newP.Base
+			formattedPair.Quote = newP.Quote
 		}
 
 		if uppercase {
 			pairs = append(pairs, formattedPair.Upper())
 		} else {
-			pairs = append(pairs, formattedPair)
+			pairs = append(pairs, formattedPair.Lower())
 		}
 	}
 	return pairs
