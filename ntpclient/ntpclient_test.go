@@ -8,20 +8,20 @@ func TestNTPClient(t *testing.T) {
 	pool := []string{"pool.ntp.org:123", "0.pool.ntp.org:123"}
 	NTPTime, err := NTPClient(pool)
 	if err != nil {
-		t.Errorf("NTPClient() failed to get time %v", err)
+		t.Errorf("failed to get time %v", err)
 	}
 	if NTPTime.IsZero() {
-		t.Error("Expected time but 0,0 returned")
+		t.Error("expected time but 0,0 returned")
 	}
 	invalidpool := []string{"pool.thisisinvalid.org"}
 	_, err = NTPClient(invalidpool)
 	if err == nil {
-		t.Errorf("NTPClient() failed to get time %v", err)
+		t.Errorf("failed to get time %v", err)
 	}
 
 	firstInvalid := []string{"pool.thisisinvalid.org", "pool.ntp.org:123", "0.pool.ntp.org:123"}
 	_, err = NTPClient(firstInvalid)
 	if err != nil {
-		t.Errorf("NTPClient() failed to get time %v", err)
+		t.Errorf("failed to get time %v", err)
 	}
 }

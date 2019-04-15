@@ -982,25 +982,25 @@ func TestDisableNTPCheck(t *testing.T) {
 
 	warn, err := c.DisableNTPCheck(strings.NewReader("w\n"))
 	if err != nil {
-		t.Errorf("Failed reason: %v", err)
+		t.Errorf("failed reason: %v", err)
 	}
 
 	if warn != "Time sync has been set to warn only" {
-		t.Errorf("Failed expected %v got %v", "Time sync has been set to warn only", warn)
+		t.Errorf("failed expected %v got %v", "Time sync has been set to warn only", warn)
 	}
 	alert, _ := c.DisableNTPCheck(strings.NewReader("a\n"))
 	if alert != "Time sync has been set to alert" {
-		t.Errorf("Failed expected %v got %v", "Time sync has been set to alert", alert)
+		t.Errorf("failed expected %v got %v", "Time sync has been set to alert", alert)
 	}
 
 	disable, _ := c.DisableNTPCheck(strings.NewReader("d\n"))
 	if disable != "Future notications for out time sync have been disabled" {
-		t.Errorf("Failed expected %v got %v", "Future notications for out time sync have been disabled", disable)
+		t.Errorf("failed expected %v got %v", "Future notications for out time sync have been disabled", disable)
 	}
 
 	_, err = c.DisableNTPCheck(strings.NewReader(" "))
 	if err.Error() != "EOF" {
-		t.Errorf("Failed expected EOF got: %v", err)
+		t.Errorf("failed expected EOF got: %v", err)
 	}
 }
 
@@ -1016,14 +1016,14 @@ func TestCheckNTPConfig(t *testing.T) {
 	c.CheckNTPConfig()
 
 	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
-		t.Error("NTPClient with no valid pool should default to pool.ntp.org ")
+		t.Error("ntpclient with no valid pool should default to pool.ntp.org ")
 	}
 
 	if c.NTPClient.AllowedDifference == nil {
-		t.Error("NTPClient with nil AllowedDifference should default to sane vale")
+		t.Error("ntpclient with nil alloweddifference should default to sane vale")
 	}
 
 	if c.NTPClient.AllowedNegativeDifference == nil {
-		t.Error("NTPClient with nil AllowedNegativeDifference should default to sane vale")
+		t.Error("ntpclient with nil allowednegativedifference should default to sane vale")
 	}
 }
