@@ -404,7 +404,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 
 	err = common.JSONDecode(intermediary, &errCap)
 	if err == nil {
-		if errCap.Code != 0 {
+		if errCap.Code > 1000 {
 			return fmt.Errorf("sendAuthenticatedHTTPRequest error code: %d message %s",
 				errCap.Code,
 				errorCode[errCap.Code])
