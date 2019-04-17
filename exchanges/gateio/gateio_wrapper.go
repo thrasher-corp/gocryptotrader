@@ -371,6 +371,7 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			OrderSide:       side,
 			Exchange:        g.Name,
 			CurrencyPair:    symbol,
+			Status:          resp.Orders[i].Status,
 		})
 	}
 
