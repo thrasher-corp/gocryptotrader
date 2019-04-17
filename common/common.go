@@ -621,29 +621,19 @@ func CreateDir(dir string) error {
 	return os.MkdirAll(dir, 0770)
 }
 
-// ListAllDir lists all the directories and files in an array
-func ListAllDir(directory string) ([]string, error) {
-	var list []string
-	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			list = append(list, path)
+// ChangePerm lists all the directories and files in an array
+func ChangePerm(directory string) error {
+	return filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.Mode().Perm() != 0770 {
+			chModErr := os.Chmod(path, 0770)
+			if chModErr != nil {
+				return errors.New("directory provided is invalid")
+			}
+			return chModErr
 		}
 		return nil
 	})
-	return list, err
-}
-
-// ChangePerm changes file permissions in a given directory to 0770
-func ChangePerm(env string) error {
-	a, err := ListAllDir(GetDefaultDataDir(env))
-	if err != nil {
-		return errors.New("Directory provided is invalid")
-	}
-	for i := range a {
-		b, _ := os.Stat(a[i])
-		if b.Mode().Perm() != 0770 {
-			os.Chmod(a[i], 0770)
-		}
-	}
-	return nil
 }

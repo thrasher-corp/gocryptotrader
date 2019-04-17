@@ -955,10 +955,19 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 }
 
 func TestGetDefaultDataDir(t *testing.T) {
-	expectedOutput := os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
-	actualOutput := GetDefaultDataDir("windows")
-	if actualOutput != expectedOutput {
-		t.Errorf("Unexpected result. Got: %v Expected: %v", actualOutput, expectedOutput)
+	switch {
+	case runtime.GOOS == "windows":
+		expectedOutput := os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
+		actualOutput := GetDefaultDataDir("windows")
+		if actualOutput != expectedOutput {
+			t.Errorf("Unexpected result. Got: %v Expected: %v", actualOutput, expectedOutput)
+		}
+	case runtime.GOOS == "linux" || runtime.GOOS == "darwin":
+		expectedOutput := os.Getenv("$HOME") + ".gocryptotrader"
+		actualOutput := GetDefaultDataDir(runtime.GOOS)
+		if actualOutput != expectedOutput {
+			t.Errorf("Unexpected result. Got: %v Expected: %v", actualOutput, expectedOutput)
+		}
 	}
 }
 
@@ -1021,9 +1030,45 @@ func TestCreateDir(t *testing.T) {
 	}
 }
 
-func TestListAllDir(t *testing.T) {
-	_, err := ListAllDir(GetDefaultDataDir("windows"))
-	if err != nil {
-		t.Error("Something bad happened", err)
+func TestChangePerm(t *testing.T) {
+	switch {
+	case runtime.GOOS == "linux" || runtime.GOOS == "darwin":
+		err1 := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		if err1 != nil {
+			t.Errorf("Mkdir failed")
+		}
+		err2 := ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		if err2 != nil {
+			t.Errorf("ChangePerm was unsuccessful")
+		}
+		a, err3 := os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err3 != nil {
+			t.Errorf("Permissions error since directory exists")
+		}
+		if a.Mode().Perm() != 0770 {
+			t.Errorf("Permission change failed")
+		}
+		err4 := RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err4 != nil {
+			t.Errorf("Directory deletion failed")
+		}
+
+	case runtime.GOOS == "windows":
+		err1 := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		if err1 != nil {
+			t.Errorf("Mkdir failed")
+		}
+		err2 := ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		if err2 != nil {
+			t.Errorf("ChangePerm was unsuccessful")
+		}
+		_, err3 := os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err3 != nil {
+			t.Errorf("Permissions error since directory exists")
+		}
+		err4 := RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err4 != nil {
+			t.Errorf("Directory deletion failed")
+		}
 	}
 }
