@@ -957,16 +957,24 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 func TestGetDefaultDataDir(t *testing.T) {
 	switch {
 	case runtime.GOOS == "windows":
-		expectedOutput := os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
+		dir, ok := os.LookupEnv("APPDATA")
+		if !ok {
+			t.Fatal("APPDATA is not set")
+		}
+		dir += GetOSPathSlash() + "GoCryptoTrader"
 		actualOutput := GetDefaultDataDir("windows")
-		if actualOutput != expectedOutput {
-			t.Errorf("Unexpected result. Got: %v Expected: %v", actualOutput, expectedOutput)
+		if actualOutput != dir {
+			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
 		}
 	case runtime.GOOS == "linux" || runtime.GOOS == "darwin":
-		expectedOutput := os.Getenv("$HOME") + ".gocryptotrader"
+		dir, ok := os.LookupEnv("$HOME")
+		if !ok {
+			t.Fatal("$HOME is not set")
+		}
+		dir += GetOSPathSlash() + ".gocryptotrader"
 		actualOutput := GetDefaultDataDir(runtime.GOOS)
-		if actualOutput != expectedOutput {
-			t.Errorf("Unexpected result. Got: %v Expected: %v", actualOutput, expectedOutput)
+		if actualOutput != dir {
+			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
 		}
 	}
 }
@@ -978,54 +986,54 @@ func TestCreateDir(t *testing.T) {
 		dir, _ := os.LookupEnv("TEMP")
 		err := CreateDir(dir)
 		if err != nil {
-			t.Errorf("got err: %v", err)
+			t.Fatalf("CreateDir failed. Err: %v", err)
 		}
 		// test for creating a directory
 		dir, _ = os.LookupEnv("APPDATA")
 		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
 		err = CreateDir(dir)
 		if err != nil {
-			t.Errorf("Err: %s", err)
+			t.Fatalf("CreateDir failed. Err: %s", err)
 		}
 		os.Remove(dir)
 		dir, _ = os.LookupEnv("*")
 		err = CreateDir(dir)
 		if err == nil {
-			t.Errorf("Expected err due to invalid path, but got nil")
+			t.Fatal("expected err due to invalid path, but got nil")
 		}
 		// same tests for linux
 	case "linux":
 		dir := "/home"
 		err := CreateDir(dir)
 		if err != nil {
-			t.Errorf("got err: %v", err)
+			t.Fatalf("CreateDir failed. Err: %v", err)
 		}
 		dir = path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
 		if err != nil {
-			t.Errorf("Err: %s", err)
+			t.Errorf("CreateDir failed. Err: %s", err)
 		}
 		os.Remove(dir)
 		err = CreateDir("")
 		if err == nil {
-			t.Errorf("Expected err due to invalid path, but got nil")
+			t.Fatal("expected err due to invalid path, but got nil")
 		}
 		// Same tests for macs
 	case "darwin":
 		dir := "/home"
 		err := CreateDir(dir)
 		if err != nil {
-			t.Errorf("got err: %v", err)
+			t.Fatalf("CreateDir failed. Err: %v", err)
 		}
 		dir = path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
 		if err != nil {
-			t.Errorf("Err: %s", err)
+			t.Fatalf("CreateDir failed. Err: %s", err)
 		}
 		os.Remove(dir)
 		err = CreateDir(":")
 		if err == nil {
-			t.Errorf("Expected err due to invalid path, but got nil")
+			t.Fatal("expected err due to invalid path, but got nil")
 		}
 	}
 }
@@ -1033,42 +1041,43 @@ func TestCreateDir(t *testing.T) {
 func TestChangePerm(t *testing.T) {
 	switch {
 	case runtime.GOOS == "linux" || runtime.GOOS == "darwin":
-		err1 := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
-		if err1 != nil {
-			t.Errorf("Mkdir failed")
+		err := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		if err != nil {
+			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
-		err2 := ChangePerm(GetDefaultDataDir(runtime.GOOS))
-		if err2 != nil {
-			t.Errorf("ChangePerm was unsuccessful")
+		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		if err != nil {
+			t.Fatal("ChangePerm was unsuccessful")
 		}
-		a, err3 := os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
-		if err3 != nil {
-			t.Errorf("Permissions error since directory exists")
+		var a os.FileInfo
+		a, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("os.Stat failed. Err: %v", err)
 		}
 		if a.Mode().Perm() != 0770 {
-			t.Errorf("Permission change failed")
+			t.Fatalf("expected file permissions differ. expecting 0770 got %#o", a.Mode().Perm())
 		}
-		err4 := RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
-		if err4 != nil {
-			t.Errorf("Directory deletion failed")
+		err = RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("RemoveFile failed. Err: %v", err)
 		}
 
 	case runtime.GOOS == "windows":
-		err1 := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
-		if err1 != nil {
-			t.Errorf("Mkdir failed")
+		err := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		if err != nil {
+			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
-		err2 := ChangePerm(GetDefaultDataDir(runtime.GOOS))
-		if err2 != nil {
-			t.Errorf("ChangePerm was unsuccessful")
+		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		if err != nil {
+			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
 		}
-		_, err3 := os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
-		if err3 != nil {
-			t.Errorf("Permissions error since directory exists")
+		_, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("os.Stat failed. Err: %v", err)
 		}
-		err4 := RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
-		if err4 != nil {
-			t.Errorf("Directory deletion failed")
+		err = RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("RemoveFile failed. Err: %v", err)
 		}
 	}
 }
