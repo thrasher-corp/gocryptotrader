@@ -113,20 +113,18 @@ func main() {
 			log.Warnf("NTPClient failed to create: %v", errNTP)
 		} else {
 			NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
-			if bot.config.NTPClient.Level == 0 {
-				configTime := *bot.config.NTPClient.AllowedDifference
-				configNegativeTime := (*bot.config.NTPClient.AllowedNegativeDifference - (*bot.config.NTPClient.AllowedNegativeDifference * 2))
-				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / -%v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
-				if NTPcurrentTimeDifference > configTime || NTPcurrentTimeDifference < configNegativeTime {
-					log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / -%v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
+			configNTPTime := *bot.config.NTPClient.AllowedDifference
+			configNTPNegativeTime := (*bot.config.NTPClient.AllowedNegativeDifference - (*bot.config.NTPClient.AllowedNegativeDifference * 2))
+			if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
+				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
+				if bot.config.NTPClient.Level == 0 {
 					disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
 					if errNTP != nil {
 						log.Errorf("failed to disable ntp time check reason: %v", err)
+					} else {
+						log.Info(disable)
 					}
-					log.Info(disable)
 				}
-			} else {
-				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / -%v", NTPTime, currentTime, NTPcurrentTimeDifference, bot.config.NTPClient.AllowedDifference, bot.config.NTPClient.AllowedNegativeDifference)
 			}
 		}
 	}

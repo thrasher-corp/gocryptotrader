@@ -1109,7 +1109,7 @@ func (c *Config) CheckNTPConfig() {
 		*c.NTPClient.AllowedDifference = defaultNTPAllowedDifference
 	}
 
-	if c.NTPClient.AllowedNegativeDifference == nil || *c.NTPClient.AllowedNegativeDifference == 0 {
+	if c.NTPClient.AllowedNegativeDifference == nil || *c.NTPClient.AllowedNegativeDifference <= 0 {
 		c.NTPClient.AllowedNegativeDifference = new(time.Duration)
 		*c.NTPClient.AllowedNegativeDifference = defaultNTPAllowedNegativeDifference
 	}
