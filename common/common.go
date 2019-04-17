@@ -632,11 +632,7 @@ func ChangePerm(directory string) error {
 			return err
 		}
 		if info.Mode().Perm() != 0770 {
-			chModErr := os.Chmod(path, 0770)
-			if chModErr != nil {
-				return chModErr
-			}
-			return nil
+			return os.Chmod(path, 0770)
 		}
 		return nil
 	})
