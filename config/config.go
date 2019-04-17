@@ -35,8 +35,8 @@ const (
 	configPairsLastUpdatedWarningThreshold = 30 // 30 days
 	configDefaultHTTPTimeout               = time.Second * 15
 	configMaxAuthFailres                   = 3
-	allowedDifference                      = 50000000
-	allowedNegativeDifference              = 50000000
+	defaultNTPAllowedDifference            = 50000000
+	defaultNTPAllowedNegativeDifference    = -50000000
 )
 
 // Constants here hold some messages
@@ -1106,12 +1106,12 @@ func (c *Config) CheckNTPConfig() {
 
 	if c.NTPClient.AllowedDifference == nil || *c.NTPClient.AllowedDifference == 0 {
 		c.NTPClient.AllowedDifference = new(time.Duration)
-		*c.NTPClient.AllowedDifference = allowedDifference
+		*c.NTPClient.AllowedDifference = defaultNTPAllowedDifference
 	}
 
 	if c.NTPClient.AllowedNegativeDifference == nil || *c.NTPClient.AllowedNegativeDifference == 0 {
 		c.NTPClient.AllowedNegativeDifference = new(time.Duration)
-		*c.NTPClient.AllowedNegativeDifference = allowedNegativeDifference
+		*c.NTPClient.AllowedNegativeDifference = defaultNTPAllowedNegativeDifference
 	}
 
 	if len(c.NTPClient.Pool) < 1 {

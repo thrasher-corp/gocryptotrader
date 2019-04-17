@@ -977,11 +977,9 @@ func TestDisableNTPCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _ = ntpclient.NTPClient(c.NTPClient.Pool)
-
 	warn, err := c.DisableNTPCheck(strings.NewReader("w\n"))
 	if err != nil {
-		t.Errorf("failed reason: %v", err)
+		t.Fatalf("test failed to create ntpclient failed reason: %v", err)
 	}
 
 	if warn != "Time sync has been set to warn only" {
@@ -1011,8 +1009,11 @@ func TestCheckNTPConfig(t *testing.T) {
 	c.NTPClient.AllowedNegativeDifference = nil
 	c.NTPClient.AllowedDifference = nil
 
-	_, _ = ntpclient.NTPClient(c.NTPClient.Pool)
 	c.CheckNTPConfig()
+	_, err := ntpclient.NTPClient(c.NTPClient.Pool)
+	if err != nil {
+		t.Fatalf("test failed to create ntpclient failed reason: %v", err)
+	}
 
 	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
 		t.Error("ntpclient with no valid pool should default to pool.ntp.org ")
