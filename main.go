@@ -89,7 +89,7 @@ func main() {
 		log.Fatalf("Failed to load config. Err: %s", err)
 	}
 
-	err = common.CheckDir(bot.dataDir, true)
+	err = common.CreateDir(bot.dataDir)
 	if err != nil {
 		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
 	}
