@@ -1008,8 +1008,7 @@ func TestCreateDir(t *testing.T) {
 		}
 
 		// test for looking up an invalid directory
-		dir, _ = os.LookupEnv("*")
-		err = CreateDir(dir)
+		err = CreateDir("")
 		if err == nil {
 			t.Fatal("expected err due to invalid path, but got nil")
 		}
@@ -1058,7 +1057,10 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateDir failed. Err: %s", err)
 		}
-		os.Remove(dir)
+		err = os.Remove(dir)
+		if err != nil {
+			t.Fatalf("Failed to remove file. Err: %v", err)
+		}
 
 		err = CreateDir(":")
 		if err == nil {
