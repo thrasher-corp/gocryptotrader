@@ -36,7 +36,7 @@ const (
 	configDefaultHTTPTimeout               = time.Second * 15
 	configMaxAuthFailres                   = 3
 	defaultNTPAllowedDifference            = 50000000
-	defaultNTPAllowedNegativeDifference    = -50000000
+	defaultNTPAllowedNegativeDifference    = 50000000
 )
 
 // Constants here hold some messages
