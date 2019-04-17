@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -120,6 +121,14 @@ func (b *BTSE) WsHandleData() {
 			type MsgType struct {
 				Type      string `json:"type"`
 				ProductID string `json:"product_id"`
+			}
+
+			if strings.Contains(string(resp.Raw), "connect success") {
+				if b.Verbose {
+					log.Debugf("%s websocket client successfully connected to %s",
+						b.Name, b.Websocket.GetWebsocketURL())
+				}
+				continue
 			}
 
 			msgType := MsgType{}
