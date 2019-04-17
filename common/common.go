@@ -607,7 +607,11 @@ func GetDefaultDataDir(env string) string {
 	if env == "windows" {
 		return os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
 	}
-	return path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader")
+	dir, ok := os.LookupEnv("HOME")
+	if !ok {
+		return ""
+	}
+	return path.Join(dir, ".gocryptotrader")
 }
 
 // CreateDir creates a directory based on the supplied parameter
@@ -630,9 +634,9 @@ func ChangePerm(directory string) error {
 		if info.Mode().Perm() != 0770 {
 			chModErr := os.Chmod(path, 0770)
 			if chModErr != nil {
-				return errors.New("directory provided is invalid")
+				return chModErr
 			}
-			return chModErr
+			return nil
 		}
 		return nil
 	})

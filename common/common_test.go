@@ -967,9 +967,9 @@ func TestGetDefaultDataDir(t *testing.T) {
 			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
 		}
 	case runtime.GOOS == "linux" || runtime.GOOS == "darwin":
-		dir, ok := os.LookupEnv("$HOME")
+		dir, ok := os.LookupEnv("HOME")
 		if !ok {
-			t.Fatal("$HOME is not set")
+			t.Fatal("HOME is not set")
 		}
 		dir += GetOSPathSlash() + ".gocryptotrader"
 		actualOutput := GetDefaultDataDir(runtime.GOOS)
@@ -1008,7 +1008,12 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateDir failed. Err: %v", err)
 		}
-		dir = path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader", "TestFileASFG")
+		var ok bool
+		dir, ok = os.LookupEnv("HOME")
+		if !ok {
+			t.Fatalf("LookupEnv of HOME failed")
+		}
+		dir = path.Join(dir, ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
 		if err != nil {
 			t.Errorf("CreateDir failed. Err: %s", err)
@@ -1025,7 +1030,12 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateDir failed. Err: %v", err)
 		}
-		dir = path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader", "TestFileASFG")
+		var ok bool
+		dir, ok = os.LookupEnv("HOME")
+		if !ok {
+			t.Fatalf("LookupEnv of HOME failed")
+		}
+		dir = path.Join(dir, ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
 		if err != nil {
 			t.Fatalf("CreateDir failed. Err: %s", err)
@@ -1041,6 +1051,17 @@ func TestCreateDir(t *testing.T) {
 func TestChangePerm(t *testing.T) {
 	switch {
 	case runtime.GOOS == "linux" || runtime.GOOS == "darwin":
+		if runtime.GOOS == "linux" {
+			err := ChangePerm("")
+			if err == nil {
+				t.Fatalf("expected an error on non-existent path")
+			}
+		} else {
+			err := ChangePerm(":")
+			if err == nil {
+				t.Fatalf("expected an error on non-existent path")
+			}
+		}
 		err := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
@@ -1063,7 +1084,11 @@ func TestChangePerm(t *testing.T) {
 		}
 
 	case runtime.GOOS == "windows":
-		err := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		err := ChangePerm("*")
+		if err == nil {
+			t.Fatalf("expected an error on non-existent path")
+		}
+		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
