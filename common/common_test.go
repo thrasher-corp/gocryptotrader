@@ -985,7 +985,7 @@ func TestCreateDir(t *testing.T) {
 		// test for a directory that exists
 		dir, ok := os.LookupEnv("TEMP")
 		if !ok {
-			t.Fatalf("LookupEnv failed. TEMP is not set")
+			t.Fatal("LookupEnv failed. TEMP is not set")
 		}
 		err := CreateDir(dir)
 		if err != nil {
@@ -995,7 +995,7 @@ func TestCreateDir(t *testing.T) {
 		// test for creating a directory
 		dir, ok = os.LookupEnv("APPDATA")
 		if !ok {
-			t.Fatalf("LookupEnv failed. APPDATA is not set")
+			t.Fatal("LookupEnv failed. APPDATA is not set")
 		}
 		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
 		err = CreateDir(dir)
@@ -1022,7 +1022,7 @@ func TestCreateDir(t *testing.T) {
 		var ok bool
 		dir, ok = os.LookupEnv("HOME")
 		if !ok {
-			t.Fatalf("LookupEnv of HOME failed")
+			t.Fatal("LookupEnv of HOME failed")
 		}
 		dir = path.Join(dir, ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
@@ -1050,7 +1050,7 @@ func TestCreateDir(t *testing.T) {
 		var ok bool
 		dir, ok = os.LookupEnv("HOME")
 		if !ok {
-			t.Fatalf("LookupEnv of HOME failed")
+			t.Fatal("LookupEnv of HOME failed")
 		}
 		dir = path.Join(dir, ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
@@ -1075,12 +1075,12 @@ func TestChangePerm(t *testing.T) {
 		if runtime.GOOS == "linux" {
 			err := ChangePerm("")
 			if err == nil {
-				t.Fatalf("expected an error on non-existent path")
+				t.Fatal("expected an error on non-existent path")
 			}
 		} else {
 			err := ChangePerm(":")
 			if err == nil {
-				t.Fatalf("expected an error on non-existent path")
+				t.Fatal("expected an error on non-existent path")
 			}
 		}
 		err := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
@@ -1107,7 +1107,7 @@ func TestChangePerm(t *testing.T) {
 	case "windows":
 		err := ChangePerm("*")
 		if err == nil {
-			t.Fatalf("expected an error on non-existent path")
+			t.Fatal("expected an error on non-existent path")
 		}
 		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
 		if err != nil {
