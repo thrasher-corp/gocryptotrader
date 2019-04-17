@@ -1099,7 +1099,7 @@ func (c *Config) CheckLoggerConfig() error {
 	return nil
 }
 
-// CheckNTPConfig() check for incorrectly configured NTP server config entires and load sane defaults
+// CheckNTPConfig() checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
 func (c *Config) CheckNTPConfig() {
 	m.Lock()
 	defer m.Unlock()
