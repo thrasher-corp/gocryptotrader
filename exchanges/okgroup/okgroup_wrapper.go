@@ -364,9 +364,13 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 		for i := range spotOpenOrders {
 			resp = append(resp, exchange.OrderDetail{
+				ID:             spotOpenOrders[i].OrderID,
+				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
 				CurrencyPair:   currency,
 				Exchange:       o.Name,
+				OrderSide:      exchange.OrderSide(spotOpenOrders[i].Side),
+				OrderType:      exchange.OrderType(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
 				OrderDate:      spotOpenOrders[i].Timestamp,
 				Status:         spotOpenOrders[i].Status,
