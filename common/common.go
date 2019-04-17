@@ -607,25 +607,33 @@ func GetDefaultDataDir(env string) string {
 	if env == "windows" {
 		return os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
 	}
-	return path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader")
+	dir, ok := os.LookupEnv("HOME")
+	if !ok {
+		return ""
+	}
+	return path.Join(dir, ".gocryptotrader")
 }
 
-// CheckDir checks to see if a particular directory exists
-// and attempts to create it if desired, if it doesn't exist
-func CheckDir(dir string, create bool) error {
+// CreateDir creates a directory based on the supplied parameter
+func CreateDir(dir string) error {
 	_, err := os.Stat(dir)
 	if !os.IsNotExist(err) {
 		return nil
 	}
 
-	if !create {
-		return fmt.Errorf("directory %s does not exist. Err: %s", dir, err)
-	}
-
 	log.Warnf("Directory %s does not exist.. creating.", dir)
-	err = os.MkdirAll(dir, 0777)
-	if err != nil {
-		return fmt.Errorf("failed to create dir. Err: %s", err)
-	}
-	return nil
+	return os.MkdirAll(dir, 0770)
+}
+
+// ChangePerm lists all the directories and files in an array
+func ChangePerm(directory string) error {
+	return filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.Mode().Perm() != 0770 {
+			return os.Chmod(path, 0770)
+		}
+		return nil
+	})
 }
