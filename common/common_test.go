@@ -1034,7 +1034,7 @@ func TestCreateDir(t *testing.T) {
 			t.Fatalf("Failed to remove file. Err: %v", err)
 		}
 
-		// test for looking up an invalid directory
+		// test for creating an invalid directory
 		err = CreateDir("")
 		if err == nil {
 			t.Fatal("expected err due to invalid path, but got nil")
