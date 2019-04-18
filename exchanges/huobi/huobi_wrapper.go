@@ -500,18 +500,14 @@ func setOrderSideAndType(requestType string, orderDetail *exchange.OrderDetail) 
 	case SpotNewOrderRequestTypeBuyMarket:
 		orderDetail.OrderSide = exchange.BuyOrderSide
 		orderDetail.OrderType = exchange.MarketOrderType
-		break
 	case SpotNewOrderRequestTypeSellMarket:
 		orderDetail.OrderSide = exchange.SellOrderSide
 		orderDetail.OrderType = exchange.MarketOrderType
-		break
 	case SpotNewOrderRequestTypeBuyLimit:
 		orderDetail.OrderSide = exchange.BuyOrderSide
 		orderDetail.OrderType = exchange.LimitOrderType
-		break
 	case SpotNewOrderRequestTypeSellLimit:
 		orderDetail.OrderSide = exchange.SellOrderSide
 		orderDetail.OrderType = exchange.LimitOrderType
-		break
 	}
 }
