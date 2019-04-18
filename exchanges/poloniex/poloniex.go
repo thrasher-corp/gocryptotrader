@@ -53,6 +53,8 @@ const (
 
 	poloniexAuthRate   = 6
 	poloniexUnauthRate = 6
+
+	poloniexDateLayout = "2006-01-02 15:04:05"
 )
 
 // Poloniex is the overarching type across the poloniex package
@@ -477,20 +479,14 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (Authen
 	}
 
 	values.Set("currencyPair", "all")
-	var result interface{}
+	var result AuthenticatedTradeHistoryAll
 
-	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexTradeHistory, values, &result)
+	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexTradeHistory, values, &result.Data)
 	if err != nil {
 		return AuthenticatedTradeHistoryAll{}, err
 	}
 
-	// If there are no orders, Poloniex returns an empty array
-	switch r := result.(type) {
-	case AuthenticatedTradeHistoryAll:
-		return r, nil
-	default:
-		return AuthenticatedTradeHistoryAll{}, nil
-	}
+	return result, nil
 }
 
 // PlaceOrder places a new order on the exchange
@@ -878,6 +874,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	} else {
 		p.Nonce.Inc()
 	}
+
 	values.Set("nonce", p.Nonce.String())
 	values.Set("command", endpoint)
 

@@ -124,11 +124,12 @@ type SpotNewOrderRequestParams struct {
 
 // SpotNewOrderResponse Order response
 type SpotNewOrderResponse struct {
-	OrderNumber  int64   `json:"orderNumber"`         // OrderID number
-	Price        float64 `json:"rate,string"`         // Order price
-	LeftAmount   float64 `json:"leftAmount,string"`   // The remaining amount to fill
-	FilledAmount float64 `json:"filledAmount,string"` // The filled amount
-	Filledrate   float64 `json:"filledRate,string"`   // FilledPrice
+	OrderNumber  int64       `json:"orderNumber"`         // OrderID number
+	Price        float64     `json:"rate,string"`         // Order price
+	LeftAmount   float64     `json:"leftAmount,string"`   // The remaining amount to fill
+	FilledAmount float64     `json:"filledAmount,string"` // The filled amount
+	Filledrate   interface{} `json:"filledRate"`          // FilledPrice. if we send a market order, the exchange returns float64.
+	//			  if we set a limit order, which will remain in the order book, the exchange will return the string
 }
 
 // OpenOrdersResponse the main response from GetOpenOrders

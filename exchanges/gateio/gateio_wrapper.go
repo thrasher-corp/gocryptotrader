@@ -224,7 +224,7 @@ func (g *Gateio) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchang
 	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
 
 	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
 	}
 
 	if err == nil {
@@ -371,6 +371,7 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			OrderSide:       side,
 			Exchange:        g.Name,
 			CurrencyPair:    symbol,
+			Status:          resp.Orders[i].Status,
 		})
 	}
 

@@ -422,18 +422,22 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 
 		for i := range resp {
-			orderDate := time.Unix(resp[i].CreatedAt, 0)
+			orderDetail := exchange.OrderDetail{
+				ID:             fmt.Sprintf("%v", resp[i].ID),
+				Price:          resp[i].Price,
+				Amount:         resp[i].Amount,
+				CurrencyPair:   c,
+				Exchange:       h.Name,
+				ExecutedAmount: resp[i].FilledAmount,
+				OrderDate:      time.Unix(resp[i].CreatedAt, 0),
+				Status:         resp[i].State,
+				AccountID:      strconv.FormatFloat(resp[i].AccountID, 'f', -1, 64),
+				Fee:            resp[i].FilledFees,
+			}
 
-			orders = append(orders, exchange.OrderDetail{
-				ID:              fmt.Sprintf("%v", resp[i].ID),
-				Exchange:        h.Name,
-				Amount:          resp[i].Amount,
-				Price:           resp[i].Price,
-				OrderDate:       orderDate,
-				ExecutedAmount:  resp[i].FilledAmount,
-				RemainingAmount: (resp[i].Amount - resp[i].FilledAmount),
-				CurrencyPair:    c,
-			})
+			setOrderSideAndType(resp[i].Type, &orderDetail)
+
+			orders = append(orders, orderDetail)
 		}
 	}
 
@@ -466,16 +470,22 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 
 		for i := range resp {
-			orderDate := time.Unix(resp[i].CreatedAt, 0)
+			orderDetail := exchange.OrderDetail{
+				ID:             fmt.Sprintf("%v", resp[i].ID),
+				Price:          resp[i].Price,
+				Amount:         resp[i].Amount,
+				CurrencyPair:   c,
+				Exchange:       h.Name,
+				ExecutedAmount: resp[i].FilledAmount,
+				OrderDate:      time.Unix(resp[i].CreatedAt, 0),
+				Status:         resp[i].State,
+				AccountID:      strconv.FormatFloat(resp[i].AccountID, 'f', -1, 64),
+				Fee:            resp[i].FilledFees,
+			}
 
-			orders = append(orders, exchange.OrderDetail{
-				ID:           fmt.Sprintf("%v", resp[i].ID),
-				Exchange:     h.Name,
-				Amount:       resp[i].Amount,
-				Price:        resp[i].Price,
-				OrderDate:    orderDate,
-				CurrencyPair: c,
-			})
+			setOrderSideAndType(resp[i].Type, &orderDetail)
+
+			orders = append(orders, orderDetail)
 		}
 	}
 
@@ -483,4 +493,21 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		getOrdersRequest.EndTicks)
 
 	return orders, nil
+}
+
+func setOrderSideAndType(requestType string, orderDetail *exchange.OrderDetail) {
+	switch SpotNewOrderRequestParamsType(requestType) {
+	case SpotNewOrderRequestTypeBuyMarket:
+		orderDetail.OrderSide = exchange.BuyOrderSide
+		orderDetail.OrderType = exchange.MarketOrderType
+	case SpotNewOrderRequestTypeSellMarket:
+		orderDetail.OrderSide = exchange.SellOrderSide
+		orderDetail.OrderType = exchange.MarketOrderType
+	case SpotNewOrderRequestTypeBuyLimit:
+		orderDetail.OrderSide = exchange.BuyOrderSide
+		orderDetail.OrderType = exchange.LimitOrderType
+	case SpotNewOrderRequestTypeSellLimit:
+		orderDetail.OrderSide = exchange.SellOrderSide
+		orderDetail.OrderType = exchange.LimitOrderType
+	}
 }
