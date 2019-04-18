@@ -421,21 +421,21 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			return nil, err
 		}
 
-		for _, orderDetailResp := range resp {
+		for i := range resp {
 			orderDetail := exchange.OrderDetail{
-				ID:             fmt.Sprintf("%v", orderDetailResp.ID),
-				Price:          orderDetailResp.Price,
-				Amount:         orderDetailResp.Amount,
+				ID:             fmt.Sprintf("%v", resp[i].ID),
+				Price:          resp[i].Price,
+				Amount:         resp[i].Amount,
 				CurrencyPair:   c,
 				Exchange:       h.Name,
-				ExecutedAmount: orderDetailResp.FilledAmount,
-				OrderDate:      time.Unix(orderDetailResp.CreatedAt, 0),
-				Status:         orderDetailResp.State,
-				AccountID:      strconv.FormatFloat(orderDetailResp.AccountID, 'f', -1, 64),
-				Fee:            orderDetailResp.FilledFees,
+				ExecutedAmount: resp[i].FilledAmount,
+				OrderDate:      time.Unix(resp[i].CreatedAt, 0),
+				Status:         resp[i].State,
+				AccountID:      strconv.FormatFloat(resp[i].AccountID, 'f', -1, 64),
+				Fee:            resp[i].FilledFees,
 			}
 
-			setOrderSideAndType(orderDetailResp.Type, &orderDetail)
+			setOrderSideAndType(resp[i].Type, &orderDetail)
 
 			orders = append(orders, orderDetail)
 		}
@@ -469,21 +469,21 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			return nil, err
 		}
 
-		for _, orderDetailResp := range resp {
+		for i := range resp {
 			orderDetail := exchange.OrderDetail{
-				ID:             fmt.Sprintf("%v", orderDetailResp.ID),
-				Price:          orderDetailResp.Price,
-				Amount:         orderDetailResp.Amount,
+				ID:             fmt.Sprintf("%v", resp[i].ID),
+				Price:          resp[i].Price,
+				Amount:         resp[i].Amount,
 				CurrencyPair:   c,
 				Exchange:       h.Name,
-				ExecutedAmount: orderDetailResp.FilledAmount,
-				OrderDate:      time.Unix(orderDetailResp.CreatedAt, 0),
-				Status:         orderDetailResp.State,
-				AccountID:      strconv.FormatFloat(orderDetailResp.AccountID, 'f', -1, 64),
-				Fee:            orderDetailResp.FilledFees,
+				ExecutedAmount: resp[i].FilledAmount,
+				OrderDate:      time.Unix(resp[i].CreatedAt, 0),
+				Status:         resp[i].State,
+				AccountID:      strconv.FormatFloat(resp[i].AccountID, 'f', -1, 64),
+				Fee:            resp[i].FilledFees,
 			}
 
-			setOrderSideAndType(orderDetailResp.Type, &orderDetail)
+			setOrderSideAndType(resp[i].Type, &orderDetail)
 
 			orders = append(orders, orderDetail)
 		}
