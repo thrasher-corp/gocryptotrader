@@ -303,7 +303,7 @@ type IBotExchange interface {
 	GetAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
 	SetCurrencies(pairs []currency.Pair, enabledPairs bool) error
-	GetExchangeHistory(currency.Pair, string) ([]TradeHistory, error)
+	GetExchangeHistory(p currency.Pair, assetType string) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool

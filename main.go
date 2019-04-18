@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-/gocryptotrader/ntpclient"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -87,7 +89,7 @@ func main() {
 		log.Fatalf("Failed to load config. Err: %s", err)
 	}
 
-	err = common.CheckDir(bot.dataDir, true)
+	err = common.CreateDir(bot.dataDir)
 	if err != nil {
 		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
 	}
@@ -101,6 +103,30 @@ func main() {
 	err = log.SetupLogger()
 	if err != nil {
 		log.Errorf("Failed to setup logger reason: %s", err)
+	}
+
+	if bot.config.NTPClient.Level != -1 {
+		bot.config.CheckNTPConfig()
+		NTPTime, errNTP := ntpclient.NTPClient(bot.config.NTPClient.Pool)
+		currentTime := time.Now()
+		if errNTP != nil {
+			log.Warnf("NTPClient failed to create: %v", errNTP)
+		} else {
+			NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
+			configNTPTime := *bot.config.NTPClient.AllowedDifference
+			configNTPNegativeTime := (*bot.config.NTPClient.AllowedNegativeDifference - (*bot.config.NTPClient.AllowedNegativeDifference * 2))
+			if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
+				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
+				if bot.config.NTPClient.Level == 0 {
+					disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
+					if errNTP != nil {
+						log.Errorf("failed to disable ntp time check reason: %v", errNTP)
+					} else {
+						log.Info(disable)
+					}
+				}
+			}
+		}
 	}
 
 	AdjustGoMaxProcs()
