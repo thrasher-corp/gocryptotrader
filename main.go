@@ -120,7 +120,7 @@ func main() {
 				if bot.config.NTPClient.Level == 0 {
 					disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
 					if errNTP != nil {
-						log.Errorf("failed to disable ntp time check reason: %v", err)
+						log.Errorf("failed to disable ntp time check reason: %v", errNTP)
 					} else {
 						log.Info(disable)
 					}
