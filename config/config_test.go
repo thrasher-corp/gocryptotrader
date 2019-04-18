@@ -1,11 +1,13 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-/gocryptotrader/ntpclient"
 )
 
 const (
@@ -965,5 +967,63 @@ func TestCheckLoggerConfig(t *testing.T) {
 	err = c.CheckLoggerConfig()
 	if err != nil {
 		t.Errorf("Failed to create logger with user settings: reason: %v", err)
+	}
+}
+
+func TestDisableNTPCheck(t *testing.T) {
+	c := GetConfig()
+	err := c.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	warn, err := c.DisableNTPCheck(strings.NewReader("w\n"))
+	if err != nil {
+		t.Fatalf("test failed to create ntpclient failed reason: %v", err)
+	}
+
+	if warn != "Time sync has been set to warn only" {
+		t.Errorf("failed expected %v got %v", "Time sync has been set to warn only", warn)
+	}
+	alert, _ := c.DisableNTPCheck(strings.NewReader("a\n"))
+	if alert != "Time sync has been set to alert" {
+		t.Errorf("failed expected %v got %v", "Time sync has been set to alert", alert)
+	}
+
+	disable, _ := c.DisableNTPCheck(strings.NewReader("d\n"))
+	if disable != "Future notications for out time sync have been disabled" {
+		t.Errorf("failed expected %v got %v", "Future notications for out time sync have been disabled", disable)
+	}
+
+	_, err = c.DisableNTPCheck(strings.NewReader(" "))
+	if err.Error() != "EOF" {
+		t.Errorf("failed expected EOF got: %v", err)
+	}
+}
+
+func TestCheckNTPConfig(t *testing.T) {
+	c := GetConfig()
+
+	c.NTPClient.Level = 0
+	c.NTPClient.Pool = nil
+	c.NTPClient.AllowedNegativeDifference = nil
+	c.NTPClient.AllowedDifference = nil
+
+	c.CheckNTPConfig()
+	_, err := ntpclient.NTPClient(c.NTPClient.Pool)
+	if err != nil {
+		t.Fatalf("test failed to create ntpclient failed reason: %v", err)
+	}
+
+	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
+		t.Error("ntpclient with no valid pool should default to pool.ntp.org ")
+	}
+
+	if c.NTPClient.AllowedDifference == nil {
+		t.Error("ntpclient with nil alloweddifference should default to sane value")
+	}
+
+	if c.NTPClient.AllowedNegativeDifference == nil {
+		t.Error("ntpclient with nil allowednegativedifference should default to sane value")
 	}
 }

@@ -1,14 +1,17 @@
 package config
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +35,8 @@ const (
 	configPairsLastUpdatedWarningThreshold = 30 // 30 days
 	configDefaultHTTPTimeout               = time.Second * 15
 	configMaxAuthFailres                   = 3
+	defaultNTPAllowedDifference            = 50000000
+	defaultNTPAllowedNegativeDifference    = 50000000
 )
 
 // Constants here hold some messages
@@ -104,6 +109,7 @@ type Config struct {
 	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
 	Logging           log.Logging          `json:"logging"`
 	Profiler          ProfilerConfig       `json:"profiler"`
+	NTPClient         NTPClientConfig      `json:"ntpclient"`
 	Currency          CurrencyConfig       `json:"currencyConfig"`
 	Communications    CommunicationsConfig `json:"communications"`
 	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
@@ -120,6 +126,13 @@ type Config struct {
 
 type ProfilerConfig struct {
 	Enabled bool `json:"enabled"`
+}
+
+type NTPClientConfig struct {
+	Level                     int            `json:"enabled"`
+	Pool                      []string       `json:"pool"`
+	AllowedDifference         *time.Duration `json:"allowedDifference"`
+	AllowedNegativeDifference *time.Duration `json:"allowedNegativeDifference"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -1084,6 +1097,62 @@ func (c *Config) CheckLoggerConfig() error {
 		log.LogPath = logPath
 	}
 	return nil
+}
+
+// CheckNTPConfig() checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
+func (c *Config) CheckNTPConfig() {
+	m.Lock()
+	defer m.Unlock()
+
+	if c.NTPClient.AllowedDifference == nil || *c.NTPClient.AllowedDifference == 0 {
+		c.NTPClient.AllowedDifference = new(time.Duration)
+		*c.NTPClient.AllowedDifference = defaultNTPAllowedDifference
+	}
+
+	if c.NTPClient.AllowedNegativeDifference == nil || *c.NTPClient.AllowedNegativeDifference <= 0 {
+		c.NTPClient.AllowedNegativeDifference = new(time.Duration)
+		*c.NTPClient.AllowedNegativeDifference = defaultNTPAllowedNegativeDifference
+	}
+
+	if len(c.NTPClient.Pool) < 1 {
+		log.Warn("NTPClient enabled with no servers configured enabling default pool")
+		c.NTPClient.Pool = []string{"pool.ntp.org:123"}
+	}
+}
+
+// DisableNTPCheck() allows the user to change how they are prompted for timesync alerts
+func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	reader := bufio.NewReader(input)
+	log.Warn("Your system time is out of sync this may cause issues with trading")
+	log.Warn("How would you like to show future notifications? (a)lert / (w)arn / (d)isable \n")
+
+	var answered = false
+	for ok := true; ok; ok = (!answered) {
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+
+		answer = strings.TrimRight(answer, "\r\n")
+		switch answer {
+		case "a":
+			c.NTPClient.Level = 0
+			answered = true
+			return "Time sync has been set to alert", nil
+		case "w":
+			c.NTPClient.Level = 1
+			answered = true
+			return "Time sync has been set to warn only", nil
+		case "d":
+			c.NTPClient.Level = -1
+			answered = true
+			return "Future notications for out time sync have been disabled", nil
+		}
+	}
+	return "", errors.New("something went wrong NTPCheck should never make it this far")
 }
 
 // GetFilePath returns the desired config file or the default config file name
