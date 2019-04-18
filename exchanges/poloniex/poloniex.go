@@ -870,7 +870,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	headers["Key"] = p.APIKey
 
 	if p.Nonce.Get() == 0 {
-		p.Nonce.Set(time.Now().UnixNano())
+		p.Nonce.Set(time.Now().UnixNano() * 2) // TODO: this weird fixing 422 error (wrong nonce). if who find a better way -- please fix this spike
 	} else {
 		p.Nonce.Inc()
 	}
