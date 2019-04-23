@@ -276,7 +276,7 @@ func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string
 	defer m.Unlock()
 
 	for x := range c.Exchanges {
-		if c.Exchanges[x].Name == exchangeName {
+		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
 			for y := range c.Exchanges[x].BankAccounts {
 				if common.StringContains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
 					depositingCurrency) {
@@ -297,7 +297,7 @@ func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []BankA
 	defer m.Unlock()
 
 	for i := range c.Exchanges {
-		if c.Exchanges[i].Name == exchangeName {
+		if strings.EqualFold(c.Exchanges[i].Name, exchangeName) {
 			c.Exchanges[i].BankAccounts = bankCfg
 			return nil
 		}
@@ -698,7 +698,7 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Exchanges {
-		if c.Exchanges[i].Name == name {
+		if strings.EqualFold(c.Exchanges[i].Name, name) {
 			return c.Exchanges[i], nil
 		}
 	}
@@ -710,7 +710,7 @@ func (c *Config) GetForexProviderConfig(name string) (base.Settings, error) {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Currency.ForexProviders {
-		if c.Currency.ForexProviders[i].Name == name {
+		if strings.EqualFold(c.Currency.ForexProviders[i].Name, name) {
 			return c.Currency.ForexProviders[i], nil
 		}
 	}
@@ -734,7 +734,7 @@ func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Exchanges {
-		if c.Exchanges[i].Name == e.Name {
+		if strings.EqualFold(c.Exchanges[i].Name, e.Name) {
 			c.Exchanges[i] = *e
 			return nil
 		}
@@ -747,7 +747,7 @@ func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
 func (c *Config) CheckExchangeConfigValues() error {
 	exchanges := 0
 	for i := range c.Exchanges {
-		if c.Exchanges[i].Name == "GDAX" {
+		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
 			c.Exchanges[i].Name = "CoinbasePro"
 		}
 

@@ -206,20 +206,20 @@ func StringDataCompare(haystack []string, needle string) bool {
 	return false
 }
 
-// StringDataCompareUpper data checks the substring array with an input and returns
+// StringDataCompareInsensitive data checks the substring array with an input and returns
 // a bool irrespective of lower or upper case strings
-func StringDataCompareUpper(haystack []string, needle string) bool {
+func StringDataCompareInsensitive(haystack []string, needle string) bool {
 	for x := range haystack {
-		if StringToUpper(haystack[x]) == StringToUpper(needle) {
+		if strings.EqualFold(haystack[x], needle) {
 			return true
 		}
 	}
 	return false
 }
 
-// StringDataContainsUpper checks the substring array with an input and returns
+// StringDataContainsInsensitive checks the substring array with an input and returns
 // a bool irrespective of lower or upper case strings
-func StringDataContainsUpper(haystack []string, needle string) bool {
+func StringDataContainsInsensitive(haystack []string, needle string) bool {
 	for _, data := range haystack {
 		if strings.Contains(StringToUpper(data), StringToUpper(needle)) {
 			return true

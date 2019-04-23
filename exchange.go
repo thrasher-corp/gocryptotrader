@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -49,7 +50,7 @@ var (
 // been loaded
 func CheckExchangeExists(exchName string) bool {
 	for x := range bot.exchanges {
-		if common.StringToLower(bot.exchanges[x].GetName()) == common.StringToLower(exchName) {
+		if strings.EqualFold(bot.exchanges[x].GetName(), exchName) {
 			return true
 		}
 	}
@@ -59,7 +60,7 @@ func CheckExchangeExists(exchName string) bool {
 // GetExchangeByName returns an exchange given an exchange name
 func GetExchangeByName(exchName string) exchange.IBotExchange {
 	for x := range bot.exchanges {
-		if common.StringToLower(bot.exchanges[x].GetName()) == common.StringToLower(exchName) {
+		if strings.EqualFold(bot.exchanges[x].GetName(), exchName) {
 			return bot.exchanges[x]
 		}
 	}
@@ -68,13 +69,11 @@ func GetExchangeByName(exchName string) exchange.IBotExchange {
 
 // ReloadExchange loads an exchange config by name
 func ReloadExchange(name string) error {
-	nameLower := common.StringToLower(name)
-
 	if len(bot.exchanges) == 0 {
 		return ErrNoExchangesLoaded
 	}
 
-	if !CheckExchangeExists(nameLower) {
+	if !CheckExchangeExists(name) {
 		return ErrExchangeNotFound
 	}
 
@@ -83,7 +82,7 @@ func ReloadExchange(name string) error {
 		return err
 	}
 
-	e := GetExchangeByName(nameLower)
+	e := GetExchangeByName(name)
 	e.Setup(&exchCfg)
 	log.Debugf("%s exchange reloaded successfully.\n", name)
 	return nil
@@ -91,13 +90,11 @@ func ReloadExchange(name string) error {
 
 // UnloadExchange unloads an exchange by name
 func UnloadExchange(name string) error {
-	nameLower := common.StringToLower(name)
-
 	if len(bot.exchanges) == 0 {
 		return ErrNoExchangesLoaded
 	}
 
-	if !CheckExchangeExists(nameLower) {
+	if !CheckExchangeExists(name) {
 		return ErrExchangeNotFound
 	}
 
@@ -113,7 +110,7 @@ func UnloadExchange(name string) error {
 	}
 
 	for x := range bot.exchanges {
-		if bot.exchanges[x].GetName() == name {
+		if strings.EqualFold(bot.exchanges[x].GetName(), name) {
 			bot.exchanges[x].SetEnabled(false)
 			bot.exchanges = append(bot.exchanges[:x], bot.exchanges[x+1:]...)
 			return nil
@@ -129,7 +126,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	var exch exchange.IBotExchange
 
 	if len(bot.exchanges) > 0 {
-		if CheckExchangeExists(nameLower) {
+		if CheckExchangeExists(name) {
 			return ErrExchangeAlreadyLoaded
 		}
 	}

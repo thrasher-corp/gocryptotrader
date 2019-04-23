@@ -338,13 +338,13 @@ func TestStringDataCompareUpper(t *testing.T) {
 	anotherNeedle := "WoRldD"
 	expectedOutput := true
 	expectedOutputTwo := false
-	actualResult := StringDataCompareUpper(originalHaystack, originalNeedle)
+	actualResult := StringDataCompareInsensitive(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 
-	actualResult = StringDataCompareUpper(originalHaystack, anotherNeedle)
+	actualResult = StringDataCompareInsensitive(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
@@ -358,12 +358,12 @@ func TestStringDataContainsUpper(t *testing.T) {
 	anotherNeedle := "ning"
 	expectedOutput := true
 	expectedOutputTwo := false
-	actualResult := StringDataContainsUpper(originalHaystack, originalNeedle)
+	actualResult := StringDataContainsInsensitive(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
-	actualResult = StringDataContainsUpper(originalHaystack, anotherNeedle)
+	actualResult = StringDataContainsInsensitive(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)

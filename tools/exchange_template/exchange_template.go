@@ -110,7 +110,7 @@ func main() {
 		configTestExchanges = append(configTestExchanges, configTestFile.Exchanges[x].Name)
 	}
 
-	if common.StringDataContainsUpper(configTestExchanges, capName) {
+	if common.StringDataContainsInsensitive(configTestExchanges, capName) {
 		log.Fatal("GoCryptoTrader: Exchange templating configuration error - exchange already exists")
 	}
 
