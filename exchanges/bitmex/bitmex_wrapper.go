@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -61,10 +61,9 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 	currency := exchange.FormatExchangeCurrency(b.Name, p)
 
 	tick, err := b.GetTrade(&GenericRequestParams{
-		Symbol:    currency.String(),
-		StartTime: time.Now().Format(time.RFC3339),
-		Reverse:   true,
-		Count:     1})
+		Symbol:  currency.String(),
+		Reverse: true,
+		Count:   1})
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -109,12 +108,12 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.B
 	}
 
 	for _, ob := range orderbookNew {
-		if ob.Side == exchange.SellOrderSide.ToString() {
+		if strings.EqualFold(ob.Side, exchange.SellOrderSide.ToString()) {
 			orderBook.Asks = append(orderBook.Asks,
 				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
 			continue
 		}
-		if ob.Side == exchange.BuyOrderSide.ToString() {
+		if strings.EqualFold(ob.Side, exchange.BuyOrderSide.ToString()) {
 			orderBook.Bids = append(orderBook.Bids,
 				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
 			continue

@@ -220,7 +220,7 @@ func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Cli
 
 // IsValidMethod returns whether the supplied method is supported
 func IsValidMethod(method string) bool {
-	return common.StringDataCompareUpper(supportedMethods, method)
+	return common.StringDataCompareInsensitive(supportedMethods, method)
 }
 
 // IsValidCycle checks to see whether the current request cycle is valid or not
