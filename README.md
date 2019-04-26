@@ -39,7 +39,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Pro | Yes | Yes | NA |
 | Huobi.Hadax | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
-| Kraken | Yes | NA | NA |
+| Kraken | Yes | Yes | NA |
 | LakeBTC | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
@@ -131,17 +131,20 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 496 |
-| shazbert | https://github.com/shazbert | 158 |
-| gloriousCode | https://github.com/gloriousCode | 141 |
+| thrasher- | https://github.com/thrasher- | 526 |
+| shazbert | https://github.com/shazbert | 166 |
+| gloriousCode | https://github.com/gloriousCode | 146 |
 | ermalguni | https://github.com/ermalguni | 14 |
+| xtda | https://github.com/xtda | 11 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 8 |
+| vadimzhukck | https://github.com/vadimzhukck | 8 |
 | cranktakular | https://github.com/cranktakular | 5 |
 | crackcomm | https://github.com/crackcomm | 3 |
-| xtda | https://github.com/xtda | 2 |
+| MadCozBadd | https://github.com/MadCozBadd | 2 |
 | andreygrehov | https://github.com/andreygrehov | 2 |
 | bretep | https://github.com/bretep | 2 |
+| woshidama323 | https://github.com/woshidama323 | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
 | cornelk | https://github.com/cornelk | 2 |
 | if1live | https://github.com/if1live | 2 |
@@ -149,10 +152,10 @@ Binaries will be published once the codebase reaches a stable condition.
 | herenow | https://github.com/herenow | 2 |
 | blombard | https://github.com/blombard | 1 |
 | CodeLingoBot | https://github.com/CodeLingoBot | 1 |
+| CodeLingoTeam | https://github.com/CodeLingoTeam | 1 |
 | Daanikus | https://github.com/Daanikus | 1 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
 | frankzougc | https://github.com/frankzougc | 1 |
-| woshidama323 | https://github.com/woshidama323 | 1 |
 | starit | https://github.com/starit | 1 |
 | Jimexist | https://github.com/Jimexist | 1 |
 | lookfirst | https://github.com/lookfirst | 1 |

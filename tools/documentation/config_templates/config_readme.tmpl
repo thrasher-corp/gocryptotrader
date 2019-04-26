@@ -193,6 +193,23 @@ comm method and add in your contact list if available.
 },
 ```
 
+
+## Configure Network Time Server 
+
++ To configure and enable a NTP server you need to set the "enabled" field to one of 3 values -1 is disabled 0 is enabled and alert at start up 1 is enabled and warn at start up
+servers are configured by the pool array and attempted first to last allowedDifference and allowedNegativeDifference are how far ahead and behind is acceptable for the time to be out in nanoseconds
+
+```js
+ "ntpclient": {
+  "enabled": 0,
+  "pool": [
+   "pool.ntp.org:123"
+  ],
+  "allowedDifference": 0,
+  "allowedNegativeDifference": 0
+ },
+ ```
+
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}
 {{template "donations"}}
