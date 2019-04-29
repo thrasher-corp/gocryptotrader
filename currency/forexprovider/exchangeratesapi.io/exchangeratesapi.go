@@ -176,6 +176,7 @@ func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, resu
 		nil,
 		&result,
 		false,
+		false,
 		e.Verbose)
 	if err != nil {
 		return fmt.Errorf("exchangeRatesAPI SendHTTPRequest error %s with path %s",

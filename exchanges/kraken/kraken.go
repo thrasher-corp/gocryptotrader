@@ -926,7 +926,7 @@ func GetError(apiErrors []string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
 func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
-	return k.SendPayload(http.MethodGet, path, nil, nil, result, false, k.Verbose)
+	return k.SendPayload(http.MethodGet, path, nil, nil, result, false, false, k.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -937,13 +937,10 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	}
 
 	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
-	if k.Nonce.Get() == 0 {
-		k.Nonce.Set(time.Now().UnixNano())
-	} else {
-		k.Nonce.Inc()
-	}
 
-	params.Set("nonce", k.Nonce.String())
+	n := strconv.FormatInt(k.Requester.GetNonce(true), 10)
+
+	params.Set("nonce", n)
 
 	secret, err := common.Base64Decode(k.APISecret)
 	if err != nil {
@@ -971,6 +968,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 		headers,
 		strings.NewReader(encoded),
 		result,
+		true,
 		true,
 		k.Verbose)
 }

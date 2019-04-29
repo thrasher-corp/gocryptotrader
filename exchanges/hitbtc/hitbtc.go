@@ -591,7 +591,7 @@ func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, h.Verbose)
+	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
@@ -611,6 +611,7 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values ur
 		bytes.NewBufferString(values.Encode()),
 		result,
 		true,
+		false,
 		h.Verbose)
 }
 

@@ -338,20 +338,17 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
 	}
 
-	if c.Nonce.Get() == 0 {
-		c.Nonce.Set(time.Now().Unix())
-	} else {
-		c.Nonce.Inc()
-	}
+	n := c.Requester.GetNonce(false)
 
 	if params == nil {
 		params = map[string]interface{}{}
 	}
-	params["nonce"] = c.Nonce.Get()
+	params["nonce"] = n
 	params["request"] = apiRequest
 
 	payload, err := common.JSONEncode(params)
 	if err != nil {
+		c.Requester.UnlockFifo()
 		return errors.New("sendHTTPRequest: Unable to JSON request")
 	}
 
@@ -374,6 +371,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		bytes.NewBuffer(payload),
 		&rawMsg,
 		authenticated,
+		true,
 		c.Verbose)
 	if err != nil {
 		return err

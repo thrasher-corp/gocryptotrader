@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -23,6 +25,7 @@ const (
 	maxRequestJobs              = 50
 	proxyTLSTimeout             = 15 * time.Second
 	defaultTimeoutRetryAttempts = 3
+	fifoSecTimer                = time.Second
 )
 
 // Requester struct for the request client
@@ -37,6 +40,8 @@ type Requester struct {
 	m                    sync.Mutex
 	Jobs                 chan Job
 	WorkerStarted        bool
+	Nonce                nonce.Nonce
+	fifoLock             sync.Mutex
 }
 
 // RateLimit struct
@@ -391,29 +396,39 @@ func (r *Requester) worker() {
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
+func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose bool) error {
+	if !nonceEnabled {
+		r.fifoLock.Lock()
+	}
+
 	if r == nil || r.Name == "" {
+		r.fifoLock.Unlock()
 		return errors.New("not initiliased, SetDefaults() called before making request?")
 	}
 
 	if !IsValidMethod(method) {
+		r.fifoLock.Unlock()
 		return fmt.Errorf("incorrect method supplied %s: supported %s", method, supportedMethods)
 	}
 
 	if path == "" {
+		r.fifoLock.Unlock()
 		return errors.New("invalid path")
 	}
 
 	req, err := r.checkRequest(method, path, body, headers)
 	if err != nil {
+		r.fifoLock.Unlock()
 		return err
 	}
 
 	if !r.RequiresRateLimiter() {
+		r.fifoLock.Unlock()
 		return r.DoRequest(req, path, body, result, authRequest, verbose)
 	}
 
 	if len(r.Jobs) == maxRequestJobs {
+		r.fifoLock.Unlock()
 		return errors.New("max request jobs reached")
 	}
 
@@ -443,6 +458,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		log.Debugf("%s request. Attaching new job.", r.Name)
 	}
 	r.Jobs <- newJob
+	r.fifoLock.Unlock()
 
 	if verbose {
 		log.Debugf("%s request. Waiting for job to complete.", r.Name)
@@ -453,6 +469,41 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		log.Debugf("%s request. Job complete.", r.Name)
 	}
 	return resp.Error
+}
+
+// GetNonce returns a nonce for requests. This locks and enforces concurrent
+// nonce FIFO on the buffered job channel
+func (r *Requester) GetNonce(isNano bool) int64 {
+	r.fifoLock.Lock()
+	if r.Nonce.Get() == 0 {
+		if isNano {
+			r.Nonce.Set(time.Now().UnixNano())
+		} else {
+			r.Nonce.Set(time.Now().Unix())
+		}
+		return r.Nonce.Get()
+	}
+	r.Nonce.Inc()
+	return r.Nonce.Get()
+}
+
+// GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
+// nonce FIFO on the buffered job channel this is for millisecond
+func (r *Requester) GetNonceMilli() int64 {
+	r.fifoLock.Lock()
+	if r.Nonce.Get() == 0 {
+		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
+		return r.Nonce.Get()
+	}
+	r.Nonce.Inc()
+	return r.Nonce.Get()
+}
+
+// UnlockFifo is a helper func that relates to unlocking the mutex that waits
+// until a job is pushed on the buffered channel. This will be used if there is
+// a potential error that could occur prior to send payload being used.
+func (r *Requester) UnlockFifo() {
+	r.fifoLock.Unlock()
 }
 
 // SetProxy sets a proxy address to the client transport

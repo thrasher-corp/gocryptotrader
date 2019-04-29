@@ -391,7 +391,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, g.Verbose)
+	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose)
 }
 
 // CancelAllExistingOrders all orders for a given symbol and side
@@ -484,6 +484,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 		strings.NewReader(param),
 		&intermidiary,
 		true,
+		false,
 		g.Verbose)
 	if err != nil {
 		return err

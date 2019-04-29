@@ -343,7 +343,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
-	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, i.Verbose)
+	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
@@ -377,22 +377,22 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		}
 	}
 
-	nonce := i.Nonce.GetValue(i.Name, false).String()
+	n := strconv.FormatInt(i.Requester.GetNonce(true), 10)
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 
-	message, err := common.JSONEncode([]string{method, urlPath, string(PayloadJSON), nonce, timestamp})
+	message, err := common.JSONEncode([]string{method, urlPath, string(PayloadJSON), n, timestamp})
 	if err != nil {
 		return err
 	}
 
-	hash := common.GetSHA256([]byte(nonce + string(message)))
+	hash := common.GetSHA256([]byte(n + string(message)))
 	hmac := common.GetHMAC(common.HashSHA512, []byte(urlPath+string(hash)), []byte(i.APISecret))
 	signature := common.Base64Encode(hmac)
 
 	headers := make(map[string]string)
 	headers["Authorization"] = i.ClientID + ":" + signature
 	headers["X-Auth-Timestamp"] = timestamp
-	headers["X-Auth-Nonce"] = nonce
+	headers["X-Auth-Nonce"] = n
 	headers["Content-Type"] = "application/json"
 
 	var intermediary json.RawMessage
@@ -403,7 +403,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		RequestID   string `json:"requestId"`
 	}{}
 
-	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, i.Verbose)
+	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, true, i.Verbose)
 	if err != nil {
 		return err
 	}

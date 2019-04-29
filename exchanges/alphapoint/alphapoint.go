@@ -534,7 +534,7 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 		return errors.New("unable to JSON request")
 	}
 
-	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, false, a.Verbose)
+	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, false, false, a.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -543,17 +543,14 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
 	}
 
-	if a.Nonce.Get() == 0 {
-		a.Nonce.Set(time.Now().UnixNano())
-	} else {
-		a.Nonce.Inc()
-	}
+	n := a.Requester.GetNonce(true)
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	data["apiKey"] = a.APIKey
-	data["apiNonce"] = a.Nonce.Get()
-	hmac := common.GetHMAC(common.HashSHA256, []byte(a.Nonce.String()+a.ClientID+a.APIKey), []byte(a.APISecret))
+	data["apiNonce"] = n
+	hmac := common.GetHMAC(common.HashSHA256, []byte(strconv.FormatInt(n, 10)+a.ClientID+a.APIKey),
+		[]byte(a.APISecret))
 	data["apiSig"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, alphapointAPIVersion, path)
 
@@ -562,5 +559,5 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		return errors.New("unable to JSON request")
 	}
 
-	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
+	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, true, true, a.Verbose)
 }
