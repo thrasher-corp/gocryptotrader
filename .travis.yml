@@ -16,7 +16,7 @@ matrix:
 
     - language: go
       dist: xenial
-      name: 'GoCryptoTrader [linux]'
+      name: 'GoCryptoTrader [back-end] [linux]'
       go:
         - 1.12.x
       env:
@@ -30,7 +30,7 @@ matrix:
 
     - language: go
       os: osx
-      name: 'GoCryptoTrader [darwin]'
+      name: 'GoCryptoTrader [back-end] [darwin]'
       go:
         - 1.12.x
       env:
