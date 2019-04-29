@@ -966,7 +966,7 @@ func TestGetDefaultDataDir(t *testing.T) {
 		if actualOutput != dir {
 			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
 		}
-	case "linux", "darwin":
+	default:
 		dir, ok := os.LookupEnv("HOME")
 		if !ok {
 			t.Fatal("HOME is not set")
@@ -976,8 +976,6 @@ func TestGetDefaultDataDir(t *testing.T) {
 		if actualOutput != dir {
 			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
 		}
-	default:
-		t.Fatalf("unsupported os detected %s", runtime.GOOS)
 	}
 }
 
@@ -1014,7 +1012,7 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to remove file. Err: %v", err)
 		}
-	case "linux", "darwin":
+	default:
 		err := CreateDir("")
 		if err == nil {
 			t.Fatal("expected err due to invalid path, but got nil")
@@ -1039,14 +1037,33 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to remove file. Err: %v", err)
 		}
-	default:
-		t.Fatalf("unsupported os detected %s", runtime.GOOS)
 	}
 }
 
 func TestChangePerm(t *testing.T) {
 	switch runtime.GOOS {
-	case "linux", "darwin":
+	case "windows":
+		err := ChangePerm("*")
+		if err == nil {
+			t.Fatal("expected an error on non-existent path")
+		}
+		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		if err != nil {
+			t.Fatalf("Mkdir failed. Err: %v", err)
+		}
+		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		if err != nil {
+			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
+		}
+		_, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("os.Stat failed. Err: %v", err)
+		}
+		err = RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("RemoveFile failed. Err: %v", err)
+		}
+	default:
 		err := ChangePerm("")
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
@@ -1071,29 +1088,5 @@ func TestChangePerm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("RemoveFile failed. Err: %v", err)
 		}
-
-	case "windows":
-		err := ChangePerm("*")
-		if err == nil {
-			t.Fatal("expected an error on non-existent path")
-		}
-		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
-		if err != nil {
-			t.Fatalf("Mkdir failed. Err: %v", err)
-		}
-		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
-		if err != nil {
-			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
-		}
-		_, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
-		if err != nil {
-			t.Fatalf("os.Stat failed. Err: %v", err)
-		}
-		err = RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
-		if err != nil {
-			t.Fatalf("RemoveFile failed. Err: %v", err)
-		}
-	default:
-		t.Fatalf("unsupported os detected %s", runtime.GOOS)
 	}
 }
