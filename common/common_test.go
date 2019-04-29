@@ -976,18 +976,26 @@ func TestGetDefaultDataDir(t *testing.T) {
 		if actualOutput != dir {
 			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
 		}
+	default:
+		t.Fatalf("unsupported os detected %s", runtime.GOOS)
 	}
 }
 
 func TestCreateDir(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows":
+		// test for looking up an invalid directory
+		err := CreateDir("")
+		if err == nil {
+			t.Fatal("expected err due to invalid path, but got nil")
+		}
+
 		// test for a directory that exists
 		dir, ok := os.LookupEnv("TEMP")
 		if !ok {
 			t.Fatal("LookupEnv failed. TEMP is not set")
 		}
-		err := CreateDir(dir)
+		err = CreateDir(dir)
 		if err != nil {
 			t.Fatalf("CreateDir failed. Err: %v", err)
 		}
@@ -1006,16 +1014,14 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to remove file. Err: %v", err)
 		}
-
-		// test for looking up an invalid directory
-		err = CreateDir("")
+	case "linux", "darwin":
+		err := CreateDir("")
 		if err == nil {
 			t.Fatal("expected err due to invalid path, but got nil")
 		}
-	case "linux":
-		// same tests for linux
+
 		dir := "/home"
-		err := CreateDir(dir)
+		err = CreateDir(dir)
 		if err != nil {
 			t.Fatalf("CreateDir failed. Err: %v", err)
 		}
@@ -1033,57 +1039,19 @@ func TestCreateDir(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to remove file. Err: %v", err)
 		}
-
-		// test for creating an invalid directory
-		err = CreateDir("")
-		if err == nil {
-			t.Fatal("expected err due to invalid path, but got nil")
-		}
-
-	case "darwin":
-		// same test except for the invalid directory
-		dir := "/home"
-		err := CreateDir(dir)
-		if err != nil {
-			t.Fatalf("CreateDir failed. Err: %v", err)
-		}
-		var ok bool
-		dir, ok = os.LookupEnv("HOME")
-		if !ok {
-			t.Fatal("LookupEnv of HOME failed")
-		}
-		dir = path.Join(dir, ".gocryptotrader", "TestFileASFG")
-		err = CreateDir(dir)
-		if err != nil {
-			t.Fatalf("CreateDir failed. Err: %s", err)
-		}
-		err = os.Remove(dir)
-		if err != nil {
-			t.Fatalf("Failed to remove file. Err: %v", err)
-		}
-
-		err = CreateDir(":")
-		if err == nil {
-			t.Fatal("expected err due to invalid path, but got nil")
-		}
+	default:
+		t.Fatalf("unsupported os detected %s", runtime.GOOS)
 	}
 }
 
 func TestChangePerm(t *testing.T) {
 	switch runtime.GOOS {
 	case "linux", "darwin":
-		if runtime.GOOS == "linux" {
-			err := ChangePerm("")
-			if err == nil {
-				t.Fatal("expected an error on non-existent path")
-			}
-		} else {
-			err := ChangePerm(":")
-			if err == nil {
-				t.Fatal("expected an error on non-existent path")
-			}
+		err := ChangePerm("")
+		if err == nil {
+			t.Fatal("expected an error on non-existent path")
 		}
-		err := os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
@@ -1125,5 +1093,7 @@ func TestChangePerm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("RemoveFile failed. Err: %v", err)
 		}
+	default:
+		t.Fatalf("unsupported os detected %s", runtime.GOOS)
 	}
 }
