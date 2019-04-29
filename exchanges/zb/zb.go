@@ -285,8 +285,8 @@ func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
 
 	// reverse asks data
 	var data [][]float64
-	for x := len(res.Asks) - 1; x != 0; x-- {
-		data = append(data, res.Asks[x])
+	for x := len(res.Asks); x > 0; x-- {
+		data = append(data, res.Asks[x-1])
 	}
 
 	res.Asks = data
