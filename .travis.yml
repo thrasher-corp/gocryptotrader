@@ -1,6 +1,7 @@
 matrix:
   include:
     - language: node_js
+      name: 'GoCryptotrader [front-end]'
       node_js:
         - '10'
         - '8'
@@ -15,6 +16,7 @@ matrix:
 
     - language: go
       dist: xenial
+      name: 'GoCryptoTrader [linux]'
       go:
         - 1.12.x
       env:
@@ -28,6 +30,7 @@ matrix:
 
     - language: go
       os: osx
+      name: 'GoCryptotrader [darwin]'
       go:
         - 1.12.x
       env:
