@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -33,6 +35,8 @@ type Bot struct {
 	dryRun     bool
 	configFile string
 	dataDir    string
+	connected  bool
+	sync.Mutex
 }
 
 const banner = `
@@ -49,6 +53,9 @@ var bot Bot
 func main() {
 	bot.shutdown = make(chan bool)
 	HandleInterrupt()
+
+	// Monitor network connectivity
+	go MonitorConnection()
 
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
@@ -243,7 +250,7 @@ func HandleInterrupt() {
 	go func() {
 		sig := <-c
 		log.Debugf("Captured %v, shutdown requested.", sig)
-		bot.shutdown <- true
+		close(bot.shutdown)
 	}()
 }
 
@@ -269,4 +276,66 @@ func Shutdown() {
 
 	log.CloseLogFile()
 	os.Exit(0)
+}
+
+// DNSList is a list of primary and secondary DNS servers for Google and
+// Cloudflare
+var DNSList = []string{"8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"}
+
+// PopularDomains denotes a popular domains to check
+var PopularDomains = []string{"www.google.com", "www.cloudflare.com", "www.facebook.com"}
+
+// MonitorConnection determines internet connectivity via a DNS lookup
+func MonitorConnection() {
+	tick := time.NewTicker(time.Second)
+	initial := make(chan struct{}, 1)
+	initial <- struct{}{}
+
+	for {
+		select {
+		case <-initial:
+			ConnectionTest()
+		case <-tick.C:
+			ConnectionTest()
+		case <-bot.shutdown:
+			return
+		}
+	}
+}
+
+// ConnectionTest determines if a connection to the internet is available by
+// iterating over a set list of dns ip and popular domains
+func ConnectionTest() {
+	for i := range DNSList {
+		_, err := net.LookupAddr(DNSList[i])
+		if err == nil {
+			bot.Lock()
+			if !bot.connected {
+				log.Warnf("Internet connectivity re-established")
+				bot.connected = true
+			}
+			bot.Unlock()
+			return
+		}
+	}
+
+	for i := range PopularDomains {
+		_, err := net.LookupHost(PopularDomains[i])
+		if err == nil {
+			bot.Lock()
+			if !bot.connected {
+				log.Warnf("Internet connectivity re-established")
+				bot.connected = true
+			}
+			bot.Unlock()
+			return
+		}
+	}
+
+	bot.Lock()
+	if bot.connected {
+		log.Warnf("Internet connectivity lost")
+		bot.connected = false
+	}
+	bot.Unlock()
 }
