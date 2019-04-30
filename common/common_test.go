@@ -1082,7 +1082,7 @@ func TestChangePerm(t *testing.T) {
 		}
 		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
 		if err != nil {
-			t.Fatal("ChangePerm was unsuccessful")
+			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
 		}
 		var a os.FileInfo
 		a, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")

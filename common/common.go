@@ -617,7 +617,7 @@ func GetDefaultDataDir(env string) string {
 	dir, ok := os.LookupEnv("HOME")
 	if !ok {
 		log.Warn("HOME environment variable unset, defaulting to current directory")
-		return "."
+		dir = "."
 	}
 	return path.Join(dir, ".gocryptotrader")
 }
