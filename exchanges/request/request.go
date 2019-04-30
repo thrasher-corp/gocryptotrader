@@ -12,9 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
-
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -25,7 +24,6 @@ const (
 	maxRequestJobs              = 50
 	proxyTLSTimeout             = 15 * time.Second
 	defaultTimeoutRetryAttempts = 3
-	fifoSecTimer                = time.Second
 )
 
 // Requester struct for the request client

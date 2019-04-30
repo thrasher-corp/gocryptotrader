@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -63,7 +62,6 @@ const (
 type Poloniex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-	sync.Mutex
 }
 
 // SetDefaults sets default settings for poloniex
