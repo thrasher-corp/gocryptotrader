@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
+	"os/user"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -605,13 +605,20 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 // Linux/Unix or OSX - $HOME/.gocryptotrader
 func GetDefaultDataDir(env string) string {
 	if env == "windows" {
-		return os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
+		return filepath.Join(os.Getenv("APPDATA"), "GoCryptoTrader")
 	}
-	dir, ok := os.LookupEnv("HOME")
-	if !ok {
-		return ""
+
+	usr, err := user.Current()
+	if err == nil {
+		return filepath.Join(usr.HomeDir, ".gocryptotrader")
 	}
-	return path.Join(dir, ".gocryptotrader")
+
+	dir, err := os.UserHomeDir()
+	if err != nil {
+		log.Warn("Environment variable unset, defaulting to current directory")
+		dir = "."
+	}
+	return filepath.Join(dir, ".gocryptotrader")
 }
 
 // CreateDir creates a directory based on the supplied parameter

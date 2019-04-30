@@ -2,7 +2,7 @@ package logger
 
 import (
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 )
 
@@ -24,7 +24,7 @@ func TestCloseLogFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CloseLogFile failed with %v", err)
 	}
-	os.Remove(path.Join(LogPath, Logger.File))
+	os.Remove(filepath.Join(LogPath, Logger.File))
 }
 
 func TestSetupOutputsValidPath(t *testing.T) {
@@ -41,7 +41,7 @@ func TestSetupOutputsValidPath(t *testing.T) {
 		t.Fatalf("CloseLogFile failed with %v", err)
 	}
 
-	err = os.Remove(path.Join(LogPath, Logger.File))
+	err = os.Remove(filepath.Join(LogPath, Logger.File))
 	if err != nil {
 		t.Fatal("Test Failed - SetupOutputsValidPath() error could not remove test file", err)
 	}
@@ -57,7 +57,7 @@ func TestSetupOutputsInValidPath(t *testing.T) {
 			t.Fatalf("SetupOutputs failed expected %v got %v", os.ErrNotExist, err)
 		}
 	}
-	err = os.Remove(path.Join(LogPath, Logger.File))
+	err = os.Remove(filepath.Join(LogPath, Logger.File))
 	if err == nil {
 		t.Fatal("Test Failed - SetupOutputsInValidPath() error cannot be nil")
 	}

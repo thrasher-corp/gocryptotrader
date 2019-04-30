@@ -1,6 +1,7 @@
 matrix:
   include:
     - language: node_js
+      name: 'GoCryptoTrader [front-end]'
       node_js:
         - '10'
         - '8'
@@ -15,6 +16,21 @@ matrix:
 
     - language: go
       dist: xenial
+      name: 'GoCryptoTrader [back-end] [linux]'
+      go:
+        - 1.12.x
+      env:
+        - GO111MODULE=on
+      install: true
+      
+      script:
+        - make check
+      after_success:
+        - bash <(curl -s https://codecov.io/bash)
+
+    - language: go
+      os: osx
+      name: 'GoCryptoTrader [back-end] [darwin]'
       go:
         - 1.12.x
       env:
