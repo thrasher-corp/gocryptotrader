@@ -838,7 +838,6 @@ func TestUnsubscribeWithoutSubscription(t *testing.T) {
 	unsubscriptionError := false
 	for i := 0; i < 5; i++ {
 		response := <-k.Websocket.DataHandler
-		t.Log(response)
 		if err, ok := response.(error); ok && err != nil {
 			if err.Error() == "requestID: '3'. Error: Subscription Not Found" {
 				unsubscriptionError = true

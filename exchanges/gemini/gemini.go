@@ -167,6 +167,8 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.WebsocketSetup(g.WsConnect,
+nil,
+nil,
 			exch.Name,
 			exch.Websocket,
 			geminiWebsocketEndpoint,

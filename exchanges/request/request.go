@@ -332,8 +332,8 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 			err = fmt.Errorf("unsuccessful HTTP status code: %d", resp.StatusCode)
 
 			if verbose {
-				err = fmt.Errorf("%s\n%s", err.Error(),
-					fmt.Sprintf("%s exchange raw response: %s", r.Name, string(contents)))
+				//	err = fmt.Errorf("%s\n%s", err.Error(),
+				//		fmt.Sprintf("%s exchange raw response: %s", r.Name, string(contents)))
 			}
 
 			return err

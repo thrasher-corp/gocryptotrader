@@ -106,6 +106,8 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
+nil,
+nil,
 			exch.Name,
 			exch.Websocket,
 			btseWebsocket,

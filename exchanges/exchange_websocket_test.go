@@ -28,6 +28,8 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	wsTest.WebsocketSetup(func() error { return nil },
+		func(test WebsocketChannelSubscription) error { return nil },
+		func(test WebsocketChannelSubscription) error { return nil },
 		"testName",
 		true,
 		"testDefaultURL",

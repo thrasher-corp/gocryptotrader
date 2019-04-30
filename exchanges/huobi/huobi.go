@@ -138,6 +138,8 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = h.WebsocketSetup(h.WsConnect,
+nil,
+nil,
 			exch.Name,
 			exch.Websocket,
 			huobiSocketIOAddress,

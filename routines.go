@@ -405,7 +405,7 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 			case error:
 				switch {
 				case common.StringContains(d.Error(), "close 1006"):
-					go WebsocketReconnect(ws, verbose)
+					go ws.WebsocketReset()
 					continue
 				default:
 					log.Errorf("routines.go exchange %s websocket error - %s", ws.GetName(), data)
@@ -436,36 +436,6 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 				if verbose {
 					log.Warnf("Websocket Unknown type:     %s", d)
 				}
-			}
-		}
-	}
-}
-
-// WebsocketReconnect tries to reconnect to a websocket stream
-func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
-	if verbose {
-		log.Debugf("Websocket reconnection requested for %s", ws.GetName())
-	}
-
-	err := ws.Shutdown()
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	wg.Add(1)
-	defer wg.Done()
-
-	tick := time.NewTicker(3 * time.Second)
-	for {
-		select {
-		case <-shutdowner:
-			return
-
-		case <-tick.C:
-			err = ws.Connect()
-			if err == nil {
-				return
 			}
 		}
 	}

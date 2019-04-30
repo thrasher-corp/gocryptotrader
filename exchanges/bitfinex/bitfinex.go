@@ -155,6 +155,8 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
+nil,
+nil,
 			exch.Name,
 			exch.Websocket,
 			bitfinexWebsocket,

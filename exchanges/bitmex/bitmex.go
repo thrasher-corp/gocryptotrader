@@ -174,6 +174,8 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnector,
+			nil,
+			nil,
 			exch.Name,
 			exch.Websocket,
 			bitmexWSURL,

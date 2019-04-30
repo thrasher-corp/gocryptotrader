@@ -120,6 +120,8 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = z.WebsocketSetup(z.WsConnect,
+nil,
+nil,
 			exch.Name,
 			exch.Websocket,
 			zbWebsocketAPI,

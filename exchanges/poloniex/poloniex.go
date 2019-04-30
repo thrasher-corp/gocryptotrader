@@ -130,6 +130,8 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = p.WebsocketSetup(p.WsConnect,
+nil,
+nil,
 			exch.Name,
 			exch.Websocket,
 			poloniexWebsocketAddress,

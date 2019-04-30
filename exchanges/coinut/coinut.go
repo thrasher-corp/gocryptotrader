@@ -118,6 +118,8 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.WebsocketSetup(c.WsConnect,
+nil,
+nil,
 			exch.Name,
 			exch.Websocket,
 			coinutWebsocketURL,

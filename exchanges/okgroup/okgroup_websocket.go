@@ -147,31 +147,85 @@ const (
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var orderbookMutex sync.Mutex
+var subscribedChannels []string
+var channelsToSubscribe []string
+var defaultSubscribedChannels = []string{okGroupWsSpotDepth}
+var isReconnectionInProgress bool
+var initialWSRun = true
+
+// ManageSubscriptions keeps a tab on subs
+func (o *OKGroup) ManageSubscriptions() {
+	for {
+		time.Sleep(800 * time.Millisecond)
+		if o.Verbose {
+			log.Debug("Checking subscriptions")
+		}
+		for i := range channelsToSubscribe {
+			channelIsSubscribed := false
+			for j := range subscribedChannels {
+				if strings.EqualFold(channelsToSubscribe[i], subscribedChannels[j]) {
+					channelIsSubscribed = true
+					break
+				}
+			}
+			if !channelIsSubscribed {
+				if o.Verbose {
+					log.Debugf("Subscribing to the thing %v", channelsToSubscribe[i])
+				}
+				if !o.Websocket.IsConnected() {
+					log.Warn("Websocket not connected, skipping subscription run")
+					continue
+				}
+				err := o.WsSubscribeToChannel(channelsToSubscribe[i])
+				if err != nil {
+					o.Websocket.DataHandler <- err
+				}
+				channelIsSubscribed = true
+				subscribedChannels = append(subscribedChannels, channelsToSubscribe[i])
+				if o.Verbose {
+					log.Debugf("Successfully subscribed to the thing %v", channelsToSubscribe[i])
+				}
+			}
+		}
+	}
+}
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
+	if !o.Websocket.IsConnected() {
+		return errors.New("Websocket not connected, cannot write to websocket")
+	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.Verbose {
 		log.Debugf("Sending message to WS: %v", message)
 	}
+	// Really basic WS rate limit
+	time.Sleep(30 * time.Millisecond)
 	return o.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
 }
 
-// WsConnect initiates a websocket connection
-func (o *OKGroup) WsConnect() error {
+// WsHandleConnection keeps an eye on the connection
+func (o *OKGroup) WsHandleConnection() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
+		if o.Websocket.IsConnected() {
+			o.Websocket.Shutdown()
+		}
 		return errors.New(exchange.WebsocketNotEnabled)
+	}
+	if o.Websocket.IsConnected() {
+		if o.Verbose {
+			log.Debug("Still connected, no need to reconnect")
+		}
+		return nil
 	}
 
 	var dialer websocket.Dialer
-
 	if o.Websocket.GetProxyAddress() != "" {
 		proxy, err := url.Parse(o.Websocket.GetProxyAddress())
 		if err != nil {
 			return err
 		}
-
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
@@ -179,6 +233,7 @@ func (o *OKGroup) WsConnect() error {
 	if o.Verbose {
 		log.Debugf("Attempting to connect to %v", o.Websocket.GetWebsocketURL())
 	}
+	log.Debug("Dialing Websocket Connection")
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
 	if err != nil {
@@ -194,31 +249,60 @@ func (o *OKGroup) WsConnect() error {
 	wg.Add(2)
 	go o.WsHandleData(&wg)
 	go o.wsPingHandler(&wg)
+	return nil
+}
 
-	err = o.WsSubscribeToDefaults()
-	if err != nil {
-		return fmt.Errorf("error: Could not subscribe to the OKEX websocket %s",
-			err)
+// WsManageConnection loops on connection status
+func (o *OKGroup) WsManageConnection() {
+	for {
+		// Simulate disconnect
+		time.Sleep(2 * time.Second)
+		if o.Websocket.IsEnabled() && o.IsEnabled() && !o.Websocket.IsConnected() {
+			log.Debug("Checking WS Connection")
+		//	o.WebsocketReset()
+			subscribedChannels = []string{}
+		}
+		//}
+		//o.WsHandleConnection()
 	}
+}
+
+// WsConnect initiates a websocket connection
+func (o *OKGroup) WsConnect() error {
+	o.WsHandleConnection()
+	go o.WsHandleData()
+	go o.wsPingHandler()	if initialWSRun {
+		go o.WsManageConnection()
+		err := o.WsGenerateSubscriptionsForAllEnabledCurrencies()
+		if err != nil {
+			return fmt.Errorf("error: Could not subscribe to the OKEX websocket %s",
+				err)
+		}
+		initialWSRun = false
+	}
+
 
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
 	return nil
 }
 
-// WsSubscribeToDefaults subscribes to the websocket channels
-func (o *OKGroup) WsSubscribeToDefaults() (err error) {
-	channelsToSubscribe := []string{okGroupWsSpotDepth, okGroupWsSpotCandle300s, okGroupWsSpotTicker, okGroupWsSpotTrade}
+// WsGenerateSubscriptionsForAllEnabledCurrencies subscribes to the websocket channels
+func (o *OKGroup) WsGenerateSubscriptionsForAllEnabledCurrencies() (err error) {
 	for _, pair := range o.EnabledPairs {
 		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "_", "-", 1))
-		for _, channel := range channelsToSubscribe {
-			err = o.WsSubscribeToChannel(fmt.Sprintf("%v:%s", channel, formattedPair))
-			if err != nil {
-				return
-			}
+		for _, channel := range defaultSubscribedChannels {
+			channelToSubscribe := fmt.Sprintf("%v:%s", channel, formattedPair)
+			channelsToSubscribe = append(channelsToSubscribe, channelToSubscribe)
 		}
 	}
+	// Now always handle subscriptions
+	go o.ManageSubscriptions()
+	return nil
+}
 
+// Authenticate lol
+func (o *OKGroup) Authenticate() error {
 	return nil
 }
 
@@ -260,6 +344,10 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 	wg.Done()
 
 	for {
+		if !o.Websocket.IsConnected() {
+			log.Error("Not connected to websocket to send ping, ignoring until connected")
+			continue
+		}
 		select {
 		case <-o.Websocket.ShutdownC:
 			return
@@ -271,7 +359,6 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 			}
 			if err != nil {
 				o.Websocket.DataHandler <- err
-				return
 			}
 		}
 	}
@@ -279,8 +366,10 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 
 // WsHandleData handles the read data from the websocket connection
 func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
+	log.Debug("WsHandleData has been hit")
 	o.Websocket.Wg.Add(1)
 	defer func() {
+		log.Debug("Closing Websocket Connection")
 		err := o.WebsocketConn.Close()
 		if err != nil {
 			o.Websocket.DataHandler <- fmt.Errorf("okex_websocket.go - Unable to to close Websocket connection. Error: %s",
@@ -292,14 +381,17 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 	wg.Done()
 
 	for {
+		log.Debug("WSHandlingData")
 		select {
 		case <-o.Websocket.ShutdownC:
+			log.Debug("------------------- EXITING HANDLE DATA VIA SHUTDOWN----")
 			return
 		default:
+			log.Debug("Reading data")
 			resp, err := o.WsReadData()
 			if err != nil {
-				o.Websocket.DataHandler <- err
-				return
+				o.Websocket.DataHandler <- fmt.Errorf("hello error %v", err)
+				continue
 			}
 			var dataResponse WebsocketDataResponse
 			err = common.JSONDecode(resp.Raw, &dataResponse)
@@ -440,9 +532,20 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		orderbookMutex.Lock()
 		err := o.WsProcessOrderBook(response)
 		if err != nil {
+			log.Debugln("-----------------------------------------------------")
 			log.Error(err)
+			log.Debugln("-----------------------------------------------------")
+
 			subscriptionChannel := fmt.Sprintf("%v:%v", response.Table, response.Data[0].InstrumentID)
-			o.ResubscribeToChannel(subscriptionChannel)
+			log.Debugf("Unsbuscribing from channel %v", subscriptionChannel)
+			o.WsUnsubscribeToChannel(subscriptionChannel)
+			for i := range subscribedChannels {
+				if subscribedChannels[i] == subscriptionChannel {
+					subscribedChannels = append(subscribedChannels[:i], subscribedChannels[i+1:]...)
+					i--
+					break
+				}
+			}
 		}
 		orderbookMutex.Unlock()
 	case okGroupWsTicker:
@@ -457,42 +560,6 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		o.wsProcessTrades(response)
 	default:
 		logDataResponse(response)
-	}
-}
-
-// ResubscribeToChannel will attempt to unsubscribe and resubscribe to a channel
-func (o *OKGroup) ResubscribeToChannel(channel string) {
-	if okGroupWsResubscribeFailureLimit > 0 {
-		var successfulUnsubscribe bool
-		for i := 0; i < okGroupWsResubscribeFailureLimit; i++ {
-			err := o.WsUnsubscribeToChannel(channel)
-			if err != nil {
-				log.Error(err)
-				time.Sleep(okGroupWsResubscribeDelayInSeconds * time.Second)
-				continue
-			}
-			successfulUnsubscribe = true
-			break
-		}
-		if !successfulUnsubscribe {
-			log.Fatalf("%v websocket channel %v failed to unsubscribe after %v attempts", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
-		}
-		successfulSubscribe := true
-		for i := 0; i < okGroupWsResubscribeFailureLimit; i++ {
-			err := o.WsSubscribeToChannel(channel)
-			if err != nil {
-				log.Error(err)
-				time.Sleep(okGroupWsResubscribeDelayInSeconds * time.Second)
-				continue
-			}
-			successfulSubscribe = true
-			break
-		}
-		if !successfulSubscribe {
-			log.Fatalf("%v websocket channel %v failed to resubscribe after %v attempts", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
-		}
-	} else {
-		log.Fatalf("%v websocket channel %v cannot resubscribe. Limit: %v", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
 	}
 }
 
