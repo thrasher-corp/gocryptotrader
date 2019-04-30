@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -607,9 +608,16 @@ func GetDefaultDataDir(env string) string {
 	if env == "windows" {
 		return os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
 	}
+
+	usr, err := user.Current()
+	if err == nil {
+		return path.Join(usr.HomeDir, ".gocryptotrader")
+	}
+
 	dir, ok := os.LookupEnv("HOME")
 	if !ok {
-		return ""
+		log.Warn("HOME environment variable unset, defaulting to current directory")
+		return "."
 	}
 	return path.Join(dir, ".gocryptotrader")
 }

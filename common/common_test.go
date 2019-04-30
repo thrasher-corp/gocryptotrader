@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/url"
 	"os"
+	"os/user"
 	"path"
 	"reflect"
 	"runtime"
@@ -967,9 +968,16 @@ func TestGetDefaultDataDir(t *testing.T) {
 			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
 		}
 	default:
-		dir, ok := os.LookupEnv("HOME")
-		if !ok {
-			t.Fatal("HOME is not set")
+		var dir string
+		usr, err := user.Current()
+		if err == nil {
+			dir = usr.HomeDir
+		} else {
+			var ok bool
+			dir, ok = os.LookupEnv("HOME")
+			if !ok {
+				dir = "."
+			}
 		}
 		dir += GetOSPathSlash() + ".gocryptotrader"
 		actualOutput := GetDefaultDataDir(runtime.GOOS)
