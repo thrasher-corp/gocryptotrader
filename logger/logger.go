@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 	"time"
 )
@@ -87,13 +87,13 @@ func clearAllLoggers() {
 // TODO: Fix up rotating at the moment its a quick job
 func setupOutputs() (err error) {
 	if len(Logger.File) > 0 {
-		logFile := path.Join(LogPath, Logger.File)
+		logFile := filepath.Join(LogPath, Logger.File)
 		if Logger.Rotate {
 			if _, err = os.Stat(logFile); !os.IsNotExist(err) {
 				currentTime := time.Now()
 				newName := currentTime.Format("2006-01-02 15-04-05")
 				newFile := newName + " " + Logger.File
-				err = os.Rename(logFile, path.Join(LogPath, newFile))
+				err = os.Rename(logFile, filepath.Join(LogPath, newFile))
 				if err != nil {
 					err = fmt.Errorf("failed to rename old log file %s", err)
 					return

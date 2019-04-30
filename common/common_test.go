@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"os"
 	"os/user"
-	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -962,8 +962,8 @@ func TestGetDefaultDataDir(t *testing.T) {
 		if !ok {
 			t.Fatal("APPDATA is not set")
 		}
-		dir += GetOSPathSlash() + "GoCryptoTrader"
-		actualOutput := GetDefaultDataDir("windows")
+		dir = filepath.Join(dir, "GoCryptoTrader")
+		actualOutput := GetDefaultDataDir(runtime.GOOS)
 		if actualOutput != dir {
 			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
 		}
@@ -973,13 +973,13 @@ func TestGetDefaultDataDir(t *testing.T) {
 		if err == nil {
 			dir = usr.HomeDir
 		} else {
-			var ok bool
-			dir, ok = os.LookupEnv("HOME")
-			if !ok {
+			var err error
+			dir, err = os.UserHomeDir()
+			if err != nil {
 				dir = "."
 			}
 		}
-		dir += GetOSPathSlash() + ".gocryptotrader"
+		dir = filepath.Join(dir, ".gocryptotrader")
 		actualOutput := GetDefaultDataDir(runtime.GOOS)
 		if actualOutput != dir {
 			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
@@ -1036,7 +1036,7 @@ func TestCreateDir(t *testing.T) {
 		if !ok {
 			t.Fatal("LookupEnv of HOME failed")
 		}
-		dir = path.Join(dir, ".gocryptotrader", "TestFileASFG")
+		dir = filepath.Join(dir, ".gocryptotrader", "TestFileASFG")
 		err = CreateDir(dir)
 		if err != nil {
 			t.Errorf("CreateDir failed. Err: %s", err)

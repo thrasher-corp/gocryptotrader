@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -124,10 +124,13 @@ type Config struct {
 	SMS                 *SMSGlobalConfig          `json:"smsGlobal,omitempty"`
 }
 
+// ProfilerConfig defines the profiler configuration to enable pprof
 type ProfilerConfig struct {
 	Enabled bool `json:"enabled"`
 }
 
+// NTPClientConfig defines a network time protocol configuration to allow for
+// positive and negative differences
 type NTPClientConfig struct {
 	Level                     int            `json:"enabled"`
 	Pool                      []string       `json:"pool"`
@@ -1089,7 +1092,7 @@ func (c *Config) CheckLoggerConfig() error {
 	}
 
 	if len(c.Logging.File) > 0 {
-		logPath := path.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
+		logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
 		err := common.CreateDir(logPath)
 		if err != nil {
 			return err
@@ -1099,7 +1102,7 @@ func (c *Config) CheckLoggerConfig() error {
 	return nil
 }
 
-// CheckNTPConfig() checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
+// CheckNTPConfig checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
 func (c *Config) CheckNTPConfig() {
 	m.Lock()
 	defer m.Unlock()
@@ -1120,7 +1123,7 @@ func (c *Config) CheckNTPConfig() {
 	}
 }
 
-// DisableNTPCheck() allows the user to change how they are prompted for timesync alerts
+// DisableNTPCheck allows the user to change how they are prompted for timesync alerts
 func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	m.Lock()
 	defer m.Unlock()
@@ -1187,7 +1190,7 @@ func GetFilePath(file string) (string, error) {
 		if os.IsNotExist(err) {
 			continue
 		} else {
-			if path.Ext(oldDirs[x]) == ".json" {
+			if filepath.Ext(oldDirs[x]) == ".json" {
 				err = os.Rename(oldDirs[x], newDirs[0])
 				if err != nil {
 					return "", err
@@ -1216,7 +1219,7 @@ func GetFilePath(file string) (string, error) {
 		}
 
 		if ConfirmECS(data) {
-			if path.Ext(newDirs[x]) == ".dat" {
+			if filepath.Ext(newDirs[x]) == ".dat" {
 				return newDirs[x], nil
 			}
 
@@ -1227,7 +1230,7 @@ func GetFilePath(file string) (string, error) {
 			return newDirs[1], nil
 		}
 
-		if path.Ext(newDirs[x]) == ".json" {
+		if filepath.Ext(newDirs[x]) == ".json" {
 			return newDirs[x], nil
 		}
 
