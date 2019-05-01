@@ -133,8 +133,8 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
-nil,
-nil,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			BitstampPusherKey,
@@ -144,8 +144,6 @@ nil,
 		}
 	}
 }
-
-
 
 // GetFee returns an estimate of fee based on type of transaction
 func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {

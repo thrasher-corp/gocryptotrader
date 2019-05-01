@@ -56,7 +56,7 @@ func (e *Base) WebsocketInit() {
 	}
 }
 
-// Websocket reset sends the shutdown command, waits for finish and then reconnects
+// WebsocketReset sends the shutdown command, waits for finish and then reconnects
 func (w *Websocket) WebsocketReset() {
 	err := w.Shutdown()
 	if err != nil {
@@ -147,8 +147,9 @@ type Websocket struct {
 // WebsocketChannelSubscription container for websocket subscriptions
 // Currently only a one at a time thing to avoid complexity
 type WebsocketChannelSubscription struct {
-	ChannelName string
-	Currency    currency.Pair
+	Channel  string
+	Currency currency.Pair
+	Params   map[string]string
 }
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
@@ -259,11 +260,9 @@ func (w *Websocket) Connect() error {
 // WsConnectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) WsConnectionMonitor() {
 	log.Debug("STARTING WsConnectionMonitor")
-	w.Wg.Add(1)
 	noConnectionTolerance := 0
 	defer func() {
 		log.Debug("WsConnectionMonitor EXITING")
-		w.Wg.Done()
 	}()
 	for {
 		if !w.enabled {
@@ -271,28 +270,20 @@ func (w *Websocket) WsConnectionMonitor() {
 			w.Shutdown()
 			return
 		}
-		select {
-		case <-w.ShutdownC:
-			log.Debug("SHUTDOWN WsConnectionMonitor RECEIEVED")
-			return
-		default:
-			time.Sleep(500 * time.Millisecond)
-			log.Debug("Checking connection")
-			if !w.IsConnected() && !w.Connecting {
-				log.Debugf("No connection %v/20", noConnectionTolerance)
-				if noConnectionTolerance >= 20 {
-					log.Debug("Resetting connection")
-					w.Connecting = true
-					go w.WebsocketReset()
-					noConnectionTolerance = 0
-				}
-				noConnectionTolerance++
-			} else if w.Connecting {
-				log.Debug("Busy reconnecting")
-			} else {
-				log.Debug("A fine connection sir")
+		time.Sleep(2 * time.Second)
+		if !w.IsConnected() && !w.Connecting {
+			log.Debugf("No connection %v/5", noConnectionTolerance)
+			if noConnectionTolerance >= 5 {
+				log.Debug("Resetting connection")
+				w.Connecting = true
+				go w.WebsocketReset()
 				noConnectionTolerance = 0
 			}
+			noConnectionTolerance++
+		} else if w.Connecting {
+			log.Debug("Busy reconnecting")
+		} else {
+			noConnectionTolerance = 0
 		}
 	}
 }
@@ -785,6 +776,7 @@ func (w *Websocket) ManageSubscriptions() {
 	for {
 		select {
 		case <-w.ShutdownC:
+			w.subscribedChannels = []WebsocketChannelSubscription{}
 			log.Debug("SHUTDOWN ManageSubscriptions")
 			return
 		default:
@@ -793,25 +785,31 @@ func (w *Websocket) ManageSubscriptions() {
 			for i := range w.ChannelsToSubscribe {
 				channelIsSubscribed := false
 				for j := range w.subscribedChannels {
-					if strings.EqualFold(w.ChannelsToSubscribe[i].ChannelName, w.subscribedChannels[j].ChannelName) &&
+					if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, w.subscribedChannels[j].Channel) &&
 						strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), w.subscribedChannels[j].Currency.String()) {
 						channelIsSubscribed = true
 					}
 				}
 				if !channelIsSubscribed {
-					log.Debugf("Subscribing to the thing %v", w.ChannelsToSubscribe[i])
 					err := w.channelSubscriber(w.ChannelsToSubscribe[i])
 					if err != nil {
 						w.DataHandler <- err
 						if err == common.ErrFunctionNotSupported {
+							log.Infof("Exchange %v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
 							return
 						}
 					}
 					channelIsSubscribed = true
 					w.subscribedChannels = append(w.subscribedChannels, w.ChannelsToSubscribe[i])
-					log.Debugf("Successfully subscribed to the thing %v", w.ChannelsToSubscribe[i])
 				}
 			}
 		}
 	}
 }
+
+// AddSubscribedChannel maintains w.subscribedChannels intergrity
+func (w *Websocket) AddSubscribedChannel(subscribedChannel WebsocketChannelSubscription) {
+	w.subscribedChannels = append(w.subscribedChannels, subscribedChannel)
+}
+
+

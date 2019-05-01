@@ -86,8 +86,8 @@ func (b *BTCC) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
-nil,
-nil,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			btccSocketioAddress,

@@ -70,18 +70,10 @@ func (b *BTCC) WsConnect() error {
 	}
 
 	go b.WsHandleData()
+	b.GenerateDefaultSubscriptions()
+	go b.Websocket.ManageSubscriptions()
 
-	err = b.WsSubscribeToOrderbook()
-	if err != nil {
-		return err
-	}
-
-	err = b.WsSubcribeToTicker()
-	if err != nil {
-		return err
-	}
-
-	return b.WsSubcribeToTrades()
+	return nil
 }
 
 // WsReadData reads data from the websocket connection
@@ -558,4 +550,54 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 	}
 
 	return nil
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *BTCC) GenerateDefaultSubscriptions() {
+	var channels = []string{"SubOrderBook", "GetTrades", "Subscribe"}
+	enabledCurrencies := b.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			params := make(map[string]string)
+			if channels[i] == "SubOrderBook" {
+				params["len"] = "100"
+			} else if channels[i] == "GetTrades" {
+				params["count"] = "100"
+			}
+			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+				Params:   params,
+			})
+		}
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	// Basic ratelimiter
+	time.Sleep(30 * time.Millisecond)
+	subscription := WsOutgoing{
+		Action: channelToSubscribe.Channel,
+		Symbol: channelToSubscribe.Currency.String(),
+	}
+	if subscription.Action == "SubOrderBook" {
+		subscription.Len = 100
+	} else if subscription.Action == "GetTrades" {
+		subscription.Count = 100
+	}
+	return b.Conn.WriteJSON(subscription)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	// Basic ratelimiter
+	//TODOSCOTT
+	return b.Conn.WriteJSON(WsOutgoing{
+		Action: "UnSubscribeAllTickers",
+	})
+
+	//b.Websocket.ChannelsToSubscribe = []exchange.WebsocketChannelSubscription
 }

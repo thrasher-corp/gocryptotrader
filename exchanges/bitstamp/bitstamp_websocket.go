@@ -141,26 +141,41 @@ func (b *Bitstamp) WsConnect() error {
 			Exchange: b.GetName(),
 		}
 
-		err = b.WebsocketConn.Client.Subscribe(fmt.Sprintf("live_trades_%s",
-			p.Lower().String()))
 
-		if err != nil {
-			return fmt.Errorf("%s Websocket Trade subscription error: %s",
-				b.GetName(),
-				err)
-		}
-
-		err = b.WebsocketConn.Client.Subscribe(fmt.Sprintf("diff_order_book_%s",
-			p.Lower().String()))
-
-		if err != nil {
-			return fmt.Errorf("%s Websocket Trade subscription error: %s",
-				b.GetName(),
-				err)
-		}
-
-	}
+}
+b.GenerateDefaultSubscriptions()
+go b.Websocket.ManageSubscriptions()
 	return nil
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *Bitstamp) GenerateDefaultSubscriptions() {
+	var channels = []string{"live_trades_", "diff_order_book_"}
+	enabledCurrencies := b.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j]),
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	// Basic ratelimiter
+	time.Sleep(30 * time.Millisecond)
+	return b.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	// Basic ratelimiter
+	time.Sleep(30 * time.Millisecond)
+	return b.WebsocketConn.Client.Unsubscribe(channelToSubscribe.Channel)
 }
 
 // WsReadData reads data coming from bitstamp websocket connection

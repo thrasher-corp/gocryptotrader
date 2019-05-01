@@ -155,8 +155,8 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
-nil,
-nil,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			bitfinexWebsocket,
@@ -619,7 +619,7 @@ func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, payment
 			&response)
 }
 
-// WithdrawFIAT requests a withdrawal from a designated fiat wallet
+// WithdrawFIAT Sends an authenticated request to withdraw FIAT currency
 func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *exchange.WithdrawRequest) ([]Withdrawal, error) {
 	var response []Withdrawal
 	req := make(map[string]interface{})

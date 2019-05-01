@@ -105,16 +105,9 @@ func (b *Bitmex) WsConnector() error {
 	}
 
 	go b.wsHandleIncomingData()
+	b.GenerateDefaultSubscriptions()
+	go b.Websocket.ManageSubscriptions()
 
-	err = b.websocketSubscribe()
-	if err != nil {
-		closeError := b.WebsocketConn.Close()
-		if closeError != nil {
-			return fmt.Errorf("bitmex_websocket.go error - Websocket connection could not close %s",
-				closeError)
-		}
-		return err
-	}
 
 	if b.AuthenticatedAPISupport {
 		err := b.websocketSendAuth()
@@ -206,6 +199,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 				if decodedResp.Success {
 					if b.Verbose {
 						if len(quickCapture) == 3 {
+							//TODOSCOTT
+							b.Websocket.AddSubscribedChannel(exchange.WebsocketChannelSubscription{})
 							log.Debugf("%s websocket: Successfully subscribed to %s",
 								b.Name, decodedResp.Subscribe)
 						} else {
@@ -398,26 +393,42 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 	return nil
 }
 
-// WebsocketSubscribe subscribes to a websocket channel
-func (b *Bitmex) websocketSubscribe() error {
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *Bitmex) GenerateDefaultSubscriptions() {
 	contracts := b.GetEnabledCurrencies()
+	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
+	params := make(map[string]string)
+	params["args"] = bitmexWSAnnouncement
 
-	// Subscriber
+	for i := range channels {
+		for j := range contracts {
+			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: contracts[j],
+				Params:   params,
+			})
+		}
+	}
+}
+
+// Subscribe subscribes to a websocket channel
+func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
-
-	// Announcement subscribe
-	subscriber.Arguments = append(subscriber.Arguments, bitmexWSAnnouncement)
-
-	for _, contract := range contracts {
-		// Orderbook and Trade subscribe
-		// NOTE more added here in future
-		subscriber.Arguments = append(subscriber.Arguments,
-			bitmexWSOrderbookL2+":"+contract.String(),
-			bitmexWSTrade+":"+contract.String())
-	}
-
+	subscriber.Arguments = append(subscriber.Arguments,
+		channelToSubscribe.Params["args"])
+	subscriber.Arguments = append(subscriber.Arguments,
+		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
+	// Basic rate limiter
+	time.Sleep(30 * time.Millisecond)
 	return b.WebsocketConn.WriteJSON(subscriber)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	//TODOSCOTT
+	return common.ErrFunctionNotSupported
 }
 
 // WebsocketSendAuth sends an authenticated subscription
