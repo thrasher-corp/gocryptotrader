@@ -6,13 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common" 
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -51,7 +50,8 @@ func (h *HUOBI) WsConnect() error {
 
 	go h.WsHandleData()
 
-	return h.WsSubscribe()
+	h.GenerateDefaultSubscriptions()
+	return nil
 }
 
 // WsReadData reads data from the websocket connection
@@ -222,115 +222,35 @@ func (h *HUOBI) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 	return nil
 }
 
-// WsSubscribe susbcribes to the current websocket streams based on the enabled
-// pair
-func (h *HUOBI) WsSubscribe() error {
-	pairs := h.GetEnabledCurrencies()
-
-	for _, p := range pairs {
-		fPair := exchange.FormatExchangeCurrency(h.GetName(), p)
-
-		depthTopic := fmt.Sprintf(wsMarketDepth, fPair.String())
-		depthJSON, err := common.JSONEncode(WsRequest{Subscribe: depthTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, depthJSON)
-		if err != nil {
-			return err
-		}
-
-		klineTopic := fmt.Sprintf(wsMarketKline, fPair.String())
-		KlineJSON, err := common.JSONEncode(WsRequest{Subscribe: klineTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, KlineJSON)
-		if err != nil {
-			return err
-		}
-
-		tradeTopic := fmt.Sprintf(wsMarketTrade, fPair.String())
-		tradeJSON, err := common.JSONEncode(WsRequest{Subscribe: tradeTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, tradeJSON)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// WsRequest defines a request data structure
-type WsRequest struct {
-	Topic             string `json:"req,omitempty"`
-	Subscribe         string `json:"sub,omitempty"`
-	ClientGeneratedID string `json:"id,omitempty"`
-}
-
-// WsResponse defines a response from the websocket connection when there
-// is an error
-type WsResponse struct {
-	TS           int64  `json:"ts"`
-	Status       string `json:"status"`
-	ErrorCode    string `json:"err-code"`
-	ErrorMessage string `json:"err-msg"`
-	Ping         int64  `json:"ping"`
-	Channel      string `json:"ch"`
-	Subscribed   string `json:"subbed"`
-}
-
-// WsHeartBeat defines a heartbeat request
-type WsHeartBeat struct {
-	ClientNonce int64 `json:"ping"`
-}
-
-// WsDepth defines market depth websocket response
-type WsDepth struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		Bids      []interface{} `json:"bids"`
-		Asks      []interface{} `json:"asks"`
-		Timestamp int64         `json:"ts"`
-		Version   int64         `json:"version"`
-	} `json:"tick"`
-}
-
-// WsKline defines market kline websocket response
-type WsKline struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		ID     int64   `json:"id"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		Low    float64 `json:"low"`
-		High   float64 `json:"high"`
-		Amount float64 `json:"amount"`
-		Volume float64 `json:"vol"`
-		Count  int64   `json:"count"`
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (h *HUOBI) GenerateDefaultSubscriptions() {
+	var channels = []string{wsMarketKline,wsMarketDepth, wsMarketTrade}
+	enabledCurrencies := h.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].String())
+			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  channel,
+				Currency: enabledCurrencies[j],
+			})
+		} 
 	}
 }
 
-// WsTrade defines market trade websocket response
-type WsTrade struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		ID        int64 `json:"id"`
-		Timestamp int64 `json:"ts"`
-		Data      []struct {
-			Amount    float64 `json:"amount"`
-			Timestamp int64   `json:"ts"`
-			ID        big.Int `json:"id,number"`
-			Price     float64 `json:"price"`
-			Direction string  `json:"direction"`
-		} `json:"data"`
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
 	}
+	time.Sleep(30 * time.Millisecond)
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	// TODOSCOTT
+	return common.ErrFunctionNotSupported
 }

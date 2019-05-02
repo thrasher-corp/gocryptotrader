@@ -43,8 +43,9 @@ func (h *HitBTC) WsConnect() error {
 	}
 
 	go h.WsHandleData()
+	h.GenerateDefaultSubscriptions()
 
-	return h.WsSubscribe()
+	return nil
 }
 
 // WsSubscribe subscribes to the relevant channels
@@ -363,4 +364,44 @@ type WsTrade struct {
 		} `json:"data"`
 		Symbol string `json:"symbol"`
 	} `json:"params"`
+}
+
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (h *HitBTC) GenerateDefaultSubscriptions() {
+	var channels = []string{"subscribeTicker","subscribeOrderbook", "subscribeTrades"}
+	enabledCurrencies := h.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+			})
+		} 
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := WsNotification{
+		JSONRPCVersion: rpcVersion,
+		Method:         channelToSubscribe.Channel,
+		Params:         params{Symbol: channelToSubscribe.Currency.String()},
+	}
+
+	data, err := common.JSONEncode(subscribe)
+	if err != nil {
+		return err
+	}
+ 
+	time.Sleep(30 * time.Millisecond)
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	// TODOSCOTT
+	return common.ErrFunctionNotSupported
 }

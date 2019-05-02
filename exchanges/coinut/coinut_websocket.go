@@ -203,10 +203,7 @@ func (c *COINUT) WsConnect() error {
 		populatedList = true
 	}
 
-	err = c.WsSubscribe()
-	if err != nil {
-		return err
-	}
+	c.GenerateDefaultSubscriptions()
 
 	// define bi-directional communication
 	channels = make(map[string]chan []byte)
@@ -270,48 +267,6 @@ func (c *COINUT) WsSetInstrumentList() error {
 	return nil
 }
 
-// WsSubscribe subscribes to websocket streams
-func (c *COINUT) WsSubscribe() error {
-	pairs := c.GetEnabledCurrencies()
-
-	for _, p := range pairs {
-		ticker := wsRequest{
-			Request:   "inst_tick",
-			InstID:    instrumentListByString[p.String()],
-			Subscribe: true,
-			Nonce:     c.GetNonce(),
-		}
-
-		tickjson, err := common.JSONEncode(ticker)
-		if err != nil {
-			return err
-		}
-
-		err = c.WebsocketConn.WriteMessage(websocket.TextMessage, tickjson)
-		if err != nil {
-			return err
-		}
-
-		ob := wsRequest{
-			Request:   "inst_order_book",
-			InstID:    instrumentListByString[p.String()],
-			Subscribe: true,
-			Nonce:     c.GetNonce(),
-		}
-
-		objson, err := common.JSONEncode(ob)
-		if err != nil {
-			return err
-		}
-
-		err = c.WebsocketConn.WriteMessage(websocket.TextMessage, objson)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
 func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var bids []orderbook.Item
@@ -360,4 +315,56 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 		time.Now(),
 		c.GetName(),
 		"SPOT")
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (c *COINUT) GenerateDefaultSubscriptions() {
+	var channels = []string{"inst_tick", "inst_order_book"}
+	enabledCurrencies := c.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := wsRequest{
+		Request: channelToSubscribe.Channel, 
+		InstID:  instrumentListByString[channelToSubscribe.Currency.String()],
+		Subscribe: true,
+		Nonce: c.GetNonce(),
+	}
+
+	data, err := common.JSONEncode(subscribe)
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(30 * time.Millisecond)
+	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := wsRequest{
+		Request: channelToSubscribe.Channel, 
+		InstID:  instrumentListByString[channelToSubscribe.Currency.String()],
+		Subscribe: false,
+		Nonce: c.GetNonce(),
+	}
+	
+	data, err := common.JSONEncode(subscribe)
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(30 * time.Millisecond)
+	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

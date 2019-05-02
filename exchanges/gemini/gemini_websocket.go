@@ -228,3 +228,17 @@ func (g *Gemini) WsHandleData() {
 		}
 	}
 }
+
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (g *Gemini) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (g *Gemini) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}

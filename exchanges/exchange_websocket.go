@@ -807,9 +807,48 @@ func (w *Websocket) ManageSubscriptions() {
 	}
 }
 
-// AddSubscribedChannel maintains w.subscribedChannels intergrity
-func (w *Websocket) AddSubscribedChannel(subscribedChannel WebsocketChannelSubscription) {
-	w.subscribedChannels = append(w.subscribedChannels, subscribedChannel)
+
+// RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe 
+// so an unsubscribe event can be triggered
+func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
+	channelRemoved := false
+	for i := range w.ChannelsToSubscribe {
+		if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, subscribedChannel.Channel) &&
+			strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), subscribedChannel.Currency.String()) {
+			w.ChannelsToSubscribe = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
+			channelRemoved = true
+			break
+		}
+	}
+	if !channelRemoved {
+		w.DataHandler <- fmt.Errorf("%v RemoveChannelToSubscribe() Channel %v Currency %v could not be removed because it was not found",
+		w.exchangeName, 
+		subscribedChannel.Channel,
+		subscribedChannel.Currency)
+		return
+	}
+	w.channelUnsubscriber(subscribedChannel)
 }
+
+// ResubscribeToChannel calls unsubscribe func and 
+// removes it from subscribedChannels to trigger a subscribe evbent
+func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubscription) {
+	err := w.channelUnsubscriber(subscribedChannel)
+	if err != nil {
+		w.DataHandler <- err
+	}
+	// Remove the channel from the list of subscribed channels
+	// ManageSubscriptions will automatically resubscribe
+	for i := range w.subscribedChannels {
+		if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, subscribedChannel.Channel) &&
+		strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), subscribedChannel.Currency.String()) {
+			w.subscribedChannels = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
+			break
+		}
+	}
+}
+
+
+
 
 

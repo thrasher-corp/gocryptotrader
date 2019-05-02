@@ -22,6 +22,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
+
 )
 
 // List of all websocket channels to subscribe to
@@ -147,48 +148,7 @@ const (
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var orderbookMutex sync.Mutex
-var subscribedChannels []string
-var channelsToSubscribe []string
 var defaultSubscribedChannels = []string{okGroupWsSpotDepth}
-var isReconnectionInProgress bool
-var initialWSRun = true
-
-// ManageSubscriptions keeps a tab on subs
-func (o *OKGroup) ManageSubscriptions() {
-	for {
-		time.Sleep(800 * time.Millisecond)
-		if o.Verbose {
-			log.Debug("Checking subscriptions")
-		}
-		for i := range channelsToSubscribe {
-			channelIsSubscribed := false
-			for j := range subscribedChannels {
-				if strings.EqualFold(channelsToSubscribe[i], subscribedChannels[j]) {
-					channelIsSubscribed = true
-					break
-				}
-			}
-			if !channelIsSubscribed {
-				if o.Verbose {
-					log.Debugf("Subscribing to the thing %v", channelsToSubscribe[i])
-				}
-				if !o.Websocket.IsConnected() {
-					log.Warn("Websocket not connected, skipping subscription run")
-					continue
-				}
-				err := o.WsSubscribeToChannel(channelsToSubscribe[i])
-				if err != nil {
-					o.Websocket.DataHandler <- err
-				}
-				channelIsSubscribed = true
-				subscribedChannels = append(subscribedChannels, channelsToSubscribe[i])
-				if o.Verbose {
-					log.Debugf("Successfully subscribed to the thing %v", channelsToSubscribe[i])
-				}
-			}
-		}
-	}
-}
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
@@ -208,16 +168,7 @@ func (o *OKGroup) writeToWebsocket(message string) error {
 // WsHandleConnection keeps an eye on the connection
 func (o *OKGroup) WsHandleConnection() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
-		if o.Websocket.IsConnected() {
-			o.Websocket.Shutdown()
-		}
 		return errors.New(exchange.WebsocketNotEnabled)
-	}
-	if o.Websocket.IsConnected() {
-		if o.Verbose {
-			log.Debug("Still connected, no need to reconnect")
-		}
-		return nil
 	}
 
 	var dialer websocket.Dialer
@@ -252,57 +203,15 @@ func (o *OKGroup) WsHandleConnection() error {
 	return nil
 }
 
-// WsManageConnection loops on connection status
-func (o *OKGroup) WsManageConnection() {
-	for {
-		// Simulate disconnect
-		time.Sleep(2 * time.Second)
-		if o.Websocket.IsEnabled() && o.IsEnabled() && !o.Websocket.IsConnected() {
-			log.Debug("Checking WS Connection")
-		//	o.WebsocketReset()
-			subscribedChannels = []string{}
-		}
-		//}
-		//o.WsHandleConnection()
-	}
-}
-
 // WsConnect initiates a websocket connection
 func (o *OKGroup) WsConnect() error {
 	o.WsHandleConnection()
 	go o.WsHandleData()
-	go o.wsPingHandler()	if initialWSRun {
-		go o.WsManageConnection()
-		err := o.WsGenerateSubscriptionsForAllEnabledCurrencies()
-		if err != nil {
-			return fmt.Errorf("error: Could not subscribe to the OKEX websocket %s",
-				err)
-		}
-		initialWSRun = false
-	}
-
+	go o.wsPingHandler()
+	o.GenerateDefaultSubscriptions()
 
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
-	return nil
-}
-
-// WsGenerateSubscriptionsForAllEnabledCurrencies subscribes to the websocket channels
-func (o *OKGroup) WsGenerateSubscriptionsForAllEnabledCurrencies() (err error) {
-	for _, pair := range o.EnabledPairs {
-		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "_", "-", 1))
-		for _, channel := range defaultSubscribedChannels {
-			channelToSubscribe := fmt.Sprintf("%v:%s", channel, formattedPair)
-			channelsToSubscribe = append(channelsToSubscribe, channelToSubscribe)
-		}
-	}
-	// Now always handle subscriptions
-	go o.ManageSubscriptions()
-	return nil
-}
-
-// Authenticate lol
-func (o *OKGroup) Authenticate() error {
 	return nil
 }
 
@@ -532,20 +441,12 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		orderbookMutex.Lock()
 		err := o.WsProcessOrderBook(response)
 		if err != nil {
-			log.Debugln("-----------------------------------------------------")
-			log.Error(err)
-			log.Debugln("-----------------------------------------------------")
-
-			subscriptionChannel := fmt.Sprintf("%v:%v", response.Table, response.Data[0].InstrumentID)
-			log.Debugf("Unsbuscribing from channel %v", subscriptionChannel)
-			o.WsUnsubscribeToChannel(subscriptionChannel)
-			for i := range subscribedChannels {
-				if subscribedChannels[i] == subscriptionChannel {
-					subscribedChannels = append(subscribedChannels[:i], subscribedChannels[i+1:]...)
-					i--
-					break
-				}
+			pair:= currency.NewPairDelimiter(response.Data[0].InstrumentID, "-")
+			channelToResubscribe := exchange.WebsocketChannelSubscription{
+				Channel: response.Table,
+				Currency: pair,
 			}
+			o.Websocket.ResubscribeToChannel(channelToResubscribe)
 		}
 		orderbookMutex.Unlock()
 	case okGroupWsTicker:
@@ -833,4 +734,49 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 	}
 	checksum = strings.TrimSuffix(checksum, ":")
 	return int32(crc32.ChecksumIEEE([]byte(checksum)))
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (o *OKGroup) GenerateDefaultSubscriptions() {
+	enabledCurrencies := o.GetEnabledCurrencies()
+	for i := range defaultSubscribedChannels {
+		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = "-"
+			o.Websocket.ChannelsToSubscribe = append(o.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  defaultSubscribedChannels[i],
+				Currency: enabledCurrencies[j],
+			})
+		} 
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	resp := WebsocketEventRequest{
+		Operation: "subscribe",
+		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
+	}
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		log.Debugf("Subscribe error: %v", err)
+		return err
+	}
+
+	return o.writeToWebsocket(string(json))
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	resp := WebsocketEventRequest{
+		Operation: "unsubscribe",
+		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
+	}
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		log.Debugf("Subscribe error: %v", err)
+		return err
+	}
+	return o.writeToWebsocket(string(json))
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -42,78 +43,11 @@ func (z *ZB) WsConnect() error {
 	}
 
 	go z.WsHandleData()
-
-	return z.WsSubscribe()
-}
-
-// WsSubscribe subscribes to the full websocket suite on ZB exchange
-func (z *ZB) WsSubscribe() error {
-	markets := Subscription{
-		Event:   "addChannel",
-		Channel: "markets",
-	}
-
-	reqMarkets, err := common.JSONEncode(markets)
-	if err != nil {
-		return err
-	}
-
-	err = z.WebsocketConn.WriteMessage(websocket.TextMessage, reqMarkets)
-	if err != nil {
-		return err
-	}
-
-	for _, c := range z.GetEnabledCurrencies() {
-		cPair := c.Base.Lower().String() + c.Quote.Lower().String()
-
-		ticker := Subscription{
-			Event:   "addChannel",
-			Channel: fmt.Sprintf("%s_ticker", cPair),
-		}
-
-		reqTicker, err := common.JSONEncode(ticker)
-		if err != nil {
-			return err
-		}
-
-		err = z.WebsocketConn.WriteMessage(websocket.TextMessage, reqTicker)
-		if err != nil {
-			return err
-		}
-
-		depth := Subscription{
-			Event:   "addChannel",
-			Channel: fmt.Sprintf("%s_depth", cPair),
-		}
-
-		reqDepth, err := common.JSONEncode(depth)
-		if err != nil {
-			return err
-		}
-
-		err = z.WebsocketConn.WriteMessage(websocket.TextMessage, reqDepth)
-		if err != nil {
-			return err
-		}
-
-		trades := Subscription{
-			Event:   "addChannel",
-			Channel: fmt.Sprintf("%s_trades", cPair),
-		}
-
-		reqTrades, err := common.JSONEncode(trades)
-		if err != nil {
-			return err
-		}
-
-		err = z.WebsocketConn.WriteMessage(websocket.TextMessage, reqTrades)
-		if err != nil {
-			return err
-		}
-	}
-
+	z.GenerateDefaultSubscriptions()
+	
 	return nil
 }
+
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
@@ -308,4 +242,48 @@ var wsErrCodes = map[int64]string{
 	3008: "Transaction history not found",
 	4001: "API interface is locked",
 	4002: "Request too frequently",
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (z *ZB) GenerateDefaultSubscriptions() {
+	// Tickerdata is its own channel
+	z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+		Channel:  fmt.Sprintf("%v","markets"),
+	})
+	channels := []string {"%s_ticker", "%s_depth", "%s_trades"}
+	enabledCurrencies := z.GetEnabledCurrencies()
+	for i := range channels {
+	for j := range enabledCurrencies {
+		z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			Channel:  channels[i],
+			Currency: enabledCurrencies[j],
+		})
+	} 
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscriptionRequest := Subscription{
+		Event:   "addChannel",
+	}
+	if strings.EqualFold("markets", channelToSubscribe.Channel) {
+		subscriptionRequest.Channel = "markets"
+	} else {
+		subscriptionRequest.Channel = fmt.Sprintf(channelToSubscribe.Channel, channelToSubscribe.Currency.String())
+	}
+
+	subscriptionJSON, err := common.JSONEncode(subscriptionRequest)
+	if err != nil {
+		return err
+	}
+	time.Sleep(30 * time.Millisecond)
+	return z.WebsocketConn.WriteMessage(websocket.TextMessage, subscriptionJSON)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (z *ZB) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
 }

@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -64,9 +63,7 @@ var subscribeToDefaultChannels = true
 
 // Channels require a topic and a currency
 // Format [[ticker,but-t4u],[orderbook,nce-btt]]
-var subscribedChannels [][]string
-var channelsToSubscribe [][]string
-var defaultSubscribedChannels = []string{krakenWsOrderbook}
+var defaultSubscribedChannels = []string{krakenWsTicker, krakenWsTrade, krakenWsOrderbook, krakenWsOHLC, krakenWsSpread}
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (k *Kraken) writeToWebsocket(message []byte) error {
@@ -83,53 +80,8 @@ func (k *Kraken) writeToWebsocket(message []byte) error {
 	return k.WebsocketConn.WriteMessage(websocket.TextMessage, message)
 }
 
-// ManageSubscriptions keeps a tab on subs
-func (k *Kraken) ManageSubscriptions() {
-	k.Websocket.Wg.Add(1)
-	defer func() {
-		log.Debug("ManageSubscriptions EXITING")
-		k.Websocket.Wg.Done()
-	}()
-	for {
-		select {
-		case <-k.Websocket.ShutdownC:
-			log.Debug("SHUTDOWN ManageSubscriptions")
-			return
-		default:
-			time.Sleep(800 * time.Millisecond)
-			if k.Verbose {
-				log.Debug("Checking subscriptions")
-			}
-			for i := range channelsToSubscribe {
-				channelIsSubscribed := false
-				for j := range subscribedChannels {
-					if strings.EqualFold(channelsToSubscribe[i][0], subscribedChannels[j][0]) &&
-						strings.EqualFold(channelsToSubscribe[i][1], subscribedChannels[j][1]) {
-						log.Debugf("%v %v is already subscried", channelsToSubscribe[i][0], channelsToSubscribe[i][1])
-						channelIsSubscribed = true
-						break
-					}
-				}
-				if !channelIsSubscribed {
-					if k.Verbose {
-						log.Debugf("Subscribing to the thing %v", channelsToSubscribe[i])
-					}
-					err := k.WsSubscribeToChannel(channelsToSubscribe[i][0], []string{channelsToSubscribe[i][1]}, 0)
-					if err != nil {
-						k.Websocket.DataHandler <- err
-					}
-					channelIsSubscribed = true
-					subscribedChannels = append(subscribedChannels, channelsToSubscribe[i])
-					if k.Verbose {
-						log.Debugf("Successfully subscribed to the thing %v", channelsToSubscribe[i])
-					}
-				}
-			}
-		}
-	}
-}
-
-func (k *Kraken) WsHandleConnection() error {
+// WsConnect initiates a websocket connection
+func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
 		return errors.New(exchange.WebsocketNotEnabled)
 	}
@@ -162,33 +114,11 @@ func (k *Kraken) WsHandleConnection() error {
 	}
 	go k.WsHandleData()
 	go k.wsPingHandler()
-	subscribedChannels = [][]string{}
 	if subscribeToDefaultChannels {
-		k.WsSubscribeToDefaults()
+		k.GenerateDefaultSubscriptions()
 	}
-	go k.ManageSubscriptions()
 
 	return nil
-
-}
-
-// WsConnect initiates a websocket connection
-func (k *Kraken) WsConnect() error {
-	k.WsHandleConnection()
-	return nil
-}
-
-// WsSubscribeToDefaults subscribes to the websocket channels
-func (k *Kraken) WsSubscribeToDefaults() {
-	for _, pair := range k.EnabledPairs {
-		// Kraken WS formats pairs with / but config and REST use -
-		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "-", "/", 1))
-		for _, channel := range defaultSubscribedChannels {
-			channelToSubscribe := []string{channel, formattedPair}
-			channelsToSubscribe = append(channelsToSubscribe, channelToSubscribe)
-		}
-	}
-	subscribeToDefaultChannels = false
 }
 
 // WsReadData reads data from the websocket connection
@@ -252,23 +182,19 @@ func (k *Kraken) wsPingHandler() {
 
 // WsHandleData handles the read data from the websocket connection
 func (k *Kraken) WsHandleData() {
-	log.Debug("WSHANDLEDATA STARTING")
 	k.Websocket.Wg.Add(1)
 	defer func() {
-		log.Debug("WSHANDLEDATA EXITING")
 		k.Websocket.Wg.Done()
 	}()
 
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
-			log.Debug("WSHANDLEDATA SHUTDOWN RECEIVED")
 			return
 		default:
-			log.Debug("WSHANDLEDATA READING DATA")
 			resp, err := k.WsReadData()
 			if err != nil {
-				k.Websocket.DataHandler <- fmt.Errorf("THERE HAS BEEN A HANDLEDATA ERROR: %v", err)
+				k.Websocket.DataHandler <- fmt.Errorf("WsHandleData: %v", err)
 				time.Sleep(time.Second)
 			}
 			// event response handling
@@ -395,7 +321,7 @@ func (k *Kraken) WsSubscribeToChannel(topic string, currencies []string, request
 	if err != nil {
 		log.Debugf("Subscribe error: %v", err)
 		return err
-	}
+	} 
 	return k.writeToWebsocket(json)
 }
 
@@ -542,14 +468,11 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 			if len(orderbookBuffer[channelData.ChannelID]) >= orderbookBufferLimit {
 				err := k.wsProcessOrderBookUpdate(channelData)
 				if err != nil {
-					for i := range subscribedChannels {
-						formattedPair := strings.ToUpper(strings.Replace(channelData.Pair.String(), "-", "/", 1))
-						if strings.EqualFold(subscribedChannels[i][0], channelData.Subscription) &&
-							strings.EqualFold(subscribedChannels[i][1], formattedPair) {
-							subscribedChannels = append(subscribedChannels[:i], subscribedChannels[i+1:]...)
-							break
-						}
+					subscriptionToRemove := exchange.WebsocketChannelSubscription{
+						Channel: krakenWsOrderbook,
+						Currency: channelData.Pair,
 					}
+					k.Websocket.ResubscribeToChannel(subscriptionToRemove)
 				}
 			}
 		}
@@ -871,4 +794,57 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interf
 		ClosePrice: closePrice,
 		Volume:     volume,
 	}
+}
+
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (k *Kraken) GenerateDefaultSubscriptions() {
+	enabledCurrencies := k.GetEnabledCurrencies()
+	for i := range defaultSubscribedChannels {
+		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = "/"
+			k.Websocket.ChannelsToSubscribe = append(k.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  defaultSubscribedChannels[i],
+				Currency: enabledCurrencies[j],
+			})
+		} 
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	resp := WebsocketSubscriptionEventRequest{
+		Event: krakenWsSubscribe,
+		Pairs: []string{channelToSubscribe.Currency.String()},
+		Subscription: WebsocketSubscriptionData{
+			Name: channelToSubscribe.Channel,
+		},
+	}
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		log.Debugf("Subscribe error: %v", err)
+		return err
+	}
+	time.Sleep(30 * time.Millisecond)
+	return k.writeToWebsocket(json)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (k *Kraken) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	resp := WebsocketSubscriptionEventRequest{
+		Event: krakenWsUnsubscribe,
+		Pairs: []string{channelToSubscribe.Currency.String()},
+		Subscription: WebsocketSubscriptionData{
+			Name: channelToSubscribe.Channel,
+		},
+	}
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		log.Debugf("Unsubscribe error: %v", err)
+		return err
+	}
+	time.Sleep(30 * time.Millisecond)
+	return k.writeToWebsocket(json)
 }

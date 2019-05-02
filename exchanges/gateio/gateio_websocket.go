@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -54,8 +55,10 @@ func (g *Gateio) WsConnect() error {
 	}
 
 	go g.WsHandleData()
+	g.GenerateDefaultSubscriptions()
 
-	return g.WsSubscribe()
+
+	return nil
 }
 
 func (g *Gateio) wsServerSignIn() error {
@@ -68,83 +71,6 @@ func (g *Gateio) wsServerSignIn() error {
 		Params: []interface{}{g.APIKey, signature, nonce},
 	}
 	return g.WebsocketConn.WriteJSON(signinWsRequest)
-}
-
-// WsSubscribe subscribes to the full websocket suite on ZB exchange
-func (g *Gateio) WsSubscribe() error {
-	enabled := g.GetEnabledCurrencies()
-
-	for _, c := range enabled {
-		ticker := WebsocketRequest{
-			ID:     1337,
-			Method: "ticker.subscribe",
-			Params: []interface{}{c.String()},
-		}
-
-		err := g.WebsocketConn.WriteJSON(ticker)
-		if err != nil {
-			return err
-		}
-
-		trade := WebsocketRequest{
-			ID:     1337,
-			Method: "trades.subscribe",
-			Params: []interface{}{c.String()},
-		}
-
-		err = g.WebsocketConn.WriteJSON(trade)
-		if err != nil {
-			return err
-		}
-
-		depth := WebsocketRequest{
-			ID:     1337,
-			Method: "depth.subscribe",
-			Params: []interface{}{c.String(), 30, "0.1"},
-		}
-
-		err = g.WebsocketConn.WriteJSON(depth)
-		if err != nil {
-			return err
-		}
-
-		kline := WebsocketRequest{
-			ID:     1337,
-			Method: "kline.subscribe",
-			Params: []interface{}{c.String(), 1800},
-		}
-
-		err = g.WebsocketConn.WriteJSON(kline)
-		if err != nil {
-			return err
-		}
-	}
-
-	if g.AuthenticatedAPISupport {
-		balance := WebsocketRequest{
-			ID:     IDBalance,
-			Method: "balance.subscribe",
-			Params: []interface{}{},
-		}
-
-		err := g.WebsocketConn.WriteJSON(balance)
-		if err != nil {
-			return err
-		}
-
-		for _, c := range enabled {
-			orderNotification := WebsocketRequest{
-				ID:     IDGeneric,
-				Method: "order.subscribe",
-				Params: []interface{}{c.String()},
-			}
-			err := g.WebsocketConn.WriteJSON(orderNotification)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 // WsReadData reads from the websocket connection and returns the websocket
@@ -414,6 +340,53 @@ func (g *Gateio) WsHandleData() {
 			}
 		}
 	}
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (g *Gateio) GenerateDefaultSubscriptions() {
+	var channels = []string{"ticker.subscribe","trades.subscribe", "depth.subscribe", "kline.subscribe"}
+	enabledCurrencies := g.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			params := make(map[string]string)
+			if strings.EqualFold(channels[i], "depth.subscribe") {
+				params["what"] ="30"
+				params["who"] ="0.1"
+			} else if strings.EqualFold(channels[i], "kline.subscribe") {
+				params["sup"] ="1800"
+			}
+			g.Websocket.ChannelsToSubscribe = append(g.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+				Params: params,
+			})
+		} 
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := WebsocketRequest{
+		ID:     1337,
+		Method: channelToSubscribe.Channel,
+		Params: []interface{}{channelToSubscribe.Currency.String(), 1800},
+	}
+
+	data, err := common.JSONEncode(subscribe)
+	if err != nil {
+		return err
+	}
+ 
+	time.Sleep(30 * time.Millisecond)
+	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	// TODOSCOTT
+	return common.ErrFunctionNotSupported
 }
 
 func (g *Gateio) wsGetBalance() error {

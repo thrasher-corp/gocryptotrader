@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -65,41 +66,8 @@ func (p *Poloniex) WsConnect() error {
 	}
 
 	go p.WsHandleData()
+	p.GenerateDefaultSubscriptions()
 
-	return p.WsSubscribe()
-}
-
-// WsSubscribe subscribes to the websocket feeds
-func (p *Poloniex) WsSubscribe() error {
-	tickerJSON, err := common.JSONEncode(WsCommand{
-		Command: "subscribe",
-		Channel: wsTickerDataID})
-	if err != nil {
-		return err
-	}
-
-	err = p.WebsocketConn.WriteMessage(websocket.TextMessage, tickerJSON)
-	if err != nil {
-		return err
-	}
-
-	pairs := p.GetEnabledCurrencies()
-	for _, nextPair := range pairs {
-		fPair := exchange.FormatExchangeCurrency(p.GetName(), nextPair)
-
-		orderbookJSON, err := common.JSONEncode(WsCommand{
-			Command: "subscribe",
-			Channel: fPair.String(),
-		})
-		if err != nil {
-			return err
-		}
-
-		err = p.WebsocketConn.WriteMessage(websocket.TextMessage, orderbookJSON)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -467,4 +435,61 @@ var CurrencyPairID = map[int]string{
 	224: "USDC_BTC",
 	226: "USDC_USDT",
 	225: "USDC_ETH",
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (p *Poloniex) GenerateDefaultSubscriptions() {
+	// Tickerdata is its own channel
+	p.Websocket.ChannelsToSubscribe = append(p.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+		Channel:  fmt.Sprintf("%v",wsTickerDataID),
+	})
+
+	enabledCurrencies := p.GetEnabledCurrencies()
+	for j := range enabledCurrencies {
+		enabledCurrencies[j].Delimiter = "/"
+		p.Websocket.ChannelsToSubscribe = append(p.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			Channel:  "orderbook",
+			Currency: enabledCurrencies[j],
+		})
+	} 
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (p *Poloniex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscriptionRequest := WsCommand {
+		Command: "subscribe",
+	}
+	if strings.EqualFold(fmt.Sprintf("%v",wsTickerDataID), channelToSubscribe.Channel) {
+		subscriptionRequest.Channel = wsTickerDataID
+	} else {
+		subscriptionRequest.Channel = channelToSubscribe.Currency.String()
+
+	}
+	subscriptionJSON, err := common.JSONEncode(subscriptionRequest)
+	if err != nil {
+		return err
+	}
+	time.Sleep(30 * time.Millisecond)
+	return p.WebsocketConn.WriteMessage(websocket.TextMessage, subscriptionJSON)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (p *Poloniex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	unsubscriptionRequest := WsCommand {
+		Command: "unsubscribe",
+	}
+	if strings.EqualFold(fmt.Sprintf("%v",wsTickerDataID), channelToSubscribe.Channel) {
+		unsubscriptionRequest.Channel = wsTickerDataID
+	} else {
+		unsubscriptionRequest.Channel = channelToSubscribe.Currency.String()
+
+	}
+	unsubscriptionJSON, err := common.JSONEncode(unsubscriptionRequest)
+	if err != nil {
+		return err
+	}
+	time.Sleep(30 * time.Millisecond)
+	return p.WebsocketConn.WriteMessage(websocket.TextMessage, unsubscriptionJSON)
 }

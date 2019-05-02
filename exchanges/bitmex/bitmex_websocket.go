@@ -199,8 +199,6 @@ func (b *Bitmex) wsHandleIncomingData() {
 				if decodedResp.Success {
 					if b.Verbose {
 						if len(quickCapture) == 3 {
-							//TODOSCOTT
-							b.Websocket.AddSubscribedChannel(exchange.WebsocketChannelSubscription{})
 							log.Debugf("%s websocket: Successfully subscribed to %s",
 								b.Name, decodedResp.Subscribe)
 						} else {

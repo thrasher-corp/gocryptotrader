@@ -132,8 +132,8 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.WebsocketSetup(c.WsConnect,
-nil,
-nil,
+			c.Subscribe,
+			c.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			coinbaseproWebsocketURL,

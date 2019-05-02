@@ -51,7 +51,8 @@ func (h *HUOBIHADAX) WsConnect() error {
 
 	go h.WsHandleData()
 
-	return h.WsSubscribe()
+	h.GenerateDefaultSubscriptions()
+	return nil
 }
 
 // WsReadData reads data from the websocket connection
@@ -223,46 +224,35 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 	return nil
 }
 
-// WsSubscribe susbcribes to the current websocket streams based on the enabled
-// pair
-func (h *HUOBIHADAX) WsSubscribe() error {
-	pairs := h.GetEnabledCurrencies()
-
-	for _, p := range pairs {
-		fPair := exchange.FormatExchangeCurrency(h.GetName(), p)
-
-		depthTopic := fmt.Sprintf(wsMarketDepth, fPair.String())
-		depthJSON, err := common.JSONEncode(WsRequest{Subscribe: depthTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, depthJSON)
-		if err != nil {
-			return err
-		}
-
-		klineTopic := fmt.Sprintf(wsMarketKline, fPair.String())
-		KlineJSON, err := common.JSONEncode(WsRequest{Subscribe: klineTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, KlineJSON)
-		if err != nil {
-			return err
-		}
-
-		tradeTopic := fmt.Sprintf(wsMarketTrade, fPair.String())
-		tradeJSON, err := common.JSONEncode(WsRequest{Subscribe: tradeTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, tradeJSON)
-		if err != nil {
-			return err
-		}
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
+	var channels = []string{wsMarketKline,wsMarketDepth, wsMarketTrade}
+	enabledCurrencies := h.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].String())
+			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  channel,
+				Currency: enabledCurrencies[j],
+			})
+		} 
 	}
-	return nil
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (h *HUOBIHADAX) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	time.Sleep(30 * time.Millisecond)
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	// TODOSCOTT
+	return common.ErrFunctionNotSupported
 }
