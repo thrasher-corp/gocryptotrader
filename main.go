@@ -8,12 +8,14 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/connchecker"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -25,14 +27,16 @@ import (
 // Bot contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
 type Bot struct {
-	config     *config.Config
-	portfolio  *portfolio.Base
-	exchanges  []exchange.IBotExchange
-	comms      *communications.Communications
-	shutdown   chan bool
-	dryRun     bool
-	configFile string
-	dataDir    string
+	config       *config.Config
+	portfolio    *portfolio.Base
+	exchanges    []exchange.IBotExchange
+	comms        *communications.Communications
+	shutdown     chan bool
+	dryRun       bool
+	configFile   string
+	dataDir      string
+	connectivity *connchecker.Checker
+	sync.Mutex
 }
 
 const banner = `
@@ -128,6 +132,11 @@ func main() {
 			}
 		}
 	}
+
+	// Sets up internet connectivity monitor
+	bot.connectivity = connchecker.New(bot.config.ConnectionMonitor.DNSList,
+		bot.config.ConnectionMonitor.PublicDomainList,
+		bot.config.ConnectionMonitor.CheckInterval)
 
 	AdjustGoMaxProcs()
 	log.Debugf("Bot '%s' started.\n", bot.config.Name)
@@ -243,7 +252,7 @@ func HandleInterrupt() {
 	go func() {
 		sig := <-c
 		log.Debugf("Captured %v, shutdown requested.", sig)
-		bot.shutdown <- true
+		close(bot.shutdown)
 	}()
 }
 
