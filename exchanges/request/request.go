@@ -403,33 +403,33 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	}
 
 	if r == nil || r.Name == "" {
-		r.lock()
+		r.unlock()
 		return errors.New("not initiliased, SetDefaults() called before making request?")
 	}
 
 	if !IsValidMethod(method) {
-		r.lock()
+		r.unlock()
 		return fmt.Errorf("incorrect method supplied %s: supported %s", method, supportedMethods)
 	}
 
 	if path == "" {
-		r.lock()
+		r.unlock()
 		return errors.New("invalid path")
 	}
 
 	req, err := r.checkRequest(method, path, body, headers)
 	if err != nil {
-		r.lock()
+		r.unlock()
 		return err
 	}
 
 	if !r.RequiresRateLimiter() {
-		r.lock()
+		r.unlock()
 		return r.DoRequest(req, path, body, result, authRequest, verbose)
 	}
 
 	if len(r.Jobs) == maxRequestJobs {
-		r.lock()
+		r.unlock()
 		return errors.New("max request jobs reached")
 	}
 
