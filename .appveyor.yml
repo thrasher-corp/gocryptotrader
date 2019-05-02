@@ -26,7 +26,7 @@ test_script:
   # test back-end
   - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.15.0
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
-  - go test -race -coverprofile=coverage.txt -covermode=atomic  ./...
+  - go test -race ./...
   
   # test front-end
   - node --version
