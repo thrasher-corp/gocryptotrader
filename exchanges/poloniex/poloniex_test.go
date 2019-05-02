@@ -1,7 +1,6 @@
 package poloniex
 
 import (
-	"sync"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -21,10 +20,8 @@ const (
 )
 
 var isSetup bool
-var mtx sync.Mutex
 
 func TestSetup(t *testing.T) {
-	mtx.Lock()
 	if !isSetup {
 		cfg := config.GetConfig()
 		cfg.LoadConfig("../../testdata/configtest.json")
@@ -39,7 +36,6 @@ func TestSetup(t *testing.T) {
 		p.Setup(&poloniexConfig)
 		isSetup = true
 	}
-	mtx.Unlock()
 }
 
 func TestGetTicker(t *testing.T) {
@@ -417,4 +413,5 @@ func TestGetDepositAddress(t *testing.T) {
 			t.Error("Test Failed - GetDepositAddress()")
 		}
 	}
+	t.Error()
 }
