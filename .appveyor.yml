@@ -5,15 +5,20 @@ clone_folder: c:\gopath\src\github.com\thrasher-\gocryptotrader
 environment:
   GOPATH: c:\gopath
   GO111MODULE: on
-  NODEJS_VER: 10
+
+  matrix:
+    - NODEJS_VER: 10
+    - NODEJS_VER: 8
 
 stack: go 1.12.3
 
 install:
   - ps: Install-Product node $env:NODEJS_VER
+  - cd c:\gopath\src\github.com\thrasher-\gocryptotrader\web
   - npm install
 
 before_test:
+  - cd c:\gopath\src\github.com\thrasher-\gocryptotrader
   - go get
 
 test_script:
