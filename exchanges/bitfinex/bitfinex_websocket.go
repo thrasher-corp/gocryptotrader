@@ -74,48 +74,6 @@ func (b *Bitfinex) WsSend(data interface{}) error {
 	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitfinex) GenerateDefaultSubscriptions() {
-	var channels = []string{"book", "trades", "ticker"}
-	for _, x := range channels {
-		for _, y := range b.EnabledPairs {
-			params := make(map[string]string)
-			if x == "book" {
-				params["prec"] = "P0"
-			}
-			params["pair"] = y.String()
-
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
-				Channel:  x,
-				Currency: y,
-				Params:   params,
-			})
-		}
-	}
-}
-
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *Bitfinex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	req := make(map[string]string)
-	req["event"] = "subscribe"
-	req["channel"] = channelToSubscribe.Channel
-
-	if len(channelToSubscribe.Params) > 0 {
-		for k, v := range channelToSubscribe.Params {
-			req[k] = v
-		}
-	}
-	return b.WsSend(req)
-}
-
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *Bitfinex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	//TODOSCOTT
-	return common.ErrFunctionNotSupported
-}
-
 // WsSendAuth sends a autheticated event payload
 func (b *Bitfinex) WsSendAuth() error {
 	req := make(map[string]interface{})
@@ -644,4 +602,55 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 		Exchange: b.GetName()}
 
 	return nil
+}
+
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *Bitfinex) GenerateDefaultSubscriptions() {
+	var channels = []string{"book", "trades", "ticker"}
+	for _, x := range channels {
+		for _, y := range b.EnabledPairs {
+			params := make(map[string]string)
+			if x == "book" {
+				params["prec"] = "P0"
+			}
+			params["pair"] = y.String()
+
+			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+				Channel:  x,
+				Currency: y,
+				Params:   params,
+			})
+		}
+	}
+}
+
+// Subscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (b *Bitfinex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	req := make(map[string]string)
+	req["event"] = "subscribe"
+	req["channel"] = channelToSubscribe.Channel
+
+	if len(channelToSubscribe.Params) > 0 {
+		for k, v := range channelToSubscribe.Params {
+			req[k] = v
+		}
+	}
+	return b.WsSend(req)
+}
+
+// Unsubscribe tells the websocket connection monitor to not bother with Binance
+// Subscriptions are URL argument based and have no need to sub/unsub from channels
+func (b *Bitfinex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	req := make(map[string]string)
+	req["event"] = "unsubscribe"
+	req["channel"] = channelToSubscribe.Channel
+
+	if len(channelToSubscribe.Params) > 0 {
+		for k, v := range channelToSubscribe.Params {
+			req[k] = v
+		}
+	}
+	return b.WsSend(req)
 }

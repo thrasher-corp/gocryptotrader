@@ -385,8 +385,20 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	// TODOSCOTT
-	return common.ErrFunctionNotSupported
+	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe",1)
+	subscribe := WebsocketRequest{
+		ID:     1337,
+		Method: unsbuscribeText,
+		Params: []interface{}{channelToSubscribe.Currency.String(), 1800},
+	}
+
+	data, err := common.JSONEncode(subscribe)
+	if err != nil {
+		return err
+	}
+ 
+	time.Sleep(30 * time.Millisecond)
+	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
 func (g *Gateio) wsGetBalance() error {

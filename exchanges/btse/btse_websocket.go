@@ -252,7 +252,6 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	// Basic ratelimiter
 	subscribe := websocketSubscribe{
 		Type: "subscribe",
 		Channels: []websocketChannel{
@@ -267,6 +266,7 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 	if err != nil {
 		return err
 	}
+	// Basic ratelimiter
 	time.Sleep(30 * time.Millisecond)
 	return b.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
@@ -274,8 +274,21 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := websocketSubscribe{
+		Type: "unsubscribe",
+		Channels: []websocketChannel{
+			{
+				Name:       channelToSubscribe.Channel,
+				ProductIDs: []string {channelToSubscribe.Currency.String()},
+			},
+		},
+	}
+
+	data, err := common.JSONEncode(subscribe)
+	if err != nil {
+		return err
+	}
 	// Basic ratelimiter
-	//TODOSCOTT
-	//b.Websocket.ChannelsToSubscribe = []exchange.WebsocketChannelSubscription
-	return common.ErrFunctionNotSupported
+	time.Sleep(30 * time.Millisecond)
+	return b.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

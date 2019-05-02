@@ -554,6 +554,10 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTCC) GenerateDefaultSubscriptions() {
+	b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+		Channel:  "SubscribeAllTickers",
+	})
+
 	var channels = []string{"SubOrderBook", "GetTrades", "Subscribe"}
 	enabledCurrencies := b.GetEnabledCurrencies()
 	for i := range channels {
@@ -576,8 +580,6 @@ func (b *BTCC) GenerateDefaultSubscriptions() {
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	// Basic ratelimiter
-	time.Sleep(30 * time.Millisecond)
 	subscription := WsOutgoing{
 		Action: channelToSubscribe.Channel,
 		Symbol: channelToSubscribe.Currency.String(),
@@ -587,17 +589,26 @@ func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 	} else if subscription.Action == "GetTrades" {
 		subscription.Count = 100
 	}
+	// Basic ratelimiter
+	time.Sleep(30 * time.Millisecond)
 	return b.Conn.WriteJSON(subscription)
 }
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscription := WsOutgoing{}
+	switch channelToSubscribe.Channel {
+	case "SubOrderBook":
+		subscription.Action = "UnSubOrderBook"
+		subscription.Symbol = channelToSubscribe.Currency.String()
+	case "Subscribe":
+		subscription.Action = "UnSubscribe"
+		subscription.Symbol = channelToSubscribe.Currency.String()
+	case "SubscribeAllTickers":
+		subscription.Action = "UnSubscribeAllTickers"
+	}
 	// Basic ratelimiter
-	//TODOSCOTT
-	return b.Conn.WriteJSON(WsOutgoing{
-		Action: "UnSubscribeAllTickers",
-	})
-
-	//b.Websocket.ChannelsToSubscribe = []exchange.WebsocketChannelSubscription
+	time.Sleep(30 * time.Millisecond)
+	return b.Conn.WriteJSON(subscription)
 }

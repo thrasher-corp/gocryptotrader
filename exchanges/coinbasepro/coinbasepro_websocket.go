@@ -286,6 +286,22 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	//TODOSCOTT
-	return common.ErrFunctionNotSupported
+	subscribe := WebsocketSubscribe{
+		Type: "unsubscribe", 
+		Channels: []WsChannels { 
+		WsChannels{
+			Name: channelToSubscribe.Channel, 
+			ProductIDs: []string {
+				channelToSubscribe.Currency.String(),
+				}, 
+			},
+		},
+	}
+	data, err := common.JSONEncode(subscribe)
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(30 * time.Millisecond)
+	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

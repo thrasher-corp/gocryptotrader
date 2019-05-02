@@ -425,8 +425,15 @@ func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	//TODOSCOTT
-	return common.ErrFunctionNotSupported
+	var subscriber WebsocketRequest
+	subscriber.Command = "unsubscribe"
+	subscriber.Arguments = append(subscriber.Arguments,
+		channelToSubscribe.Params["args"])
+	subscriber.Arguments = append(subscriber.Arguments,
+		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
+	// Basic rate limiter
+	time.Sleep(30 * time.Millisecond)
+	return b.WebsocketConn.WriteJSON(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription

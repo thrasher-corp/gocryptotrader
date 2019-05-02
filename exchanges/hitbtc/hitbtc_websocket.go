@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -318,6 +319,8 @@ type WsNotification struct {
 
 type params struct {
 	Symbol string `json:"symbol"`
+	Period string `json:"period,omitempty"`
+	Limit int64 `json:"limit,omitempty"`
 }
 
 // WsTicker defines websocket ticker feed return params
@@ -369,7 +372,7 @@ type WsTrade struct {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() {
-	var channels = []string{"subscribeTicker","subscribeOrderbook", "subscribeTrades"}
+	var channels = []string{"subscribeTicker","subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
 	enabledCurrencies := h.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -387,7 +390,21 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,
 		Method:         channelToSubscribe.Channel,
-		Params:         params{Symbol: channelToSubscribe.Currency.String()},
+		Params:         params{
+			Symbol: channelToSubscribe.Currency.String(),
+		},
+	}
+	if strings.EqualFold(channelToSubscribe.Channel,"subscribeTrades") {
+		subscribe.Params = params{
+			Symbol: channelToSubscribe.Currency.String(),
+			Limit:100,
+		}
+	} else if strings.EqualFold(channelToSubscribe.Channel,"subscribeCandles") {
+		subscribe.Params = params{
+			Symbol: channelToSubscribe.Currency.String(),
+			Period:"M30",
+			Limit:100,
+		}
 	}
 
 	data, err := common.JSONEncode(subscribe)
@@ -402,6 +419,32 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	// TODOSCOTT
-	return common.ErrFunctionNotSupported
+	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe",1)
+	subscribe := WsNotification{
+		JSONRPCVersion: rpcVersion,
+		Method:         unsubscribeChannel,
+		Params:         params{
+			Symbol: channelToSubscribe.Currency.String(),
+		},
+	}
+	if strings.EqualFold(unsubscribeChannel,"unsubscribeTrades") {
+		subscribe.Params = params{
+			Symbol: channelToSubscribe.Currency.String(),
+			Limit:100,
+		}
+	} else if strings.EqualFold(unsubscribeChannel,"unsubscribeCandles") {
+		subscribe.Params = params{
+			Symbol: channelToSubscribe.Currency.String(),
+			Period:"M30",
+			Limit:100,
+		}
+	}
+
+	data, err := common.JSONEncode(subscribe)
+	if err != nil {
+		return err
+	}
+ 
+	time.Sleep(30 * time.Millisecond)
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

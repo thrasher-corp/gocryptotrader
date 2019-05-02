@@ -253,6 +253,10 @@ func (h *HUOBIHADAX) Subscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	// TODOSCOTT
-	return common.ErrFunctionNotSupported
+	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	} 
+	time.Sleep(30 * time.Millisecond)
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
 }
