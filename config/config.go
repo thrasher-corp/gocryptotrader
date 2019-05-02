@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/connchecker"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
@@ -104,24 +105,33 @@ type CurrencyPairFormatConfig struct {
 // prestart management of Portfolio, Communications, Webserver and Enabled
 // Exchanges
 type Config struct {
-	Name              string               `json:"name"`
-	EncryptConfig     int                  `json:"encryptConfig"`
-	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
-	Logging           log.Logging          `json:"logging"`
-	Profiler          ProfilerConfig       `json:"profiler"`
-	NTPClient         NTPClientConfig      `json:"ntpclient"`
-	Currency          CurrencyConfig       `json:"currencyConfig"`
-	Communications    CommunicationsConfig `json:"communications"`
-	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
-	Webserver         WebserverConfig      `json:"webserver"`
-	Exchanges         []ExchangeConfig     `json:"exchanges"`
-	BankAccounts      []BankAccount        `json:"bankAccounts"`
+	Name              string                  `json:"name"`
+	EncryptConfig     int                     `json:"encryptConfig"`
+	GlobalHTTPTimeout time.Duration           `json:"globalHTTPTimeout"`
+	Logging           log.Logging             `json:"logging"`
+	Profiler          ProfilerConfig          `json:"profiler"`
+	NTPClient         NTPClientConfig         `json:"ntpclient"`
+	Currency          CurrencyConfig          `json:"currencyConfig"`
+	Communications    CommunicationsConfig    `json:"communications"`
+	Portfolio         portfolio.Base          `json:"portfolioAddresses"`
+	Webserver         WebserverConfig         `json:"webserver"`
+	Exchanges         []ExchangeConfig        `json:"exchanges"`
+	BankAccounts      []BankAccount           `json:"bankAccounts"`
+	ConnectionMonitor ConnectionMonitorConfig `json:"connectionMonitor"`
 
 	// Deprecated config settings, will be removed at a future date
 	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat,omitempty"`
 	FiatDisplayCurrency currency.Code             `json:"fiatDispayCurrency,omitempty"`
 	Cryptocurrencies    currency.Currencies       `json:"cryptocurrencies,omitempty"`
 	SMS                 *SMSGlobalConfig          `json:"smsGlobal,omitempty"`
+}
+
+// ConnectionMonitorConfig defines the connection monitor variables to ensure
+// that there is internet connectivity
+type ConnectionMonitorConfig struct {
+	DNSList          []string      `json:"preferredDNSList"`
+	PublicDomainList []string      `json:"preferredDomainList"`
+	CheckInterval    time.Duration `json:"checkInterval"`
 }
 
 // ProfilerConfig defines the profiler configuration to enable pprof
@@ -1158,6 +1168,24 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	return "", errors.New("something went wrong NTPCheck should never make it this far")
 }
 
+// CheckConnectionMonitorConfig checks and if zero value assigns default values
+func (c *Config) CheckConnectionMonitorConfig() {
+	m.Lock()
+	defer m.Unlock()
+
+	if c.ConnectionMonitor.CheckInterval == 0 {
+		c.ConnectionMonitor.CheckInterval = connchecker.DefaultCheckInterval
+	}
+
+	if len(c.ConnectionMonitor.DNSList) == 0 {
+		c.ConnectionMonitor.DNSList = connchecker.DefaultDNSList
+	}
+
+	if len(c.ConnectionMonitor.PublicDomainList) == 0 {
+		c.ConnectionMonitor.PublicDomainList = connchecker.DefaultDomainList
+	}
+}
+
 // GetFilePath returns the desired config file or the default config file name
 // based on if the application is being run under test or normal mode.
 func GetFilePath(file string) (string, error) {
@@ -1351,6 +1379,7 @@ func (c *Config) CheckConfig() error {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
 	}
 
+	c.CheckConnectionMonitorConfig()
 	c.CheckCommunicationsConfig()
 
 	if c.Webserver.Enabled {
