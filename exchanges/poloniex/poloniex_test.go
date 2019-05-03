@@ -413,5 +413,4 @@ func TestGetDepositAddress(t *testing.T) {
 			t.Error("Test Failed - GetDepositAddress()")
 		}
 	}
-	t.Error()
 }

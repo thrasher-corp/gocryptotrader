@@ -322,3 +322,11 @@ func TestDoRequest(t *testing.T) {
 		t.Error("failed to set proxy")
 	}
 }
+
+func BenchmarkRequestLockMech(b *testing.B) {
+	var r = new(Requester)
+	var meep interface{}
+	for n := 0; n < b.N; n++ {
+		r.SendPayload(http.MethodGet, "127.0.0.1", nil, nil, &meep, false, false, false)
+	}
+}

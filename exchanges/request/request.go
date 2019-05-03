@@ -516,12 +516,14 @@ func (r *Requester) SetProxy(p *url.URL) error {
 // lock locks and sets up an issue timer, if something errors out of scope it
 // automatically unlocks
 func (r *Requester) lock() {
-	r.fifoLock.Lock()
-	// TODO make this into its own routine
+	if r.disengage == nil {
+		r.disengage = make(chan struct{}, 1)
+	}
 	var wg sync.WaitGroup
+	r.fifoLock.Lock()
 	wg.Add(1)
 	go func() {
-		timer := time.NewTimer(time.Second)
+		timer := time.NewTimer(50 * time.Millisecond)
 		wg.Done()
 		select {
 		case <-timer.C:
