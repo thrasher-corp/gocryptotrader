@@ -106,7 +106,6 @@ func (b *Bitmex) WsConnector() error {
 
 	go b.wsHandleIncomingData()
 	b.GenerateDefaultSubscriptions()
-	go b.Websocket.ManageSubscriptions()
 
 
 	if b.AuthenticatedAPISupport {

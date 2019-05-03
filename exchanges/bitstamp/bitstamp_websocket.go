@@ -144,7 +144,6 @@ func (b *Bitstamp) WsConnect() error {
 
 }
 b.GenerateDefaultSubscriptions()
-go b.Websocket.ManageSubscriptions()
 	return nil
 }
 

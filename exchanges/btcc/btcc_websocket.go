@@ -71,7 +71,6 @@ func (b *BTCC) WsConnect() error {
 
 	go b.WsHandleData()
 	b.GenerateDefaultSubscriptions()
-	go b.Websocket.ManageSubscriptions()
 
 	return nil
 }

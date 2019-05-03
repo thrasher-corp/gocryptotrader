@@ -796,7 +796,6 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interf
 	}
 }
 
-
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateDefaultSubscriptions() {
 	enabledCurrencies := k.GetEnabledCurrencies()

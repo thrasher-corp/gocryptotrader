@@ -150,7 +150,6 @@ func (b *Bitfinex) WsConnect() error {
 	}
 
 	b.GenerateDefaultSubscriptions()
-	go b.Websocket.ManageSubscriptions()
 	if hs.Event == "info" {
 		if b.Verbose {
 			log.Debugf("%s Connected to Websocket.\n", b.GetName())

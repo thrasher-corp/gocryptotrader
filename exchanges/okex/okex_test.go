@@ -93,6 +93,8 @@ func testStandardErrorHandling(t *testing.T, err error) {
 func setupWSConnection() error {
 	if !o.Websocket.IsEnabled() {
 		err := o.WebsocketSetup(o.WsConnect,
+			o.Subscribe,
+			o.Unsubscribe,
 			o.Name,
 			true,
 			o.WebsocketURL,

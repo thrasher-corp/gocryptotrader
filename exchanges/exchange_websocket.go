@@ -14,37 +14,6 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Websocket functionality list and state consts
-const (
-	NoWebsocketSupport       uint32 = 0
-	WebsocketTickerSupported uint32 = 1 << (iota - 1)
-	WebsocketOrderbookSupported
-	WebsocketKlineSupported
-	WebsocketTradeDataSupported
-	WebsocketAccountSupported
-	WebsocketAllowsRequests
-
-	WebsocketTickerSupportedText    = "TICKER STREAMING SUPPORTED"
-	WebsocketOrderbookSupportedText = "ORDERBOOK STREAMING SUPPORTED"
-	WebsocketKlineSupportedText     = "KLINE STREAMING SUPPORTED"
-	WebsocketTradeDataSupportedText = "TRADE STREAMING SUPPORTED"
-	WebsocketAccountSupportedText   = "ACCOUNT STREAMING SUPPORTED"
-	WebsocketAllowsRequestsText     = "WEBSOCKET REQUESTS SUPPORTED"
-	NoWebsocketSupportText          = "WEBSOCKET NOT SUPPORTED"
-	UnknownWebsocketFunctionality   = "UNKNOWN FUNCTIONALITY BITMASK"
-
-	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled = "exchange_websocket_not_enabled"
-	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
-	// websocket connection
-	WebsocketTrafficLimitTime = 5 * time.Second
-	// WebsocketStateTimeout defines a const for when a websocket connection
-	// times out, will be handled by the routine management system
-	WebsocketStateTimeout = "TIMEOUT"
-
-	websocketRestablishConnection = 1 * time.Second
-)
-
 // WebsocketInit initialises the websocket struct
 func (e *Base) WebsocketInit() {
 	e.Websocket = &Websocket{
@@ -102,54 +71,6 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.init = false
 
 	return nil
-}
-
-// Websocket defines a return type for websocket connections via the interface
-// wrapper for routine processing in routines.go
-type Websocket struct {
-	proxyAddr    string
-	defaultURL   string
-	runningURL   string
-	exchangeName string
-	enabled      bool
-	init         bool
-	connected    bool
-	Connecting   bool
-	connector    func() error
-	m            sync.Mutex
-	// Subscriptions stuff
-	subscribedChannels       []WebsocketChannelSubscription
-	ChannelsToSubscribe      []WebsocketChannelSubscription
-	channelSubscriber        func(channelToSubscribe WebsocketChannelSubscription) error
-	channelUnsubscriber      func(channelToUnsubscribe WebsocketChannelSubscription) error
-	checkChannelSubscription func(channelToCheck WebsocketChannelSubscription, existingChannels []WebsocketChannelSubscription) (bool, error)
-	// Connected denotes a channel switch for diversion of request flow
-	Connected chan struct{}
-	// Disconnected denotes a channel switch for diversion of request flow
-	Disconnected chan struct{}
-	// DataHandler pipes websocket data to an exchange websocket data handler
-	DataHandler chan interface{}
-	// ShutdownC is the main shutdown channel which controls all websocket go funcs
-	ShutdownC                 chan struct{}
-	ShutdownConnectionMonitor chan struct{}
-	// Orderbook is a local cache of orderbooks
-	Orderbook WebsocketOrderbookLocal
-
-	// Wg defines a wait group for websocket routines for cleanly shutting down
-	// routines
-	Wg sync.WaitGroup
-	// TrafficAlert monitors if there is a halt in traffic throughput
-	TrafficAlert chan struct{}
-	// Functionality defines websocket stream capabilities
-	Functionality uint32
-}
-
-// WebsocketChannelSubscription container for websocket subscriptions
-// Currently only a one at a time thing to avoid complexity
-type WebsocketChannelSubscription struct {
-	Channel  string
-	Currency currency.Pair
-	Params   map[string]string
 }
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
@@ -252,13 +173,14 @@ func (w *Websocket) Connect() error {
 	anotherWG.Add(1)
 	go w.trafficMonitor(&anotherWG)
 	anotherWG.Wait()
-	go w.WsConnectionMonitor()
+	go w.wsConnectionMonitor()
+	go w.manageSubscriptions()
 
 	return nil
 }
 
 // WsConnectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) WsConnectionMonitor() {
+func (w *Websocket) wsConnectionMonitor() {
 	log.Debug("STARTING WsConnectionMonitor")
 	noConnectionTolerance := 0
 	defer func() {
@@ -421,14 +343,6 @@ func (w *Websocket) SetExchangeName(exchName string) {
 // GetName returns exchange name
 func (w *Websocket) GetName() string {
 	return w.exchangeName
-}
-
-// WebsocketOrderbookLocal defines a local cache of orderbooks for amending,
-// appending and deleting changes and updates the main store in orderbook.go
-type WebsocketOrderbookLocal struct {
-	ob          []*orderbook.Base
-	lastUpdated time.Time
-	m           sync.Mutex
 }
 
 // Update updates a local cache using bid targets and ask targets then updates
@@ -641,70 +555,6 @@ func (w *WebsocketOrderbookLocal) FlushCache() {
 	w.m.Unlock()
 }
 
-// WebsocketResponse defines generalised data from the websocket connection
-type WebsocketResponse struct {
-	Type int
-	Raw  []byte
-}
-
-// WebsocketOrderbookUpdate defines a websocket event in which the orderbook
-// has been updated in the orderbook package
-type WebsocketOrderbookUpdate struct {
-	Pair     currency.Pair
-	Asset    string
-	Exchange string
-}
-
-// TradeData defines trade data
-type TradeData struct {
-	Timestamp    time.Time
-	CurrencyPair currency.Pair
-	AssetType    string
-	Exchange     string
-	EventType    string
-	EventTime    int64
-	Price        float64
-	Amount       float64
-	Side         string
-}
-
-// TickerData defines ticker feed
-type TickerData struct {
-	Timestamp  time.Time
-	Pair       currency.Pair
-	AssetType  string
-	Exchange   string
-	ClosePrice float64
-	Quantity   float64
-	OpenPrice  float64
-	HighPrice  float64
-	LowPrice   float64
-}
-
-// KlineData defines kline feed
-type KlineData struct {
-	Timestamp  time.Time
-	Pair       currency.Pair
-	AssetType  string
-	Exchange   string
-	StartTime  time.Time
-	CloseTime  time.Time
-	Interval   string
-	OpenPrice  float64
-	ClosePrice float64
-	HighPrice  float64
-	LowPrice   float64
-	Volume     float64
-}
-
-// WebsocketPositionUpdated reflects a change in orders/contracts on an exchange
-type WebsocketPositionUpdated struct {
-	Timestamp time.Time
-	Pair      currency.Pair
-	AssetType string
-	Exchange  string
-}
-
 // GetFunctionality returns a functionality bitmask for the websocket
 // connection
 func (w *Websocket) GetFunctionality() uint32 {
@@ -764,10 +614,10 @@ func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe Webs
 // SetChannelUnsubscriber sets the function to use the base unsubscribe func
 func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error) {
 	w.channelUnsubscriber = unsubscriber
-}
+} 
 
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
-func (w *Websocket) ManageSubscriptions() {
+func (w *Websocket) manageSubscriptions() {
 	w.Wg.Add(1)
 	defer func() {
 		log.Debug("ManageSubscriptions EXITING")
@@ -782,31 +632,71 @@ func (w *Websocket) ManageSubscriptions() {
 		default:
 			time.Sleep(800 * time.Millisecond)
 			log.Debug("Checking subscriptions")
-			for i := range w.ChannelsToSubscribe {
-				channelIsSubscribed := false
-				for j := range w.subscribedChannels {
-					if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, w.subscribedChannels[j].Channel) &&
-						strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), w.subscribedChannels[j].Currency.String()) {
-						channelIsSubscribed = true
-					}
+			// Subscribe to channels Pending a subscription
+			err := w.subscribeToChannels()
+			if err != nil {
+				w.DataHandler <- err
+				if err == common.ErrFunctionNotSupported {
+					log.Infof("Exchange %v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+					return
 				}
-				if !channelIsSubscribed {
-					err := w.channelSubscriber(w.ChannelsToSubscribe[i])
-					if err != nil {
-						w.DataHandler <- err
-						if err == common.ErrFunctionNotSupported {
-							log.Infof("Exchange %v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
-							return
-						}
-					}
-					channelIsSubscribed = true
-					w.subscribedChannels = append(w.subscribedChannels, w.ChannelsToSubscribe[i])
+			}
+			// Unsubscribe from any channels removed from ChannelsToSubscribe
+			err = w.unsubscribeToChannels()
+			if err != nil {
+				w.DataHandler <- err
+				if err == common.ErrFunctionNotSupported {
+					log.Infof("Exchange %v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+					return
 				}
 			}
 		}
 	}
 }
 
+// subscribeToChannels compares ChannelsToSubscribe to subscribedChannels
+// and subscribes to any channels not present in  subscribedChannels
+func (w *Websocket) subscribeToChannels() error {
+	for i := range w.ChannelsToSubscribe {
+		channelIsSubscribed := false
+		for j := range w.subscribedChannels {
+			if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, w.subscribedChannels[j].Channel) &&
+				strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), w.subscribedChannels[j].Currency.String()) {
+				channelIsSubscribed = true
+			}
+		}
+		if !channelIsSubscribed {
+			err := w.channelSubscriber(w.ChannelsToSubscribe[i])
+			if err != nil {
+				return err
+			}
+			w.subscribedChannels = append(w.subscribedChannels, w.ChannelsToSubscribe[i])
+		}
+	}
+	return nil
+}
+
+// unsubscribeToChannels compares subscribedChannels to ChannelsToSubscribe
+// and unsubscribes to any channels not present in  ChannelsToSubscribe
+func (w *Websocket) unsubscribeToChannels() error {
+	for i := range w.subscribedChannels {
+		subscriptionFound := false
+		for j := range w.ChannelsToSubscribe {
+			if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, w.subscribedChannels[j].Channel) &&
+				strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), w.subscribedChannels[j].Currency.String()) {
+					subscriptionFound = true
+			}
+		}
+		if !subscriptionFound {
+			err := w.channelUnsubscriber(w.subscribedChannels[i])
+			if err != nil {
+				return err
+			}
+			w.subscribedChannels = append(w.subscribedChannels[:i], w.subscribedChannels[i+1:]...)
+		}
+	}
+	return nil
+}
 
 // RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe 
 // so an unsubscribe event can be triggered
@@ -847,8 +737,4 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 		}
 	}
 }
-
-
-
-
-
+ 
