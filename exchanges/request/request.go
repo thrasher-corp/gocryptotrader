@@ -36,7 +36,6 @@ type Requester struct {
 	Cycle                time.Time
 	timeoutRetryAttempts int
 	m                    sync.Mutex
-	wait                 sync.WaitGroup
 	Jobs                 chan Job
 	disengage            chan struct{}
 	WorkerStarted        bool
