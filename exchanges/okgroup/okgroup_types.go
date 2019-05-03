@@ -183,7 +183,7 @@ type CancelSpotOrderRequest struct {
 // CancelSpotOrderResponse response data for CancelSpotOrder
 type CancelSpotOrderResponse struct {
 	ClientOID string `json:"client_oid"`
-	OrderID   int64  `json:"order_id"`
+	OrderID   int64  `json:"order_id,string"`
 	Result    bool   `json:"result"`
 }
 
