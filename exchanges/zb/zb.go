@@ -78,7 +78,8 @@ func (z *ZB) SetDefaults() {
 	z.WebsocketInit()
 	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported | 
+		exchange.WebsocketSubscribeSupported
 }
 
 // Setup sets user configuration
@@ -120,8 +121,8 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = z.WebsocketSetup(z.WsConnect,
-nil,
-nil,
+			z.Subscribe,
+			nil,
 			exch.Name,
 			exch.Websocket,
 			zbWebsocketAPI,

@@ -88,7 +88,9 @@ func (c *CoinbasePro) SetDefaults() {
 	c.APIUrl = c.APIUrlDefault
 	c.WebsocketInit()
 	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup initialises the exchange parameters with the current configuration

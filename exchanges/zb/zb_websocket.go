@@ -281,9 +281,3 @@ func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription)
 	time.Sleep(30 * time.Millisecond)
 	return z.WebsocketConn.WriteMessage(websocket.TextMessage, subscriptionJSON)
 }
-
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (z *ZB) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}

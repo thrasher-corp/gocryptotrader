@@ -66,7 +66,9 @@ func (b *BTSE) SetDefaults() {
 	b.SupportsRESTTickerBatching = false
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported
+		exchange.WebsocketTickerSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -106,8 +108,8 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
-nil,
-nil,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			btseWebsocket,

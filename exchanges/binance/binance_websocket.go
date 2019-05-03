@@ -121,18 +121,6 @@ func (b *Binance) UpdateLocalCache(ob *WebsocketDepthStream) error {
 		"SPOT")
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *Binance) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *Binance) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
 // WSConnect intiates a websocket connection
 func (b *Binance) WSConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {

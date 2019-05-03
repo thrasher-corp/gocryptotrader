@@ -89,7 +89,9 @@ func (p *Poloniex) SetDefaults() {
 	p.WebsocketInit()
 	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported
+		exchange.WebsocketTickerSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user exchange configuration settings
@@ -130,8 +132,8 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = p.WebsocketSetup(p.WsConnect,
-nil,
-nil,
+			p.Subscribe,
+			p.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			poloniexWebsocketAddress,

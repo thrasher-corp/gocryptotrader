@@ -114,7 +114,9 @@ func (b *Bitfinex) SetDefaults() {
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

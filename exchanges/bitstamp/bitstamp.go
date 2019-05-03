@@ -88,7 +88,9 @@ func (b *Bitstamp) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets configuration values to bitstamp

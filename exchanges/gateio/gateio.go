@@ -78,7 +78,9 @@ func (g *Gateio) SetDefaults() {
 	g.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketKlineSupported
+		exchange.WebsocketKlineSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user configuration
@@ -120,8 +122,8 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.WebsocketSetup(g.WsConnect,
-nil,
-nil,
+			g.Subscribe,
+			g.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			gateioWebsocketEndpoint,

@@ -139,8 +139,8 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WSConnect,
-			b.Subscribe,
-			b.Unsubscribe,
+			nil,
+			nil,
 			exch.Name,
 			exch.Websocket,
 			binanceDefaultWebsocketURL,

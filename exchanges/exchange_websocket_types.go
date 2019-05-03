@@ -17,6 +17,8 @@ const (
 	WebsocketTradeDataSupported
 	WebsocketAccountSupported
 	WebsocketAllowsRequests
+	WebsocketSubscribeSupported
+	WebsocketUnsubscribeSupported
 
 	WebsocketTickerSupportedText    = "TICKER STREAMING SUPPORTED"
 	WebsocketOrderbookSupportedText = "ORDERBOOK STREAMING SUPPORTED"
@@ -26,6 +28,8 @@ const (
 	WebsocketAllowsRequestsText     = "WEBSOCKET REQUESTS SUPPORTED"
 	NoWebsocketSupportText          = "WEBSOCKET NOT SUPPORTED"
 	UnknownWebsocketFunctionality   = "UNKNOWN FUNCTIONALITY BITMASK"
+	WebsocketSubscribeSupportedText          = "WEBSOCKET SUBSCRIBE SUPPORTED"
+	WebsocketUnsubscribeSupportedText          = "WEBSOCKET UNSUBSCRIBE SUPPORTED"
 
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"

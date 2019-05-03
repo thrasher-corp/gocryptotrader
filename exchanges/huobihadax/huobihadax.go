@@ -90,7 +90,9 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.WebsocketInit()
 	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
 		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user configuration
@@ -132,8 +134,8 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = h.WebsocketSetup(h.WsConnect,
-nil,
-nil,
+			h.Subscribe,
+			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			huobiGlobalWebsocketEndpoint,

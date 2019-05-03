@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -592,6 +591,12 @@ func (w *Websocket) FormatFunctionality() string {
 			case WebsocketAllowsRequests:
 				functionality = append(functionality, WebsocketAllowsRequestsText)
 
+			case WebsocketSubscribeSupported:
+				functionality = append(functionality, WebsocketSubscribeSupportedText)
+
+			case WebsocketUnsubscribeSupported:
+				functionality = append(functionality, WebsocketUnsubscribeSupportedText)
+
 			default:
 				functionality = append(functionality,
 					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
@@ -618,6 +623,10 @@ func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscrib
 
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
 func (w *Websocket) manageSubscriptions() {
+	if !w.SupportsFunctionality(WebsocketSubscribeSupported) && !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
+		log.Infof("Exchange %v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+		return
+	}
 	w.Wg.Add(1)
 	defer func() {
 		log.Debug("ManageSubscriptions EXITING")
@@ -633,22 +642,19 @@ func (w *Websocket) manageSubscriptions() {
 			time.Sleep(800 * time.Millisecond)
 			log.Debug("Checking subscriptions")
 			// Subscribe to channels Pending a subscription
+			if w.SupportsFunctionality(WebsocketSubscribeSupported) {
 			err := w.subscribeToChannels()
 			if err != nil {
 				w.DataHandler <- err
-				if err == common.ErrFunctionNotSupported {
-					log.Infof("Exchange %v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
-					return
-				}
+			}
+		}
+			if !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
+				continue
 			}
 			// Unsubscribe from any channels removed from ChannelsToSubscribe
-			err = w.unsubscribeToChannels()
+			err := w.unsubscribeToChannels()
 			if err != nil {
 				w.DataHandler <- err
-				if err == common.ErrFunctionNotSupported {
-					log.Infof("Exchange %v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
-					return
-				}
 			}
 		}
 	}
@@ -666,6 +672,7 @@ func (w *Websocket) subscribeToChannels() error {
 			}
 		}
 		if !channelIsSubscribed {
+			log.Debugf("Subscribing to %v %v", w.ChannelsToSubscribe[i].Channel, w.ChannelsToSubscribe[i].Currency.String())
 			err := w.channelSubscriber(w.ChannelsToSubscribe[i])
 			if err != nil {
 				return err

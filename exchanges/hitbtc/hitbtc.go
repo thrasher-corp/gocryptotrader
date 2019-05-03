@@ -80,7 +80,9 @@ func (h *HitBTC) SetDefaults() {
 	h.APIUrl = h.APIUrlDefault
 	h.WebsocketInit()
 	h.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user exchange configuration settings
@@ -121,8 +123,8 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = h.WebsocketSetup(h.WsConnect,
-nil,
-nil,
+			h.Subscribe,
+			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			hitbtcWebsocketAddress,

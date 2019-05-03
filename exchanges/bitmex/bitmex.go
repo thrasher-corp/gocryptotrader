@@ -135,7 +135,9 @@ func (b *Bitmex) SetDefaults() {
 	b.SupportsAutoPairUpdating = true
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -174,8 +176,8 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnector,
-			nil,
-			nil,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			bitmexWSURL,
