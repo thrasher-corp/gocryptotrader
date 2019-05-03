@@ -377,7 +377,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		}
 	}
 
-	n := strconv.FormatInt(i.Requester.GetNonce(true), 10)
+	n := i.Requester.GetNonce(true).String()
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 
 	message, err := common.JSONEncode([]string{method, urlPath, string(PayloadJSON), n, timestamp})

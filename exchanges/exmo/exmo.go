@@ -381,7 +381,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 			e.Name)
 	}
 
-	n := strconv.FormatInt(e.Requester.GetNonce(true), 10)
+	n := e.Requester.GetNonce(true).String()
 	vals.Set("nonce", n)
 
 	payload := vals.Encode()

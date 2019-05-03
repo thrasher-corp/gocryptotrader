@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -442,7 +441,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 			b.Name)
 	}
 
-	n := strconv.FormatInt(b.Requester.GetNonce(true), 10)[0:13]
+	n := b.Requester.GetNonce(true).String()[0:13]
 
 	var req string
 	payload := []byte("")

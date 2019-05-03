@@ -736,7 +736,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
 
-	n := strconv.FormatInt(l.Requester.GetNonce(true), 10)
+	n := l.Requester.GetNonce(true).String()
 
 	path = "/api/" + path
 	encoded := params.Encode()

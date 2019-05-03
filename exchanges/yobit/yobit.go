@@ -351,7 +351,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 		params = url.Values{}
 	}
 
-	n := strconv.FormatInt(y.Requester.GetNonce(false), 10)
+	n := y.Requester.GetNonce(false).String()
 
 	params.Set("nonce", n)
 	params.Set("method", path)

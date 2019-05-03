@@ -503,7 +503,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	n := strconv.FormatInt(b.Requester.GetNonce(true), 10)
+	n := b.Requester.GetNonce(true).String()
 
 	values.Set("apikey", b.APIKey)
 	values.Set("nonce", n)

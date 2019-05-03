@@ -413,7 +413,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 
 	n := a.Requester.GetNonce(true)
 	req := make(map[string]interface{})
-	req["nonce"] = strconv.FormatInt(n, 10)[0:13]
+	req["nonce"] = n.String()[0:13]
 	path = fmt.Sprintf("api/%s/%s", anxAPIVersion, path)
 
 	for key, value := range params {

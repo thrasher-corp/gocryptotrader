@@ -878,7 +878,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Key"] = p.APIKey
 
-	n := strconv.FormatInt(p.Requester.GetNonce(true), 10)
+	n := p.Requester.GetNonce(true).String()
 
 	values.Set("nonce", n)
 	values.Set("command", endpoint)

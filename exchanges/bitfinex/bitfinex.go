@@ -1016,7 +1016,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 
 	req := make(map[string]interface{})
 	req["request"] = fmt.Sprintf("%s%s", bitfinexAPIVersion, path)
-	req["nonce"] = strconv.FormatInt(n, 10)
+	req["nonce"] = n.String()
 
 	for key, value := range params {
 		req[key] = value

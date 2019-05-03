@@ -938,8 +938,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 
 	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
 
-	n := strconv.FormatInt(k.Requester.GetNonce(true), 10)
-
+	n := k.Requester.GetNonce(true).String()
 	params.Set("nonce", n)
 
 	secret, err := common.Base64Decode(k.APISecret)

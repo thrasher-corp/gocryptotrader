@@ -503,7 +503,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	headers := make(map[string]string)
 	req := make(map[string]interface{})
 	req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-	req["nonce"] = g.Nonce.GetValue(g.Name, false)
+	req["nonce"] = g.Requester.GetNonce(true).String()
 
 	for key, value := range params {
 		req[key] = value

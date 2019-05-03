@@ -473,7 +473,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel
-func (r *Requester) GetNonce(isNano bool) int64 {
+func (r *Requester) GetNonce(isNano bool) nonce.Value {
 	r.lock()
 	if r.Nonce.Get() == 0 {
 		if isNano {
@@ -489,7 +489,7 @@ func (r *Requester) GetNonce(isNano bool) int64 {
 
 // GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel this is for millisecond
-func (r *Requester) GetNonceMilli() int64 {
+func (r *Requester) GetNonceMilli() nonce.Value {
 	r.lock()
 	if r.Nonce.Get() == 0 {
 		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))

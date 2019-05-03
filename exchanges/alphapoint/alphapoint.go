@@ -549,7 +549,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 	headers["Content-Type"] = "application/json"
 	data["apiKey"] = a.APIKey
 	data["apiNonce"] = n
-	hmac := common.GetHMAC(common.HashSHA256, []byte(strconv.FormatInt(n, 10)+a.ClientID+a.APIKey),
+	hmac := common.GetHMAC(common.HashSHA256, []byte(n.String()+a.ClientID+a.APIKey),
 		[]byte(a.APISecret))
 	data["apiSig"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, alphapointAPIVersion, path)

@@ -225,7 +225,7 @@ func (c *COINUT) GetNonce() int64 {
 		c.Nonce.Inc()
 	}
 
-	return c.Nonce.Get()
+	return int64(c.Nonce.Get())
 }
 
 // WsSetInstrumentList fetches instrument list and propagates a local cache

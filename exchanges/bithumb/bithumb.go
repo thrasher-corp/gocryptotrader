@@ -556,7 +556,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		params = url.Values{}
 	}
 
-	n := strconv.FormatInt(b.Requester.GetNonceMilli(), 10)
+	n := b.Requester.GetNonceMilli().String()
 
 	params.Set("endpoint", path)
 	payload := params.Encode()

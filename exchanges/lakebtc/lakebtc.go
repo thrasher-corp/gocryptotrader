@@ -343,7 +343,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
 
-	n := strconv.FormatInt(l.Requester.GetNonce(true), 10)
+	n := l.Requester.GetNonce(true).String()
 
 	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", n, l.APIKey, method, params)
 	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))

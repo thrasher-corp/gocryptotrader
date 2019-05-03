@@ -654,7 +654,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	n := strconv.FormatInt(b.Requester.GetNonce(true), 10)
+	n := b.Requester.GetNonce(true).String()
 
 	if values == nil {
 		values = url.Values{}
