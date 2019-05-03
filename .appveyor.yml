@@ -5,10 +5,7 @@ clone_folder: c:\gopath\src\github.com\thrasher-\gocryptotrader
 environment:
   GOPATH: c:\gopath
   GO111MODULE: on
-
-  matrix:
-    - NODEJS_VER: 10
-    - NODEJS_VER: 8
+  NODEJS_VER: 10.15.3
 
 stack: go 1.12.3
 
