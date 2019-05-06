@@ -163,8 +163,8 @@ type OpenOrdersResponse struct {
 	Data []Order
 }
 
-// AuthentictedTradeHistory holds client trade history information
-type AuthentictedTradeHistory struct {
+// AuthenticatedTradeHistory holds client trade history information
+type AuthenticatedTradeHistory struct {
 	GlobalTradeID int64   `json:"globalTradeID"`
 	TradeID       int64   `json:"tradeID,string"`
 	Date          string  `json:"date"`
@@ -179,12 +179,12 @@ type AuthentictedTradeHistory struct {
 
 // AuthenticatedTradeHistoryAll holds the full client trade history
 type AuthenticatedTradeHistoryAll struct {
-	Data map[string][]AuthentictedTradeHistory
+	Data map[string][]AuthenticatedTradeHistory
 }
 
 // AuthenticatedTradeHistoryResponse is a response type for trade history
 type AuthenticatedTradeHistoryResponse struct {
-	Data []AuthentictedTradeHistory
+	Data []AuthenticatedTradeHistory
 }
 
 // ResultingTrades holds resultant trade information

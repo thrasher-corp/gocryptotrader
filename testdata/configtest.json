@@ -1319,5 +1319,19 @@
    "supportedExchanges": "ANX,Kraken"
   }
  ],
+ "connectionMonitor": {
+  "preferredDNSList": [
+   "8.8.8.8",
+   "8.8.4.4",
+   "1.1.1.1",
+   "1.0.0.1"
+  ],
+  "preferredDomainList": [
+   "www.google.com",
+   "www.cloudflare.com",
+   "www.facebook.com"
+  ],
+  "checkInterval": 1000000000
+ },
  "fiatDispayCurrency": ""
 }

@@ -493,7 +493,7 @@ func (b *Bittrex) GetDepositHistory(currency string) (WithdrawalHistory, error) 
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bittrex) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -503,13 +503,10 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	if b.Nonce.Get() == 0 {
-		b.Nonce.Set(time.Now().UnixNano())
-	} else {
-		b.Nonce.Inc()
-	}
+	n := b.Requester.GetNonce(true).String()
+
 	values.Set("apikey", b.APIKey)
-	values.Set("nonce", b.Nonce.String())
+	values.Set("nonce", n)
 	rawQuery := path + "?" + values.Encode()
 	hmac := common.GetHMAC(
 		common.HashSHA512, []byte(rawQuery), []byte(b.APISecret),
@@ -517,7 +514,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	headers := make(map[string]string)
 	headers["apisign"] = common.HexEncodeToString(hmac)
 
-	return b.SendPayload(http.MethodGet, rawQuery, headers, nil, result, true, b.Verbose)
+	return b.SendPayload(http.MethodGet, rawQuery, headers, nil, result, true, true, b.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

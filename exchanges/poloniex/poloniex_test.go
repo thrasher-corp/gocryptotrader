@@ -19,25 +19,27 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
-	p.SetDefaults()
-}
+var isSetup bool
 
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
-	if err != nil {
-		t.Error("Test Failed - Poloniex Setup() init error")
+	if !isSetup {
+		cfg := config.GetConfig()
+		cfg.LoadConfig("../../testdata/configtest.json")
+		poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
+		if err != nil {
+			t.Error("Test Failed - Poloniex Setup() init error")
+		}
+		poloniexConfig.AuthenticatedAPISupport = true
+		poloniexConfig.APIKey = apiKey
+		poloniexConfig.APISecret = apiSecret
+		p.SetDefaults()
+		p.Setup(&poloniexConfig)
+		isSetup = true
 	}
-	poloniexConfig.AuthenticatedAPISupport = true
-	poloniexConfig.APIKey = apiKey
-	poloniexConfig.APISecret = apiSecret
-
-	p.Setup(&poloniexConfig)
 }
 
 func TestGetTicker(t *testing.T) {
+	t.Parallel()
 	_, err := p.GetTicker()
 	if err != nil {
 		t.Error("Test faild - Poloniex GetTicker() error")
@@ -45,6 +47,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetVolume(t *testing.T) {
+	t.Parallel()
 	_, err := p.GetVolume()
 	if err != nil {
 		t.Error("Test faild - Poloniex GetVolume() error")
@@ -52,6 +55,7 @@ func TestGetVolume(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
 	_, err := p.GetOrderbook("BTC_XMR", 50)
 	if err != nil {
 		t.Error("Test faild - Poloniex GetOrderbook() error", err)
@@ -59,6 +63,7 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetTradeHistory(t *testing.T) {
+	t.Parallel()
 	_, err := p.GetTradeHistory("BTC_XMR", "", "")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetTradeHistory() error", err)
@@ -66,6 +71,7 @@ func TestGetTradeHistory(t *testing.T) {
 }
 
 func TestGetChartData(t *testing.T) {
+	t.Parallel()
 	_, err := p.GetChartData("BTC_XMR", "1405699200", "1405699400", "300")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetChartData() error", err)
@@ -73,6 +79,7 @@ func TestGetChartData(t *testing.T) {
 }
 
 func TestGetCurrencies(t *testing.T) {
+	t.Parallel()
 	_, err := p.GetCurrencies()
 	if err != nil {
 		t.Error("Test faild - Poloniex GetCurrencies() error", err)
@@ -80,6 +87,7 @@ func TestGetCurrencies(t *testing.T) {
 }
 
 func TestGetLoanOrders(t *testing.T) {
+	t.Parallel()
 	_, err := p.GetLoanOrders("BTC")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetLoanOrders() error", err)
@@ -101,6 +109,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	p.GetFeeByType(feeBuilder)
 	if apiKey == "" || apiSecret == "" {
@@ -115,7 +124,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
@@ -132,14 +141,6 @@ func TestGetFee(t *testing.T) {
 		feeBuilder.PurchasePrice = 1000
 		if resp, err := p.GetFee(feeBuilder); resp != float64(2000) || err != nil {
 			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
-			t.Error(err)
-		}
-
-		// CryptocurrencyTradeFee IsMaker
-		feeBuilder = setFeeBuilder()
-		feeBuilder.IsMaker = true
-		if resp, err := p.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 			t.Error(err)
 		}
 
@@ -195,7 +196,8 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
+	TestSetup(t)
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.NoFiatWithdrawalsText
 
 	withdrawPermissions := p.FormatWithdrawPermissions()
@@ -206,7 +208,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
@@ -222,7 +224,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
@@ -248,7 +250,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -276,7 +278,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -303,7 +305,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -334,6 +336,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	t.Parallel()
 	_, err := p.ModifyOrder(&exchange.ModifyOrder{OrderID: "1337", Price: 1337})
 	if err == nil {
 		t.Error("Test Failed - ModifyOrder() error")
@@ -341,7 +344,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:      100,
@@ -364,7 +367,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -380,7 +383,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	p.SetDefaults()
+	t.Parallel()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -396,6 +399,9 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	TestSetup(t)
+
 	if areTestAPIKeysSet() {
 		_, err := p.GetDepositAddress(currency.DASH, "")
 		if err != nil {

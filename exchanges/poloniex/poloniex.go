@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -479,14 +480,21 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (Authen
 	}
 
 	values.Set("currencyPair", "all")
-	var result AuthenticatedTradeHistoryAll
+	var result json.RawMessage
 
-	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexTradeHistory, values, &result.Data)
+	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexTradeHistory, values, &result)
 	if err != nil {
 		return AuthenticatedTradeHistoryAll{}, err
 	}
 
-	return result, nil
+	var nodata []interface{}
+	err = json.Unmarshal(result, &nodata)
+	if err == nil {
+		return AuthenticatedTradeHistoryAll{}, nil
+	}
+
+	var mainResult AuthenticatedTradeHistoryAll
+	return mainResult, json.Unmarshal(result, &mainResult.Data)
 }
 
 // PlaceOrder places a new order on the exchange
@@ -856,6 +864,7 @@ func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
 		nil,
 		result,
 		false,
+		false,
 		p.Verbose)
 }
 
@@ -869,13 +878,9 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Key"] = p.APIKey
 
-	if p.Nonce.Get() == 0 {
-		p.Nonce.Set(time.Now().UnixNano())
-	} else {
-		p.Nonce.Inc()
-	}
+	n := p.Requester.GetNonce(true).String()
 
-	values.Set("nonce", p.Nonce.String())
+	values.Set("nonce", n)
 	values.Set("command", endpoint)
 
 	hmac := common.GetHMAC(common.HashSHA512,
@@ -891,6 +896,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 		headers,
 		bytes.NewBufferString(values.Encode()),
 		result,
+		true,
 		true,
 		p.Verbose)
 }

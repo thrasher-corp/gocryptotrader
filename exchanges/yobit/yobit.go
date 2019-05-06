@@ -336,6 +336,7 @@ func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
 		nil,
 		result,
 		false,
+		false,
 		y.Verbose)
 }
 
@@ -350,12 +351,9 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 		params = url.Values{}
 	}
 
-	if y.Nonce.Get() == 0 {
-		y.Nonce.Set(time.Now().Unix())
-	} else {
-		y.Nonce.Inc()
-	}
-	params.Set("nonce", y.Nonce.String())
+	n := y.Requester.GetNonce(false).String()
+
+	params.Set("nonce", n)
 	params.Set("method", path)
 
 	encoded := params.Encode()
@@ -380,6 +378,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 		headers,
 		strings.NewReader(encoded),
 		result,
+		true,
 		true,
 		y.Verbose)
 }

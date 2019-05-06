@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -262,7 +261,6 @@ type Base struct {
 	APIWithdrawPermissions                     uint32
 	APIAuthPEMKeySupport                       bool
 	APISecret, APIKey, APIAuthPEMKey, ClientID string
-	Nonce                                      nonce.Nonce
 	TakerFee, MakerFee, Fee                    float64
 	BaseCurrencies                             currency.Currencies
 	AvailablePairs                             currency.Pairs

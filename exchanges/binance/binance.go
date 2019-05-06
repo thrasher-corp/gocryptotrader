@@ -594,7 +594,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -630,7 +630,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 		Message string `json:"msg"`
 	}{}
 
-	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, b.Verbose)
+	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, false, b.Verbose)
 	if err != nil {
 		return err
 	}

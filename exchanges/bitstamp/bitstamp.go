@@ -645,7 +645,7 @@ func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount s
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitstamp) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -654,19 +654,15 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	if b.Nonce.Get() == 0 {
-		b.Nonce.Set(time.Now().UnixNano())
-	} else {
-		b.Nonce.Inc()
-	}
+	n := b.Requester.GetNonce(true).String()
 
 	if values == nil {
 		values = url.Values{}
 	}
 
 	values.Set("key", b.APIKey)
-	values.Set("nonce", b.Nonce.String())
-	hmac := common.GetHMAC(common.HashSHA256, []byte(b.Nonce.String()+b.ClientID+b.APIKey), []byte(b.APISecret))
+	values.Set("nonce", n)
+	hmac := common.GetHMAC(common.HashSHA256, []byte(n+b.ClientID+b.APIKey), []byte(b.APISecret))
 	values.Set("signature", common.StringToUpper(common.HexEncodeToString(hmac)))
 
 	if v2 {
@@ -691,7 +687,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		Error string `json:"error"`
 	}{}
 
-	err := b.SendPayload(http.MethodPost, path, headers, readerValues, &interim, true, b.Verbose)
+	err := b.SendPayload(http.MethodPost, path, headers, readerValues, &interim, true, true, b.Verbose)
 	if err != nil {
 		return err
 	}

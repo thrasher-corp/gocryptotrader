@@ -252,7 +252,7 @@ func (b *BTSE) GetFills(orderID, productID, before, after, limit string) (*Fille
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
 	p := fmt.Sprintf("%s/%s", btseAPIURL, endpoint)
-	return b.SendPayload(method, p, nil, nil, &result, false, b.Verbose)
+	return b.SendPayload(method, p, nil, nil, &result, false, false, b.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
@@ -278,7 +278,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 		log.Debugf("Sending %s request to URL %s with params %s\n", method, p, string(payload))
 	}
 	return b.SendPayload(method, p, headers, strings.NewReader(string(payload)),
-		&result, true, b.Verbose)
+		&result, true, false, b.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

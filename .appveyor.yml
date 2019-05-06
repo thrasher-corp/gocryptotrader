@@ -1,0 +1,33 @@
+build: off
+
+clone_folder: c:\gopath\src\github.com\thrasher-\gocryptotrader
+
+environment:
+  GOPATH: c:\gopath
+  GO111MODULE: on
+  NODEJS_VER: 10.15.3
+
+stack: go 1.12.3
+
+install:
+  - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
+  - ps: Install-Product node $env:NODEJS_VER
+  - cd c:\gopath\src\github.com\thrasher-\gocryptotrader\web
+  - npm install
+
+before_test:
+  - cd c:\gopath\src\github.com\thrasher-\gocryptotrader
+  - go get
+
+test_script:
+  # test back-end
+  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.15.0
+  - '%GOPATH%\bin\golangci-lint.exe run --verbose'
+  - go test -race ./...
+  
+  # test front-end
+  - node --version
+  - npm --version
+  - cd c:\gopath\src\github.com\thrasher-\gocryptotrader\web
+  - npm run lint
+  - npm run build

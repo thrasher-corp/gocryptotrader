@@ -361,7 +361,7 @@ func (z *ZB) GetCryptoAddress(currency currency.Code) (UserAddress, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (z *ZB) SendHTTPRequest(path string, result interface{}) error {
-	return z.SendPayload(http.MethodGet, path, nil, nil, result, false, z.Verbose)
+	return z.SendPayload(http.MethodGet, path, nil, nil, result, false, false, z.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
@@ -397,6 +397,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 		strings.NewReader(""),
 		&intermediary,
 		true,
+		false,
 		z.Verbose)
 	if err != nil {
 		return err

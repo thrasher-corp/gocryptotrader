@@ -346,7 +346,7 @@ func (z *ZB) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 			Amount:       order.TotalAmount,
 			Exchange:     z.Name,
 			OrderDate:    orderDate,
-			Price:        float64(order.Price),
+			Price:        order.Price,
 			OrderSide:    orderSide,
 			CurrencyPair: symbol,
 		})
@@ -403,7 +403,7 @@ func (z *ZB) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 			Amount:       order.TotalAmount,
 			Exchange:     z.Name,
 			OrderDate:    orderDate,
-			Price:        float64(order.Price),
+			Price:        order.Price,
 			OrderSide:    orderSide,
 			CurrencyPair: symbol,
 		})
