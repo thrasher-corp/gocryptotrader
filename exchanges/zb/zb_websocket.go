@@ -247,14 +247,14 @@ var wsErrCodes = map[int64]string{
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
 	// Tickerdata is its own channel
-	z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+	z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
 		Channel:  fmt.Sprintf("%v","markets"),
 	})
 	channels := []string {"%s_ticker", "%s_depth", "%s_trades"}
 	enabledCurrencies := z.GetEnabledCurrencies()
 	for i := range channels {
 	for j := range enabledCurrencies {
-		z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+		z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
 			Channel:  channels[i],
 			Currency: enabledCurrencies[j],
 		})
@@ -264,7 +264,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (z *ZB) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
 		Event:   "addChannel",
 	}

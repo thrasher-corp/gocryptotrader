@@ -446,7 +446,7 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 				Channel: response.Table,
 				Currency: pair,
 			}
-			o.Websocket.ResubscribeToChannel(channelToResubscribe)
+			o.Websocket.ResubscribeToChannel(&channelToResubscribe)
 		}
 		orderbookMutex.Unlock()
 	case okGroupWsTicker:
@@ -742,7 +742,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
-			o.Websocket.ChannelsToSubscribe = append(o.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			o.Websocket.ChannelsToSubscribe = append(o.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -752,7 +752,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (o *OKGroup) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	resp := WebsocketEventRequest{
 		Operation: "subscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
@@ -768,7 +768,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (o *OKGroup) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	resp := WebsocketEventRequest{
 		Operation: "unsubscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},

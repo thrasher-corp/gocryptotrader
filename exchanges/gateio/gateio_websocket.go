@@ -355,7 +355,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 			} else if strings.EqualFold(channels[i], "kline.subscribe") {
 				params["sup"] ="1800"
 			}
-			g.Websocket.ChannelsToSubscribe = append(g.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			g.Websocket.ChannelsToSubscribe = append(g.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 				Params: params,
@@ -366,7 +366,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (g *Gateio) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	subscribe := WebsocketRequest{
 		ID:     1337,
 		Method: channelToSubscribe.Channel,
@@ -384,7 +384,7 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (g *Gateio) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe",1)
 	subscribe := WebsocketRequest{
 		ID:     1337,

@@ -26,8 +26,8 @@ func (e *Base) WebsocketInit() {
 
 // WebsocketSetup sets main variables for websocket connection
 func (e *Base) WebsocketSetup(connector func() error,
-	subscriber func(channelToSubscribe WebsocketChannelSubscription) error,
-	unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error,
+	subscriber func(channelToSubscribe *WebsocketChannelSubscription) error,
+	unsubscriber func(channelToUnsubscribe *WebsocketChannelSubscription) error,
 	exchangeName string,
 	wsEnabled,
 	verbose bool,
@@ -646,12 +646,12 @@ func (w *Websocket) FormatFunctionality() string {
 }
 
 // SetChannelSubscriber sets the function to use the base subscribe func
-func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe WebsocketChannelSubscription) error) {
+func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe *WebsocketChannelSubscription) error) {
 	w.channelSubscriber = subscriber
 }
 
 // SetChannelUnsubscriber sets the function to use the base unsubscribe func
-func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error) {
+func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscribe *WebsocketChannelSubscription) error) {
 	w.channelUnsubscriber = unsubscriber
 } 
 
@@ -668,7 +668,7 @@ func (w *Websocket) manageSubscriptions() error {
 	for {
 		select {
 		case <-w.ShutdownC:
-			w.subscribedChannels = []WebsocketChannelSubscription{}
+			w.subscribedChannels = []*WebsocketChannelSubscription{}
 			log.Debug("SHUTDOWN ManageSubscriptions")
 			return nil
 		default:
@@ -699,9 +699,9 @@ func (w *Websocket) subscribeToChannels() error {
 	for i := range w.ChannelsToSubscribe {
 		channelIsSubscribed := false
 		for j := range w.subscribedChannels {
-			if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, w.subscribedChannels[j].Channel) &&
-				strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), w.subscribedChannels[j].Currency.String()) {
+			if w.subscribedChannels[j].Equal(w.ChannelsToSubscribe[i]) {
 				channelIsSubscribed = true
+				break
 			}
 		}
 		if !channelIsSubscribed {
@@ -722,9 +722,9 @@ func (w *Websocket) unsubscribeToChannels() error {
 	for i := range w.subscribedChannels {
 		subscriptionFound := false
 		for j := range w.ChannelsToSubscribe {
-			if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, w.subscribedChannels[j].Channel) &&
-				strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), w.subscribedChannels[j].Currency.String()) {
+			if w.ChannelsToSubscribe[i].Equal(w.subscribedChannels[j]) {
 					subscriptionFound = true
+					break
 			}
 		}
 		if !subscriptionFound {
@@ -740,11 +740,10 @@ func (w *Websocket) unsubscribeToChannels() error {
 
 // RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe 
 // so an unsubscribe event can be triggered
-func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
+func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel *WebsocketChannelSubscription) {
 	channelRemoved := false
 	for i := range w.ChannelsToSubscribe {
-		if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, subscribedChannel.Channel) &&
-			strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), subscribedChannel.Currency.String()) {
+		if w.ChannelsToSubscribe[i].Equal(subscribedChannel) {
 			w.ChannelsToSubscribe = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
 			channelRemoved = true
 			break
@@ -758,11 +757,11 @@ func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel WebsocketChannelS
 		return
 	}
 	w.channelUnsubscriber(subscribedChannel)
-}
-
+} 
+ 
 // ResubscribeToChannel calls unsubscribe func and 
 // removes it from subscribedChannels to trigger a subscribe evbent
-func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubscription) {
+func (w *Websocket) ResubscribeToChannel(subscribedChannel *WebsocketChannelSubscription) {
 	err := w.channelUnsubscriber(subscribedChannel)
 	if err != nil {
 		w.DataHandler <- err
@@ -770,8 +769,7 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 	// Remove the channel from the list of subscribed channels
 	// ManageSubscriptions will automatically resubscribe
 	for i := range w.subscribedChannels {
-		if strings.EqualFold(w.ChannelsToSubscribe[i].Channel, subscribedChannel.Channel) &&
-		strings.EqualFold(w.ChannelsToSubscribe[i].Currency.String(), subscribedChannel.Currency.String()) {
+		if w.subscribedChannels[i].Equal(subscribedChannel) {
 			w.subscribedChannels = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
 			break
 		}
@@ -780,6 +778,16 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 	err = w.channelSubscriber(subscribedChannel)
 	if err != nil {
 		w.DataHandler <- err
+		// Adding back the channel after a failure
+		w.subscribedChannels = append(w.subscribedChannels, subscribedChannel)
 	}
 }
- 
+
+// Equal two WebsocketChannelSubscription to determine equality
+func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannelSubscription) bool {
+	if strings.EqualFold(w.Channel, subscribedChannel.Channel) &&
+	strings.EqualFold(w.Currency.String(), subscribedChannel.Currency.String()) {
+		return true
+	}
+	return false
+}

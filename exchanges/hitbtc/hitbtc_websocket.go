@@ -376,7 +376,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 	enabledCurrencies := h.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -386,7 +386,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (h *HitBTC) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,
 		Method:         channelToSubscribe.Channel,
@@ -418,7 +418,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (h *HitBTC) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe",1)
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,

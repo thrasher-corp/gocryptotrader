@@ -399,7 +399,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 
 	for i := range channels {
 		for j := range contracts {
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: contracts[j],
 				Params:   params,
@@ -409,7 +409,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *Bitmex) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments,
@@ -423,7 +423,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *Bitmex) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "unsubscribe"
 	subscriber.Arguments = append(subscriber.Arguments,

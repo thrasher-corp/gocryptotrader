@@ -553,7 +553,7 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTCC) GenerateDefaultSubscriptions() {
-	b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+	b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
 		Channel:  "SubscribeAllTickers",
 	})
 
@@ -567,7 +567,7 @@ func (b *BTCC) GenerateDefaultSubscriptions() {
 			} else if channels[i] == "GetTrades" {
 				params["count"] = "100"
 			}
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 				Params:   params,
@@ -578,7 +578,7 @@ func (b *BTCC) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *BTCC) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	subscription := WsOutgoing{
 		Action: channelToSubscribe.Channel,
 		Symbol: channelToSubscribe.Currency.String(),
@@ -595,7 +595,7 @@ func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *BTCC) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
 	subscription := WsOutgoing{}
 	switch channelToSubscribe.Channel {
 	case "SubOrderBook":
