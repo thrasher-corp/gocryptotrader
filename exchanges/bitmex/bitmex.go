@@ -180,6 +180,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			bitmexWSURL,
 			exch.WebsocketURL)
 		if err != nil {

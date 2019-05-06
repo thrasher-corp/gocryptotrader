@@ -171,6 +171,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 			nil,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			geminiWebsocketEndpoint,
 			exch.WebsocketURL)
 		if err != nil {

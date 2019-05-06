@@ -142,6 +142,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 			nil,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			krakenWSURL,
 			exch.WebsocketURL)
 		if err != nil {

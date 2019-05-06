@@ -139,6 +139,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
 			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			BitstampPusherKey,
 			exch.WebsocketURL)
 		if err != nil {

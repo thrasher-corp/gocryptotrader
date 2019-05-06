@@ -161,6 +161,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			bitfinexWebsocket,
 			exch.WebsocketURL)
 		if err != nil {

@@ -143,6 +143,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 			nil,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			binanceDefaultWebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {

@@ -138,6 +138,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 			c.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			coinbaseproWebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {

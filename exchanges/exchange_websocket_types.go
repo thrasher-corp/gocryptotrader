@@ -43,6 +43,8 @@ const (
 	websocketRestablishConnection = 1 * time.Second
 )
 
+var noConnectionTolerance, reconnectionLimit int
+
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing in routines.go
 type Websocket struct {
@@ -54,6 +56,7 @@ type Websocket struct {
 	init         bool
 	connected    bool
 	Connecting   bool
+	verbose 		bool
 	connector    func() error
 	m            sync.Mutex
 	// Subscriptions stuff

@@ -145,6 +145,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 			o.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			o.WebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {

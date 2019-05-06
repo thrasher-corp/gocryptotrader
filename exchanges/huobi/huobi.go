@@ -144,6 +144,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			huobiSocketIOAddress,
 			exch.WebsocketURL)
 		if err != nil {

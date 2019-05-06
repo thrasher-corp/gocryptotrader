@@ -125,6 +125,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 			nil,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			zbWebsocketAPI,
 			exch.WebsocketURL)
 		if err != nil {

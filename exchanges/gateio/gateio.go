@@ -126,6 +126,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 			g.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			gateioWebsocketEndpoint,
 			exch.WebsocketURL)
 		if err != nil {

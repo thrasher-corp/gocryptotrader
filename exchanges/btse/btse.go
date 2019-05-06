@@ -112,6 +112,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) {
 			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			btseWebsocket,
 			exch.WebsocketURL)
 		if err != nil {

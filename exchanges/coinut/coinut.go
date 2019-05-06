@@ -124,6 +124,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 			c.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			coinutWebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {

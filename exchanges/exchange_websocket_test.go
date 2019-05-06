@@ -3,6 +3,7 @@ package exchange
 import (
 	"testing"
 	"time"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -32,6 +33,7 @@ func TestWebsocket(t *testing.T) {
 		func(test WebsocketChannelSubscription) error { return nil },
 		"testName",
 		true,
+		false,
 		"testDefaultURL",
 		"testRunningURL")
 
@@ -73,7 +75,6 @@ func TestWebsocket(t *testing.T) {
 			}
 		}
 	}()
-
 	// -- Not connected shutdown
 	err := wsTest.Websocket.Shutdown()
 	if err == nil {
@@ -257,7 +258,6 @@ func TestUpdate(t *testing.T) {
 		{Price: 1337, Amount: 100}, // Append
 		{Price: 1336, Amount: 0},   // Ghost delete
 	}
-
 	err := wsTest.Websocket.Orderbook.Update(bidTargets,
 		askTargets,
 		LTCUSDPAIR,
@@ -328,5 +328,152 @@ func TestFunctionality(t *testing.T) {
 
 	if !w.SupportsFunctionality(WebsocketOrderbookSupported) {
 		t.Fatal("Test Failed - SupportsFunctionality error should be true")
+	}
+}
+
+
+func placeholderSubscriber (channelToSubscribe WebsocketChannelSubscription) error {
+	return nil
+}
+func TestSubscribe(t *testing.T) {
+	w := Websocket{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
+				Channel: "hello",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{},
+	}
+	w.SetChannelSubscriber(placeholderSubscriber)
+	w.subscribeToChannels()
+	if len(w.subscribedChannels) != 1 {
+		t.Errorf("Subscription did not occur")
+	}
+}
+
+func TestUnsubscribe(t *testing.T) {
+	w := Websocket{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{},
+		subscribedChannels: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
+				Channel: "hello",
+			},
+		},
+	}
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.unsubscribeToChannels()
+	if len(w.subscribedChannels) != 0 {
+		t.Errorf("Unsubscription did not occur")
+	}
+}
+
+func TestSubscriptionWithExistingEntry(t *testing.T) {
+	w := Websocket{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
+				Channel: "hello",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
+				Channel: "hello",
+			},
+		},
+	}
+	w.SetChannelSubscriber(placeholderSubscriber)
+	w.subscribeToChannels()
+	if len(w.subscribedChannels) != 1 {
+		t.Errorf("Subscription should not have occured")
+	}
+}
+
+func TestUnsubscriptionWithExistingEntry(t *testing.T) {
+	w := Websocket{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
+				Channel: "hello",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
+				Channel: "hello",
+			},
+		},
+	}
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.unsubscribeToChannels()
+	if len(w.subscribedChannels) != 1 {
+		t.Errorf("Unsubscription should not have occured")
+	}
+}
+
+func TestManageSubscriptionsWithoutFunctionality(t *testing.T) {
+	w := Websocket{
+		ShutdownC: make(chan struct{}, 1),
+	}
+
+	err := w.manageSubscriptions()
+	if err == nil {
+		t.Error("Requires functionality to work")
+	}
+}
+
+func TestManageSubscriptionsStartStop(t *testing.T) {
+	w := Websocket{
+		ShutdownC: make(chan struct{}, 1),
+		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
+	}
+
+	go w.manageSubscriptions()
+	time.Sleep(time.Second)
+	close(w.ShutdownC)
+}
+
+
+func TestWsConnectionMonitorNoConnection(t *testing.T) {
+	w := Websocket{}
+	w.DataHandler = make(chan interface{}, 1)
+	w.ShutdownC = make(chan struct{}, 1)
+	go w.wsConnectionMonitor()
+	err := <- w.DataHandler
+	if !strings.EqualFold(err.(error).Error(), "WsConnectionMonitor: websocket disabled, shutting down") {
+		t.Error("expecting error 'WsConnectionMonitor: websocket disabled, shutting down'")
+	}
+}
+
+
+func TestWsNoConnectionTolerance(t *testing.T) {
+	w := Websocket{}
+	w.DataHandler = make(chan interface{}, 1)
+	w.ShutdownC = make(chan struct{}, 1)
+	w.enabled = true
+	w.checkConnection()
+	if noConnectionTolerance == 0 {
+		t.Error("Expected noConnectionTolerance to increment")
+	}
+}
+
+func TestConnecting(t *testing.T) {
+	w := Websocket{}
+	w.DataHandler = make(chan interface{}, 1)
+	w.ShutdownC = make(chan struct{}, 1)
+	w.enabled = true
+	w.Connecting = true
+	w.checkConnection()
+	if reconnectionLimit != 1 {
+		t.Error("Expected reconnectionLimit to increment")
+	}
+}
+
+func TestReconnectionLimit(t *testing.T) {
+	w := Websocket{}
+	w.DataHandler = make(chan interface{}, 1)
+	w.ShutdownC = make(chan struct{}, 1)
+	w.enabled = true
+	w.Connecting = true
+	reconnectionLimit = 99
+	err := w.checkConnection()
+	if err == nil {
+		t.Error("Expected error")
 	}
 }

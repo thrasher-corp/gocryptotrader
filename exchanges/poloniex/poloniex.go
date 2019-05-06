@@ -136,6 +136,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 			p.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			poloniexWebsocketAddress,
 			exch.WebsocketURL)
 		if err != nil {

@@ -97,6 +97,7 @@ func setupWSConnection() error {
 			o.Unsubscribe,
 			o.Name,
 			true,
+			o.Verbose,
 			o.WebsocketURL,
 			o.WebsocketURL)
 		o.Websocket.DataHandler = make(chan interface{}, 500)

@@ -138,6 +138,7 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			huobiGlobalWebsocketEndpoint,
 			exch.WebsocketURL)
 		if err != nil {
