@@ -431,7 +431,7 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
@@ -441,11 +441,8 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 			b.Name)
 	}
 
-	if b.Nonce.Get() == 0 {
-		b.Nonce.Set(time.Now().UnixNano())
-	} else {
-		b.Nonce.Inc()
-	}
+	n := b.Requester.GetNonce(true).String()[0:13]
+
 	var req string
 	payload := []byte("")
 
@@ -454,9 +451,9 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 		if err != nil {
 			return err
 		}
-		req = path + "\n" + b.Nonce.String()[0:13] + "\n" + string(payload)
+		req = path + "\n" + n + "\n" + string(payload)
 	} else {
-		req = path + "\n" + b.Nonce.String()[0:13] + "\n"
+		req = path + "\n" + n + "\n"
 	}
 
 	hmac := common.GetHMAC(common.HashSHA512,
@@ -474,7 +471,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 	headers["Accept-Charset"] = "UTF-8"
 	headers["Content-Type"] = "application/json"
 	headers["apikey"] = b.APIKey
-	headers["timestamp"] = b.Nonce.String()[0:13]
+	headers["timestamp"] = n
 	headers["signature"] = common.Base64Encode(hmac)
 
 	return b.SendPayload(reqType,
@@ -482,6 +479,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 		headers,
 		bytes.NewBuffer(payload),
 		result,
+		true,
 		true,
 		b.Verbose)
 }

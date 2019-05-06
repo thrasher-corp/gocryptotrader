@@ -616,6 +616,7 @@ func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, payment
 			&response)
 }
 
+// WithdrawFIAT requests a withdrawal from a designated fiat wallet
 func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *exchange.WithdrawRequest) ([]Withdrawal, error) {
 	response := []Withdrawal{}
 	req := make(map[string]interface{})
@@ -1000,7 +1001,7 @@ func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(path string, result interface{}, verbose bool) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
@@ -1011,15 +1012,11 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 			b.Name)
 	}
 
-	if b.Nonce.Get() == 0 {
-		b.Nonce.Set(time.Now().UnixNano())
-	} else {
-		b.Nonce.Inc()
-	}
+	n := b.Requester.GetNonce(true)
 
 	req := make(map[string]interface{})
 	req["request"] = fmt.Sprintf("%s%s", bitfinexAPIVersion, path)
-	req["nonce"] = b.Nonce.String()
+	req["nonce"] = n.String()
 
 	for key, value := range params {
 		req[key] = value
@@ -1047,6 +1044,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		headers,
 		nil,
 		result,
+		true,
 		true,
 		b.Verbose)
 }

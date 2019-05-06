@@ -490,7 +490,7 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, g.Verbose)
+	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
@@ -503,7 +503,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	headers := make(map[string]string)
 	req := make(map[string]interface{})
 	req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-	req["nonce"] = g.Nonce.GetValue(g.Name, false)
+	req["nonce"] = g.Requester.GetNonce(true).String()
 
 	for key, value := range params {
 		req[key] = value
@@ -528,7 +528,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	headers["X-GEMINI-SIGNATURE"] = common.HexEncodeToString(hmac)
 	headers["Cache-Control"] = "no-cache"
 
-	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, g.Verbose)
+	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, false, g.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

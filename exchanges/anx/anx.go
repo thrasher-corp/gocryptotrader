@@ -402,7 +402,7 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (a *ANX) SendHTTPRequest(path string, result interface{}) error {
-	return a.SendPayload(http.MethodGet, path, nil, nil, result, false, a.Verbose)
+	return a.SendPayload(http.MethodGet, path, nil, nil, result, false, false, a.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends a authenticated HTTP request
@@ -411,14 +411,9 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
 	}
 
-	if a.Nonce.Get() == 0 {
-		a.Nonce.Set(time.Now().UnixNano())
-	} else {
-		a.Nonce.Inc()
-	}
-
+	n := a.Requester.GetNonce(true)
 	req := make(map[string]interface{})
-	req["nonce"] = a.Nonce.String()[0:13]
+	req["nonce"] = n.String()[0:13]
 	path = fmt.Sprintf("api/%s/%s", anxAPIVersion, path)
 
 	for key, value := range params {
@@ -440,7 +435,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	headers["Rest-Sign"] = common.Base64Encode(hmac)
 	headers["Content-Type"] = "application/json"
 
-	return a.SendPayload(http.MethodPost, a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
+	return a.SendPayload(http.MethodPost, a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, true, a.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

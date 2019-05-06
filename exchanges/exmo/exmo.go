@@ -371,7 +371,7 @@ func (e *EXMO) GetWalletHistory(date int64) (WalletHistory, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *EXMO) SendHTTPRequest(path string, result interface{}) error {
-	return e.SendPayload(http.MethodGet, path, nil, nil, result, false, e.Verbose)
+	return e.SendPayload(http.MethodGet, path, nil, nil, result, false, false, e.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -381,12 +381,8 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 			e.Name)
 	}
 
-	if e.Nonce.Get() == 0 {
-		e.Nonce.Set(time.Now().UnixNano())
-	} else {
-		e.Nonce.Inc()
-	}
-	vals.Set("nonce", e.Nonce.String())
+	n := e.Requester.GetNonce(true).String()
+	vals.Set("nonce", n)
 
 	payload := vals.Encode()
 	hash := common.GetHMAC(common.HashSHA512,
@@ -412,6 +408,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 		headers,
 		strings.NewReader(payload),
 		result,
+		true,
 		true,
 		e.Verbose)
 }

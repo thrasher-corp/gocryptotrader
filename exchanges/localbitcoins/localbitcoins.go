@@ -726,7 +726,7 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, l.Verbose)
+	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, false, l.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to
@@ -736,19 +736,15 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
 
-	if l.Nonce.Get() == 0 {
-		l.Nonce.Set(time.Now().UnixNano())
-	} else {
-		l.Nonce.Inc()
-	}
+	n := l.Requester.GetNonce(true).String()
 
 	path = "/api/" + path
 	encoded := params.Encode()
-	message := l.Nonce.String() + l.APIKey + path + encoded
+	message := n + l.APIKey + path + encoded
 	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(l.APISecret))
 	headers := make(map[string]string)
 	headers["Apiauth-Key"] = l.APIKey
-	headers["Apiauth-Nonce"] = l.Nonce.String()
+	headers["Apiauth-Nonce"] = n
 	headers["Apiauth-Signature"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
@@ -760,7 +756,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 		path += "?" + encoded
 	}
 
-	return l.SendPayload(method, l.APIUrl+path, headers, strings.NewReader(encoded), result, true, l.Verbose)
+	return l.SendPayload(method, l.APIUrl+path, headers, strings.NewReader(encoded), result, true, true, l.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -792,7 +792,7 @@ func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
-	return c.SendPayload(http.MethodGet, path, nil, nil, result, false, c.Verbose)
+	return c.SendPayload(http.MethodGet, path, nil, nil, result, false, false, c.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
@@ -815,12 +815,12 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		}
 	}
 
-	nonce := c.Nonce.GetValue(c.Name, false).String()
-	message := nonce + method + "/" + path + string(payload)
+	n := c.Requester.GetNonce(true).String()
+	message := n + method + "/" + path + string(payload)
 	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(c.APISecret))
 	headers := make(map[string]string)
 	headers["CB-ACCESS-SIGN"] = common.Base64Encode(hmac)
-	headers["CB-ACCESS-TIMESTAMP"] = nonce
+	headers["CB-ACCESS-TIMESTAMP"] = n
 	headers["CB-ACCESS-KEY"] = c.APIKey
 	headers["CB-ACCESS-PASSPHRASE"] = c.ClientID
 	headers["Content-Type"] = "application/json"
@@ -830,6 +830,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		headers,
 		bytes.NewBuffer(payload),
 		result,
+		true,
 		true,
 		c.Verbose)
 }

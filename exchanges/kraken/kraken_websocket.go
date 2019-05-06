@@ -267,7 +267,7 @@ func (k *Kraken) WsHandleDataResponse(response WebsocketDataResponse) {
 	}
 }
 
-// WsHandleDataResponse classifies the WS response and sends to appropriate handler
+// WsHandleEventResponse classifies the WS response and sends to appropriate handler
 func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 	switch response.Event {
 	case krakenWsHeartbeat:
@@ -391,7 +391,7 @@ func getSubscriptionChannelData(id int64) WebsocketChannelData {
 	return WebsocketChannelData{}
 }
 
-// resubscribeToChannel will attempt to unsubscribe and resubscribe to a channel
+// ResubscribeToChannel will attempt to unsubscribe and resubscribe to a channel
 func (k *Kraken) ResubscribeToChannel(channel string, pair currency.Pair) {
 	// Kraken WS formats pairs with / but config and REST use -
 	formattedPair := strings.ToUpper(strings.Replace(pair.String(), "-", "/", 1))
