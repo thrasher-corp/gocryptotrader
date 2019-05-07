@@ -323,8 +323,8 @@ type IBotExchange interface {
 	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
 	GetWebsocket() (*Websocket, error)
-	//SubscribeToWebsocketChannels(channels []string) error
-	//UnsubscribeToWebsocketChannels(channels []string) error
+	SubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the

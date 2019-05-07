@@ -382,3 +382,21 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 
 	return orders, nil
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (c *CoinbasePro) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	for i := range channels {
+		c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, channels[i])
+	}
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	for i := range channels {
+		c.Websocket.RemoveChannelToSubscribe(channels[i])
+	}
+	return nil
+}

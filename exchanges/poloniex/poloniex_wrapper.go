@@ -396,3 +396,21 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 	return orders, nil
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (p *Poloniex) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	for i := range channels {
+		p.Websocket.ChannelsToSubscribe = append(p.Websocket.ChannelsToSubscribe, channels[i])
+	}
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	for i := range channels {
+		p.Websocket.RemoveChannelToSubscribe(channels[i])
+	}
+	return nil
+}
