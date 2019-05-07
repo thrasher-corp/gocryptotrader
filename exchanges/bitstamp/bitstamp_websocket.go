@@ -98,7 +98,7 @@ func (b *Bitstamp) WsConnect() error {
 	if err != nil {
 		return fmt.Errorf("%s Websocket Bind error: %s", b.GetName(), err)
 	}
-
+	b.GenerateDefaultSubscriptions()
 	go b.WsReadData()
 
 	for _, p := range b.GetEnabledCurrencies() {
@@ -142,8 +142,7 @@ func (b *Bitstamp) WsConnect() error {
 		}
 
 
-}
-b.GenerateDefaultSubscriptions()
+	}
 	return nil
 }
 
@@ -154,7 +153,7 @@ func (b *Bitstamp) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
-				Channel:  fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j]),
+				Channel:  fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j].String()),
 				Currency: enabledCurrencies[j],
 			})
 		}
