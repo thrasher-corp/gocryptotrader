@@ -229,7 +229,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].String())
-			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
+			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channel,
 				Currency: enabledCurrencies[j],
 			})
@@ -239,7 +239,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (h *HUOBI) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
 	if err != nil {
 		return err
@@ -250,7 +250,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscript
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (h *HUOBI) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
 	if err != nil {
 		return err

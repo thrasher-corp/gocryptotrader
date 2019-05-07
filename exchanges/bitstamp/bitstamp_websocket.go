@@ -153,7 +153,7 @@ func (b *Bitstamp) GenerateDefaultSubscriptions() {
 	enabledCurrencies := b.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
+			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j]),
 				Currency: enabledCurrencies[j],
 			})
@@ -163,7 +163,7 @@ func (b *Bitstamp) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *Bitstamp) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	// Basic ratelimiter
 	time.Sleep(30 * time.Millisecond)
 	return b.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
@@ -171,7 +171,7 @@ func (b *Bitstamp) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscr
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (b *Bitstamp) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	// Basic ratelimiter
 	time.Sleep(30 * time.Millisecond)
 	return b.WebsocketConn.Client.Unsubscribe(channelToSubscribe.Channel)

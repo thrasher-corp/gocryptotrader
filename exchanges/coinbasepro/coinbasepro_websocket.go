@@ -252,7 +252,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	enabledCurrencies := c.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
+			c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -262,7 +262,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (c *CoinbasePro) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe", 
 		Channels: []WsChannels { 
@@ -285,7 +285,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe *exchange.WebsocketChannelSub
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (c *CoinbasePro) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "unsubscribe", 
 		Channels: []WsChannels { 

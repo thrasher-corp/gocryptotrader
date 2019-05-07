@@ -323,7 +323,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 	enabledCurrencies := c.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
+			c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -333,7 +333,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (c *COINUT) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request: channelToSubscribe.Channel, 
 		InstID:  instrumentListByString[channelToSubscribe.Currency.String()],
@@ -352,7 +352,7 @@ func (c *COINUT) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscrip
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (c *COINUT) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request: channelToSubscribe.Channel, 
 		InstID:  instrumentListByString[channelToSubscribe.Currency.String()],

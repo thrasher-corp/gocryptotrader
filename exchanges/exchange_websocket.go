@@ -26,8 +26,8 @@ func (e *Base) WebsocketInit() {
 
 // WebsocketSetup sets main variables for websocket connection
 func (e *Base) WebsocketSetup(connector func() error,
-	subscriber func(channelToSubscribe *WebsocketChannelSubscription) error,
-	unsubscriber func(channelToUnsubscribe *WebsocketChannelSubscription) error,
+	subscriber func(channelToSubscribe WebsocketChannelSubscription) error,
+	unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error,
 	exchangeName string,
 	wsEnabled,
 	verbose bool,
@@ -38,15 +38,14 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.Connected = make(chan struct{}, 1)
 	e.Websocket.Disconnected = make(chan struct{}, 1)
 	e.Websocket.TrafficAlert = make(chan struct{}, 1)
+	
+	e.Websocket.SetChannelSubscriber(subscriber)
+	e.Websocket.SetChannelUnsubscriber(unsubscriber)
 
 	err := e.Websocket.SetWsStatusAndConnection(wsEnabled)
 	if err != nil {
 		return err
 	}
- 
-	e.Websocket.SetChannelSubscriber(subscriber)
-	e.Websocket.SetChannelUnsubscriber(unsubscriber)
-
 	e.Websocket.SetDefaultURL(defaultURL)
 	e.Websocket.SetConnector(connector)
 	e.Websocket.SetWebsocketURL(runningURL)
@@ -111,7 +110,10 @@ func (w *Websocket) wsConnectionMonitor()  {
 			w.Shutdown()
 			return
 		}
+		time.Sleep(2 * time.Second)
+		w.m.Lock()
 		err := w.checkConnection()
+		w.m.Unlock()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -122,7 +124,6 @@ func (w *Websocket) wsConnectionMonitor()  {
 // Will reconnect on disconnect
 // Will fatal if cannot reconnect after a certain period
 func (w *Websocket) checkConnection() error {
-	time.Sleep(2 * time.Second)
 	if !w.IsConnected() && !w.Connecting {
 		log.Debugf("No connection %v/5", noConnectionTolerance)
 		if noConnectionTolerance >= 5 {
@@ -148,7 +149,10 @@ func (w *Websocket) checkConnection() error {
 
 // IsConnected exposes websocket connection status
 func (w *Websocket) IsConnected() bool {
-	return w.connected
+	w.m.Lock()
+	result := w.connected
+	w.m.Unlock()
+	return result
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -160,7 +164,7 @@ func (w *Websocket) Shutdown() error {
 		w.m.Unlock()
 	}()
 	if !w.connected {
-		return fmt.Errorf("%v cannot shutdown, websocket already connected", w.exchangeName)
+		return fmt.Errorf("%v cannot shutdown, websocket already disconnected", w.exchangeName)
 	}
 	if w.verbose {
 		log.Debugf("%v Shutting down websocket channels", w.exchangeName)
@@ -188,7 +192,6 @@ func (w *Websocket) Shutdown() error {
 	return nil
 }
 
-
 // WebsocketReset sends the shutdown command, waits for channel/func closure and then reconnects
 func (w *Websocket) WebsocketReset() error {
 	err := w.Shutdown()
@@ -199,15 +202,15 @@ func (w *Websocket) WebsocketReset() error {
 	log.Debug("Waiting for wait groups to exit...")
 	w.Wg.Wait()
 	log.Debug("Reconnecting")
+	w.m.Lock()
 	w.init = true
+	w.m.Unlock()
 	err = w.Connect()
 	if err != nil {
 		log.Errorf("%v connection error: %v", w.exchangeName, err)
 	}
 	return err
 }
-
-
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
 func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
@@ -297,30 +300,37 @@ func (w *Websocket) GetWebsocketURL() string {
 // SetWsStatusAndConnection sets if websocket is enabled
 // it will also connect/disconnect the websocket connection
 func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
+	w.m.Lock()
 	if w.enabled == enabled {
 		if w.init {
-			return nil
+				w.m.Unlock()
+				return nil
 		}
-		return fmt.Errorf("exchange_websocket.go error - already set as %t",
+				w.m.Unlock()
+				return fmt.Errorf("exchange_websocket.go error - already set as %t",
 			enabled)
 	}
-
 	w.enabled = enabled
 
 	if !w.init {
 		if enabled {
 			if w.connected {
+				w.m.Unlock()
 				return nil
 			}
-			return w.Connect()
+				w.m.Unlock()
+				return w.Connect()
 		}
 
 		if !w.connected {
+			w.m.Unlock()
 			return nil
 		}
-		return w.Shutdown()
+				w.m.Unlock()
+				return w.Shutdown()
 	}
-	return nil
+				w.m.Unlock()
+				return nil
 }
 
 // IsEnabled returns bool
@@ -646,12 +656,12 @@ func (w *Websocket) FormatFunctionality() string {
 }
 
 // SetChannelSubscriber sets the function to use the base subscribe func
-func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe *WebsocketChannelSubscription) error) {
+func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe WebsocketChannelSubscription) error) {
 	w.channelSubscriber = subscriber
 }
 
 // SetChannelUnsubscriber sets the function to use the base unsubscribe func
-func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscribe *WebsocketChannelSubscription) error) {
+func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error) {
 	w.channelUnsubscriber = unsubscriber
 } 
 
@@ -668,7 +678,7 @@ func (w *Websocket) manageSubscriptions() error {
 	for {
 		select {
 		case <-w.ShutdownC:
-			w.subscribedChannels = []*WebsocketChannelSubscription{}
+			w.subscribedChannels = []WebsocketChannelSubscription{}
 			log.Debug("SHUTDOWN ManageSubscriptions")
 			return nil
 		default:
@@ -676,11 +686,11 @@ func (w *Websocket) manageSubscriptions() error {
 			log.Debug("Checking subscriptions")
 			// Subscribe to channels Pending a subscription
 			if w.SupportsFunctionality(WebsocketSubscribeSupported) {
-			err := w.subscribeToChannels()
-			if err != nil {
-				w.DataHandler <- err
+				err := w.subscribeToChannels()
+				if err != nil {
+					w.DataHandler <- err
+				}
 			}
-		}
 			if !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
 				continue
 			}
@@ -699,7 +709,7 @@ func (w *Websocket) subscribeToChannels() error {
 	for i := range w.ChannelsToSubscribe {
 		channelIsSubscribed := false
 		for j := range w.subscribedChannels {
-			if w.subscribedChannels[j].Equal(w.ChannelsToSubscribe[i]) {
+			if w.subscribedChannels[j].Equal(&w.ChannelsToSubscribe[i]) {
 				channelIsSubscribed = true
 				break
 			}
@@ -712,7 +722,7 @@ func (w *Websocket) subscribeToChannels() error {
 			}
 			w.subscribedChannels = append(w.subscribedChannels, w.ChannelsToSubscribe[i])
 		}
-	}
+	}  
 	return nil
 }
 
@@ -722,7 +732,7 @@ func (w *Websocket) unsubscribeToChannels() error {
 	for i := range w.subscribedChannels {
 		subscriptionFound := false
 		for j := range w.ChannelsToSubscribe {
-			if w.ChannelsToSubscribe[i].Equal(w.subscribedChannels[j]) {
+			if w.ChannelsToSubscribe[i].Equal(&w.subscribedChannels[j]) {
 					subscriptionFound = true
 					break
 			}
@@ -740,10 +750,10 @@ func (w *Websocket) unsubscribeToChannels() error {
 
 // RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe 
 // so an unsubscribe event can be triggered
-func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel *WebsocketChannelSubscription) {
+func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
 	channelRemoved := false
 	for i := range w.ChannelsToSubscribe {
-		if w.ChannelsToSubscribe[i].Equal(subscribedChannel) {
+		if w.ChannelsToSubscribe[i].Equal(&subscribedChannel) {
 			w.ChannelsToSubscribe = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
 			channelRemoved = true
 			break
@@ -761,7 +771,7 @@ func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel *WebsocketChannel
  
 // ResubscribeToChannel calls unsubscribe func and 
 // removes it from subscribedChannels to trigger a subscribe evbent
-func (w *Websocket) ResubscribeToChannel(subscribedChannel *WebsocketChannelSubscription) {
+func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubscription) {
 	err := w.channelUnsubscriber(subscribedChannel)
 	if err != nil {
 		w.DataHandler <- err
@@ -769,7 +779,7 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel *WebsocketChannelSubs
 	// Remove the channel from the list of subscribed channels
 	// ManageSubscriptions will automatically resubscribe
 	for i := range w.subscribedChannels {
-		if w.subscribedChannels[i].Equal(subscribedChannel) {
+		if w.subscribedChannels[i].Equal(&subscribedChannel) {
 			w.subscribedChannels = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
 			break
 		}

@@ -60,10 +60,10 @@ type Websocket struct {
 	connector    func() error
 	m            sync.Mutex
 	// Subscriptions stuff
-	subscribedChannels       []*WebsocketChannelSubscription
-	ChannelsToSubscribe      []*WebsocketChannelSubscription
-	channelSubscriber        func(channelToSubscribe *WebsocketChannelSubscription) error
-	channelUnsubscriber      func(channelToUnsubscribe *WebsocketChannelSubscription) error
+	subscribedChannels       []WebsocketChannelSubscription
+	ChannelsToSubscribe      []WebsocketChannelSubscription
+	channelSubscriber        func(channelToSubscribe WebsocketChannelSubscription) error
+	channelUnsubscriber      func(channelToUnsubscribe WebsocketChannelSubscription) error
 	checkChannelSubscription func(channelToCheck *WebsocketChannelSubscription, existingChannels []WebsocketChannelSubscription) (bool, error)
 	// Connected denotes a channel switch for diversion of request flow
 	Connected chan struct{}

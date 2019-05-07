@@ -472,7 +472,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 						Channel: krakenWsOrderbook,
 						Currency: channelData.Pair,
 					}
-					k.Websocket.ResubscribeToChannel(&subscriptionToRemove)
+					k.Websocket.ResubscribeToChannel(subscriptionToRemove)
 				}
 			}
 		}
@@ -802,7 +802,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "/"
-			k.Websocket.ChannelsToSubscribe = append(k.Websocket.ChannelsToSubscribe, &exchange.WebsocketChannelSubscription{
+			k.Websocket.ChannelsToSubscribe = append(k.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -812,7 +812,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (k *Kraken) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsSubscribe,
 		Pairs: []string{channelToSubscribe.Currency.String()},
@@ -831,7 +831,7 @@ func (k *Kraken) Subscribe(channelToSubscribe *exchange.WebsocketChannelSubscrip
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
-func (k *Kraken) Unsubscribe(channelToSubscribe *exchange.WebsocketChannelSubscription) error {
+func (k *Kraken) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsUnsubscribe,
 		Pairs: []string{channelToSubscribe.Currency.String()},

@@ -29,8 +29,8 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	wsTest.WebsocketSetup(func() error { return nil },
-		func(test *WebsocketChannelSubscription) error { return nil },
-		func(test *WebsocketChannelSubscription) error { return nil },
+		func(test WebsocketChannelSubscription) error { return nil },
+		func(test WebsocketChannelSubscription) error { return nil },
 		"testName",
 		true,
 		false,
@@ -80,7 +80,7 @@ func TestWebsocket(t *testing.T) {
 	if err == nil {
 		t.Fatal("test failed - should not be connected to able to shut down")
 	}
-
+	wsTest.Websocket.Wg.Wait()
 	// -- Normal connect
 	err = wsTest.Websocket.Connect()
 	if err != nil {
@@ -332,17 +332,17 @@ func TestFunctionality(t *testing.T) {
 }
 
 
-func placeholderSubscriber (channelToSubscribe *WebsocketChannelSubscription) error {
+func placeholderSubscriber (channelToSubscribe WebsocketChannelSubscription) error {
 	return nil
 }
 func TestSubscribe(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []*WebsocketChannelSubscription{
-			&WebsocketChannelSubscription{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
 				Channel: "hello",
 			},
 		},
-		subscribedChannels: []*WebsocketChannelSubscription{},
+		subscribedChannels: []WebsocketChannelSubscription{},
 	}
 	w.SetChannelSubscriber(placeholderSubscriber)
 	w.subscribeToChannels()
@@ -353,9 +353,9 @@ func TestSubscribe(t *testing.T) {
 
 func TestUnsubscribe(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []*WebsocketChannelSubscription{},
-		subscribedChannels: []*WebsocketChannelSubscription{
-			&WebsocketChannelSubscription{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{},
+		subscribedChannels: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
 				Channel: "hello",
 			},
 		},
@@ -369,13 +369,13 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestSubscriptionWithExistingEntry(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []*WebsocketChannelSubscription{
-			&WebsocketChannelSubscription{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
 				Channel: "hello",
 			},
 		},
-		subscribedChannels: []*WebsocketChannelSubscription{
-			&WebsocketChannelSubscription{
+		subscribedChannels: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
 				Channel: "hello",
 			},
 		},
@@ -389,13 +389,13 @@ func TestSubscriptionWithExistingEntry(t *testing.T) {
 
 func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []*WebsocketChannelSubscription{
-			&WebsocketChannelSubscription{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
 				Channel: "hello",
 			},
 		},
-		subscribedChannels: []*WebsocketChannelSubscription{
-			&WebsocketChannelSubscription{
+		subscribedChannels: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
 				Channel: "hello",
 			},
 		},
@@ -483,12 +483,12 @@ func TestRemoveChannelToSubscribe (t *testing.T) {
 		Channel: "hello", 
 	}
 	w := Websocket{
-		ChannelsToSubscribe: []*WebsocketChannelSubscription{
-			&subscription,
+		ChannelsToSubscribe: []WebsocketChannelSubscription{
+			subscription,
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	w.RemoveChannelToSubscribe(&subscription)
+	w.RemoveChannelToSubscribe(subscription)
 	if len(w.subscribedChannels) != 0 {
 		t.Errorf("Unsubscription did not occur")
 	} 
@@ -499,11 +499,11 @@ func TestRemoveChannelToSubscribeWithNoSubscription (t *testing.T) {
 		Channel: "hello", 
 	}
 	w := Websocket{
-		ChannelsToSubscribe: []*WebsocketChannelSubscription{},
+		ChannelsToSubscribe: []WebsocketChannelSubscription{},
 	}
 	w.DataHandler = make(chan interface{}, 1)
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	go w.RemoveChannelToSubscribe(&subscription)
+	go w.RemoveChannelToSubscribe(subscription)
 	err := <- w.DataHandler
 	if !strings.Contains(err.(error).Error(), "could not be removed because it was not found") {
 		t.Error("Expected not found error")
@@ -515,10 +515,10 @@ func TestResubscribeToChannel(t *testing.T) {
 		Channel: "hello", 
 	}
 	w := Websocket{
-		ChannelsToSubscribe: []*WebsocketChannelSubscription{},
+		ChannelsToSubscribe: []WebsocketChannelSubscription{},
 	}
 	w.DataHandler = make(chan interface{}, 1)
 	w.SetChannelUnsubscriber(placeholderSubscriber)
 	w.SetChannelSubscriber(placeholderSubscriber)
-	w.ResubscribeToChannel(&subscription)
+	w.ResubscribeToChannel(subscription)
 }

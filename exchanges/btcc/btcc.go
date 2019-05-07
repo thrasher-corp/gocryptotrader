@@ -45,10 +45,10 @@ func (b *BTCC) SetDefaults() {
 		request.NewRateLimit(time.Second, btccAuthRate),
 		request.NewRateLimit(time.Second, btccUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.WebsocketInit()
 	b.Websocket.Functionality =  
 		exchange.WebsocketSubscribeSupported |
 		exchange.WebsocketUnsubscribeSupported
-	b.WebsocketInit()
 }
 
 // Setup is run on startup to setup exchange with config values
