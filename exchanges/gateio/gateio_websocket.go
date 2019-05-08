@@ -140,7 +140,6 @@ func (g *Gateio) WsSubscribe() error {
 				Method: "order.subscribe",
 				Params: []interface{}{c.String()},
 			}
-			log.Debugln(orderNotification)
 			err := g.WebsocketConn.WriteJSON(orderNotification)
 			if err != nil {
 				return err
