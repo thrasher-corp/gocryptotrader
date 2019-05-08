@@ -46,7 +46,13 @@ var routes = Routes{}
 // router
 func NewRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	listenAddr := bot.config.Webserver.ListenAddress
+	var listenAddr string
+
+	if common.ExtractPort(bot.config.Webserver.ListenAddress) == 80 {
+		listenAddr = common.ExtractHost(bot.config.Webserver.ListenAddress)
+	} else {
+		listenAddr = bot.config.Webserver.ListenAddress
+	}
 
 	routes = Routes{
 		Route{
@@ -117,7 +123,7 @@ func NewRouter() *mux.Router {
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(RESTLogger(route.HandlerFunc, route.Name)).
-			Host(common.ExtractHost(listenAddr))
+			Host(listenAddr)
 	}
 
 	if bot.config.Profiler.Enabled {
