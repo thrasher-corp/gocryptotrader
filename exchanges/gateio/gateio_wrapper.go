@@ -284,7 +284,31 @@ func (g *Gateio) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 // GetOrderInfo returns information on a current open order
 func (g *Gateio) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, common.ErrNotYetImplemented
+
+	orders, err := g.GetOpenOrders("")
+	if err != nil {
+		return orderDetail, errors.New("failed to get open orders")
+	}
+	for x := range orders.Orders {
+		if orders.Orders[x].OrderNumber != orderID {
+			continue
+		}
+		orderDetail.Exchange = g.GetName()
+		orderDetail.ID = orders.Orders[x].OrderNumber
+		orderDetail.RemainingAmount = orders.Orders[x].InitialAmount - orders.Orders[x].FilledAmount
+		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount
+		orderDetail.Amount = orders.Orders[x].InitialAmount
+		orderDetail.OrderDate = time.Unix(orders.Orders[x].Timestamp, 0)
+		orderDetail.Status = orders.Orders[x].Status
+		orderDetail.Price = orders.Orders[x].Rate
+		orderDetail.CurrencyPair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair, g.ConfigCurrencyPairFormat.Delimiter)
+		if strings.EqualFold(orders.Orders[x].Type, exchange.AskOrderSide.ToString()) {
+			orderDetail.OrderSide = exchange.AskOrderSide
+		} else if strings.EqualFold(orders.Orders[x].Type, exchange.BidOrderSide.ToString()) {
+			orderDetail.OrderSide = exchange.BuyOrderSide
+		}
+	}
+	return orderDetail, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
