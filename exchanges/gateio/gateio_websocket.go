@@ -425,3 +425,20 @@ func (g *Gateio) wsGetBalance() error {
 	}
 	return nil
 }
+
+func (g *Gateio) WsGetOrderInfo(market string, offset, limit int) error {
+	order := WebsocketRequest{
+		ID:     IDOrderQuery,
+		Method: "order.query",
+		Params: []interface{}{
+			market,
+			offset,
+			limit,
+		},
+	}
+	err := g.WebsocketConn.WriteJSON(order)
+	if err != nil {
+		return err
+	}
+	return nil
+}
