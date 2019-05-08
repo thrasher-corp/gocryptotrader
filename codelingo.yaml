@@ -5,6 +5,7 @@ tenets:
   - import: codelingo/effective-go/good-package-name
   - import: codelingo/effective-go/single-method-interface-name
   - import: codelingo/effective-go/underscores-in-name
+  - import: codelingo/effective-go/unnecessary-else
  
   # Overwrite one tenet with custom logic
   # - import: codelingo/effective-go/comment-first-word-when-empty

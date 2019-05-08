@@ -1217,20 +1217,19 @@ func GetFilePath(file string) (string, error) {
 		_, err := os.Stat(oldDirs[x])
 		if os.IsNotExist(err) {
 			continue
-		} else {
-			if filepath.Ext(oldDirs[x]) == ".json" {
-				err = os.Rename(oldDirs[x], newDirs[0])
-				if err != nil {
-					return "", err
-				}
-				log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[0])
-			} else {
-				err = os.Rename(oldDirs[x], newDirs[1])
-				if err != nil {
-					return "", err
-				}
-				log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[1])
+		} 
+		if filepath.Ext(oldDirs[x]) == ".json" {
+			err = os.Rename(oldDirs[x], newDirs[0])
+			if err != nil {
+				return "", err
 			}
+			log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[0])
+		} else {
+			err = os.Rename(oldDirs[x], newDirs[1])
+			if err != nil {
+				return "", err
+			}
+			log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[1])
 		}
 	}
 

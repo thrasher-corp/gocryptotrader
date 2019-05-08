@@ -221,9 +221,8 @@ func TestGetSymbols(t *testing.T) {
 		for _, explicitSymbol := range expectedCurrencies {
 			if common.StringDataCompare(expectedCurrencies, explicitSymbol) {
 				break
-			} else {
-				t.Error("BitfinexGetSymbols currency mismatch with: ", explicitSymbol)
-			}
+			} 
+			t.Error("BitfinexGetSymbols currency mismatch with: ", explicitSymbol)
 		}
 	} else {
 		t.Error("BitfinexGetSymbols currency mismatch, Expected Currencies < Exchange Currencies")

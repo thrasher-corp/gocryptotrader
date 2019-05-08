@@ -244,12 +244,11 @@ func SetupExchanges() {
 		if !exch.Enabled {
 			log.Debugf("%s: Exchange support: Disabled", exch.Name)
 			continue
-		} else {
-			err := LoadExchange(exch.Name, true, &wg)
-			if err != nil {
-				log.Errorf("LoadExchange %s failed: %s", exch.Name, err)
-				continue
-			}
+		} 
+		err := LoadExchange(exch.Name, true, &wg)
+		if err != nil {
+			log.Errorf("LoadExchange %s failed: %s", exch.Name, err)
+			continue
 		}
 		log.Debugf(
 			"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
