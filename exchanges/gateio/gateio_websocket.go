@@ -426,7 +426,7 @@ func (g *Gateio) wsGetBalance() error {
 	return nil
 }
 
-func (g *Gateio) WsGetOrderInfo(market string, offset, limit int) error {
+func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
 	order := WebsocketRequest{
 		ID:     IDOrderQuery,
 		Method: "order.query",
