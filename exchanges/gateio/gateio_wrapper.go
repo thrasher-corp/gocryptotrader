@@ -137,46 +137,50 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 		return info, err
 	}
 
-	if len(balance.Available) == 0 && len(balance.Locked) == 0 {
-		return info, nil
-	}
-
 	var balances []exchange.AccountCurrencyInfo
 
-	for key, amountStr := range balance.Locked {
-
-		lockedF, err := strconv.ParseFloat(amountStr, 64)
-		if err != nil {
-			return info, err
-		}
-
-		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(key),
-			Hold:         lockedF,
-		})
-	}
-
-	for key, amountStr := range balance.Available {
-		availAmount, err := strconv.ParseFloat(amountStr, 64)
-		if err != nil {
-			return info, err
-		}
-
-		var updated bool
-		for i := range balances {
-			if balances[i].CurrencyName == currency.NewCode(key) {
-				balances[i].TotalValue = balances[i].Hold + availAmount
-				updated = true
-				break
+	switch l := balance.Locked.(type) {
+	case map[string]interface{}:
+		for x := range l {
+			lockedF, err := strconv.ParseFloat(l[x].(string), 64)
+			if err != nil {
+				return info, err
 			}
-		}
 
-		if !updated {
 			balances = append(balances, exchange.AccountCurrencyInfo{
-				CurrencyName: currency.NewCode(key),
-				TotalValue:   availAmount,
+				CurrencyName: currency.NewCode(x),
+				Hold:         lockedF,
 			})
 		}
+	default:
+		break
+	}
+
+	switch v := balance.Available.(type) {
+	case map[string]interface{}:
+		for x := range v {
+			availAmount, err := strconv.ParseFloat(v[x].(string), 64)
+			if err != nil {
+				return info, err
+			}
+
+			var updated bool
+			for i := range balances {
+				if balances[i].CurrencyName == currency.NewCode(x) {
+					balances[i].TotalValue = balances[i].Hold + availAmount
+					updated = true
+					break
+				}
+			}
+			if !updated {
+				balances = append(balances, exchange.AccountCurrencyInfo{
+					CurrencyName: currency.NewCode(x),
+					TotalValue:   availAmount,
+				})
+			}
+		}
+	default:
+		break
 	}
 
 	info.Accounts = append(info.Accounts, exchange.Account{

@@ -54,9 +54,9 @@ type MarketInfoPairsResponse struct {
 
 // BalancesResponse holds the user balances
 type BalancesResponse struct {
-	Result    string            `json:"result"`
-	Available map[string]string `json:"available"`
-	Locked    map[string]string `json:"locked"`
+	Result    string      `json:"result"`
+	Available interface{} `json:"available"`
+	Locked    interface{} `json:"locked"`
 }
 
 // KlinesRequestParams represents Klines request data.
