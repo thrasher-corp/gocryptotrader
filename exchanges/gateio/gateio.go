@@ -460,6 +460,10 @@ func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 	return result, nil
 }
 
+func (g *Gateio) GenerateSignature(message string) []byte {
+	return common.GetHMAC(common.HashSHA512, []byte(message), []byte(g.APISecret))
+}
+
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
 // To use this you must setup an APIKey and APISecret from the exchange
 func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, result interface{}) error {
@@ -472,7 +476,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["key"] = g.APIKey
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(g.APISecret))
+	hmac := g.GenerateSignature(param)
 	headers["sign"] = common.HexEncodeToString(hmac)
 
 	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
