@@ -97,6 +97,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 		g.BaseCurrencies = exch.BaseCurrencies
 		g.AvailablePairs = exch.AvailablePairs
 		g.EnabledPairs = exch.EnabledPairs
+		g.WebsocketURL = gateioWebsocketEndpoint
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
