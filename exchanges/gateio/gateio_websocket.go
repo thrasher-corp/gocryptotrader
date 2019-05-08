@@ -46,11 +46,11 @@ func (g *Gateio) WsConnect() error {
 	}
 
 	if g.AuthenticatedAPISupport {
-		err = g.WsServerSignIn()
+		err = g.wsServerSignIn()
 		if err != nil {
 			log.Errorf("Authentication failed ")
 		}
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond) // sleep to allow server to complete address
 	}
 
 	go g.WsHandleData()
@@ -58,7 +58,7 @@ func (g *Gateio) WsConnect() error {
 	return g.WsSubscribe()
 }
 
-func (g *Gateio) WsServerSignIn() error {
+func (g *Gateio) wsServerSignIn() error {
 	nonce := int(time.Now().Unix() * 1000)
 	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
 	signature := common.Base64Encode(sigTemp)
@@ -413,7 +413,7 @@ func (g *Gateio) WsHandleData() {
 	}
 }
 
-func (g *Gateio) WsGetBalance() error {
+func (g *Gateio) wsGetBalance() error {
 	balanceWsRequest := WebsocketRequest{
 		ID:     IDBalance,
 		Method: "balance.query",
