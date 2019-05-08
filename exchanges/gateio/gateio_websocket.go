@@ -218,7 +218,7 @@ func (g *Gateio) WsHandleData() {
 							p = WebsocketBalanceCurrency{
 								Currency:  xx,
 								Available: kk["available"].(string),
-								Freeze:    kk["freeze"].(string),
+								Locked:    kk["freeze"].(string),
 							}
 							balance.Currency = append(balance.Currency, p)
 						default:

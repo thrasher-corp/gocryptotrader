@@ -451,7 +451,7 @@ type WebSocketBalance struct {
 type WebsocketBalanceCurrency struct {
 	Currency  string
 	Available string `json:"available"`
-	Freeze    string `json:"freeze"`
+	Locked    string `json:"freeze"`
 }
 
 // WebSocketOrderQueryResult data returned from a websocket ordre query holds slice of WebSocketOrderQueryRecords
