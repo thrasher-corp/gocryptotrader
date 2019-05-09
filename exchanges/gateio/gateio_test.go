@@ -78,7 +78,6 @@ func TestCancelExistingOrder(t *testing.T) {
 		t.Skip()
 	}
 
-
 	_, err := g.CancelExistingOrder(917591554, "btc_usdt")
 	if err != nil {
 		t.Errorf("Test failed - Gateio CancelExistingOrder: %s", err)
