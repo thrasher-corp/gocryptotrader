@@ -48,9 +48,9 @@ func (g *Gateio) WsConnect() error {
 	if g.AuthenticatedAPISupport {
 		err = g.wsServerSignIn()
 		if err != nil {
-			log.Errorf("Authentication failed ")
+			log.Errorf("%v - wsServerSignin() failed: %v", g.GetName(), err)
 		}
-		time.Sleep(1000 * time.Millisecond) // sleep to allow server to complete address
+		time.Sleep(time.Second * 2) // sleep to allow server to complete sign-on if further authenticated requests are sent piror to this they will fail
 	}
 
 	go g.WsHandleData()
@@ -65,13 +65,9 @@ func (g *Gateio) wsServerSignIn() error {
 	signinWsRequest := WebsocketRequest{
 		ID:     IDSignIn,
 		Method: "server.sign",
-		Params: []interface{}{g.APIKey, signature, nonce},
+		Params: []interface{}{g.APIKey, signature, nonce + 50},
 	}
-	err := g.WebsocketConn.WriteJSON(signinWsRequest)
-	if err != nil {
-		return err
-	}
-	return nil
+	return g.WebsocketConn.WriteJSON(signinWsRequest)
 }
 
 // WsSubscribe subscribes to the full websocket suite on ZB exchange
@@ -130,10 +126,12 @@ func (g *Gateio) WsSubscribe() error {
 			Method: "balance.subscribe",
 			Params: []interface{}{},
 		}
+
 		err := g.WebsocketConn.WriteJSON(balance)
 		if err != nil {
 			return err
 		}
+
 		for _, c := range enabled {
 			orderNotification := WebsocketRequest{
 				ID:     IDGeneric,
@@ -195,6 +193,12 @@ func (g *Gateio) WsHandleData() {
 			}
 
 			if result.Error.Code != 0 {
+				if common.StringContains(result.Error.Message, "authentication") {
+					g.Websocket.DataHandler <- fmt.Errorf("%v - WebSocket authentication failed ",
+						g.GetName())
+					g.AuthenticatedAPISupport = false
+					continue
+				}
 				g.Websocket.DataHandler <- fmt.Errorf("gateio_websocket.go error %s",
 					result.Error.Message)
 				continue
@@ -418,11 +422,7 @@ func (g *Gateio) wsGetBalance() error {
 		Method: "balance.query",
 		Params: []interface{}{},
 	}
-	err := g.WebsocketConn.WriteJSON(balanceWsRequest)
-	if err != nil {
-		return err
-	}
-	return nil
+	return g.WebsocketConn.WriteJSON(balanceWsRequest)
 }
 
 func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
@@ -435,9 +435,5 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
 			limit,
 		},
 	}
-	err := g.WebsocketConn.WriteJSON(order)
-	if err != nil {
-		return err
-	}
-	return nil
+	return g.WebsocketConn.WriteJSON(order)
 }
