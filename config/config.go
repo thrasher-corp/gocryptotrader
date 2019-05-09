@@ -1217,7 +1217,7 @@ func GetFilePath(file string) (string, error) {
 		_, err := os.Stat(oldDirs[x])
 		if os.IsNotExist(err) {
 			continue
-		} 
+		}
 		if filepath.Ext(oldDirs[x]) == ".json" {
 			err = os.Rename(oldDirs[x], newDirs[0])
 			if err != nil {

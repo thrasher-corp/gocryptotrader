@@ -81,7 +81,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 		if bytes.Equal(p1, p2) {
 			cryptoKey = p1
 			break
-		} 
+		}
 		log.Printf("Passwords did not match, please try again.")
 	}
 	return cryptoKey, nil
