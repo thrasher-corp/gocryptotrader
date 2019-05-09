@@ -69,7 +69,6 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- err
 				continue
 			}
-
 			switch incoming.Reply {
 			case "hb":
 				channels["hb"] <- resp.Raw
@@ -335,10 +334,10 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
-		Request: channelToSubscribe.Channel, 
-		InstID:  instrumentListByString[channelToSubscribe.Currency.String()],
+		Request:   channelToSubscribe.Channel,
+		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
 		Subscribe: true,
-		Nonce: c.GetNonce(),
+		Nonce:     c.GetNonce(),
 	}
 
 	data, err := common.JSONEncode(subscribe)
@@ -354,12 +353,12 @@ func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
-		Request: channelToSubscribe.Channel, 
-		InstID:  instrumentListByString[channelToSubscribe.Currency.String()],
+		Request:   channelToSubscribe.Channel,
+		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
 		Subscribe: false,
-		Nonce: c.GetNonce(),
+		Nonce:     c.GetNonce(),
 	}
-	
+
 	data, err := common.JSONEncode(subscribe)
 	if err != nil {
 		return err

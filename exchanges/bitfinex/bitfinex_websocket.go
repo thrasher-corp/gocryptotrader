@@ -609,7 +609,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{"book", "trades", "ticker"}
 	for _, x := range channels {
 		for _, y := range b.EnabledPairs {
-			params := make(map[string]string)
+			params := make(map[string]interface{})
 			if x == "book" {
 				params["prec"] = "P0"
 			}
@@ -627,7 +627,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *Bitfinex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	req := make(map[string]string)
+	req := make(map[string]interface{})
 	req["event"] = "subscribe"
 	req["channel"] = channelToSubscribe.Channel
 
@@ -642,7 +642,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *Bitfinex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	req := make(map[string]string)
+	req := make(map[string]interface{})
 	req["event"] = "unsubscribe"
 	req["channel"] = channelToSubscribe.Channel
 

@@ -394,7 +394,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 func (b *Bitmex) GenerateDefaultSubscriptions() {
 	contracts := b.GetEnabledCurrencies()
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
-	params := make(map[string]string)
+	params := make(map[string]interface{})
 	params["args"] = bitmexWSAnnouncement
 
 	for i := range channels {

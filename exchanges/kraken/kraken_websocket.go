@@ -127,7 +127,6 @@ func (k *Kraken) WsReadData() (exchange.WebsocketResponse, error) {
 	if err != nil {
 		return exchange.WebsocketResponse{}, err
 	}
-	log.Debug("WsReadData TRAFFIC ALERT")
 	k.Websocket.TrafficAlert <- struct{}{}
 	var standardMessage []byte
 	switch mType {
@@ -184,12 +183,18 @@ func (k *Kraken) wsPingHandler() {
 func (k *Kraken) WsHandleData() {
 	k.Websocket.Wg.Add(1)
 	defer func() {
+		err := k.WebsocketConn.Close()
+		if err != nil {
+			k.Websocket.DataHandler <- fmt.Errorf("%v unable to to close Websocket connection. Error: %s",
+				k.GetName(), err)
+		}
 		k.Websocket.Wg.Done()
 	}()
 
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
+			log.Debug("Handledata SHUTDOWN")
 			return
 		default:
 			resp, err := k.WsReadData()
@@ -362,6 +367,9 @@ func (k *Kraken) WsUnsubscribeToChannelByChannelID(channelID int64) error {
 func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 	for i := range subscriptionChannelPair {
 		if response.ChannelID == subscriptionChannelPair[i].ChannelID {
+			// kill the stale orderbooks due to resubscribing
+			orderbookBuffer[response.ChannelID] = []orderbook.Base{}
+			krakenOrderBooks[response.ChannelID] = orderbook.Base{}
 			return
 		}
 	}

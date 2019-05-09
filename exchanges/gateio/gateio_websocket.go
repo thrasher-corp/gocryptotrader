@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -108,6 +108,8 @@ func (g *Gateio) WsHandleData() {
 			resp, err := g.WsReadData()
 			if err != nil {
 				g.Websocket.DataHandler <- err
+				// Read data errpr messages can overwhelm and panic the application
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -344,40 +346,44 @@ func (g *Gateio) WsHandleData() {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
-	var channels = []string{"ticker.subscribe","trades.subscribe", "depth.subscribe", "kline.subscribe"}
+	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			params := make(map[string]string)
+			params := make(map[string]interface{})
 			if strings.EqualFold(channels[i], "depth.subscribe") {
-				params["what"] ="30"
-				params["who"] ="0.1"
+				params["what"] = 30
+				params["who"] = "0.1"
 			} else if strings.EqualFold(channels[i], "kline.subscribe") {
-				params["sup"] ="1800"
+				params["sup"] = 1800
 			}
 			g.Websocket.ChannelsToSubscribe = append(g.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
-				Params: params,
+				Params:   params,
 			})
-		} 
+		}
 	}
 }
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	params := []interface{}{channelToSubscribe.Currency.String()}
+	for _, paramValue := range channelToSubscribe.Params {
+		params = append(params, paramValue)
+	}
 	subscribe := WebsocketRequest{
 		ID:     1337,
 		Method: channelToSubscribe.Channel,
-		Params: []interface{}{channelToSubscribe.Currency.String(), 1800},
+		Params: params,
 	}
 
 	data, err := common.JSONEncode(subscribe)
 	if err != nil {
 		return err
 	}
- 
+
 	time.Sleep(30 * time.Millisecond)
 	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
@@ -385,7 +391,7 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe",1)
+	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WebsocketRequest{
 		ID:     1337,
 		Method: unsbuscribeText,
@@ -396,7 +402,7 @@ func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	if err != nil {
 		return err
 	}
- 
+
 	time.Sleep(30 * time.Millisecond)
 	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

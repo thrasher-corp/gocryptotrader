@@ -165,8 +165,8 @@ func (o *OKGroup) writeToWebsocket(message string) error {
 	return o.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
 }
 
-// WsHandleConnection keeps an eye on the connection
-func (o *OKGroup) WsHandleConnection() error {
+// WsConnect initiates a websocket connection
+func (o *OKGroup) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return errors.New(exchange.WebsocketNotEnabled)
 	}
@@ -193,19 +193,9 @@ func (o *OKGroup) WsHandleConnection() error {
 			err)
 	}
 	if o.Verbose {
-		log.Debugf("Successful connection to %v", o.Websocket.GetWebsocketURL())
+		log.Debugf("Successful connection to %v", 
+		o.Websocket.GetWebsocketURL())
 	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go o.WsHandleData(&wg)
-	go o.wsPingHandler(&wg)
-	return nil
-}
-
-// WsConnect initiates a websocket connection
-func (o *OKGroup) WsConnect() error {
-	o.WsHandleConnection()
 	go o.WsHandleData()
 	go o.wsPingHandler()
 	o.GenerateDefaultSubscriptions()
@@ -248,17 +238,14 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer o.Websocket.Wg.Done()
 
-	ticker := time.NewTicker(time.Second * 27)
+	ticker := time.NewTicker(time.Second * 10)
 
 	wg.Done()
 
 	for {
-		if !o.Websocket.IsConnected() {
-			log.Error("Not connected to websocket to send ping, ignoring until connected")
-			continue
-		}
 		select {
 		case <-o.Websocket.ShutdownC:
+			log.Debug("PINGDATA EXIT")
 			return
 
 		case <-ticker.C:
@@ -278,12 +265,6 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 	log.Debug("WsHandleData has been hit")
 	o.Websocket.Wg.Add(1)
 	defer func() {
-		log.Debug("Closing Websocket Connection")
-		err := o.WebsocketConn.Close()
-		if err != nil {
-			o.Websocket.DataHandler <- fmt.Errorf("okex_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		o.Websocket.Wg.Done()
 	}()
 
@@ -299,8 +280,10 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 			log.Debug("Reading data")
 			resp, err := o.WsReadData()
 			if err != nil {
-				o.Websocket.DataHandler <- fmt.Errorf("hello error %v", err)
-				continue
+				if strings.Contains(err.Error(), "An established connection was aborted by the software in your host machine") {
+					time.Sleep(time.Second)
+				}
+				o.Websocket.DataHandler <- err
 			}
 			var dataResponse WebsocketDataResponse
 			err = common.JSONDecode(resp.Raw, &dataResponse)

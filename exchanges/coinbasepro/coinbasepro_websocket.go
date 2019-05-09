@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -57,7 +58,6 @@ func (c *CoinbasePro) WsReadData() (exchange.WebsocketResponse, error) {
 	if err != nil {
 		return exchange.WebsocketResponse{}, err
 	}
-
 	c.Websocket.TrafficAlert <- struct{}{}
 	return exchange.WebsocketResponse{Raw: resp}, nil
 }
@@ -67,26 +67,20 @@ func (c *CoinbasePro) WsHandleData() {
 	c.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := c.WebsocketConn.Close()
-		if err != nil {
-			c.Websocket.DataHandler <- fmt.Errorf("coinbasepro_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		c.Websocket.Wg.Done()
 	}()
 
 	for {
 		select {
 		case <-c.Websocket.ShutdownC:
+			log.Debug("SHUTDOWN DATA READER")
 			return
-
 		default:
 			resp, err := c.WsReadData()
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				return
 			}
-
 			type MsgType struct {
 				Type      string `json:"type"`
 				Sequence  int64  `json:"sequence"`
@@ -99,6 +93,7 @@ func (c *CoinbasePro) WsHandleData() {
 				c.Websocket.DataHandler <- err
 				continue
 			}
+			log.Debugf("%v, %v", c.Name, msgType)
 
 			if msgType.Type == "subscriptions" || msgType.Type == "heartbeat" {
 				continue
@@ -252,6 +247,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	enabledCurrencies := c.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = "-"
 			c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
@@ -264,13 +260,13 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
-		Type: "subscribe", 
-		Channels: []WsChannels { 
-		WsChannels{
-			Name: channelToSubscribe.Channel, 
-			ProductIDs: []string {
-				channelToSubscribe.Currency.String(),
-				}, 
+		Type: "subscribe",
+		Channels: []WsChannels{
+			WsChannels{
+				Name: channelToSubscribe.Channel,
+				ProductIDs: []string{
+					channelToSubscribe.Currency.String(),
+				},
 			},
 		},
 	}
@@ -287,13 +283,13 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
-		Type: "unsubscribe", 
-		Channels: []WsChannels { 
-		WsChannels{
-			Name: channelToSubscribe.Channel, 
-			ProductIDs: []string {
-				channelToSubscribe.Currency.String(),
-				}, 
+		Type: "unsubscribe",
+		Channels: []WsChannels{
+			WsChannels{
+				Name: channelToSubscribe.Channel,
+				ProductIDs: []string{
+					channelToSubscribe.Currency.String(),
+				},
 			},
 		},
 	}

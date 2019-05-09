@@ -21,31 +21,6 @@ const (
 	btseWebsocket = "wss://ws.btse.com/api/ws-feed"
 )
 
-// WebsocketSubscriber subscribes to websocket channels with respect to enabled
-// currencies
-func (b *BTSE) WebsocketSubscriber() error {
-	subscribe := websocketSubscribe{
-		Type: "subscribe",
-		Channels: []websocketChannel{
-			{
-				Name:       "snapshot",
-				ProductIDs: b.EnabledPairs.Strings(),
-			},
-			{
-				Name:       "ticker",
-				ProductIDs: b.EnabledPairs.Strings(),
-			},
-		},
-	}
-
-	data, err := common.JSONEncode(subscribe)
-	if err != nil {
-		return err
-	}
-
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, data)
-}
-
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -72,12 +47,12 @@ func (b *BTSE) WsConnect() error {
 			b.Name, err)
 	}
 
-	err = b.WebsocketSubscriber()
 	if err != nil {
 		return err
 	}
 
 	go b.WsHandleData()
+	b.GenerateDefaultSubscriptions()
 
 	return nil
 }
@@ -137,7 +112,6 @@ func (b *BTSE) WsHandleData() {
 				b.Websocket.DataHandler <- err
 				continue
 			}
-
 			switch msgType.Type {
 			case "ticker":
 				var t wsTicker
@@ -257,7 +231,7 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 		Channels: []websocketChannel{
 			{
 				Name:       channelToSubscribe.Channel,
-				ProductIDs: []string {channelToSubscribe.Currency.String()},
+				ProductIDs: []string{channelToSubscribe.Currency.String()},
 			},
 		},
 	}
@@ -279,7 +253,7 @@ func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		Channels: []websocketChannel{
 			{
 				Name:       channelToSubscribe.Channel,
-				ProductIDs: []string {channelToSubscribe.Currency.String()},
+				ProductIDs: []string{channelToSubscribe.Currency.String()},
 			},
 		},
 	}

@@ -561,7 +561,7 @@ func (b *BTCC) GenerateDefaultSubscriptions() {
 	enabledCurrencies := b.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			params := make(map[string]string)
+			params := make(map[string]interface{})
 			if channels[i] == "SubOrderBook" {
 				params["len"] = "100"
 			} else if channels[i] == "GetTrades" {

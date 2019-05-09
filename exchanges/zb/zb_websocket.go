@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -44,10 +44,9 @@ func (z *ZB) WsConnect() error {
 
 	go z.WsHandleData()
 	z.GenerateDefaultSubscriptions()
-	
+
 	return nil
 }
-
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
@@ -78,11 +77,12 @@ func (z *ZB) WsHandleData() {
 	for {
 		select {
 		case <-z.Websocket.ShutdownC:
-
+			return
 		default:
 			resp, err := z.WsReadData()
 			if err != nil {
 				z.Websocket.DataHandler <- err
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -92,7 +92,6 @@ func (z *ZB) WsHandleData() {
 				z.Websocket.DataHandler <- err
 				continue
 			}
-
 			switch {
 			case common.StringContains(result.Channel, "markets"):
 				if !result.Success {
@@ -248,17 +247,18 @@ var wsErrCodes = map[int64]string{
 func (z *ZB) GenerateDefaultSubscriptions() {
 	// Tickerdata is its own channel
 	z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
-		Channel:  fmt.Sprintf("%v","markets"),
+		Channel: fmt.Sprintf("%v", "markets"),
 	})
-	channels := []string {"%s_ticker", "%s_depth", "%s_trades"}
+	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
 	enabledCurrencies := z.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = ""
 			z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
-				Currency: enabledCurrencies[j],
+				Currency: enabledCurrencies[j].Lower(),
 			})
-		} 
+		}
 	}
 }
 
@@ -266,7 +266,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
-		Event:   "addChannel",
+		Event: "addChannel",
 	}
 	if strings.EqualFold("markets", channelToSubscribe.Channel) {
 		subscriptionRequest.Channel = "markets"

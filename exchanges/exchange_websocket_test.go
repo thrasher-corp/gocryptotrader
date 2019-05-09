@@ -80,7 +80,7 @@ func TestWebsocket(t *testing.T) {
 	if err == nil {
 		t.Fatal("test failed - should not be connected to able to shut down")
 	}
-	wsTest.Websocket.Wg.Wait()
+	time.Sleep(800 * time.Millisecond)
 	// -- Normal connect
 	err = wsTest.Websocket.Connect()
 	if err != nil {

@@ -39,7 +39,7 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.Disconnected = make(chan struct{}, 1)
 	e.Websocket.TrafficAlert = make(chan struct{}, 1)
 	e.Websocket.verbose = verbose
-	
+
 	e.Websocket.SetChannelSubscriber(subscriber)
 	e.Websocket.SetChannelUnsubscriber(unsubscriber)
 	err := e.Websocket.SetWsStatusAndConnection(wsEnabled)
@@ -97,9 +97,8 @@ func (w *Websocket) Connect() error {
 	return nil
 }
 
-
 // WsConnectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) wsConnectionMonitor()  {
+func (w *Websocket) wsConnectionMonitor() {
 	log.Debug("STARTING WsConnectionMonitor")
 	defer func() {
 		log.Debug("WsConnectionMonitor EXITING")
@@ -125,24 +124,22 @@ func (w *Websocket) checkConnection() error {
 	if w.verbose {
 		log.Debugf("%v checking connection", w.exchangeName)
 	}
-	if !w.IsConnected() {
+	if !w.IsConnected() && !w.Connecting {
 		w.m.Lock()
-		if !w.Connecting {
-			log.Debugf("No connection %v/5", noConnectionTolerance)
-			if noConnectionTolerance >= 5 {
-				log.Debug("Resetting connection")
-				w.Connecting = true
-				go w.WebsocketReset()
-				noConnectionTolerance = 0
-			}
-			noConnectionTolerance++
+		log.Debugf("No connection %v/5", noConnectionTolerance)
+		if noConnectionTolerance >= 5 {
+			log.Debug("Resetting connection")
+			w.Connecting = true
+			go w.WebsocketReset()
+			noConnectionTolerance = 0
 		}
+		noConnectionTolerance++
 		w.m.Unlock()
 	} else if w.Connecting {
 		if reconnectionLimit >= 10 {
-			return fmt.Errorf("%v websocket failed to reconnect after %v seconds", 
-			w.exchangeName, 
-			reconnectionLimit*2)
+			return fmt.Errorf("%v websocket failed to reconnect after %v seconds",
+				w.exchangeName,
+				reconnectionLimit*2)
 		}
 		log.Debug("Busy reconnecting")
 		reconnectionLimit++
@@ -169,9 +166,10 @@ func (w *Websocket) Shutdown() error {
 		w.Orderbook.FlushCache()
 		w.m.Unlock()
 	}()
-	if !w.connected {
-		return fmt.Errorf("%v cannot shutdown, websocket already disconnected", w.exchangeName)
-	}
+		if !w.connected && w.ShutdownC == nil {
+			return fmt.Errorf("Attempting to shutdown when already dead")
+		}
+
 	if w.verbose {
 		log.Debugf("%v Shutting down websocket channels", w.exchangeName)
 	}
@@ -179,6 +177,7 @@ func (w *Websocket) Shutdown() error {
 	c := make(chan struct{}, 1)
 
 	go func(c chan struct{}) {
+		log.Debug("Time to shutdown")
 		close(w.ShutdownC)
 		w.Wg.Wait()
 		if w.verbose {
@@ -206,7 +205,6 @@ func (w *Websocket) WebsocketReset() error {
 		log.Errorf("%v shutdown error: %v", w.exchangeName, err)
 	}
 	log.Debug("Waiting for wait groups to exit...")
-	w.Wg.Wait()
 	log.Debug("Reconnecting")
 	w.m.Lock()
 	w.init = true
@@ -227,9 +225,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	defer func() {
 		log.Debug("trafficMonitor DEFER FUNC EXIT")
 		if w.connected {
-		if w.verbose {
-			log.Debug("trafficMonitor SENDING DISCONNECT")
-		}
+			if w.verbose {
+				log.Debug("trafficMonitor SENDING DISCONNECT")
+			}
 			w.Disconnected <- struct{}{}
 		}
 		w.Wg.Done()
@@ -241,9 +239,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-w.ShutdownC: // Returns on shutdown channel close
-		if w.verbose {
-			log.Debugf("%v trafficMonitor SHUTDOWN RECEIVED", w.exchangeName)
-		}
+			if w.verbose {
+				log.Debugf("%v trafficMonitor SHUTDOWN RECEIVED", w.exchangeName)
+			}
 			return
 		case <-w.TrafficAlert: // Resets timer on traffic
 			if !w.connected {
@@ -253,9 +251,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 			trafficTimer.Reset(WebsocketTrafficLimitTime)
 		case <-trafficTimer.C: // Falls through when timer runs out
-		if w.verbose {
-			log.Debugf("%v trafficMonitor FIRST TIMEOUT HIT", w.exchangeName)
-		}
+			if w.verbose {
+				log.Debugf("%v trafficMonitor FIRST TIMEOUT HIT", w.exchangeName)
+			}
 			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set
 			if w.connected {
 				//If connected divert traffic to rest
@@ -309,11 +307,11 @@ func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
 	w.m.Lock()
 	if w.enabled == enabled {
 		if w.init {
-				w.m.Unlock()
-				return nil
+			w.m.Unlock()
+			return nil
 		}
-				w.m.Unlock()
-				return fmt.Errorf("exchange_websocket.go error - already set as %t",
+		w.m.Unlock()
+		return fmt.Errorf("exchange_websocket.go error - already set as %t",
 			enabled)
 	}
 	w.enabled = enabled
@@ -324,19 +322,19 @@ func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
 				w.m.Unlock()
 				return nil
 			}
-				w.m.Unlock()
-				return w.Connect()
+			w.m.Unlock()
+			return w.Connect()
 		}
 
 		if !w.connected {
 			w.m.Unlock()
 			return nil
 		}
-				w.m.Unlock()
-				return w.Shutdown()
+		w.m.Unlock()
+		return w.Shutdown()
 	}
-				w.m.Unlock()
-				return nil
+	w.m.Unlock()
+	return nil
 }
 
 // IsEnabled returns bool
@@ -669,7 +667,7 @@ func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe Webs
 // SetChannelUnsubscriber sets the function to use the base unsubscribe func
 func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error) {
 	w.channelUnsubscriber = unsubscriber
-} 
+}
 
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
 func (w *Websocket) manageSubscriptions() error {
@@ -707,8 +705,8 @@ func (w *Websocket) manageSubscriptions() error {
 				continue
 			}
 			// Unsubscribe from any channels removed from ChannelsToSubscribe
-			err := w.unsubscribeToChannels()
-			if err != nil {
+				err := w.unsubscribeToChannels()
+				if err != nil {
 				w.DataHandler <- err
 			}
 		}
@@ -718,9 +716,11 @@ func (w *Websocket) manageSubscriptions() error {
 // subscribeToChannels compares ChannelsToSubscribe to subscribedChannels
 // and subscribes to any channels not present in  subscribedChannels
 func (w *Websocket) subscribeToChannels() error {
-	for i := range w.ChannelsToSubscribe {
+	w.subscriptionLock.Lock()
+	defer w.subscriptionLock.Unlock()
+	for i := 0; i < len(w.ChannelsToSubscribe); i++ {
 		channelIsSubscribed := false
-		for j := range w.subscribedChannels {
+		for j := 0; j < len(w.subscribedChannels); j++ {
 			if w.subscribedChannels[j].Equal(&w.ChannelsToSubscribe[i]) {
 				channelIsSubscribed = true
 				break
@@ -736,19 +736,21 @@ func (w *Websocket) subscribeToChannels() error {
 			}
 			w.subscribedChannels = append(w.subscribedChannels, w.ChannelsToSubscribe[i])
 		}
-	}  
+	}
 	return nil
 }
 
 // unsubscribeToChannels compares subscribedChannels to ChannelsToSubscribe
 // and unsubscribes to any channels not present in  ChannelsToSubscribe
 func (w *Websocket) unsubscribeToChannels() error {
-	for i := range w.subscribedChannels {
+	w.subscriptionLock.Lock()
+	defer w.subscriptionLock.Unlock()
+	for i := 0; i < len(w.subscribedChannels); i++ {
 		subscriptionFound := false
-		for j := range w.ChannelsToSubscribe {
-			if w.ChannelsToSubscribe[i].Equal(&w.subscribedChannels[j]) {
-					subscriptionFound = true
-					break
+		for j := 0; j < len(w.ChannelsToSubscribe); j++ {
+			if w.ChannelsToSubscribe[j].Equal(&w.subscribedChannels[i]) {
+				subscriptionFound = true
+				break
 			}
 		}
 		if !subscriptionFound {
@@ -757,60 +759,59 @@ func (w *Websocket) unsubscribeToChannels() error {
 				return err
 			}
 			w.subscribedChannels = append(w.subscribedChannels[:i], w.subscribedChannels[i+1:]...)
+			i--
 		}
 	}
 	return nil
 }
 
-// RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe 
+// RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe
 // so an unsubscribe event can be triggered
 func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
+	w.subscriptionLock.Lock()
+	defer w.subscriptionLock.Unlock()
 	channelRemoved := false
-	for i := range w.ChannelsToSubscribe {
+	for i := 0; i < len(w.ChannelsToSubscribe); i++ {
 		if w.ChannelsToSubscribe[i].Equal(&subscribedChannel) {
 			w.ChannelsToSubscribe = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
+			i--
 			channelRemoved = true
 			break
 		}
 	}
 	if !channelRemoved {
 		w.DataHandler <- fmt.Errorf("%v RemoveChannelToSubscribe() Channel %v Currency %v could not be removed because it was not found",
-		w.exchangeName, 
-		subscribedChannel.Channel,
-		subscribedChannel.Currency)
+			w.exchangeName,
+			subscribedChannel.Channel,
+			subscribedChannel.Currency)
 		return
 	}
-	w.channelUnsubscriber(subscribedChannel)
-} 
- 
-// ResubscribeToChannel calls unsubscribe func and 
-// removes it from subscribedChannels to trigger a subscribe evbent
+}
+
+// ResubscribeToChannel calls unsubscribe func and
+// removes it from subscribedChannels to trigger a subscribe event
 func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubscription) {
+	w.subscriptionLock.Lock()
+	defer w.subscriptionLock.Unlock()
 	err := w.channelUnsubscriber(subscribedChannel)
 	if err != nil {
 		w.DataHandler <- err
 	}
 	// Remove the channel from the list of subscribed channels
 	// ManageSubscriptions will automatically resubscribe
-	for i := range w.subscribedChannels {
+	for i := 0; i < len(w.subscribedChannels); i++ {
 		if w.subscribedChannels[i].Equal(&subscribedChannel) {
 			w.subscribedChannels = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
+			i--
 			break
 		}
-	}
-
-	err = w.channelSubscriber(subscribedChannel)
-	if err != nil {
-		w.DataHandler <- err
-		// Adding back the channel after a failure
-		w.subscribedChannels = append(w.subscribedChannels, subscribedChannel)
 	}
 }
 
 // Equal two WebsocketChannelSubscription to determine equality
 func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannelSubscription) bool {
 	if strings.EqualFold(w.Channel, subscribedChannel.Channel) &&
-	strings.EqualFold(w.Currency.String(), subscribedChannel.Currency.String()) {
+		strings.EqualFold(w.Currency.String(), subscribedChannel.Currency.String()) {
 		return true
 	}
 	return false

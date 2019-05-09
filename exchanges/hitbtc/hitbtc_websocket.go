@@ -376,6 +376,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 	enabledCurrencies := h.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = ""
 			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],

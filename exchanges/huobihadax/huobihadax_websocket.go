@@ -226,16 +226,17 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
-	var channels = []string{wsMarketKline,wsMarketDepth, wsMarketTrade}
+	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
 	enabledCurrencies := h.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].String())
+			enabledCurrencies[j].Delimiter = ""
+			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String())
 			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channel,
 				Currency: enabledCurrencies[j],
 			})
-		} 
+		}
 	}
 }
 
@@ -256,7 +257,7 @@ func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSub
 	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
 	if err != nil {
 		return err
-	} 
+	}
 	time.Sleep(30 * time.Millisecond)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
 }

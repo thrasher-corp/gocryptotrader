@@ -138,8 +138,8 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = k.WebsocketSetup(k.WsConnect,
-			nil,
-			nil,
+			k.Subscribe,
+			k.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
