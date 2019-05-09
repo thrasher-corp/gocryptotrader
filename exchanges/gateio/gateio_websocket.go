@@ -65,7 +65,7 @@ func (g *Gateio) wsServerSignIn() error {
 	signinWsRequest := WebsocketRequest{
 		ID:     IDSignIn,
 		Method: "server.sign",
-		Params: []interface{}{g.APIKey, signature, nonce + 50},
+		Params: []interface{}{g.APIKey, signature, nonce},
 	}
 	return g.WebsocketConn.WriteJSON(signinWsRequest)
 }
