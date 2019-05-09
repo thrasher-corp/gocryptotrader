@@ -307,8 +307,9 @@ func (g *Gateio) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		} else if strings.EqualFold(orders.Orders[x].Type, exchange.BidOrderSide.ToString()) {
 			orderDetail.OrderSide = exchange.BuyOrderSide
 		}
+		return orderDetail, nil
 	}
-	return orderDetail, nil
+	return orderDetail, fmt.Errorf("no order found with id %v", orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

@@ -56,7 +56,7 @@ func TestGetMarketInfo(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if apiKey == "" || apiSecret == "" {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip()
 	}
 
@@ -74,9 +74,10 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if apiKey == "" || apiSecret == "" {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip()
 	}
+
 
 	_, err := g.CancelExistingOrder(917591554, "btc_usdt")
 	if err != nil {
@@ -483,9 +484,10 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Skip("no API keys set skipping test")
 	}
 
-	order, err := g.GetOrderInfo("917591554")
+	_, err := g.GetOrderInfo("917591554")
 	if err != nil {
-		t.Fatalf("GetOrderInfo() returned an error skipping test: %v", err)
+		if err.Error() != "no order found with id 917591554" && err.Error() != "failed to get open orders" {
+			t.Fatalf("GetOrderInfo() returned an error skipping test: %v", err)
+		}
 	}
-	t.Log(order)
 }
