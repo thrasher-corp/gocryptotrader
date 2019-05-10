@@ -441,8 +441,8 @@ type WebsocketTrade struct {
 	Type   string  `json:"type"`
 }
 
-// WebSocketBalance holds a slice of WebsocketBalanceCurrency
-type WebSocketBalance struct {
+// WebsocketBalance holds a slice of WebsocketBalanceCurrency
+type WebsocketBalance struct {
 	Currency []WebsocketBalanceCurrency
 }
 

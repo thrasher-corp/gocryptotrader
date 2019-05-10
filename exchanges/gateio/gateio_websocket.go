@@ -206,7 +206,7 @@ func (g *Gateio) WsHandleData() {
 
 			switch result.ID {
 			case IDBalance:
-				var balance WebSocketBalance
+				var balance WebsocketBalance
 				var balanceInterface interface{}
 				err = json.Unmarshal(result.Result, &balanceInterface)
 				if err != nil {
