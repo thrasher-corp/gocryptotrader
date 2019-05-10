@@ -28,7 +28,7 @@ var (
 
 // New returns a new connection checker, if no values set it will default it out
 func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, error) {
-	c := &Checker{}
+	c := new(Checker)
 	if len(dnsList) == 0 {
 		c.DNSList = DefaultDNSList
 	} else {
@@ -59,7 +59,10 @@ func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, e
 	}
 
 	c.shutdown = make(chan struct{}, 1)
-	go c.Monitor()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go c.Monitor(&wg)
+	wg.Wait()
 	return c, nil
 }
 
@@ -81,10 +84,11 @@ func (c *Checker) Shutdown() {
 }
 
 // Monitor determines internet connectivity via a DNS lookup
-func (c *Checker) Monitor() {
+func (c *Checker) Monitor(wg *sync.WaitGroup) {
 	c.wg.Add(1)
 	tick := time.NewTicker(time.Second)
 	defer func() { tick.Stop(); c.wg.Done() }()
+	wg.Done()
 	for {
 		select {
 		case <-tick.C:
