@@ -2,6 +2,7 @@ package connchecker
 
 import (
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,7 +11,14 @@ import (
 
 // DefaultCheckInterval is a const that defines the amount of time between
 // checking if the connection is lost
-const DefaultCheckInterval = time.Second
+const (
+	DefaultCheckInterval = time.Second
+
+	ConnRe       = "Internet connectivity re-established"
+	ConnLost     = "Internet connectivity lost"
+	ConnFound    = "Internet connectivity found"
+	ConnNotFound = "No internet connectivity"
+)
 
 // Default check lists
 var (
@@ -19,7 +27,7 @@ var (
 )
 
 // New returns a new connection checker, if no values set it will default it out
-func New(dnsList, domainList []string, checkInterval time.Duration) *Checker {
+func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, error) {
 	c := &Checker{}
 	if len(dnsList) == 0 {
 		c.DNSList = DefaultDNSList
@@ -39,8 +47,20 @@ func New(dnsList, domainList []string, checkInterval time.Duration) *Checker {
 		c.CheckInterval = checkInterval
 	}
 
+	err := c.initialCheck()
+	if err != nil {
+		return nil, err
+	}
+
+	if c.connected {
+		log.Debug(ConnFound)
+	} else {
+		log.Warnf(ConnNotFound)
+	}
+
+	c.shutdown = make(chan struct{}, 1)
 	go c.Monitor()
-	return c
+	return c, nil
 }
 
 // Checker defines a struct to determine connectivity to the interwebs
@@ -56,7 +76,7 @@ type Checker struct {
 
 // Shutdown cleanly shutsdown monitor routine
 func (c *Checker) Shutdown() {
-	c.shutdown <- struct{}{}
+	close(c.shutdown)
 	c.wg.Wait()
 }
 
@@ -65,7 +85,6 @@ func (c *Checker) Monitor() {
 	c.wg.Add(1)
 	tick := time.NewTicker(time.Second)
 	defer func() { tick.Stop(); c.wg.Done() }()
-	c.connectionTest()
 	for {
 		select {
 		case <-tick.C:
@@ -76,15 +95,44 @@ func (c *Checker) Monitor() {
 	}
 }
 
+// initialConnect bla bla bla
+func (c *Checker) initialCheck() error {
+	var connected bool
+	for i := range c.DNSList {
+		err := c.CheckDNS(c.DNSList[i])
+		if err != nil {
+			if strings.Contains(err.Error(), "unrecognized address") {
+				return err
+			}
+			continue
+		}
+		if !connected {
+			connected = true
+		}
+	}
+
+	for i := range c.DomainList {
+		err := c.CheckHost(c.DomainList[i])
+		if err != nil {
+			continue
+		}
+		if !connected {
+			connected = true
+		}
+	}
+	c.connected = connected
+	return nil
+}
+
 // ConnectionTest determines if a connection to the internet is available by
 // iterating over a set list of dns ip and popular domains
 func (c *Checker) connectionTest() {
 	for i := range c.DNSList {
-		_, err := net.LookupAddr(c.DNSList[i])
+		err := c.CheckDNS(c.DNSList[i])
 		if err == nil {
 			c.Lock()
 			if !c.connected {
-				log.Warnf("Internet connectivity re-established")
+				log.Debug(ConnRe)
 				c.connected = true
 			}
 			c.Unlock()
@@ -93,11 +141,11 @@ func (c *Checker) connectionTest() {
 	}
 
 	for i := range c.DomainList {
-		_, err := net.LookupHost(c.DomainList[i])
+		err := c.CheckHost(c.DomainList[i])
 		if err == nil {
 			c.Lock()
 			if !c.connected {
-				log.Warnf("Internet connectivity re-established")
+				log.Debug(ConnRe)
 				c.connected = true
 			}
 			c.Unlock()
@@ -107,10 +155,22 @@ func (c *Checker) connectionTest() {
 
 	c.Lock()
 	if c.connected {
-		log.Warnf("Internet connectivity lost")
+		log.Warn(ConnLost)
 		c.connected = false
 	}
 	c.Unlock()
+}
+
+// CheckDNS checks current dns for connectivity
+func (c *Checker) CheckDNS(dns string) error {
+	_, err := net.LookupAddr(dns)
+	return err
+}
+
+// CheckHost checks current host name for connectivity
+func (c *Checker) CheckHost(host string) error {
+	_, err := net.LookupHost(host)
+	return err
 }
 
 // IsConnected returns if there is internet connectivity
