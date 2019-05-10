@@ -406,7 +406,6 @@ type WebsocketRequest struct {
 type WebsocketResponse struct {
 	Time    int64             `json:"time"`
 	Channel string            `json:"channel"`
-	Event   string            `json:""`
 	Error   WebsocketError    `json:"error"`
 	Result  json.RawMessage   `json:"result"`
 	ID      int64             `json:"id"`
