@@ -43,7 +43,7 @@ const (
 // Constants here hold some messages
 const (
 	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
-	ErrExchangeAvailablePairsEmpty             = "exchange %s avaiable pairs is emtpy"
+	ErrExchangeAvailablePairsEmpty             = "exchange %s avaiable pairs is empty"
 	ErrExchangeEnabledPairsEmpty               = "exchange %s enabled pairs is empty"
 	ErrExchangeBaseCurrenciesEmpty             = "exchange %s base currencies is empty"
 	ErrExchangeNotFound                        = "exchange %s not found"
