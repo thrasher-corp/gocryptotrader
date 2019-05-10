@@ -200,7 +200,7 @@ func (o *OKGroup) WsConnect() error {
 		return fmt.Errorf("error: Could not subscribe to the OKEX websocket %s",
 			err)
 	}
-	
+
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
 	return nil
