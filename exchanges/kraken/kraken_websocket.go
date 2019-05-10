@@ -67,10 +67,6 @@ var defaultSubscribedChannels = []string{krakenWsTicker, krakenWsTrade, krakenWs
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (k *Kraken) writeToWebsocket(message []byte) error {
-	log.Debug("Write to websocket hit!")
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	log.Debug("locked write to websocket complete")
 	if k.Verbose {
 		log.Debugf("Sending message to WS: %v",
 			string(message))
@@ -152,17 +148,14 @@ func (k *Kraken) WsReadData() (exchange.WebsocketResponse, error) {
 
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
 func (k *Kraken) wsPingHandler() {
-	log.Debug("PINGHANDLER STARTING")
 	k.Websocket.Wg.Add(1)
 	defer func() {
-		log.Debug("PINGHANDLER EXITING")
 		k.Websocket.Wg.Done()
 	}()
 	ticker := time.NewTicker(time.Second * 27)
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
-			log.Debug("PINGHANDLER SHUTDOWN RECEIVED")
 			return
 
 		case <-ticker.C:
@@ -194,7 +187,6 @@ func (k *Kraken) WsHandleData() {
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
-			log.Debug("Handledata SHUTDOWN")
 			return
 		default:
 			resp, err := k.WsReadData()
@@ -216,8 +208,6 @@ func (k *Kraken) WsHandleData() {
 				k.WsHandleDataResponse(dataResponse)
 				continue
 			}
-			// Unknown data handling
-			k.Websocket.DataHandler <- fmt.Errorf("unrecognised response: %v", string(resp.Raw))
 			continue
 		}
 	}
@@ -368,7 +358,13 @@ func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 	for i := range subscriptionChannelPair {
 		if response.ChannelID == subscriptionChannelPair[i].ChannelID {
 			// kill the stale orderbooks due to resubscribing
+			if orderbookBuffer == nil {
+				orderbookBuffer = make(map[int64][]orderbook.Base)
+			}
 			orderbookBuffer[response.ChannelID] = []orderbook.Base{}
+			if krakenOrderBooks == nil {
+				krakenOrderBooks = make(map[int64]orderbook.Base)
+			}
 			krakenOrderBooks[response.ChannelID] = orderbook.Base{}
 			return
 		}

@@ -448,7 +448,7 @@ func TestWsNoConnectionTolerance(t *testing.T) {
 	w.ShutdownC = make(chan struct{}, 1)
 	w.enabled = true
 	w.checkConnection()
-	if noConnectionTolerance == 0 {
+	if w.noConnectionChecks == 0 {
 		t.Error("Expected noConnectionTolerance to increment")
 	}
 }
@@ -460,7 +460,7 @@ func TestConnecting(t *testing.T) {
 	w.enabled = true
 	w.Connecting = true
 	w.checkConnection()
-	if reconnectionLimit != 1 {
+	if w.reconnectionChecks != 1 {
 		t.Error("Expected reconnectionLimit to increment")
 	}
 }
@@ -471,7 +471,7 @@ func TestReconnectionLimit(t *testing.T) {
 	w.ShutdownC = make(chan struct{}, 1)
 	w.enabled = true
 	w.Connecting = true
-	reconnectionLimit = 99
+	w.reconnectionLimit = 99
 	err := w.checkConnection()
 	if err == nil {
 		t.Error("Expected error")

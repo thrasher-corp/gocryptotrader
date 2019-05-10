@@ -35,31 +35,35 @@ const (
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
 	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
 	// websocket connection
-	WebsocketTrafficLimitTime = 5 * time.Second
+	WebsocketTrafficLimitTime     = 5 * time.Second
+	websocketRestablishConnection = 1 * time.Second
+	manageSubscriptionsDelay      = 5 * time.Second
+	// connection monitor time delays and limits
+	connectionMonitorDelay = 2 * time.Second
 	// WebsocketStateTimeout defines a const for when a websocket connection
 	// times out, will be handled by the routine management system
 	WebsocketStateTimeout = "TIMEOUT"
-
-	websocketRestablishConnection = 1 * time.Second
 )
-
-var noConnectionTolerance, reconnectionLimit int
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing in routines.go
 type Websocket struct {
-	proxyAddr        string
-	defaultURL       string
-	runningURL       string
-	exchangeName     string
-	enabled          bool
-	init             bool
-	connected        bool
-	Connecting       bool
-	verbose          bool
-	connector        func() error
-	m                sync.Mutex
-	subscriptionLock sync.Mutex
+	proxyAddr              string
+	defaultURL             string
+	runningURL             string
+	exchangeName           string
+	enabled                bool
+	init                   bool
+	connected              bool
+	Connecting             bool
+	verbose                bool
+	connector              func() error
+	m                      sync.Mutex
+	subscriptionLock       sync.Mutex
+	reconnectionLimit      int
+	noConnectionChecks     int
+	reconnectionChecks     int
+	noConnectionCheckLimit int
 	// Subscriptions stuff
 	subscribedChannels       []WebsocketChannelSubscription
 	ChannelsToSubscribe      []WebsocketChannelSubscription

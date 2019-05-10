@@ -39,7 +39,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetSymbols()
+	_, err := g.GetSymbols() 
 	if err != nil {
 		t.Errorf("Test failed - Gateio TestGetSymbols: %s", err)
 	}

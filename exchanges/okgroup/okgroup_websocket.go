@@ -152,11 +152,6 @@ var defaultSubscribedChannels = []string{okGroupWsSpotDepth}
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
-	if !o.Websocket.IsConnected() {
-		return errors.New("Websocket not connected, cannot write to websocket")
-	}
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	if o.Verbose {
 		log.Debugf("Sending message to WS: %v", message)
 	}
@@ -245,7 +240,6 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-o.Websocket.ShutdownC:
-			log.Debug("PINGDATA EXIT")
 			return
 
 		case <-ticker.C:
@@ -262,7 +256,6 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 
 // WsHandleData handles the read data from the websocket connection
 func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
-	log.Debug("WsHandleData has been hit")
 	o.Websocket.Wg.Add(1)
 	defer func() {
 		o.Websocket.Wg.Done()
@@ -271,18 +264,14 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 	wg.Done()
 
 	for {
-		log.Debug("WSHandlingData")
 		select {
 		case <-o.Websocket.ShutdownC:
-			log.Debug("------------------- EXITING HANDLE DATA VIA SHUTDOWN----")
 			return
+
 		default:
-			log.Debug("Reading data")
 			resp, err := o.WsReadData()
 			if err != nil {
-				if strings.Contains(err.Error(), "An established connection was aborted by the software in your host machine") {
-					time.Sleep(time.Second)
-				}
+				time.Sleep(time.Second)
 				o.Websocket.DataHandler <- err
 			}
 			var dataResponse WebsocketDataResponse
@@ -310,8 +299,6 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 				}
 				continue
 			}
-			o.Websocket.DataHandler <- fmt.Errorf("unrecognised response: %v", resp.Raw)
-			continue
 		}
 	}
 }

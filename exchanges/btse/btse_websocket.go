@@ -231,7 +231,7 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 		Channels: []websocketChannel{
 			{
 				Name:       channelToSubscribe.Channel,
-				ProductIDs: []string{channelToSubscribe.Currency.String()},
+				ProductIDs: []string{channelToSubscribe.Currency.String()}, 
 			},
 		},
 	}

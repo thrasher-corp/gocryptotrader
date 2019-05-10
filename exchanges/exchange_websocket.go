@@ -52,6 +52,8 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.SetExchangeName(exchangeName)
 
 	e.Websocket.init = false
+	e.Websocket.noConnectionCheckLimit = 5
+	e.Websocket.reconnectionLimit = 10
 
 	return nil
 }
@@ -82,7 +84,6 @@ func (w *Websocket) Connect() error {
 
 	if !w.connected {
 		w.Connected <- struct{}{}
-		log.Debug("--------------------- Connected True 3--------------------------")
 		w.connected = true
 		w.Connecting = false
 	}
@@ -99,17 +100,16 @@ func (w *Websocket) Connect() error {
 
 // WsConnectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) wsConnectionMonitor() {
-	log.Debug("STARTING WsConnectionMonitor")
 	defer func() {
-		log.Debug("WsConnectionMonitor EXITING")
+		log.Debugf("%v WsConnectionMonitor exiting", w.exchangeName)
 	}()
 	for {
 		if !w.enabled {
-			w.DataHandler <- fmt.Errorf("WsConnectionMonitor: websocket disabled, shutting down")
+			w.DataHandler <- fmt.Errorf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)
 			w.Shutdown()
 			return
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(connectionMonitorDelay)
 		err := w.checkConnection()
 		if err != nil {
 			log.Fatal(err)
@@ -126,25 +126,31 @@ func (w *Websocket) checkConnection() error {
 	}
 	if !w.IsConnected() && !w.Connecting {
 		w.m.Lock()
-		log.Debugf("No connection %v/5", noConnectionTolerance)
-		if noConnectionTolerance >= 5 {
-			log.Debug("Resetting connection")
+		if w.verbose {
+			log.Debugf("%v no connection. Attempt %v/%v", w.exchangeName, w.noConnectionChecks, w.noConnectionCheckLimit)
+		}
+		if w.noConnectionChecks >= w.noConnectionCheckLimit {
+			log.Debugf("%v resetting connection", w.exchangeName)
 			w.Connecting = true
 			go w.WebsocketReset()
-			noConnectionTolerance = 0
+			w.noConnectionChecks = 0
 		}
-		noConnectionTolerance++
+		w.noConnectionChecks++
 		w.m.Unlock()
 	} else if w.Connecting {
-		if reconnectionLimit >= 10 {
+		if w.reconnectionChecks >= w.reconnectionLimit {
 			return fmt.Errorf("%v websocket failed to reconnect after %v seconds",
 				w.exchangeName,
-				reconnectionLimit*2)
+				w.reconnectionLimit*int(connectionMonitorDelay.Seconds()))
 		}
-		log.Debug("Busy reconnecting")
-		reconnectionLimit++
+		if w.verbose {
+			log.Debugf("%v Busy reconnecting", w.exchangeName)
+		}
+		w.reconnectionChecks++
 	} else {
-		noConnectionTolerance = 0
+		log.Debugf("%v connected :%v. Resetting checks", w.exchangeName, w.IsConnected())
+		w.noConnectionChecks = 0
+		w.reconnectionChecks = 0
 	}
 
 	return nil
@@ -166,18 +172,17 @@ func (w *Websocket) Shutdown() error {
 		w.Orderbook.FlushCache()
 		w.m.Unlock()
 	}()
-		if !w.connected && w.ShutdownC == nil {
-			return fmt.Errorf("Attempting to shutdown when already dead")
-		}
+	if !w.connected && w.ShutdownC == nil {
+		return fmt.Errorf("%v cannot shutdown a disconnected websocket", w.exchangeName)
+	}
 
 	if w.verbose {
-		log.Debugf("%v Shutting down websocket channels", w.exchangeName)
+		log.Debugf("%v shutting down websocket channels", w.exchangeName)
 	}
 	timer := time.NewTimer(15 * time.Second)
 	c := make(chan struct{}, 1)
 
 	go func(c chan struct{}) {
-		log.Debug("Time to shutdown")
 		close(w.ShutdownC)
 		w.Wg.Wait()
 		if w.verbose {
@@ -191,7 +196,7 @@ func (w *Websocket) Shutdown() error {
 		w.connected = false
 		return nil
 	case <-timer.C:
-		log.Fatalf("%s - Websocket routines failed to shutdown after 15 seconds",
+		log.Fatalf("%s websocket routines failed to shutdown after 15 seconds",
 			w.GetName())
 	}
 	return nil
@@ -204,8 +209,7 @@ func (w *Websocket) WebsocketReset() error {
 		// does not return here to allow connection to be made if already shut down
 		log.Errorf("%v shutdown error: %v", w.exchangeName, err)
 	}
-	log.Debug("Waiting for wait groups to exit...")
-	log.Debug("Reconnecting")
+	log.Infof("%v reconnecting to websocket", w.exchangeName)
 	w.m.Lock()
 	w.init = true
 	w.m.Unlock()
@@ -218,16 +222,10 @@ func (w *Websocket) WebsocketReset() error {
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
 func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
-	log.Debug("trafficMonitor HIT")
 	w.Wg.Add(1)
 	wg.Done() // Makes sure we are unlocking after we add to waitgroup
-
 	defer func() {
-		log.Debug("trafficMonitor DEFER FUNC EXIT")
 		if w.connected {
-			if w.verbose {
-				log.Debug("trafficMonitor SENDING DISCONNECT")
-			}
 			w.Disconnected <- struct{}{}
 		}
 		w.Wg.Done()
@@ -240,37 +238,39 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 		select {
 		case <-w.ShutdownC: // Returns on shutdown channel close
 			if w.verbose {
-				log.Debugf("%v trafficMonitor SHUTDOWN RECEIVED", w.exchangeName)
+				log.Debugf("%v trafficMonitor shutdown message received", w.exchangeName)
 			}
 			return
 		case <-w.TrafficAlert: // Resets timer on traffic
 			if !w.connected {
 				w.Connected <- struct{}{}
-				log.Debug("--------------------- Connected True 1--------------------------")
 				w.connected = true
+			}
+			if w.verbose {
+				log.Debugf("%v received a traffic alert", w.exchangeName)
 			}
 			trafficTimer.Reset(WebsocketTrafficLimitTime)
 		case <-trafficTimer.C: // Falls through when timer runs out
-			if w.verbose {
-				log.Debugf("%v trafficMonitor FIRST TIMEOUT HIT", w.exchangeName)
-			}
 			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set
+			log.Debugf("%v has not received a traffic alert in 5 seconds.", w.exchangeName)
 			if w.connected {
 				//If connected divert traffic to rest
 				w.Disconnected <- struct{}{}
-				log.Debug("--------------------- Connected False 1--------------------------")
+				if w.verbose {
+					
+				}
 				w.connected = false
 			}
 
 			select {
 			case <-w.ShutdownC: // Returns on shutdown channel close
-				log.Debug("--------------------- Connected False 2--------------------------")
-				log.Debug("trafficMonitor SHUTDOWN RECEIVED")
 				w.connected = false
 				return
 
 			case <-newtimer.C: // If secondary timer runs state timeout is sent to the data handler
-				log.Debug("trafficMonitor SECOND TIMEOUT HIT")
+				if w.verbose {
+					log.Debugf("%v has not recieved a traffic alert in 15 seconds, exiting", w.exchangeName)
+				}
 				w.DataHandler <- fmt.Errorf("trafficMonitor %v", WebsocketStateTimeout)
 				return
 
@@ -279,7 +279,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 				if !w.connected {
 					// If not connected dive rt traffic from REST to websocket
 					w.Connected <- struct{}{}
-					log.Debug("--------------------- Connected True 2--------------------------")
+					if w.verbose {
+						log.Debugf("%v has received a traffic alert. Setting status to connected", w.exchangeName)
+					}
 					w.connected = true
 				}
 			}
@@ -677,7 +679,7 @@ func (w *Websocket) manageSubscriptions() error {
 	w.Wg.Add(1)
 	defer func() {
 		if w.verbose {
-			log.Debugf("%v ManageSubscriptions EXITING", w.exchangeName)
+			log.Debugf("%v ManageSubscriptions exiting", w.exchangeName)
 		}
 		w.Wg.Done()
 	}()
@@ -686,13 +688,12 @@ func (w *Websocket) manageSubscriptions() error {
 		case <-w.ShutdownC:
 			w.subscribedChannels = []WebsocketChannelSubscription{}
 			if w.verbose {
-				log.Debugf("%v SHUTDOWN ManageSubscriptions", w.exchangeName)
+				log.Debugf("%v shutdown manageSubscriptions", w.exchangeName)
 			}
 			return nil
 		default:
-			time.Sleep(800 * time.Millisecond)
 			if w.verbose {
-				log.Debugf("%v Checking subscriptions", w.exchangeName)
+				log.Debugf("%v checking subscriptions", w.exchangeName)
 			}
 			// Subscribe to channels Pending a subscription
 			if w.SupportsFunctionality(WebsocketSubscribeSupported) {
@@ -701,13 +702,13 @@ func (w *Websocket) manageSubscriptions() error {
 					w.DataHandler <- err
 				}
 			}
-			if !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
-				continue
-			}
-			// Unsubscribe from any channels removed from ChannelsToSubscribe
+			if w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
 				err := w.unsubscribeToChannels()
 				if err != nil {
-				w.DataHandler <- err
+					w.DataHandler <- err
+				}
+
+				time.Sleep(manageSubscriptionsDelay)
 			}
 		}
 	}
