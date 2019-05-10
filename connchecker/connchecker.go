@@ -105,7 +105,8 @@ func (c *Checker) initialCheck() error {
 	for i := range c.DNSList {
 		err := c.CheckDNS(c.DNSList[i])
 		if err != nil {
-			if strings.Contains(err.Error(), "unrecognized address") {
+			if strings.Contains(err.Error(), "unrecognized address") ||
+				strings.Contains(err.Error(), "invalid address") {
 				return err
 			}
 			continue
