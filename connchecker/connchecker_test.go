@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestNew(t *testing.T) {
+func TestConnection(t *testing.T) {
 	faultyDomain := []string{"faultyIP"}
 	faultyHost := []string{"faultyHost"}
 	_, err := New(faultyDomain, nil, 100000)

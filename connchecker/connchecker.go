@@ -99,7 +99,7 @@ func (c *Checker) Monitor(wg *sync.WaitGroup) {
 	}
 }
 
-// initialConnect bla bla bla
+// initialCheck starts an initial connection check
 func (c *Checker) initialCheck() error {
 	var connected bool
 	for i := range c.DNSList {
