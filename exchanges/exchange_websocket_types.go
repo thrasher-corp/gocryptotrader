@@ -65,11 +65,10 @@ type Websocket struct {
 	reconnectionChecks     int
 	noConnectionCheckLimit int
 	// Subscriptions stuff
-	subscribedChannels       []WebsocketChannelSubscription
-	ChannelsToSubscribe      []WebsocketChannelSubscription
-	channelSubscriber        func(channelToSubscribe WebsocketChannelSubscription) error
-	channelUnsubscriber      func(channelToUnsubscribe WebsocketChannelSubscription) error
-	checkChannelSubscription func(channelToCheck *WebsocketChannelSubscription, existingChannels []WebsocketChannelSubscription) (bool, error)
+	subscribedChannels  []WebsocketChannelSubscription
+	ChannelsToSubscribe []WebsocketChannelSubscription
+	channelSubscriber   func(channelToSubscribe WebsocketChannelSubscription) error
+	channelUnsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error
 	// Connected denotes a channel switch for diversion of request flow
 	Connected chan struct{}
 	// Disconnected denotes a channel switch for diversion of request flow

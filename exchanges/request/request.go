@@ -330,10 +330,9 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 
 		if resp.StatusCode != 200 && resp.StatusCode != 201 && resp.StatusCode != 202 {
 			err = fmt.Errorf("unsuccessful HTTP status code: %d", resp.StatusCode)
-
 			if verbose {
-				//	err = fmt.Errorf("%s\n%s", err.Error(),
-				//		fmt.Sprintf("%s exchange raw response: %s", r.Name, string(contents)))
+					err = fmt.Errorf("%s\n%s", err.Error(),
+						fmt.Sprintf("%s exchange raw response: %s", r.Name, string(contents)))
 			}
 
 			return err

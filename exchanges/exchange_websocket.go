@@ -124,7 +124,8 @@ func (w *Websocket) checkConnection() error {
 	if w.verbose {
 		log.Debugf("%v checking connection", w.exchangeName)
 	}
-	if !w.IsConnected() && !w.Connecting {
+	switch {
+	case !w.IsConnected() && !w.Connecting:
 		w.m.Lock()
 		if w.verbose {
 			log.Debugf("%v no connection. Attempt %v/%v", w.exchangeName, w.noConnectionChecks, w.noConnectionCheckLimit)
@@ -137,7 +138,7 @@ func (w *Websocket) checkConnection() error {
 		}
 		w.noConnectionChecks++
 		w.m.Unlock()
-	} else if w.Connecting {
+	case w.Connecting:
 		if w.reconnectionChecks >= w.reconnectionLimit {
 			return fmt.Errorf("%v websocket failed to reconnect after %v seconds",
 				w.exchangeName,
@@ -147,12 +148,10 @@ func (w *Websocket) checkConnection() error {
 			log.Debugf("%v Busy reconnecting", w.exchangeName)
 		}
 		w.reconnectionChecks++
-	} else {
-		log.Debugf("%v connected :%v. Resetting checks", w.exchangeName, w.IsConnected())
+	default:
 		w.noConnectionChecks = 0
 		w.reconnectionChecks = 0
 	}
-
 	return nil
 }
 
@@ -254,11 +253,8 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set
 			log.Debugf("%v has not received a traffic alert in 5 seconds.", w.exchangeName)
 			if w.connected {
-				//If connected divert traffic to rest
+				// If connected divert traffic to rest
 				w.Disconnected <- struct{}{}
-				if w.verbose {
-					
-				}
 				w.connected = false
 			}
 
@@ -674,7 +670,7 @@ func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscrib
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
 func (w *Websocket) manageSubscriptions() error {
 	if !w.SupportsFunctionality(WebsocketSubscribeSupported) && !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
-		return fmt.Errorf("Exchange %v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+		return fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
 	}
 	w.Wg.Add(1)
 	defer func() {
@@ -749,7 +745,7 @@ func (w *Websocket) unsubscribeToChannels() error {
 	for i := 0; i < len(w.subscribedChannels); i++ {
 		subscriptionFound := false
 		for j := 0; j < len(w.ChannelsToSubscribe); j++ {
-			if w.ChannelsToSubscribe[j].Equal(&w.subscribedChannels[i]) {
+			if !w.ChannelsToSubscribe[j].Equal(&w.subscribedChannels[i]) {
 				subscriptionFound = true
 				break
 			}
@@ -759,11 +755,11 @@ func (w *Websocket) unsubscribeToChannels() error {
 			if err != nil {
 				return err
 			}
-			w.subscribedChannels = append(w.subscribedChannels[:i], w.subscribedChannels[i+1:]...)
-			i--
-		}
+		} 
 	}
-	return nil
+
+	w.subscribedChannels = w.ChannelsToSubscribe
+	return nil 
 }
 
 // RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe
@@ -771,21 +767,20 @@ func (w *Websocket) unsubscribeToChannels() error {
 func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
-	channelRemoved := false
-	for i := 0; i < len(w.ChannelsToSubscribe); i++ {
-		if w.ChannelsToSubscribe[i].Equal(&subscribedChannel) {
-			w.ChannelsToSubscribe = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
-			i--
-			channelRemoved = true
-			break
+	channelLength := len(w.ChannelsToSubscribe)
+	i := 0
+	for j := 0; j < len(w.ChannelsToSubscribe); j++ {
+		if !w.ChannelsToSubscribe[j].Equal(&subscribedChannel) {
+			w.ChannelsToSubscribe[i] = w.ChannelsToSubscribe[j]
+			i++
 		}
 	}
-	if !channelRemoved {
+	w.ChannelsToSubscribe = w.ChannelsToSubscribe[:i]
+	if channelLength == len(w.ChannelsToSubscribe) {
 		w.DataHandler <- fmt.Errorf("%v RemoveChannelToSubscribe() Channel %v Currency %v could not be removed because it was not found",
 			w.exchangeName,
 			subscribedChannel.Channel,
 			subscribedChannel.Currency)
-		return
 	}
 }
 
@@ -800,13 +795,14 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 	}
 	// Remove the channel from the list of subscribed channels
 	// ManageSubscriptions will automatically resubscribe
-	for i := 0; i < len(w.subscribedChannels); i++ {
-		if w.subscribedChannels[i].Equal(&subscribedChannel) {
-			w.subscribedChannels = append(w.ChannelsToSubscribe[:i], w.ChannelsToSubscribe[i+1:]...)
-			i--
-			break
+	i := 0
+	for j := 0; j < len(w.subscribedChannels); j++ {
+		if !w.subscribedChannels[j].Equal(&subscribedChannel) {
+			w.subscribedChannels[i] = w.subscribedChannels[j]
+			i++
 		}
 	}
+	w.subscribedChannels = w.subscribedChannels[:i]
 }
 
 // Equal two WebsocketChannelSubscription to determine equality

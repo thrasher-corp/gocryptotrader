@@ -412,9 +412,8 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
-	subscriber.Arguments = append(subscriber.Arguments,
-		channelToSubscribe.Params["args"])
-	subscriber.Arguments = append(subscriber.Arguments,
+	subscriber.Arguments = append(subscriber.Arguments,	
+		channelToSubscribe.Params["args"], 
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
 	// Basic rate limiter
 	time.Sleep(30 * time.Millisecond)
@@ -427,8 +426,7 @@ func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	var subscriber WebsocketRequest
 	subscriber.Command = "unsubscribe"
 	subscriber.Arguments = append(subscriber.Arguments,
-		channelToSubscribe.Params["args"])
-	subscriber.Arguments = append(subscriber.Arguments,
+		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
 	// Basic rate limiter
 	time.Sleep(30 * time.Millisecond)

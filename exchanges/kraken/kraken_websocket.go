@@ -191,7 +191,9 @@ func (k *Kraken) WsHandleData() {
 		default:
 			resp, err := k.WsReadData()
 			if err != nil {
-				k.Websocket.DataHandler <- fmt.Errorf("WsHandleData: %v", err)
+				k.Websocket.DataHandler <- fmt.Errorf("%v WsHandleData: %v", 
+				k.Name, 
+				err)
 				time.Sleep(time.Second)
 			}
 			// event response handling
@@ -356,18 +358,19 @@ func (k *Kraken) WsUnsubscribeToChannelByChannelID(channelID int64) error {
 // allowing correlation between subscriptions and returned data
 func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 	for i := range subscriptionChannelPair {
-		if response.ChannelID == subscriptionChannelPair[i].ChannelID {
-			// kill the stale orderbooks due to resubscribing
-			if orderbookBuffer == nil {
-				orderbookBuffer = make(map[int64][]orderbook.Base)
-			}
-			orderbookBuffer[response.ChannelID] = []orderbook.Base{}
-			if krakenOrderBooks == nil {
-				krakenOrderBooks = make(map[int64]orderbook.Base)
-			}
-			krakenOrderBooks[response.ChannelID] = orderbook.Base{}
-			return
+		if response.ChannelID != subscriptionChannelPair[i].ChannelID {
+			continue 
 		}
+		// kill the stale orderbooks due to resubscribing
+		if orderbookBuffer == nil {
+			orderbookBuffer = make(map[int64][]orderbook.Base)
+		}
+		orderbookBuffer[response.ChannelID] = []orderbook.Base{}
+		if krakenOrderBooks == nil {
+			krakenOrderBooks = make(map[int64]orderbook.Base)
+		}
+		krakenOrderBooks[response.ChannelID] = orderbook.Base{}
+		return
 	}
 
 	// We change the / to - to maintain compatibility with REST/config

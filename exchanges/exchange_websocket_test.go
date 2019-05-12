@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 	"strings"
+	"fmt"
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -80,7 +81,7 @@ func TestWebsocket(t *testing.T) {
 	if err == nil {
 		t.Fatal("test failed - should not be connected to able to shut down")
 	}
-	time.Sleep(800 * time.Millisecond)
+	time.Sleep(1500 * time.Millisecond)
 	// -- Normal connect
 	err = wsTest.Websocket.Connect()
 	if err != nil {
@@ -411,7 +412,6 @@ func TestManageSubscriptionsWithoutFunctionality(t *testing.T) {
 	w := Websocket{
 		ShutdownC: make(chan struct{}, 1),
 	}
-
 	err := w.manageSubscriptions()
 	if err == nil {
 		t.Error("Requires functionality to work")
@@ -423,7 +423,6 @@ func TestManageSubscriptionsStartStop(t *testing.T) {
 		ShutdownC: make(chan struct{}, 1),
 		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
 	}
-
 	go w.manageSubscriptions()
 	time.Sleep(time.Second)
 	close(w.ShutdownC)
@@ -434,10 +433,12 @@ func TestWsConnectionMonitorNoConnection(t *testing.T) {
 	w := Websocket{}
 	w.DataHandler = make(chan interface{}, 1)
 	w.ShutdownC = make(chan struct{}, 1)
+	w.exchangeName = "hello"
 	go w.wsConnectionMonitor()
 	err := <- w.DataHandler
-	if !strings.EqualFold(err.(error).Error(), "WsConnectionMonitor: websocket disabled, shutting down") {
-		t.Error("expecting error 'WsConnectionMonitor: websocket disabled, shutting down'")
+	if !strings.EqualFold(err.(error).Error(), 
+	fmt.Sprintf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)) {
+		t.Errorf("expecting error 'WsConnectionMonitor: websocket disabled, shutting down', received '%v'", err)
 	}
 }
 
@@ -447,9 +448,10 @@ func TestWsNoConnectionTolerance(t *testing.T) {
 	w.DataHandler = make(chan interface{}, 1)
 	w.ShutdownC = make(chan struct{}, 1)
 	w.enabled = true
+	w.noConnectionCheckLimit = 500
 	w.checkConnection()
 	if w.noConnectionChecks == 0 {
-		t.Error("Expected noConnectionTolerance to increment")
+		t.Errorf("Expected noConnectionTolerance to increment, received '%v'", w.noConnectionChecks)
 	}
 }
 
@@ -459,9 +461,10 @@ func TestConnecting(t *testing.T) {
 	w.ShutdownC = make(chan struct{}, 1)
 	w.enabled = true
 	w.Connecting = true
+	w.reconnectionLimit = 500
 	w.checkConnection()
 	if w.reconnectionChecks != 1 {
-		t.Error("Expected reconnectionLimit to increment")
+		t.Errorf("Expected reconnectionLimit to increment, received '%v'", w.reconnectionChecks)
 	}
 }
 
@@ -471,7 +474,8 @@ func TestReconnectionLimit(t *testing.T) {
 	w.ShutdownC = make(chan struct{}, 1)
 	w.enabled = true
 	w.Connecting = true
-	w.reconnectionLimit = 99
+	w.reconnectionChecks = 99
+	w.reconnectionLimit = 1
 	err := w.checkConnection()
 	if err == nil {
 		t.Error("Expected error")
