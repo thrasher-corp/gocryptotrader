@@ -768,13 +768,13 @@ func (w *Websocket) unsubscribeToChannels() error {
 			if err != nil {
 				return err
 			}
-		} 
+		}
 	}
+	// Now that the slices should match, assign rather than looping and appending the differences
+	w.subscribedChannels = append(w.ChannelsToSubscribe[:0:0], w.ChannelsToSubscribe...) //nolint:gocritic
 
-	w.subscribedChannels = append(w.ChannelsToSubscribe[:0:0], w.ChannelsToSubscribe...)
-	
-	return nil 
-} 
+	return nil
+}
 
 // RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe
 // so an unsubscribe event can be triggered
