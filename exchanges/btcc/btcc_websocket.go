@@ -35,6 +35,7 @@ const (
 	msgTypeGetTrades          = "GetTradesResponse"
 
 	msgTypeAllTickers = "AllTickersResponse"
+	btccWebsocketRateLimit = 30 * time.Millisecond
 )
 
 var (
@@ -588,8 +589,8 @@ func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 	} else if subscription.Action == "GetTrades" {
 		subscription.Count = 100
 	}
-	// Basic ratelimiter
-	time.Sleep(30 * time.Millisecond)
+	
+	time.Sleep(btccWebsocketRateLimit)
 	return b.Conn.WriteJSON(subscription)
 }
 
@@ -607,7 +608,7 @@ func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	case "SubscribeAllTickers":
 		subscription.Action = "UnSubscribeAllTickers"
 	}
-	// Basic ratelimiter
-	time.Sleep(30 * time.Millisecond)
+	
+	time.Sleep(btccWebsocketRateLimit)
 	return b.Conn.WriteJSON(subscription)
 }

@@ -19,6 +19,7 @@ import (
 
 const (
 	btseWebsocket = "wss://ws.btse.com/api/ws-feed"
+	btseWebsocketRateLimit = 30 * time.Millisecond
 )
 
 // WsConnect connects the websocket client
@@ -240,8 +241,7 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 	if err != nil {
 		return err
 	}
-	// Basic ratelimiter
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(btseWebsocketRateLimit)
 	return b.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -262,7 +262,6 @@ func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	if err != nil {
 		return err
 	}
-	// Basic ratelimiter
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(btseWebsocketRateLimit)
 	return b.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

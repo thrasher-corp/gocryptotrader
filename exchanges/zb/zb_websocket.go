@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	zbWebsocketAPI = "wss://api.zb.cn:9999/websocket"
+	zbWebsocketAPI       = "wss://api.zb.cn:9999/websocket"
+	zbWebsocketRateLimit = 30 * time.Millisecond
 )
 
 // WsConnect initiates a websocket connection
@@ -278,6 +279,6 @@ func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription)
 	if err != nil {
 		return err
 	}
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(zbWebsocketRateLimit)
 	return z.WebsocketConn.WriteMessage(websocket.TextMessage, subscriptionJSON)
 }

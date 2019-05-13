@@ -15,6 +15,7 @@ import (
 )
 
 const coinutWebsocketURL = "wss://wsapi.coinut.com"
+const coinutWebsocketRateLimit = 30 * time.Millisecond
 
 var nNonce map[int64]string
 var channels map[string]chan []byte
@@ -345,7 +346,7 @@ func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		return err
 	}
 
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(coinutWebsocketRateLimit)
 	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -364,6 +365,6 @@ func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		return err
 	}
 
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(coinutWebsocketRateLimit)
 	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

@@ -23,6 +23,7 @@ const (
 	wsMarketKline        = "market.%s.kline.1min"
 	wsMarketDepth        = "market.%s.depth.step0"
 	wsMarketTrade        = "market.%s.trade.detail"
+	huobiWebsocketRateLimit = 30 * time.Millisecond
 )
 
 // WsConnect initiates a new websocket connection
@@ -247,7 +248,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscripti
 	if err != nil {
 		return err
 	}
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(huobiWebsocketRateLimit)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
 }
 
@@ -258,6 +259,6 @@ func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 	if err != nil {
 		return err
 	}
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(huobiWebsocketRateLimit)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
 }

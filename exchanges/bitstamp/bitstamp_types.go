@@ -1,5 +1,7 @@
 package bitstamp
 
+import pusher "github.com/toorop/go-pusher"
+
 // Ticker holds ticker information
 type Ticker struct {
 	Last      float64 `json:"last,string"`
@@ -157,3 +159,35 @@ const (
 	internationalWithdrawal string = "international"
 	errStr                  string = "error"
 )
+
+// WebsocketConn defins a pusher websocket connection
+type WebsocketConn struct {
+	Client *pusher.Client
+	Data   chan *pusher.Event
+	Trade  chan *pusher.Event
+}
+
+// PusherOrderbook holds order book information to be pushed
+type PusherOrderbook struct {
+	Asks      [][]string `json:"asks"`
+	Bids      [][]string `json:"bids"`
+	Timestamp int64      `json:"timestamp,string"`
+}
+
+// PusherTrade holds trade information to be pushed
+type PusherTrade struct {
+	Price       float64 `json:"price"`
+	Amount      float64 `json:"amount"`
+	ID          int64   `json:"id"`
+	Type        int64   `json:"type"`
+	Timestamp   int64   `json:"timestamp,string"`
+	BuyOrderID  int64   `json:"buy_order_id"`
+	SellOrderID int64   `json:"sell_order_id"`
+}
+
+// PusherOrders defines order information
+type PusherOrders struct {
+	ID     int64   `json:"id"`
+	Amount float64 `json:"amount"`
+	Price  float64 `json:""`
+}

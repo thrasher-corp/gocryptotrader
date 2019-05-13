@@ -18,6 +18,7 @@ import (
 const (
 	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
 	rpcVersion             = "2.0"
+	hitbtcWebsocketRateLimit = 30 * time.Millisecond
 )
 
 // WsConnect starts a new connection with the websocket API
@@ -413,7 +414,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		return err
 	}
  
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(hitbtcWebsocketRateLimit)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -446,6 +447,6 @@ func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		return err
 	}
  
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(hitbtcWebsocketRateLimit)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

@@ -46,6 +46,7 @@ const (
 	// Only supported asset type
 	krakenWsAssetType    = "SPOT"
 	orderbookBufferLimit = 3
+	krakenWsRateLimit = 50 * time.Millisecond
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
@@ -67,12 +68,14 @@ var defaultSubscribedChannels = []string{krakenWsTicker, krakenWsTrade, krakenWs
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (k *Kraken) writeToWebsocket(message []byte) error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	if k.Verbose {
 		log.Debugf("Sending message to WS: %v",
 			string(message))
 	}
 	// Really basic WS rate limit
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(krakenWsRateLimit)
 	return k.WebsocketConn.WriteMessage(websocket.TextMessage, message)
 }
 
@@ -832,7 +835,6 @@ func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		log.Debugf("Subscribe error: %v", err)
 		return err
 	}
-	time.Sleep(30 * time.Millisecond)
 	return k.writeToWebsocket(json)
 }
 
@@ -851,6 +853,5 @@ func (k *Kraken) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		log.Debugf("Unsubscribe error: %v", err)
 		return err
 	}
-	time.Sleep(30 * time.Millisecond)
 	return k.writeToWebsocket(json)
 }

@@ -23,6 +23,7 @@ const (
 	wsTickerDataID           = 1002
 	ws24HourExchangeVolumeID = 1003
 	wsHeartbeat              = 1010
+	poloniexWebsocketRateLimit = 30 * time.Millisecond
 )
 
 var (
@@ -473,7 +474,7 @@ func (p *Poloniex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	if err != nil {
 		return err
 	}
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(poloniexWebsocketRateLimit)
 	return p.WebsocketConn.WriteMessage(websocket.TextMessage, subscriptionJSON)
 }
 
@@ -493,6 +494,6 @@ func (p *Poloniex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 	if err != nil {
 		return err
 	}
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(poloniexWebsocketRateLimit)
 	return p.WebsocketConn.WriteMessage(websocket.TextMessage, unsubscriptionJSON)
 }

@@ -144,6 +144,8 @@ const (
 	okGroupWsFuturesAccount        = okGroupWsFuturesSubsection + okGroupWsAccount
 	okGroupWsFuturesPosition       = okGroupWsFuturesSubsection + okGroupWsPosition
 	okGroupWsFuturesOrder          = okGroupWsFuturesSubsection + okGroupWsOrder
+
+	okGroupWsRateLimit = 30 * time.Millisecond
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
@@ -152,11 +154,13 @@ var defaultSubscribedChannels = []string{okGroupWsSpotDepth}
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 	if o.Verbose {
 		log.Debugf("Sending message to WS: %v", message)
 	}
 	// Really basic WS rate limit
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(okGroupWsRateLimit)
 	return o.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
 }
 
@@ -698,7 +702,6 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 		log.Debugf("Subscribe error: %v", err)
 		return err
 	}
-
 	return o.writeToWebsocket(string(json))
 }
 

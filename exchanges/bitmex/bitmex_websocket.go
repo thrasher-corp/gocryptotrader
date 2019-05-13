@@ -56,6 +56,8 @@ const (
 	bitmexActionInsertData  = "insert"
 	bitmexActionDeleteData  = "delete"
 	bitmexActionUpdateData  = "update"
+
+	bitmexWebsocketRateLimit = 30 * time.Millisecond
 )
 
 var (
@@ -416,7 +418,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		channelToSubscribe.Params["args"], 
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
 	// Basic rate limiter
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(bitmexWebsocketRateLimit)
 	return b.WebsocketConn.WriteJSON(subscriber)
 }
 
@@ -429,7 +431,7 @@ func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
 	// Basic rate limiter
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(bitmexWebsocketRateLimit)
 	return b.WebsocketConn.WriteJSON(subscriber)
 }
 

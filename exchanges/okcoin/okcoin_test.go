@@ -840,7 +840,7 @@ func TestWsLogin(t *testing.T) {
 		t.Error("Expecting no errors")
 	}
 }
-
+ 
 // TestSubscribeToChannel API endpoint test
 func TestSubscribeToChannel(t *testing.T) {
 	TestSetDefaults(t)

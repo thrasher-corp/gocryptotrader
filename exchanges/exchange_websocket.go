@@ -104,12 +104,15 @@ func (w *Websocket) wsConnectionMonitor() {
 		log.Debugf("%v WsConnectionMonitor exiting", w.exchangeName)
 	}()
 	for {
+		time.Sleep(connectionMonitorDelay)
+		w.m.Lock()
 		if !w.enabled {
+			w.m.Unlock()
 			w.DataHandler <- fmt.Errorf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)
 			w.Shutdown()
 			return
 		}
-		time.Sleep(connectionMonitorDelay)
+		w.m.Unlock()
 		err := w.checkConnection()
 		if err != nil {
 			log.Fatal(err)
@@ -125,8 +128,9 @@ func (w *Websocket) checkConnection() error {
 		log.Debugf("%v checking connection", w.exchangeName)
 	}
 	switch {
-	case !w.IsConnected() && !w.Connecting:
+	case !w.IsConnected() && !w.IsConnecting():
 		w.m.Lock()
+		defer w.m.Unlock()
 		if w.verbose {
 			log.Debugf("%v no connection. Attempt %v/%v", w.exchangeName, w.noConnectionChecks, w.noConnectionCheckLimit)
 		}
@@ -137,8 +141,7 @@ func (w *Websocket) checkConnection() error {
 			w.noConnectionChecks = 0
 		}
 		w.noConnectionChecks++
-		w.m.Unlock()
-	case w.Connecting:
+	case w.IsConnecting():
 		if w.reconnectionChecks >= w.reconnectionLimit {
 			return fmt.Errorf("%v websocket failed to reconnect after %v seconds",
 				w.exchangeName,
@@ -159,6 +162,14 @@ func (w *Websocket) checkConnection() error {
 func (w *Websocket) IsConnected() bool {
 	w.m.Lock()
 	result := w.connected
+	w.m.Unlock()
+	return result
+}
+
+// IsConnecting checks whether websocket is busy connecting
+func (w *Websocket) IsConnecting() bool {
+	w.m.Lock()
+	result := w.Connecting
 	w.m.Unlock()
 	return result
 }
@@ -353,7 +364,6 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 			if err != nil {
 				return err
 			}
-			return w.Connect()
 		}
 		return w.Connect()
 	}

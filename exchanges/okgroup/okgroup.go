@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/google/go-querystring/query"
 	"github.com/gorilla/websocket"
@@ -87,6 +88,7 @@ type OKGroup struct {
 	exchange.Base
 	ExchangeName  string
 	WebsocketConn *websocket.Conn
+	mu            sync.Mutex
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks

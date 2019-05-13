@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	coinbaseproWebsocketURL = "wss://ws-feed.pro.coinbase.com"
+	coinbaseproWebsocketURL       = "wss://ws-feed.pro.coinbase.com"
+	coinbaseproWebsocketRateLimit = 30 * time.Millisecond
 )
 
 // WsConnect initiates a websocket connection
@@ -275,7 +276,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 		return err
 	}
 
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(coinbaseproWebsocketRateLimit)
 	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -298,6 +299,6 @@ func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSu
 		return err
 	}
 
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(coinbaseproWebsocketRateLimit)
 	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

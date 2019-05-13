@@ -21,6 +21,7 @@ import (
 const (
 	gateioWebsocketEndpoint = "wss://ws.gate.io/v3/"
 	gatioWsMethodPing       = "ping"
+	gateioWebsocketRateLimit = 30 * time.Millisecond
 )
 
 // WsConnect initiates a websocket connection
@@ -384,7 +385,7 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		return err
 	}
 
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(gateioWebsocketRateLimit)
 	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -403,7 +404,7 @@ func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		return err
 	}
 
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(gateioWebsocketRateLimit)
 	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 

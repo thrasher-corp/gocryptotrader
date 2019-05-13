@@ -15,41 +15,10 @@ import (
 	pusher "github.com/toorop/go-pusher"
 )
 
-// WebsocketConn defins a pusher websocket connection
-type WebsocketConn struct {
-	Client *pusher.Client
-	Data   chan *pusher.Event
-	Trade  chan *pusher.Event
-}
-
-// PusherOrderbook holds order book information to be pushed
-type PusherOrderbook struct {
-	Asks      [][]string `json:"asks"`
-	Bids      [][]string `json:"bids"`
-	Timestamp int64      `json:"timestamp,string"`
-}
-
-// PusherTrade holds trade information to be pushed
-type PusherTrade struct {
-	Price       float64 `json:"price"`
-	Amount      float64 `json:"amount"`
-	ID          int64   `json:"id"`
-	Type        int64   `json:"type"`
-	Timestamp   int64   `json:"timestamp,string"`
-	BuyOrderID  int64   `json:"buy_order_id"`
-	SellOrderID int64   `json:"sell_order_id"`
-}
-
-// PusherOrders defines order information
-type PusherOrders struct {
-	ID     int64   `json:"id"`
-	Amount float64 `json:"amount"`
-	Price  float64 `json:""`
-}
-
 const (
 	// BitstampPusherKey holds the current pusher key
-	BitstampPusherKey = "de504dc5763aeef9ff52"
+	BitstampPusherKey          = "de504dc5763aeef9ff52"
+	bitstampWebsocketRateLimit = 30 * time.Millisecond
 )
 
 var tradingPairs map[string]string
@@ -141,7 +110,6 @@ func (b *Bitstamp) WsConnect() error {
 			Exchange: b.GetName(),
 		}
 
-
 	}
 	return nil
 }
@@ -163,16 +131,16 @@ func (b *Bitstamp) GenerateDefaultSubscriptions() {
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	// Basic ratelimiter
-	time.Sleep(30 * time.Millisecond)
+
+	time.Sleep(bitstampWebsocketRateLimit)
 	return b.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
 }
 
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	// Basic ratelimiter
-	time.Sleep(30 * time.Millisecond)
+
+	time.Sleep(bitstampWebsocketRateLimit)
 	return b.WebsocketConn.Client.Unsubscribe(channelToSubscribe.Channel)
 }
 

@@ -40,6 +40,7 @@ const (
 	bitfinexWebsocketSubscriptionFailed = "10300"
 	bitfinexWebsocketAlreadySubscribed  = "10301"
 	bitfinexWebsocketUnknownChannel     = "10302"
+	bitfinexWebsocketRateLimit = 30 * time.Millisecond
 )
 
 // WebsocketHandshake defines the communication between the websocket API for
@@ -70,7 +71,7 @@ func (b *Bitfinex) WsSend(data interface{}) error {
 		log.Debugf("Sending message to websocket %v", data)
 	}
 	// Basic rate limiter
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(bitfinexWebsocketRateLimit)
 	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }
 
@@ -607,17 +608,17 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{"book", "trades", "ticker"}
-	for _, x := range channels {
-		for _, y := range b.EnabledPairs {
+	for i := range channels {
+		for j := range b.EnabledPairs {
 			params := make(map[string]interface{})
-			if x == "book" {
+			if channels[i] == "book" {
 				params["prec"] = "P0"
 			}
-			params["pair"] = y.String()
+			params["pair"] = b.EnabledPairs[j].String()
 
 			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
-				Channel:  x,
-				Currency: y,
+				Channel:  channels[i],
+				Currency: b.EnabledPairs[j],
 				Params:   params,
 			})
 		}
