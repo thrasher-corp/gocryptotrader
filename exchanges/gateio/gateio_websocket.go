@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -43,9 +45,29 @@ func (g *Gateio) WsConnect() error {
 		return err
 	}
 
+	if g.AuthenticatedAPISupport {
+		err = g.wsServerSignIn()
+		if err != nil {
+			log.Errorf("%v - wsServerSignin() failed: %v", g.GetName(), err)
+		}
+		time.Sleep(time.Second * 2) // sleep to allow server to complete sign-on if further authenticated requests are sent piror to this they will fail
+	}
+
 	go g.WsHandleData()
 
 	return g.WsSubscribe()
+}
+
+func (g *Gateio) wsServerSignIn() error {
+	nonce := int(time.Now().Unix() * 1000)
+	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
+	signature := common.Base64Encode(sigTemp)
+	signinWsRequest := WebsocketRequest{
+		ID:     IDSignIn,
+		Method: "server.sign",
+		Params: []interface{}{g.APIKey, signature, nonce},
+	}
+	return g.WebsocketConn.WriteJSON(signinWsRequest)
 }
 
 // WsSubscribe subscribes to the full websocket suite on ZB exchange
@@ -98,6 +120,30 @@ func (g *Gateio) WsSubscribe() error {
 		}
 	}
 
+	if g.AuthenticatedAPISupport {
+		balance := WebsocketRequest{
+			ID:     IDBalance,
+			Method: "balance.subscribe",
+			Params: []interface{}{},
+		}
+
+		err := g.WebsocketConn.WriteJSON(balance)
+		if err != nil {
+			return err
+		}
+
+		for _, c := range enabled {
+			orderNotification := WebsocketRequest{
+				ID:     IDGeneric,
+				Method: "order.subscribe",
+				Params: []interface{}{c.String()},
+			}
+			err := g.WebsocketConn.WriteJSON(orderNotification)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -147,9 +193,55 @@ func (g *Gateio) WsHandleData() {
 			}
 
 			if result.Error.Code != 0 {
+				if common.StringContains(result.Error.Message, "authentication") {
+					g.Websocket.DataHandler <- fmt.Errorf("%v - WebSocket authentication failed ",
+						g.GetName())
+					g.AuthenticatedAPISupport = false
+					continue
+				}
 				g.Websocket.DataHandler <- fmt.Errorf("gateio_websocket.go error %s",
 					result.Error.Message)
 				continue
+			}
+
+			switch result.ID {
+			case IDBalance:
+				var balance WebsocketBalance
+				var balanceInterface interface{}
+				err = json.Unmarshal(result.Result, &balanceInterface)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+				}
+				var p WebsocketBalanceCurrency
+				switch x := balanceInterface.(type) {
+				case map[string]interface{}:
+					for xx := range x {
+						switch kk := x[xx].(type) {
+						case map[string]interface{}:
+							p = WebsocketBalanceCurrency{
+								Currency:  xx,
+								Available: kk["available"].(string),
+								Locked:    kk["freeze"].(string),
+							}
+							balance.Currency = append(balance.Currency, p)
+						default:
+							break
+						}
+					}
+				default:
+					break
+				}
+				g.Websocket.DataHandler <- balance
+			case IDOrderQuery:
+				var orderQuery WebSocketOrderQueryResult
+				err = common.JSONDecode(result.Result, &orderQuery)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+				g.Websocket.DataHandler <- orderQuery
+			default:
+				break
 			}
 
 			switch {
@@ -322,4 +414,26 @@ func (g *Gateio) WsHandleData() {
 			}
 		}
 	}
+}
+
+func (g *Gateio) wsGetBalance() error {
+	balanceWsRequest := WebsocketRequest{
+		ID:     IDBalance,
+		Method: "balance.query",
+		Params: []interface{}{},
+	}
+	return g.WebsocketConn.WriteJSON(balanceWsRequest)
+}
+
+func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
+	order := WebsocketRequest{
+		ID:     IDOrderQuery,
+		Method: "order.query",
+		Params: []interface{}{
+			market,
+			offset,
+			limit,
+		},
+	}
+	return g.WebsocketConn.WriteJSON(order)
 }
