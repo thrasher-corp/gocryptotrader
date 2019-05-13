@@ -421,8 +421,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	return b.WebsocketConn.WriteJSON(subscriber)
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "unsubscribe"

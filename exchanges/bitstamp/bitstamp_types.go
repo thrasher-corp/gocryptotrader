@@ -160,7 +160,7 @@ const (
 	errStr                  string = "error"
 )
 
-// WebsocketConn defins a pusher websocket connection
+// WebsocketConn defines a pusher websocket connection
 type WebsocketConn struct {
 	Client *pusher.Client
 	Data   chan *pusher.Event

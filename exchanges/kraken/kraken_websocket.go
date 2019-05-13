@@ -152,10 +152,9 @@ func (k *Kraken) WsReadData() (exchange.WebsocketResponse, error) {
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
 func (k *Kraken) wsPingHandler() {
 	k.Websocket.Wg.Add(1)
-	defer func() {
-		k.Websocket.Wg.Done()
-	}()
+	defer k.Websocket.Wg.Done()
 	ticker := time.NewTicker(time.Second * 27)
+
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
@@ -767,8 +766,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsSubscribe,
@@ -787,8 +785,7 @@ func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	return k.writeToWebsocket(json)
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (k *Kraken) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsUnsubscribe,

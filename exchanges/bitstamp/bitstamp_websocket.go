@@ -128,18 +128,14 @@ func (b *Bitstamp) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-
 	time.Sleep(bitstampWebsocketRateLimit)
 	return b.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-
 	time.Sleep(bitstampWebsocketRateLimit)
 	return b.WebsocketConn.Client.Unsubscribe(channelToSubscribe.Channel)
 }
@@ -147,7 +143,6 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 // WsReadData reads data coming from bitstamp websocket connection
 func (b *Bitstamp) WsReadData() {
 	b.Websocket.Wg.Add(1)
-
 	defer func() {
 		err := b.WebsocketConn.Client.Close()
 		if err != nil {

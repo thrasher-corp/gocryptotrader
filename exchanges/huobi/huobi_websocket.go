@@ -239,8 +239,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscriptionRequest := WsRequest{Subscribe: channelToSubscribe.Channel}
 	if h.Verbose {
@@ -254,8 +253,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscripti
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
 	if err != nil {

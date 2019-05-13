@@ -254,13 +254,12 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 		Channels: []WsChannels{
-			WsChannels{
+			{
 				Name: channelToSubscribe.Channel,
 				ProductIDs: []string{
 					channelToSubscribe.Currency.String(),
@@ -277,13 +276,12 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []WsChannels{
-			WsChannels{
+			{
 				Name: channelToSubscribe.Channel,
 				ProductIDs: []string{
 					channelToSubscribe.Currency.String(),

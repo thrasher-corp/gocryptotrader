@@ -165,17 +165,15 @@ func (w *Websocket) checkConnection() error {
 // IsConnected exposes websocket connection status
 func (w *Websocket) IsConnected() bool {
 	w.m.Lock()
-	result := w.connected
-	w.m.Unlock()
-	return result
+	defer w.m.Unlock()
+	return w.connected
 }
 
 // IsConnecting checks whether websocket is busy connecting
 func (w *Websocket) IsConnecting() bool {
 	w.m.Lock()
-	result := w.Connecting
-	w.m.Unlock()
-	return result
+	defer w.m.Unlock()
+	return w.Connecting
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -725,7 +723,7 @@ func (w *Websocket) manageSubscriptions() error {
 }
 
 // subscribeToChannels compares ChannelsToSubscribe to subscribedChannels
-// and subscribes to any channels not present in  subscribedChannels
+// and subscribes to any channels not present in subscribedChannels
 func (w *Websocket) subscribeToChannels() error {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
@@ -822,9 +820,6 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 
 // Equal two WebsocketChannelSubscription to determine equality
 func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannelSubscription) bool {
-	if strings.EqualFold(w.Channel, subscribedChannel.Channel) &&
-		strings.EqualFold(w.Currency.String(), subscribedChannel.Currency.String()) {
-		return true
-	}
-	return false
+	return strings.EqualFold(w.Channel, subscribedChannel.Channel) &&
+		strings.EqualFold(w.Currency.String(), subscribedChannel.Currency.String())
 }

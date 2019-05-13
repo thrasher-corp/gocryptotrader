@@ -108,7 +108,7 @@ func (g *Gateio) WsHandleData() {
 			resp, err := g.WsReadData()
 			if err != nil {
 				g.Websocket.DataHandler <- err
-				// Read data errpr messages can overwhelm and panic the application
+				// Read data error messages can overwhelm and panic the application
 				time.Sleep(time.Second)
 				continue
 			}
@@ -370,8 +370,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	params := []interface{}{channelToSubscribe.Currency.String()}
 	for _, paramValue := range channelToSubscribe.Params {
@@ -397,8 +396,7 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WebsocketRequest{

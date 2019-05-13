@@ -263,8 +263,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
 		Event: "addChannel",

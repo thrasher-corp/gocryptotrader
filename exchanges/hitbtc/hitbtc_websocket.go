@@ -257,8 +257,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,
@@ -289,8 +288,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WsNotification{

@@ -690,8 +690,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	resp := WebsocketEventRequest{
 		Operation: "subscribe",
@@ -707,8 +706,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 	return o.writeToWebsocket(string(json))
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	resp := WebsocketEventRequest{
 		Operation: "unsubscribe",

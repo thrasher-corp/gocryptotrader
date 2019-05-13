@@ -495,8 +495,7 @@ func (b *BTCC) GenerateDefaultSubscriptions() {
 	}
 }
 
-// Subscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Subscribe sends a websocket message to receive data from the channel
 func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscription := WsOutgoing{
 		Action: channelToSubscribe.Channel,
@@ -512,8 +511,7 @@ func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 	return b.Conn.WriteJSON(subscription)
 }
 
-// Unsubscribe tells the websocket connection monitor to not bother with Binance
-// Subscriptions are URL argument based and have no need to sub/unsub from channels
+// Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscription := WsOutgoing{}
 	switch channelToSubscribe.Channel {

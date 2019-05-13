@@ -36,7 +36,7 @@ const (
 	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
 	// websocket connection
 	WebsocketTrafficLimitTime     = 5 * time.Second
-	websocketRestablishConnection = 1 * time.Second
+	websocketRestablishConnection = time.Second
 	manageSubscriptionsDelay      = 5 * time.Second
 	// connection monitor time delays and limits
 	connectionMonitorDelay = 2 * time.Second

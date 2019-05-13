@@ -341,7 +341,7 @@ func placeholderSubscriber(channelToSubscribe WebsocketChannelSubscription) erro
 func TestSubscribe(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello",
 			},
 		},
@@ -359,7 +359,7 @@ func TestUnsubscribe(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{},
 		subscribedChannels: []WebsocketChannelSubscription{
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello",
 			},
 		},
@@ -375,12 +375,12 @@ func TestUnsubscribe(t *testing.T) {
 func TestSubscriptionWithExistingEntry(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello",
 			},
 		},
 		subscribedChannels: []WebsocketChannelSubscription{
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello",
 			},
 		},
@@ -396,12 +396,12 @@ func TestSubscriptionWithExistingEntry(t *testing.T) {
 func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello",
 			},
 		},
 		subscribedChannels: []WebsocketChannelSubscription{
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello",
 			},
 		},
@@ -543,15 +543,15 @@ func TestResubscribeToChannel(t *testing.T) {
 func TestSliceCopyDoesntImpactBoth(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello1",
 			},
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello2",
 			},
 		},
 		subscribedChannels: []WebsocketChannelSubscription{
-			WebsocketChannelSubscription{
+			{
 				Channel: "hello3",
 			},
 		},
