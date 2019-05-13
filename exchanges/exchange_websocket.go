@@ -758,7 +758,7 @@ func (w *Websocket) unsubscribeToChannels() error {
 	for i := 0; i < len(w.subscribedChannels); i++ {
 		subscriptionFound := false
 		for j := 0; j < len(w.ChannelsToSubscribe); j++ {
-			if !w.ChannelsToSubscribe[j].Equal(&w.subscribedChannels[i]) {
+			if w.ChannelsToSubscribe[j].Equal(&w.subscribedChannels[i]) {
 				subscriptionFound = true
 				break
 			}
@@ -771,9 +771,10 @@ func (w *Websocket) unsubscribeToChannels() error {
 		} 
 	}
 
-	w.subscribedChannels = w.ChannelsToSubscribe
+	w.subscribedChannels = append(w.ChannelsToSubscribe[:0:0], w.ChannelsToSubscribe...)
+	
 	return nil 
-}
+} 
 
 // RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe
 // so an unsubscribe event can be triggered

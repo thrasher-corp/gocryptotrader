@@ -150,7 +150,7 @@ const (
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var orderbookMutex sync.Mutex
-var defaultSubscribedChannels = []string{okGroupWsSpotDepth}
+var defaultSubscribedChannels = []string{okGroupWsSpotDepth, okGroupWsSpotCandle300s, okGroupWsSpotTicker, okGroupWsSpotTrade}
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
