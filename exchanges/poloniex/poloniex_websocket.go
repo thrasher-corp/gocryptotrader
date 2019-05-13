@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	poloniexWebsocketAddress = "wss://api2.poloniex.com"
-	wsAccountNotificationID  = 1000
-	wsTickerDataID           = 1002
-	ws24HourExchangeVolumeID = 1003
-	wsHeartbeat              = 1010
+	poloniexWebsocketAddress   = "wss://api2.poloniex.com"
+	wsAccountNotificationID    = 1000
+	wsTickerDataID             = 1002
+	ws24HourExchangeVolumeID   = 1003
+	wsHeartbeat                = 1010
 	poloniexWebsocketRateLimit = 30 * time.Millisecond
 )
 

@@ -430,7 +430,6 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 	return o.GetWithdrawPermissions()
 }
 
-
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (o *OKGroup) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {

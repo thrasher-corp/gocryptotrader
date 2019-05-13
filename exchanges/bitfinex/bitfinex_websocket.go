@@ -40,7 +40,7 @@ const (
 	bitfinexWebsocketSubscriptionFailed = "10300"
 	bitfinexWebsocketAlreadySubscribed  = "10301"
 	bitfinexWebsocketUnknownChannel     = "10302"
-	bitfinexWebsocketRateLimit = 30 * time.Millisecond
+	bitfinexWebsocketRateLimit          = 30 * time.Millisecond
 )
 
 // WebsocketHandshake defines the communication between the websocket API for
@@ -603,7 +603,6 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 
 	return nil
 }
-
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() {

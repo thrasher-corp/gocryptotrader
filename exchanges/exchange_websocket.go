@@ -106,7 +106,10 @@ func (w *Websocket) wsConnectionMonitor() {
 		if !w.enabled {
 			w.m.Unlock()
 			w.DataHandler <- fmt.Errorf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)
-			w.Shutdown()
+			err := w.Shutdown()
+			if err != nil {
+				log.Error(err)
+			}
 			if w.verbose {
 				log.Debugf("%v WsConnectionMonitor exiting", w.exchangeName)
 			}
@@ -115,14 +118,13 @@ func (w *Websocket) wsConnectionMonitor() {
 		w.m.Unlock()
 		err := w.checkConnection()
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 	}
 }
 
 // checkConnection ensures the connection is maintained
 // Will reconnect on disconnect
-// Will fatal if cannot reconnect after a certain period
 func (w *Websocket) checkConnection() error {
 	if w.verbose {
 		log.Debugf("%v checking connection", w.exchangeName)
@@ -208,10 +210,9 @@ func (w *Websocket) Shutdown() error {
 		w.connected = false
 		return nil
 	case <-timer.C:
-		log.Fatalf("%s websocket routines failed to shutdown after 15 seconds",
+		return fmt.Errorf("%s websocket routines failed to shutdown after 15 seconds",
 			w.GetName())
 	}
-	return nil
 }
 
 // WebsocketReset sends the shutdown command, waits for channel/func closure and then reconnects

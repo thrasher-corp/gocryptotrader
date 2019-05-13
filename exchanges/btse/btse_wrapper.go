@@ -376,4 +376,3 @@ func (b *BTSE) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChann
 	}
 	return nil
 }
-

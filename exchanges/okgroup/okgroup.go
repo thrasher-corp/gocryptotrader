@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/google/go-querystring/query"
 	"github.com/gorilla/websocket"

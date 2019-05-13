@@ -322,7 +322,7 @@ type WsNotification struct {
 type params struct {
 	Symbol string `json:"symbol"`
 	Period string `json:"period,omitempty"`
-	Limit int64 `json:"limit,omitempty"`
+	Limit  int64  `json:"limit,omitempty"`
 }
 
 // WsTicker defines websocket ticker feed return params

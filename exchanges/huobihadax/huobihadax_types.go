@@ -258,7 +258,7 @@ type History struct {
 type WsRequest struct {
 	Topic             string `json:"req,omitempty"`
 	Subscribe         string `json:"sub,omitempty"`
-	Unsubscribe         string `json:"unsub,omitempty"`
+	Unsubscribe       string `json:"unsub,omitempty"`
 	ClientGeneratedID string `json:"id,omitempty"`
 }
 

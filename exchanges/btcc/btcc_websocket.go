@@ -34,7 +34,7 @@ const (
 	msgTypeRetrieveOrder      = "RetrieveOrderResponse"
 	msgTypeGetTrades          = "GetTradesResponse"
 
-	msgTypeAllTickers = "AllTickersResponse"
+	msgTypeAllTickers      = "AllTickersResponse"
 	btccWebsocketRateLimit = 30 * time.Millisecond
 )
 
@@ -468,12 +468,12 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 	}
 
 	return nil
-} 
+}
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTCC) GenerateDefaultSubscriptions() {
 	b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
-		Channel:  "SubscribeAllTickers",
+		Channel: "SubscribeAllTickers",
 	})
 
 	var channels = []string{"SubOrderBook", "GetTrades", "Subscribe"}
@@ -507,7 +507,7 @@ func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 	} else if subscription.Action == "GetTrades" {
 		subscription.Count = 100
 	}
-	
+
 	time.Sleep(btccWebsocketRateLimit)
 	return b.Conn.WriteJSON(subscription)
 }
@@ -526,7 +526,7 @@ func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	case "SubscribeAllTickers":
 		subscription.Action = "UnSubscribeAllTickers"
 	}
-	
+
 	time.Sleep(btccWebsocketRateLimit)
 	return b.Conn.WriteJSON(subscription)
 }

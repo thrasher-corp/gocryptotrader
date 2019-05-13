@@ -78,7 +78,7 @@ func (z *ZB) SetDefaults() {
 	z.WebsocketInit()
 	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported | 
+		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketSubscribeSupported
 }
 

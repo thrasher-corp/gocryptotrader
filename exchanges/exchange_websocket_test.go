@@ -1,10 +1,10 @@
 package exchange
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
-	"strings"
-	"fmt"
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -81,7 +81,7 @@ func TestWebsocket(t *testing.T) {
 	if err == nil {
 		t.Fatal("test failed - should not be connected to able to shut down")
 	}
-	time.Sleep(1500 * time.Millisecond)
+	wsTest.Websocket.Wg.Wait()
 	// -- Normal connect
 	err = wsTest.Websocket.Connect()
 	if err != nil {
@@ -332,11 +332,11 @@ func TestFunctionality(t *testing.T) {
 	}
 }
 
-
 // placeholderSubscriber basic function to test subscriptions
-func placeholderSubscriber (channelToSubscribe WebsocketChannelSubscription) error {
+func placeholderSubscriber(channelToSubscribe WebsocketChannelSubscription) error {
 	return nil
 }
+
 // TestSubscribe logic test
 func TestSubscribe(t *testing.T) {
 	w := Websocket{
@@ -427,14 +427,13 @@ func TestManageSubscriptionsWithoutFunctionality(t *testing.T) {
 // TestManageSubscriptionsStartStop logic test
 func TestManageSubscriptionsStartStop(t *testing.T) {
 	w := Websocket{
-		ShutdownC: make(chan struct{}, 1),
+		ShutdownC:     make(chan struct{}, 1),
 		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
 	}
 	go w.manageSubscriptions()
 	time.Sleep(time.Second)
 	close(w.ShutdownC)
 }
-
 
 // TestWsConnectionMonitorNoConnection logic test
 func TestWsConnectionMonitorNoConnection(t *testing.T) {
@@ -443,13 +442,12 @@ func TestWsConnectionMonitorNoConnection(t *testing.T) {
 	w.ShutdownC = make(chan struct{}, 1)
 	w.exchangeName = "hello"
 	go w.wsConnectionMonitor()
-	err := <- w.DataHandler
-	if !strings.EqualFold(err.(error).Error(), 
-	fmt.Sprintf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)) {
+	err := <-w.DataHandler
+	if !strings.EqualFold(err.(error).Error(),
+		fmt.Sprintf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)) {
 		t.Errorf("expecting error 'WsConnectionMonitor: websocket disabled, shutting down', received '%v'", err)
 	}
 }
-
 
 // TestWsNoConnectionTolerance logic test
 func TestWsNoConnectionTolerance(t *testing.T) {
@@ -494,9 +492,9 @@ func TestReconnectionLimit(t *testing.T) {
 }
 
 // TestRemoveChannelToSubscribe logic test
-func TestRemoveChannelToSubscribe (t *testing.T) {
+func TestRemoveChannelToSubscribe(t *testing.T) {
 	subscription := WebsocketChannelSubscription{
-		Channel: "hello", 
+		Channel: "hello",
 	}
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{
@@ -507,13 +505,13 @@ func TestRemoveChannelToSubscribe (t *testing.T) {
 	w.RemoveChannelToSubscribe(subscription)
 	if len(w.subscribedChannels) != 0 {
 		t.Errorf("Unsubscription did not occur")
-	} 
+	}
 }
 
 // TestRemoveChannelToSubscribeWithNoSubscription logic test
-func TestRemoveChannelToSubscribeWithNoSubscription (t *testing.T) {
+func TestRemoveChannelToSubscribeWithNoSubscription(t *testing.T) {
 	subscription := WebsocketChannelSubscription{
-		Channel: "hello", 
+		Channel: "hello",
 	}
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{},
@@ -521,7 +519,7 @@ func TestRemoveChannelToSubscribeWithNoSubscription (t *testing.T) {
 	w.DataHandler = make(chan interface{}, 1)
 	w.SetChannelUnsubscriber(placeholderSubscriber)
 	go w.RemoveChannelToSubscribe(subscription)
-	err := <- w.DataHandler
+	err := <-w.DataHandler
 	if !strings.Contains(err.(error).Error(), "could not be removed because it was not found") {
 		t.Error("Expected not found error")
 	}
@@ -530,7 +528,7 @@ func TestRemoveChannelToSubscribeWithNoSubscription (t *testing.T) {
 // TestResubscribeToChannel logic test
 func TestResubscribeToChannel(t *testing.T) {
 	subscription := WebsocketChannelSubscription{
-		Channel: "hello", 
+		Channel: "hello",
 	}
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{},

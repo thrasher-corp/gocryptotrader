@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	huobiSocketIOAddress = "wss://api.huobi.pro/hbus/ws"
-	wsMarketKline        = "market.%s.kline.1min"
-	wsMarketDepth        = "market.%s.depth.step0"
-	wsMarketTrade        = "market.%s.trade.detail"
+	huobiSocketIOAddress    = "wss://api.huobi.pro/hbus/ws"
+	wsMarketKline           = "market.%s.kline.1min"
+	wsMarketDepth           = "market.%s.depth.step0"
+	wsMarketTrade           = "market.%s.trade.detail"
 	huobiWebsocketRateLimit = 30 * time.Millisecond
 )
 

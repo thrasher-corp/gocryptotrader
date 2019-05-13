@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	btseWebsocket = "wss://ws.btse.com/api/ws-feed"
+	btseWebsocket          = "wss://ws.btse.com/api/ws-feed"
 	btseWebsocketRateLimit = 30 * time.Millisecond
 )
 
@@ -232,7 +232,7 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 		Channels: []websocketChannel{
 			{
 				Name:       channelToSubscribe.Channel,
-				ProductIDs: []string{channelToSubscribe.Currency.String()}, 
+				ProductIDs: []string{channelToSubscribe.Currency.String()},
 			},
 		},
 	}

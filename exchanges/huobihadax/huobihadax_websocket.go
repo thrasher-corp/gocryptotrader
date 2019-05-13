@@ -24,7 +24,7 @@ const (
 	wsMarketKline                        = "market.%s.kline.1min"
 	wsMarketDepth                        = "market.%s.depth.step0"
 	wsMarketTrade                        = "market.%s.trade.detail"
-	huobiGlobalWebsocketRateLimit = 30 * time.Millisecond
+	huobiGlobalWebsocketRateLimit        = 30 * time.Millisecond
 )
 
 // WsConnect initiates a new websocket connection

@@ -22,8 +22,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
-
-) 
+)
 
 // List of all websocket channels to subscribe to
 const (
@@ -191,8 +190,8 @@ func (o *OKGroup) WsConnect() error {
 			err)
 	}
 	if o.Verbose {
-		log.Debugf("Successful connection to %v", 
-		o.Websocket.GetWebsocketURL())
+		log.Debugf("Successful connection to %v",
+			o.Websocket.GetWebsocketURL())
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -382,9 +381,9 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		orderbookMutex.Lock()
 		err := o.WsProcessOrderBook(response)
 		if err != nil {
-			pair:= currency.NewPairDelimiter(response.Data[0].InstrumentID, "-")
+			pair := currency.NewPairDelimiter(response.Data[0].InstrumentID, "-")
 			channelToResubscribe := exchange.WebsocketChannelSubscription{
-				Channel: response.Table,
+				Channel:  response.Table,
 				Currency: pair,
 			}
 			o.Websocket.ResubscribeToChannel(channelToResubscribe)
@@ -687,9 +686,9 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
-		} 
+		}
 	}
-} 
+}
 
 // Subscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels

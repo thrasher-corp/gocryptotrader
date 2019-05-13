@@ -245,7 +245,7 @@ func (b *Bitflyer) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitflyer)SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Bitflyer) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 

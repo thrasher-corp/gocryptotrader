@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	gateioWebsocketEndpoint = "wss://ws.gate.io/v3/"
-	gatioWsMethodPing       = "ping"
+	gateioWebsocketEndpoint  = "wss://ws.gate.io/v3/"
+	gatioWsMethodPing        = "ping"
 	gateioWebsocketRateLimit = 30 * time.Millisecond
 )
 
@@ -57,7 +57,6 @@ func (g *Gateio) WsConnect() error {
 
 	go g.WsHandleData()
 	g.GenerateDefaultSubscriptions()
-
 
 	return nil
 }
@@ -349,7 +348,7 @@ func (g *Gateio) WsHandleData() {
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
 	if g.AuthenticatedAPISupport {
-		channels = append(channels,  "balance.subscribe", "order.subscribe")
+		channels = append(channels, "balance.subscribe", "order.subscribe")
 	}
 
 	enabledCurrencies := g.GetEnabledCurrencies()
@@ -378,14 +377,14 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	for _, paramValue := range channelToSubscribe.Params {
 		params = append(params, paramValue)
 	}
-	
+
 	subscribe := WebsocketRequest{
 		ID:     IDGeneric,
 		Method: channelToSubscribe.Channel,
 		Params: params,
 	}
 
-	if strings.EqualFold(channelToSubscribe.Channel,  "balance.subscribe") {
+	if strings.EqualFold(channelToSubscribe.Channel, "balance.subscribe") {
 		subscribe.ID = IDBalance
 	}
 

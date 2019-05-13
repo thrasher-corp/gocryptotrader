@@ -46,7 +46,7 @@ const (
 	// Only supported asset type
 	krakenWsAssetType    = "SPOT"
 	orderbookBufferLimit = 3
-	krakenWsRateLimit = 50 * time.Millisecond
+	krakenWsRateLimit    = 50 * time.Millisecond
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
@@ -194,9 +194,9 @@ func (k *Kraken) WsHandleData() {
 		default:
 			resp, err := k.WsReadData()
 			if err != nil {
-				k.Websocket.DataHandler <- fmt.Errorf("%v WsHandleData: %v", 
-				k.Name, 
-				err)
+				k.Websocket.DataHandler <- fmt.Errorf("%v WsHandleData: %v",
+					k.Name,
+					err)
 				time.Sleep(time.Second)
 			}
 			// event response handling
@@ -309,7 +309,7 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 	for i := range subscriptionChannelPair {
 		if response.ChannelID != subscriptionChannelPair[i].ChannelID {
-			continue 
+			continue
 		}
 		// kill the stale orderbooks due to resubscribing
 		if orderbookBuffer == nil {
@@ -426,7 +426,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 				err := k.wsProcessOrderBookUpdate(channelData)
 				if err != nil {
 					subscriptionToRemove := exchange.WebsocketChannelSubscription{
-						Channel: krakenWsOrderbook,
+						Channel:  krakenWsOrderbook,
 						Currency: channelData.Pair,
 					}
 					k.Websocket.ResubscribeToChannel(subscriptionToRemove)
@@ -763,7 +763,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
-		} 
+		}
 	}
 }
 

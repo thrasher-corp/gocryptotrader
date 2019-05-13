@@ -26,7 +26,7 @@ var testSetupRan bool
 var o = OKEX{}
 var spotCurrency = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "-").Lower().String()
 var websocketEnabled bool
- 
+
 // TestSetDefaults Sets standard default settings for running a test
 func TestSetDefaults(t *testing.T) {
 	if o.Name != OKGroupExchange {
@@ -112,7 +112,6 @@ func setupWSConnection() error {
 	}
 	return nil
 }
-
 
 // TestGetAccountCurrencies API endpoint test
 func TestGetAccountCurrencies(t *testing.T) {
@@ -1614,7 +1613,7 @@ func TestSubscribeToChannel(t *testing.T) {
 		o.Websocket.Connect()
 	}
 	subscription := exchange.WebsocketChannelSubscription{
-		Channel: "spot/depth",
+		Channel:  "spot/depth",
 		Currency: currency.NewPairDelimiter("LTC-BTC", "-"),
 	}
 	o.Websocket.ChannelsToSubscribe = append(o.Websocket.ChannelsToSubscribe, subscription)

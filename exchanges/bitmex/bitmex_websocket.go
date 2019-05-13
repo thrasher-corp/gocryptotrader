@@ -109,7 +109,6 @@ func (b *Bitmex) WsConnector() error {
 	go b.wsHandleIncomingData()
 	b.GenerateDefaultSubscriptions()
 
-
 	if b.AuthenticatedAPISupport {
 		err := b.websocketSendAuth()
 		if err != nil {
@@ -414,8 +413,8 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
-	subscriber.Arguments = append(subscriber.Arguments,	
-		channelToSubscribe.Params["args"], 
+	subscriber.Arguments = append(subscriber.Arguments,
+		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
 	// Basic rate limiter
 	time.Sleep(bitmexWebsocketRateLimit)
