@@ -348,15 +348,19 @@ func (g *Gateio) WsHandleData() {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
+	if g.AuthenticatedAPISupport {
+		channels = append(channels,  "balance.subscribe", "order.subscribe")
+	}
+
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
 			params := make(map[string]interface{})
 			if strings.EqualFold(channels[i], "depth.subscribe") {
-				params["what"] = 30
-				params["who"] = "0.1"
+				params["limit"] = 30
+				params["interval"] = "0.1"
 			} else if strings.EqualFold(channels[i], "kline.subscribe") {
-				params["sup"] = 1800
+				params["interval"] = 1800
 			}
 			g.Websocket.ChannelsToSubscribe = append(g.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
@@ -374,10 +378,15 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	for _, paramValue := range channelToSubscribe.Params {
 		params = append(params, paramValue)
 	}
+	
 	subscribe := WebsocketRequest{
-		ID:     1337,
+		ID:     IDGeneric,
 		Method: channelToSubscribe.Channel,
 		Params: params,
+	}
+
+	if strings.EqualFold(channelToSubscribe.Channel,  "balance.subscribe") {
+		subscribe.ID = IDBalance
 	}
 
 	data, err := common.JSONEncode(subscribe)
@@ -394,7 +403,7 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WebsocketRequest{
-		ID:     1337,
+		ID:     IDGeneric,
 		Method: unsbuscribeText,
 		Params: []interface{}{channelToSubscribe.Currency.String(), 1800},
 	}

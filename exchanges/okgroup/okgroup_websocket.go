@@ -194,8 +194,10 @@ func (o *OKGroup) WsConnect() error {
 		log.Debugf("Successful connection to %v", 
 		o.Websocket.GetWebsocketURL())
 	}
-	go o.WsHandleData()
-	go o.wsPingHandler()
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go o.WsHandleData(&wg)
+	go o.wsPingHandler(&wg)
 	o.GenerateDefaultSubscriptions()
 
 	// Ensures that we start the routines and we dont race when shutdown occurs

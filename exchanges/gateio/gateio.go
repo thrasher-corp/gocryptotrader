@@ -466,6 +466,7 @@ func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 	return result, nil
 }
 
+// GenerateSignature returns hash for authenticated requests
 func (g *Gateio) GenerateSignature(message string) []byte {
 	return common.GetHMAC(common.HashSHA512, []byte(message), []byte(g.APISecret))
 }

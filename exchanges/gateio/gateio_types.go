@@ -35,6 +35,7 @@ var (
 	TimeIntervalDay            = TimeInterval(60 * 60 * 24)
 )
 
+// IDs for requests
 const (
 	IDGeneric    = 0000
 	IDSignIn     = 1010
