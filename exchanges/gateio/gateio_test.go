@@ -56,7 +56,7 @@ func TestGetMarketInfo(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip()
 	}
 
@@ -74,7 +74,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip()
 	}
 
