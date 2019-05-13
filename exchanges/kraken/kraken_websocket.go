@@ -304,59 +304,6 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 	}
 }
 
-// WsSubscribeToChannel sends a request to WS to subscribe to supplied channel name and pairs
-func (k *Kraken) WsSubscribeToChannel(topic string, currencies []string, requestID int64) error {
-	resp := WebsocketSubscriptionEventRequest{
-		Event: krakenWsSubscribe,
-		Pairs: currencies,
-		Subscription: WebsocketSubscriptionData{
-			Name: topic,
-		},
-	}
-	log.Debugf("Suscribing to %v:%v", topic, currencies)
-	if requestID > 0 {
-		resp.RequestID = requestID
-	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		log.Debugf("Subscribe error: %v", err)
-		return err
-	} 
-	return k.writeToWebsocket(json)
-}
-
-// WsUnsubscribeToChannel sends a request to WS to unsubscribe to supplied channel name and pairs
-func (k *Kraken) WsUnsubscribeToChannel(topic string, currencies []string, requestID int64) error {
-	resp := WebsocketSubscriptionEventRequest{
-		Event: krakenWsUnsubscribe,
-		Pairs: currencies,
-		Subscription: WebsocketSubscriptionData{
-			Name: topic,
-		},
-	}
-	if requestID > 0 {
-		resp.RequestID = requestID
-	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		return err
-	}
-	return k.writeToWebsocket(json)
-}
-
-// WsUnsubscribeToChannelByChannelID sends a request to WS to unsubscribe to supplied channel ID
-func (k *Kraken) WsUnsubscribeToChannelByChannelID(channelID int64) error {
-	resp := WebsocketUnsubscribeByChannelIDEventRequest{
-		Event:     krakenWsUnsubscribe,
-		ChannelID: channelID,
-	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		return err
-	}
-	return k.writeToWebsocket(json)
-}
-
 // addNewSubscriptionChannelData stores channel ids, pairs and subscription types to an array
 // allowing correlation between subscriptions and returned data
 func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
@@ -832,7 +779,9 @@ func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
-		log.Debugf("Subscribe error: %v", err)
+		if k.Verbose {
+			log.Debugf("Subscribe error: %v", err)
+		}
 		return err
 	}
 	return k.writeToWebsocket(json)
@@ -850,7 +799,9 @@ func (k *Kraken) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
-		log.Debugf("Unsubscribe error: %v", err)
+		if k.Verbose {
+			log.Debugf("Unsubscribe error: %v", err)
+		}
 		return err
 	}
 	return k.writeToWebsocket(json)

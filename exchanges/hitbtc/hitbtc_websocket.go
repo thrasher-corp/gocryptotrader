@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
-	rpcVersion             = "2.0"
+	hitbtcWebsocketAddress   = "wss://api.hitbtc.com/api/2/ws"
+	rpcVersion               = "2.0"
 	hitbtcWebsocketRateLimit = 30 * time.Millisecond
 )
 
@@ -47,57 +47,6 @@ func (h *HitBTC) WsConnect() error {
 	go h.WsHandleData()
 	h.GenerateDefaultSubscriptions()
 
-	return nil
-}
-
-// WsSubscribe subscribes to the relevant channels
-func (h *HitBTC) WsSubscribe() error {
-	enabledPairs := h.GetEnabledCurrencies()
-	for _, p := range enabledPairs {
-		pF := exchange.FormatExchangeCurrency(h.GetName(), p)
-
-		tickerSubReq, err := common.JSONEncode(WsNotification{
-			JSONRPCVersion: rpcVersion,
-			Method:         "subscribeTicker",
-			Params:         params{Symbol: pF.String()},
-		})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, tickerSubReq)
-		if err != nil {
-			return nil
-		}
-
-		orderbookSubReq, err := common.JSONEncode(WsNotification{
-			JSONRPCVersion: rpcVersion,
-			Method:         "subscribeOrderbook",
-			Params:         params{Symbol: pF.String()},
-		})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, orderbookSubReq)
-		if err != nil {
-			return nil
-		}
-
-		tradeSubReq, err := common.JSONEncode(WsNotification{
-			JSONRPCVersion: rpcVersion,
-			Method:         "subscribeTrades",
-			Params:         params{Symbol: pF.String()},
-		})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, tradeSubReq)
-		if err != nil {
-			return nil
-		}
-	}
 	return nil
 }
 
@@ -293,87 +242,9 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 	return nil
 }
 
-type capture struct {
-	Method string `json:"method"`
-	Result bool   `json:"result"`
-	Error  struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
-}
-
-// WsRequest defines a request obj for the JSON-RPC and gets a websocket
-// response
-type WsRequest struct {
-	Method string      `json:"method"`
-	Params interface{} `json:"params,omitempty"`
-	ID     interface{} `json:"id"`
-}
-
-// WsNotification defines a notification obj for the JSON-RPC this does not get
-// a websocket response
-type WsNotification struct {
-	JSONRPCVersion string      `json:"jsonrpc"`
-	Method         string      `json:"method"`
-	Params         interface{} `json:"params"`
-}
-
-type params struct {
-	Symbol string `json:"symbol"`
-	Period string `json:"period,omitempty"`
-	Limit int64 `json:"limit,omitempty"`
-}
-
-// WsTicker defines websocket ticker feed return params
-type WsTicker struct {
-	Params struct {
-		Ask         float64 `json:"ask,string"`
-		Bid         float64 `json:"bid,string"`
-		Last        float64 `json:"last,string"`
-		Open        float64 `json:"open,string"`
-		Low         float64 `json:"low,string"`
-		High        float64 `json:"high,string"`
-		Volume      float64 `json:"volume,string"`
-		VolumeQuote float64 `json:"volumeQuote,string"`
-		Timestamp   string  `json:"timestamp"`
-		Symbol      string  `json:"symbol"`
-	} `json:"params"`
-}
-
-// WsOrderbook defines websocket orderbook feed return params
-type WsOrderbook struct {
-	Params struct {
-		Ask []struct {
-			Price float64 `json:"price,string"`
-			Size  float64 `json:"size,string"`
-		} `json:"ask"`
-		Bid []struct {
-			Price float64 `json:"price,string"`
-			Size  float64 `json:"size,string"`
-		} `json:"bid"`
-		Symbol   string `json:"symbol"`
-		Sequence int64  `json:"sequence"`
-	} `json:"params"`
-}
-
-// WsTrade defines websocket trade feed return params
-type WsTrade struct {
-	Params struct {
-		Data []struct {
-			ID        int64   `json:"id"`
-			Price     float64 `json:"price,string"`
-			Quantity  float64 `json:"quantity,string"`
-			Side      string  `json:"side"`
-			Timestamp string  `json:"timestamp"`
-		} `json:"data"`
-		Symbol string `json:"symbol"`
-	} `json:"params"`
-}
-
-
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() {
-	var channels = []string{"subscribeTicker","subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
+	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
 	enabledCurrencies := h.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -382,7 +253,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
-		} 
+		}
 	}
 }
 
@@ -392,20 +263,20 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,
 		Method:         channelToSubscribe.Channel,
-		Params:         params{
+		Params: params{
 			Symbol: channelToSubscribe.Currency.String(),
 		},
 	}
-	if strings.EqualFold(channelToSubscribe.Channel,"subscribeTrades") {
+	if strings.EqualFold(channelToSubscribe.Channel, "subscribeTrades") {
 		subscribe.Params = params{
 			Symbol: channelToSubscribe.Currency.String(),
-			Limit:100,
+			Limit:  100,
 		}
-	} else if strings.EqualFold(channelToSubscribe.Channel,"subscribeCandles") {
+	} else if strings.EqualFold(channelToSubscribe.Channel, "subscribeCandles") {
 		subscribe.Params = params{
 			Symbol: channelToSubscribe.Currency.String(),
-			Period:"M30",
-			Limit:100,
+			Period: "M30",
+			Limit:  100,
 		}
 	}
 
@@ -413,7 +284,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	if err != nil {
 		return err
 	}
- 
+
 	time.Sleep(hitbtcWebsocketRateLimit)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
@@ -421,24 +292,24 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 // Unsubscribe tells the websocket connection monitor to not bother with Binance
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe",1)
+	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,
 		Method:         unsubscribeChannel,
-		Params:         params{
+		Params: params{
 			Symbol: channelToSubscribe.Currency.String(),
 		},
 	}
-	if strings.EqualFold(unsubscribeChannel,"unsubscribeTrades") {
+	if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
 		subscribe.Params = params{
 			Symbol: channelToSubscribe.Currency.String(),
-			Limit:100,
+			Limit:  100,
 		}
-	} else if strings.EqualFold(unsubscribeChannel,"unsubscribeCandles") {
+	} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {
 		subscribe.Params = params{
 			Symbol: channelToSubscribe.Currency.String(),
-			Period:"M30",
-			Limit:100,
+			Period: "M30",
+			Limit:  100,
 		}
 	}
 
@@ -446,7 +317,7 @@ func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	if err != nil {
 		return err
 	}
- 
+
 	time.Sleep(hitbtcWebsocketRateLimit)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

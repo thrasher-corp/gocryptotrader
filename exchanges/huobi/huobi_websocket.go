@@ -243,7 +243,9 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 // Subscriptions are URL argument based and have no need to sub/unsub from channels
 func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscriptionRequest := WsRequest{Subscribe: channelToSubscribe.Channel}
-	log.Debugf("Subscription: %v", subscriptionRequest)
+	if h.Verbose {
+		log.Debugf("Subscription: %v", subscriptionRequest)
+	}
 	subscription, err := common.JSONEncode(subscriptionRequest)
 	if err != nil {
 		return err

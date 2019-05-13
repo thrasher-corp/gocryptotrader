@@ -183,7 +183,6 @@ func (o *OKGroup) WsConnect() error {
 	if o.Verbose {
 		log.Debugf("Attempting to connect to %v", o.Websocket.GetWebsocketURL())
 	}
-	log.Debug("Dialing Websocket Connection")
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
 	if err != nil {
@@ -699,7 +698,9 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
-		log.Debugf("Subscribe error: %v", err)
+		if o.Verbose {
+			log.Debugf("Subscribe error: %v", err)
+		}
 		return err
 	}
 	return o.writeToWebsocket(string(json))
@@ -714,7 +715,9 @@ func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscr
 	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
-		log.Debugf("Subscribe error: %v", err)
+		if o.Verbose {
+			log.Debugf("Subscribe error: %v", err)
+		}
 		return err
 	}
 	return o.writeToWebsocket(string(json))

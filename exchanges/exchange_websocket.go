@@ -100,9 +100,6 @@ func (w *Websocket) Connect() error {
 
 // WsConnectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) wsConnectionMonitor() {
-	defer func() {
-		log.Debugf("%v WsConnectionMonitor exiting", w.exchangeName)
-	}()
 	for {
 		time.Sleep(connectionMonitorDelay)
 		w.m.Lock()
@@ -110,6 +107,9 @@ func (w *Websocket) wsConnectionMonitor() {
 			w.m.Unlock()
 			w.DataHandler <- fmt.Errorf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)
 			w.Shutdown()
+			if w.verbose {
+				log.Debugf("%v WsConnectionMonitor exiting", w.exchangeName)
+			}
 			return
 		}
 		w.m.Unlock()
@@ -135,7 +135,9 @@ func (w *Websocket) checkConnection() error {
 			log.Debugf("%v no connection. Attempt %v/%v", w.exchangeName, w.noConnectionChecks, w.noConnectionCheckLimit)
 		}
 		if w.noConnectionChecks >= w.noConnectionCheckLimit {
-			log.Debugf("%v resetting connection", w.exchangeName)
+			if w.verbose {
+				log.Debugf("%v resetting connection", w.exchangeName)
+			}
 			w.Connecting = true
 			go w.WebsocketReset()
 			w.noConnectionChecks = 0
@@ -262,7 +264,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			trafficTimer.Reset(WebsocketTrafficLimitTime)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set
-			log.Debugf("%v has not received a traffic alert in 5 seconds.", w.exchangeName)
+			if w.verbose {
+				log.Debugf("%v has not received a traffic alert in 5 seconds.", w.exchangeName)
+			}
 			if w.connected {
 				// If connected divert traffic to rest
 				w.Disconnected <- struct{}{}
@@ -698,6 +702,7 @@ func (w *Websocket) manageSubscriptions() error {
 			}
 			return nil
 		default:
+			time.Sleep(manageSubscriptionsDelay)
 			if w.verbose {
 				log.Debugf("%v checking subscriptions", w.exchangeName)
 			}
@@ -713,8 +718,6 @@ func (w *Websocket) manageSubscriptions() error {
 				if err != nil {
 					w.DataHandler <- err
 				}
-
-				time.Sleep(manageSubscriptionsDelay)
 			}
 		}
 	}

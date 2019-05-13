@@ -243,33 +243,8 @@ func (b *BTCC) WsHandleData() {
 	}
 }
 
-// WsSubscribeAllTickers subscribes to a ticker channel
-func (b *BTCC) WsSubscribeAllTickers() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	return b.Conn.WriteJSON(WsOutgoing{
-		Action: "SubscribeAllTickers",
-	})
-}
-
-// WsUnSubscribeAllTickers unsubscribes from a ticker channel
-func (b *BTCC) WsUnSubscribeAllTickers() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	return b.Conn.WriteJSON(WsOutgoing{
-		Action: "UnSubscribeAllTickers",
-	})
-}
-
 // WsUpdateCurrencyPairs updates currency pairs from the websocket connection
 func (b *BTCC) WsUpdateCurrencyPairs() error {
-	err := b.WsSubscribeAllTickers()
-	if err != nil {
-		return err
-	}
-
 	var currencyResponse WsResponseMain
 	for {
 		_, resp, err := b.Conn.ReadMessage()
@@ -305,8 +280,6 @@ func (b *BTCC) WsUpdateCurrencyPairs() error {
 					err)
 			}
 
-			return b.WsUnSubscribeAllTickers()
-
 		case "Heartbeat":
 
 		default:
@@ -314,61 +287,6 @@ func (b *BTCC) WsUpdateCurrencyPairs() error {
 				string(resp))
 		}
 	}
-}
-
-// WsSubscribeToOrderbook subscribes to an orderbook channel
-func (b *BTCC) WsSubscribeToOrderbook() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	for _, pair := range b.GetEnabledCurrencies() {
-		formattedPair := exchange.FormatExchangeCurrency(b.GetName(), pair)
-		err := b.Conn.WriteJSON(WsOutgoing{
-			Action: "SubOrderBook",
-			Symbol: formattedPair.String(),
-			Len:    100})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// WsSubcribeToTicker subscribes to a ticker channel
-func (b *BTCC) WsSubcribeToTicker() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	for _, pair := range b.GetEnabledCurrencies() {
-		formattedPair := exchange.FormatExchangeCurrency(b.GetName(), pair)
-		err := b.Conn.WriteJSON(WsOutgoing{
-			Action: "Subscribe",
-			Symbol: formattedPair.String(),
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// WsSubcribeToTrades subscribes to a trade channel
-func (b *BTCC) WsSubcribeToTrades() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	for _, pair := range b.GetEnabledCurrencies() {
-		formattedPair := exchange.FormatExchangeCurrency(b.GetName(), pair)
-		err := b.Conn.WriteJSON(WsOutgoing{
-			Action: "GetTrades",
-			Symbol: formattedPair.String(),
-			Count:  100,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot
@@ -550,7 +468,7 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 	}
 
 	return nil
-}
+} 
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTCC) GenerateDefaultSubscriptions() {

@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -74,7 +73,6 @@ func (c *CoinbasePro) WsHandleData() {
 	for {
 		select {
 		case <-c.Websocket.ShutdownC:
-			log.Debug("SHUTDOWN DATA READER")
 			return
 		default:
 			resp, err := c.WsReadData()
@@ -94,7 +92,6 @@ func (c *CoinbasePro) WsHandleData() {
 				c.Websocket.DataHandler <- err
 				continue
 			}
-			log.Debugf("%v, %v", c.Name, msgType)
 
 			if msgType.Type == "subscriptions" || msgType.Type == "heartbeat" {
 				continue
