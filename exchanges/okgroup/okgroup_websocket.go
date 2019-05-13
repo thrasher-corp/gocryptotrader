@@ -190,14 +190,19 @@ func (o *OKGroup) WsConnect() error {
 		log.Debugf("Successful connection to %v", o.Websocket.GetWebsocketURL())
 	}
 
-	go o.WsHandleData()
-	go o.wsPingHandler()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go o.WsHandleData(&wg)
+	go o.wsPingHandler(&wg)
 
 	err = o.WsSubscribeToDefaults()
 	if err != nil {
 		return fmt.Errorf("error: Could not subscribe to the OKEX websocket %s",
 			err)
 	}
+
+	// Ensures that we start the routines and we dont race when shutdown occurs
+	wg.Wait()
 	return nil
 }
 
@@ -246,11 +251,13 @@ func (o *OKGroup) WsReadData() (exchange.WebsocketResponse, error) {
 }
 
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
-func (o *OKGroup) wsPingHandler() {
+func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer o.Websocket.Wg.Done()
 
 	ticker := time.NewTicker(time.Second * 27)
+
+	wg.Done()
 
 	for {
 		select {
@@ -271,7 +278,7 @@ func (o *OKGroup) wsPingHandler() {
 }
 
 // WsHandleData handles the read data from the websocket connection
-func (o *OKGroup) WsHandleData() {
+func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer func() {
 		err := o.WebsocketConn.Close()
@@ -281,6 +288,8 @@ func (o *OKGroup) WsHandleData() {
 		}
 		o.Websocket.Wg.Done()
 	}()
+
+	wg.Done()
 
 	for {
 		select {

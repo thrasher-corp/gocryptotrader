@@ -134,9 +134,12 @@ func main() {
 	}
 
 	// Sets up internet connectivity monitor
-	bot.connectivity = connchecker.New(bot.config.ConnectionMonitor.DNSList,
+	bot.connectivity, err = connchecker.New(bot.config.ConnectionMonitor.DNSList,
 		bot.config.ConnectionMonitor.PublicDomainList,
 		bot.config.ConnectionMonitor.CheckInterval)
+	if err != nil {
+		log.Fatalf("Connectivity checker failure: %s", err)
+	}
 
 	AdjustGoMaxProcs()
 	log.Debugf("Bot '%s' started.\n", bot.config.Name)

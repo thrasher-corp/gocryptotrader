@@ -43,7 +43,7 @@ const (
 // Constants here hold some messages
 const (
 	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
-	ErrExchangeAvailablePairsEmpty             = "exchange %s avaiable pairs is emtpy"
+	ErrExchangeAvailablePairsEmpty             = "exchange %s avaiable pairs is empty"
 	ErrExchangeEnabledPairsEmpty               = "exchange %s enabled pairs is empty"
 	ErrExchangeBaseCurrenciesEmpty             = "exchange %s base currencies is empty"
 	ErrExchangeNotFound                        = "exchange %s not found"
@@ -1219,20 +1219,19 @@ func GetFilePath(file string) (string, error) {
 		_, err := os.Stat(oldDirs[x])
 		if os.IsNotExist(err) {
 			continue
-		} else {
-			if filepath.Ext(oldDirs[x]) == ".json" {
-				err = os.Rename(oldDirs[x], newDirs[0])
-				if err != nil {
-					return "", err
-				}
-				log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[0])
-			} else {
-				err = os.Rename(oldDirs[x], newDirs[1])
-				if err != nil {
-					return "", err
-				}
-				log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[1])
+		}
+		if filepath.Ext(oldDirs[x]) == ".json" {
+			err = os.Rename(oldDirs[x], newDirs[0])
+			if err != nil {
+				return "", err
 			}
+			log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[0])
+		} else {
+			err = os.Rename(oldDirs[x], newDirs[1])
+			if err != nil {
+				return "", err
+			}
+			log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[1])
 		}
 	}
 
