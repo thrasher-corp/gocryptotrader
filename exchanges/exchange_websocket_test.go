@@ -333,9 +333,11 @@ func TestFunctionality(t *testing.T) {
 }
 
 
+// placeholderSubscriber basic function to test subscriptions
 func placeholderSubscriber (channelToSubscribe WebsocketChannelSubscription) error {
 	return nil
 }
+// TestSubscribe logic test
 func TestSubscribe(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{
@@ -352,6 +354,7 @@ func TestSubscribe(t *testing.T) {
 	}
 }
 
+// TestUnsubscribe logic test
 func TestUnsubscribe(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{},
@@ -368,6 +371,7 @@ func TestUnsubscribe(t *testing.T) {
 	}
 }
 
+// TestSubscriptionWithExistingEntry logic test
 func TestSubscriptionWithExistingEntry(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{
@@ -388,6 +392,7 @@ func TestSubscriptionWithExistingEntry(t *testing.T) {
 	}
 }
 
+// TestUnsubscriptionWithExistingEntry logic test
 func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 	w := Websocket{
 		ChannelsToSubscribe: []WebsocketChannelSubscription{
@@ -408,6 +413,7 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 	}
 }
 
+// TestManageSubscriptionsWithoutFunctionality logic test
 func TestManageSubscriptionsWithoutFunctionality(t *testing.T) {
 	w := Websocket{
 		ShutdownC: make(chan struct{}, 1),
@@ -418,6 +424,7 @@ func TestManageSubscriptionsWithoutFunctionality(t *testing.T) {
 	}
 }
 
+// TestManageSubscriptionsStartStop logic test
 func TestManageSubscriptionsStartStop(t *testing.T) {
 	w := Websocket{
 		ShutdownC: make(chan struct{}, 1),
@@ -429,6 +436,7 @@ func TestManageSubscriptionsStartStop(t *testing.T) {
 }
 
 
+// TestWsConnectionMonitorNoConnection logic test
 func TestWsConnectionMonitorNoConnection(t *testing.T) {
 	w := Websocket{}
 	w.DataHandler = make(chan interface{}, 1)
@@ -443,6 +451,7 @@ func TestWsConnectionMonitorNoConnection(t *testing.T) {
 }
 
 
+// TestWsNoConnectionTolerance logic test
 func TestWsNoConnectionTolerance(t *testing.T) {
 	w := Websocket{}
 	w.DataHandler = make(chan interface{}, 1)
@@ -455,6 +464,7 @@ func TestWsNoConnectionTolerance(t *testing.T) {
 	}
 }
 
+// TestConnecting logic test
 func TestConnecting(t *testing.T) {
 	w := Websocket{}
 	w.DataHandler = make(chan interface{}, 1)
@@ -468,6 +478,7 @@ func TestConnecting(t *testing.T) {
 	}
 }
 
+// TestReconnectionLimit logic test
 func TestReconnectionLimit(t *testing.T) {
 	w := Websocket{}
 	w.DataHandler = make(chan interface{}, 1)
@@ -482,6 +493,7 @@ func TestReconnectionLimit(t *testing.T) {
 	}
 }
 
+// TestRemoveChannelToSubscribe logic test
 func TestRemoveChannelToSubscribe (t *testing.T) {
 	subscription := WebsocketChannelSubscription{
 		Channel: "hello", 
@@ -498,6 +510,7 @@ func TestRemoveChannelToSubscribe (t *testing.T) {
 	} 
 }
 
+// TestRemoveChannelToSubscribeWithNoSubscription logic test
 func TestRemoveChannelToSubscribeWithNoSubscription (t *testing.T) {
 	subscription := WebsocketChannelSubscription{
 		Channel: "hello", 
@@ -514,6 +527,7 @@ func TestRemoveChannelToSubscribeWithNoSubscription (t *testing.T) {
 	}
 }
 
+// TestResubscribeToChannel logic test
 func TestResubscribeToChannel(t *testing.T) {
 	subscription := WebsocketChannelSubscription{
 		Channel: "hello", 
@@ -525,4 +539,32 @@ func TestResubscribeToChannel(t *testing.T) {
 	w.SetChannelUnsubscriber(placeholderSubscriber)
 	w.SetChannelSubscriber(placeholderSubscriber)
 	w.ResubscribeToChannel(subscription)
+}
+
+// TestSliceCopyDoesntImpactBoth logic test
+func TestSliceCopyDoesntImpactBoth(t *testing.T) {
+	w := Websocket{
+		ChannelsToSubscribe: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
+				Channel: "hello1",
+			},
+			WebsocketChannelSubscription{
+				Channel: "hello2",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{
+			WebsocketChannelSubscription{
+				Channel: "hello3",
+			},
+		},
+	}
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.unsubscribeToChannels()
+	if len(w.subscribedChannels) != 2 {
+		t.Errorf("Unsubscription did not occur")
+	}
+	w.subscribedChannels[0].Channel = "test"
+	if strings.EqualFold(w.subscribedChannels[0].Channel, w.ChannelsToSubscribe[0].Channel) {
+		t.Errorf("Slice has not been copies appropriately")
+	}
 }
