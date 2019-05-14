@@ -116,6 +116,7 @@ func (b *Bitmex) SetDefaults() {
 	b.Name = "Bitmex"
 	b.Enabled = false
 	b.Verbose = false
+	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
 		exchange.WithdrawCryptoWithEmail |
@@ -148,6 +149,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -850,14 +852,14 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 			if err != nil {
 				return err
 			}
-			err = b.SendPayload(http.MethodGet, encodedPath, nil, nil, &respCheck, false, false, b.Verbose, false)
+			err = b.SendPayload(http.MethodGet, encodedPath, nil, nil, &respCheck, false, false, b.Verbose, b.HTTPDebugging)
 			if err != nil {
 				return err
 			}
 			return b.CaptureError(respCheck, result)
 		}
 	}
-	err := b.SendPayload(http.MethodGet, path, nil, nil, &respCheck, false, false, b.Verbose, false)
+	err := b.SendPayload(http.MethodGet, path, nil, nil, &respCheck, false, false, b.Verbose, b.HTTPDebugging)
 	if err != nil {
 		return err
 	}
@@ -909,7 +911,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 		true,
 		false,
 		b.Verbose,
-		false)
+		b.HTTPDebugging)
 	if err != nil {
 		return err
 	}

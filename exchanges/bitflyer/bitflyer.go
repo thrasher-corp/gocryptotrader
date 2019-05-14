@@ -81,6 +81,7 @@ func (b *Bitflyer) SetDefaults() {
 	b.Name = "Bitflyer"
 	b.Enabled = false
 	b.Verbose = false
+	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
 		exchange.AutoWithdrawFiat
@@ -114,6 +115,7 @@ func (b *Bitflyer) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -378,8 +380,7 @@ func (b *Bitflyer) GetTradingCommission() {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose,
-false)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request

@@ -70,6 +70,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.Name = "Bitstamp"
 	b.Enabled = false
 	b.Verbose = false
+	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.AutoWithdrawFiat
@@ -103,6 +104,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -687,7 +689,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		Error string `json:"error"`
 	}{}
 
-	err := b.SendPayload(http.MethodPost, path, headers, readerValues, &interim, true, true, b.Verbose, false)
+	err := b.SendPayload(http.MethodPost, path, headers, readerValues, &interim, true, true, b.Verbose, b.HTTPDebugging)
 	if err != nil {
 		return err
 	}

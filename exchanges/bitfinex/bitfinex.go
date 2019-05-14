@@ -94,6 +94,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = false
 	b.Verbose = false
+	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
@@ -129,6 +130,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -1001,7 +1003,7 @@ func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(path string, result interface{}, verbose bool) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, verbose, false)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, verbose, b.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
@@ -1047,7 +1049,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		true,
 		true,
 		b.Verbose,
-		false)
+		b.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

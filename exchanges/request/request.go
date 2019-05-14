@@ -461,15 +461,16 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	jobResult := make(chan *JobResult)
 
 	newJob := Job{
-		Request:     req,
-		Method:      method,
-		Path:        path,
-		Headers:     headers,
-		Body:        body,
-		Result:      result,
-		JobResult:   jobResult,
-		AuthRequest: authRequest,
-		Verbose:     verbose,
+		Request:       req,
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		JobResult:     jobResult,
+		AuthRequest:   authRequest,
+		Verbose:       verbose,
+		HTTPDebugging: httpDebugging,
 	}
 
 	if verbose {

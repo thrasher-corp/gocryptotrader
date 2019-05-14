@@ -64,6 +64,7 @@ func (b *Bithumb) SetDefaults() {
 	b.Name = "Bithumb"
 	b.Enabled = false
 	b.Verbose = false
+	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.AutoWithdrawFiat
@@ -96,6 +97,7 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -543,8 +545,7 @@ func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, e
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bithumb) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose,
-		false)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
@@ -588,7 +589,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		true,
 		true,
 		b.Verbose,
-		false)
+		b.HTTPDebugging)
 	if err != nil {
 		return err
 	}

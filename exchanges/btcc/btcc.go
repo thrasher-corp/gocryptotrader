@@ -32,6 +32,7 @@ func (b *BTCC) SetDefaults() {
 	b.Enabled = false
 	b.Fee = 0
 	b.Verbose = false
+	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
 	b.RequestCurrencyPairFormat.Delimiter = ""
@@ -60,6 +61,7 @@ func (b *BTCC) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
