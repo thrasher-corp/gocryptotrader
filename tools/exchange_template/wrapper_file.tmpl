@@ -188,18 +188,14 @@ func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuil
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		{{.Variable}}.Websocket.ChannelsToSubscribe = append({{.Variable}}.Websocket.ChannelsToSubscribe, channels[i])
-	}
+	{{.Variable}}.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		{{.Variable}}.Websocket.RemoveChannelToSubscribe(channels[i])
-	}
+	{{.Variable}}.Websocket.UnubscribeToChannels(channels)
 	return nil
 }
 

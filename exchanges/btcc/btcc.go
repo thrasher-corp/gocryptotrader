@@ -1,6 +1,7 @@
 package btcc
 
 import (
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -24,6 +25,7 @@ const (
 type BTCC struct {
 	exchange.Base
 	Conn *websocket.Conn
+	mu   sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

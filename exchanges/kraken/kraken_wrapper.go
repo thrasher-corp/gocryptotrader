@@ -400,17 +400,13 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (k *Kraken) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		k.Websocket.ChannelsToSubscribe = append(k.Websocket.ChannelsToSubscribe, channels[i])
-	}
+	k.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (k *Kraken) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		k.Websocket.RemoveChannelToSubscribe(channels[i])
-	}
+	k.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }

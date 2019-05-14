@@ -58,17 +58,19 @@ func (b *Bitfinex) WsPingHandler() error {
 	req := make(map[string]string)
 	req["event"] = "ping"
 
-	return b.WsSend(req)
+	return b.wsSend(req)
 }
 
 // WsSend sends data to the websocket server
-func (b *Bitfinex) WsSend(data interface{}) error {
+func (b *Bitfinex) wsSend(data interface{}) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf("Sending message to websocket %v", data)
+		log.Debugf("%v sending message to websocket %v",  b.Name, data)
 	}
 	// Basic rate limiter
 	time.Sleep(bitfinexWebsocketRateLimit)
@@ -90,7 +92,7 @@ func (b *Bitfinex) WsSendAuth() error {
 
 	req["authPayload"] = payload
 
-	return b.WsSend(req)
+	return b.wsSend(req)
 }
 
 // WsSendUnauth sends an unauthenticated payload
@@ -98,7 +100,7 @@ func (b *Bitfinex) WsSendUnauth() error {
 	req := make(map[string]string)
 	req["event"] = "unauth"
 
-	return b.WsSend(req)
+	return b.wsSend(req)
 }
 
 // WsAddSubscriptionChannel adds a new subscription channel to the
@@ -136,12 +138,12 @@ func (b *Bitfinex) WsConnect() error {
 
 	b.WebsocketConn, _, err = Dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
 	if err != nil {
-		return fmt.Errorf("unable to connect to Websocket. Error: %s", err)
+		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", b.Name, err)
 	}
 
 	_, resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("unable to read from Websocket. Error: %s", err)
+		return fmt.Errorf("%v unable to read from Websocket. Error: %s",  b.Name, err)
 	}
 
 	var hs WebsocketHandshake
@@ -220,7 +222,7 @@ func (b *Bitfinex) WsDataHandler() {
 					eventData := result.(map[string]interface{})
 					event := eventData["event"]
 					if b.Verbose {
-						log.Debugf("Received message. Type '%v' Message: %v", event, eventData)
+						log.Debugf("%v Received message. Type '%v' Message: %v", b.Name,  event, eventData)
 					}
 					switch event {
 					case "subscribed":
@@ -607,19 +609,21 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{"book", "trades", "ticker"}
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range b.EnabledPairs {
 			params := make(map[string]interface{})
 			if channels[i] == "book" {
 				params["prec"] = "P0"
 			}
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: b.EnabledPairs[j],
 				Params:   params,
 			})
 		}
 	}
+	b.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -633,7 +637,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 			req[k] = v
 		}
 	}
-	return b.WsSend(req)
+	return b.wsSend(req)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -647,5 +651,5 @@ func (b *Bitfinex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 			req[k] = v
 		}
 	}
-	return b.WsSend(req)
+	return b.wsSend(req)
 }

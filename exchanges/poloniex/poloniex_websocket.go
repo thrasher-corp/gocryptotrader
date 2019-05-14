@@ -443,19 +443,21 @@ var CurrencyPairID = map[int]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() {
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	// Tickerdata is its own channel
-	p.Websocket.ChannelsToSubscribe = append(p.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 		Channel: fmt.Sprintf("%v", wsTickerDataID),
 	})
 
 	enabledCurrencies := p.GetEnabledCurrencies()
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = "_"
-		p.Websocket.ChannelsToSubscribe = append(p.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 			Channel:  "orderbook",
 			Currency: enabledCurrencies[j],
 		})
 	}
+	p.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -467,14 +469,8 @@ func (p *Poloniex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		subscriptionRequest.Channel = wsTickerDataID
 	} else {
 		subscriptionRequest.Channel = channelToSubscribe.Currency.String()
-
 	}
-	subscriptionJSON, err := common.JSONEncode(subscriptionRequest)
-	if err != nil {
-		return err
-	}
-	time.Sleep(poloniexWebsocketRateLimit)
-	return p.WebsocketConn.WriteMessage(websocket.TextMessage, subscriptionJSON)
+	return p.wsSend(subscriptionRequest)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -486,12 +482,22 @@ func (p *Poloniex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 		unsubscriptionRequest.Channel = wsTickerDataID
 	} else {
 		unsubscriptionRequest.Channel = channelToSubscribe.Currency.String()
-
 	}
-	unsubscriptionJSON, err := common.JSONEncode(unsubscriptionRequest)
+	return p.wsSend(unsubscriptionRequest)
+}
+
+// WsSend sends data to the websocket server
+func (p *Poloniex) wsSend(data interface{}) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
+	if p.Verbose {
+		log.Debugf("%v sending message to websocket %v", p.Name, data)
+	}
+	// Basic rate limiter
 	time.Sleep(poloniexWebsocketRateLimit)
-	return p.WebsocketConn.WriteMessage(websocket.TextMessage, unsubscriptionJSON)
+	return p.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

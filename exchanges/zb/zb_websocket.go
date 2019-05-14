@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -13,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -246,38 +246,46 @@ var wsErrCodes = map[int64]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	// Tickerdata is its own channel
-	z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
-		Channel: fmt.Sprintf("%v", "markets"),
+	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
 	enabledCurrencies := z.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			z.Websocket.ChannelsToSubscribe = append(z.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
-				Channel:  channels[i],
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
 				Currency: enabledCurrencies[j].Lower(),
 			})
 		}
 	}
+	z.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
 func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
-		Event: "addChannel",
+		Event:   "addChannel",
+		Channel: channelToSubscribe.Channel,
 	}
-	if strings.EqualFold("markets", channelToSubscribe.Channel) {
-		subscriptionRequest.Channel = "markets"
-	} else {
-		subscriptionRequest.Channel = fmt.Sprintf(channelToSubscribe.Channel, channelToSubscribe.Currency.String())
-	}
+	return z.wsSend(subscriptionRequest)
+}
 
-	subscriptionJSON, err := common.JSONEncode(subscriptionRequest)
+// WsSend sends data to the websocket server
+func (z *ZB) wsSend(data interface{}) error {
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
+	if z.Verbose {
+		log.Debugf("%v sending message to websocket %v", z.Name, data)
+	}
+	// Basic rate limiter
 	time.Sleep(zbWebsocketRateLimit)
-	return z.WebsocketConn.WriteMessage(websocket.TextMessage, subscriptionJSON)
+	return z.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

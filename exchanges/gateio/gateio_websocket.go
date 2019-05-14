@@ -70,7 +70,7 @@ func (g *Gateio) wsServerSignIn() error {
 		Method: "server.sign",
 		Params: []interface{}{g.APIKey, signature, nonce},
 	}
-	return g.WebsocketConn.WriteJSON(signinWsRequest)
+	return g.wsSend(signinWsRequest)
 }
 
 // WsReadData reads from the websocket connection and returns the websocket
@@ -351,6 +351,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 		channels = append(channels, "balance.subscribe", "order.subscribe")
 	}
 
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -361,13 +362,14 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 			} else if strings.EqualFold(channels[i], "kline.subscribe") {
 				params["interval"] = 1800
 			}
-			g.Websocket.ChannelsToSubscribe = append(g.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 				Params:   params,
 			})
 		}
 	}
+	g.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -387,13 +389,7 @@ func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		subscribe.ID = IDBalance
 	}
 
-	data, err := common.JSONEncode(subscribe)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(gateioWebsocketRateLimit)
-	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return g.wsSend(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -404,14 +400,7 @@ func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		Method: unsbuscribeText,
 		Params: []interface{}{channelToSubscribe.Currency.String(), 1800},
 	}
-
-	data, err := common.JSONEncode(subscribe)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(gateioWebsocketRateLimit)
-	return g.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return g.wsSend(subscribe)
 }
 
 func (g *Gateio) wsGetBalance() error {
@@ -420,7 +409,7 @@ func (g *Gateio) wsGetBalance() error {
 		Method: "balance.query",
 		Params: []interface{}{},
 	}
-	return g.WebsocketConn.WriteJSON(balanceWsRequest)
+	return g.wsSend(balanceWsRequest)
 }
 
 func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
@@ -433,5 +422,17 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
 			limit,
 		},
 	}
-	return g.WebsocketConn.WriteJSON(order)
+	return g.wsSend(order)
+}
+
+// WsSend sends data to the websocket server
+func (g *Gateio) wsSend(data interface{}) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Verbose {
+		log.Debugf("%v sending message to websocket %v", g.Name, data)
+	}
+	// Basic rate limiter
+	time.Sleep(gateioWebsocketRateLimit)
+	return g.WebsocketConn.WriteJSON(data)
 }

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -49,6 +50,7 @@ const (
 type Gateio struct {
 	WebsocketConn *websocket.Conn
 	exchange.Base
+	mu sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

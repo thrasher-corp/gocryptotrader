@@ -63,21 +63,21 @@ func (e *Base) WebsocketSetup(connector func() error,
 func (w *Websocket) Connect() error {
 	w.m.Lock()
 	defer w.m.Unlock()
-	w.Connecting = true
+
 	if !w.IsEnabled() {
 		return errors.New(WebsocketNotEnabled)
 	}
 
 	if w.connected {
-		w.Connecting = false
+		w.connecting = false
 		return errors.New("exchange_websocket.go error - already connected, cannot connect again")
 	}
 
+	w.connecting = true
 	w.ShutdownC = make(chan struct{}, 1)
-
 	err := w.connector()
 	if err != nil {
-		w.Connecting = false
+		w.connecting = false
 		return fmt.Errorf("exchange_websocket.go connection error %s",
 			err)
 	}
@@ -85,7 +85,7 @@ func (w *Websocket) Connect() error {
 	if !w.connected {
 		w.Connected <- struct{}{}
 		w.connected = true
-		w.Connecting = false
+		w.connecting = false
 	}
 
 	var anotherWG sync.WaitGroup
@@ -140,7 +140,7 @@ func (w *Websocket) checkConnection() error {
 			if w.verbose {
 				log.Debugf("%v resetting connection", w.exchangeName)
 			}
-			w.Connecting = true
+			w.connecting = true
 			go w.WebsocketReset()
 			w.noConnectionChecks = 0
 		}
@@ -173,7 +173,7 @@ func (w *Websocket) IsConnected() bool {
 func (w *Websocket) IsConnecting() bool {
 	w.m.Lock()
 	defer w.m.Unlock()
-	return w.Connecting
+	return w.connecting
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -722,42 +722,42 @@ func (w *Websocket) manageSubscriptions() error {
 	}
 }
 
-// subscribeToChannels compares ChannelsToSubscribe to subscribedChannels
+// subscribeToChannels compares channelsToSubscribe to subscribedChannels
 // and subscribes to any channels not present in subscribedChannels
 func (w *Websocket) subscribeToChannels() error {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
-	for i := 0; i < len(w.ChannelsToSubscribe); i++ {
+	for i := 0; i < len(w.channelsToSubscribe); i++ {
 		channelIsSubscribed := false
 		for j := 0; j < len(w.subscribedChannels); j++ {
-			if w.subscribedChannels[j].Equal(&w.ChannelsToSubscribe[i]) {
+			if w.subscribedChannels[j].Equal(&w.channelsToSubscribe[i]) {
 				channelIsSubscribed = true
 				break
 			}
 		}
 		if !channelIsSubscribed {
 			if w.verbose {
-				log.Debugf("%v Subscribing to %v %v", w.exchangeName, w.ChannelsToSubscribe[i].Channel, w.ChannelsToSubscribe[i].Currency.String())
+				log.Debugf("%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
 			}
-			err := w.channelSubscriber(w.ChannelsToSubscribe[i])
+			err := w.channelSubscriber(w.channelsToSubscribe[i])
 			if err != nil {
 				return err
 			}
-			w.subscribedChannels = append(w.subscribedChannels, w.ChannelsToSubscribe[i])
+			w.subscribedChannels = append(w.subscribedChannels, w.channelsToSubscribe[i])
 		}
 	}
 	return nil
 }
 
-// unsubscribeToChannels compares subscribedChannels to ChannelsToSubscribe
-// and unsubscribes to any channels not present in  ChannelsToSubscribe
+// unsubscribeToChannels compares subscribedChannels to channelsToSubscribe
+// and unsubscribes to any channels not present in  channelsToSubscribe
 func (w *Websocket) unsubscribeToChannels() error {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
 	for i := 0; i < len(w.subscribedChannels); i++ {
 		subscriptionFound := false
-		for j := 0; j < len(w.ChannelsToSubscribe); j++ {
-			if w.ChannelsToSubscribe[j].Equal(&w.subscribedChannels[i]) {
+		for j := 0; j < len(w.channelsToSubscribe); j++ {
+			if w.channelsToSubscribe[j].Equal(&w.subscribedChannels[i]) {
 				subscriptionFound = true
 				break
 			}
@@ -770,27 +770,27 @@ func (w *Websocket) unsubscribeToChannels() error {
 		}
 	}
 	// Now that the slices should match, assign rather than looping and appending the differences
-	w.subscribedChannels = append(w.ChannelsToSubscribe[:0:0], w.ChannelsToSubscribe...) //nolint:gocritic
+	w.subscribedChannels = append(w.channelsToSubscribe[:0:0], w.channelsToSubscribe...) //nolint:gocritic
 
 	return nil
 }
 
-// RemoveChannelToSubscribe removes an entry from w.ChannelsToSubscribe
+// removeChannelToSubscribe removes an entry from w.channelsToSubscribe
 // so an unsubscribe event can be triggered
-func (w *Websocket) RemoveChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
+func (w *Websocket) removeChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
-	channelLength := len(w.ChannelsToSubscribe)
+	channelLength := len(w.channelsToSubscribe)
 	i := 0
-	for j := 0; j < len(w.ChannelsToSubscribe); j++ {
-		if !w.ChannelsToSubscribe[j].Equal(&subscribedChannel) {
-			w.ChannelsToSubscribe[i] = w.ChannelsToSubscribe[j]
+	for j := 0; j < len(w.channelsToSubscribe); j++ {
+		if !w.channelsToSubscribe[j].Equal(&subscribedChannel) {
+			w.channelsToSubscribe[i] = w.channelsToSubscribe[j]
 			i++
 		}
 	}
-	w.ChannelsToSubscribe = w.ChannelsToSubscribe[:i]
-	if channelLength == len(w.ChannelsToSubscribe) {
-		w.DataHandler <- fmt.Errorf("%v RemoveChannelToSubscribe() Channel %v Currency %v could not be removed because it was not found",
+	w.channelsToSubscribe = w.channelsToSubscribe[:i]
+	if channelLength == len(w.channelsToSubscribe) {
+		w.DataHandler <- fmt.Errorf("%v removeChannelToSubscribe() Channel %v Currency %v could not be removed because it was not found",
 			w.exchangeName,
 			subscribedChannel.Channel,
 			subscribedChannel.Currency)
@@ -816,6 +816,20 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 		}
 	}
 	w.subscribedChannels = w.subscribedChannels[:i]
+}
+
+// SubscribeToChannels appends supplied channels to channelsToSubscribe
+func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription) {
+	for i := range channels {
+		w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
+	}
+} 
+
+// UnsubscribeToChannels removes supplied channels from channelsToSubscribe
+func (w *Websocket) UnsubscribeToChannels(channels []WebsocketChannelSubscription) {
+	for i := range channels {
+		w.removeChannelToSubscribe(channels[i])
+	}
 }
 
 // Equal two WebsocketChannelSubscription to determine equality

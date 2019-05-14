@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -63,6 +64,7 @@ const (
 type HUOBIHADAX struct {
 	WebsocketConn *websocket.Conn
 	exchange.Base
+	mu sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

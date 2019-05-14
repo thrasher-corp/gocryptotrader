@@ -679,15 +679,17 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (o *OKGroup) GenerateDefaultSubscriptions() {
 	enabledCurrencies := o.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
-			o.Websocket.ChannelsToSubscribe = append(o.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
 		}
 	}
+	o.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel

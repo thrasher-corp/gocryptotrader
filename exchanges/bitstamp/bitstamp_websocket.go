@@ -118,24 +118,36 @@ func (b *Bitstamp) WsConnect() error {
 func (b *Bitstamp) GenerateDefaultSubscriptions() {
 	var channels = []string{"live_trades_", "diff_order_book_"}
 	enabledCurrencies := b.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range enabledCurrencies {
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j].String()),
 				Currency: enabledCurrencies[j],
 			})
 		}
 	}
+	b.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, channelToSubscribe)
+	}
 	time.Sleep(bitstampWebsocketRateLimit)
 	return b.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, channelToSubscribe)
+	}
 	time.Sleep(bitstampWebsocketRateLimit)
 	return b.WebsocketConn.Client.Unsubscribe(channelToSubscribe.Channel)
 }

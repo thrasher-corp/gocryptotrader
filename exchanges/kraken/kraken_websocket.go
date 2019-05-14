@@ -755,15 +755,17 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interf
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateDefaultSubscriptions() {
 	enabledCurrencies := k.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "/"
-			k.Websocket.ChannelsToSubscribe = append(k.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
 		}
 	}
+	k.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel

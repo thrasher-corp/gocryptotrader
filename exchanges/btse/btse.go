@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -22,6 +23,7 @@ import (
 type BTSE struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	mu sync.Mutex
 }
 
 const (

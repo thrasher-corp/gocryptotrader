@@ -433,17 +433,13 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (o *OKGroup) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		o.Websocket.ChannelsToSubscribe = append(o.Websocket.ChannelsToSubscribe, channels[i])
-	}
+	o.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		o.Websocket.RemoveChannelToSubscribe(channels[i])
-	}
+	o.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }

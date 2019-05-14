@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -245,16 +246,18 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() {
 	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	enabledCurrencies := h.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
 		}
 	}
+	h.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -279,13 +282,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		}
 	}
 
-	data, err := common.JSONEncode(subscribe)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(hitbtcWebsocketRateLimit)
-	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return h.wsSend(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -311,11 +308,21 @@ func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		}
 	}
 
-	data, err := common.JSONEncode(subscribe)
+	return h.wsSend(subscribe)
+}
+
+// WsSend sends data to the websocket server
+func (h *HitBTC) wsSend(data interface{}) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
-
+	if h.Verbose {
+		log.Debugf("%v sending message to websocket %v", h.Name, data)
+	}
+	// Basic rate limiter
 	time.Sleep(hitbtcWebsocketRateLimit)
-	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

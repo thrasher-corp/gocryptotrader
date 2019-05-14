@@ -227,16 +227,18 @@ func (h *HUOBI) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 func (h *HUOBI) GenerateDefaultSubscriptions() {
 	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
 	enabledCurrencies := h.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
 			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String())
-			h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channel,
 				Currency: enabledCurrencies[j],
 			})
 		}
 	}
+	h.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -249,8 +251,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscripti
 	if err != nil {
 		return err
 	}
-	time.Sleep(huobiWebsocketRateLimit)
-	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
+	return h.wsSend(subscription)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -259,6 +260,17 @@ func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 	if err != nil {
 		return err
 	}
+	return h.wsSend(subscription)
+}
+
+// WsSend sends data to the websocket server
+func (h *HUOBI) wsSend(data []byte) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.Verbose {
+		log.Debugf("%v sending message to websocket %v", h.Name, data)
+	}
+	// Basic rate limiter
 	time.Sleep(huobiWebsocketRateLimit)
-	return h.WebsocketConn.WriteMessage(websocket.TextMessage, subscription)
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

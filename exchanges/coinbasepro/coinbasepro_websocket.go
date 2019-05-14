@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -243,15 +244,17 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	var channels = []string{"heartbeat", "level2", "ticker"}
 	enabledCurrencies := c.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
-			c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
 		}
 	}
+	c.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -267,13 +270,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 			},
 		},
 	}
-	data, err := common.JSONEncode(subscribe)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(coinbaseproWebsocketRateLimit)
-	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return c.wsSend(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -289,11 +286,21 @@ func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSu
 			},
 		},
 	}
-	data, err := common.JSONEncode(subscribe)
+	return c.wsSend(subscribe)
+}
+
+// WsSend sends data to the websocket server
+func (c *CoinbasePro) wsSend(data interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.Verbose {
+		log.Debugf("%v sending message to websocket %v", c.Name, data)
+	}
+	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
-
+	// Basic rate limiter
 	time.Sleep(coinbaseproWebsocketRateLimit)
-	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

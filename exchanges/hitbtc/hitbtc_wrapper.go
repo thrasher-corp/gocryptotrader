@@ -384,17 +384,13 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (h *HitBTC) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		h.Websocket.ChannelsToSubscribe = append(h.Websocket.ChannelsToSubscribe, channels[i])
-	}
+	h.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (h *HitBTC) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		h.Websocket.RemoveChannelToSubscribe(channels[i])
-	}
+	h.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }

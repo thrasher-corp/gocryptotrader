@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const coinutWebsocketURL = "wss://wsapi.coinut.com"
@@ -237,7 +238,7 @@ func (c *COINUT) WsSetInstrumentList() error {
 		return err
 	}
 
-	err = c.WebsocketConn.WriteMessage(websocket.TextMessage, req)
+	err = c.wsSend(req)
 	if err != nil {
 		return err
 	}
@@ -320,15 +321,17 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() {
 	var channels = []string{"inst_tick", "inst_order_book"}
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	enabledCurrencies := c.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			c.Websocket.ChannelsToSubscribe = append(c.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
 		}
 	}
+	c.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -339,14 +342,7 @@ func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		Subscribe: true,
 		Nonce:     c.GetNonce(),
 	}
-
-	data, err := common.JSONEncode(subscribe)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(coinutWebsocketRateLimit)
-	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return c.wsSend(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -357,12 +353,21 @@ func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 		Subscribe: false,
 		Nonce:     c.GetNonce(),
 	}
+	return c.wsSend(subscribe)
+}
 
-	data, err := common.JSONEncode(subscribe)
+// WsSend sends data to the websocket server
+func (c *COINUT) wsSend(data interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.Verbose {
+		log.Debugf("%v sending message to websocket %v", c.Name, data)
+	}
+	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
-
+	// Basic rate limiter
 	time.Sleep(coinutWebsocketRateLimit)
-	return c.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

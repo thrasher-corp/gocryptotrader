@@ -214,14 +214,16 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 func (b *BTSE) GenerateDefaultSubscriptions() {
 	var channels = []string{"snapshot", "ticker"}
 	enabledCurrencies := b.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range enabledCurrencies {
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
 		}
 	}
+	b.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -235,13 +237,7 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 			},
 		},
 	}
-
-	data, err := common.JSONEncode(subscribe)
-	if err != nil {
-		return err
-	}
-	time.Sleep(btseWebsocketRateLimit)
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return b.wsSend(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -255,11 +251,21 @@ func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 			},
 		},
 	}
+	return b.wsSend(subscribe)
+}
 
-	data, err := common.JSONEncode(subscribe)
+// WsSend sends data to the websocket server
+func (b *BTSE) wsSend(data interface{}) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, data)
+	}
+	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
+	// Basic rate limiter
 	time.Sleep(btseWebsocketRateLimit)
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

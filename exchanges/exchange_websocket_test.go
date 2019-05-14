@@ -340,7 +340,7 @@ func placeholderSubscriber(channelToSubscribe WebsocketChannelSubscription) erro
 // TestSubscribe logic test
 func TestSubscribe(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []WebsocketChannelSubscription{
+		channelsToSubscribe: []WebsocketChannelSubscription{
 			{
 				Channel: "hello",
 			},
@@ -357,7 +357,7 @@ func TestSubscribe(t *testing.T) {
 // TestUnsubscribe logic test
 func TestUnsubscribe(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []WebsocketChannelSubscription{},
+		channelsToSubscribe: []WebsocketChannelSubscription{},
 		subscribedChannels: []WebsocketChannelSubscription{
 			{
 				Channel: "hello",
@@ -374,7 +374,7 @@ func TestUnsubscribe(t *testing.T) {
 // TestSubscriptionWithExistingEntry logic test
 func TestSubscriptionWithExistingEntry(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []WebsocketChannelSubscription{
+		channelsToSubscribe: []WebsocketChannelSubscription{
 			{
 				Channel: "hello",
 			},
@@ -395,7 +395,7 @@ func TestSubscriptionWithExistingEntry(t *testing.T) {
 // TestUnsubscriptionWithExistingEntry logic test
 func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []WebsocketChannelSubscription{
+		channelsToSubscribe: []WebsocketChannelSubscription{
 			{
 				Channel: "hello",
 			},
@@ -468,7 +468,7 @@ func TestConnecting(t *testing.T) {
 	w.DataHandler = make(chan interface{}, 1)
 	w.ShutdownC = make(chan struct{}, 1)
 	w.enabled = true
-	w.Connecting = true
+	w.connecting = true
 	w.reconnectionLimit = 500
 	w.checkConnection()
 	if w.reconnectionChecks != 1 {
@@ -482,7 +482,7 @@ func TestReconnectionLimit(t *testing.T) {
 	w.DataHandler = make(chan interface{}, 1)
 	w.ShutdownC = make(chan struct{}, 1)
 	w.enabled = true
-	w.Connecting = true
+	w.connecting = true
 	w.reconnectionChecks = 99
 	w.reconnectionLimit = 1
 	err := w.checkConnection()
@@ -497,12 +497,12 @@ func TestRemoveChannelToSubscribe(t *testing.T) {
 		Channel: "hello",
 	}
 	w := Websocket{
-		ChannelsToSubscribe: []WebsocketChannelSubscription{
+		channelsToSubscribe: []WebsocketChannelSubscription{
 			subscription,
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	w.RemoveChannelToSubscribe(subscription)
+	w.removeChannelToSubscribe(subscription)
 	if len(w.subscribedChannels) != 0 {
 		t.Errorf("Unsubscription did not occur")
 	}
@@ -514,11 +514,11 @@ func TestRemoveChannelToSubscribeWithNoSubscription(t *testing.T) {
 		Channel: "hello",
 	}
 	w := Websocket{
-		ChannelsToSubscribe: []WebsocketChannelSubscription{},
+		channelsToSubscribe: []WebsocketChannelSubscription{},
 	}
 	w.DataHandler = make(chan interface{}, 1)
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	go w.RemoveChannelToSubscribe(subscription)
+	go w.removeChannelToSubscribe(subscription)
 	err := <-w.DataHandler
 	if !strings.Contains(err.(error).Error(), "could not be removed because it was not found") {
 		t.Error("Expected not found error")
@@ -531,7 +531,7 @@ func TestResubscribeToChannel(t *testing.T) {
 		Channel: "hello",
 	}
 	w := Websocket{
-		ChannelsToSubscribe: []WebsocketChannelSubscription{},
+		channelsToSubscribe: []WebsocketChannelSubscription{},
 	}
 	w.DataHandler = make(chan interface{}, 1)
 	w.SetChannelUnsubscriber(placeholderSubscriber)
@@ -542,7 +542,7 @@ func TestResubscribeToChannel(t *testing.T) {
 // TestSliceCopyDoesntImpactBoth logic test
 func TestSliceCopyDoesntImpactBoth(t *testing.T) {
 	w := Websocket{
-		ChannelsToSubscribe: []WebsocketChannelSubscription{
+		channelsToSubscribe: []WebsocketChannelSubscription{
 			{
 				Channel: "hello1",
 			},
@@ -562,7 +562,7 @@ func TestSliceCopyDoesntImpactBoth(t *testing.T) {
 		t.Errorf("Unsubscription did not occur")
 	}
 	w.subscribedChannels[0].Channel = "test"
-	if strings.EqualFold(w.subscribedChannels[0].Channel, w.ChannelsToSubscribe[0].Channel) {
+	if strings.EqualFold(w.subscribedChannels[0].Channel, w.channelsToSubscribe[0].Channel) {
 		t.Errorf("Slice has not been copies appropriately")
 	}
 }

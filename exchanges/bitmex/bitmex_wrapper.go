@@ -400,17 +400,13 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (b *Bitmex) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, channels[i])
-	}
+	b.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (b *Bitmex) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	for i := range channels {
-		b.Websocket.RemoveChannelToSubscribe(channels[i])
-	}
+	b.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }

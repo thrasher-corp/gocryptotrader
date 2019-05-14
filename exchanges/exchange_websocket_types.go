@@ -55,7 +55,7 @@ type Websocket struct {
 	enabled                bool
 	init                   bool
 	connected              bool
-	Connecting             bool
+	connecting             bool
 	verbose                bool
 	connector              func() error
 	m                      sync.Mutex
@@ -66,7 +66,7 @@ type Websocket struct {
 	noConnectionCheckLimit int
 	// Subscriptions stuff
 	subscribedChannels  []WebsocketChannelSubscription
-	ChannelsToSubscribe []WebsocketChannelSubscription
+	channelsToSubscribe []WebsocketChannelSubscription
 	channelSubscriber   func(channelToSubscribe WebsocketChannelSubscription) error
 	channelUnsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error
 	// Connected denotes a channel switch for diversion of request flow

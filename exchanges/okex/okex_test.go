@@ -2,7 +2,6 @@ package okex
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -1583,7 +1582,7 @@ func TestWsLogin(t *testing.T) {
 	if !websocketEnabled {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !o.Websocket.Connecting || !o.Websocket.IsConnected() {
+	if !o.Websocket.IsConnecting() || !o.Websocket.IsConnected() {
 		o.Websocket.Connect()
 	}
 	err := o.WsLogin()
@@ -1600,67 +1599,6 @@ func TestWsLogin(t *testing.T) {
 	}
 	if errorReceived {
 		t.Error("Expecting no errors")
-	}
-}
-
-// TestSubscribeToChannel API endpoint test
-func TestSubscribeToChannel(t *testing.T) {
-	TestSetDefaults(t)
-	if !websocketEnabled {
-		t.Skip("Websocket not enabled, skipping")
-	}
-	if !o.Websocket.Connecting || !o.Websocket.IsConnected() {
-		o.Websocket.Connect()
-	}
-	subscription := exchange.WebsocketChannelSubscription{
-		Channel:  "spot/depth",
-		Currency: currency.NewPairDelimiter("LTC-BTC", "-"),
-	}
-	o.Websocket.ChannelsToSubscribe = append(o.Websocket.ChannelsToSubscribe, subscription)
-	var errorReceived bool
-	for i := 0; i < 5; i++ {
-		response := <-o.Websocket.DataHandler
-		if err, ok := response.(error); ok && err != nil {
-			t.Log(response)
-			if strings.Contains(response.(error).Error(), subscription.Channel) {
-				errorReceived = true
-			}
-		}
-	}
-
-	if errorReceived {
-		t.Error("Expecting subscription to channel")
-	}
-}
-
-// TestSubscribeToNonExistantChannel Logic test
-// Attempts to subscribe to a channel that doesn't exist
-// Then captures the error response
-func TestSubscribeToNonExistantChannel(t *testing.T) {
-	TestSetDefaults(t)
-	if !websocketEnabled {
-		t.Skip("Websocket not enabled, skipping")
-	}
-	if !o.Websocket.Connecting || !o.Websocket.IsConnected() {
-		o.Websocket.Connect()
-	}
-	subscription := exchange.WebsocketChannelSubscription{
-		Channel: "badChannel",
-	}
-	o.Websocket.ChannelsToSubscribe = append(o.Websocket.ChannelsToSubscribe, subscription)
-	var errorReceived bool
-	for i := 0; i < 7; i++ {
-		response := <-o.Websocket.DataHandler
-		if err, ok := response.(error); ok && err != nil {
-			t.Log(response)
-			if strings.Contains(response.(error).Error(), subscription.Channel) {
-				errorReceived = true
-			}
-		}
-	}
-
-	if !errorReceived {
-		t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 	}
 }
 

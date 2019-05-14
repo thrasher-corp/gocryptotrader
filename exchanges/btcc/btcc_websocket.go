@@ -472,7 +472,8 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTCC) GenerateDefaultSubscriptions() {
-	b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 		Channel: "SubscribeAllTickers",
 	})
 
@@ -486,13 +487,14 @@ func (b *BTCC) GenerateDefaultSubscriptions() {
 			} else if channels[i] == "GetTrades" {
 				params["count"] = "100"
 			}
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 				Params:   params,
 			})
 		}
 	}
+	b.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -507,8 +509,7 @@ func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 		subscription.Count = 100
 	}
 
-	time.Sleep(btccWebsocketRateLimit)
-	return b.Conn.WriteJSON(subscription)
+	return b.wsSend(subscription)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -525,6 +526,17 @@ func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 		subscription.Action = "UnSubscribeAllTickers"
 	}
 
+	return b.wsSend(subscription)
+}
+
+// WsSend sends data to the websocket server
+func (b *BTCC) wsSend(data interface{}) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, data)
+	}
+	// Basic rate limiter
 	time.Sleep(btccWebsocketRateLimit)
-	return b.Conn.WriteJSON(subscription)
+	return b.Conn.WriteJSON(data)
 }

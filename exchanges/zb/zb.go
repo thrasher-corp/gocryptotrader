@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -49,6 +50,7 @@ const (
 type ZB struct {
 	WebsocketConn *websocket.Conn
 	exchange.Base
+	mu sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

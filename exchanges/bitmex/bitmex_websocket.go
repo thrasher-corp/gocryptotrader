@@ -163,7 +163,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			if common.StringContains(message, "ping") {
-				err = b.WebsocketConn.WriteJSON("pong")
+				err = b.wsSend("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -397,16 +397,17 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
 	params := make(map[string]interface{})
 	params["args"] = bitmexWSAnnouncement
-
+	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range contracts {
-			b.Websocket.ChannelsToSubscribe = append(b.Websocket.ChannelsToSubscribe, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: contracts[j],
 				Params:   params,
 			})
 		}
 	}
+	b.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // Subscribe subscribes to a websocket channel
@@ -416,9 +417,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	subscriber.Arguments = append(subscriber.Arguments,
 		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
-	// Basic rate limiter
-	time.Sleep(bitmexWebsocketRateLimit)
-	return b.WebsocketConn.WriteJSON(subscriber)
+	return b.wsSend(subscriber)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -428,9 +427,7 @@ func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	subscriber.Arguments = append(subscriber.Arguments,
 		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
-	// Basic rate limiter
-	time.Sleep(bitmexWebsocketRateLimit)
-	return b.WebsocketConn.WriteJSON(subscriber)
+	return b.wsSend(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription
@@ -446,5 +443,17 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
 		signature)
-	return b.WebsocketConn.WriteJSON(sendAuth)
+	return b.wsSend(sendAuth)
+}
+
+// WsSend sends data to the websocket server
+func (b *Bitmex) wsSend(data interface{}) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v",  b.Name, data)
+	}
+	// Basic rate limiter
+	time.Sleep(bitmexWebsocketRateLimit)
+	return b.WebsocketConn.WriteJSON(data)
 }

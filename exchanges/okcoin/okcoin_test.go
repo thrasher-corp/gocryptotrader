@@ -73,7 +73,6 @@ func TestSetup(t *testing.T) {
 	o.Setup(&okcoinConfig)
 	testSetupRan = true
 	o.Websocket.DataHandler = make(chan interface{}, 999)
-
 }
 
 func areTestAPIKeysSet() bool {
@@ -823,7 +822,7 @@ func TestWsLogin(t *testing.T) {
 	if !websocketEnabled {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !o.Websocket.Connecting || !o.Websocket.IsConnected() {
+	if !o.Websocket.IsConnecting() || !o.Websocket.IsConnected() {
 		o.Websocket.Connect()
 	}
 	err := o.WsLogin()
@@ -848,7 +847,7 @@ func TestSubscribeToChannel(t *testing.T) {
 	if !websocketEnabled {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !o.Websocket.Connecting || !o.Websocket.IsConnected() {
+	if !o.Websocket.IsConnecting() || !o.Websocket.IsConnected() {
 		o.Websocket.Connect()
 	}
 	subscription := exchange.WebsocketChannelSubscription{
@@ -880,7 +879,7 @@ func TestSubscribeToNonExistantChannel(t *testing.T) {
 	if !websocketEnabled {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !o.Websocket.Connecting || !o.Websocket.IsConnected() {
+	if !o.Websocket.IsConnecting() || !o.Websocket.IsConnected() {
 		o.Websocket.Connect()
 	}
 	subscription := exchange.WebsocketChannelSubscription{

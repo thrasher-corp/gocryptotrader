@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -71,6 +72,7 @@ type Gemini struct {
 	exchange.Base
 	Role              string
 	RequiresHeartBeat bool
+	mu sync.Mutex
 }
 
 // AddSession adds a new session to the gemini base
