@@ -60,15 +60,21 @@ type JobResult struct {
 
 // Job holds a request job
 type Job struct {
-	Request     *http.Request
-	Method      string
-	Path        string
-	Headers     map[string]string
-	Body        io.Reader
-	Result      interface{}
-	JobResult   chan *JobResult
-	AuthRequest bool
-	Verbose     bool
+	Request       *http.Request
+	Method        string
+	Path          string
+	Headers       map[string]string
+	Body          io.Reader
+	Result        interface{}
+	JobResult     chan *JobResult
+	AuthRequest   bool
+	Verbose       bool
+	HTTPDumpDebug HTTPDumpDebuging
+}
+
+type HTTPDumpDebuging struct {
+	httpDumpResponse bool
+	httpDumpRequest  bool
 }
 
 // NewRateLimit creates a new RateLimit
@@ -263,7 +269,7 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 }
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose bool) error {
+func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose bool, httpDumpDebug HTTPDumpDebuging) error {
 	if verbose {
 		log.Debugf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
 		for k, d := range req.Header {
@@ -367,7 +373,7 @@ func (r *Requester) worker() {
 			if !r.IsRateLimited(x.AuthRequest) {
 				r.IncrementRequests(x.AuthRequest)
 
-				err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose)
+				err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDumpDebug)
 				x.JobResult <- &JobResult{
 					Error:  err,
 					Result: x.Result,
@@ -391,7 +397,7 @@ func (r *Requester) worker() {
 						log.Debugf("%s request. No longer rate limited! Doing request", r.Name)
 					}
 
-					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose)
+					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDumpDebug)
 					x.JobResult <- &JobResult{
 						Error:  err,
 						Result: x.Result,
@@ -404,7 +410,7 @@ func (r *Requester) worker() {
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose bool) error {
+func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose bool, httpDumpDebug HTTPDumpDebuging) error {
 	if !nonceEnabled {
 		r.lock()
 	}
@@ -439,7 +445,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 
 	if !r.RequiresRateLimiter() {
 		r.unlock()
-		return r.DoRequest(req, path, body, result, authRequest, verbose)
+		return r.DoRequest(req, path, body, result, authRequest, verbose, httpDumpDebug)
 	}
 
 	if len(r.Jobs) == maxRequestJobs {
