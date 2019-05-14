@@ -70,7 +70,7 @@ func (b *Bitfinex) wsSend(data interface{}) error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v",  b.Name, data)
+		log.Debugf("%v sending message to websocket %v", b.Name, data)
 	}
 	// Basic rate limiter
 	time.Sleep(bitfinexWebsocketRateLimit)
@@ -143,7 +143,7 @@ func (b *Bitfinex) WsConnect() error {
 
 	_, resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("%v unable to read from Websocket. Error: %s",  b.Name, err)
+		return fmt.Errorf("%v unable to read from Websocket. Error: %s", b.Name, err)
 	}
 
 	var hs WebsocketHandshake
@@ -222,7 +222,7 @@ func (b *Bitfinex) WsDataHandler() {
 					eventData := result.(map[string]interface{})
 					event := eventData["event"]
 					if b.Verbose {
-						log.Debugf("%v Received message. Type '%v' Message: %v", b.Name,  event, eventData)
+						log.Debugf("%v Received message. Type '%v' Message: %v", b.Name, event, eventData)
 					}
 					switch event {
 					case "subscribed":

@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -64,7 +64,7 @@ type Bitstamp struct {
 	exchange.Base
 	Balance       Balances
 	WebsocketConn WebsocketConn
-	mu sync.Mutex
+	mu            sync.Mutex
 }
 
 // SetDefaults sets default for Bitstamp

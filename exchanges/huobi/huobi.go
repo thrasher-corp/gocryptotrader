@@ -14,8 +14,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -69,7 +69,7 @@ type HUOBI struct {
 	exchange.Base
 	AccountID     string
 	WebsocketConn *websocket.Conn
-	mu sync.Mutex
+	mu            sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

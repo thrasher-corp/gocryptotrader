@@ -451,7 +451,7 @@ func (b *Bitmex) wsSend(data interface{}) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v",  b.Name, data)
+		log.Debugf("%v sending message to websocket %v", b.Name, data)
 	}
 	// Basic rate limiter
 	time.Sleep(bitmexWebsocketRateLimit)

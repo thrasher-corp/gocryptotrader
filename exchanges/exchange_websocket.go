@@ -823,7 +823,7 @@ func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription)
 	for i := range channels {
 		w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
 	}
-} 
+}
 
 // UnsubscribeToChannels removes supplied channels from channelsToSubscribe
 func (w *Websocket) UnsubscribeToChannels(channels []WebsocketChannelSubscription) {

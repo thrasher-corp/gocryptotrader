@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -88,7 +88,7 @@ type Bitfinex struct {
 	exchange.Base
 	WebsocketConn         *websocket.Conn
 	WebsocketSubdChannels map[int]WebsocketChanInfo
-	mu sync.Mutex
+	mu                    sync.Mutex
 }
 
 // SetDefaults sets the basic defaults for bitfinex

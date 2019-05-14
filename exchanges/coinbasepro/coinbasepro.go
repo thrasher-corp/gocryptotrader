@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -62,7 +62,7 @@ const (
 type CoinbasePro struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-	mu sync.Mutex
+	mu            sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

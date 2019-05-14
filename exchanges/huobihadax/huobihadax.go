@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
