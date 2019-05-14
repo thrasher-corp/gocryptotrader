@@ -69,12 +69,7 @@ type Job struct {
 	JobResult     chan *JobResult
 	AuthRequest   bool
 	Verbose       bool
-	HTTPDumpDebug HTTPDumpDebuging
-}
-
-type HTTPDumpDebuging struct {
-	httpDumpResponse bool
-	httpDumpRequest  bool
+	HTTPDebugging bool
 }
 
 // NewRateLimit creates a new RateLimit
@@ -269,7 +264,7 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 }
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose bool, httpDumpDebug HTTPDumpDebuging) error {
+func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose bool, httpDebug bool) error {
 	if verbose {
 		log.Debugf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
 		for k, d := range req.Header {
@@ -344,12 +339,13 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 			return err
 		}
 
-		dump, err := httputil.DumpResponse(resp, true)
-		if err != nil {
-			log.Errorf("DumpResponse failed with %v:", err)
+		if httpDebug {
+			dump, err := httputil.DumpResponse(resp, true)
+			if err != nil {
+				log.Errorf("DumpResponse failed with %v:", err)
+			}
+			log.Debugf("DumpResponse: %q", dump)
 		}
-
-		log.Debugf("DUMP: %q", dump)
 
 		resp.Body.Close()
 		if verbose {
@@ -373,7 +369,7 @@ func (r *Requester) worker() {
 			if !r.IsRateLimited(x.AuthRequest) {
 				r.IncrementRequests(x.AuthRequest)
 
-				err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDumpDebug)
+				err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDebugging)
 				x.JobResult <- &JobResult{
 					Error:  err,
 					Result: x.Result,
@@ -397,7 +393,7 @@ func (r *Requester) worker() {
 						log.Debugf("%s request. No longer rate limited! Doing request", r.Name)
 					}
 
-					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDumpDebug)
+					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDebugging)
 					x.JobResult <- &JobResult{
 						Error:  err,
 						Result: x.Result,
@@ -410,7 +406,7 @@ func (r *Requester) worker() {
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose bool, httpDumpDebug HTTPDumpDebuging) error {
+func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose bool, httpDebugging bool) error {
 	if !nonceEnabled {
 		r.lock()
 	}
@@ -436,16 +432,17 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		return err
 	}
 
-	dump, err := httputil.DumpRequestOut(req, true)
-	if err != nil {
-		log.Errorf("DumpRequest failed with %v:", err)
+	if httpDebugging {
+		dump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			log.Errorf("DumpRequest failed with %v:", err)
+		}
+		log.Debugf("DumpRequest: %q", dump)
 	}
-
-	log.Debugf("DUMP: %q", dump)
 
 	if !r.RequiresRateLimiter() {
 		r.unlock()
-		return r.DoRequest(req, path, body, result, authRequest, verbose, httpDumpDebug)
+		return r.DoRequest(req, path, body, result, authRequest, verbose, httpDebugging)
 	}
 
 	if len(r.Jobs) == maxRequestJobs {

@@ -158,8 +158,7 @@ type ExchangeConfig struct {
 	RESTPollingDelay          time.Duration             `json:"restPollingDelay"`
 	HTTPTimeout               time.Duration             `json:"httpTimeout"`
 	HTTPUserAgent             string                    `json:"httpUserAgent"`
-	HTTPDumpResponse          bool                      `json:"httpDumpResponse"`
-	HTTPDumpRequest           bool                      `json:"httpDumpRequest"`
+	HTTPDebugging             bool                      `json:"httpDebugging`
 	AuthenticatedAPISupport   bool                      `json:"authenticatedApiSupport"`
 	APIKey                    string                    `json:"apiKey"`
 	APISecret                 string                    `json:"apiSecret"`

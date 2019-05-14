@@ -865,7 +865,8 @@ func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
 		result,
 		false,
 		false,
-		p.Verbose)
+		p.Verbose,
+false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -898,7 +899,8 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 		result,
 		true,
 		true,
-		p.Verbose)
+		p.Verbose,
+false)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

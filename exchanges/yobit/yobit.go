@@ -337,7 +337,8 @@ func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
 		result,
 		false,
 		false,
-		y.Verbose)
+		y.Verbose,
+false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
@@ -380,7 +381,8 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 		result,
 		true,
 		true,
-		y.Verbose)
+		y.Verbose,
+false)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

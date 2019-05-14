@@ -850,14 +850,14 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 			if err != nil {
 				return err
 			}
-			err = b.SendPayload(http.MethodGet, encodedPath, nil, nil, &respCheck, false, false, b.Verbose)
+			err = b.SendPayload(http.MethodGet, encodedPath, nil, nil, &respCheck, false, false, b.Verbose, false)
 			if err != nil {
 				return err
 			}
 			return b.CaptureError(respCheck, result)
 		}
 	}
-	err := b.SendPayload(http.MethodGet, path, nil, nil, &respCheck, false, false, b.Verbose)
+	err := b.SendPayload(http.MethodGet, path, nil, nil, &respCheck, false, false, b.Verbose, false)
 	if err != nil {
 		return err
 	}
@@ -908,7 +908,8 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 		&respCheck,
 		true,
 		false,
-		b.Verbose)
+		b.Verbose,
+		false)
 	if err != nil {
 		return err
 	}

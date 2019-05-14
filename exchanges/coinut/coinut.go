@@ -371,7 +371,8 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		&rawMsg,
 		authenticated,
 		true,
-		c.Verbose)
+		c.Verbose,
+		false)
 	if err != nil {
 		return err
 	}

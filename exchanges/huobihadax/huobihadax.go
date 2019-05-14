@@ -826,7 +826,8 @@ func (h *HUOBIHADAX) CancelWithdraw(withdrawID int64) (int64, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBIHADAX) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose)
+	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose,
+false)
 }
 
 // SendAuthenticatedHTTPPostRequest sends authenticated requests to the HUOBI API
@@ -853,7 +854,8 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBody
 	signatureParams.Set("Signature", common.Base64Encode(hmac))
 	urlPath := common.EncodeURLValues(fmt.Sprintf("%s%s", h.APIUrl, endpoint),
 		signatureParams)
-	return h.SendPayload(method, urlPath, headers, bytes.NewBufferString(postBodyValues), result, true, false, h.Verbose)
+	return h.SendPayload(method, urlPath, headers, bytes.NewBufferString(postBodyValues), result, true, false, h.Verbose,
+false)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
@@ -879,7 +881,8 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPRequest(method, endpoint string, value
 
 	urlPath := common.EncodeURLValues(fmt.Sprintf("%s%s", h.APIUrl, endpoint),
 		values)
-	return h.SendPayload(method, urlPath, headers, bytes.NewBufferString(""), result, true, false, h.Verbose)
+	return h.SendPayload(method, urlPath, headers, bytes.NewBufferString(""), result, true, false, h.Verbose,
+false)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

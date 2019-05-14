@@ -343,7 +343,8 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
-	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose)
+	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose,
+		false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
@@ -403,7 +404,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		RequestID   string `json:"requestId"`
 	}{}
 
-	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, true, i.Verbose)
+	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, true, i.Verbose, false)
 	if err != nil {
 		return err
 	}

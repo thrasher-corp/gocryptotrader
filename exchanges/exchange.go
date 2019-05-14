@@ -271,6 +271,7 @@ type Base struct {
 	SupportsRESTTickerBatching                 bool
 	HTTPTimeout                                time.Duration
 	HTTPUserAgent                              string
+	HTTPDebugging                              bool
 	WebsocketURL                               string
 	APIUrl                                     string
 	APIUrlDefault                              string

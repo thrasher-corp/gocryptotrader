@@ -371,7 +371,8 @@ func (e *EXMO) GetWalletHistory(date int64) (WalletHistory, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *EXMO) SendHTTPRequest(path string, result interface{}) error {
-	return e.SendPayload(http.MethodGet, path, nil, nil, result, false, false, e.Verbose)
+	return e.SendPayload(http.MethodGet, path, nil, nil, result, false, false, e.Verbose,
+false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -410,7 +411,8 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 		result,
 		true,
 		true,
-		e.Verbose)
+		e.Verbose,
+false)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
