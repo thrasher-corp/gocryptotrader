@@ -156,7 +156,7 @@ func (o *OKGroup) writeToWebsocket(message string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.Verbose {
-		log.Debugf("Sending message to WS: %v", message)
+		log.Debugf("%v sending message to WS: %v", o.Name, message)
 	}
 	// Really basic WS rate limit
 	time.Sleep(okGroupWsRateLimit)
@@ -701,7 +701,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if o.Verbose {
-			log.Debugf("Subscribe error: %v", err)
+			log.Debugf("%v subscribe error: %v", o.Name, err)
 		}
 		return err
 	}
@@ -717,7 +717,7 @@ func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscr
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if o.Verbose {
-			log.Debugf("Subscribe error: %v", err)
+			log.Debugf("%v unsubscribe error: %v", o.Name, err)
 		}
 		return err
 	}
