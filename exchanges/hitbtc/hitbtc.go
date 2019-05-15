@@ -172,7 +172,7 @@ func (h *HitBTC) GetCurrency(currency string) (Currencies, error) {
 // pair indicates how much of the quote currency is needed to purchase one unit
 // of the base currency.
 func (h *HitBTC) GetSymbols(symbol string) ([]string, error) {
-	resp := []Symbol{}
+	var resp []Symbol
 	path := fmt.Sprintf("%s/%s/%s", h.APIUrl, apiV2Symbol, symbol)
 
 	ret := make([]string, 0, len(resp))
@@ -190,7 +190,7 @@ func (h *HitBTC) GetSymbols(symbol string) ([]string, error) {
 // GetSymbolsDetailed is the same as above but returns an array of symbols with
 // all their details.
 func (h *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
-	resp := []Symbol{}
+	var resp []Symbol
 	path := fmt.Sprintf("%s/%s", h.APIUrl, apiV2Symbol)
 
 	return resp, h.SendHTTPRequest(path, &resp)
@@ -198,7 +198,7 @@ func (h *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
 
 // GetTicker returns ticker information
 func (h *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
-	resp1 := []TickerResponse{}
+	var resp1 []TickerResponse
 	resp2 := TickerResponse{}
 	ret := make(map[string]TickerResponse)
 	result := make(map[string]Ticker)
@@ -292,7 +292,7 @@ func (h *HitBTC) GetTrades(currencyPair, from, till, limit, offset, by, sort str
 		vals.Set("sort", sort)
 	}
 
-	resp := []TradeHistory{}
+	var resp []TradeHistory
 	path := fmt.Sprintf("%s/%s/%s?%s", h.APIUrl, apiV2Trades, currencyPair, vals.Encode())
 
 	return resp, h.SendHTTPRequest(path, &resp)
@@ -337,7 +337,7 @@ func (h *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, er
 		vals.Set("period", period)
 	}
 
-	resp := []ChartData{}
+	var resp []ChartData
 	path := fmt.Sprintf("%s/%s/%s?%s", h.APIUrl, apiV2Candles, currencyPair, vals.Encode())
 
 	return resp, h.SendHTTPRequest(path, &resp)
@@ -348,7 +348,7 @@ func (h *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, er
 
 // GetBalances returns full balance for your account
 func (h *HitBTC) GetBalances() (map[string]Balance, error) {
-	result := []Balance{}
+	var result []Balance
 	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, apiV2Balance, url.Values{}, &result)
 	ret := make(map[string]Balance)
 
@@ -384,7 +384,7 @@ func (h *HitBTC) GenerateNewAddress(currency string) (DepositCryptoAddresses, er
 
 // GetActiveorders returns all your active orders
 func (h *HitBTC) GetActiveorders(currency string) ([]Order, error) {
-	resp := []Order{}
+	var resp []Order
 	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, orders+"?symbol="+currency, url.Values{}, &resp)
 
 	return resp, err

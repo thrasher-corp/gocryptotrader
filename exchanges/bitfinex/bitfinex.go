@@ -310,7 +310,7 @@ func (b *Bitfinex) GetTickersV2(symbols string) ([]Tickersv2, error) {
 
 // GetStats returns various statistics about the requested pair
 func (b *Bitfinex) GetStats(symbol string) ([]Stat, error) {
-	response := []Stat{}
+	var response []Stat
 	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexStats + symbol)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
@@ -402,7 +402,7 @@ func (b *Bitfinex) GetOrderbookV2(symbol, precision string, values url.Values) (
 // Values can contain limit amounts for the number of trades returned - Example
 // "limit_trades" = 1000
 func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStructure, error) {
-	response := []TradeStructure{}
+	var response []TradeStructure
 	path := common.EncodeURLValues(
 		b.APIUrl+bitfinexAPIVersion+bitfinexTrades+currencyPair,
 		values,
@@ -480,7 +480,7 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (Lendbook, erro
 // over time
 // Symbol - example "USD"
 func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
-	response := []Lends{}
+	var response []Lends
 	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexLends+symbol,
 		values)
 
@@ -489,7 +489,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 
 // GetSymbols returns the available currency pairs on the exchange
 func (b *Bitfinex) GetSymbols() ([]string, error) {
-	products := []string{}
+	var products []string
 	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexSymbols)
 
 	return products, b.SendHTTPRequest(path, &products, b.Verbose)
@@ -497,7 +497,7 @@ func (b *Bitfinex) GetSymbols() ([]string, error) {
 
 // GetSymbolsDetails a list of valid symbol IDs and the pair details
 func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
-	response := []SymbolDetails{}
+	var response []SymbolDetails
 	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexSymbolsDetails)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
@@ -560,7 +560,7 @@ func (b *Bitfinex) GetKeyPermissions() (KeyPermissions, error) {
 
 // GetMarginInfo shows your trading wallet information for margin trading
 func (b *Bitfinex) GetMarginInfo() ([]MarginInfo, error) {
-	response := []MarginInfo{}
+	var response []MarginInfo
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(http.MethodPost,
@@ -569,7 +569,7 @@ func (b *Bitfinex) GetMarginInfo() ([]MarginInfo, error) {
 
 // GetAccountBalance returns full wallet balance information
 func (b *Bitfinex) GetAccountBalance() ([]Balance, error) {
-	response := []Balance{}
+	var response []Balance
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(http.MethodPost,
@@ -582,7 +582,7 @@ func (b *Bitfinex) GetAccountBalance() ([]Balance, error) {
 // WalletFrom - example "exchange"
 // WalletTo -  example "deposit"
 func (b *Bitfinex) WalletTransfer(amount float64, currency, walletFrom, walletTo string) ([]WalletTransfer, error) {
-	response := []WalletTransfer{}
+	var response []WalletTransfer
 	req := make(map[string]interface{})
 	req["amount"] = amount
 	req["currency"] = currency
@@ -599,7 +599,7 @@ func (b *Bitfinex) WalletTransfer(amount float64, currency, walletFrom, walletTo
 // WithdrawCryptocurrency requests a withdrawal from one of your wallets.
 // For FIAT, use WithdrawFIAT
 func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, paymentID string, amount float64, c currency.Code) ([]Withdrawal, error) {
-	response := []Withdrawal{}
+	var response []Withdrawal
 	req := make(map[string]interface{})
 	req["withdraw_type"] = withdrawType
 	req["walletselected"] = wallet
@@ -618,7 +618,7 @@ func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, payment
 
 // WithdrawFIAT requests a withdrawal from a designated fiat wallet
 func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *exchange.WithdrawRequest) ([]Withdrawal, error) {
-	response := []Withdrawal{}
+	var response []Withdrawal
 	req := make(map[string]interface{})
 
 	req["withdraw_type"] = withdrawalType
@@ -787,7 +787,7 @@ func (b *Bitfinex) GetOpenOrders() ([]Order, error) {
 
 // GetActivePositions returns an array of active positions
 func (b *Bitfinex) GetActivePositions() ([]Position, error) {
-	response := []Position{}
+	var response []Position
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(http.MethodPost,
@@ -811,7 +811,7 @@ func (b *Bitfinex) ClaimPosition(positionID int) (Position, error) {
 
 // GetBalanceHistory returns balance history for the account
 func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince, timeUntil time.Time, limit int, wallet string) ([]BalanceHistory, error) {
-	response := []BalanceHistory{}
+	var response []BalanceHistory
 	req := make(map[string]interface{})
 	req["currency"] = symbol
 
@@ -837,7 +837,7 @@ func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince, timeUntil time.Ti
 
 // GetMovementHistory returns an array of past deposits and withdrawals
 func (b *Bitfinex) GetMovementHistory(symbol, method string, timeSince, timeUntil time.Time, limit int) ([]MovementHistory, error) {
-	response := []MovementHistory{}
+	var response []MovementHistory
 	req := make(map[string]interface{})
 	req["currency"] = symbol
 
@@ -863,7 +863,7 @@ func (b *Bitfinex) GetMovementHistory(symbol, method string, timeSince, timeUnti
 
 // GetTradeHistory returns past executed trades
 func (b *Bitfinex) GetTradeHistory(currencyPair string, timestamp, until time.Time, limit, reverse int) ([]TradeHistory, error) {
-	response := []TradeHistory{}
+	var response []TradeHistory
 	req := make(map[string]interface{})
 	req["currency"] = currencyPair
 	req["timestamp"] = timestamp
@@ -931,7 +931,7 @@ func (b *Bitfinex) GetOfferStatus(offerID int64) (Offer, error) {
 
 // GetActiveCredits returns all available credits
 func (b *Bitfinex) GetActiveCredits() ([]Offer, error) {
-	response := []Offer{}
+	var response []Offer
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(http.MethodPost,
@@ -942,7 +942,7 @@ func (b *Bitfinex) GetActiveCredits() ([]Offer, error) {
 
 // GetActiveOffers returns all current active offers
 func (b *Bitfinex) GetActiveOffers() ([]Offer, error) {
-	response := []Offer{}
+	var response []Offer
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(http.MethodPost,
@@ -953,7 +953,7 @@ func (b *Bitfinex) GetActiveOffers() ([]Offer, error) {
 
 // GetActiveMarginFunding returns an array of active margin funds
 func (b *Bitfinex) GetActiveMarginFunding() ([]MarginFunds, error) {
-	response := []MarginFunds{}
+	var response []MarginFunds
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(http.MethodPost,
@@ -965,7 +965,7 @@ func (b *Bitfinex) GetActiveMarginFunding() ([]MarginFunds, error) {
 // GetUnusedMarginFunds returns an array of funding borrowed but not currently
 // used
 func (b *Bitfinex) GetUnusedMarginFunds() ([]MarginFunds, error) {
-	response := []MarginFunds{}
+	var response []MarginFunds
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(http.MethodPost,
@@ -977,7 +977,7 @@ func (b *Bitfinex) GetUnusedMarginFunds() ([]MarginFunds, error) {
 // GetMarginTotalTakenFunds returns an array of active funding used in a
 // position
 func (b *Bitfinex) GetMarginTotalTakenFunds() ([]MarginTotalTakenFunds, error) {
-	response := []MarginTotalTakenFunds{}
+	var response []MarginTotalTakenFunds
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(http.MethodPost,

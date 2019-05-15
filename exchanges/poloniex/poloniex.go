@@ -248,7 +248,7 @@ func (p *Poloniex) GetTradeHistory(currencyPair, start, end string) ([]TradeHist
 		vals.Set("end", end)
 	}
 
-	resp := []TradeHistory{}
+	var resp []TradeHistory
 	path := fmt.Sprintf("%s/public?command=returnTradeHistory&%s", p.APIUrl, vals.Encode())
 
 	return resp, p.SendHTTPRequest(path, &resp)
@@ -271,7 +271,7 @@ func (p *Poloniex) GetChartData(currencyPair, start, end, period string) ([]Char
 		vals.Set("period", period)
 	}
 
-	resp := []ChartData{}
+	var resp []ChartData
 	path := fmt.Sprintf("%s/public?command=returnChartData&%s", p.APIUrl, vals.Encode())
 
 	err := p.SendHTTPRequest(path, &resp)
@@ -822,7 +822,7 @@ func (p *Poloniex) GetLendingHistory(start, end string) ([]LendingHistory, error
 		vals.Set("end", end)
 	}
 
-	resp := []LendingHistory{}
+	var resp []LendingHistory
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost,
 		poloniexLendingHistory,
 		vals,

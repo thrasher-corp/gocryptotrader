@@ -715,7 +715,7 @@ func TestExtractPort(t *testing.T) {
 
 func TestOutputCSV(t *testing.T) {
 	path := "../testdata/dump"
-	data := [][]string{}
+	var data [][]string
 	rowOne := []string{"Appended", "to", "two", "dimensional", "array"}
 	rowTwo := []string{"Appended", "to", "two", "dimensional", "array", "two"}
 	data = append(data, rowOne, rowTwo)

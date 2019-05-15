@@ -22,7 +22,7 @@ const (
 // WebsocketSubscriber subscribes to websocket channels with respect to enabled
 // currencies
 func (c *CoinbasePro) WebsocketSubscriber() error {
-	currencies := []string{}
+	var currencies []string
 	for _, x := range c.EnabledPairs.Strings() {
 		currency := x[0:3] + "-" + x[3:]
 		currencies = append(currencies, currency)

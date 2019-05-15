@@ -178,7 +178,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 
 // GetSymbols returns all available symbols for trading
 func (g *Gemini) GetSymbols() ([]string, error) {
-	symbols := []string{}
+	var symbols []string
 	path := fmt.Sprintf("%s/v%s/%s", g.APIUrl, geminiAPIVersion, geminiSymbols)
 
 	return symbols, g.SendHTTPRequest(path, &symbols)
@@ -255,7 +255,7 @@ func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook
 // default. Can be '1' or 'true' to activate
 func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiTrades, currencyPair), params)
-	trades := []Trade{}
+	var trades []Trade
 
 	return trades, g.SendHTTPRequest(path, &trades)
 }
@@ -281,7 +281,7 @@ func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 // indicative prices and quantities.
 func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]AuctionHistory, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
-	auctionHist := []AuctionHistory{}
+	var auctionHist []AuctionHistory
 
 	return auctionHist, g.SendHTTPRequest(path, &auctionHist)
 }
@@ -397,7 +397,7 @@ func (g *Gemini) GetOrders() ([]Order, error) {
 // currencyPair - example "btcusd"
 // timestamp - [optional] Only return trades on or after this timestamp.
 func (g *Gemini) GetTradeHistory(currencyPair string, timestamp int64) ([]TradeHistory, error) {
-	response := []TradeHistory{}
+	var response []TradeHistory
 	req := make(map[string]interface{})
 	req["symbol"] = currencyPair
 
@@ -419,7 +419,7 @@ func (g *Gemini) GetNotionalVolume() (NotionalVolume, error) {
 
 // GetTradeVolume returns a multi-arrayed volume response
 func (g *Gemini) GetTradeVolume() ([][]TradeVolume, error) {
-	response := [][]TradeVolume{}
+	var response [][]TradeVolume
 
 	return response,
 		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiTradeVolume, nil, &response)
@@ -427,7 +427,7 @@ func (g *Gemini) GetTradeVolume() ([][]TradeVolume, error) {
 
 // GetBalances returns available balances in the supported currencies
 func (g *Gemini) GetBalances() ([]Balance, error) {
-	response := []Balance{}
+	var response []Balance
 
 	return response,
 		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiBalances, nil, &response)

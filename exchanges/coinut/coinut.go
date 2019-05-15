@@ -252,7 +252,7 @@ func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, erro
 		OrderID      int `json:"order_id"`
 	}
 
-	entries := []CancelOrders{}
+	var entries []CancelOrders
 	entries = append(entries, orders...)
 	params["entries"] = entries
 

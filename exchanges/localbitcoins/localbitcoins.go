@@ -461,7 +461,7 @@ func (l *LocalBitcoins) DeleteInvoice() (Invoice, error) {
 
 // GetNotifications returns recent notifications.
 func (l *LocalBitcoins) GetNotifications() ([]NotificationInfo, error) {
-	resp := []NotificationInfo{}
+	var resp []NotificationInfo
 	return resp, l.SendAuthenticatedHTTPRequest(http.MethodPost, localbitcoinsAPIGetNotification, nil, &resp)
 }
 
@@ -668,7 +668,7 @@ func (l *LocalBitcoins) GetTradableCurrencies() ([]string, error) {
 // updated every 15 minutes.
 func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]Trade, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("%s/%s/trades.json", l.APIUrl+localbitcoinsAPIBitcoincharts, currency), values)
-	result := []Trade{}
+	var result []Trade
 
 	return result, l.SendHTTPRequest(path, &result)
 }

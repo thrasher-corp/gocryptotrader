@@ -142,7 +142,7 @@ func (i *ItBit) GetTradeHistory(currencyPair, timestamp string) (Trades, error) 
 // 					page - [optional] page to return example 1. default 1
 //					perPage - [optional] items per page example 50, default 50 max 50
 func (i *ItBit) GetWallets(params url.Values) ([]Wallet, error) {
-	resp := []Wallet{}
+	var resp []Wallet
 	params.Set("userId", i.ClientID)
 	path := fmt.Sprintf("/%s?%s", itbitWallets, params.Encode())
 

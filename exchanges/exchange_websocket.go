@@ -645,7 +645,7 @@ func (w *Websocket) SupportsFunctionality(f uint32) bool {
 // FormatFunctionality will return each of the websocket connection compatible
 // stream methods as a string
 func (w *Websocket) FormatFunctionality() string {
-	functionality := []string{}
+	var functionality []string
 	for i := 0; i < 32; i++ {
 		var check uint32 = 1 << uint32(i)
 		if w.GetFunctionality()&check != 0 {
