@@ -236,11 +236,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	w.Wg.Add(1)
 	wg.Done() // Makes sure we are unlocking after we add to waitgroup
 	defer func() {
-		w.m.Lock()
 		if w.connected {
 			w.Disconnected <- struct{}{}
 		}
-		w.m.Unlock()
 		w.Wg.Done()
 	}()
 
