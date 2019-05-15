@@ -279,7 +279,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 
 			case <-newtimer.C: // If secondary timer runs state timeout is sent to the data handler
 				if w.verbose {
-					log.Debugf("%v has not recieved a traffic alert in 15 seconds, exiting", w.exchangeName)
+					log.Debugf("%v has not received a traffic alert in 15 seconds, exiting", w.exchangeName)
 				}
 				w.DataHandler <- fmt.Errorf("trafficMonitor %v", WebsocketStateTimeout)
 				return
