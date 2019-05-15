@@ -57,6 +57,7 @@ func (o *OKEX) SetDefaults() {
 	o.Name = okExExchangeName
 	o.Enabled = false
 	o.Verbose = false
+	o.HTTPDebugging = false
 	o.RESTPollingDelay = 10
 	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.NoFiatWithdrawals

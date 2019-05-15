@@ -49,6 +49,7 @@ func (i *ItBit) SetDefaults() {
 	i.MakerFee = -0.10
 	i.TakerFee = 0.50
 	i.Verbose = false
+	i.HTTPDebugging = false
 	i.RESTPollingDelay = 10
 	i.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
 		exchange.WithdrawFiatViaWebsiteOnly
@@ -80,6 +81,7 @@ func (i *ItBit) Setup(exch *config.ExchangeConfig) {
 		i.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
+		i.HTTPDebugging = exch.HTTPDebugging
 		i.BaseCurrencies = exch.BaseCurrencies
 		i.AvailablePairs = exch.AvailablePairs
 		i.EnabledPairs = exch.EnabledPairs
@@ -343,8 +345,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
-	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose,
-		false)
+	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose, i.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit

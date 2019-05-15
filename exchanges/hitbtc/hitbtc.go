@@ -62,6 +62,7 @@ func (h *HitBTC) SetDefaults() {
 	h.Enabled = false
 	h.Fee = 0
 	h.Verbose = false
+	h.HTTPDebugging = false
 	h.RESTPollingDelay = 10
 	h.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.NoFiatWithdrawals
@@ -95,6 +96,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
 		h.Verbose = exch.Verbose
+		h.HTTPDebugging = exch.HTTPDebugging
 		h.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		h.BaseCurrencies = exch.BaseCurrencies
 		h.AvailablePairs = exch.AvailablePairs
@@ -591,8 +593,7 @@ func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose,
-false)
+	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose, h.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
@@ -614,7 +615,7 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values ur
 		true,
 		false,
 		h.Verbose,
-false)
+		h.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

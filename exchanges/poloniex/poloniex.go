@@ -70,6 +70,7 @@ func (p *Poloniex) SetDefaults() {
 	p.Enabled = false
 	p.Fee = 0
 	p.Verbose = false
+	p.HTTPDebugging = false
 	p.RESTPollingDelay = 10
 	p.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
 		exchange.NoFiatWithdrawals
@@ -104,6 +105,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
+		p.HTTPDebugging = exch.HTTPDebugging
 		p.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		p.BaseCurrencies = exch.BaseCurrencies
 		p.AvailablePairs = exch.AvailablePairs
@@ -866,7 +868,7 @@ func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
 		false,
 		false,
 		p.Verbose,
-false)
+		p.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -900,7 +902,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 		true,
 		true,
 		p.Verbose,
-false)
+		p.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

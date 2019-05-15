@@ -57,6 +57,7 @@ func (e *EXMO) SetDefaults() {
 	e.Name = "EXMO"
 	e.Enabled = false
 	e.Verbose = false
+	e.HTTPDebugging = false
 	e.RESTPollingDelay = 10
 	e.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup | exchange.NoFiatWithdrawals
 	e.RequestCurrencyPairFormat.Delimiter = "_"
@@ -82,6 +83,7 @@ func (e *EXMO) Setup(exch *config.ExchangeConfig) {
 		e.SetEnabled(false)
 	} else {
 		e.Enabled = true
+		e.HTTPDebugging = exch.HTTPDebugging
 		e.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		e.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		e.SetHTTPClientTimeout(exch.HTTPTimeout)
@@ -371,8 +373,7 @@ func (e *EXMO) GetWalletHistory(date int64) (WalletHistory, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *EXMO) SendHTTPRequest(path string, result interface{}) error {
-	return e.SendPayload(http.MethodGet, path, nil, nil, result, false, false, e.Verbose,
-false)
+	return e.SendPayload(http.MethodGet, path, nil, nil, result, false, false, e.Verbose, e.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -412,7 +413,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 		true,
 		true,
 		e.Verbose,
-false)
+		e.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -104,6 +104,7 @@ func (g *Gemini) SetDefaults() {
 	g.Name = "Gemini"
 	g.Enabled = false
 	g.Verbose = false
+	g.HTTPDebugging = false
 	g.RESTPollingDelay = 10
 	g.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
 		exchange.AutoWithdrawCryptoWithSetup |
@@ -138,6 +139,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
+		g.HTTPDebugging = exch.HTTPDebugging
 		g.BaseCurrencies = exch.BaseCurrencies
 		g.AvailablePairs = exch.AvailablePairs
 		g.EnabledPairs = exch.EnabledPairs
@@ -490,8 +492,7 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose,
-false)
+	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose, g.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
@@ -529,8 +530,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	headers["X-GEMINI-SIGNATURE"] = common.HexEncodeToString(hmac)
 	headers["Cache-Control"] = "no-cache"
 
-	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, false, g.Verbose,
-false)
+	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, false, g.Verbose, g.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

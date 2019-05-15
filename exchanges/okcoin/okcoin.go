@@ -32,6 +32,7 @@ func (o *OKCoin) SetDefaults() {
 	o.Name = okCoinExchangeName
 	o.Enabled = false
 	o.Verbose = false
+	o.HTTPDebugging = false
 	o.RESTPollingDelay = 10
 	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.NoFiatWithdrawals

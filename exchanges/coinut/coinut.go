@@ -58,6 +58,7 @@ func (c *COINUT) SetDefaults() {
 	c.TakerFee = 0.1 // spot
 	c.MakerFee = 0
 	c.Verbose = false
+	c.HTTPDebugging = false
 	c.RESTPollingDelay = 10
 	c.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
 		exchange.WithdrawFiatViaWebsiteOnly
@@ -92,6 +93,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
+		c.HTTPDebugging = exch.HTTPDebugging
 		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		c.BaseCurrencies = exch.BaseCurrencies
 		c.AvailablePairs = exch.AvailablePairs
@@ -372,7 +374,8 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		authenticated,
 		true,
 		c.Verbose,
-		false)
+		c.HTTPDebugging,
+	)
 	if err != nil {
 		return err
 	}

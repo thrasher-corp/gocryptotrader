@@ -119,6 +119,7 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.Enabled = false
 	l.Verbose = false
 	l.Verbose = false
+	l.HTTPDebugging = false
 	l.RESTPollingDelay = 10
 	l.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.WithdrawFiatViaWebsiteOnly
@@ -149,6 +150,7 @@ func (l *LocalBitcoins) Setup(exch *config.ExchangeConfig) {
 		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
+		l.HTTPDebugging = exch.HTTPDebugging
 		l.BaseCurrencies = exch.BaseCurrencies
 		l.AvailablePairs = exch.AvailablePairs
 		l.EnabledPairs = exch.EnabledPairs
@@ -726,8 +728,7 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, false, l.Verbose,
-false)
+	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, false, l.Verbose, l.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to
@@ -757,8 +758,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 		path += "?" + encoded
 	}
 
-	return l.SendPayload(method, l.APIUrl+path, headers, strings.NewReader(encoded), result, true, true, l.Verbose,
-false)
+	return l.SendPayload(method, l.APIUrl+path, headers, strings.NewReader(encoded), result, true, true, l.Verbose, l.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

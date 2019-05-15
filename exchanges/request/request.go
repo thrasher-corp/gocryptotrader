@@ -264,7 +264,7 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 }
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose bool, httpDebug bool) error {
+func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose, httpDebug bool) error {
 	if verbose {
 		log.Debugf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
 		for k, d := range req.Header {
@@ -406,7 +406,7 @@ func (r *Requester) worker() {
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose bool, httpDebugging bool) error {
+func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose, httpDebugging bool) error {
 	if !nonceEnabled {
 		r.lock()
 	}
