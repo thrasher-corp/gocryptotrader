@@ -342,7 +342,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		if httpDebug {
 			dump, err := httputil.DumpResponse(resp, true)
 			if err != nil {
-				log.Errorf("DumpResponse failed with %v:", err)
+				log.Errorf("DumpResponse invalid response: %v:", err)
 			}
 			log.Debugf("DumpResponse: %q", dump)
 		}
@@ -435,7 +435,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	if httpDebugging {
 		dump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			log.Errorf("DumpRequest failed with %v:", err)
+			log.Errorf("DumpRequest invalid response %v:", err)
 		}
 		log.Debugf("DumpRequest: %q", dump)
 	}
