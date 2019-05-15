@@ -1,7 +1,6 @@
 package request
 
 import (
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -299,8 +298,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 			return errors.New("resp is nil")
 		}
 
-		var reader io.ReadCloser
-		switch resp.Header.Get("Content-Encoding") {
+		/*switch resp.Header.Get("Content-Encoding") {
 		case "gzip":
 			reader, err = gzip.NewReader(resp.Body)
 			defer reader.Close()
@@ -321,9 +319,9 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 					r.Name, resp.Header.Get("Content-Type"), path)
 				reader = resp.Body
 			}
-		}
+		}*/
 
-		contents, err := ioutil.ReadAll(reader)
+		contents, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
@@ -340,11 +338,12 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		}
 
 		if httpDebug {
-			dump, err := httputil.DumpResponse(resp, !verbose)
+			dump, err := httputil.DumpResponse(resp, true)
 			if err != nil {
 				log.Errorf("DumpResponse invalid response: %v:", err)
 			}
-			log.Debugf("DumpResponse: %q", dump)
+			log.Debugf("DumpResponse(%v): %s\n", path, dump)
+			//log.Debugf("%s", string(contents))
 		}
 
 		resp.Body.Close()
@@ -437,7 +436,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		if err != nil {
 			log.Errorf("DumpRequest invalid response %v:", err)
 		}
-		log.Debugf("DumpRequest: %q", dump)
+		log.Debugf("DumpRequest: %s", dump)
 	}
 
 	if !r.RequiresRateLimiter() {
