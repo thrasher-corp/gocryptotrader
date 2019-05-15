@@ -236,9 +236,11 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	w.Wg.Add(1)
 	wg.Done() // Makes sure we are unlocking after we add to waitgroup
 	defer func() {
+		w.m.Lock()
 		if w.connected {
 			w.Disconnected <- struct{}{}
 		}
+		w.m.Unlock()
 		w.Wg.Done()
 	}()
 
@@ -253,10 +255,12 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 			return
 		case <-w.TrafficAlert: // Resets timer on traffic
+			w.m.Lock()
 			if !w.connected {
 				w.Connected <- struct{}{}
 				w.connected = true
 			}
+			w.m.Unlock()
 			if w.verbose {
 				log.Debugf("%v received a traffic alert", w.exchangeName)
 			}
@@ -266,15 +270,19 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			if w.verbose {
 				log.Debugf("%v has not received a traffic alert in 5 seconds.", w.exchangeName)
 			}
+			w.m.Lock()
 			if w.connected {
 				// If connected divert traffic to rest
 				w.Disconnected <- struct{}{}
 				w.connected = false
 			}
+			w.m.Unlock()
 
 			select {
 			case <-w.ShutdownC: // Returns on shutdown channel close
+				w.m.Lock()
 				w.connected = false
+				w.m.Unlock()
 				return
 
 			case <-newtimer.C: // If secondary timer runs state timeout is sent to the data handler
@@ -286,6 +294,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 
 			case <-w.TrafficAlert: // If in this time response traffic comes through
 				trafficTimer.Reset(WebsocketTrafficLimitTime)
+				w.m.Lock()
 				if !w.connected {
 					// If not connected dive rt traffic from REST to websocket
 					w.Connected <- struct{}{}
@@ -294,6 +303,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 					}
 					w.connected = true
 				}
+				w.m.Unlock()
 			}
 		}
 	}
