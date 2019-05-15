@@ -53,7 +53,6 @@ func (y *Yobit) SetDefaults() {
 	y.Enabled = true
 	y.Fee = 0.2
 	y.Verbose = false
-	y.HTTPDebugging = false
 	y.RESTPollingDelay = 10
 	y.AuthenticatedAPISupport = true
 	y.Ticker = make(map[string]Ticker)

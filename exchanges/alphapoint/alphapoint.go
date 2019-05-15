@@ -51,7 +51,6 @@ type Alphapoint struct {
 // SetDefaults sets current default settings
 func (a *Alphapoint) SetDefaults() {
 	a.APIUrl = alphapointDefaultAPIURL
-	a.HTTPDebugging = false
 	a.WebsocketURL = alphapointDefaultWebsocketURL
 	a.AssetTypes = []string{ticker.Spot}
 	a.SupportsAutoPairUpdating = false

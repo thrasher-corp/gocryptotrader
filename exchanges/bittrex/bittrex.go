@@ -69,7 +69,6 @@ func (b *Bittrex) SetDefaults() {
 	b.Name = "Bittrex"
 	b.Enabled = false
 	b.Verbose = false
-	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
 		exchange.NoFiatWithdrawals

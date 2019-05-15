@@ -57,7 +57,6 @@ func (e *EXMO) SetDefaults() {
 	e.Name = "EXMO"
 	e.Enabled = false
 	e.Verbose = false
-	e.HTTPDebugging = false
 	e.RESTPollingDelay = 10
 	e.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup | exchange.NoFiatWithdrawals
 	e.RequestCurrencyPairFormat.Delimiter = "_"

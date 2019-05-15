@@ -32,7 +32,6 @@ func (b *BTCC) SetDefaults() {
 	b.Enabled = false
 	b.Fee = 0
 	b.Verbose = false
-	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
 	b.RequestCurrencyPairFormat.Delimiter = ""

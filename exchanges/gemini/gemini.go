@@ -104,7 +104,6 @@ func (g *Gemini) SetDefaults() {
 	g.Name = "Gemini"
 	g.Enabled = false
 	g.Verbose = false
-	g.HTTPDebugging = false
 	g.RESTPollingDelay = 10
 	g.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
 		exchange.AutoWithdrawCryptoWithSetup |

@@ -76,7 +76,6 @@ func (b *Binance) SetDefaults() {
 	b.Name = "Binance"
 	b.Enabled = false
 	b.Verbose = false
-	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true

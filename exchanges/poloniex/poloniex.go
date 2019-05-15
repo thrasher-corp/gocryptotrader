@@ -70,7 +70,6 @@ func (p *Poloniex) SetDefaults() {
 	p.Enabled = false
 	p.Fee = 0
 	p.Verbose = false
-	p.HTTPDebugging = false
 	p.RESTPollingDelay = 10
 	p.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
 		exchange.NoFiatWithdrawals

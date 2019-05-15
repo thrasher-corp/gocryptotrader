@@ -49,7 +49,6 @@ func (l *LakeBTC) SetDefaults() {
 	l.TakerFee = 0.2
 	l.MakerFee = 0.15
 	l.Verbose = false
-	l.HTTPDebugging = false
 	l.RESTPollingDelay = 10
 	l.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.WithdrawFiatViaWebsiteOnly

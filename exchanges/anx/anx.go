@@ -52,7 +52,6 @@ func (a *ANX) SetDefaults() {
 	a.TakerFee = 0.02
 	a.MakerFee = 0.01
 	a.Verbose = false
-	a.HTTPDebugging = false
 	a.RESTPollingDelay = 10
 	a.RequestCurrencyPairFormat.Delimiter = ""
 	a.RequestCurrencyPairFormat.Uppercase = true

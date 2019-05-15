@@ -49,7 +49,6 @@ func (i *ItBit) SetDefaults() {
 	i.MakerFee = -0.10
 	i.TakerFee = 0.50
 	i.Verbose = false
-	i.HTTPDebugging = false
 	i.RESTPollingDelay = 10
 	i.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
 		exchange.WithdrawFiatViaWebsiteOnly

@@ -70,7 +70,6 @@ func (k *Kraken) SetDefaults() {
 	k.FiatFee = 0.35
 	k.CryptoFee = 0.10
 	k.Verbose = false
-	k.HTTPDebugging = false
 	k.RESTPollingDelay = 10
 	k.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup |
 		exchange.WithdrawCryptoWith2FA |

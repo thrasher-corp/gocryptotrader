@@ -58,7 +58,6 @@ func (c *COINUT) SetDefaults() {
 	c.TakerFee = 0.1 // spot
 	c.MakerFee = 0
 	c.Verbose = false
-	c.HTTPDebugging = false
 	c.RESTPollingDelay = 10
 	c.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
 		exchange.WithdrawFiatViaWebsiteOnly

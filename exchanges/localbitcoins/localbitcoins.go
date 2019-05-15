@@ -119,7 +119,6 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.Enabled = false
 	l.Verbose = false
 	l.Verbose = false
-	l.HTTPDebugging = false
 	l.RESTPollingDelay = 10
 	l.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.WithdrawFiatViaWebsiteOnly

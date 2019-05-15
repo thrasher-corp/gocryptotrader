@@ -81,7 +81,6 @@ func (b *Bitflyer) SetDefaults() {
 	b.Name = "Bitflyer"
 	b.Enabled = false
 	b.Verbose = false
-	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
 		exchange.AutoWithdrawFiat

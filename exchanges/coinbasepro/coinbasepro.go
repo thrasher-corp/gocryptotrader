@@ -68,7 +68,6 @@ func (c *CoinbasePro) SetDefaults() {
 	c.Name = "CoinbasePro"
 	c.Enabled = false
 	c.Verbose = false
-	c.HTTPDebugging = false
 	c.TakerFee = 0.25
 	c.MakerFee = 0
 	c.RESTPollingDelay = 10

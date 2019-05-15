@@ -56,7 +56,6 @@ func (g *Gateio) SetDefaults() {
 	g.Name = "GateIO"
 	g.Enabled = false
 	g.Verbose = false
-	g.HTTPDebugging = false
 	g.RESTPollingDelay = 10
 	g.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.NoFiatWithdrawals

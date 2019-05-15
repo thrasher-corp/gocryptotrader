@@ -49,7 +49,6 @@ func (b *BTSE) SetDefaults() {
 	b.Name = "BTSE"
 	b.Enabled = false
 	b.Verbose = false
-	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
 	b.RequestCurrencyPairFormat.Delimiter = "-"

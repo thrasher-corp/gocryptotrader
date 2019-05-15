@@ -76,7 +76,6 @@ func (h *HUOBI) SetDefaults() {
 	h.Enabled = false
 	h.Fee = 0
 	h.Verbose = false
-	h.HTTPDebugging = false
 	h.RESTPollingDelay = 10
 	h.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup |
 		exchange.NoFiatWithdrawals

@@ -116,7 +116,6 @@ func (b *Bitmex) SetDefaults() {
 	b.Name = "Bitmex"
 	b.Enabled = false
 	b.Verbose = false
-	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
 		exchange.WithdrawCryptoWithEmail |

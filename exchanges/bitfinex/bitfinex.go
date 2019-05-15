@@ -94,7 +94,6 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = false
 	b.Verbose = false
-	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |

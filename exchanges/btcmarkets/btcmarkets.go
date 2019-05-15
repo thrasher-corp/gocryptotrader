@@ -57,7 +57,6 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Enabled = false
 	b.Fee = 0.85
 	b.Verbose = false
-	b.HTTPDebugging = false
 	b.RESTPollingDelay = 10
 	b.Ticker = make(map[string]Ticker)
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |

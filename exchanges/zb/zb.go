@@ -57,7 +57,6 @@ func (z *ZB) SetDefaults() {
 	z.Enabled = false
 	z.Fee = 0
 	z.Verbose = false
-	z.HTTPDebugging = false
 	z.RESTPollingDelay = 10
 	z.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.NoFiatWithdrawals
