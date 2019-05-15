@@ -855,8 +855,7 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBody
 	signatureParams.Set("Signature", common.Base64Encode(hmac))
 	urlPath := common.EncodeURLValues(fmt.Sprintf("%s%s", h.APIUrl, endpoint),
 		signatureParams)
-	return h.SendPayload(method, urlPath, headers, bytes.NewBufferString(postBodyValues), result, true, false, h.Verbose,
-		false)
+	return h.SendPayload(method, urlPath, headers, bytes.NewBufferString(postBodyValues), result, true, false, h.Verbose, h.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API

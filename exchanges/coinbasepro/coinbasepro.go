@@ -143,7 +143,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 	}
 }
 
-// GetProducts returns supported currency pairs on t                                                                                                                                                                                                                                                                                                                               e exchange with specific
+// GetProducts returns supported currency pairs on the exchange with specific
 // information about the pair
 func (c *CoinbasePro) GetProducts() ([]Product, error) {
 	products := []Product{}
