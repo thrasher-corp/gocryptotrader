@@ -1,9 +1,5 @@
 package huobi
 
-import (
-	"math/big"
-)
-
 // Response stores the Huobi response information
 type Response struct {
 	Status       string `json:"status"`
@@ -327,7 +323,7 @@ type WsTrade struct {
 		Data      []struct {
 			Amount    float64 `json:"amount"`
 			Timestamp int64   `json:"ts"`
-			ID        big.Int `json:"id,number"`
+			ID        float64 `json:"id,string"`
 			Price     float64 `json:"price"`
 			Direction string  `json:"direction"`
 		} `json:"data"`
