@@ -6,7 +6,7 @@ tenets:
   - import: codelingo/effective-go/single-method-interface-name
   - import: codelingo/effective-go/underscores-in-name
   - import: codelingo/effective-go/unnecessary-else
-  - import: codelingo/codelingo/code-review-comments/declare-empty-slice 
+  - import: codelingo/code-review-comments/declare-empty-slice 
   # Overwrite one tenet with custom logic
   # - import: codelingo/effective-go/comment-first-word-when-empty
   - name: comment-first-word-when-empty
