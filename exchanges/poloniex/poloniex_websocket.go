@@ -18,12 +18,11 @@ import (
 )
 
 const (
-	poloniexWebsocketAddress   = "wss://api2.poloniex.com"
-	wsAccountNotificationID    = 1000
-	wsTickerDataID             = 1002
-	ws24HourExchangeVolumeID   = 1003
-	wsHeartbeat                = 1010
-	poloniexWebsocketRateLimit = 30 * time.Millisecond
+	poloniexWebsocketAddress = "wss://api2.poloniex.com"
+	wsAccountNotificationID  = 1000
+	wsTickerDataID           = 1002
+	ws24HourExchangeVolumeID = 1003
+	wsHeartbeat              = 1010
 )
 
 var (
@@ -488,8 +487,8 @@ func (p *Poloniex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 
 // WsSend sends data to the websocket server
 func (p *Poloniex) wsSend(data interface{}) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.wsRequestMtx.Lock()
+	defer p.wsRequestMtx.Unlock()
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
@@ -497,7 +496,5 @@ func (p *Poloniex) wsSend(data interface{}) error {
 	if p.Verbose {
 		log.Debugf("%v sending message to websocket %v", p.Name, data)
 	}
-	// Basic rate limiter
-	time.Sleep(poloniexWebsocketRateLimit)
 	return p.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

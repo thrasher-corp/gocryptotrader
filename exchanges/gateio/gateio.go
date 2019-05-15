@@ -50,7 +50,7 @@ const (
 type Gateio struct {
 	WebsocketConn *websocket.Conn
 	exchange.Base
-	mu sync.Mutex
+	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

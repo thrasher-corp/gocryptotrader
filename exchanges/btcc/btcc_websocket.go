@@ -34,8 +34,7 @@ const (
 	msgTypeRetrieveOrder      = "RetrieveOrderResponse"
 	msgTypeGetTrades          = "GetTradesResponse"
 
-	msgTypeAllTickers      = "AllTickersResponse"
-	btccWebsocketRateLimit = 30 * time.Millisecond
+	msgTypeAllTickers = "AllTickersResponse"
 )
 
 var (
@@ -531,12 +530,10 @@ func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 
 // WsSend sends data to the websocket server
 func (b *BTCC) wsSend(data interface{}) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
 	if b.Verbose {
 		log.Debugf("%v sending message to websocket %v", b.Name, data)
 	}
-	// Basic rate limiter
-	time.Sleep(btccWebsocketRateLimit)
 	return b.Conn.WriteJSON(data)
 }

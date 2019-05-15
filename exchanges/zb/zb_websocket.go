@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	zbWebsocketAPI       = "wss://api.zb.cn:9999/websocket"
-	zbWebsocketRateLimit = 30 * time.Millisecond
+	zbWebsocketAPI = "wss://api.zb.cn:9999/websocket"
 )
 
 // WsConnect initiates a websocket connection
@@ -276,8 +275,8 @@ func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription)
 
 // WsSend sends data to the websocket server
 func (z *ZB) wsSend(data interface{}) error {
-	z.mu.Lock()
-	defer z.mu.Unlock()
+	z.wsRequestMtx.Lock()
+	defer z.wsRequestMtx.Unlock()
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
@@ -285,7 +284,5 @@ func (z *ZB) wsSend(data interface{}) error {
 	if z.Verbose {
 		log.Debugf("%v sending message to websocket %v", z.Name, data)
 	}
-	// Basic rate limiter
-	time.Sleep(zbWebsocketRateLimit)
 	return z.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

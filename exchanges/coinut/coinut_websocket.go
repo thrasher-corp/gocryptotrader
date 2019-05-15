@@ -358,8 +358,8 @@ func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 
 // WsSend sends data to the websocket server
 func (c *COINUT) wsSend(data interface{}) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.wsRequestMtx.Lock()
+	defer c.wsRequestMtx.Unlock()
 	if c.Verbose {
 		log.Debugf("%v sending message to websocket %v", c.Name, data)
 	}

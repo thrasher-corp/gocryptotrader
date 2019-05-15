@@ -88,7 +88,7 @@ type Bitfinex struct {
 	exchange.Base
 	WebsocketConn         *websocket.Conn
 	WebsocketSubdChannels map[int]WebsocketChanInfo
-	mu                    sync.Mutex
+	wsRequestMtx          sync.Mutex
 }
 
 // SetDefaults sets the basic defaults for bitfinex

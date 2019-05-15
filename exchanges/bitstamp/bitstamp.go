@@ -64,7 +64,7 @@ type Bitstamp struct {
 	exchange.Base
 	Balance       Balances
 	WebsocketConn WebsocketConn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default for Bitstamp

@@ -24,7 +24,7 @@ import (
 type Bitmex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 }
 
 const (

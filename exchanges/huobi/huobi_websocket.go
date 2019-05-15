@@ -19,11 +19,10 @@ import (
 )
 
 const (
-	huobiSocketIOAddress    = "wss://api.huobi.pro/hbus/ws"
-	wsMarketKline           = "market.%s.kline.1min"
-	wsMarketDepth           = "market.%s.depth.step0"
-	wsMarketTrade           = "market.%s.trade.detail"
-	huobiWebsocketRateLimit = 30 * time.Millisecond
+	huobiSocketIOAddress = "wss://api.huobi.pro/hbus/ws"
+	wsMarketKline        = "market.%s.kline.1min"
+	wsMarketDepth        = "market.%s.depth.step0"
+	wsMarketTrade        = "market.%s.trade.detail"
 )
 
 // WsConnect initiates a new websocket connection
@@ -265,12 +264,10 @@ func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 
 // WsSend sends data to the websocket server
 func (h *HUOBI) wsSend(data []byte) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.wsRequestMtx.Lock()
+	defer h.wsRequestMtx.Unlock()
 	if h.Verbose {
 		log.Debugf("%v sending message to websocket %v", h.Name, data)
 	}
-	// Basic rate limiter
-	time.Sleep(huobiWebsocketRateLimit)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

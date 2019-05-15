@@ -17,8 +17,7 @@ import (
 
 const (
 	// BitstampPusherKey holds the current pusher key
-	BitstampPusherKey          = "de504dc5763aeef9ff52"
-	bitstampWebsocketRateLimit = 30 * time.Millisecond
+	BitstampPusherKey = "de504dc5763aeef9ff52"
 )
 
 var tradingPairs map[string]string
@@ -122,7 +121,7 @@ func (b *Bitstamp) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
-				Channel:  fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j].String()),
+				Channel:  fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j].Lower().String()),
 				Currency: enabledCurrencies[j],
 			})
 		}
@@ -132,23 +131,21 @@ func (b *Bitstamp) GenerateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
 	if b.Verbose {
 		log.Debugf("%v sending message to websocket %v", b.Name, channelToSubscribe)
 	}
-	time.Sleep(bitstampWebsocketRateLimit)
 	return b.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
 	if b.Verbose {
 		log.Debugf("%v sending message to websocket %v", b.Name, channelToSubscribe)
 	}
-	time.Sleep(bitstampWebsocketRateLimit)
 	return b.WebsocketConn.Client.Unsubscribe(channelToSubscribe.Channel)
 }
 

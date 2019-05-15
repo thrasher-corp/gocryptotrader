@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	btseWebsocket          = "wss://ws.btse.com/api/ws-feed"
-	btseWebsocketRateLimit = 30 * time.Millisecond
+	btseWebsocket = "wss://ws.btse.com/api/ws-feed"
 )
 
 // WsConnect connects the websocket client
@@ -256,8 +255,8 @@ func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 
 // WsSend sends data to the websocket server
 func (b *BTSE) wsSend(data interface{}) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
 	if b.Verbose {
 		log.Debugf("%v sending message to websocket %v", b.Name, data)
 	}
@@ -265,7 +264,5 @@ func (b *BTSE) wsSend(data interface{}) error {
 	if err != nil {
 		return err
 	}
-	// Basic rate limiter
-	time.Sleep(btseWebsocketRateLimit)
 	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

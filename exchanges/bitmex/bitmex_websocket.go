@@ -56,8 +56,6 @@ const (
 	bitmexActionInsertData  = "insert"
 	bitmexActionDeleteData  = "delete"
 	bitmexActionUpdateData  = "update"
-
-	bitmexWebsocketRateLimit = 30 * time.Millisecond
 )
 
 var (
@@ -395,15 +393,16 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 func (b *Bitmex) GenerateDefaultSubscriptions() {
 	contracts := b.GetEnabledCurrencies()
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
-	params := make(map[string]interface{})
-	params["args"] = bitmexWSAnnouncement
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	subscriptions := []exchange.WebsocketChannelSubscription{
+		{
+			Channel: bitmexWSAnnouncement,
+		},
+	}
 	for i := range channels {
 		for j := range contracts {
 			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
-				Channel:  channels[i],
+				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
 				Currency: contracts[j],
-				Params:   params,
 			})
 		}
 	}
@@ -414,9 +413,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
-	subscriber.Arguments = append(subscriber.Arguments,
-		channelToSubscribe.Params["args"],
-		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
+	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
 	return b.wsSend(subscriber)
 }
 
@@ -448,12 +445,10 @@ func (b *Bitmex) websocketSendAuth() error {
 
 // WsSend sends data to the websocket server
 func (b *Bitmex) wsSend(data interface{}) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
 	if b.Verbose {
 		log.Debugf("%v sending message to websocket %v", b.Name, data)
 	}
-	// Basic rate limiter
-	time.Sleep(bitmexWebsocketRateLimit)
 	return b.WebsocketConn.WriteJSON(data)
 }

@@ -21,7 +21,7 @@ import (
 const (
 	gateioWebsocketEndpoint  = "wss://ws.gate.io/v3/"
 	gatioWsMethodPing        = "ping"
-	gateioWebsocketRateLimit = 30 * time.Millisecond
+	gateioWebsocketRateLimit = 120 * time.Millisecond
 )
 
 // WsConnect initiates a websocket connection
@@ -427,8 +427,8 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
 
 // WsSend sends data to the websocket server
 func (g *Gateio) wsSend(data interface{}) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.wsRequestMtx.Lock()
+	defer g.wsRequestMtx.Unlock()
 	if g.Verbose {
 		log.Debugf("%v sending message to websocket %v", g.Name, data)
 	}

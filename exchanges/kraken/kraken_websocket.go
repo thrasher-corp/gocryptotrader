@@ -68,8 +68,8 @@ var defaultSubscribedChannels = []string{krakenWsTicker, krakenWsTrade, krakenWs
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (k *Kraken) writeToWebsocket(message []byte) error {
-	k.mu.Lock()
-	defer k.mu.Unlock()
+	k.wsRequestMtx.Lock()
+	defer k.wsRequestMtx.Unlock()
 	if k.Verbose {
 		log.Debugf("Sending message to WS: %v",
 			string(message))
@@ -418,8 +418,8 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 		_, asksExist := obData["a"]
 		_, bidsExist := obData["b"]
 		if asksExist || bidsExist {
-			k.mu.Lock()
-			defer k.mu.Unlock()
+			k.wsRequestMtx.Lock()
+			defer k.wsRequestMtx.Unlock()
 			k.wsProcessOrderBookBuffer(channelData, obData)
 			if len(orderbookBuffer[channelData.ChannelID]) >= orderbookBufferLimit {
 				err := k.wsProcessOrderBookUpdate(channelData)

@@ -69,7 +69,7 @@ type HUOBI struct {
 	exchange.Base
 	AccountID     string
 	WebsocketConn *websocket.Conn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

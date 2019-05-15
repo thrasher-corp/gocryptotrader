@@ -63,7 +63,7 @@ const (
 type Poloniex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default settings for poloniex

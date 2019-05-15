@@ -823,6 +823,7 @@ func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription)
 	for i := range channels {
 		w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
 	}
+	w.noConnectionChecks = 0
 }
 
 // UnsubscribeToChannels removes supplied channels from channelsToSubscribe

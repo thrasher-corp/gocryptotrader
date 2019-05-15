@@ -88,7 +88,7 @@ type OKGroup struct {
 	exchange.Base
 	ExchangeName  string
 	WebsocketConn *websocket.Conn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks

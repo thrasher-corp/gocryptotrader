@@ -40,7 +40,6 @@ const (
 	bitfinexWebsocketSubscriptionFailed = "10300"
 	bitfinexWebsocketAlreadySubscribed  = "10301"
 	bitfinexWebsocketUnknownChannel     = "10302"
-	bitfinexWebsocketRateLimit          = 30 * time.Millisecond
 )
 
 // WebsocketHandshake defines the communication between the websocket API for
@@ -63,8 +62,8 @@ func (b *Bitfinex) WsPingHandler() error {
 
 // WsSend sends data to the websocket server
 func (b *Bitfinex) wsSend(data interface{}) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
@@ -72,8 +71,6 @@ func (b *Bitfinex) wsSend(data interface{}) error {
 	if b.Verbose {
 		log.Debugf("%v sending message to websocket %v", b.Name, data)
 	}
-	// Basic rate limiter
-	time.Sleep(bitfinexWebsocketRateLimit)
 	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }
 

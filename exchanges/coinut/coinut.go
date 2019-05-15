@@ -49,7 +49,7 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets current default values

@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	coinbaseproWebsocketURL       = "wss://ws-feed.pro.coinbase.com"
-	coinbaseproWebsocketRateLimit = 30 * time.Millisecond
+	coinbaseproWebsocketURL = "wss://ws-feed.pro.coinbase.com"
 )
 
 // WsConnect initiates a websocket connection
@@ -291,8 +290,8 @@ func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSu
 
 // WsSend sends data to the websocket server
 func (c *CoinbasePro) wsSend(data interface{}) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.wsRequestMtx.Lock()
+	defer c.wsRequestMtx.Unlock()
 	if c.Verbose {
 		log.Debugf("%v sending message to websocket %v", c.Name, data)
 	}
@@ -300,7 +299,5 @@ func (c *CoinbasePro) wsSend(data interface{}) error {
 	if err != nil {
 		return err
 	}
-	// Basic rate limiter
-	time.Sleep(coinbaseproWebsocketRateLimit)
 	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

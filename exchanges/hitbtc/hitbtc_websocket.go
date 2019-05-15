@@ -17,9 +17,8 @@ import (
 )
 
 const (
-	hitbtcWebsocketAddress   = "wss://api.hitbtc.com/api/2/ws"
-	rpcVersion               = "2.0"
-	hitbtcWebsocketRateLimit = 30 * time.Millisecond
+	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
+	rpcVersion             = "2.0"
 )
 
 // WsConnect starts a new connection with the websocket API
@@ -313,8 +312,8 @@ func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 
 // WsSend sends data to the websocket server
 func (h *HitBTC) wsSend(data interface{}) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.wsRequestMtx.Lock()
+	defer h.wsRequestMtx.Unlock()
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
@@ -322,7 +321,5 @@ func (h *HitBTC) wsSend(data interface{}) error {
 	if h.Verbose {
 		log.Debugf("%v sending message to websocket %v", h.Name, data)
 	}
-	// Basic rate limiter
-	time.Sleep(hitbtcWebsocketRateLimit)
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

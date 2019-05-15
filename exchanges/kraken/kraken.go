@@ -60,7 +60,7 @@ type Kraken struct {
 	exchange.Base
 	WebsocketConn      *websocket.Conn
 	CryptoFee, FiatFee float64
-	mu                 sync.Mutex
+	wsRequestMtx       sync.Mutex
 }
 
 // SetDefaults sets current default settings

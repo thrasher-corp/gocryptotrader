@@ -62,7 +62,7 @@ const (
 type CoinbasePro struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

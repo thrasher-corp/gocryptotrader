@@ -24,8 +24,8 @@ const (
 // been dropped
 type BTCC struct {
 	exchange.Base
-	Conn *websocket.Conn
-	mu   sync.Mutex
+	Conn         *websocket.Conn
+	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

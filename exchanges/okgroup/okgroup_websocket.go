@@ -153,8 +153,8 @@ var defaultSubscribedChannels = []string{okGroupWsSpotDepth, okGroupWsSpotCandle
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
-	o.mu.Lock()
-	defer o.mu.Unlock()
+	o.wsRequestMtx.Lock()
+	defer o.wsRequestMtx.Unlock()
 	if o.Verbose {
 		log.Debugf("%v sending message to WS: %v", o.Name, message)
 	}

@@ -55,7 +55,7 @@ const (
 type HitBTC struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default settings for hitbtc
