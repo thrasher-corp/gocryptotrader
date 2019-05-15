@@ -340,7 +340,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		}
 
 		if httpDebug {
-			dump, err := httputil.DumpResponse(resp, true)
+			dump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
 				log.Errorf("DumpResponse invalid response: %v:", err)
 			}
