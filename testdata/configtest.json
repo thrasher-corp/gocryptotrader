@@ -1085,7 +1085,7 @@
    "name": "OKCOIN International",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
+   "websocket": true,
    "useSandbox": false,
    "restPollingDelay": 10,
    "httpTimeout": 15000000000,

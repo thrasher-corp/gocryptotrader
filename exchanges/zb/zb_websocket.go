@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -42,75 +43,7 @@ func (z *ZB) WsConnect() error {
 	}
 
 	go z.WsHandleData()
-
-	return z.WsSubscribe()
-}
-
-// WsSubscribe subscribes to the full websocket suite on ZB exchange
-func (z *ZB) WsSubscribe() error {
-	markets := Subscription{
-		Event:   "addChannel",
-		Channel: "markets",
-	}
-
-	reqMarkets, err := common.JSONEncode(markets)
-	if err != nil {
-		return err
-	}
-
-	err = z.WebsocketConn.WriteMessage(websocket.TextMessage, reqMarkets)
-	if err != nil {
-		return err
-	}
-
-	for _, c := range z.GetEnabledCurrencies() {
-		cPair := c.Base.Lower().String() + c.Quote.Lower().String()
-
-		ticker := Subscription{
-			Event:   "addChannel",
-			Channel: fmt.Sprintf("%s_ticker", cPair),
-		}
-
-		reqTicker, err := common.JSONEncode(ticker)
-		if err != nil {
-			return err
-		}
-
-		err = z.WebsocketConn.WriteMessage(websocket.TextMessage, reqTicker)
-		if err != nil {
-			return err
-		}
-
-		depth := Subscription{
-			Event:   "addChannel",
-			Channel: fmt.Sprintf("%s_depth", cPair),
-		}
-
-		reqDepth, err := common.JSONEncode(depth)
-		if err != nil {
-			return err
-		}
-
-		err = z.WebsocketConn.WriteMessage(websocket.TextMessage, reqDepth)
-		if err != nil {
-			return err
-		}
-
-		trades := Subscription{
-			Event:   "addChannel",
-			Channel: fmt.Sprintf("%s_trades", cPair),
-		}
-
-		reqTrades, err := common.JSONEncode(trades)
-		if err != nil {
-			return err
-		}
-
-		err = z.WebsocketConn.WriteMessage(websocket.TextMessage, reqTrades)
-		if err != nil {
-			return err
-		}
-	}
+	z.GenerateDefaultSubscriptions()
 
 	return nil
 }
@@ -133,22 +66,18 @@ func (z *ZB) WsHandleData() {
 	z.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := z.WebsocketConn.Close()
-		if err != nil {
-			z.Websocket.DataHandler <- fmt.Errorf("zb_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		z.Websocket.Wg.Done()
 	}()
 
 	for {
 		select {
 		case <-z.Websocket.ShutdownC:
-
+			return
 		default:
 			resp, err := z.WsReadData()
 			if err != nil {
 				z.Websocket.DataHandler <- err
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -158,7 +87,6 @@ func (z *ZB) WsHandleData() {
 				z.Websocket.DataHandler <- err
 				continue
 			}
-
 			switch {
 			case common.StringContains(result.Channel, "markets"):
 				if !result.Success {
@@ -308,4 +236,48 @@ var wsErrCodes = map[int64]string{
 	3008: "Transaction history not found",
 	4001: "API interface is locked",
 	4002: "Request too frequently",
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (z *ZB) GenerateDefaultSubscriptions() {
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	// Tickerdata is its own channel
+	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+		Channel: "markets",
+	})
+	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
+	enabledCurrencies := z.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = ""
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
+				Currency: enabledCurrencies[j].Lower(),
+			})
+		}
+	}
+	z.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscriptionRequest := Subscription{
+		Event:   "addChannel",
+		Channel: channelToSubscribe.Channel,
+	}
+	return z.wsSend(subscriptionRequest)
+}
+
+// WsSend sends data to the websocket server
+func (z *ZB) wsSend(data interface{}) error {
+	z.wsRequestMtx.Lock()
+	defer z.wsRequestMtx.Unlock()
+	json, err := common.JSONEncode(data)
+	if err != nil {
+		return err
+	}
+	if z.Verbose {
+		log.Debugf("%v sending message to websocket %v", z.Name, data)
+	}
+	return z.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

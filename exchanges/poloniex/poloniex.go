@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -62,6 +63,7 @@ const (
 type Poloniex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default settings for poloniex
@@ -89,7 +91,9 @@ func (p *Poloniex) SetDefaults() {
 	p.WebsocketInit()
 	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported
+		exchange.WebsocketTickerSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user exchange configuration settings
@@ -130,8 +134,11 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = p.WebsocketSetup(p.WsConnect,
+			p.Subscribe,
+			p.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			poloniexWebsocketAddress,
 			exch.WebsocketURL)
 		if err != nil {

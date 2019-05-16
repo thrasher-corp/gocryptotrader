@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -18,8 +19,9 @@ import (
 )
 
 const (
-	gateioWebsocketEndpoint = "wss://ws.gate.io/v3/"
-	gatioWsMethodPing       = "ping"
+	gateioWebsocketEndpoint  = "wss://ws.gate.io/v3/"
+	gatioWsMethodPing        = "ping"
+	gateioWebsocketRateLimit = 120 * time.Millisecond
 )
 
 // WsConnect initiates a websocket connection
@@ -54,8 +56,9 @@ func (g *Gateio) WsConnect() error {
 	}
 
 	go g.WsHandleData()
+	g.GenerateDefaultSubscriptions()
 
-	return g.WsSubscribe()
+	return nil
 }
 
 func (g *Gateio) wsServerSignIn() error {
@@ -67,84 +70,7 @@ func (g *Gateio) wsServerSignIn() error {
 		Method: "server.sign",
 		Params: []interface{}{g.APIKey, signature, nonce},
 	}
-	return g.WebsocketConn.WriteJSON(signinWsRequest)
-}
-
-// WsSubscribe subscribes to the full websocket suite on ZB exchange
-func (g *Gateio) WsSubscribe() error {
-	enabled := g.GetEnabledCurrencies()
-
-	for _, c := range enabled {
-		ticker := WebsocketRequest{
-			ID:     1337,
-			Method: "ticker.subscribe",
-			Params: []interface{}{c.String()},
-		}
-
-		err := g.WebsocketConn.WriteJSON(ticker)
-		if err != nil {
-			return err
-		}
-
-		trade := WebsocketRequest{
-			ID:     1337,
-			Method: "trades.subscribe",
-			Params: []interface{}{c.String()},
-		}
-
-		err = g.WebsocketConn.WriteJSON(trade)
-		if err != nil {
-			return err
-		}
-
-		depth := WebsocketRequest{
-			ID:     1337,
-			Method: "depth.subscribe",
-			Params: []interface{}{c.String(), 30, "0.1"},
-		}
-
-		err = g.WebsocketConn.WriteJSON(depth)
-		if err != nil {
-			return err
-		}
-
-		kline := WebsocketRequest{
-			ID:     1337,
-			Method: "kline.subscribe",
-			Params: []interface{}{c.String(), 1800},
-		}
-
-		err = g.WebsocketConn.WriteJSON(kline)
-		if err != nil {
-			return err
-		}
-	}
-
-	if g.AuthenticatedAPISupport {
-		balance := WebsocketRequest{
-			ID:     IDBalance,
-			Method: "balance.subscribe",
-			Params: []interface{}{},
-		}
-
-		err := g.WebsocketConn.WriteJSON(balance)
-		if err != nil {
-			return err
-		}
-
-		for _, c := range enabled {
-			orderNotification := WebsocketRequest{
-				ID:     IDGeneric,
-				Method: "order.subscribe",
-				Params: []interface{}{c.String()},
-			}
-			err := g.WebsocketConn.WriteJSON(orderNotification)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return g.wsSend(signinWsRequest)
 }
 
 // WsReadData reads from the websocket connection and returns the websocket
@@ -165,11 +91,6 @@ func (g *Gateio) WsHandleData() {
 	g.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := g.WebsocketConn.Close()
-		if err != nil {
-			g.Websocket.DataHandler <- fmt.Errorf("gateio_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		g.Websocket.Wg.Done()
 	}()
 
@@ -182,6 +103,8 @@ func (g *Gateio) WsHandleData() {
 			resp, err := g.WsReadData()
 			if err != nil {
 				g.Websocket.DataHandler <- err
+				// Read data error messages can overwhelm and panic the application
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -416,13 +339,72 @@ func (g *Gateio) WsHandleData() {
 	}
 }
 
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (g *Gateio) GenerateDefaultSubscriptions() {
+	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
+	if g.AuthenticatedAPISupport {
+		channels = append(channels, "balance.subscribe", "order.subscribe")
+	}
+
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	enabledCurrencies := g.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			params := make(map[string]interface{})
+			if strings.EqualFold(channels[i], "depth.subscribe") {
+				params["limit"] = 30
+				params["interval"] = "0.1"
+			} else if strings.EqualFold(channels[i], "kline.subscribe") {
+				params["interval"] = 1800
+			}
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+				Params:   params,
+			})
+		}
+	}
+	g.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (g *Gateio) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	params := []interface{}{channelToSubscribe.Currency.String()}
+	for _, paramValue := range channelToSubscribe.Params {
+		params = append(params, paramValue)
+	}
+
+	subscribe := WebsocketRequest{
+		ID:     IDGeneric,
+		Method: channelToSubscribe.Channel,
+		Params: params,
+	}
+
+	if strings.EqualFold(channelToSubscribe.Channel, "balance.subscribe") {
+		subscribe.ID = IDBalance
+	}
+
+	return g.wsSend(subscribe)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
+	subscribe := WebsocketRequest{
+		ID:     IDGeneric,
+		Method: unsbuscribeText,
+		Params: []interface{}{channelToSubscribe.Currency.String(), 1800},
+	}
+	return g.wsSend(subscribe)
+}
+
 func (g *Gateio) wsGetBalance() error {
 	balanceWsRequest := WebsocketRequest{
 		ID:     IDBalance,
 		Method: "balance.query",
 		Params: []interface{}{},
 	}
-	return g.WebsocketConn.WriteJSON(balanceWsRequest)
+	return g.wsSend(balanceWsRequest)
 }
 
 func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
@@ -435,5 +417,17 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) error {
 			limit,
 		},
 	}
-	return g.WebsocketConn.WriteJSON(order)
+	return g.wsSend(order)
+}
+
+// WsSend sends data to the websocket server
+func (g *Gateio) wsSend(data interface{}) error {
+	g.wsRequestMtx.Lock()
+	defer g.wsRequestMtx.Unlock()
+	if g.Verbose {
+		log.Debugf("%v sending message to websocket %v", g.Name, data)
+	}
+	// Basic rate limiter
+	time.Sleep(gateioWebsocketRateLimit)
+	return g.WebsocketConn.WriteJSON(data)
 }

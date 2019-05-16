@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -23,6 +24,7 @@ import (
 type Bitmex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	wsRequestMtx  sync.Mutex
 }
 
 const (
@@ -135,7 +137,9 @@ func (b *Bitmex) SetDefaults() {
 	b.SupportsAutoPairUpdating = true
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -174,8 +178,11 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnector,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			bitmexWSURL,
 			exch.WebsocketURL)
 		if err != nil {

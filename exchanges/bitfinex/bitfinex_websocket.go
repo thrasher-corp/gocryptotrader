@@ -57,30 +57,21 @@ func (b *Bitfinex) WsPingHandler() error {
 	req := make(map[string]string)
 	req["event"] = "ping"
 
-	return b.WsSend(req)
+	return b.wsSend(req)
 }
 
 // WsSend sends data to the websocket server
-func (b *Bitfinex) WsSend(data interface{}) error {
+func (b *Bitfinex) wsSend(data interface{}) error {
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
-}
-
-// WsSubscribe subscribes to the websocket channel
-func (b *Bitfinex) WsSubscribe(channel string, params map[string]string) error {
-	req := make(map[string]string)
-	req["event"] = "subscribe"
-	req["channel"] = channel
-
-	if len(params) > 0 {
-		for k, v := range params {
-			req[k] = v
-		}
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, data)
 	}
-	return b.WsSend(req)
+	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }
 
 // WsSendAuth sends a autheticated event payload
@@ -98,7 +89,7 @@ func (b *Bitfinex) WsSendAuth() error {
 
 	req["authPayload"] = payload
 
-	return b.WsSend(req)
+	return b.wsSend(req)
 }
 
 // WsSendUnauth sends an unauthenticated payload
@@ -106,7 +97,7 @@ func (b *Bitfinex) WsSendUnauth() error {
 	req := make(map[string]string)
 	req["event"] = "unauth"
 
-	return b.WsSend(req)
+	return b.wsSend(req)
 }
 
 // WsAddSubscriptionChannel adds a new subscription channel to the
@@ -130,7 +121,6 @@ func (b *Bitfinex) WsConnect() error {
 		return errors.New(exchange.WebsocketNotEnabled)
 	}
 
-	var channels = []string{"book", "trades", "ticker"}
 	var Dialer websocket.Dialer
 	var err error
 
@@ -145,12 +135,12 @@ func (b *Bitfinex) WsConnect() error {
 
 	b.WebsocketConn, _, err = Dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
 	if err != nil {
-		return fmt.Errorf("unable to connect to Websocket. Error: %s", err)
+		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", b.Name, err)
 	}
 
 	_, resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("unable to read from Websocket. Error: %s", err)
+		return fmt.Errorf("%v unable to read from Websocket. Error: %s", b.Name, err)
 	}
 
 	var hs WebsocketHandshake
@@ -159,23 +149,10 @@ func (b *Bitfinex) WsConnect() error {
 		return err
 	}
 
+	b.GenerateDefaultSubscriptions()
 	if hs.Event == "info" {
 		if b.Verbose {
 			log.Debugf("%s Connected to Websocket.\n", b.GetName())
-		}
-	}
-
-	for _, x := range channels {
-		for _, y := range b.EnabledPairs {
-			params := make(map[string]string)
-			if x == "book" {
-				params["prec"] = "P0"
-			}
-			params["pair"] = y.String()
-			err = b.WsSubscribe(x, params)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -214,11 +191,6 @@ func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := b.WebsocketConn.Close()
-		if err != nil {
-			b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go - closing websocket connection error %s",
-				err)
-		}
 		b.Websocket.Wg.Done()
 	}()
 
@@ -237,12 +209,13 @@ func (b *Bitfinex) WsDataHandler() {
 			if stream.Type == websocket.TextMessage {
 				var result interface{}
 				common.JSONDecode(stream.Raw, &result)
-
 				switch reflect.TypeOf(result).String() {
 				case "map[string]interface {}":
 					eventData := result.(map[string]interface{})
 					event := eventData["event"]
-
+					if b.Verbose {
+						log.Debugf("%v Received message. Type '%v' Message: %v", b.Name, event, eventData)
+					}
 					switch event {
 					case "subscribed":
 						b.WsAddSubscriptionChannel(int(eventData["chanId"].(float64)),
@@ -623,4 +596,52 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 		Exchange: b.GetName()}
 
 	return nil
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *Bitfinex) GenerateDefaultSubscriptions() {
+	var channels = []string{"book", "trades", "ticker"}
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	for i := range channels {
+		for j := range b.EnabledPairs {
+			params := make(map[string]interface{})
+			if channels[i] == "book" {
+				params["prec"] = "P0"
+			}
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: b.EnabledPairs[j],
+				Params:   params,
+			})
+		}
+	}
+	b.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (b *Bitfinex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	req := make(map[string]interface{})
+	req["event"] = "subscribe"
+	req["channel"] = channelToSubscribe.Channel
+	req["pair"] = channelToSubscribe.Currency.String()
+	if len(channelToSubscribe.Params) > 0 {
+		for k, v := range channelToSubscribe.Params {
+			req[k] = v
+		}
+	}
+	return b.wsSend(req)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (b *Bitfinex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	req := make(map[string]interface{})
+	req["event"] = "unsubscribe"
+	req["channel"] = channelToSubscribe.Channel
+
+	if len(channelToSubscribe.Params) > 0 {
+		for k, v := range channelToSubscribe.Params {
+			req[k] = v
+		}
+	}
+	return b.wsSend(req)
 }

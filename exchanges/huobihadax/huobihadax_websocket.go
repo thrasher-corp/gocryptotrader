@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -51,7 +52,8 @@ func (h *HUOBIHADAX) WsConnect() error {
 
 	go h.WsHandleData()
 
-	return h.WsSubscribe()
+	h.GenerateDefaultSubscriptions()
+	return nil
 }
 
 // WsReadData reads data from the websocket connection
@@ -83,11 +85,6 @@ func (h *HUOBIHADAX) WsHandleData() {
 	h.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := h.WebsocketConn.Close()
-		if err != nil {
-			h.Websocket.DataHandler <- fmt.Errorf("huobi_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		h.Websocket.Wg.Done()
 	}()
 
@@ -223,46 +220,48 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 	return nil
 }
 
-// WsSubscribe susbcribes to the current websocket streams based on the enabled
-// pair
-func (h *HUOBIHADAX) WsSubscribe() error {
-	pairs := h.GetEnabledCurrencies()
-
-	for _, p := range pairs {
-		fPair := exchange.FormatExchangeCurrency(h.GetName(), p)
-
-		depthTopic := fmt.Sprintf(wsMarketDepth, fPair.String())
-		depthJSON, err := common.JSONEncode(WsRequest{Subscribe: depthTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, depthJSON)
-		if err != nil {
-			return err
-		}
-
-		klineTopic := fmt.Sprintf(wsMarketKline, fPair.String())
-		KlineJSON, err := common.JSONEncode(WsRequest{Subscribe: klineTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, KlineJSON)
-		if err != nil {
-			return err
-		}
-
-		tradeTopic := fmt.Sprintf(wsMarketTrade, fPair.String())
-		tradeJSON, err := common.JSONEncode(WsRequest{Subscribe: tradeTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, tradeJSON)
-		if err != nil {
-			return err
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
+	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
+	enabledCurrencies := h.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	for i := range channels {
+		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = ""
+			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String())
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channel,
+				Currency: enabledCurrencies[j],
+			})
 		}
 	}
-	return nil
+	h.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (h *HUOBIHADAX) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
+}
+
+// WsSend sends data to the websocket server
+func (h *HUOBIHADAX) wsSend(data []byte) error {
+	h.wsRequestMtx.Lock()
+	defer h.wsRequestMtx.Unlock()
+	if h.Verbose {
+		log.Debugf("%v sending message to websocket %s", h.Name, string(data))
+	}
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

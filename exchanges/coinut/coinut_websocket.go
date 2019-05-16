@@ -2,7 +2,6 @@ package coinut
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -12,9 +11,11 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const coinutWebsocketURL = "wss://wsapi.coinut.com"
+const coinutWebsocketRateLimit = 30 * time.Millisecond
 
 var nNonce map[int64]string
 var channels map[string]chan []byte
@@ -43,11 +44,6 @@ func (c *COINUT) WsHandleData() {
 	c.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := c.WebsocketConn.Close()
-		if err != nil {
-			c.Websocket.DataHandler <- fmt.Errorf("coinut_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		c.Websocket.Wg.Done()
 	}()
 
@@ -69,7 +65,6 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- err
 				continue
 			}
-
 			switch incoming.Reply {
 			case "hb":
 				channels["hb"] <- resp.Raw
@@ -203,10 +198,7 @@ func (c *COINUT) WsConnect() error {
 		populatedList = true
 	}
 
-	err = c.WsSubscribe()
-	if err != nil {
-		return err
-	}
+	c.GenerateDefaultSubscriptions()
 
 	// define bi-directional communication
 	channels = make(map[string]chan []byte)
@@ -230,17 +222,11 @@ func (c *COINUT) GetNonce() int64 {
 
 // WsSetInstrumentList fetches instrument list and propagates a local cache
 func (c *COINUT) WsSetInstrumentList() error {
-	req, err := common.JSONEncode(wsRequest{
+	err := c.wsSend(wsRequest{
 		Request: "inst_list",
 		SecType: "SPOT",
 		Nonce:   c.GetNonce(),
 	})
-
-	if err != nil {
-		return err
-	}
-
-	err = c.WebsocketConn.WriteMessage(websocket.TextMessage, req)
 	if err != nil {
 		return err
 	}
@@ -267,48 +253,6 @@ func (c *COINUT) WsSetInstrumentList() error {
 		return errors.New("instrument lists failed to populate")
 	}
 
-	return nil
-}
-
-// WsSubscribe subscribes to websocket streams
-func (c *COINUT) WsSubscribe() error {
-	pairs := c.GetEnabledCurrencies()
-
-	for _, p := range pairs {
-		ticker := wsRequest{
-			Request:   "inst_tick",
-			InstID:    instrumentListByString[p.String()],
-			Subscribe: true,
-			Nonce:     c.GetNonce(),
-		}
-
-		tickjson, err := common.JSONEncode(ticker)
-		if err != nil {
-			return err
-		}
-
-		err = c.WebsocketConn.WriteMessage(websocket.TextMessage, tickjson)
-		if err != nil {
-			return err
-		}
-
-		ob := wsRequest{
-			Request:   "inst_order_book",
-			InstID:    instrumentListByString[p.String()],
-			Subscribe: true,
-			Nonce:     c.GetNonce(),
-		}
-
-		objson, err := common.JSONEncode(ob)
-		if err != nil {
-			return err
-		}
-
-		err = c.WebsocketConn.WriteMessage(websocket.TextMessage, objson)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -360,4 +304,59 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 		time.Now(),
 		c.GetName(),
 		"SPOT")
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (c *COINUT) GenerateDefaultSubscriptions() {
+	var channels = []string{"inst_tick", "inst_order_book"}
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	enabledCurrencies := c.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+	c.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := wsRequest{
+		Request:   channelToSubscribe.Channel,
+		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
+		Subscribe: true,
+		Nonce:     c.GetNonce(),
+	}
+	return c.wsSend(subscribe)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := wsRequest{
+		Request:   channelToSubscribe.Channel,
+		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
+		Subscribe: false,
+		Nonce:     c.GetNonce(),
+	}
+	return c.wsSend(subscribe)
+}
+
+// WsSend sends data to the websocket server
+func (c *COINUT) wsSend(data interface{}) error {
+	c.wsRequestMtx.Lock()
+	defer c.wsRequestMtx.Unlock()
+
+	json, err := common.JSONEncode(data)
+	if err != nil {
+		return err
+	}
+	if c.Verbose {
+		log.Debugf("%v sending message to websocket %v", c.Name, string(json))
+	}
+	// Basic rate limiter
+	time.Sleep(coinutWebsocketRateLimit)
+	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

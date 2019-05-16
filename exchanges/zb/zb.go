@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -49,6 +50,7 @@ const (
 type ZB struct {
 	WebsocketConn *websocket.Conn
 	exchange.Base
+	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -78,7 +80,8 @@ func (z *ZB) SetDefaults() {
 	z.WebsocketInit()
 	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported
 }
 
 // Setup sets user configuration
@@ -120,8 +123,11 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = z.WebsocketSetup(z.WsConnect,
+			z.Subscribe,
+			nil,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			zbWebsocketAPI,
 			exch.WebsocketURL)
 		if err != nil {

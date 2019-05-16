@@ -1,6 +1,7 @@
 package btcc
 
 import (
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -23,7 +24,8 @@ const (
 // been dropped
 type BTCC struct {
 	exchange.Base
-	Conn *websocket.Conn
+	Conn         *websocket.Conn
+	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -46,6 +48,9 @@ func (b *BTCC) SetDefaults() {
 		request.NewRateLimit(time.Second, btccUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.WebsocketInit()
+	b.Websocket.Functionality =
+		exchange.WebsocketSubscribeSupported |
+			exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup is run on startup to setup exchange with config values
@@ -86,8 +91,11 @@ func (b *BTCC) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			btccSocketioAddress,
 			exch.WebsocketURL)
 		if err != nil {

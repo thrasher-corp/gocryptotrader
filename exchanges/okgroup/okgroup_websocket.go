@@ -143,18 +143,23 @@ const (
 	okGroupWsFuturesAccount        = okGroupWsFuturesSubsection + okGroupWsAccount
 	okGroupWsFuturesPosition       = okGroupWsFuturesSubsection + okGroupWsPosition
 	okGroupWsFuturesOrder          = okGroupWsFuturesSubsection + okGroupWsOrder
+
+	okGroupWsRateLimit = 30 * time.Millisecond
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var orderbookMutex sync.Mutex
+var defaultSubscribedChannels = []string{okGroupWsSpotDepth, okGroupWsSpotCandle300s, okGroupWsSpotTicker, okGroupWsSpotTrade}
 
 // writeToWebsocket sends a message to the websocket endpoint
 func (o *OKGroup) writeToWebsocket(message string) error {
-	o.mu.Lock()
-	defer o.mu.Unlock()
+	o.wsRequestMtx.Lock()
+	defer o.wsRequestMtx.Unlock()
 	if o.Verbose {
-		log.Debugf("Sending message to WS: %v", message)
+		log.Debugf("%v sending message to WS: %v", o.Name, message)
 	}
+	// Really basic WS rate limit
+	time.Sleep(okGroupWsRateLimit)
 	return o.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
 }
 
@@ -165,13 +170,11 @@ func (o *OKGroup) WsConnect() error {
 	}
 
 	var dialer websocket.Dialer
-
 	if o.Websocket.GetProxyAddress() != "" {
 		proxy, err := url.Parse(o.Websocket.GetProxyAddress())
 		if err != nil {
 			return err
 		}
-
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
@@ -187,38 +190,17 @@ func (o *OKGroup) WsConnect() error {
 			err)
 	}
 	if o.Verbose {
-		log.Debugf("Successful connection to %v", o.Websocket.GetWebsocketURL())
+		log.Debugf("Successful connection to %v",
+			o.Websocket.GetWebsocketURL())
 	}
-
-	var wg sync.WaitGroup
+	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go o.WsHandleData(&wg)
 	go o.wsPingHandler(&wg)
-
-	err = o.WsSubscribeToDefaults()
-	if err != nil {
-		return fmt.Errorf("error: Could not subscribe to the OKEX websocket %s",
-			err)
-	}
+	o.GenerateDefaultSubscriptions()
 
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
-	return nil
-}
-
-// WsSubscribeToDefaults subscribes to the websocket channels
-func (o *OKGroup) WsSubscribeToDefaults() (err error) {
-	channelsToSubscribe := []string{okGroupWsSpotDepth, okGroupWsSpotCandle300s, okGroupWsSpotTicker, okGroupWsSpotTrade}
-	for _, pair := range o.EnabledPairs {
-		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "_", "-", 1))
-		for _, channel := range channelsToSubscribe {
-			err = o.WsSubscribeToChannel(fmt.Sprintf("%v:%s", channel, formattedPair))
-			if err != nil {
-				return
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -255,7 +237,7 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer o.Websocket.Wg.Done()
 
-	ticker := time.NewTicker(time.Second * 27)
+	ticker := time.NewTicker(time.Second * 10)
 
 	wg.Done()
 
@@ -271,7 +253,6 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 			}
 			if err != nil {
 				o.Websocket.DataHandler <- err
-				return
 			}
 		}
 	}
@@ -281,11 +262,6 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer func() {
-		err := o.WebsocketConn.Close()
-		if err != nil {
-			o.Websocket.DataHandler <- fmt.Errorf("okex_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		o.Websocket.Wg.Done()
 	}()
 
@@ -295,11 +271,12 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 		select {
 		case <-o.Websocket.ShutdownC:
 			return
+
 		default:
 			resp, err := o.WsReadData()
 			if err != nil {
+				time.Sleep(time.Second)
 				o.Websocket.DataHandler <- err
-				return
 			}
 			var dataResponse WebsocketDataResponse
 			err = common.JSONDecode(resp.Raw, &dataResponse)
@@ -326,44 +303,8 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 				}
 				continue
 			}
-			o.Websocket.DataHandler <- fmt.Errorf("unrecognised response: %v", resp.Raw)
-			continue
 		}
 	}
-}
-
-// WsSubscribeToChannel sends a request to WS to subscribe to supplied channel
-func (o *OKGroup) WsSubscribeToChannel(topic string) error {
-	resp := WebsocketEventRequest{
-		Operation: "subscribe",
-		Arguments: []string{topic},
-	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		return err
-	}
-	err = o.writeToWebsocket(string(json))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// WsUnsubscribeToChannel sends a request to WS to unsubscribe to supplied channel
-func (o *OKGroup) WsUnsubscribeToChannel(topic string) error {
-	resp := WebsocketEventRequest{
-		Operation: "unsubscribe",
-		Arguments: []string{topic},
-	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		return err
-	}
-	err = o.writeToWebsocket(string(json))
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
@@ -440,9 +381,12 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		orderbookMutex.Lock()
 		err := o.WsProcessOrderBook(response)
 		if err != nil {
-			log.Error(err)
-			subscriptionChannel := fmt.Sprintf("%v:%v", response.Table, response.Data[0].InstrumentID)
-			o.ResubscribeToChannel(subscriptionChannel)
+			pair := currency.NewPairDelimiter(response.Data[0].InstrumentID, "-")
+			channelToResubscribe := exchange.WebsocketChannelSubscription{
+				Channel:  response.Table,
+				Currency: pair,
+			}
+			o.Websocket.ResubscribeToChannel(channelToResubscribe)
 		}
 		orderbookMutex.Unlock()
 	case okGroupWsTicker:
@@ -457,42 +401,6 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		o.wsProcessTrades(response)
 	default:
 		logDataResponse(response)
-	}
-}
-
-// ResubscribeToChannel will attempt to unsubscribe and resubscribe to a channel
-func (o *OKGroup) ResubscribeToChannel(channel string) {
-	if okGroupWsResubscribeFailureLimit > 0 {
-		var successfulUnsubscribe bool
-		for i := 0; i < okGroupWsResubscribeFailureLimit; i++ {
-			err := o.WsUnsubscribeToChannel(channel)
-			if err != nil {
-				log.Error(err)
-				time.Sleep(okGroupWsResubscribeDelayInSeconds * time.Second)
-				continue
-			}
-			successfulUnsubscribe = true
-			break
-		}
-		if !successfulUnsubscribe {
-			log.Fatalf("%v websocket channel %v failed to unsubscribe after %v attempts", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
-		}
-		successfulSubscribe := true
-		for i := 0; i < okGroupWsResubscribeFailureLimit; i++ {
-			err := o.WsSubscribeToChannel(channel)
-			if err != nil {
-				log.Error(err)
-				time.Sleep(okGroupWsResubscribeDelayInSeconds * time.Second)
-				continue
-			}
-			successfulSubscribe = true
-			break
-		}
-		if !successfulSubscribe {
-			log.Fatalf("%v websocket channel %v failed to resubscribe after %v attempts", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
-		}
-	} else {
-		log.Fatalf("%v websocket channel %v cannot resubscribe. Limit: %v", o.GetName(), channel, okGroupWsResubscribeFailureLimit)
 	}
 }
 
@@ -766,4 +674,52 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 	}
 	checksum = strings.TrimSuffix(checksum, ":")
 	return int32(crc32.ChecksumIEEE([]byte(checksum)))
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (o *OKGroup) GenerateDefaultSubscriptions() {
+	enabledCurrencies := o.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	for i := range defaultSubscribedChannels {
+		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = "-"
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  defaultSubscribedChannels[i],
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+	o.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	resp := WebsocketEventRequest{
+		Operation: "subscribe",
+		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
+	}
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		if o.Verbose {
+			log.Debugf("%v subscribe error: %v", o.Name, err)
+		}
+		return err
+	}
+	return o.writeToWebsocket(string(json))
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	resp := WebsocketEventRequest{
+		Operation: "unsubscribe",
+		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
+	}
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		if o.Verbose {
+			log.Debugf("%v unsubscribe error: %v", o.Name, err)
+		}
+		return err
+	}
+	return o.writeToWebsocket(string(json))
 }

@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -68,6 +69,7 @@ type HUOBI struct {
 	exchange.Base
 	AccountID     string
 	WebsocketConn *websocket.Conn
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -95,7 +97,9 @@ func (h *HUOBI) SetDefaults() {
 	h.WebsocketInit()
 	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user configuration
@@ -138,8 +142,11 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = h.WebsocketSetup(h.WsConnect,
+			h.Subscribe,
+			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			huobiSocketIOAddress,
 			exch.WebsocketURL)
 		if err != nil {

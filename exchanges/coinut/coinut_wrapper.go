@@ -503,3 +503,17 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	return orders, nil
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (c *COINUT) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	c.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (c *COINUT) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	c.Websocket.UnsubscribeToChannels(channels)
+	return nil
+}

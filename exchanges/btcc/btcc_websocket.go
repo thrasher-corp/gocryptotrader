@@ -70,18 +70,9 @@ func (b *BTCC) WsConnect() error {
 	}
 
 	go b.WsHandleData()
+	b.GenerateDefaultSubscriptions()
 
-	err = b.WsSubscribeToOrderbook()
-	if err != nil {
-		return err
-	}
-
-	err = b.WsSubcribeToTicker()
-	if err != nil {
-		return err
-	}
-
-	return b.WsSubcribeToTrades()
+	return nil
 }
 
 // WsReadData reads data from the websocket connection
@@ -251,33 +242,8 @@ func (b *BTCC) WsHandleData() {
 	}
 }
 
-// WsSubscribeAllTickers subscribes to a ticker channel
-func (b *BTCC) WsSubscribeAllTickers() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	return b.Conn.WriteJSON(WsOutgoing{
-		Action: "SubscribeAllTickers",
-	})
-}
-
-// WsUnSubscribeAllTickers unsubscribes from a ticker channel
-func (b *BTCC) WsUnSubscribeAllTickers() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	return b.Conn.WriteJSON(WsOutgoing{
-		Action: "UnSubscribeAllTickers",
-	})
-}
-
 // WsUpdateCurrencyPairs updates currency pairs from the websocket connection
 func (b *BTCC) WsUpdateCurrencyPairs() error {
-	err := b.WsSubscribeAllTickers()
-	if err != nil {
-		return err
-	}
-
 	var currencyResponse WsResponseMain
 	for {
 		_, resp, err := b.Conn.ReadMessage()
@@ -313,8 +279,6 @@ func (b *BTCC) WsUpdateCurrencyPairs() error {
 					err)
 			}
 
-			return b.WsUnSubscribeAllTickers()
-
 		case "Heartbeat":
 
 		default:
@@ -322,61 +286,6 @@ func (b *BTCC) WsUpdateCurrencyPairs() error {
 				string(resp))
 		}
 	}
-}
-
-// WsSubscribeToOrderbook subscribes to an orderbook channel
-func (b *BTCC) WsSubscribeToOrderbook() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	for _, pair := range b.GetEnabledCurrencies() {
-		formattedPair := exchange.FormatExchangeCurrency(b.GetName(), pair)
-		err := b.Conn.WriteJSON(WsOutgoing{
-			Action: "SubOrderBook",
-			Symbol: formattedPair.String(),
-			Len:    100})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// WsSubcribeToTicker subscribes to a ticker channel
-func (b *BTCC) WsSubcribeToTicker() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	for _, pair := range b.GetEnabledCurrencies() {
-		formattedPair := exchange.FormatExchangeCurrency(b.GetName(), pair)
-		err := b.Conn.WriteJSON(WsOutgoing{
-			Action: "Subscribe",
-			Symbol: formattedPair.String(),
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// WsSubcribeToTrades subscribes to a trade channel
-func (b *BTCC) WsSubcribeToTrades() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	for _, pair := range b.GetEnabledCurrencies() {
-		formattedPair := exchange.FormatExchangeCurrency(b.GetName(), pair)
-		err := b.Conn.WriteJSON(WsOutgoing{
-			Action: "GetTrades",
-			Symbol: formattedPair.String(),
-			Count:  100,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot
@@ -558,4 +467,73 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 	}
 
 	return nil
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *BTCC) GenerateDefaultSubscriptions() {
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+		Channel: "SubscribeAllTickers",
+	})
+
+	var channels = []string{"SubOrderBook", "GetTrades", "Subscribe"}
+	enabledCurrencies := b.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			params := make(map[string]interface{})
+			if channels[i] == "SubOrderBook" {
+				params["len"] = "100"
+			} else if channels[i] == "GetTrades" {
+				params["count"] = "100"
+			}
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+				Params:   params,
+			})
+		}
+	}
+	b.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (b *BTCC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscription := WsOutgoing{
+		Action: channelToSubscribe.Channel,
+		Symbol: channelToSubscribe.Currency.String(),
+	}
+	if subscription.Action == "SubOrderBook" {
+		subscription.Len = 100
+	} else if subscription.Action == "GetTrades" {
+		subscription.Count = 100
+	}
+
+	return b.wsSend(subscription)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (b *BTCC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscription := WsOutgoing{}
+	switch channelToSubscribe.Channel {
+	case "SubOrderBook":
+		subscription.Action = "UnSubOrderBook"
+		subscription.Symbol = channelToSubscribe.Currency.String()
+	case "Subscribe":
+		subscription.Action = "UnSubscribe"
+		subscription.Symbol = channelToSubscribe.Currency.String()
+	case "SubscribeAllTickers":
+		subscription.Action = "UnSubscribeAllTickers"
+	}
+
+	return b.wsSend(subscription)
+}
+
+// WsSend sends data to the websocket server
+func (b *BTCC) wsSend(data interface{}) error {
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, data)
+	}
+	return b.Conn.WriteJSON(data)
 }

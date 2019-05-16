@@ -105,16 +105,7 @@ func (b *Bitmex) WsConnector() error {
 	}
 
 	go b.wsHandleIncomingData()
-
-	err = b.websocketSubscribe()
-	if err != nil {
-		closeError := b.WebsocketConn.Close()
-		if closeError != nil {
-			return fmt.Errorf("bitmex_websocket.go error - Websocket connection could not close %s",
-				closeError)
-		}
-		return err
-	}
+	b.GenerateDefaultSubscriptions()
 
 	if b.AuthenticatedAPISupport {
 		err := b.websocketSendAuth()
@@ -143,11 +134,6 @@ func (b *Bitmex) wsHandleIncomingData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := b.WebsocketConn.Close()
-		if err != nil {
-			b.Websocket.DataHandler <- fmt.Errorf("bitmex_websocket.go - Unable to close Websocket connection. Error: %s",
-				err)
-		}
 		b.Websocket.Wg.Done()
 	}()
 
@@ -170,7 +156,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			if common.StringContains(message, "ping") {
-				err = b.WebsocketConn.WriteJSON("pong")
+				err = b.wsSend("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -398,26 +384,42 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 	return nil
 }
 
-// WebsocketSubscribe subscribes to a websocket channel
-func (b *Bitmex) websocketSubscribe() error {
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *Bitmex) GenerateDefaultSubscriptions() {
 	contracts := b.GetEnabledCurrencies()
+	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
+	subscriptions := []exchange.WebsocketChannelSubscription{
+		{
+			Channel: bitmexWSAnnouncement,
+		},
+	}
+	for i := range channels {
+		for j := range contracts {
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
+				Currency: contracts[j],
+			})
+		}
+	}
+	b.Websocket.SubscribeToChannels(subscriptions)
+}
 
-	// Subscriber
+// Subscribe subscribes to a websocket channel
+func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
+	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
+	return b.wsSend(subscriber)
+}
 
-	// Announcement subscribe
-	subscriber.Arguments = append(subscriber.Arguments, bitmexWSAnnouncement)
-
-	for _, contract := range contracts {
-		// Orderbook and Trade subscribe
-		// NOTE more added here in future
-		subscriber.Arguments = append(subscriber.Arguments,
-			bitmexWSOrderbookL2+":"+contract.String(),
-			bitmexWSTrade+":"+contract.String())
-	}
-
-	return b.WebsocketConn.WriteJSON(subscriber)
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	var subscriber WebsocketRequest
+	subscriber.Command = "unsubscribe"
+	subscriber.Arguments = append(subscriber.Arguments,
+		channelToSubscribe.Params["args"],
+		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
+	return b.wsSend(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription
@@ -433,5 +435,15 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
 		signature)
-	return b.WebsocketConn.WriteJSON(sendAuth)
+	return b.wsSend(sendAuth)
+}
+
+// WsSend sends data to the websocket server
+func (b *Bitmex) wsSend(data interface{}) error {
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, data)
+	}
+	return b.WebsocketConn.WriteJSON(data)
 }

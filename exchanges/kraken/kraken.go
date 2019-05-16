@@ -60,7 +60,7 @@ type Kraken struct {
 	exchange.Base
 	WebsocketConn      *websocket.Conn
 	CryptoFee, FiatFee float64
-	mu                 sync.Mutex
+	wsRequestMtx       sync.Mutex
 }
 
 // SetDefaults sets current default settings
@@ -94,7 +94,9 @@ func (k *Kraken) SetDefaults() {
 	k.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 
 }
 
@@ -136,8 +138,11 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = k.WebsocketSetup(k.WsConnect,
+			k.Subscribe,
+			k.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			krakenWSURL,
 			exch.WebsocketURL)
 		if err != nil {

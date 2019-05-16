@@ -358,3 +358,17 @@ func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	}
 	return b.GetFee(feeBuilder)
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (b *BTSE) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	b.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (b *BTSE) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	b.Websocket.UnsubscribeToChannels(channels)
+	return nil
+}

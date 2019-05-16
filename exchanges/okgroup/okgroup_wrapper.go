@@ -429,3 +429,17 @@ func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 	return o.GetWithdrawPermissions()
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (o *OKGroup) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	o.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	o.Websocket.UnsubscribeToChannels(channels)
+	return nil
+}

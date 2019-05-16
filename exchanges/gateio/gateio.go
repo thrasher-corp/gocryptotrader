@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -49,6 +50,7 @@ const (
 type Gateio struct {
 	WebsocketConn *websocket.Conn
 	exchange.Base
+	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -78,7 +80,9 @@ func (g *Gateio) SetDefaults() {
 	g.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketKlineSupported
+		exchange.WebsocketKlineSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user configuration
@@ -120,8 +124,11 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.WebsocketSetup(g.WsConnect,
+			g.Subscribe,
+			g.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			gateioWebsocketEndpoint,
 			exch.WebsocketURL)
 		if err != nil {
@@ -461,6 +468,7 @@ func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 	return result, nil
 }
 
+// GenerateSignature returns hash for authenticated requests
 func (g *Gateio) GenerateSignature(message string) []byte {
 	return common.GetHMAC(common.HashSHA512, []byte(message), []byte(g.APISecret))
 }

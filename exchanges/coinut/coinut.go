@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -48,6 +49,7 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets current default values
@@ -77,7 +79,9 @@ func (c *COINUT) SetDefaults() {
 	c.WebsocketInit()
 	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets the current exchange configuration
@@ -118,8 +122,11 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.WebsocketSetup(c.WsConnect,
+			c.Subscribe,
+			c.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			coinutWebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {

@@ -14,7 +14,7 @@ type Generic struct {
 	Success bool            `json:"success"`
 	Channel string          `json:"channel"`
 	Message string          `json:"message"`
-	No      int64           `json:"no"`
+	No      string          `json:"no"`
 	Data    json.RawMessage `json:"data"`
 }
 

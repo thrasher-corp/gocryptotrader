@@ -445,3 +445,17 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	return orders, nil
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (g *Gateio) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	g.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (g *Gateio) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	g.Websocket.UnsubscribeToChannels(channels)
+	return nil
+}

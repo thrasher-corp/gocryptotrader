@@ -399,3 +399,17 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 	return orders, nil
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (b *Bitstamp) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	b.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (b *Bitstamp) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	b.Websocket.UnsubscribeToChannels(channels)
+	return nil
+}

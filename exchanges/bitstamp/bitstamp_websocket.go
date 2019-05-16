@@ -15,38 +15,6 @@ import (
 	pusher "github.com/toorop/go-pusher"
 )
 
-// WebsocketConn defins a pusher websocket connection
-type WebsocketConn struct {
-	Client *pusher.Client
-	Data   chan *pusher.Event
-	Trade  chan *pusher.Event
-}
-
-// PusherOrderbook holds order book information to be pushed
-type PusherOrderbook struct {
-	Asks      [][]string `json:"asks"`
-	Bids      [][]string `json:"bids"`
-	Timestamp int64      `json:"timestamp,string"`
-}
-
-// PusherTrade holds trade information to be pushed
-type PusherTrade struct {
-	Price       float64 `json:"price"`
-	Amount      float64 `json:"amount"`
-	ID          int64   `json:"id"`
-	Type        int64   `json:"type"`
-	Timestamp   int64   `json:"timestamp,string"`
-	BuyOrderID  int64   `json:"buy_order_id"`
-	SellOrderID int64   `json:"sell_order_id"`
-}
-
-// PusherOrders defines order information
-type PusherOrders struct {
-	ID     int64   `json:"id"`
-	Amount float64 `json:"amount"`
-	Price  float64 `json:""`
-}
-
 const (
 	// BitstampPusherKey holds the current pusher key
 	BitstampPusherKey = "de504dc5763aeef9ff52"
@@ -98,7 +66,7 @@ func (b *Bitstamp) WsConnect() error {
 	if err != nil {
 		return fmt.Errorf("%s Websocket Bind error: %s", b.GetName(), err)
 	}
-
+	b.GenerateDefaultSubscriptions()
 	go b.WsReadData()
 
 	for _, p := range b.GetEnabledCurrencies() {
@@ -141,32 +109,49 @@ func (b *Bitstamp) WsConnect() error {
 			Exchange: b.GetName(),
 		}
 
-		err = b.WebsocketConn.Client.Subscribe(fmt.Sprintf("live_trades_%s",
-			p.Lower().String()))
-
-		if err != nil {
-			return fmt.Errorf("%s Websocket Trade subscription error: %s",
-				b.GetName(),
-				err)
-		}
-
-		err = b.WebsocketConn.Client.Subscribe(fmt.Sprintf("diff_order_book_%s",
-			p.Lower().String()))
-
-		if err != nil {
-			return fmt.Errorf("%s Websocket Trade subscription error: %s",
-				b.GetName(),
-				err)
-		}
-
 	}
 	return nil
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *Bitstamp) GenerateDefaultSubscriptions() {
+	var channels = []string{"live_trades_", "diff_order_book_"}
+	enabledCurrencies := b.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	for i := range channels {
+		for j := range enabledCurrencies {
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j].Lower().String()),
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+	b.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, channelToSubscribe)
+	}
+	return b.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, channelToSubscribe)
+	}
+	return b.WebsocketConn.Client.Unsubscribe(channelToSubscribe.Channel)
 }
 
 // WsReadData reads data coming from bitstamp websocket connection
 func (b *Bitstamp) WsReadData() {
 	b.Websocket.Wg.Add(1)
-
 	defer func() {
 		err := b.WebsocketConn.Client.Close()
 		if err != nil {

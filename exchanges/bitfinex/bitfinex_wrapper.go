@@ -454,3 +454,17 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 	return orders, nil
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (b *Bitfinex) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	b.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	b.Websocket.UnsubscribeToChannels(channels)
+	return nil
+}

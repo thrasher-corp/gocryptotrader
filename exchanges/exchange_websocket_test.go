@@ -1,6 +1,8 @@
 package exchange
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,8 +30,11 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	wsTest.WebsocketSetup(func() error { return nil },
+		func(test WebsocketChannelSubscription) error { return nil },
+		func(test WebsocketChannelSubscription) error { return nil },
 		"testName",
 		true,
+		false,
 		"testDefaultURL",
 		"testRunningURL")
 
@@ -71,13 +76,12 @@ func TestWebsocket(t *testing.T) {
 			}
 		}
 	}()
-
 	// -- Not connected shutdown
 	err := wsTest.Websocket.Shutdown()
 	if err == nil {
 		t.Fatal("test failed - should not be connected to able to shut down")
 	}
-
+	wsTest.Websocket.Wg.Wait()
 	// -- Normal connect
 	err = wsTest.Websocket.Connect()
 	if err != nil {
@@ -255,7 +259,6 @@ func TestUpdate(t *testing.T) {
 		{Price: 1337, Amount: 100}, // Append
 		{Price: 1336, Amount: 0},   // Ghost delete
 	}
-
 	err := wsTest.Websocket.Orderbook.Update(bidTargets,
 		askTargets,
 		LTCUSDPAIR,
@@ -326,5 +329,240 @@ func TestFunctionality(t *testing.T) {
 
 	if !w.SupportsFunctionality(WebsocketOrderbookSupported) {
 		t.Fatal("Test Failed - SupportsFunctionality error should be true")
+	}
+}
+
+// placeholderSubscriber basic function to test subscriptions
+func placeholderSubscriber(channelToSubscribe WebsocketChannelSubscription) error {
+	return nil
+}
+
+// TestSubscribe logic test
+func TestSubscribe(t *testing.T) {
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{
+			{
+				Channel: "hello",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{},
+	}
+	w.SetChannelSubscriber(placeholderSubscriber)
+	w.subscribeToChannels()
+	if len(w.subscribedChannels) != 1 {
+		t.Errorf("Subscription did not occur")
+	}
+}
+
+// TestUnsubscribe logic test
+func TestUnsubscribe(t *testing.T) {
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{},
+		subscribedChannels: []WebsocketChannelSubscription{
+			{
+				Channel: "hello",
+			},
+		},
+	}
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.unsubscribeToChannels()
+	if len(w.subscribedChannels) != 0 {
+		t.Errorf("Unsubscription did not occur")
+	}
+}
+
+// TestSubscriptionWithExistingEntry logic test
+func TestSubscriptionWithExistingEntry(t *testing.T) {
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{
+			{
+				Channel: "hello",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{
+			{
+				Channel: "hello",
+			},
+		},
+	}
+	w.SetChannelSubscriber(placeholderSubscriber)
+	w.subscribeToChannels()
+	if len(w.subscribedChannels) != 1 {
+		t.Errorf("Subscription should not have occured")
+	}
+}
+
+// TestUnsubscriptionWithExistingEntry logic test
+func TestUnsubscriptionWithExistingEntry(t *testing.T) {
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{
+			{
+				Channel: "hello",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{
+			{
+				Channel: "hello",
+			},
+		},
+	}
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.unsubscribeToChannels()
+	if len(w.subscribedChannels) != 1 {
+		t.Errorf("Unsubscription should not have occured")
+	}
+}
+
+// TestManageSubscriptionsWithoutFunctionality logic test
+func TestManageSubscriptionsWithoutFunctionality(t *testing.T) {
+	w := Websocket{
+		ShutdownC: make(chan struct{}, 1),
+	}
+	err := w.manageSubscriptions()
+	if err == nil {
+		t.Error("Requires functionality to work")
+	}
+}
+
+// TestManageSubscriptionsStartStop logic test
+func TestManageSubscriptionsStartStop(t *testing.T) {
+	w := Websocket{
+		ShutdownC:     make(chan struct{}, 1),
+		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
+	}
+	go w.manageSubscriptions()
+	time.Sleep(time.Second)
+	close(w.ShutdownC)
+}
+
+// TestWsConnectionMonitorNoConnection logic test
+func TestWsConnectionMonitorNoConnection(t *testing.T) {
+	w := Websocket{}
+	w.DataHandler = make(chan interface{}, 1)
+	w.ShutdownC = make(chan struct{}, 1)
+	w.exchangeName = "hello"
+	go w.wsConnectionMonitor()
+	err := <-w.DataHandler
+	if !strings.EqualFold(err.(error).Error(),
+		fmt.Sprintf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)) {
+		t.Errorf("expecting error 'WsConnectionMonitor: websocket disabled, shutting down', received '%v'", err)
+	}
+}
+
+// TestWsNoConnectionTolerance logic test
+func TestWsNoConnectionTolerance(t *testing.T) {
+	w := Websocket{}
+	w.DataHandler = make(chan interface{}, 1)
+	w.ShutdownC = make(chan struct{}, 1)
+	w.enabled = true
+	w.noConnectionCheckLimit = 500
+	w.checkConnection()
+	if w.noConnectionChecks == 0 {
+		t.Errorf("Expected noConnectionTolerance to increment, received '%v'", w.noConnectionChecks)
+	}
+}
+
+// TestConnecting logic test
+func TestConnecting(t *testing.T) {
+	w := Websocket{}
+	w.DataHandler = make(chan interface{}, 1)
+	w.ShutdownC = make(chan struct{}, 1)
+	w.enabled = true
+	w.connecting = true
+	w.reconnectionLimit = 500
+	w.checkConnection()
+	if w.reconnectionChecks != 1 {
+		t.Errorf("Expected reconnectionLimit to increment, received '%v'", w.reconnectionChecks)
+	}
+}
+
+// TestReconnectionLimit logic test
+func TestReconnectionLimit(t *testing.T) {
+	w := Websocket{}
+	w.DataHandler = make(chan interface{}, 1)
+	w.ShutdownC = make(chan struct{}, 1)
+	w.enabled = true
+	w.connecting = true
+	w.reconnectionChecks = 99
+	w.reconnectionLimit = 1
+	err := w.checkConnection()
+	if err == nil {
+		t.Error("Expected error")
+	}
+}
+
+// TestRemoveChannelToSubscribe logic test
+func TestRemoveChannelToSubscribe(t *testing.T) {
+	subscription := WebsocketChannelSubscription{
+		Channel: "hello",
+	}
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{
+			subscription,
+		},
+	}
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.removeChannelToSubscribe(subscription)
+	if len(w.subscribedChannels) != 0 {
+		t.Errorf("Unsubscription did not occur")
+	}
+}
+
+// TestRemoveChannelToSubscribeWithNoSubscription logic test
+func TestRemoveChannelToSubscribeWithNoSubscription(t *testing.T) {
+	subscription := WebsocketChannelSubscription{
+		Channel: "hello",
+	}
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{},
+	}
+	w.DataHandler = make(chan interface{}, 1)
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	go w.removeChannelToSubscribe(subscription)
+	err := <-w.DataHandler
+	if !strings.Contains(err.(error).Error(), "could not be removed because it was not found") {
+		t.Error("Expected not found error")
+	}
+}
+
+// TestResubscribeToChannel logic test
+func TestResubscribeToChannel(t *testing.T) {
+	subscription := WebsocketChannelSubscription{
+		Channel: "hello",
+	}
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{},
+	}
+	w.DataHandler = make(chan interface{}, 1)
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.SetChannelSubscriber(placeholderSubscriber)
+	w.ResubscribeToChannel(subscription)
+}
+
+// TestSliceCopyDoesntImpactBoth logic test
+func TestSliceCopyDoesntImpactBoth(t *testing.T) {
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{
+			{
+				Channel: "hello1",
+			},
+			{
+				Channel: "hello2",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{
+			{
+				Channel: "hello3",
+			},
+		},
+	}
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.unsubscribeToChannels()
+	if len(w.subscribedChannels) != 2 {
+		t.Errorf("Unsubscription did not occur")
+	}
+	w.subscribedChannels[0].Channel = "test"
+	if strings.EqualFold(w.subscribedChannels[0].Channel, w.channelsToSubscribe[0].Channel) {
+		t.Errorf("Slice has not been copies appropriately")
 	}
 }

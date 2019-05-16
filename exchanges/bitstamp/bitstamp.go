@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -63,6 +64,7 @@ type Bitstamp struct {
 	exchange.Base
 	Balance       Balances
 	WebsocketConn WebsocketConn
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default for Bitstamp
@@ -88,7 +90,9 @@ func (b *Bitstamp) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets configuration values to bitstamp
@@ -133,8 +137,11 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			BitstampPusherKey,
 			exch.WebsocketURL)
 		if err != nil {

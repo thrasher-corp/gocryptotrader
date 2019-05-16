@@ -293,3 +293,80 @@ type LendingHistory struct {
 	Open     string  `json:"open"`
 	Close    string  `json:"close"`
 }
+
+type capture struct {
+	Method string `json:"method"`
+	Result bool   `json:"result"`
+	Error  struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// WsRequest defines a request obj for the JSON-RPC and gets a websocket
+// response
+type WsRequest struct {
+	Method string      `json:"method"`
+	Params interface{} `json:"params,omitempty"`
+	ID     interface{} `json:"id"`
+}
+
+// WsNotification defines a notification obj for the JSON-RPC this does not get
+// a websocket response
+type WsNotification struct {
+	JSONRPCVersion string      `json:"jsonrpc"`
+	Method         string      `json:"method"`
+	Params         interface{} `json:"params"`
+}
+
+type params struct {
+	Symbol string `json:"symbol"`
+	Period string `json:"period,omitempty"`
+	Limit  int64  `json:"limit,omitempty"`
+}
+
+// WsTicker defines websocket ticker feed return params
+type WsTicker struct {
+	Params struct {
+		Ask         float64 `json:"ask,string"`
+		Bid         float64 `json:"bid,string"`
+		Last        float64 `json:"last,string"`
+		Open        float64 `json:"open,string"`
+		Low         float64 `json:"low,string"`
+		High        float64 `json:"high,string"`
+		Volume      float64 `json:"volume,string"`
+		VolumeQuote float64 `json:"volumeQuote,string"`
+		Timestamp   string  `json:"timestamp"`
+		Symbol      string  `json:"symbol"`
+	} `json:"params"`
+}
+
+// WsOrderbook defines websocket orderbook feed return params
+type WsOrderbook struct {
+	Params struct {
+		Ask []struct {
+			Price float64 `json:"price,string"`
+			Size  float64 `json:"size,string"`
+		} `json:"ask"`
+		Bid []struct {
+			Price float64 `json:"price,string"`
+			Size  float64 `json:"size,string"`
+		} `json:"bid"`
+		Symbol   string `json:"symbol"`
+		Sequence int64  `json:"sequence"`
+	} `json:"params"`
+}
+
+// WsTrade defines websocket trade feed return params
+type WsTrade struct {
+	Params struct {
+		Data []struct {
+			ID        int64   `json:"id"`
+			Price     float64 `json:"price,string"`
+			Quantity  float64 `json:"quantity,string"`
+			Side      string  `json:"side"`
+			Timestamp string  `json:"timestamp"`
+		} `json:"data"`
+		Symbol string `json:"symbol"`
+	} `json:"params"`
+}

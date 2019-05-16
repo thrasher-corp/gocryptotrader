@@ -88,7 +88,7 @@ type OKGroup struct {
 	exchange.Base
 	ExchangeName  string
 	WebsocketConn *websocket.Conn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks
@@ -141,8 +141,11 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = o.WebsocketSetup(o.WsConnect,
+			o.Subscribe,
+			o.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			o.WebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {
@@ -359,7 +362,7 @@ func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsRespo
 }
 
 // GetSpotOrderBook Getting the order book of a trading pair. Pagination is not supported here.
-// The whole book will be returned for one request. WebSocket is recommended here.
+// The whole book will be returned for one request. Websocket is recommended here.
 func (o *OKGroup) GetSpotOrderBook(request GetSpotOrderBookRequest) (resp GetSpotOrderBookResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotOrderBook, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)

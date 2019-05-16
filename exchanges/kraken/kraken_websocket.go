@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -47,6 +46,7 @@ const (
 	// Only supported asset type
 	krakenWsAssetType    = "SPOT"
 	orderbookBufferLimit = 3
+	krakenWsRateLimit    = 50 * time.Millisecond
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
@@ -62,16 +62,20 @@ var krakenOrderBooks map[int64]orderbook.Base
 var orderbookBuffer map[int64][]orderbook.Base
 var subscribeToDefaultChannels = true
 
+// Channels require a topic and a currency
+// Format [[ticker,but-t4u],[orderbook,nce-btt]]
+var defaultSubscribedChannels = []string{krakenWsTicker, krakenWsTrade, krakenWsOrderbook, krakenWsOHLC, krakenWsSpread}
+
 // writeToWebsocket sends a message to the websocket endpoint
 func (k *Kraken) writeToWebsocket(message []byte) error {
-	k.mu.Lock()
-	defer k.mu.Unlock()
+	k.wsRequestMtx.Lock()
+	defer k.wsRequestMtx.Unlock()
 	if k.Verbose {
 		log.Debugf("Sending message to WS: %v",
 			string(message))
 	}
 	// Really basic WS rate limit
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(krakenWsRateLimit)
 	return k.WebsocketConn.WriteMessage(websocket.TextMessage, message)
 }
 
@@ -110,24 +114,10 @@ func (k *Kraken) WsConnect() error {
 	go k.WsHandleData()
 	go k.wsPingHandler()
 	if subscribeToDefaultChannels {
-		k.WsSubscribeToDefaults()
+		k.GenerateDefaultSubscriptions()
 	}
-	return nil
-}
 
-// WsSubscribeToDefaults subscribes to the websocket channels
-func (k *Kraken) WsSubscribeToDefaults() {
-	channelsToSubscribe := []string{krakenWsTicker, krakenWsTrade, krakenWsOrderbook, krakenWsOHLC, krakenWsSpread}
-	for _, pair := range k.EnabledPairs {
-		// Kraken WS formats pairs with / but config and REST use -
-		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "-", "/", 1))
-		for _, channel := range channelsToSubscribe {
-			err := k.WsSubscribeToChannel(channel, []string{formattedPair}, 0)
-			if err != nil {
-				k.Websocket.DataHandler <- err
-			}
-		}
-	}
+	return nil
 }
 
 // WsReadData reads data from the websocket connection
@@ -164,6 +154,7 @@ func (k *Kraken) wsPingHandler() {
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	ticker := time.NewTicker(time.Second * 27)
+
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
@@ -187,11 +178,6 @@ func (k *Kraken) wsPingHandler() {
 func (k *Kraken) WsHandleData() {
 	k.Websocket.Wg.Add(1)
 	defer func() {
-		err := k.WebsocketConn.Close()
-		if err != nil {
-			k.Websocket.DataHandler <- fmt.Errorf("%v unable to to close Websocket connection. Error: %s",
-				k.GetName(), err)
-		}
 		k.Websocket.Wg.Done()
 	}()
 
@@ -202,8 +188,10 @@ func (k *Kraken) WsHandleData() {
 		default:
 			resp, err := k.WsReadData()
 			if err != nil {
-				k.Websocket.DataHandler <- err
-				return
+				k.Websocket.DataHandler <- fmt.Errorf("%v WsHandleData: %v",
+					k.Name,
+					err)
+				time.Sleep(time.Second)
 			}
 			// event response handling
 			var eventResponse WebsocketEventResponse
@@ -219,8 +207,6 @@ func (k *Kraken) WsHandleData() {
 				k.WsHandleDataResponse(dataResponse)
 				continue
 			}
-			// Unknown data handling
-			k.Websocket.DataHandler <- fmt.Errorf("unrecognised response: %v", string(resp.Raw))
 			continue
 		}
 	}
@@ -312,64 +298,23 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 	}
 }
 
-// WsSubscribeToChannel sends a request to WS to subscribe to supplied channel name and pairs
-func (k *Kraken) WsSubscribeToChannel(topic string, currencies []string, requestID int64) error {
-	resp := WebsocketSubscriptionEventRequest{
-		Event: krakenWsSubscribe,
-		Pairs: currencies,
-		Subscription: WebsocketSubscriptionData{
-			Name: topic,
-		},
-	}
-	if requestID > 0 {
-		resp.RequestID = requestID
-	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		return err
-	}
-	return k.writeToWebsocket(json)
-}
-
-// WsUnsubscribeToChannel sends a request to WS to unsubscribe to supplied channel name and pairs
-func (k *Kraken) WsUnsubscribeToChannel(topic string, currencies []string, requestID int64) error {
-	resp := WebsocketSubscriptionEventRequest{
-		Event: krakenWsUnsubscribe,
-		Pairs: currencies,
-		Subscription: WebsocketSubscriptionData{
-			Name: topic,
-		},
-	}
-	if requestID > 0 {
-		resp.RequestID = requestID
-	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		return err
-	}
-	return k.writeToWebsocket(json)
-}
-
-// WsUnsubscribeToChannelByChannelID sends a request to WS to unsubscribe to supplied channel ID
-func (k *Kraken) WsUnsubscribeToChannelByChannelID(channelID int64) error {
-	resp := WebsocketUnsubscribeByChannelIDEventRequest{
-		Event:     krakenWsUnsubscribe,
-		ChannelID: channelID,
-	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		return err
-	}
-	return k.writeToWebsocket(json)
-}
-
 // addNewSubscriptionChannelData stores channel ids, pairs and subscription types to an array
 // allowing correlation between subscriptions and returned data
 func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 	for i := range subscriptionChannelPair {
-		if response.ChannelID == subscriptionChannelPair[i].ChannelID {
-			return
+		if response.ChannelID != subscriptionChannelPair[i].ChannelID {
+			continue
 		}
+		// kill the stale orderbooks due to resubscribing
+		if orderbookBuffer == nil {
+			orderbookBuffer = make(map[int64][]orderbook.Base)
+		}
+		orderbookBuffer[response.ChannelID] = []orderbook.Base{}
+		if krakenOrderBooks == nil {
+			krakenOrderBooks = make(map[int64]orderbook.Base)
+		}
+		krakenOrderBooks[response.ChannelID] = orderbook.Base{}
+		return
 	}
 
 	// We change the / to - to maintain compatibility with REST/config
@@ -389,47 +334,6 @@ func getSubscriptionChannelData(id int64) WebsocketChannelData {
 		}
 	}
 	return WebsocketChannelData{}
-}
-
-// ResubscribeToChannel will attempt to unsubscribe and resubscribe to a channel
-func (k *Kraken) ResubscribeToChannel(channel string, pair currency.Pair) {
-	// Kraken WS formats pairs with / but config and REST use -
-	formattedPair := strings.ToUpper(strings.Replace(pair.String(), "-", "/", 1))
-	if krakenWsResubscribeFailureLimit > 0 {
-		var successfulUnsubscribe bool
-		for i := 0; i < krakenWsResubscribeFailureLimit; i++ {
-			err := k.WsUnsubscribeToChannel(channel, []string{formattedPair}, 0)
-			if err != nil {
-				log.Error(err)
-				time.Sleep(krakenWsResubscribeDelayInSeconds * time.Second)
-				continue
-			}
-			successfulUnsubscribe = true
-			break
-		}
-		if !successfulUnsubscribe {
-			log.Fatalf("%v websocket channel %v failed to unsubscribe after %v attempts",
-				k.GetName(), channel, krakenWsResubscribeFailureLimit)
-		}
-		successfulSubscribe := true
-		for i := 0; i < krakenWsResubscribeFailureLimit; i++ {
-			err := k.WsSubscribeToChannel(channel, []string{formattedPair}, 0)
-			if err != nil {
-				log.Error(err)
-				time.Sleep(krakenWsResubscribeDelayInSeconds * time.Second)
-				continue
-			}
-			successfulSubscribe = true
-			break
-		}
-		if !successfulSubscribe {
-			log.Fatalf("%v websocket channel %v failed to resubscribe after %v attempts",
-				k.GetName(), channel, krakenWsResubscribeFailureLimit)
-		}
-	} else {
-		log.Fatalf("%v websocket channel %v cannot resubscribe. Limit: %v",
-			k.GetName(), channel, krakenWsResubscribeFailureLimit)
-	}
 }
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
@@ -509,13 +413,17 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 		_, asksExist := obData["a"]
 		_, bidsExist := obData["b"]
 		if asksExist || bidsExist {
-			k.mu.Lock()
-			defer k.mu.Unlock()
+			k.wsRequestMtx.Lock()
+			defer k.wsRequestMtx.Unlock()
 			k.wsProcessOrderBookBuffer(channelData, obData)
 			if len(orderbookBuffer[channelData.ChannelID]) >= orderbookBufferLimit {
 				err := k.wsProcessOrderBookUpdate(channelData)
 				if err != nil {
-					k.ResubscribeToChannel(channelData.Subscription, channelData.Pair)
+					subscriptionToRemove := exchange.WebsocketChannelSubscription{
+						Channel:  krakenWsOrderbook,
+						Currency: channelData.Pair,
+					}
+					k.Websocket.ResubscribeToChannel(subscriptionToRemove)
 				}
 			}
 		}
@@ -837,4 +745,58 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interf
 		ClosePrice: closePrice,
 		Volume:     volume,
 	}
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (k *Kraken) GenerateDefaultSubscriptions() {
+	enabledCurrencies := k.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	for i := range defaultSubscribedChannels {
+		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = "/"
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  defaultSubscribedChannels[i],
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+	k.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	resp := WebsocketSubscriptionEventRequest{
+		Event: krakenWsSubscribe,
+		Pairs: []string{channelToSubscribe.Currency.String()},
+		Subscription: WebsocketSubscriptionData{
+			Name: channelToSubscribe.Channel,
+		},
+	}
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		if k.Verbose {
+			log.Debugf("%v subscribe error: %v", k.Name, err)
+		}
+		return err
+	}
+	return k.writeToWebsocket(json)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (k *Kraken) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	resp := WebsocketSubscriptionEventRequest{
+		Event: krakenWsUnsubscribe,
+		Pairs: []string{channelToSubscribe.Currency.String()},
+		Subscription: WebsocketSubscriptionData{
+			Name: channelToSubscribe.Channel,
+		},
+	}
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		if k.Verbose {
+			log.Debugf("%v unsubscribe error: %v", k.Name, err)
+		}
+		return err
+	}
+	return k.writeToWebsocket(json)
 }

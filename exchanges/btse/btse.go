@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -22,6 +23,7 @@ import (
 type BTSE struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	wsRequestMtx  sync.Mutex
 }
 
 const (
@@ -66,7 +68,9 @@ func (b *BTSE) SetDefaults() {
 	b.SupportsRESTTickerBatching = false
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported
+		exchange.WebsocketTickerSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -106,8 +110,11 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			btseWebsocket,
 			exch.WebsocketURL)
 		if err != nil {
