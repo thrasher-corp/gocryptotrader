@@ -36,7 +36,7 @@ func (c *CoinbasePro) Run() {
 	if err != nil {
 		log.Errorf("%s Failed to get available products.\n", c.GetName())
 	} else {
-		currencies := []string{}
+		var currencies []string
 		for _, x := range exchangeProducts {
 			if x.ID != "BTC" && x.ID != "USD" && x.ID != "GBP" {
 				currencies = append(currencies, x.ID[0:3]+x.ID[4:])

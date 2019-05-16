@@ -275,16 +275,13 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[
 		return resp, []error{err}
 	}
 
-	orderErrors := []error{}
+	var orderErrors []error
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
-	}
-	if len(orderErrors) == 0 {
-		orderErrors = nil
 	}
 
 	return resp, orderErrors
@@ -475,16 +472,13 @@ func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (ma
 		return resp, []error{err}
 	}
 
-	orderErrors := []error{}
+	var orderErrors []error
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
-	}
-	if len(orderErrors) == 0 {
-		orderErrors = nil
 	}
 
 	return resp, orderErrors
@@ -508,16 +502,13 @@ func (o *OKGroup) CancelMultipleMarginOrders(request CancelMultipleSpotOrdersReq
 		return resp, []error{err}
 	}
 
-	orderErrors := []error{}
+	var orderErrors []error
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order %v for currency %v failed to be cancelled", order.OrderID, currency))
 			}
 		}
-	}
-	if len(orderErrors) == 0 {
-		orderErrors = nil
 	}
 
 	return resp, orderErrors

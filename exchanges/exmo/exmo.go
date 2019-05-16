@@ -154,7 +154,7 @@ func (e *EXMO) GetPairSettings() (map[string]PairSettings, error) {
 
 // GetCurrency returns a list of currencies
 func (e *EXMO) GetCurrency() ([]string, error) {
-	result := []string{}
+	var result []string
 	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoCurrency)
 	return result, e.SendHTTPRequest(urlPath, &result)
 }

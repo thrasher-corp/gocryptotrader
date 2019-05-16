@@ -205,7 +205,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 // GetTradeHistory returns the trade history for a given currency pair
 func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
 	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCTrades, common.StringToLower(currency))
-	resp := []TradeHistory{}
+	var resp []TradeHistory
 
 	return resp, l.SendHTTPRequest(path, &resp)
 }
@@ -242,7 +242,7 @@ func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string)
 
 // GetOpenOrders returns all open orders associated with your account
 func (l *LakeBTC) GetOpenOrders() ([]OpenOrders, error) {
-	orders := []OpenOrders{}
+	var orders []OpenOrders
 
 	return orders, l.SendAuthenticatedHTTPRequest(lakeBTCOpenOrders, "", &orders)
 }
@@ -254,7 +254,7 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]Orders, error) {
 		ordersStr = append(ordersStr, strconv.FormatInt(x, 10))
 	}
 
-	resp := []Orders{}
+	var resp []Orders
 	return resp,
 		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, common.JoinStrings(ordersStr, ","), &resp)
 }
@@ -304,13 +304,13 @@ func (l *LakeBTC) GetTrades(timestamp int64) ([]AuthenticatedTradeHistory, error
 		params = strconv.FormatInt(timestamp, 10)
 	}
 
-	trades := []AuthenticatedTradeHistory{}
+	var trades []AuthenticatedTradeHistory
 	return trades, l.SendAuthenticatedHTTPRequest(lakeBTCGetTrades, params, &trades)
 }
 
 // GetExternalAccounts returns your external accounts WARNING: Only for BTC!
 func (l *LakeBTC) GetExternalAccounts() ([]ExternalAccounts, error) {
-	resp := []ExternalAccounts{}
+	var resp []ExternalAccounts
 
 	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetExternalAccounts, "", &resp)
 }

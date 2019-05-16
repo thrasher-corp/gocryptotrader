@@ -39,7 +39,7 @@ func (c *COINUT) Run() {
 		return
 	}
 
-	currencies := []string{}
+	var currencies []string
 	c.InstrumentMap = make(map[string]int)
 	for x, y := range exchangeProducts.Instruments {
 		c.InstrumentMap[x] = y[0].InstID

@@ -239,7 +239,7 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 // GetRecentTrades returns recent trade activity
 // limit: Up to 500 results returned
 func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
-	resp := []RecentTrade{}
+	var resp []RecentTrade
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(rtr.Symbol))
@@ -256,7 +256,7 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 // limit: Optional. Default 500; max 1000.
 // fromID:
 func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
-	resp := []HistoricalTrade{}
+	var resp []HistoricalTrade
 
 	if err := b.CheckLimit(limit); err != nil {
 		return resp, err
@@ -277,7 +277,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 // symbol: string of currency pair
 // limit: Optional. Default 500; max 1000.
 func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTrade, error) {
-	resp := []AggregatedTrade{}
+	var resp []AggregatedTrade
 
 	if err := b.CheckLimit(limit); err != nil {
 		return resp, err

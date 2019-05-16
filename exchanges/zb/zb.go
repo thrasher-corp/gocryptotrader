@@ -321,7 +321,7 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 	res.MoneyType = rawKlines["moneyType"].(string)
 
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
-	rawKlineDatas := [][]interface{}{}
+	var rawKlineDatas [][]interface{}
 	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
 		return res, errors.New("zb rawKlines unmarshal failed")
 	}

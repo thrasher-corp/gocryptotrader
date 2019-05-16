@@ -316,7 +316,7 @@ func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 // value paramater ["time"] = "minute", "hour", "day" will collate your
 // response into time intervals. Implementation of value in test code.
 func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Transactions, error) {
-	transactions := []Transactions{}
+	var transactions []Transactions
 	path := common.EncodeURLValues(
 		fmt.Sprintf(
 			"%s/v%s/%s/%s/",
@@ -361,7 +361,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		Fee     float64     `json:"fee,string"`
 		OrderID int64       `json:"order_id"`
 	}
-	response := []Response{}
+	var response []Response
 
 	if currencyPair != "" {
 		if err := b.SendAuthenticatedHTTPRequest(bitstampAPIUserTransactions, true, url.Values{}, &response); err != nil {
@@ -373,7 +373,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		}
 	}
 
-	transactions := []UserTransactions{}
+	var transactions []UserTransactions
 
 	for _, y := range response {
 		tx := UserTransactions{}
@@ -416,7 +416,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 
 // GetOpenOrders returns all open orders on the exchange
 func (b *Bitstamp) GetOpenOrders(currencyPair string) ([]Order, error) {
-	resp := []Order{}
+	var resp []Order
 	path := fmt.Sprintf(
 		"%s/%s", bitstampAPIOpenOrders, common.StringToLower(currencyPair),
 	)
@@ -478,7 +478,7 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, m
 // timedelta - positive integer with max value 50000000 which returns requests
 // from number of seconds ago to now.
 func (b *Bitstamp) GetWithdrawalRequests(timedelta int64) ([]WithdrawalRequests, error) {
-	resp := []WithdrawalRequests{}
+	var resp []WithdrawalRequests
 	if timedelta > 50000000 || timedelta < 0 {
 		return resp, errors.New("time delta exceeded, max: 50000000 min: 0")
 	}
@@ -613,7 +613,7 @@ func (b *Bitstamp) GetCryptoDepositAddress(crypto currency.Code) (string, error)
 
 // GetUnconfirmedBitcoinDeposits returns unconfirmed transactions
 func (b *Bitstamp) GetUnconfirmedBitcoinDeposits() ([]UnconfirmedBTCTransactions, error) {
-	response := []UnconfirmedBTCTransactions{}
+	var response []UnconfirmedBTCTransactions
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(bitstampAPIUnconfirmedBitcoin, false, nil, &response)

@@ -165,7 +165,7 @@ func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, erro
 // symbol - example "btc" or "ltc"
 // values - optional paramater "since" example values.Set(since, "59868345231")
 func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) ([]Trade, error) {
-	trades := []Trade{}
+	var trades []Trade
 	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/%s/trades",
 		b.APIUrl, common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair)), values)
@@ -352,7 +352,7 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {
 
 // GetAccountBalance returns the full account balance
 func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
-	balance := []AccountBalance{}
+	var balance []AccountBalance
 
 	err := b.SendAuthenticatedRequest(http.MethodGet, btcMarketsAccountBalance, nil, &balance)
 	if err != nil {

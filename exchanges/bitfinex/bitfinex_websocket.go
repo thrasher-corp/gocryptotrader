@@ -286,7 +286,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 					switch chanInfo.Channel {
 					case "book":
-						newOrderbook := []WebsocketBook{}
+						var newOrderbook []WebsocketBook
 						switch len(chanData) {
 						case 2:
 							data := chanData[1].([]interface{})
@@ -340,7 +340,7 @@ func (b *Bitfinex) WsDataHandler() {
 					case "account":
 						switch chanData[1].(string) {
 						case bitfinexWebsocketPositionSnapshot:
-							positionSnapshot := []WebsocketPosition{}
+							var positionSnapshot []WebsocketPosition
 							data := chanData[2].([]interface{})
 							for _, x := range data {
 								y := x.([]interface{})
@@ -374,7 +374,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 						case bitfinexWebsocketWalletSnapshot:
 							data := chanData[2].([]interface{})
-							walletSnapshot := []WebsocketWallet{}
+							var walletSnapshot []WebsocketWallet
 							for _, x := range data {
 								y := x.([]interface{})
 								walletSnapshot = append(walletSnapshot,
@@ -398,7 +398,7 @@ func (b *Bitfinex) WsDataHandler() {
 							b.Websocket.DataHandler <- wallet
 
 						case bitfinexWebsocketOrderSnapshot:
-							orderSnapshot := []WebsocketOrder{}
+							var orderSnapshot []WebsocketOrder
 							data := chanData[2].([]interface{})
 							for _, x := range data {
 								y := x.([]interface{})
@@ -447,7 +447,7 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 
 					case "trades":
-						trades := []WebsocketTrade{}
+						var trades []WebsocketTrade
 						switch len(chanData) {
 						case 2:
 							data := chanData[1].([]interface{})
