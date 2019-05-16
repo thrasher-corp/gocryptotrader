@@ -92,7 +92,9 @@ func (w *Websocket) Connect() error {
 	anotherWG.Add(1)
 	go w.trafficMonitor(&anotherWG)
 	anotherWG.Wait()
-	go w.wsConnectionMonitor()
+	if !w.connectionMonitorRunning {
+		go w.wsConnectionMonitor()
+	}
 	go w.manageSubscriptions()
 
 	return nil
@@ -100,6 +102,13 @@ func (w *Websocket) Connect() error {
 
 // WsConnectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) wsConnectionMonitor() {
+	w.m.Lock()
+	w.connectionMonitorRunning = true
+	w.m.Unlock()
+	defer func() {
+		w.connectionMonitorRunning = false
+	}()
+	
 	for {
 		time.Sleep(connectionMonitorDelay)
 		w.m.Lock()
