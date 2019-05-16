@@ -354,7 +354,7 @@ func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 func (c *COINUT) wsSend(data interface{}) error {
 	c.wsRequestMtx.Lock()
 	defer c.wsRequestMtx.Unlock()
-	
+
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
