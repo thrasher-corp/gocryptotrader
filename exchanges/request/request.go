@@ -344,7 +344,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 			if err != nil {
 				log.Errorf("DumpResponse invalid response: %v:", err)
 			}
-			log.Debugf("DumpResponse Headers (%v):\n%s\n", path, dump)
+			log.Debugf("DumpResponse Headers (%v):\n%s", path, dump)
 			log.Debugf("DumpResponse Body: \n %s", string(contents))
 		}
 
