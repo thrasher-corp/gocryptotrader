@@ -73,11 +73,6 @@ func (b *BTSE) WsHandleData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := b.WebsocketConn.Close()
-		if err != nil {
-			b.Websocket.DataHandler <- fmt.Errorf("%s - Unable to to close Websocket connection. Error: %s",
-				b.Name, err)
-		}
 		b.Websocket.Wg.Done()
 	}()
 

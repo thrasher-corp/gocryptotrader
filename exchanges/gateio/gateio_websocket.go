@@ -91,11 +91,6 @@ func (g *Gateio) WsHandleData() {
 	g.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := g.WebsocketConn.Close()
-		if err != nil {
-			g.Websocket.DataHandler <- fmt.Errorf("gateio_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		g.Websocket.Wg.Done()
 	}()
 

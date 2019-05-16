@@ -66,11 +66,6 @@ func (z *ZB) WsHandleData() {
 	z.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := z.WebsocketConn.Close()
-		if err != nil {
-			z.Websocket.DataHandler <- fmt.Errorf("zb_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		z.Websocket.Wg.Done()
 	}()
 

@@ -97,11 +97,6 @@ func (p *Poloniex) WsHandleData() {
 	p.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := p.WebsocketConn.Close()
-		if err != nil {
-			p.Websocket.DataHandler <- fmt.Errorf("poloniex_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		p.Websocket.Wg.Done()
 	}()
 

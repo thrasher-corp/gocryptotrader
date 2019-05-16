@@ -66,11 +66,6 @@ func (h *HitBTC) WsHandleData() {
 	h.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := h.WebsocketConn.Close()
-		if err != nil {
-			h.Websocket.DataHandler <- fmt.Errorf("hitbtc_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		h.Websocket.Wg.Done()
 	}()
 

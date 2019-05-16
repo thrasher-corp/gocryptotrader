@@ -199,11 +199,6 @@ func (b *Binance) WsHandleData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := b.WebsocketConn.Close()
-		if err != nil {
-			b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		b.Websocket.Wg.Done()
 	}()
 

@@ -178,11 +178,6 @@ func (k *Kraken) wsPingHandler() {
 func (k *Kraken) WsHandleData() {
 	k.Websocket.Wg.Add(1)
 	defer func() {
-		err := k.WebsocketConn.Close()
-		if err != nil {
-			k.Websocket.DataHandler <- fmt.Errorf("%v unable to to close Websocket connection. Error: %s",
-				k.GetName(), err)
-		}
 		k.Websocket.Wg.Done()
 	}()
 

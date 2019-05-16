@@ -45,11 +45,6 @@ func (c *COINUT) WsHandleData() {
 	c.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := c.WebsocketConn.Close()
-		if err != nil {
-			c.Websocket.DataHandler <- fmt.Errorf("coinut_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		c.Websocket.Wg.Done()
 	}()
 
