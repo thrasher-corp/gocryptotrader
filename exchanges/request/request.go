@@ -1,6 +1,7 @@
 package request
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -298,7 +299,8 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 			return errors.New("resp is nil")
 		}
 
-		/*switch resp.Header.Get("Content-Encoding") {
+		var reader io.ReadCloser
+		switch resp.Header.Get("Content-Encoding") {
 		case "gzip":
 			reader, err = gzip.NewReader(resp.Body)
 			defer reader.Close()
@@ -319,9 +321,9 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 					r.Name, resp.Header.Get("Content-Type"), path)
 				reader = resp.Body
 			}
-		}*/
+		}
 
-		contents, err := ioutil.ReadAll(resp.Body)
+		contents, err := ioutil.ReadAll(reader)
 		if err != nil {
 			return err
 		}
@@ -338,18 +340,20 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		}
 
 		if httpDebug {
-			dump, err := httputil.DumpResponse(resp, true)
+			dump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
 				log.Errorf("DumpResponse invalid response: %v:", err)
 			}
-			log.Debugf("DumpResponse(%v): %s\n", path, dump)
-			//log.Debugf("%s", string(contents))
+			log.Debugf("DumpResponse Headers (%v):\n%s\n", path, dump)
+			log.Debugf("DumpResponse Body: \n %s", string(contents))
 		}
 
 		resp.Body.Close()
 		if verbose {
 			log.Debugf("HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
-			log.Debugf("%s exchange raw response: %s", r.Name, string(contents))
+			if !httpDebug {
+				log.Debugf("%s exchange raw response: %s", r.Name, string(contents))
+			}
 		}
 
 		if result != nil {
@@ -436,7 +440,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		if err != nil {
 			log.Errorf("DumpRequest invalid response %v:", err)
 		}
-		log.Debugf("DumpRequest: %s", dump)
+		log.Debugf("DumpRequest:\n%s", dump)
 	}
 
 	if !r.RequiresRateLimiter() {
