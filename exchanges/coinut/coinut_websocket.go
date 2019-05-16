@@ -228,17 +228,11 @@ func (c *COINUT) GetNonce() int64 {
 
 // WsSetInstrumentList fetches instrument list and propagates a local cache
 func (c *COINUT) WsSetInstrumentList() error {
-	req, err := common.JSONEncode(wsRequest{
+	err := c.wsSend(wsRequest{
 		Request: "inst_list",
 		SecType: "SPOT",
 		Nonce:   c.GetNonce(),
 	})
-
-	if err != nil {
-		return err
-	}
-
-	err = c.wsSend(req)
 	if err != nil {
 		return err
 	}
@@ -360,12 +354,13 @@ func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 func (c *COINUT) wsSend(data interface{}) error {
 	c.wsRequestMtx.Lock()
 	defer c.wsRequestMtx.Unlock()
-	if c.Verbose {
-		log.Debugf("%v sending message to websocket %v", c.Name, data)
-	}
+	
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
+	}
+	if c.Verbose {
+		log.Debugf("%v sending message to websocket %v", c.Name, string(json))
 	}
 	// Basic rate limiter
 	time.Sleep(coinutWebsocketRateLimit)
