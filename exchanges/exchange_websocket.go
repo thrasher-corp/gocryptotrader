@@ -108,7 +108,7 @@ func (w *Websocket) wsConnectionMonitor() {
 	defer func() {
 		w.connectionMonitorRunning = false
 	}()
-	
+
 	for {
 		time.Sleep(connectionMonitorDelay)
 		w.m.Lock()

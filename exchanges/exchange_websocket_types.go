@@ -48,23 +48,23 @@ const (
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing in routines.go
 type Websocket struct {
-	proxyAddr              string
-	defaultURL             string
-	runningURL             string
-	exchangeName           string
-	enabled                bool
-	init                   bool
-	connected              bool
-	connecting             bool
-	verbose                bool
-	connector              func() error
-	m                      sync.Mutex
-	subscriptionLock       sync.Mutex
+	proxyAddr                string
+	defaultURL               string
+	runningURL               string
+	exchangeName             string
+	enabled                  bool
+	init                     bool
+	connected                bool
+	connecting               bool
+	verbose                  bool
+	connector                func() error
+	m                        sync.Mutex
+	subscriptionLock         sync.Mutex
 	connectionMonitorRunning bool
-	reconnectionLimit      int
-	noConnectionChecks     int
-	reconnectionChecks     int
-	noConnectionCheckLimit int
+	reconnectionLimit        int
+	noConnectionChecks       int
+	reconnectionChecks       int
+	noConnectionCheckLimit   int
 	// Subscriptions stuff
 	subscribedChannels  []WebsocketChannelSubscription
 	channelsToSubscribe []WebsocketChannelSubscription
