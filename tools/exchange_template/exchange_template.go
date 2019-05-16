@@ -154,6 +154,7 @@ func main() {
 	}
 	newFile(exchangeReadme)
 	r1, err := os.OpenFile(exchangeReadme, os.O_WRONLY, 0700)
+	defer r1.Close()
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
@@ -165,6 +166,7 @@ func main() {
 	}
 	newFile(exchangeMain)
 	m1, err := os.OpenFile(exchangeMain, os.O_WRONLY, 0700)
+	defer m1.Close()
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
@@ -176,6 +178,7 @@ func main() {
 	}
 	newFile(exchangeTest)
 	t1, err := os.OpenFile(exchangeTest, os.O_WRONLY, 0700)
+	defer t1.Close()
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
@@ -187,6 +190,7 @@ func main() {
 	}
 	newFile(exchangeTypes)
 	ty1, err := os.OpenFile(exchangeTypes, os.O_WRONLY, 0700)
+	defer ty1.Close()
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
@@ -198,6 +202,7 @@ func main() {
 	}
 	newFile(exchangeWrapper)
 	w1, err := os.OpenFile(exchangeWrapper, os.O_WRONLY, 0700)
+	defer w1.Close()
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}

@@ -154,6 +154,7 @@ func (k *Kraken) wsPingHandler() {
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	ticker := time.NewTicker(time.Second * 27)
+	defer ticker.Stop()
 
 	for {
 		select {

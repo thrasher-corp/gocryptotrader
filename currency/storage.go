@@ -277,6 +277,8 @@ func (s *Storage) ForeignExchangeUpdater() {
 	// Set tickers to client defined rates or defaults
 	SeedForeignExchangeTick := time.NewTicker(s.foreignExchangeUpdateDelay)
 	SeedCurrencyAnalysisTick := time.NewTicker(s.currencyFileUpdateDelay)
+	defer SeedForeignExchangeTick.Stop()
+	defer SeedCurrencyAnalysisTick.Stop()
 
 	for {
 		select {

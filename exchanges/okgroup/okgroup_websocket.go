@@ -237,7 +237,8 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer o.Websocket.Wg.Done()
 
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Second * 27)
+	defer ticker.Stop()
 
 	wg.Done()
 
