@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -51,7 +52,7 @@ func NewRouter() *mux.Router {
 	if common.ExtractPort(bot.config.Webserver.ListenAddress) == 80 {
 		listenAddr = common.ExtractHost(bot.config.Webserver.ListenAddress)
 	} else {
-		listenAddr = bot.config.Webserver.ListenAddress
+		listenAddr = common.JoinStrings([]string{common.ExtractHost(bot.config.Webserver.ListenAddress), strconv.Itoa(common.ExtractPort(bot.config.Webserver.ListenAddress))}, ":")
 	}
 
 	routes = Routes{
@@ -136,5 +137,4 @@ func NewRouter() *mux.Router {
 
 func getIndex(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprint(w, "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/thrasher-/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>")
-	w.WriteHeader(http.StatusOK)
 }

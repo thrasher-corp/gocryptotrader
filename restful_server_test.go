@@ -72,7 +72,7 @@ func TestValidHostRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Host = bot.config.Webserver.ListenAddress
+	req.Host = "localhost:9050"
 
 	resp := httptest.NewRecorder()
 	NewRouter().ServeHTTP(resp, req)
