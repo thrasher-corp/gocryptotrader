@@ -92,6 +92,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
+		c.HTTPDebugging = exch.HTTPDebugging
 		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		c.BaseCurrencies = exch.BaseCurrencies
 		c.AvailablePairs = exch.AvailablePairs
@@ -371,7 +372,9 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		&rawMsg,
 		authenticated,
 		true,
-		c.Verbose)
+		c.Verbose,
+		c.HTTPDebugging,
+	)
 	if err != nil {
 		return err
 	}

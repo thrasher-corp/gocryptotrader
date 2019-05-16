@@ -89,6 +89,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
 		b.EnabledPairs = exch.EnabledPairs
@@ -431,7 +432,7 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
@@ -481,7 +482,8 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 		result,
 		true,
 		true,
-		b.Verbose)
+		b.Verbose,
+		b.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

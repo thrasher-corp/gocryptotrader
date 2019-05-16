@@ -240,5 +240,6 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 		&result,
 		auth,
 		false,
-		c.Verbose)
+		c.Verbose,
+		false)
 }

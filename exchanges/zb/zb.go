@@ -94,6 +94,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 		z.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		z.RESTPollingDelay = exch.RESTPollingDelay
 		z.Verbose = exch.Verbose
+		z.HTTPDebugging = exch.HTTPDebugging
 		z.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		z.BaseCurrencies = exch.BaseCurrencies
 		z.AvailablePairs = exch.AvailablePairs
@@ -361,7 +362,7 @@ func (z *ZB) GetCryptoAddress(currency currency.Code) (UserAddress, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (z *ZB) SendHTTPRequest(path string, result interface{}) error {
-	return z.SendPayload(http.MethodGet, path, nil, nil, result, false, false, z.Verbose)
+	return z.SendPayload(http.MethodGet, path, nil, nil, result, false, false, z.Verbose, z.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
@@ -398,7 +399,8 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 		&intermediary,
 		true,
 		false,
-		z.Verbose)
+		z.Verbose,
+		z.HTTPDebugging)
 	if err != nil {
 		return err
 	}

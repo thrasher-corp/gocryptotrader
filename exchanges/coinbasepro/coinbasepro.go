@@ -103,6 +103,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
+		c.HTTPDebugging = exch.HTTPDebugging
 		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		c.BaseCurrencies = exch.BaseCurrencies
 		c.AvailablePairs = exch.AvailablePairs
@@ -792,7 +793,7 @@ func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
-	return c.SendPayload(http.MethodGet, path, nil, nil, result, false, false, c.Verbose)
+	return c.SendPayload(http.MethodGet, path, nil, nil, result, false, false, c.Verbose, c.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
@@ -832,7 +833,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		result,
 		true,
 		true,
-		c.Verbose)
+		c.Verbose,
+		c.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

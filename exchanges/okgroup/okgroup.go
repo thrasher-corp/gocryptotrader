@@ -115,6 +115,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
+		o.HTTPDebugging = exch.HTTPDebugging
 		o.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		o.BaseCurrencies = exch.BaseCurrencies
 		o.AvailablePairs = exch.AvailablePairs
@@ -623,7 +624,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 
 	errCap := errCapFormat{}
 	errCap.Result = true
-	err = o.SendPayload(strings.ToUpper(httpMethod), path, headers, bytes.NewBuffer(payload), &intermediary, authenticated, false, o.Verbose)
+	err = o.SendPayload(strings.ToUpper(httpMethod), path, headers, bytes.NewBuffer(payload), &intermediary, authenticated, false, o.Verbose, o.HTTPDebugging)
 	if err != nil {
 		return err
 	}

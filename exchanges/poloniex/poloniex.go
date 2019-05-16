@@ -104,6 +104,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
+		p.HTTPDebugging = exch.HTTPDebugging
 		p.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		p.BaseCurrencies = exch.BaseCurrencies
 		p.AvailablePairs = exch.AvailablePairs
@@ -865,7 +866,8 @@ func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
 		result,
 		false,
 		false,
-		p.Verbose)
+		p.Verbose,
+		p.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -898,7 +900,8 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 		result,
 		true,
 		true,
-		p.Verbose)
+		p.Verbose,
+		p.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

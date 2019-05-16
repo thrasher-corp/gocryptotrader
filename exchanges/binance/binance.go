@@ -113,6 +113,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -594,7 +595,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -630,7 +631,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 		Message string `json:"msg"`
 	}{}
 
-	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, false, b.Verbose)
+	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, false, b.Verbose, b.HTTPDebugging)
 	if err != nil {
 		return err
 	}

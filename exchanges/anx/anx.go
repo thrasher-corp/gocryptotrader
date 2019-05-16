@@ -87,6 +87,7 @@ func (a *ANX) Setup(exch *config.ExchangeConfig) {
 		a.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		a.RESTPollingDelay = exch.RESTPollingDelay
 		a.Verbose = exch.Verbose
+		a.HTTPDebugging = exch.HTTPDebugging
 		a.BaseCurrencies = exch.BaseCurrencies
 		a.AvailablePairs = exch.AvailablePairs
 		a.EnabledPairs = exch.EnabledPairs
@@ -402,7 +403,7 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (a *ANX) SendHTTPRequest(path string, result interface{}) error {
-	return a.SendPayload(http.MethodGet, path, nil, nil, result, false, false, a.Verbose)
+	return a.SendPayload(http.MethodGet, path, nil, nil, result, false, false, a.Verbose, a.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends a authenticated HTTP request
@@ -435,7 +436,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	headers["Rest-Sign"] = common.Base64Encode(hmac)
 	headers["Content-Type"] = "application/json"
 
-	return a.SendPayload(http.MethodPost, a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, true, a.Verbose)
+	return a.SendPayload(http.MethodPost, a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, true, a.Verbose, a.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

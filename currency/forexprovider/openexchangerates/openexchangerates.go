@@ -264,5 +264,6 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 		result,
 		false,
 		false,
-		o.Verbose)
+		o.Verbose,
+		false)
 }

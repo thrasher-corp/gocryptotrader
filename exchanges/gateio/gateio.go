@@ -98,6 +98,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 		g.AvailablePairs = exch.AvailablePairs
 		g.EnabledPairs = exch.EnabledPairs
 		g.WebsocketURL = gateioWebsocketEndpoint
+		g.HTTPDebugging = exch.HTTPDebugging
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -392,7 +393,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose)
+	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose, g.HTTPDebugging)
 }
 
 // CancelAllExistingOrders all orders for a given symbol and side
@@ -490,7 +491,8 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 		&intermidiary,
 		true,
 		false,
-		g.Verbose)
+		g.Verbose,
+		g.HTTPDebugging)
 	if err != nil {
 		return err
 	}
