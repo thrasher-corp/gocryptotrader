@@ -22,7 +22,10 @@ matrix:
       env:
         - GO111MODULE=on
       install: true
-      
+      cache:
+        directories:
+          - $GOPATH/pkg/mod
+
       script:
         - make check
       after_success:
@@ -36,6 +39,9 @@ matrix:
       env:
         - GO111MODULE=on
       install: true
+      cache:
+        directories:
+          - $GOPATH/pkg/mod
       
       script:
         - make check
