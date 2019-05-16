@@ -157,8 +157,8 @@ func main() {
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
-	defer r1.Close()
 	tReadme.Execute(r1, exch)
+	r1.Close()
 
 	tMain, err := template.New("main").ParseFiles("main_file.tmpl")
 	if err != nil {
@@ -169,8 +169,8 @@ func main() {
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
-	defer m1.Close()
 	tMain.Execute(m1, exch)
+	m1.Close()
 
 	tTest, err := template.New("test").ParseFiles("test_file.tmpl")
 	if err != nil {
@@ -181,8 +181,8 @@ func main() {
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
-	defer t1.Close()
 	tTest.Execute(t1, exch)
+	t1.Close()
 
 	tType, err := template.New("type").ParseFiles("type_file.tmpl")
 	if err != nil {
@@ -193,8 +193,8 @@ func main() {
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
-	defer ty1.Close()
 	tType.Execute(ty1, exch)
+	ty1.Close()
 
 	tWrapper, err := template.New("wrapper").ParseFiles("wrapper_file.tmpl")
 	if err != nil {
@@ -205,8 +205,8 @@ func main() {
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
-	defer w1.Close()
 	tWrapper.Execute(w1, exch)
+	w1.Close()
 
 	err = exec.Command("go", "fmt", exchangeDirectory).Run()
 	if err != nil {
