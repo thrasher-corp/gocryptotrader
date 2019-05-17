@@ -347,7 +347,7 @@ func (b *Binance) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		for i := range resp {
 			orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
 			orderType := exchange.OrderType(strings.ToUpper(resp[i].Type))
-			orderDate := time.Unix(int64(resp[i].Time), 0)
+			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
 
 			orders = append(orders, exchange.OrderDetail{
 				Amount:       resp[i].OrigQty,
@@ -387,7 +387,7 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		for i := range resp {
 			orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
 			orderType := exchange.OrderType(strings.ToUpper(resp[i].Type))
-			orderDate := time.Unix(int64(resp[i].Time), 0)
+			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
 			// New orders are covered in GetOpenOrders
 			if resp[i].Status == "NEW" {
 				continue
