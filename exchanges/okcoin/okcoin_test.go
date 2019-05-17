@@ -810,7 +810,7 @@ func TestSendWsMessages(t *testing.T) {
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
 	if err != nil {
-		t.Errorf("%s Unable to connect to Websocket. Error: %s",
+		t.Fatalf("%s Unable to connect to Websocket. Error: %s",
 			o.Name,
 			err)
 	}
