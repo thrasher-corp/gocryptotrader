@@ -1570,6 +1570,7 @@ func TestSendWsMessages(t *testing.T) {
 	}
 	var dialer websocket.Dialer
 	var err error
+	var ok bool
 	o.Websocket.TrafficAlert = make(chan struct{}, 99)
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
@@ -1590,7 +1591,7 @@ func TestSendWsMessages(t *testing.T) {
 	subscription.Channel = "badChannel"
 	o.Subscribe(subscription)
 	response := <-o.Websocket.DataHandler
-	if err, ok := response.(error); ok && err != nil {
+	if err, ok = response.(error); ok && err != nil {
 		if !strings.Contains(response.(error).Error(), subscription.Channel) {
 			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 		}
