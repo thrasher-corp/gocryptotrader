@@ -52,7 +52,8 @@ func NewRouter() *mux.Router {
 	if common.ExtractPort(bot.config.Webserver.ListenAddress) == 80 {
 		listenAddr = common.ExtractHost(bot.config.Webserver.ListenAddress)
 	} else {
-		listenAddr = common.JoinStrings([]string{common.ExtractHost(bot.config.Webserver.ListenAddress), strconv.Itoa(common.ExtractPort(bot.config.Webserver.ListenAddress))}, ":")
+		listenAddr = common.JoinStrings([]string{common.ExtractHost(bot.config.Webserver.ListenAddress),
+			strconv.Itoa(common.ExtractPort(bot.config.Webserver.ListenAddress))}, ":")
 	}
 
 	routes = Routes{
