@@ -1588,7 +1588,6 @@ func TestSendWsMessages(t *testing.T) {
 	subscription := exchange.WebsocketChannelSubscription{
 		Channel: "badChannel",
 	}
-	subscription.Channel = "badChannel"
 	o.Subscribe(subscription)
 	response := <-o.Websocket.DataHandler
 	if err, ok = response.(error); ok && err != nil {
