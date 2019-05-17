@@ -79,7 +79,9 @@ func (o *OKEX) SetDefaults() {
 	o.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.
@@ -252,7 +254,7 @@ func (o *OKEX) GetFuturesTokenInfoForCurrency(instrumentID string) (resp okgroup
 }
 
 // GetFuturesFilledOrder Get the recent 300 transactions of all contracts. Pagination is not supported here.
-// The whole book will be returned for one request. WebSocket is recommended here.
+// The whole book will be returned for one request. Websocket is recommended here.
 func (o *OKEX) GetFuturesFilledOrder(request okgroup.GetFuturesFilledOrderRequest) (resp []okgroup.GetFuturesFilledOrdersResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", okgroup.OKGroupInstruments, request.InstrumentID, okgroup.OKGroupTrades, okgroup.FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)

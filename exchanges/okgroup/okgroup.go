@@ -88,7 +88,7 @@ type OKGroup struct {
 	exchange.Base
 	ExchangeName  string
 	WebsocketConn *websocket.Conn
-	mu            sync.Mutex
+	wsRequestMtx  sync.Mutex
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks
@@ -115,6 +115,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
+		o.HTTPDebugging = exch.HTTPDebugging
 		o.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		o.BaseCurrencies = exch.BaseCurrencies
 		o.AvailablePairs = exch.AvailablePairs
@@ -140,8 +141,11 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = o.WebsocketSetup(o.WsConnect,
+			o.Subscribe,
+			o.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			o.WebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {
@@ -275,16 +279,13 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[
 		return resp, []error{err}
 	}
 
-	orderErrors := []error{}
+	var orderErrors []error
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
-	}
-	if len(orderErrors) == 0 {
-		orderErrors = nil
 	}
 
 	return resp, orderErrors
@@ -361,7 +362,7 @@ func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsRespo
 }
 
 // GetSpotOrderBook Getting the order book of a trading pair. Pagination is not supported here.
-// The whole book will be returned for one request. WebSocket is recommended here.
+// The whole book will be returned for one request. Websocket is recommended here.
 func (o *OKGroup) GetSpotOrderBook(request GetSpotOrderBookRequest) (resp GetSpotOrderBookResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotOrderBook, FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
@@ -475,16 +476,13 @@ func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (ma
 		return resp, []error{err}
 	}
 
-	orderErrors := []error{}
+	var orderErrors []error
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
-	}
-	if len(orderErrors) == 0 {
-		orderErrors = nil
 	}
 
 	return resp, orderErrors
@@ -508,16 +506,13 @@ func (o *OKGroup) CancelMultipleMarginOrders(request CancelMultipleSpotOrdersReq
 		return resp, []error{err}
 	}
 
-	orderErrors := []error{}
+	var orderErrors []error
 	for currency, orderResponse := range resp {
 		for _, order := range orderResponse {
 			if !order.Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order %v for currency %v failed to be cancelled", order.OrderID, currency))
 			}
 		}
-	}
-	if len(orderErrors) == 0 {
-		orderErrors = nil
 	}
 
 	return resp, orderErrors
@@ -632,7 +627,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 
 	errCap := errCapFormat{}
 	errCap.Result = true
-	err = o.SendPayload(strings.ToUpper(httpMethod), path, headers, bytes.NewBuffer(payload), &intermediary, authenticated, false, o.Verbose)
+	err = o.SendPayload(strings.ToUpper(httpMethod), path, headers, bytes.NewBuffer(payload), &intermediary, authenticated, false, o.Verbose, o.HTTPDebugging)
 	if err != nil {
 		return err
 	}

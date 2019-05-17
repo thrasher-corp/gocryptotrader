@@ -191,7 +191,8 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 		&result,
 		auth,
 		false,
-		c.Verbose)
+		c.Verbose,
+		false)
 	if err != nil {
 		return fmt.Errorf("currency converter API SendHTTPRequest error %s with path %s",
 			err,

@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -63,6 +64,7 @@ type Bitstamp struct {
 	exchange.Base
 	Balance       Balances
 	WebsocketConn WebsocketConn
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default for Bitstamp
@@ -88,7 +90,9 @@ func (b *Bitstamp) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets configuration values to bitstamp
@@ -103,6 +107,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -132,8 +137,11 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnect,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			BitstampPusherKey,
 			exch.WebsocketURL)
 		if err != nil {
@@ -316,7 +324,7 @@ func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 // value paramater ["time"] = "minute", "hour", "day" will collate your
 // response into time intervals. Implementation of value in test code.
 func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Transactions, error) {
-	transactions := []Transactions{}
+	var transactions []Transactions
 	path := common.EncodeURLValues(
 		fmt.Sprintf(
 			"%s/v%s/%s/%s/",
@@ -361,7 +369,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		Fee     float64     `json:"fee,string"`
 		OrderID int64       `json:"order_id"`
 	}
-	response := []Response{}
+	var response []Response
 
 	if currencyPair != "" {
 		if err := b.SendAuthenticatedHTTPRequest(bitstampAPIUserTransactions, true, url.Values{}, &response); err != nil {
@@ -373,7 +381,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		}
 	}
 
-	transactions := []UserTransactions{}
+	var transactions []UserTransactions
 
 	for _, y := range response {
 		tx := UserTransactions{}
@@ -416,7 +424,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 
 // GetOpenOrders returns all open orders on the exchange
 func (b *Bitstamp) GetOpenOrders(currencyPair string) ([]Order, error) {
-	resp := []Order{}
+	var resp []Order
 	path := fmt.Sprintf(
 		"%s/%s", bitstampAPIOpenOrders, common.StringToLower(currencyPair),
 	)
@@ -478,7 +486,7 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, m
 // timedelta - positive integer with max value 50000000 which returns requests
 // from number of seconds ago to now.
 func (b *Bitstamp) GetWithdrawalRequests(timedelta int64) ([]WithdrawalRequests, error) {
-	resp := []WithdrawalRequests{}
+	var resp []WithdrawalRequests
 	if timedelta > 50000000 || timedelta < 0 {
 		return resp, errors.New("time delta exceeded, max: 50000000 min: 0")
 	}
@@ -613,7 +621,7 @@ func (b *Bitstamp) GetCryptoDepositAddress(crypto currency.Code) (string, error)
 
 // GetUnconfirmedBitcoinDeposits returns unconfirmed transactions
 func (b *Bitstamp) GetUnconfirmedBitcoinDeposits() ([]UnconfirmedBTCTransactions, error) {
-	response := []UnconfirmedBTCTransactions{}
+	var response []UnconfirmedBTCTransactions
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(bitstampAPIUnconfirmedBitcoin, false, nil, &response)
@@ -645,7 +653,7 @@ func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount s
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitstamp) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -687,7 +695,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		Error string `json:"error"`
 	}{}
 
-	err := b.SendPayload(http.MethodPost, path, headers, readerValues, &interim, true, true, b.Verbose)
+	err := b.SendPayload(http.MethodPost, path, headers, readerValues, &interim, true, true, b.Verbose, b.HTTPDebugging)
 	if err != nil {
 		return err
 	}

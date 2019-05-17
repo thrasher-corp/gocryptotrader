@@ -36,7 +36,7 @@ func (c *CoinbasePro) Run() {
 	if err != nil {
 		log.Errorf("%s Failed to get available products.\n", c.GetName())
 	} else {
-		currencies := []string{}
+		var currencies []string
 		for _, x := range exchangeProducts {
 			if x.ID != "BTC" && x.ID != "USD" && x.ID != "GBP" {
 				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
@@ -381,4 +381,18 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (c *CoinbasePro) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	c.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	c.Websocket.UnsubscribeToChannels(channels)
+	return nil
 }

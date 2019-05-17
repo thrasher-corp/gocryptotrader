@@ -35,6 +35,14 @@ var (
 	TimeIntervalDay            = TimeInterval(60 * 60 * 24)
 )
 
+// IDs for requests
+const (
+	IDGeneric    = 0000
+	IDSignIn     = 1010
+	IDBalance    = 2000
+	IDOrderQuery = 3001
+)
+
 // MarketInfoResponse holds the market info data
 type MarketInfoResponse struct {
 	Result string                    `json:"result"`
@@ -54,9 +62,9 @@ type MarketInfoPairsResponse struct {
 
 // BalancesResponse holds the user balances
 type BalancesResponse struct {
-	Result    string            `json:"result"`
-	Available map[string]string `json:"available"`
-	Locked    map[string]string `json:"locked"`
+	Result    string      `json:"result"`
+	Available interface{} `json:"available"`
+	Locked    interface{} `json:"locked"`
 }
 
 // KlinesRequestParams represents Klines request data.
@@ -397,15 +405,13 @@ type WebsocketRequest struct {
 
 // WebsocketResponse defines a websocket response from gateio
 type WebsocketResponse struct {
-	Time    int64          `json:"time"`
-	Channel string         `json:"channel"`
-	Event   string         `json:""`
-	Error   WebsocketError `json:"error"`
-	Result  struct {
-		Status string `json:"status"`
-	} `json:"result"`
-	Method string            `json:"method"`
-	Params []json.RawMessage `json:"params"`
+	Time    int64             `json:"time"`
+	Channel string            `json:"channel"`
+	Error   WebsocketError    `json:"error"`
+	Result  json.RawMessage   `json:"result"`
+	ID      int64             `json:"id"`
+	Method  string            `json:"method"`
+	Params  []json.RawMessage `json:"params"`
 }
 
 // WebsocketError defines a websocket error type
@@ -434,4 +440,41 @@ type WebsocketTrade struct {
 	Price  float64 `json:"price,string"`
 	Amount float64 `json:"amount,string"`
 	Type   string  `json:"type"`
+}
+
+// WebsocketBalance holds a slice of WebsocketBalanceCurrency
+type WebsocketBalance struct {
+	Currency []WebsocketBalanceCurrency
+}
+
+// WebsocketBalanceCurrency contains currency name funds available and frozen
+type WebsocketBalanceCurrency struct {
+	Currency  string
+	Available string `json:"available"`
+	Locked    string `json:"freeze"`
+}
+
+// WebSocketOrderQueryResult data returned from a websocket ordre query holds slice of WebSocketOrderQueryRecords
+type WebSocketOrderQueryResult struct {
+	Limit                      int                          `json:"limit"`
+	Offset                     int                          `json:"offset"`
+	Total                      int                          `json:"total"`
+	WebSocketOrderQueryRecords []WebSocketOrderQueryRecords `json:"records"`
+}
+
+// WebSocketOrderQueryRecords contains order information from a order.query websocket request
+type WebSocketOrderQueryRecords struct {
+	ID           int     `json:"id"`
+	Market       string  `json:"market"`
+	User         int     `json:"user"`
+	Ctime        float64 `json:"ctime"`
+	Mtime        float64 `json:"mtime"`
+	Price        string  `json:"price"`
+	Amount       string  `json:"amount"`
+	Left         string  `json:"left"`
+	DealFee      string  `json:"dealFee"`
+	OrderType    int     `json:"orderType"`
+	Type         int     `json:"type"`
+	FilledAmount string  `json:"filledAmount"`
+	FilledTotal  string  `json:"filledTotal"`
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -23,6 +24,7 @@ import (
 type Bitmex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	wsRequestMtx  sync.Mutex
 }
 
 const (
@@ -135,7 +137,9 @@ func (b *Bitmex) SetDefaults() {
 	b.SupportsAutoPairUpdating = true
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -148,6 +152,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -173,8 +178,11 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WsConnector,
+			b.Subscribe,
+			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			bitmexWSURL,
 			exch.WebsocketURL)
 		if err != nil {
@@ -850,14 +858,14 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 			if err != nil {
 				return err
 			}
-			err = b.SendPayload(http.MethodGet, encodedPath, nil, nil, &respCheck, false, false, b.Verbose)
+			err = b.SendPayload(http.MethodGet, encodedPath, nil, nil, &respCheck, false, false, b.Verbose, b.HTTPDebugging)
 			if err != nil {
 				return err
 			}
 			return b.CaptureError(respCheck, result)
 		}
 	}
-	err := b.SendPayload(http.MethodGet, path, nil, nil, &respCheck, false, false, b.Verbose)
+	err := b.SendPayload(http.MethodGet, path, nil, nil, &respCheck, false, false, b.Verbose, b.HTTPDebugging)
 	if err != nil {
 		return err
 	}
@@ -908,7 +916,8 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 		&respCheck,
 		true,
 		false,
-		b.Verbose)
+		b.Verbose,
+		b.HTTPDebugging)
 	if err != nil {
 		return err
 	}

@@ -137,46 +137,50 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 		return info, err
 	}
 
-	if len(balance.Available) == 0 && len(balance.Locked) == 0 {
-		return info, nil
-	}
-
 	var balances []exchange.AccountCurrencyInfo
 
-	for key, amountStr := range balance.Locked {
-
-		lockedF, err := strconv.ParseFloat(amountStr, 64)
-		if err != nil {
-			return info, err
-		}
-
-		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(key),
-			Hold:         lockedF,
-		})
-	}
-
-	for key, amountStr := range balance.Available {
-		availAmount, err := strconv.ParseFloat(amountStr, 64)
-		if err != nil {
-			return info, err
-		}
-
-		var updated bool
-		for i := range balances {
-			if balances[i].CurrencyName == currency.NewCode(key) {
-				balances[i].TotalValue = balances[i].Hold + availAmount
-				updated = true
-				break
+	switch l := balance.Locked.(type) {
+	case map[string]interface{}:
+		for x := range l {
+			lockedF, err := strconv.ParseFloat(l[x].(string), 64)
+			if err != nil {
+				return info, err
 			}
-		}
 
-		if !updated {
 			balances = append(balances, exchange.AccountCurrencyInfo{
-				CurrencyName: currency.NewCode(key),
-				TotalValue:   availAmount,
+				CurrencyName: currency.NewCode(x),
+				Hold:         lockedF,
 			})
 		}
+	default:
+		break
+	}
+
+	switch v := balance.Available.(type) {
+	case map[string]interface{}:
+		for x := range v {
+			availAmount, err := strconv.ParseFloat(v[x].(string), 64)
+			if err != nil {
+				return info, err
+			}
+
+			var updated bool
+			for i := range balances {
+				if balances[i].CurrencyName == currency.NewCode(x) {
+					balances[i].TotalValue = balances[i].Hold + availAmount
+					updated = true
+					break
+				}
+			}
+			if !updated {
+				balances = append(balances, exchange.AccountCurrencyInfo{
+					CurrencyName: currency.NewCode(x),
+					TotalValue:   availAmount,
+				})
+			}
+		}
+	default:
+		break
 	}
 
 	info.Accounts = append(info.Accounts, exchange.Account{
@@ -280,7 +284,32 @@ func (g *Gateio) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 // GetOrderInfo returns information on a current open order
 func (g *Gateio) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, common.ErrNotYetImplemented
+
+	orders, err := g.GetOpenOrders("")
+	if err != nil {
+		return orderDetail, errors.New("failed to get open orders")
+	}
+	for x := range orders.Orders {
+		if orders.Orders[x].OrderNumber != orderID {
+			continue
+		}
+		orderDetail.Exchange = g.GetName()
+		orderDetail.ID = orders.Orders[x].OrderNumber
+		orderDetail.RemainingAmount = orders.Orders[x].InitialAmount - orders.Orders[x].FilledAmount
+		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount
+		orderDetail.Amount = orders.Orders[x].InitialAmount
+		orderDetail.OrderDate = time.Unix(orders.Orders[x].Timestamp, 0)
+		orderDetail.Status = orders.Orders[x].Status
+		orderDetail.Price = orders.Orders[x].Rate
+		orderDetail.CurrencyPair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair, g.ConfigCurrencyPairFormat.Delimiter)
+		if strings.EqualFold(orders.Orders[x].Type, exchange.AskOrderSide.ToString()) {
+			orderDetail.OrderSide = exchange.AskOrderSide
+		} else if strings.EqualFold(orders.Orders[x].Type, exchange.BidOrderSide.ToString()) {
+			orderDetail.OrderSide = exchange.BuyOrderSide
+		}
+		return orderDetail, nil
+	}
+	return orderDetail, fmt.Errorf("no order found with id %v", orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -415,4 +444,18 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (g *Gateio) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	g.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (g *Gateio) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	g.Websocket.UnsubscribeToChannels(channels)
+	return nil
 }

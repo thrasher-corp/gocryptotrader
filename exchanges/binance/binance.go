@@ -113,6 +113,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
@@ -138,8 +139,11 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.WebsocketSetup(b.WSConnect,
+			nil,
+			nil,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			binanceDefaultWebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {
@@ -239,7 +243,7 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 // GetRecentTrades returns recent trade activity
 // limit: Up to 500 results returned
 func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
-	resp := []RecentTrade{}
+	var resp []RecentTrade
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(rtr.Symbol))
@@ -256,7 +260,7 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 // limit: Optional. Default 500; max 1000.
 // fromID:
 func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
-	resp := []HistoricalTrade{}
+	var resp []HistoricalTrade
 
 	if err := b.CheckLimit(limit); err != nil {
 		return resp, err
@@ -277,7 +281,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 // symbol: string of currency pair
 // limit: Optional. Default 500; max 1000.
 func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTrade, error) {
-	resp := []AggregatedTrade{}
+	var resp []AggregatedTrade
 
 	if err := b.CheckLimit(limit); err != nil {
 		return resp, err
@@ -594,7 +598,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -630,7 +634,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 		Message string `json:"msg"`
 	}{}
 
-	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, false, b.Verbose)
+	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, false, b.Verbose, b.HTTPDebugging)
 	if err != nil {
 		return err
 	}

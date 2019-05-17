@@ -413,3 +413,16 @@ func (z *ZB) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 
 	return orders, nil
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (z *ZB) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	z.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (z *ZB) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}

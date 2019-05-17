@@ -87,6 +87,7 @@ func (y *Yobit) Setup(exch *config.ExchangeConfig) {
 		y.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		y.RESTPollingDelay = exch.RESTPollingDelay
 		y.Verbose = exch.Verbose
+		y.HTTPDebugging = exch.HTTPDebugging
 		y.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		y.BaseCurrencies = exch.BaseCurrencies
 		y.AvailablePairs = exch.AvailablePairs
@@ -337,7 +338,8 @@ func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
 		result,
 		false,
 		false,
-		y.Verbose)
+		y.Verbose,
+		y.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
@@ -380,7 +382,8 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 		result,
 		true,
 		true,
-		y.Verbose)
+		y.Verbose,
+		y.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

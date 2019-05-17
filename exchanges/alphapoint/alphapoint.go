@@ -534,7 +534,7 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 		return errors.New("unable to JSON request")
 	}
 
-	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, false, false, a.Verbose)
+	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, false, false, a.Verbose, a.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -559,5 +559,5 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		return errors.New("unable to JSON request")
 	}
 
-	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, true, true, a.Verbose)
+	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, true, true, a.Verbose, a.HTTPDebugging)
 }

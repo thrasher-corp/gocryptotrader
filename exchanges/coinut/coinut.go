@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -48,6 +49,7 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets current default values
@@ -77,7 +79,9 @@ func (c *COINUT) SetDefaults() {
 	c.WebsocketInit()
 	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets the current exchange configuration
@@ -92,6 +96,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
+		c.HTTPDebugging = exch.HTTPDebugging
 		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		c.BaseCurrencies = exch.BaseCurrencies
 		c.AvailablePairs = exch.AvailablePairs
@@ -117,8 +122,11 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.WebsocketSetup(c.WsConnect,
+			c.Subscribe,
+			c.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			coinutWebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {
@@ -252,7 +260,7 @@ func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, erro
 		OrderID      int `json:"order_id"`
 	}
 
-	entries := []CancelOrders{}
+	var entries []CancelOrders
 	entries = append(entries, orders...)
 	params["entries"] = entries
 
@@ -371,7 +379,9 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		&rawMsg,
 		authenticated,
 		true,
-		c.Verbose)
+		c.Verbose,
+		c.HTTPDebugging,
+	)
 	if err != nil {
 		return err
 	}

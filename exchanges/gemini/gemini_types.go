@@ -214,7 +214,7 @@ type Event struct {
 	Remaining float64 `json:"remaining,string"`
 	Side      string  `json:"side"`
 	MakerSide string  `json:"makerSide"`
-	Amount    float64 `json:"amount"`
+	Amount    float64 `json:"amount,string"`
 }
 
 // ReadData defines read data from the websocket connection

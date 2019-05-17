@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -73,7 +72,7 @@ func TestValidHostRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Host = common.ExtractHost(bot.config.Webserver.ListenAddress)
+	req.Host = "localhost:9050"
 
 	resp := httptest.NewRecorder()
 	NewRouter().ServeHTTP(resp, req)

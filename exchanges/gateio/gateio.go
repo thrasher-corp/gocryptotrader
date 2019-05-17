@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -49,6 +50,7 @@ const (
 type Gateio struct {
 	WebsocketConn *websocket.Conn
 	exchange.Base
+	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -78,7 +80,9 @@ func (g *Gateio) SetDefaults() {
 	g.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketKlineSupported
+		exchange.WebsocketKlineSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user configuration
@@ -97,6 +101,8 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 		g.BaseCurrencies = exch.BaseCurrencies
 		g.AvailablePairs = exch.AvailablePairs
 		g.EnabledPairs = exch.EnabledPairs
+		g.WebsocketURL = gateioWebsocketEndpoint
+		g.HTTPDebugging = exch.HTTPDebugging
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -118,8 +124,11 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.WebsocketSetup(g.WsConnect,
+			g.Subscribe,
+			g.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			gateioWebsocketEndpoint,
 			exch.WebsocketURL)
 		if err != nil {
@@ -291,7 +300,7 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 	}
 
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
-	rawKlineDatas := [][]interface{}{}
+	var rawKlineDatas [][]interface{}
 	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
 		return nil, fmt.Errorf("rawKlines unmarshal failed. Err: %s", err)
 	}
@@ -391,7 +400,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose)
+	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose, g.HTTPDebugging)
 }
 
 // CancelAllExistingOrders all orders for a given symbol and side
@@ -459,6 +468,11 @@ func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 	return result, nil
 }
 
+// GenerateSignature returns hash for authenticated requests
+func (g *Gateio) GenerateSignature(message string) []byte {
+	return common.GetHMAC(common.HashSHA512, []byte(message), []byte(g.APISecret))
+}
+
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
 // To use this you must setup an APIKey and APISecret from the exchange
 func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, result interface{}) error {
@@ -471,7 +485,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["key"] = g.APIKey
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(g.APISecret))
+	hmac := g.GenerateSignature(param)
 	headers["sign"] = common.HexEncodeToString(hmac)
 
 	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
@@ -485,7 +499,8 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 		&intermidiary,
 		true,
 		false,
-		g.Verbose)
+		g.Verbose,
+		g.HTTPDebugging)
 	if err != nil {
 		return err
 	}

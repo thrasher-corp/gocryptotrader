@@ -511,3 +511,17 @@ func setOrderSideAndType(requestType string, orderDetail *exchange.OrderDetail) 
 		orderDetail.OrderType = exchange.LimitOrderType
 	}
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (h *HUOBI) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	h.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (h *HUOBI) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	h.Websocket.UnsubscribeToChannels(channels)
+	return nil
+}

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -61,6 +62,7 @@ const (
 type CoinbasePro struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -88,7 +90,9 @@ func (c *CoinbasePro) SetDefaults() {
 	c.APIUrl = c.APIUrlDefault
 	c.WebsocketInit()
 	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup initialises the exchange parameters with the current configuration
@@ -103,6 +107,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
+		c.HTTPDebugging = exch.HTTPDebugging
 		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		c.BaseCurrencies = exch.BaseCurrencies
 		c.AvailablePairs = exch.AvailablePairs
@@ -131,8 +136,11 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.WebsocketSetup(c.WsConnect,
+			c.Subscribe,
+			c.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			coinbaseproWebsocketURL,
 			exch.WebsocketURL)
 		if err != nil {
@@ -144,7 +152,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 // GetProducts returns supported currency pairs on the exchange with specific
 // information about the pair
 func (c *CoinbasePro) GetProducts() ([]Product, error) {
-	products := []Product{}
+	var products []Product
 
 	return products, c.SendHTTPRequest(c.APIUrl+coinbaseproProducts, &products)
 }
@@ -233,7 +241,7 @@ func (c *CoinbasePro) GetTicker(currencyPair string) (Ticker, error) {
 // GetTrades listd the latest trades for a product
 // currencyPair - example "BTC-USD"
 func (c *CoinbasePro) GetTrades(currencyPair string) ([]Trade, error) {
-	trades := []Trade{}
+	var trades []Trade
 	path := fmt.Sprintf(
 		"%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproTrades)
 
@@ -244,7 +252,7 @@ func (c *CoinbasePro) GetTrades(currencyPair string) ([]Trade, error) {
 // grouped buckets based on requested granularity.
 func (c *CoinbasePro) GetHistoricRates(currencyPair string, start, end, granularity int64) ([]History, error) {
 	var resp [][]interface{}
-	history := []History{}
+	var history []History
 	values := url.Values{}
 
 	if start > 0 {
@@ -300,7 +308,7 @@ func (c *CoinbasePro) GetStats(currencyPair string) (Stats, error) {
 // GetCurrencies returns a list of supported currency on the exchange
 // Warning: Not all currencies may be currently in use for tradinc.
 func (c *CoinbasePro) GetCurrencies() ([]Currency, error) {
-	currencies := []Currency{}
+	var currencies []Currency
 
 	return currencies, c.SendHTTPRequest(c.APIUrl+coinbaseproCurrencies, &currencies)
 }
@@ -314,7 +322,7 @@ func (c *CoinbasePro) GetServerTime() (ServerTime, error) {
 
 // GetAccounts returns a list of trading accounts associated with the APIKEYS
 func (c *CoinbasePro) GetAccounts() ([]AccountResponse, error) {
-	resp := []AccountResponse{}
+	var resp []AccountResponse
 
 	return resp,
 		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproAccounts, nil, &resp)
@@ -333,7 +341,7 @@ func (c *CoinbasePro) GetAccount(accountID string) (AccountResponse, error) {
 // increases or decreases your account balance. Items are paginated and sorted
 // latest first.
 func (c *CoinbasePro) GetAccountHistory(accountID string) ([]AccountLedgerResponse, error) {
-	resp := []AccountLedgerResponse{}
+	var resp []AccountLedgerResponse
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproLedger)
 
 	return resp, c.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
@@ -344,7 +352,7 @@ func (c *CoinbasePro) GetAccountHistory(accountID string) ([]AccountLedgerRespon
 // is updated. If an order is canceled, any remaining hold is removed. For a
 // withdraw, once it is completed, the hold is removed.
 func (c *CoinbasePro) GetHolds(accountID string) ([]AccountHolds, error) {
-	resp := []AccountHolds{}
+	var resp []AccountHolds
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproHolds)
 
 	return resp, c.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
@@ -514,7 +522,7 @@ func (c *CoinbasePro) CancelAllExistingOrders(currencyPair string) ([]string, er
 // status - can be a range of "open", "pending", "done" or "active"
 // currencyPair - [optional] for example "BTC-USD"
 func (c *CoinbasePro) GetOrders(status []string, currencyPair string) ([]GeneralizedOrderResponse, error) {
-	resp := []GeneralizedOrderResponse{}
+	var resp []GeneralizedOrderResponse
 	params := url.Values{}
 
 	for _, individualStatus := range status {
@@ -541,7 +549,7 @@ func (c *CoinbasePro) GetOrder(orderID string) (GeneralizedOrderResponse, error)
 
 // GetFills returns a list of recent fills
 func (c *CoinbasePro) GetFills(orderID, currencyPair string) ([]FillResponse, error) {
-	resp := []FillResponse{}
+	var resp []FillResponse
 	params := url.Values{}
 
 	if orderID != "" {
@@ -566,7 +574,7 @@ func (c *CoinbasePro) GetFills(orderID, currencyPair string) ([]FillResponse, er
 //
 // status - "outstanding", "settled", or "rejected"
 func (c *CoinbasePro) GetFundingRecords(status string) ([]Funding, error) {
-	resp := []Funding{}
+	var resp []Funding
 	params := url.Values{}
 	params.Set("status", status)
 
@@ -636,7 +644,7 @@ func (c *CoinbasePro) ClosePosition(repayOnly bool) (AccountOverview, error) {
 
 // GetPayMethods returns a full list of payment methods
 func (c *CoinbasePro) GetPayMethods() ([]PaymentMethod, error) {
-	resp := []PaymentMethod{}
+	var resp []PaymentMethod
 
 	return resp,
 		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproPaymentMethod, nil, &resp)
@@ -729,7 +737,7 @@ func (c *CoinbasePro) WithdrawCrypto(amount float64, currency, cryptoAddress str
 
 // GetCoinbaseAccounts returns a list of coinbase accounts
 func (c *CoinbasePro) GetCoinbaseAccounts() ([]CoinbaseAccounts, error) {
-	resp := []CoinbaseAccounts{}
+	var resp []CoinbaseAccounts
 
 	return resp,
 		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproCoinbaseAccounts, nil, &resp)
@@ -784,7 +792,7 @@ func (c *CoinbasePro) GetReportStatus(reportID string) (Report, error) {
 // GetTrailingVolume this request will return your 30-day trailing volume for
 // all products.
 func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
-	resp := []Volume{}
+	var resp []Volume
 
 	return resp,
 		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproTrailingVolume, nil, &resp)
@@ -792,7 +800,7 @@ func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
-	return c.SendPayload(http.MethodGet, path, nil, nil, result, false, false, c.Verbose)
+	return c.SendPayload(http.MethodGet, path, nil, nil, result, false, false, c.Verbose, c.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
@@ -832,7 +840,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		result,
 		true,
 		true,
-		c.Verbose)
+		c.Verbose,
+		c.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

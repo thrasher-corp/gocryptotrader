@@ -450,3 +450,17 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 
 	return orders, nil
 }
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (h *HUOBIHADAX) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	h.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (h *HUOBIHADAX) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	h.Websocket.UnsubscribeToChannels(channels)
+	return nil
+}

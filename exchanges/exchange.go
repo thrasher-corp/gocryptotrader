@@ -271,6 +271,7 @@ type Base struct {
 	SupportsRESTTickerBatching                 bool
 	HTTPTimeout                                time.Duration
 	HTTPUserAgent                              string
+	HTTPDebugging                              bool
 	WebsocketURL                               string
 	APIUrl                                     string
 	APIUrlDefault                              string
@@ -322,6 +323,8 @@ type IBotExchange interface {
 	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
 	GetWebsocket() (*Websocket, error)
+	SubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -896,7 +899,7 @@ func (e *Base) SupportsWithdrawPermissions(permissions uint32) bool {
 
 // FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
 func (e *Base) FormatWithdrawPermissions() string {
-	services := []string{}
+	var services []string
 	for i := 0; i < 32; i++ {
 		var check uint32 = 1 << uint32(i)
 		if e.GetWithdrawPermissions()&check != 0 {

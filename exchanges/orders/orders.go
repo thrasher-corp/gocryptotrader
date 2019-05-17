@@ -46,7 +46,7 @@ func DeleteOrder(orderID int) bool {
 
 // GetOrdersByExchange returns order pointer grouped by exchange
 func GetOrdersByExchange(exchange string) []*Order {
-	orders := []*Order{}
+	var orders []*Order
 	for i := range Orders {
 		if Orders[i].Exchange == exchange {
 			orders = append(orders, Orders[i])

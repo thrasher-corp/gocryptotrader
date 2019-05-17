@@ -264,7 +264,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 
 	LoadExchange("Bitstamp", false, nil)
 
-	bids := []orderbook.Item{}
+	var bids []orderbook.Item
 	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
 
 	base := orderbook.Base{
@@ -329,7 +329,7 @@ func TestGetSpecificTicker(t *testing.T) {
 func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	SetupTestHelpers(t)
 
-	exchangeInfo := []exchange.AccountInfo{}
+	var exchangeInfo []exchange.AccountInfo
 	var info exchange.AccountInfo
 
 	info.Exchange = "Bitfinex"
@@ -383,7 +383,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 	SetupTestHelpers(t)
 
-	exchangeInfo := []exchange.AccountInfo{}
+	var exchangeInfo []exchange.AccountInfo
 	var info exchange.AccountInfo
 	info.Exchange = "Bitfinex"
 	info.Accounts = append(info.Accounts,

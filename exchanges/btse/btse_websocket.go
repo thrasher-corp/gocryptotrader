@@ -21,31 +21,6 @@ const (
 	btseWebsocket = "wss://ws.btse.com/api/ws-feed"
 )
 
-// WebsocketSubscriber subscribes to websocket channels with respect to enabled
-// currencies
-func (b *BTSE) WebsocketSubscriber() error {
-	subscribe := websocketSubscribe{
-		Type: "subscribe",
-		Channels: []websocketChannel{
-			{
-				Name:       "snapshot",
-				ProductIDs: b.EnabledPairs.Strings(),
-			},
-			{
-				Name:       "ticker",
-				ProductIDs: b.EnabledPairs.Strings(),
-			},
-		},
-	}
-
-	data, err := common.JSONEncode(subscribe)
-	if err != nil {
-		return err
-	}
-
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, data)
-}
-
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -72,12 +47,12 @@ func (b *BTSE) WsConnect() error {
 			b.Name, err)
 	}
 
-	err = b.WebsocketSubscriber()
 	if err != nil {
 		return err
 	}
 
 	go b.WsHandleData()
+	b.GenerateDefaultSubscriptions()
 
 	return nil
 }
@@ -98,11 +73,6 @@ func (b *BTSE) WsHandleData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := b.WebsocketConn.Close()
-		if err != nil {
-			b.Websocket.DataHandler <- fmt.Errorf("%s - Unable to to close Websocket connection. Error: %s",
-				b.Name, err)
-		}
 		b.Websocket.Wg.Done()
 	}()
 
@@ -137,7 +107,6 @@ func (b *BTSE) WsHandleData() {
 				b.Websocket.DataHandler <- err
 				continue
 			}
-
 			switch msgType.Type {
 			case "ticker":
 				var t wsTicker
@@ -233,4 +202,62 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	}
 
 	return nil
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *BTSE) GenerateDefaultSubscriptions() {
+	var channels = []string{"snapshot", "ticker"}
+	enabledCurrencies := b.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	for i := range channels {
+		for j := range enabledCurrencies {
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+	b.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := websocketSubscribe{
+		Type: "subscribe",
+		Channels: []websocketChannel{
+			{
+				Name:       channelToSubscribe.Channel,
+				ProductIDs: []string{channelToSubscribe.Currency.String()},
+			},
+		},
+	}
+	return b.wsSend(subscribe)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscribe := websocketSubscribe{
+		Type: "unsubscribe",
+		Channels: []websocketChannel{
+			{
+				Name:       channelToSubscribe.Channel,
+				ProductIDs: []string{channelToSubscribe.Currency.String()},
+			},
+		},
+	}
+	return b.wsSend(subscribe)
+}
+
+// WsSend sends data to the websocket server
+func (b *BTSE) wsSend(data interface{}) error {
+	b.wsRequestMtx.Lock()
+	defer b.wsRequestMtx.Unlock()
+	if b.Verbose {
+		log.Debugf("%v sending message to websocket %v", b.Name, data)
+	}
+	json, err := common.JSONEncode(data)
+	if err != nil {
+		return err
+	}
+	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

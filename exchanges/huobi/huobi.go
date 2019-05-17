@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -68,6 +69,7 @@ type HUOBI struct {
 	exchange.Base
 	AccountID     string
 	WebsocketConn *websocket.Conn
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -95,7 +97,9 @@ func (h *HUOBI) SetDefaults() {
 	h.WebsocketInit()
 	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user configuration
@@ -112,6 +116,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
+		h.HTTPDebugging = exch.HTTPDebugging
 		h.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		h.BaseCurrencies = exch.BaseCurrencies
 		h.AvailablePairs = exch.AvailablePairs
@@ -137,8 +142,11 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = h.WebsocketSetup(h.WsConnect,
+			h.Subscribe,
+			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			huobiSocketIOAddress,
 			exch.WebsocketURL)
 		if err != nil {
@@ -831,7 +839,7 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose)
+	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose, h.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
@@ -908,7 +916,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		body = encoded
 	}
 
-	return h.SendPayload(method, urlPath, headers, bytes.NewReader(body), result, true, false, h.Verbose)
+	return h.SendPayload(method, urlPath, headers, bytes.NewReader(body), result, true, false, h.Verbose, h.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

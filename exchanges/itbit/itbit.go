@@ -80,6 +80,7 @@ func (i *ItBit) Setup(exch *config.ExchangeConfig) {
 		i.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
+		i.HTTPDebugging = exch.HTTPDebugging
 		i.BaseCurrencies = exch.BaseCurrencies
 		i.AvailablePairs = exch.AvailablePairs
 		i.EnabledPairs = exch.EnabledPairs
@@ -142,7 +143,7 @@ func (i *ItBit) GetTradeHistory(currencyPair, timestamp string) (Trades, error) 
 // 					page - [optional] page to return example 1. default 1
 //					perPage - [optional] items per page example 50, default 50 max 50
 func (i *ItBit) GetWallets(params url.Values) ([]Wallet, error) {
-	resp := []Wallet{}
+	var resp []Wallet
 	params.Set("userId", i.ClientID)
 	path := fmt.Sprintf("/%s?%s", itbitWallets, params.Encode())
 
@@ -343,7 +344,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
-	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose)
+	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose, i.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
@@ -403,7 +404,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		RequestID   string `json:"requestId"`
 	}{}
 
-	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, true, i.Verbose)
+	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, true, i.Verbose, i.HTTPDebugging)
 	if err != nil {
 		return err
 	}

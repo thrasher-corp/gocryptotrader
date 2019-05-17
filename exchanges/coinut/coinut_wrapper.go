@@ -39,7 +39,7 @@ func (c *COINUT) Run() {
 		return
 	}
 
-	currencies := []string{}
+	var currencies []string
 	c.InstrumentMap = make(map[string]int)
 	for x, y := range exchangeProducts.Instruments {
 		c.InstrumentMap[x] = y[0].InstID
@@ -502,4 +502,18 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (c *COINUT) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	c.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (c *COINUT) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	c.Websocket.UnsubscribeToChannels(channels)
+	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"net/http"
 	"net/url"
 	"time"
@@ -51,7 +50,8 @@ func (h *HUOBI) WsConnect() error {
 
 	go h.WsHandleData()
 
-	return h.WsSubscribe()
+	h.GenerateDefaultSubscriptions()
+	return nil
 }
 
 // WsReadData reads data from the websocket connection
@@ -83,11 +83,6 @@ func (h *HUOBI) WsHandleData() {
 	h.Websocket.Wg.Add(1)
 
 	defer func() {
-		err := h.WebsocketConn.Close()
-		if err != nil {
-			h.Websocket.DataHandler <- fmt.Errorf("huobi_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		h.Websocket.Wg.Done()
 	}()
 
@@ -222,115 +217,52 @@ func (h *HUOBI) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 	return nil
 }
 
-// WsSubscribe susbcribes to the current websocket streams based on the enabled
-// pair
-func (h *HUOBI) WsSubscribe() error {
-	pairs := h.GetEnabledCurrencies()
-
-	for _, p := range pairs {
-		fPair := exchange.FormatExchangeCurrency(h.GetName(), p)
-
-		depthTopic := fmt.Sprintf(wsMarketDepth, fPair.String())
-		depthJSON, err := common.JSONEncode(WsRequest{Subscribe: depthTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, depthJSON)
-		if err != nil {
-			return err
-		}
-
-		klineTopic := fmt.Sprintf(wsMarketKline, fPair.String())
-		KlineJSON, err := common.JSONEncode(WsRequest{Subscribe: klineTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, KlineJSON)
-		if err != nil {
-			return err
-		}
-
-		tradeTopic := fmt.Sprintf(wsMarketTrade, fPair.String())
-		tradeJSON, err := common.JSONEncode(WsRequest{Subscribe: tradeTopic})
-		if err != nil {
-			return err
-		}
-
-		err = h.WebsocketConn.WriteMessage(websocket.TextMessage, tradeJSON)
-		if err != nil {
-			return err
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (h *HUOBI) GenerateDefaultSubscriptions() {
+	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
+	enabledCurrencies := h.GetEnabledCurrencies()
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	for i := range channels {
+		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = ""
+			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String())
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channel,
+				Currency: enabledCurrencies[j],
+			})
 		}
 	}
-	return nil
+	h.Websocket.SubscribeToChannels(subscriptions)
 }
 
-// WsRequest defines a request data structure
-type WsRequest struct {
-	Topic             string `json:"req,omitempty"`
-	Subscribe         string `json:"sub,omitempty"`
-	ClientGeneratedID string `json:"id,omitempty"`
-}
-
-// WsResponse defines a response from the websocket connection when there
-// is an error
-type WsResponse struct {
-	TS           int64  `json:"ts"`
-	Status       string `json:"status"`
-	ErrorCode    string `json:"err-code"`
-	ErrorMessage string `json:"err-msg"`
-	Ping         int64  `json:"ping"`
-	Channel      string `json:"ch"`
-	Subscribed   string `json:"subbed"`
-}
-
-// WsHeartBeat defines a heartbeat request
-type WsHeartBeat struct {
-	ClientNonce int64 `json:"ping"`
-}
-
-// WsDepth defines market depth websocket response
-type WsDepth struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		Bids      []interface{} `json:"bids"`
-		Asks      []interface{} `json:"asks"`
-		Timestamp int64         `json:"ts"`
-		Version   int64         `json:"version"`
-	} `json:"tick"`
-}
-
-// WsKline defines market kline websocket response
-type WsKline struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		ID     int64   `json:"id"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		Low    float64 `json:"low"`
-		High   float64 `json:"high"`
-		Amount float64 `json:"amount"`
-		Volume float64 `json:"vol"`
-		Count  int64   `json:"count"`
+// Subscribe sends a websocket message to receive data from the channel
+func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscriptionRequest := WsRequest{Subscribe: channelToSubscribe.Channel}
+	if h.Verbose {
+		log.Debugf("Subscription: %v", subscriptionRequest)
 	}
+	subscription, err := common.JSONEncode(subscriptionRequest)
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
 }
 
-// WsTrade defines market trade websocket response
-type WsTrade struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		ID        int64 `json:"id"`
-		Timestamp int64 `json:"ts"`
-		Data      []struct {
-			Amount    float64 `json:"amount"`
-			Timestamp int64   `json:"ts"`
-			ID        big.Int `json:"id,number"`
-			Price     float64 `json:"price"`
-			Direction string  `json:"direction"`
-		} `json:"data"`
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
 	}
+	return h.wsSend(subscription)
+}
+
+// WsSend sends data to the websocket server
+func (h *HUOBI) wsSend(data []byte) error {
+	h.wsRequestMtx.Lock()
+	defer h.wsRequestMtx.Unlock()
+	if h.Verbose {
+		log.Debugf("%v sending message to websocket %s", h.Name, string(data))
+	}
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

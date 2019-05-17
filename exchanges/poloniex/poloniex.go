@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -62,6 +63,7 @@ const (
 type Poloniex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default settings for poloniex
@@ -89,7 +91,9 @@ func (p *Poloniex) SetDefaults() {
 	p.WebsocketInit()
 	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported
+		exchange.WebsocketTickerSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
 }
 
 // Setup sets user exchange configuration settings
@@ -104,6 +108,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
+		p.HTTPDebugging = exch.HTTPDebugging
 		p.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		p.BaseCurrencies = exch.BaseCurrencies
 		p.AvailablePairs = exch.AvailablePairs
@@ -129,8 +134,11 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = p.WebsocketSetup(p.WsConnect,
+			p.Subscribe,
+			p.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
+			exch.Verbose,
 			poloniexWebsocketAddress,
 			exch.WebsocketURL)
 		if err != nil {
@@ -248,7 +256,7 @@ func (p *Poloniex) GetTradeHistory(currencyPair, start, end string) ([]TradeHist
 		vals.Set("end", end)
 	}
 
-	resp := []TradeHistory{}
+	var resp []TradeHistory
 	path := fmt.Sprintf("%s/public?command=returnTradeHistory&%s", p.APIUrl, vals.Encode())
 
 	return resp, p.SendHTTPRequest(path, &resp)
@@ -271,7 +279,7 @@ func (p *Poloniex) GetChartData(currencyPair, start, end, period string) ([]Char
 		vals.Set("period", period)
 	}
 
-	resp := []ChartData{}
+	var resp []ChartData
 	path := fmt.Sprintf("%s/public?command=returnChartData&%s", p.APIUrl, vals.Encode())
 
 	err := p.SendHTTPRequest(path, &resp)
@@ -822,7 +830,7 @@ func (p *Poloniex) GetLendingHistory(start, end string) ([]LendingHistory, error
 		vals.Set("end", end)
 	}
 
-	resp := []LendingHistory{}
+	var resp []LendingHistory
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost,
 		poloniexLendingHistory,
 		vals,
@@ -865,7 +873,8 @@ func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
 		result,
 		false,
 		false,
-		p.Verbose)
+		p.Verbose,
+		p.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -898,7 +907,8 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 		result,
 		true,
 		true,
-		p.Verbose)
+		p.Verbose,
+		p.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

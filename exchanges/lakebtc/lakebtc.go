@@ -80,6 +80,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) {
 		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
+		l.HTTPDebugging = exch.HTTPDebugging
 		l.BaseCurrencies = exch.BaseCurrencies
 		l.AvailablePairs = exch.AvailablePairs
 		l.EnabledPairs = exch.EnabledPairs
@@ -205,7 +206,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 // GetTradeHistory returns the trade history for a given currency pair
 func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
 	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCTrades, common.StringToLower(currency))
-	resp := []TradeHistory{}
+	var resp []TradeHistory
 
 	return resp, l.SendHTTPRequest(path, &resp)
 }
@@ -242,7 +243,7 @@ func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string)
 
 // GetOpenOrders returns all open orders associated with your account
 func (l *LakeBTC) GetOpenOrders() ([]OpenOrders, error) {
-	orders := []OpenOrders{}
+	var orders []OpenOrders
 
 	return orders, l.SendAuthenticatedHTTPRequest(lakeBTCOpenOrders, "", &orders)
 }
@@ -254,7 +255,7 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]Orders, error) {
 		ordersStr = append(ordersStr, strconv.FormatInt(x, 10))
 	}
 
-	resp := []Orders{}
+	var resp []Orders
 	return resp,
 		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, common.JoinStrings(ordersStr, ","), &resp)
 }
@@ -304,13 +305,13 @@ func (l *LakeBTC) GetTrades(timestamp int64) ([]AuthenticatedTradeHistory, error
 		params = strconv.FormatInt(timestamp, 10)
 	}
 
-	trades := []AuthenticatedTradeHistory{}
+	var trades []AuthenticatedTradeHistory
 	return trades, l.SendAuthenticatedHTTPRequest(lakeBTCGetTrades, params, &trades)
 }
 
 // GetExternalAccounts returns your external accounts WARNING: Only for BTC!
 func (l *LakeBTC) GetExternalAccounts() ([]ExternalAccounts, error) {
-	resp := []ExternalAccounts{}
+	var resp []ExternalAccounts
 
 	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetExternalAccounts, "", &resp)
 }
@@ -334,7 +335,7 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 
 // SendHTTPRequest sends an unauthenticated http request
 func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, false, l.Verbose)
+	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, false, l.Verbose, l.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated HTTP request to a LakeBTC
@@ -367,7 +368,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
-	return l.SendPayload(http.MethodPost, l.APIUrl, headers, strings.NewReader(string(data)), result, true, true, l.Verbose)
+	return l.SendPayload(http.MethodPost, l.APIUrl, headers, strings.NewReader(string(data)), result, true, true, l.Verbose, l.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

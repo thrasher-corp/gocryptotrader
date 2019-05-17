@@ -100,6 +100,7 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
+		b.HTTPDebugging = exch.HTTPDebugging
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
 		b.EnabledPairs = exch.EnabledPairs
@@ -493,7 +494,7 @@ func (b *Bittrex) GetDepositHistory(currency string) (WithdrawalHistory, error) 
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bittrex) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -514,7 +515,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	headers := make(map[string]string)
 	headers["apisign"] = common.HexEncodeToString(hmac)
 
-	return b.SendPayload(http.MethodGet, rawQuery, headers, nil, result, true, true, b.Verbose)
+	return b.SendPayload(http.MethodGet, rawQuery, headers, nil, result, true, true, b.Verbose, b.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
