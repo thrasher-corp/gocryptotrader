@@ -59,7 +59,8 @@ const (
 )
 
 var (
-	pongChan = make(chan int, 1)
+	pongChan        = make(chan int, 1)
+	isAuthenticated bool
 )
 
 // WsConnector initiates a new websocket connection
@@ -112,6 +113,7 @@ func (b *Bitmex) WsConnector() error {
 		if err != nil {
 			return err
 		}
+		b.GenerateAuthenticatedSubscriptions()
 	}
 	return nil
 }
@@ -393,6 +395,37 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 			Channel: bitmexWSAnnouncement,
 		},
 	}
+
+	for i := range channels {
+		for j := range contracts {
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
+				Currency: contracts[j],
+			})
+		}
+	}
+	b.Websocket.SubscribeToChannels(subscriptions)
+}
+
+func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
+	if isAuthenticated {
+		return
+	}
+	contracts := b.GetEnabledCurrencies()
+	channels := []string{bitmexWSExecution,
+		bitmexWSMargin,
+		bitmexWSPosition,
+		bitmexWSPrivateNotifications,
+		bitmexWSTransact,
+		bitmexWSWallet}
+	subscriptions := []exchange.WebsocketChannelSubscription{
+		exchange.WebsocketChannelSubscription{
+			Channel: bitmexWSAffiliate,
+		},
+		exchange.WebsocketChannelSubscription{
+			Channel: bitmexWSOrder,
+		},
+	}
 	for i := range channels {
 		for j := range contracts {
 			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
@@ -435,7 +468,12 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
 		signature)
-	return b.wsSend(sendAuth)
+	err := b.wsSend(sendAuth)
+	if err != nil {
+		return err
+	}
+	isAuthenticated = true
+	return nil
 }
 
 // WsSend sends data to the websocket server

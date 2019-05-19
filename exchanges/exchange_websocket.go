@@ -838,7 +838,15 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
 func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription) {
 	for i := range channels {
-		w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
+		channelFound := false
+		for j := range w.channelsToSubscribe {
+			if w.channelsToSubscribe[j].Equal(&channels[i]) {
+				channelFound = true
+			}
+		}
+		if !channelFound {
+			w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
+		}
 	}
 	w.noConnectionChecks = 0
 }

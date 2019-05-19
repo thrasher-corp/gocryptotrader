@@ -468,3 +468,7 @@ func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketC
 	b.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+func (b *Bitfinex) AuthenticateWebsocket() error {
+	return b.WsSendAuth()
+}
