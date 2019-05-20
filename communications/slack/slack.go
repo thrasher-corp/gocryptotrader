@@ -328,6 +328,7 @@ func (s *Slack) handleReconnectResponse(resp []byte) error {
 // WebsocketKeepAlive sends a ping every 5 minutes to keep connection alive
 func (s *Slack) WebsocketKeepAlive() {
 	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
 
 	for {
 		<-ticker.C

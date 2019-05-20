@@ -2,9 +2,13 @@ package okex
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -90,26 +94,6 @@ func testStandardErrorHandling(t *testing.T, err error) {
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Encountered error: %v", err)
 	}
-}
-
-// setupWSConnection Connect to WS, but pass back error so test can handle it if needed
-func setupWSConnection() error {
-	if !o.Websocket.IsEnabled() {
-		err := o.WebsocketSetup(o.WsConnect,
-			o.Subscribe,
-			o.Unsubscribe,
-			o.Name,
-			true,
-			o.Verbose,
-			o.WebsocketURL,
-			o.WebsocketURL)
-		o.Websocket.DataHandler = make(chan interface{}, 500)
-		if err != nil {
-			return err
-		}
-		o.Websocket.SetWsStatusAndConnection(true)
-	}
-	return nil
 }
 
 // TestGetAccountCurrencies API endpoint test
@@ -1576,29 +1560,52 @@ func TestGetETTSettlementPriceHistory(t *testing.T) {
 
 // Websocket tests ----------------------------------------------------------------------------------------------
 
-// TestWsLogin API endpoint test
-func TestWsLogin(t *testing.T) {
-	TestSetRealOrderDefaults(t)
+// TestSendWsMessages Logic test
+// Attempts to subscribe to a channel that doesn't exist
+// Will log in if credentials are present
+func TestSendWsMessages(t *testing.T) {
+	TestSetDefaults(t)
 	if !websocketEnabled {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if !o.Websocket.IsConnecting() || !o.Websocket.IsConnected() {
-		o.Websocket.Connect()
+	var dialer websocket.Dialer
+	var err error
+	var ok bool
+	o.Websocket.TrafficAlert = make(chan struct{}, 99)
+	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatalf("%s Unable to connect to Websocket. Error: %s",
+			o.Name,
+			err)
 	}
-	err := o.WsLogin()
+	defer o.WebsocketConn.Close()
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go o.WsHandleData(&wg)
+	wg.Wait()
+
+	subscription := exchange.WebsocketChannelSubscription{
+		Channel: "badChannel",
+	}
+	o.Subscribe(subscription)
+	response := <-o.Websocket.DataHandler
+	if err, ok = response.(error); ok && err != nil {
+		if !strings.Contains(response.(error).Error(), subscription.Channel) {
+			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
+		}
+	}
+
+	if !areTestAPIKeysSet() {
+		return
+	}
+	err = o.WsLogin()
 	if err != nil {
 		t.Error(err)
 	}
-	var errorReceived bool
-	for i := 0; i < 5; i++ {
-		response := <-o.Websocket.DataHandler
-		if err, ok := response.(error); ok && err != nil {
-			t.Log(response)
-			errorReceived = true
-		}
-	}
-	if errorReceived {
-		t.Error("Expecting no errors")
+	response = <-o.Websocket.DataHandler
+	if err, ok := response.(error); ok && err != nil {
+		t.Error(err)
 	}
 }
 
