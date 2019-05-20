@@ -48,48 +48,6 @@ func (b *Bitstamp) WsConnect() error {
 	b.GenerateDefaultSubscriptions()
 	go b.WsReadData()
 
-	for _, p := range b.GetEnabledCurrencies() {
-		orderbookSeed, err := b.GetOrderbook(p.String())
-		if err != nil {
-			return err
-		}
-
-		var newOrderBook orderbook.Base
-
-		var asks []orderbook.Item
-		for _, ask := range orderbookSeed.Asks {
-			var item orderbook.Item
-			item.Amount = ask.Amount
-			item.Price = ask.Price
-			asks = append(asks, item)
-		}
-
-		var bids []orderbook.Item
-		for _, bid := range orderbookSeed.Bids {
-			var item orderbook.Item
-			item.Amount = bid.Amount
-			item.Price = bid.Price
-			bids = append(bids, item)
-		}
-
-		newOrderBook.Asks = asks
-		newOrderBook.Bids = bids
-		newOrderBook.Pair = p
-		newOrderBook.AssetType = "SPOT"
-
-		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
-		if err != nil {
-			return err
-		}
-
-		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-			Pair:     p,
-			Asset:    "SPOT",
-			Exchange: b.GetName(),
-		}
-
-	}
-
 	return nil
 }
 
