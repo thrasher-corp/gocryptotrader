@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -63,7 +64,7 @@ const (
 type Bitstamp struct {
 	exchange.Base
 	Balance       Balances
-	WebsocketConn WebsocketConn
+	WebsocketConn *websocket.Conn
 	wsRequestMtx  sync.Mutex
 }
 
@@ -116,6 +117,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
 		b.APISecret = exch.APISecret
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, b.ClientID, false)
 		b.AuthenticatedAPISupport = true
+		b.WebsocketURL = bitstampWSURL
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -142,7 +144,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
-			BitstampPusherKey,
+			bitstampWSURL,
 			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
