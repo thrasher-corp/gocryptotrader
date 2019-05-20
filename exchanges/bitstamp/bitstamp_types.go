@@ -1,7 +1,5 @@
 package bitstamp
 
-import pusher "github.com/toorop/go-pusher"
-
 // Ticker holds ticker information
 type Ticker struct {
 	Last      float64 `json:"last,string"`
@@ -160,13 +158,6 @@ const (
 	errStr                  string = "error"
 )
 
-// WebsocketConn defines a pusher websocket connection
-type WebsocketConn struct {
-	Client *pusher.Client
-	Data   chan *pusher.Event
-	Trade  chan *pusher.Event
-}
-
 // PusherOrderbook holds order book information to be pushed
 type PusherOrderbook struct {
 	Asks      [][]string `json:"asks"`
@@ -190,4 +181,41 @@ type PusherOrders struct {
 	ID     int64   `json:"id"`
 	Amount float64 `json:"amount"`
 	Price  float64 `json:""`
+}
+
+// WebsocketEventRequest contains event data for a websocket channel
+
+type WebsocketEventRequest struct {
+	Event string        `json:"event"`
+	Data  WebsocketData `json:"data"`
+}
+
+type WebsocketData struct {
+	Channel string `json:"channel"`
+}
+
+type WebsocketResponse struct {
+	Data    interface{} `json:"data"`
+	Event   string      `json:"event"`
+	Channel string      `json:"channel"`
+}
+
+type WebsocketTrade struct {
+	Microtimestamp string  `json:"microtimestamp"`
+	Amount         float64 `json:"amount"`
+	BuyOrderID     int64   `json:"buy_order_id"`
+	SellOrderID    int64   `json:"sell_order_id"`
+	AmountStr      string  `json:"amount_str"`
+	PriceStr       string  `json:"price_str"`
+	Timestamp      string  `json:"timestamp"`
+	Price          float64 `json:"price"`
+	Type           int     `json:"type"`
+	ID             int     `json:"id"`
+}
+
+type WebsocketOrderBook struct {
+	Asks           [][]string `json:"asks"`
+	Bids           [][]string `json:"bids"`
+	Timestamp      int64      `json:"timestamp,string"`
+	Microtimestamp int64      `json:"microtimestamp"`
 }
