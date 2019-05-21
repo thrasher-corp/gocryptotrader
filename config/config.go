@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -72,7 +73,7 @@ const (
 // Variables here are used for configuration
 var (
 	Cfg            Config
-	IsInitialSetup bool
+	IsInitialSetup atomic.Value // boolean
 	testBypass     bool
 	m              sync.Mutex
 )
@@ -1297,9 +1298,7 @@ func (c *Config) ReadConfig(configPath string) error {
 		}
 
 		if c.EncryptConfig == configFileEncryptionPrompt {
-			m.Lock()
-			IsInitialSetup = true
-			m.Unlock()
+			IsInitialSetup.Store(true)
 			if c.PromptForConfigEncryption() {
 				c.EncryptConfig = configFileEncryptionEnabled
 				return c.SaveConfig(defaultPath)
@@ -1311,7 +1310,7 @@ func (c *Config) ReadConfig(configPath string) error {
 			if errCounter >= configMaxAuthFailres {
 				return errors.New("failed to decrypt config after 3 attempts")
 			}
-			key, err := PromptForConfigKey(IsInitialSetup)
+			key, err := PromptForConfigKey(IsInitialSetup.Load().(bool))
 			if err != nil {
 				log.Errorf("PromptForConfigKey err: %s", err)
 				errCounter++
@@ -1356,12 +1355,12 @@ func (c *Config) SaveConfig(configPath string) error {
 	if c.EncryptConfig == configFileEncryptionEnabled {
 		var key []byte
 
-		if IsInitialSetup {
+		if IsInitialSetup.Load().(bool) {
 			key, err = PromptForConfigKey(true)
 			if err != nil {
 				return err
 			}
-			IsInitialSetup = false
+			IsInitialSetup.Store(false)
 		}
 
 		payload, err = EncryptConfigFile(payload, key)
