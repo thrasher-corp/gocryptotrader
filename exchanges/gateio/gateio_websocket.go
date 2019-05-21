@@ -24,6 +24,8 @@ const (
 	gateioWebsocketRateLimit = 120 * time.Millisecond
 )
 
+var isAuthenticated bool
+
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
@@ -53,6 +55,7 @@ func (g *Gateio) WsConnect() error {
 			log.Errorf("%v - wsServerSignin() failed: %v", g.GetName(), err)
 		}
 		time.Sleep(time.Second * 2) // sleep to allow server to complete sign-on if further authenticated requests are sent piror to this they will fail
+		isAuthenticated = true
 	}
 
 	go g.WsHandleData()
@@ -342,7 +345,7 @@ func (g *Gateio) WsHandleData() {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
-	if g.AuthenticatedAPISupport {
+	if isAuthenticated {
 		channels = append(channels, "balance.subscribe", "order.subscribe")
 	}
 

@@ -672,7 +672,9 @@ func (w *Websocket) FormatFunctionality() string {
 
 			case WebsocketUnsubscribeSupported:
 				functionality = append(functionality, WebsocketUnsubscribeSupportedText)
-
+			
+			case WebsocketAuthenticatedEndpointsSupported:
+				functionality = append(functionality, WebsocketAuthenticatedEndpointsSupportedText)
 			default:
 				functionality = append(functionality,
 					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))

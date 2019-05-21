@@ -149,6 +149,13 @@ func (b *Bitfinex) WsConnect() error {
 		return err
 	}
 
+	if b.AuthenticatedAPISupport {
+		err = b.WsSendAuth()
+		if err != nil {
+			return err
+		}
+	}
+
 	b.GenerateDefaultSubscriptions()
 	if hs.Event == "info" {
 		if b.Verbose {
@@ -156,12 +163,7 @@ func (b *Bitfinex) WsConnect() error {
 		}
 	}
 
-	if b.AuthenticatedAPISupport {
-		err = b.WsSendAuth()
-		if err != nil {
-			return err
-		}
-	}
+
 
 	pongReceive = make(chan struct{}, 1)
 
@@ -623,7 +625,9 @@ func (b *Bitfinex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	req := make(map[string]interface{})
 	req["event"] = "subscribe"
 	req["channel"] = channelToSubscribe.Channel
-	req["pair"] = channelToSubscribe.Currency.String()
+	if channelToSubscribe.Currency.String() != "" {
+		req["pair"] = channelToSubscribe.Currency.String()
+	}
 	if len(channelToSubscribe.Params) > 0 {
 		for k, v := range channelToSubscribe.Params {
 			req[k] = v
