@@ -34,6 +34,7 @@ func (b *Bitstamp) WsConnect() error {
 		}
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
+
 	var err error
 	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
 	if err != nil {
@@ -41,17 +42,18 @@ func (b *Bitstamp) WsConnect() error {
 			b.Name,
 			err)
 	}
+
 	if b.Verbose {
 		log.Debugf("Successful connection to %v",
 			b.Websocket.GetWebsocketURL())
 	}
 
-	err = b.SeedOrderBook()
+	err = b.seedOrderBook()
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
 
-	b.GenerateDefaultSubscriptions()
+	b.generateDefaultSubscriptions()
 	go b.WsReadData()
 
 	return nil
@@ -97,7 +99,7 @@ func (b *Bitstamp) WsReadData() {
 				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
 				p := currency.NewPairFromString(common.StringToUpper(currencyPair[3]))
 
-				err = b.WsUpdateOrderbook(wsOrderBookTemp.Data, p, "SPOT")
+				err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, "SPOT")
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -105,11 +107,13 @@ func (b *Bitstamp) WsReadData() {
 
 			case "trade":
 				wsTradeTemp := websocketTradeResponse{}
+
 				err := common.JSONDecode(resp, &wsTradeTemp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
 				}
+
 				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
 				p := currency.NewPairFromString(common.StringToUpper(currencyPair[2]))
 
@@ -125,7 +129,7 @@ func (b *Bitstamp) WsReadData() {
 	}
 }
 
-func (b *Bitstamp) GenerateDefaultSubscriptions() {
+func (b *Bitstamp) generateDefaultSubscriptions() {
 	var channels = []string{"live_trades_", "diff_order_book_"}
 	enabledCurrencies := b.GetEnabledCurrencies()
 	subscriptions := []exchange.WebsocketChannelSubscription{}
@@ -167,7 +171,7 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 	return b.WebsocketConn.WriteJSON(req)
 }
 
-func (b *Bitstamp) WsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {
+func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {
 
 	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
@@ -224,8 +228,7 @@ func (b *Bitstamp) WsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 	return nil
 }
 
-func (b *Bitstamp) SeedOrderBook() error {
-
+func (b *Bitstamp) seedOrderBook() error {
 	for _, p := range b.GetEnabledCurrencies() {
 		orderbookSeed, err := b.GetOrderbook(p.String())
 		if err != nil {
@@ -233,8 +236,8 @@ func (b *Bitstamp) SeedOrderBook() error {
 		}
 
 		var newOrderBook orderbook.Base
-
 		var asks []orderbook.Item
+
 		for _, ask := range orderbookSeed.Asks {
 			var item orderbook.Item
 			item.Amount = ask.Amount
@@ -243,6 +246,7 @@ func (b *Bitstamp) SeedOrderBook() error {
 		}
 
 		var bids []orderbook.Item
+
 		for _, bid := range orderbookSeed.Bids {
 			var item orderbook.Item
 			item.Amount = bid.Amount
