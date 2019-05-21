@@ -93,6 +93,7 @@ func (b *Bitstamp) WsConnect() error {
 	return nil
 }
 
+// WsReadData reads data coming from bitstamp websocket connection
 func (b *Bitstamp) WsReadData() {
 	b.Websocket.Wg.Add(1)
 	defer func() {
