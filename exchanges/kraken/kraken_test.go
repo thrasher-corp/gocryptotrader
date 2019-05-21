@@ -651,9 +651,6 @@ func TestOrderbookBufferReset(t *testing.T) {
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
 	}
-	if k.WebsocketConn == nil {
-		k.Websocket.Connect()
-	}
 	var obUpdates []string
 	obpartial := `[0,{"as":[["5541.30000","2.50700000","0"]],"bs":[["5541.20000","1.52900000","0"]]}]`
 	for i := 1; i < orderbookBufferLimit+2; i++ {
@@ -703,9 +700,6 @@ func TestOrderBookOutOfOrder(t *testing.T) {
 	}
 	if !k.Websocket.IsEnabled() {
 		t.Skip("Websocket not enabled, skipping")
-	}
-	if k.WebsocketConn == nil {
-		k.Websocket.Connect()
 	}
 	obpartial := `[0,{"as":[["5541.30000","2.50700000","0"]],"bs":[["5541.20000","1.52900000","5"]]}]`
 	obupdate1 := `[0,{"a":[["5541.30000","0.00000000","1"]],"b":[["5541.30000","0.00000000","3"]]}]`
