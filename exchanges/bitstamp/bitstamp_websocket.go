@@ -239,8 +239,9 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 }
 
 func (b *Bitstamp) seedOrderBook() error {
-	for _, p := range b.GetEnabledCurrencies() {
-		orderbookSeed, err := b.GetOrderbook(p.String())
+	p := b.GetEnabledCurrencies()
+	for x := range p {
+		orderbookSeed, err := b.GetOrderbook(p[x].String())
 		if err != nil {
 			return err
 		}
@@ -266,7 +267,7 @@ func (b *Bitstamp) seedOrderBook() error {
 
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
-		newOrderBook.Pair = p
+		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = "SPOT"
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
@@ -275,7 +276,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		}
 
 		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-			Pair:     p,
+			Pair:     p[x],
 			Asset:    "SPOT",
 			Exchange: b.GetName(),
 		}
