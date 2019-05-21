@@ -158,31 +158,6 @@ const (
 	errStr                  string = "error"
 )
 
-// PusherOrderbook holds order book information to be pushed
-type PusherOrderbook struct {
-	Asks      [][]string `json:"asks"`
-	Bids      [][]string `json:"bids"`
-	Timestamp int64      `json:"timestamp,string"`
-}
-
-// PusherTrade holds trade information to be pushed
-type PusherTrade struct {
-	Price       float64 `json:"price"`
-	Amount      float64 `json:"amount"`
-	ID          int64   `json:"id"`
-	Type        int64   `json:"type"`
-	Timestamp   int64   `json:"timestamp,string"`
-	BuyOrderID  int64   `json:"buy_order_id"`
-	SellOrderID int64   `json:"sell_order_id"`
-}
-
-// PusherOrders defines order information
-type PusherOrders struct {
-	ID     int64   `json:"id"`
-	Amount float64 `json:"amount"`
-	Price  float64 `json:""`
-}
-
 // WebsocketEventRequest contains event data for a websocket channel
 
 type WebsocketEventRequest struct {
@@ -195,12 +170,17 @@ type WebsocketData struct {
 }
 
 type WebsocketResponse struct {
-	Data    interface{} `json:"data"`
-	Event   string      `json:"event"`
-	Channel string      `json:"channel"`
+	Event   string `json:"event"`
+	Channel string `json:"channel"`
 }
 
-type WebsocketTrade struct {
+type WebsocketTradeResponse struct {
+	Data    WebsocketTradeData `json:"data"`
+	Event   string             `json:"event"`
+	Channel string             `json:"channel"`
+}
+
+type WebsocketTradeData struct {
 	Microtimestamp string  `json:"microtimestamp"`
 	Amount         float64 `json:"amount"`
 	BuyOrderID     int64   `json:"buy_order_id"`
@@ -213,9 +193,15 @@ type WebsocketTrade struct {
 	ID             int     `json:"id"`
 }
 
+type WebsocketOrderBookResponse struct {
+	Data    WebsocketOrderBook `json:"data"`
+	Event   string             `json:"event"`
+	Channel string             `json:"channel"`
+}
+
 type WebsocketOrderBook struct {
 	Asks           [][]string `json:"asks"`
 	Bids           [][]string `json:"bids"`
 	Timestamp      int64      `json:"timestamp,string"`
-	Microtimestamp int64      `json:"microtimestamp"`
+	Microtimestamp string     `json:"microtimestamp"`
 }

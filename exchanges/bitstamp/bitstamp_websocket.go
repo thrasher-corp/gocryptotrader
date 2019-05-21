@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -44,6 +45,47 @@ func (b *Bitstamp) WsConnect() error {
 		log.Debugf("Successful connection to %v",
 			b.Websocket.GetWebsocketURL())
 	}
+	for _, p := range b.GetEnabledCurrencies() {
+		orderbookSeed, err := b.GetOrderbook(p.String())
+		if err != nil {
+			return err
+		}
+
+		var newOrderBook orderbook.Base
+
+		var asks []orderbook.Item
+		for _, ask := range orderbookSeed.Asks {
+			var item orderbook.Item
+			item.Amount = ask.Amount
+			item.Price = ask.Price
+			asks = append(asks, item)
+		}
+
+		var bids []orderbook.Item
+		for _, bid := range orderbookSeed.Bids {
+			var item orderbook.Item
+			item.Amount = bid.Amount
+			item.Price = bid.Price
+			bids = append(bids, item)
+		}
+
+		newOrderBook.Asks = asks
+		newOrderBook.Bids = bids
+		newOrderBook.Pair = p
+		newOrderBook.AssetType = "SPOT"
+
+		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+		if err != nil {
+			return err
+		}
+
+		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			Pair:     p,
+			Asset:    "SPOT",
+			Exchange: b.GetName(),
+		}
+
+	}
 
 	b.GenerateDefaultSubscriptions()
 	go b.WsReadData()
@@ -69,11 +111,51 @@ func (b *Bitstamp) WsReadData() {
 
 		default:
 			b.Websocket.TrafficAlert <- struct{}{}
+
 			_, resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				continue
 			}
-			log.Debugf("RESP: %s", resp)
+
+			wsResponse := WebsocketResponse{}
+			common.JSONDecode(resp, &wsResponse)
+
+			switch wsResponse.Event {
+			case "data":
+				wsOrderBookTemp := WebsocketOrderBookResponse{}
+				err := common.JSONDecode(resp, &wsOrderBookTemp)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+
+				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
+				p := currency.NewPairFromString(common.StringToUpper(currencyPair[3]))
+
+				err = b.WsUpdateOrderbook(wsOrderBookTemp.Data, p, "SPOT")
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+
+			case "trade":
+				wsTradeTemp := WebsocketTradeResponse{}
+				err := common.JSONDecode(resp, &wsTradeTemp)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
+				p := currency.NewPairFromString(common.StringToUpper(currencyPair[2]))
+
+				b.Websocket.DataHandler <- exchange.TradeData{
+					Price:        wsTradeTemp.Data.Price,
+					Amount:       wsTradeTemp.Data.Amount,
+					CurrencyPair: p,
+					Exchange:     b.GetName(),
+					AssetType:    "SPOT",
+				}
+			}
 		}
 	}
 }
@@ -124,7 +206,8 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 	return b.WebsocketConn.WriteJSON(req)
 }
 
-func (b *Bitstamp) WsUpdateOrderbook(ob PusherOrderbook, p currency.Pair, assetType string) error {
+func (b *Bitstamp) WsUpdateOrderbook(ob WebsocketOrderBook, p currency.Pair, assetType string) error {
+	log.Debugln(ob)
 	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
 	}
