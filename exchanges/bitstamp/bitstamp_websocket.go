@@ -45,46 +45,10 @@ func (b *Bitstamp) WsConnect() error {
 		log.Debugf("Successful connection to %v",
 			b.Websocket.GetWebsocketURL())
 	}
-	for _, p := range b.GetEnabledCurrencies() {
-		orderbookSeed, err := b.GetOrderbook(p.String())
-		if err != nil {
-			return err
-		}
 
-		var newOrderBook orderbook.Base
-
-		var asks []orderbook.Item
-		for _, ask := range orderbookSeed.Asks {
-			var item orderbook.Item
-			item.Amount = ask.Amount
-			item.Price = ask.Price
-			asks = append(asks, item)
-		}
-
-		var bids []orderbook.Item
-		for _, bid := range orderbookSeed.Bids {
-			var item orderbook.Item
-			item.Amount = bid.Amount
-			item.Price = bid.Price
-			bids = append(bids, item)
-		}
-
-		newOrderBook.Asks = asks
-		newOrderBook.Bids = bids
-		newOrderBook.Pair = p
-		newOrderBook.AssetType = "SPOT"
-
-		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
-		if err != nil {
-			return err
-		}
-
-		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-			Pair:     p,
-			Asset:    "SPOT",
-			Exchange: b.GetName(),
-		}
-
+	err = b.SeedOrderBook()
+	if err != nil {
+		b.Websocket.DataHandler <- err
 	}
 
 	b.GenerateDefaultSubscriptions()
@@ -118,12 +82,12 @@ func (b *Bitstamp) WsReadData() {
 				continue
 			}
 
-			wsResponse := WebsocketResponse{}
+			wsResponse := websocketResponse{}
 			common.JSONDecode(resp, &wsResponse)
 
 			switch wsResponse.Event {
 			case "data":
-				wsOrderBookTemp := WebsocketOrderBookResponse{}
+				wsOrderBookTemp := websocketOrderBookResponse{}
 				err := common.JSONDecode(resp, &wsOrderBookTemp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
@@ -140,7 +104,7 @@ func (b *Bitstamp) WsReadData() {
 				}
 
 			case "trade":
-				wsTradeTemp := WebsocketTradeResponse{}
+				wsTradeTemp := websocketTradeResponse{}
 				err := common.JSONDecode(resp, &wsTradeTemp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
@@ -179,12 +143,10 @@ func (b *Bitstamp) GenerateDefaultSubscriptions() {
 func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	b.wsRequestMtx.Lock()
 	defer b.wsRequestMtx.Unlock()
-	if b.Verbose {
-		log.Debugf("%s sending message to websocket %v", b.Name, channelToSubscribe)
-	}
-	req := WebsocketEventRequest{
+
+	req := websocketEventRequest{
 		Event: "bts:subscribe",
-		Data: WebsocketData{
+		Data: websocketData{
 			Channel: channelToSubscribe.Channel,
 		},
 	}
@@ -195,19 +157,17 @@ func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	b.wsRequestMtx.Lock()
 	defer b.wsRequestMtx.Unlock()
-	if b.Verbose {
-		log.Debugf("%s sending message to websocket %v", b.Name, channelToSubscribe)
-	}
-	req := WebsocketEventRequest{
+
+	req := websocketEventRequest{
 		Event: "bts:unsubscribe",
-		Data: WebsocketData{
+		Data: websocketData{
 			Channel: channelToSubscribe.Channel,
 		},
 	}
 	return b.WebsocketConn.WriteJSON(req)
 }
 
-func (b *Bitstamp) WsUpdateOrderbook(ob WebsocketOrderBook, p currency.Pair, assetType string) error {
+func (b *Bitstamp) WsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {
 
 	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
@@ -261,5 +221,50 @@ func (b *Bitstamp) WsUpdateOrderbook(ob WebsocketOrderBook, p currency.Pair, ass
 		Exchange: b.GetName(),
 	}
 
+	return nil
+}
+
+func (b *Bitstamp) SeedOrderBook() error {
+
+	for _, p := range b.GetEnabledCurrencies() {
+		orderbookSeed, err := b.GetOrderbook(p.String())
+		if err != nil {
+			return err
+		}
+
+		var newOrderBook orderbook.Base
+
+		var asks []orderbook.Item
+		for _, ask := range orderbookSeed.Asks {
+			var item orderbook.Item
+			item.Amount = ask.Amount
+			item.Price = ask.Price
+			asks = append(asks, item)
+		}
+
+		var bids []orderbook.Item
+		for _, bid := range orderbookSeed.Bids {
+			var item orderbook.Item
+			item.Amount = bid.Amount
+			item.Price = bid.Price
+			bids = append(bids, item)
+		}
+
+		newOrderBook.Asks = asks
+		newOrderBook.Bids = bids
+		newOrderBook.Pair = p
+		newOrderBook.AssetType = "SPOT"
+
+		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+		if err != nil {
+			return err
+		}
+
+		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			Pair:     p,
+			Asset:    "SPOT",
+			Exchange: b.GetName(),
+		}
+	}
 	return nil
 }

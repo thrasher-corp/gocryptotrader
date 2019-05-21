@@ -159,28 +159,27 @@ const (
 )
 
 // WebsocketEventRequest contains event data for a websocket channel
-
-type WebsocketEventRequest struct {
+type websocketEventRequest struct {
 	Event string        `json:"event"`
-	Data  WebsocketData `json:"data"`
+	Data  websocketData `json:"data"`
 }
 
-type WebsocketData struct {
+type websocketData struct {
 	Channel string `json:"channel"`
 }
 
-type WebsocketResponse struct {
+type websocketResponse struct {
 	Event   string `json:"event"`
 	Channel string `json:"channel"`
 }
 
-type WebsocketTradeResponse struct {
-	Data    WebsocketTradeData `json:"data"`
+type websocketTradeResponse struct {
+	Data    websocketTradeData `json:"data"`
 	Event   string             `json:"event"`
 	Channel string             `json:"channel"`
 }
 
-type WebsocketTradeData struct {
+type websocketTradeData struct {
 	Microtimestamp string  `json:"microtimestamp"`
 	Amount         float64 `json:"amount"`
 	BuyOrderID     int64   `json:"buy_order_id"`
@@ -193,13 +192,13 @@ type WebsocketTradeData struct {
 	ID             int     `json:"id"`
 }
 
-type WebsocketOrderBookResponse struct {
-	Data    WebsocketOrderBook `json:"data"`
+type websocketOrderBookResponse struct {
+	Data    websocketOrderBook `json:"data"`
 	Event   string             `json:"event"`
 	Channel string             `json:"channel"`
 }
 
-type WebsocketOrderBook struct {
+type websocketOrderBook struct {
 	Asks           [][]string `json:"asks"`
 	Bids           [][]string `json:"bids"`
 	Timestamp      int64      `json:"timestamp,string"`
