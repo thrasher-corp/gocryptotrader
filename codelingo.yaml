@@ -8,6 +8,7 @@ tenets:
   - import: codelingo/effective-go/unnecessary-else
   - import: codelingo/code-review-comments/declare-empty-slice 
   - import: codelingo/effective-go/defer-close-file
+  - import: codelingo/thrasher-gocryptotrader
   # Overwrite one tenet with custom logic
   # - import: codelingo/effective-go/comment-first-word-when-empty
   - name: comment-first-word-when-empty
