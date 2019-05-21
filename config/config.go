@@ -809,7 +809,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 					c.Exchanges[i].APISecret == DefaultUnsetAPISecret {
 					c.Exchanges[i].AuthenticatedAPISupport = false
 					log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
-				} 
+				}
 			}
 			if !c.Exchanges[i].SupportsAutoPairUpdates {
 				lastUpdated := common.UnixTimestampToTime(c.Exchanges[i].PairsLastUpdated)
