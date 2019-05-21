@@ -208,7 +208,7 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 }
 
 func (b *Bitstamp) WsUpdateOrderbook(ob WebsocketOrderBook, p currency.Pair, assetType string) error {
-	log.Debugln(ob)
+
 	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
 	}
