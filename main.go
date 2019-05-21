@@ -176,7 +176,7 @@ func main() {
 	},
 		&currency.MainConfiguration{
 			ForexProviders:         newFxSettings,
-			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider),
+			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider.Load().(config.CryptocurrencyProvider)),
 			Cryptocurrencies:       bot.config.Currency.Cryptocurrencies,
 			FiatDisplayCurrency:    bot.config.Currency.FiatDisplayCurrency,
 			CurrencyDelay:          bot.config.Currency.CurrencyFileUpdateDuration,
