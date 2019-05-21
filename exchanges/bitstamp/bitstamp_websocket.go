@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -109,7 +110,7 @@ func (b *Bitstamp) WsReadData() {
 				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
 				p := currency.NewPairFromString(common.StringToUpper(currencyPair[3]))
 
-				err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, "SPOT")
+				err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, ticker.Spot)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -268,7 +269,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
 		newOrderBook.Pair = p[x]
-		newOrderBook.AssetType = "SPOT"
+		newOrderBook.AssetType = ticker.Spot
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 		if err != nil {
@@ -277,7 +278,7 @@ func (b *Bitstamp) seedOrderBook() error {
 
 		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 			Pair:     p[x],
-			Asset:    "SPOT",
+			Asset:    ticker.Spot,
 			Exchange: b.GetName(),
 		}
 	}
