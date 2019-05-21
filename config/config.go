@@ -799,17 +799,17 @@ func (c *Config) CheckExchangeConfigValues() error {
 				return fmt.Errorf(ErrExchangeBaseCurrenciesEmpty, c.Exchanges[i].Name)
 			}
 			if c.Exchanges[i].AuthenticatedAPISupport { // non-fatal error
-				if c.Exchanges[i].APIKey == "" || c.Exchanges[i].APISecret == "" ||
-					c.Exchanges[i].APIKey == DefaultUnsetAPIKey ||
-					c.Exchanges[i].APISecret == DefaultUnsetAPISecret {
-					c.Exchanges[i].AuthenticatedAPISupport = false
-					log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
-				} else if c.Exchanges[i].Name == "ITBIT" || c.Exchanges[i].Name == "Bitstamp" || c.Exchanges[i].Name == "COINUT" || c.Exchanges[i].Name == "CoinbasePro" {
+				if c.Exchanges[i].Name == "ITBIT" || c.Exchanges[i].Name == "Bitstamp" || c.Exchanges[i].Name == "COINUT" || c.Exchanges[i].Name == "CoinbasePro" {
 					if c.Exchanges[i].ClientID == "" || c.Exchanges[i].ClientID == "ClientID" {
 						c.Exchanges[i].AuthenticatedAPISupport = false
 						log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
 					}
-				}
+				} else if c.Exchanges[i].APIKey == "" || c.Exchanges[i].APISecret == "" ||
+					c.Exchanges[i].APIKey == DefaultUnsetAPIKey ||
+					c.Exchanges[i].APISecret == DefaultUnsetAPISecret {
+					c.Exchanges[i].AuthenticatedAPISupport = false
+					log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
+				} 
 			}
 			if !c.Exchanges[i].SupportsAutoPairUpdates {
 				lastUpdated := common.UnixTimestampToTime(c.Exchanges[i].PairsLastUpdated)
