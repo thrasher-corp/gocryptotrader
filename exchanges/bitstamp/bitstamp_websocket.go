@@ -88,6 +88,16 @@ func (b *Bitstamp) WsReadData() {
 			common.JSONDecode(resp, &wsResponse)
 
 			switch wsResponse.Event {
+			case "bts:request_reconnect":
+				if b.Verbose {
+					log.Debugf("%v - Websocket reconnection request received", b.GetName())
+				}
+
+				err := b.Websocket.WebsocketReset()
+				if err != nil {
+					continue
+				}
+
 			case "data":
 				wsOrderBookTemp := websocketOrderBookResponse{}
 				err := common.JSONDecode(resp, &wsOrderBookTemp)
