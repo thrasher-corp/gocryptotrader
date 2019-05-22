@@ -45,8 +45,7 @@ func (b *Bitstamp) WsConnect() error {
 	}
 
 	if b.Verbose {
-		log.Debugf("Successful connection to %v",
-			b.Websocket.GetWebsocketURL())
+		log.Debugf("%s Connected to Websocket.\n", b.GetName())
 	}
 
 	err = b.seedOrderBook()
