@@ -92,7 +92,7 @@ func (b *Bitstamp) WsHandleData() {
 			resp, err := b.WsReadData()
 			if err != nil {
 				b.Websocket.DataHandler <- err
-				break
+				return
 			}
 
 			wsResponse := websocketResponse{}
