@@ -158,7 +158,6 @@ const (
 	errStr                  string = "error"
 )
 
-// WebsocketEventRequest contains event data for a websocket channel
 type websocketEventRequest struct {
 	Event string        `json:"event"`
 	Data  websocketData `json:"data"`
@@ -174,9 +173,8 @@ type websocketResponse struct {
 }
 
 type websocketTradeResponse struct {
-	Data    websocketTradeData `json:"data"`
-	Event   string             `json:"event"`
-	Channel string             `json:"channel"`
+	websocketResponse
+	Data websocketTradeData `json:"data"`
 }
 
 type websocketTradeData struct {
@@ -193,9 +191,8 @@ type websocketTradeData struct {
 }
 
 type websocketOrderBookResponse struct {
-	Data    websocketOrderBook `json:"data"`
-	Event   string             `json:"event"`
-	Channel string             `json:"channel"`
+	websocketResponse
+	Data websocketOrderBook `json:"data"`
 }
 
 type websocketOrderBook struct {

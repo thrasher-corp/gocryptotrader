@@ -55,20 +55,32 @@ func (b *Bitstamp) WsConnect() error {
 	}
 
 	b.generateDefaultSubscriptions()
-	go b.WsReadData()
+	go b.WsHandleData()
 
 	return nil
 }
 
 // WsReadData reads data coming from bitstamp websocket connection
-func (b *Bitstamp) WsReadData() {
+func (b *Bitstamp) WsReadData() (exchange.WebsocketResponse, error) {
+	msgType, resp, err := b.WebsocketConn.ReadMessage()
+
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	if b.Verbose {
+		log.Debugf("%s websocket raw response: %s", b.GetName(), resp)
+	}
+
+	b.Websocket.TrafficAlert <- struct{}{}
+	return exchange.WebsocketResponse{Type: msgType, Raw: resp}, nil
+}
+
+// WsHandleData handles websocket data from WsReadData
+func (b *Bitstamp) WsHandleData() {
 	b.Websocket.Wg.Add(1)
+
 	defer func() {
-		err := b.WebsocketConn.Close()
-		if err != nil {
-			b.Websocket.DataHandler <- fmt.Errorf("bitstamp_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
 		b.Websocket.Wg.Done()
 	}()
 
@@ -78,33 +90,32 @@ func (b *Bitstamp) WsReadData() {
 			return
 
 		default:
-			b.Websocket.TrafficAlert <- struct{}{}
-
-			_, resp, err := b.WebsocketConn.ReadMessage()
+			resp, err := b.WsReadData()
 			if err != nil {
-				continue
+				b.Websocket.DataHandler <- err
+				break
 			}
 
 			wsResponse := websocketResponse{}
-			common.JSONDecode(resp, &wsResponse)
+			err = common.JSONDecode(resp.Raw, &wsResponse)
+			if err != nil {
+				b.Websocket.DataHandler <- err
+				break
+			}
 
 			switch wsResponse.Event {
 			case "bts:request_reconnect":
 				if b.Verbose {
 					log.Debugf("%v - Websocket reconnection request received", b.GetName())
 				}
-
-				err := b.Websocket.WebsocketReset()
-				if err != nil {
-					continue
-				}
+				go b.Websocket.WebsocketReset()
 
 			case "data":
 				wsOrderBookTemp := websocketOrderBookResponse{}
-				err := common.JSONDecode(resp, &wsOrderBookTemp)
+				err := common.JSONDecode(resp.Raw, &wsOrderBookTemp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
-					continue
+					break
 				}
 
 				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
@@ -119,7 +130,7 @@ func (b *Bitstamp) WsReadData() {
 			case "trade":
 				wsTradeTemp := websocketTradeResponse{}
 
-				err := common.JSONDecode(resp, &wsTradeTemp)
+				err := common.JSONDecode(resp.Raw, &wsTradeTemp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -183,7 +194,6 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 }
 
 func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {
-
 	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
 	}
