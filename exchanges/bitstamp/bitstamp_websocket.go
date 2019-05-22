@@ -259,6 +259,7 @@ func (b *Bitstamp) seedOrderBook() error {
 
 		var newOrderBook orderbook.Base
 		var asks []orderbook.Item
+		var bids []orderbook.Item
 
 		for _, ask := range orderbookSeed.Asks {
 			var item orderbook.Item
@@ -266,8 +267,6 @@ func (b *Bitstamp) seedOrderBook() error {
 			item.Price = ask.Price
 			asks = append(asks, item)
 		}
-
-		var bids []orderbook.Item
 
 		for _, bid := range orderbookSeed.Bids {
 			var item orderbook.Item
