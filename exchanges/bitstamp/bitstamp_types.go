@@ -1,7 +1,5 @@
 package bitstamp
 
-import pusher "github.com/toorop/go-pusher"
-
 // Ticker holds ticker information
 type Ticker struct {
 	Last      float64 `json:"last,string"`
@@ -160,34 +158,46 @@ const (
 	errStr                  string = "error"
 )
 
-// WebsocketConn defines a pusher websocket connection
-type WebsocketConn struct {
-	Client *pusher.Client
-	Data   chan *pusher.Event
-	Trade  chan *pusher.Event
+type websocketEventRequest struct {
+	Event string        `json:"event"`
+	Data  websocketData `json:"data"`
 }
 
-// PusherOrderbook holds order book information to be pushed
-type PusherOrderbook struct {
-	Asks      [][]string `json:"asks"`
-	Bids      [][]string `json:"bids"`
-	Timestamp int64      `json:"timestamp,string"`
+type websocketData struct {
+	Channel string `json:"channel"`
 }
 
-// PusherTrade holds trade information to be pushed
-type PusherTrade struct {
-	Price       float64 `json:"price"`
-	Amount      float64 `json:"amount"`
-	ID          int64   `json:"id"`
-	Type        int64   `json:"type"`
-	Timestamp   int64   `json:"timestamp,string"`
-	BuyOrderID  int64   `json:"buy_order_id"`
-	SellOrderID int64   `json:"sell_order_id"`
+type websocketResponse struct {
+	Event   string `json:"event"`
+	Channel string `json:"channel"`
 }
 
-// PusherOrders defines order information
-type PusherOrders struct {
-	ID     int64   `json:"id"`
-	Amount float64 `json:"amount"`
-	Price  float64 `json:""`
+type websocketTradeResponse struct {
+	websocketResponse
+	Data websocketTradeData `json:"data"`
+}
+
+type websocketTradeData struct {
+	Microtimestamp string  `json:"microtimestamp"`
+	Amount         float64 `json:"amount"`
+	BuyOrderID     int64   `json:"buy_order_id"`
+	SellOrderID    int64   `json:"sell_order_id"`
+	AmountStr      string  `json:"amount_str"`
+	PriceStr       string  `json:"price_str"`
+	Timestamp      string  `json:"timestamp"`
+	Price          float64 `json:"price"`
+	Type           int     `json:"type"`
+	ID             int     `json:"id"`
+}
+
+type websocketOrderBookResponse struct {
+	websocketResponse
+	Data websocketOrderBook `json:"data"`
+}
+
+type websocketOrderBook struct {
+	Asks           [][]string `json:"asks"`
+	Bids           [][]string `json:"bids"`
+	Timestamp      int64      `json:"timestamp,string"`
+	Microtimestamp string     `json:"microtimestamp"`
 }
