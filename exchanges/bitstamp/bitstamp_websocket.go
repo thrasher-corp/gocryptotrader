@@ -100,7 +100,7 @@ func (b *Bitstamp) WsHandleData() {
 			err = common.JSONDecode(resp.Raw, &wsResponse)
 			if err != nil {
 				b.Websocket.DataHandler <- err
-				break
+				continue
 			}
 
 			switch wsResponse.Event {
@@ -115,7 +115,7 @@ func (b *Bitstamp) WsHandleData() {
 				err := common.JSONDecode(resp.Raw, &wsOrderBookTemp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
-					break
+					continue
 				}
 
 				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
