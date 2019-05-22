@@ -366,7 +366,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	headers := make(map[string]string)
 	if authenticated {
 		headers["X-USER"] = c.ClientID
-		hmac := common.GetHMAC(common.HashSHA256, payload, []byte(c.APISecret))
+		hmac := common.GetHMAC(common.HashSHA256, payload, []byte(c.APIKey))
 		headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
 	}
 	headers["Content-Type"] = "application/json"
