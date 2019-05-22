@@ -143,7 +143,7 @@ func (b *Bitstamp) WsHandleData() {
 					Amount:       wsTradeTemp.Data.Amount,
 					CurrencyPair: p,
 					Exchange:     b.GetName(),
-					AssetType:    "SPOT",
+					AssetType:    ticker.Spot,
 				}
 			}
 		}
@@ -198,6 +198,7 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 	}
 
 	var asks, bids []orderbook.Item
+
 	if len(ob.Asks) > 0 {
 		for _, ask := range ob.Asks {
 			target, err := strconv.ParseFloat(ask[0], 64)
@@ -257,8 +258,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		}
 
 		var newOrderBook orderbook.Base
-		var asks []orderbook.Item
-		var bids []orderbook.Item
+		var asks, bids []orderbook.Item
 
 		for _, ask := range orderbookSeed.Asks {
 			var item orderbook.Item
