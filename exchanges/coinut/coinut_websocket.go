@@ -2,6 +2,7 @@ package coinut
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -27,6 +28,52 @@ var populatedList bool
 // wss://wsapi-as.coinut.com
 // wss://wsapi-na.coinut.com
 // wss://wsapi-eu.coinut.com
+
+// WsConnect intiates a websocket connection
+func (c *COINUT) WsConnect() error {
+	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
+		return errors.New(exchange.WebsocketNotEnabled)
+	}
+
+	var Dialer websocket.Dialer
+
+	if c.Websocket.GetProxyAddress() != "" {
+		proxy, err := url.Parse(c.Websocket.GetProxyAddress())
+		if err != nil {
+			return err
+		}
+
+		Dialer.Proxy = http.ProxyURL(proxy)
+	}
+
+	var err error
+	c.WebsocketConn, _, err = Dialer.Dial(c.Websocket.GetWebsocketURL(),
+		http.Header{})
+
+	if err != nil {
+		return err
+	}
+
+	if !populatedList {
+		instrumentListByString = make(map[string]int64)
+		instrumentListByCode = make(map[int64]string)
+
+		err = c.WsSetInstrumentList()
+		if err != nil {
+			return err
+		}
+		populatedList = true
+	}
+	c.wsAuthenticate()
+	c.GenerateDefaultSubscriptions()
+
+	// define bi-directional communication
+	channels = make(map[string]chan []byte)
+	channels["hb"] = make(chan []byte, 1)
+
+	go c.WsHandleData()
+	return nil
+}
 
 // WsReadData reads data from the websocket connection
 func (c *COINUT) WsReadData() (exchange.WebsocketResponse, error) {
@@ -157,56 +204,184 @@ func (c *COINUT) WsHandleData() {
 					Price:        tradeUpdate.Price,
 					Side:         tradeUpdate.Side,
 				}
+			case "user_balance":
+				type Response struct {
+					Nonce             int64    `json:"nonce"`
+					Status            []string `json:"status"`
+					Btc               string   `json:"BTC"`
+					Ltc               string   `json:"LTC"`
+					Etc               string   `json:"ETC"`
+					Eth               string   `json:"ETH"`
+					FloatingPl        string   `json:"floating_pl"`
+					InitialMargin     string   `json:"initial_margin"`
+					RealizedPl        string   `json:"realized_pl"`
+					MaintenanceMargin string   `json:"maintenance_margin"`
+					Equity            string   `json:"equity"`
+					Reply             string   `json:"reply"`
+					TransID           int64    `json:"trans_id"`
+				}
+
+				var userBalance Response
+				err := common.JSONDecode(resp.Raw, &userBalance)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- userBalance
+
+			case "order_accepted":
+				type Response struct {
+					Nonce       int64    `json:"nonce"`
+					Status      []string `json:"status"`
+					OrderID     int64    `json:"order_id"`
+					OpenQty     string   `json:"open_qty"`
+					InstID      int64    `json:"inst_id"`
+					Qty         string   `json:"qty"`
+					ClientOrdID int64    `json:"client_ord_id"`
+					OrderPrice  string   `json:"order_price"`
+					Reply       string   `json:"reply"`
+					Side        string   `json:"side"`
+					TransID     int64    `json:"trans_id"`
+				}
+
+				var orderAccepted Response
+				err := common.JSONDecode(resp.Raw, &orderAccepted)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- orderAccepted
+
+			case "order_filled":
+				type Commission struct {
+					Amount   string `json:"amount"`
+					Currency string `json:"currency"`
+				}
+
+				type Order struct {
+					ClientOrdID int64  `json:"client_ord_id"`
+					InstID      int64  `json:"inst_id"`
+					OpenQty     string `json:"open_qty"`
+					OrderID     int64  `json:"order_id"`
+					Price       string `json:"price"`
+					Qty         string `json:"qty"`
+					Side        string `json:"side"`
+					Timestamp   int64  `json:"timestamp"`
+				}
+
+				type Response struct {
+					Commission Commission `json:"commission"`
+					FillPrice  string     `json:"fill_price"`
+					FillQty    string     `json:"fill_qty"`
+					Nonce      int64      `json:"nonce"`
+					Order      Order      `json:"order"`
+					Reply      string     `json:"reply"`
+					Status     []string   `json:"status"`
+					Timestamp  int64      `json:"timestamp"`
+					TransID    int64      `json:"trans_id"`
+				}
+
+				var orderFilled Response
+				err := common.JSONDecode(resp.Raw, &orderFilled)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- orderFilled
+
+			case "order_rejected":
+				type Response struct {
+					Nonce       int64    `json:"nonce"`
+					Status      []string `json:"status"`
+					OrderID     int64    `json:"order_id"`
+					OpenQty     string   `json:"open_qty"`
+					Price       string   `json:"price"`
+					InstID      int64    `json:"inst_id"`
+					Reasons     []string `json:"reasons"`
+					ClientOrdID int64    `json:"client_ord_id"`
+					Timestamp   int64    `json:"timestamp"`
+					Reply       string   `json:"reply"`
+					Qty         string   `json:"qty"`
+					Side        string   `json:"side"`
+					TransID     int64    `json:"trans_id"`
+				}
+
+				var orderRejected Response
+				err := common.JSONDecode(resp.Raw, &orderRejected)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- orderRejected
+			case "user_open_orders":
+				type Order struct {
+					OrderID     int64  `json:"order_id"`
+					OpenQty     string `json:"open_qty"`
+					Price       string `json:"price"`
+					InstID      int64  `json:"inst_id"`
+					ClientOrdID int64  `json:"client_ord_id"`
+					Timestamp   int64  `json:"timestamp"`
+					Qty         string `json:"qty"`
+					Side        string `json:"side"`
+				}
+
+				type Response struct {
+					Nonce  int64    `json:"nonce"`
+					Reply  string   `json:"reply"`
+					Status []string `json:"status"`
+					Orders []Order  `json:"orders"`
+				}
+
+				var openOrders Response
+				err := common.JSONDecode(resp.Raw, &openOrders)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- openOrders
+			case "trade_history":
+				type Trade struct {
+					Commission Commission `json:"commission"`
+					Order      Order      `json:"order"`
+					FillPrice  string     `json:"fill_price"`
+					FillQty    string     `json:"fill_qty"`
+					Timestamp  int64      `json:"timestamp"`
+					TransID    int64      `json:"trans_id"`
+				}
+
+				type Commission struct {
+					Amount   string `json:"amount"`
+					Currency string `json:"currency"`
+				}
+
+				type Order struct {
+					ClientOrdID int64  `json:"client_ord_id"`
+					InstID      int64  `json:"inst_id"`
+					OpenQty     string `json:"open_qty"`
+					OrderID     int64  `json:"order_id"`
+					Price       string `json:"price"`
+					Qty         string `json:"qty"`
+					Side        string `json:"side"`
+					Timestamp   int64  `json:"timestamp"`
+				}
+				type Response struct {
+					Nonce       int64    `json:"nonce"`
+					Reply       string   `json:"reply"`
+					Status      []string `json:"status"`
+					TotalNumber int64    `json:"total_number"`
+					Trades      []Trade  `json:"trades"`
+				}
+
+				var tradeHistory Response
+				err := common.JSONDecode(resp.Raw, &tradeHistory)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- tradeHistory
 			}
 		}
 	}
-}
-
-// WsConnect intiates a websocket connection
-func (c *COINUT) WsConnect() error {
-	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
-	}
-
-	var Dialer websocket.Dialer
-
-	if c.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(c.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-
-		Dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	var err error
-	c.WebsocketConn, _, err = Dialer.Dial(c.Websocket.GetWebsocketURL(),
-		http.Header{})
-
-	if err != nil {
-		return err
-	}
-
-	if !populatedList {
-		instrumentListByString = make(map[string]int64)
-		instrumentListByCode = make(map[int64]string)
-
-		err = c.WsSetInstrumentList()
-		if err != nil {
-			return err
-		}
-		populatedList = true
-	}
-
-	c.GenerateDefaultSubscriptions()
-
-	// define bi-directional communication
-	channels = make(map[string]chan []byte)
-	channels["hb"] = make(chan []byte, 1)
-
-	go c.WsHandleData()
-
-	return nil
 }
 
 // GetNonce returns a nonce for a required request
@@ -359,4 +534,132 @@ func (c *COINUT) wsSend(data interface{}) error {
 	// Basic rate limiter
 	time.Sleep(coinutWebsocketRateLimit)
 	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+}
+
+func (c *COINUT) wsAuthenticate() error {
+	timestamp := time.Now().Unix()
+	nonce := c.GetNonce()
+	payload := fmt.Sprintf("%v|%v|%v", c.ClientID, timestamp, nonce)
+	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APIKey))
+	loginRequest := struct {
+		Request   string `json:"request"`
+		Username  string `json:"username"`
+		Nonce     int64  `json:"nonce"`
+		Hmac      string `json:"hmac_sha256"`
+		Timestamp int64  `json:"timestamp"`
+	}{
+		Request:   "login",
+		Username:  c.ClientID,
+		Nonce:     nonce,
+		Hmac:      common.HexEncodeToString(hmac),
+		Timestamp: timestamp,
+	}
+
+	return c.wsSend(loginRequest)
+}
+
+func (c *COINUT) wsGetAccountBalance() error {
+	nonce := c.GetNonce()
+	loginRequest := wsRequest{
+		Request: "user_balance",
+		Nonce:   nonce,
+	}
+	return c.wsSend(loginRequest)
+}
+
+func (c *COINUT) wsSubmitOrder(order WsSubmitOrderParameters) error {
+	order.Currency.Delimiter = ""
+	currency := order.Currency.Upper().String()
+	nonce := c.GetNonce()
+	var orderSubmissionRequest WsSubmitOrderRequest
+	orderSubmissionRequest.Request = "new_order"
+	orderSubmissionRequest.Nonce = nonce
+	orderSubmissionRequest.InstID = instrumentListByString[currency]
+	orderSubmissionRequest.Qty = order.Amount
+	orderSubmissionRequest.Price = order.Price
+	orderSubmissionRequest.Side = string(order.Side)
+
+	if order.OrderID > 0 {
+		orderSubmissionRequest.OrderID = order.OrderID
+	}
+	return c.wsSend(orderSubmissionRequest)
+}
+
+func (c *COINUT) wsSubtmitOrders(orders []WsSubmitOrderParameters) error {
+	if len(orders) > 1000 {
+		return fmt.Errorf("%v cannot submit more than 1000 orders", c.Name)
+	}
+
+	orderbutts := WsSubmitOrdersRequest{}
+	for i := range orders {
+		orders[i].Currency.Delimiter = ""
+		currency := orders[i].Currency.Upper().String()
+		orderbutts.Orders = append(orderbutts.Orders,
+			WsSubmitOrdersRequestData{
+				Qty:         orders[i].Amount,
+				Price:       orders[i].Price,
+				Side:        string(orders[i].Side),
+				InstID:      instrumentListByString[currency],
+				ClientOrdID: i,
+			})
+	}
+
+	orderbutts.Nonce = c.GetNonce()
+	orderbutts.Request = "new_orders"
+	return c.wsSend(orderbutts)
+}
+
+func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
+	nonce := c.GetNonce()
+	p.Delimiter = ""
+	currency := p.Upper().String()
+	var openOrdersRequest WsGetOpenOrdersRequest
+	openOrdersRequest.Request = "user_open_orders"
+	openOrdersRequest.Nonce = nonce
+	openOrdersRequest.InstID = instrumentListByString[currency]
+
+	return c.wsSend(openOrdersRequest)
+}
+
+func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
+	nonce := c.GetNonce()
+	cancellation.Currency.Delimiter = ""
+	currency := cancellation.Currency.Upper().String()
+	var cancellationRequest WsCancelOrderRequest
+	cancellationRequest.Request = "cancel_order"
+	cancellationRequest.InstID = instrumentListByString[currency]
+	cancellationRequest.OrderID = cancellation.OrderID
+	cancellationRequest.Nonce = nonce
+
+	return c.wsSend(cancellationRequest)
+}
+
+func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) error {
+	cancelOrderRequest := WsCancelOrdersRequest{}
+	for i := range cancellations {
+		cancellations[i].Currency.Delimiter = ""
+		currency := cancellations[i].Currency.Upper().String()
+		cancelOrderRequest.Entries = append(cancelOrderRequest.Entries, WsCancelOrdersRequestEntry{
+			InstID:  instrumentListByString[currency],
+			OrderID: cancellations[i].OrderID,
+		})
+	}
+
+	nonce := c.GetNonce()
+	cancelOrderRequest.Request = "cancel_orders"
+	cancelOrderRequest.Nonce = nonce
+	return c.wsSend(cancelOrderRequest)
+}
+
+func (c *COINUT) wsGetTradeHistory(p currency.Pair) error {
+	nonce := c.GetNonce()
+	p.Delimiter = ""
+	currency := p.Upper().String()
+
+	var request WsTradeHistoryRequest
+	request.Request = "trade_history"
+	request.InstID = instrumentListByString[currency]
+	request.Nonce = nonce
+
+	return c.wsSend(request)
 }

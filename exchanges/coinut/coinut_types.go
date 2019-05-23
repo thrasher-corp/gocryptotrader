@@ -1,5 +1,10 @@
 package coinut
 
+import (
+	"github.com/thrasher-/gocryptotrader/currency"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+)
+
 // GenericResponse is the generic response you will get from coinut
 type GenericResponse struct {
 	Nonce   int64    `json:"nonce"`
@@ -361,4 +366,71 @@ type WsSupportedCurrency struct {
 	InstID        int64  `json:"inst_id"`
 	DecimalPlaces int64  `json:"decimal_places"`
 	Quote         string `json:"quote"`
+}
+
+type WsRequest struct {
+	Request string `json:"request"`
+	Nonce   int64  `json:"nonce"`
+}
+
+type WsTradeHistoryRequest struct {
+	InstID int64 `json:"inst_id"`
+	Start  int64 `json:"start,omitempty"`
+	Limit  int64 `json:"limit,omitempty"`
+	WsRequest
+}
+
+type WsCancelOrdersRequest struct {
+	Entries []WsCancelOrdersRequestEntry `json:"entries"`
+	WsRequest
+}
+
+type WsCancelOrdersRequestEntry struct {
+	InstID  int64 `json:"inst_id"`
+	OrderID int64 `json:"order_id"`
+}
+
+type WsCancelOrderParameters struct {
+	Currency currency.Pair
+	OrderID  int64
+}
+
+type WsCancelOrderRequest struct {
+	InstID  int64 `json:"inst_id"`
+	OrderID int64 `json:"order_id"`
+	WsRequest
+}
+
+type WsGetOpenOrdersRequest struct {
+	InstID int64 `json:"inst_id"`
+	WsRequest
+}
+
+type WsSubmitOrdersRequest struct {
+	Orders []WsSubmitOrdersRequestData `json:"orders"`
+	WsRequest
+}
+
+type WsSubmitOrdersRequestData struct {
+	InstID      int64   `json:"inst_id"`
+	Price       float64 `json:"price,string"`
+	Qty         float64 `json:"qty,string"`
+	ClientOrdID int     `json:"client_ord_id"`
+	Side        string  `json:"side"`
+}
+
+type WsSubmitOrderRequest struct {
+	InstID  int64   `json:"inst_id"`
+	Price   float64 `json:"price,string"`
+	Qty     float64 `json:"qty,string"`
+	OrderID int64   `json:"client_ord_id"`
+	Side    string  `json:"side"`
+	WsRequest
+}
+
+type WsSubmitOrderParameters struct {
+	Currency      currency.Pair
+	Side          exchange.OrderSide
+	Amount, Price float64
+	OrderID       int64
 }
