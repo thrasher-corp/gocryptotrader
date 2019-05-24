@@ -2,10 +2,17 @@ build: off
 
 clone_folder: c:\gopath\src\github.com\thrasher-\gocryptotrader
 
+cache:
+  - '%APPDATA%\npm-cache'
+  - '%GOPATH%\pkg\mod'
+  - '%LOCALAPPDATA%\go-build'
+  - c:\gopath\src\github.com\thrasher-\gocryptotrader\web\node_modules
+
 environment:
   GOPATH: c:\gopath
   GO111MODULE: on
   NODEJS_VER: 10.15.3
+  APPVEYOR_SAVE_CACHE_ON_ERROR: true
 
 stack: go 1.12.3
 
