@@ -301,9 +301,10 @@ func (b *Binance) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // submitted
 func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
-	id, err := b.WithdrawCrypto(withdrawRequest.Currency.String(), withdrawRequest.Address, withdrawRequest.AddressTag, withdrawRequest.Description, amountStr)
-
-	return strconv.FormatInt(id, 10), err
+	return b.WithdrawCrypto(withdrawRequest.Currency.String(),
+		withdrawRequest.Address,
+		withdrawRequest.AddressTag,
+		withdrawRequest.Description, amountStr)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

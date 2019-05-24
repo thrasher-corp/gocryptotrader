@@ -433,7 +433,16 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
@@ -484,7 +493,8 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 		true,
 		true,
 		b.Verbose,
-		b.HTTPDebugging)
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

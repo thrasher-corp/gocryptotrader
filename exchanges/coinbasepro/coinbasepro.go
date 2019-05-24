@@ -820,7 +820,16 @@ func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
-	return c.SendPayload(http.MethodGet, path, nil, nil, result, false, false, c.Verbose, c.HTTPDebugging)
+	return c.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		c.Verbose,
+		c.HTTPDebugging,
+		c.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
@@ -861,7 +870,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		true,
 		true,
 		c.Verbose,
-		c.HTTPDebugging)
+		c.HTTPDebugging,
+		c.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

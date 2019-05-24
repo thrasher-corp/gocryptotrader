@@ -280,8 +280,10 @@ func (l *LocalBitcoins) GetDepositAddress(cryptocurrency currency.Code, _ string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	_, err := l.WalletSend(withdrawRequest.Address, withdrawRequest.Amount, withdrawRequest.PIN)
-	return "", err
+	return "",
+		l.WalletSend(withdrawRequest.Address,
+			withdrawRequest.Amount,
+			withdrawRequest.PIN)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

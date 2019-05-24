@@ -1,6 +1,7 @@
 package localbitcoins
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -204,16 +205,36 @@ func (l *LocalBitcoins) GetAccountInformation(username string, self bool) (Accou
 // adID - [optional] string if omitted returns all ads
 func (l *LocalBitcoins) Getads(args ...string) (AdData, error) {
 	var resp struct {
-		Data AdData `json:"data"`
+		Data  AdData `json:"data"`
+		Error struct {
+			Message string `json:"message"`
+			Code    int    `json:"error_code"`
+		} `json:"error"`
 	}
 
+	var err error
 	if len(args) == 0 {
-		return resp.Data, l.SendAuthenticatedHTTPRequest(http.MethodGet, localbitcoinsAPIAds, nil, &resp)
+		err = l.SendAuthenticatedHTTPRequest(http.MethodGet,
+			localbitcoinsAPIAds,
+			nil,
+			&resp)
+	} else {
+		params := url.Values{"ads": {strings.Join(args, ",")}}
+
+		err = l.SendAuthenticatedHTTPRequest(http.MethodGet,
+			localbitcoinsAPIAdGet,
+			params,
+			&resp)
 	}
 
-	params := url.Values{"ads": {strings.Join(args, ",")}}
+	if err != nil {
+		return resp.Data, err
+	}
 
-	return resp.Data, l.SendAuthenticatedHTTPRequest(http.MethodGet, localbitcoinsAPIAdGet, params, &resp)
+	if resp.Error.Message != "" {
+		return resp.Data, errors.New(resp.Error.Message)
+	}
+	return resp.Data, nil
 }
 
 // EditAd updates set advertisements
@@ -222,12 +243,27 @@ func (l *LocalBitcoins) Getads(args ...string) (AdData, error) {
 // adID - string for the ad you already created
 // TODO
 func (l *LocalBitcoins) EditAd(_ *AdEdit, adID string) error {
-	type response struct {
-		Data AdData `json:"data"`
+	resp := struct {
+		Data  AdData `json:"data"`
+		Error struct {
+			Message string `json:"message"`
+			Code    int    `json:"error_code"`
+		}
+	}{}
+
+	err := l.SendAuthenticatedHTTPRequest(http.MethodPost,
+		localbitcoinsAPIAdEdit+adID+"/",
+		nil,
+		&resp)
+	if err != nil {
+		return err
 	}
 
-	resp := response{}
-	return l.SendAuthenticatedHTTPRequest(http.MethodPost, localbitcoinsAPIAdEdit+adID+"/", nil, &resp)
+	if resp.Error.Message != "" {
+		return errors.New(resp.Error.Message)
+	}
+
+	return nil
 }
 
 // CreateAd creates a new advertisement
@@ -254,7 +290,26 @@ func (l *LocalBitcoins) UpdatePriceEquation(adID string) error {
 // adID - string of specific ad identification
 // TODO
 func (l *LocalBitcoins) DeleteAd(adID string) error {
-	return l.SendAuthenticatedHTTPRequest(http.MethodPost, localbitcoinsAPIDeleteAd+adID, nil, nil)
+	resp := struct {
+		Error struct {
+			Message string `json:"message"`
+			Code    int    `json:"error_code"`
+		} `json:"error"`
+	}{}
+
+	err := l.SendAuthenticatedHTTPRequest(http.MethodPost,
+		localbitcoinsAPIDeleteAd+adID+"/",
+		nil,
+		&resp)
+	if err != nil {
+		return err
+	}
+
+	if resp.Error.Message != "" {
+		return errors.New(resp.Error.Message)
+	}
+
+	return nil
 }
 
 // ReleaseFunds releases Bitcoin trades specified by ID {contact_id}. If the
@@ -579,7 +634,7 @@ func (l *LocalBitcoins) GetWalletBalance() (WalletBalanceInfo, error) {
 // On success, the response returns a message indicating success. It is highly
 // recommended to minimize the lifetime of access tokens with the money
 // permission. Use Logout() to make the current token expire instantly.
-func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) (bool, error) {
+func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) error {
 	values := url.Values{}
 	values.Set("address", address)
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -590,23 +645,34 @@ func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) (b
 		path = localbitcoinsAPIWalletSendPin
 	}
 
-	type response struct {
+	resp := struct {
+		Error struct {
+			Message string            `json:"message"`
+			Errors  map[string]string `json:"errors"`
+			Code    int               `json:"error_code"`
+		} `json:"error"`
 		Data struct {
 			Message string `json:"message"`
 		} `json:"data"`
-	}
+	}{}
 
-	resp := response{}
 	err := l.SendAuthenticatedHTTPRequest(http.MethodPost, path, values, &resp)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if resp.Data.Message != "Money is being sent" {
-		return false, errors.New("unable to send Bitcoins")
+		if len(resp.Error.Errors) != 0 {
+			var details string
+			for _, val := range resp.Error.Errors {
+				details += val
+			}
+			return errors.New(details)
+		}
+		return errors.New(resp.Data.Message)
 	}
 
-	return true, nil
+	return nil
 }
 
 // GetWalletAddress returns an unused receiving address from the token owner's
@@ -728,7 +794,16 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, false, l.Verbose, l.HTTPDebugging)
+	return l.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		l.Verbose,
+		l.HTTPDebugging,
+		l.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to
@@ -758,7 +833,16 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 		path += "?" + encoded
 	}
 
-	return l.SendPayload(method, l.APIUrl+path, headers, strings.NewReader(encoded), result, true, true, l.Verbose, l.HTTPDebugging)
+	return l.SendPayload(method,
+		l.APIUrl+path,
+		headers,
+		bytes.NewBufferString(encoded),
+		result,
+		true,
+		true,
+		l.Verbose,
+		l.HTTPDebugging,
+		l.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

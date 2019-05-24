@@ -265,5 +265,6 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 		auth,
 		false,
 		f.Verbose,
+		false,
 		false)
 }

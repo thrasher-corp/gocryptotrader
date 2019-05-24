@@ -380,7 +380,16 @@ func (b *Bitflyer) GetTradingCommission() {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request

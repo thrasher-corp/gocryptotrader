@@ -511,7 +511,16 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose, g.HTTPDebugging)
+	return g.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		g.Verbose,
+		g.HTTPDebugging,
+		g.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
@@ -549,7 +558,16 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	headers["X-GEMINI-SIGNATURE"] = common.HexEncodeToString(hmac)
 	headers["Cache-Control"] = "no-cache"
 
-	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, false, g.Verbose, g.HTTPDebugging)
+	return g.SendPayload(method,
+		g.APIUrl+"/v1/"+path,
+		headers,
+		strings.NewReader(""),
+		result,
+		true,
+		false,
+		g.Verbose,
+		g.HTTPDebugging,
+		g.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

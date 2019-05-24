@@ -405,7 +405,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		true,
 		c.Verbose,
 		c.HTTPDebugging,
-	)
+		c.HTTPRecording)
 	if err != nil {
 		return err
 	}
