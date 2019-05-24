@@ -5,8 +5,7 @@ clone_folder: c:\gopath\src\github.com\thrasher-\gocryptotrader
 cache:
   - '%APPDATA%\npm-cache'
   - c:\gopath\src\github.com\thrasher-\gocryptotrader\web\node_modules
-  - c:\gopath\src\github.com\thrasher-\gocryptotrader\go.sum -> go.sum
-  - '%GOPATH%\pkg\mod -> c:\gopath\src\github.com\thrasher-\gocryptotrader\go.sum'
+  - '%GOPATH%\pkg\mod -> **\go.sum'
 
 environment:
   GOPATH: c:\gopath
