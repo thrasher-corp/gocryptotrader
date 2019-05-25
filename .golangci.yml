@@ -78,4 +78,4 @@ issues:
         - gosec
 
 service:
-  golangci-lint-version: 1.15.x 
+  golangci-lint-version: 1.16.x 
