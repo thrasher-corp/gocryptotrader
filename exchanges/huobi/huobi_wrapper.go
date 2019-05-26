@@ -47,7 +47,7 @@ func (h *HUOBI) Run() {
 		if common.StringDataContains(h.BaseCurrencies.Strings(), "CNY") {
 			cfg := config.GetConfig()
 			exchCfg, errCNY := cfg.GetExchangeConfig(h.Name)
-			if err != nil {
+			if errCNY != nil {
 				log.Errorf("%s failed to get exchange config. %s\n", h.Name, errCNY)
 				return
 			}

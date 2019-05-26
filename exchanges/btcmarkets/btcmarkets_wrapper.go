@@ -231,7 +231,7 @@ func (b *BTCMarkets) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Ca
 	for i := range openOrders {
 		orderIDInt, err := strconv.ParseInt(openOrders[i].ID, 10, 64)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[openOrders[i].ID] = err.Error()
+			return cancelAllOrdersResponse, err
 		}
 		orderList = append(orderList, orderIDInt)
 	}
@@ -243,7 +243,7 @@ func (b *BTCMarkets) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Ca
 		}
 
 		for i := range orders {
-			if err != nil {
+			if !orders[i].Success {
 				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(orders[i].ID, 10)] = err.Error()
 			}
 		}

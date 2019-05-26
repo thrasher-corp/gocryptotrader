@@ -192,9 +192,8 @@ func (l *LocalBitcoins) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ 
 	if err != nil {
 		return submitOrderResponse, err
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
+
+	submitOrderResponse.IsOrderPlaced = true
 
 	// Now to figure out what ad we just submitted
 	// The only details we have are the params above
