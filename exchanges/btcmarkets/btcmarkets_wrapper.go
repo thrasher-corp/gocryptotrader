@@ -244,7 +244,7 @@ func (b *BTCMarkets) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Ca
 
 		for i := range orders {
 			if !orders[i].Success {
-				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(orders[i].ID, 10)] = err.Error()
+				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(orders[i].ID, 10)] = orders[i].ErrorMessage
 			}
 		}
 	}
