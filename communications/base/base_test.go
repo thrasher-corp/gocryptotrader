@@ -81,7 +81,6 @@ type CommunicationProvider struct {
 	isConnected     bool
 	ConnectCalled   bool
 	PushEventCalled bool
-	connectResponse error
 }
 
 func (p *CommunicationProvider) IsEnabled() bool {
