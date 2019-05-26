@@ -1,11 +1,9 @@
 package base
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -46,62 +44,12 @@ func TestGetTicker(t *testing.T) {
 	if v != "" {
 		t.Error("test failed - base GetTicker() error")
 	}
-
-	exchangeName := "exchange"
-	savedTickerStaged := TickerStaged
-	defer func() { TickerStaged = savedTickerStaged }()
-	TickerStaged = map[string]map[string]map[string]ticker.Price{
-		exchangeName: {
-			"testAsset": {
-				"BTCUSD": ticker.Price{
-					Pair:     currency.NewPairFromString("BTCUSD"),
-					Ask:      0.000001,
-					Bid:      0.000002,
-					High:     0.000003,
-					Last:     0.000004,
-					Low:      0.000005,
-					PriceATH: 0.000006,
-					Volume:   0.000007,
-				},
-			},
-		},
-	}
-
-	exp := "Currency Pair: BTCUSD Ask: 0.000001, Bid: 0.000002 High: 0.000003 Last: 0.000004 Low: 0.000005 ATH: 0.000006 Volume: 0.000007"
-	act := b.GetTicker(exchangeName)
-	if exp != act {
-		t.Errorf("\n'%s'\n is not\n '%s'", act, exp)
-	}
 }
 
 func TestGetOrderbook(t *testing.T) {
 	v := b.GetOrderbook("ANX")
 	if v != "" {
 		t.Error("test failed - base GetOrderbook() error")
-	}
-
-	exchangeName := "exchange"
-	lastUpdated := time.Now().String()
-	savedOrderbookStaged := OrderbookStaged
-	defer func() { OrderbookStaged = savedOrderbookStaged }()
-	OrderbookStaged = map[string]map[string]map[string]Orderbook{
-		exchangeName: {
-			"testAsset": {
-				"BTCUSD": Orderbook{
-					CurrencyPair: "BTCUSD",
-					AssetType:    ticker.Spot,
-					TotalAsks:    0.000001,
-					TotalBids:    0.000002,
-					LastUpdated:  lastUpdated,
-				},
-			},
-		},
-	}
-
-	exp := fmt.Sprintf("Currency Pair: BTCUSD AssetType: %s, LastUpdated: %s TotalAsks: 0.000001 TotalBids: 0.000002", ticker.Spot, lastUpdated)
-	act := b.GetOrderbook(exchangeName)
-	if exp != act {
-		t.Errorf("\n'%s'\n is not\n '%s'", act, exp)
 	}
 }
 
@@ -126,14 +74,151 @@ func TestGetStatus(t *testing.T) {
 	}
 }
 
+type CommunicationProvider struct {
+	ICommunicate
+
+	isEnabled       bool
+	isConnected     bool
+	ConnectCalled   bool
+	PushEventCalled bool
+	connectResponse error
+}
+
+func (p *CommunicationProvider) IsEnabled() bool {
+	return p.isEnabled
+}
+
+func (p *CommunicationProvider) IsConnected() bool {
+	return p.isConnected
+}
+
+func (p *CommunicationProvider) Connect() error {
+	p.ConnectCalled = true
+	return nil
+}
+
+func (p *CommunicationProvider) PushEvent(e Event) error {
+	p.PushEventCalled = true
+	return nil
+}
+
+func (p *CommunicationProvider) GetName() string {
+	return "someTestProvider"
+}
+
 func TestSetup(t *testing.T) {
-	i.Setup()
+	var ic IComm
+	testConfigs := []struct {
+		isEnabled          bool
+		isConnected        bool
+		shouldConnectCaled bool
+		provider           ICommunicate
+	}{
+		{false, true, false, nil},
+		{false, false, false, nil},
+		{true, true, false, nil},
+		{true, false, true, nil},
+	}
+	for _, config := range testConfigs {
+		config.provider = &CommunicationProvider{
+			isEnabled:   config.isEnabled,
+			isConnected: config.isConnected}
+		ic = append(ic, config.provider)
+	}
+
+	ic.Setup()
+
+	for idx, provider := range ic {
+		exp := testConfigs[idx].shouldConnectCaled
+		act := provider.(*CommunicationProvider).ConnectCalled
+		if exp != act {
+			t.Fatalf("provider should be enabled and not be connected: exp=%v, act=%v", exp, act)
+		}
+	}
 }
 
 func TestPushEvent(t *testing.T) {
-	i.PushEvent(Event{})
+	var ic IComm
+	testConfigs := []struct {
+		Enabled        bool
+		Connected      bool
+		PushEventCaled bool
+		provider       ICommunicate
+	}{
+		{false, true, false, nil},
+		{false, false, false, nil},
+		{true, false, false, nil},
+		{true, true, true, nil},
+	}
+	for _, config := range testConfigs {
+		config.provider = &CommunicationProvider{
+			isEnabled:   config.Enabled,
+			isConnected: config.Connected}
+		ic = append(ic, config.provider)
+	}
+
+	ic.PushEvent(Event{})
+
+	for idx, provider := range ic {
+		exp := testConfigs[idx].PushEventCaled
+		act := provider.(*CommunicationProvider).PushEventCalled
+		if exp != act {
+			t.Fatalf("provider should be enabled and connected: exp=%v, act=%v", exp, act)
+		}
+	}
 }
 
-func TestGetEnabledCommunicationMediums(t *testing.T) {
-	i.GetEnabledCommunicationMediums()
+func TestStageTickerData(t *testing.T) {
+	_, ok := TickerStaged["bitstamp"]["someAsset"]["BTCUSD"]
+	if ok {
+		t.Fatalf("key should not exists")
+	}
+
+	price := ticker.Price{}
+	var i IComm
+	i.Setup()
+
+	i.StageTickerData("bitstamp", "someAsset", &price)
+
+	_, ok = TickerStaged["bitstamp"]["someAsset"][price.Pair.String()]
+	if !ok {
+		t.Fatalf("key should exists")
+	}
+}
+
+func TestOrderbookData(t *testing.T) {
+	_, ok := OrderbookStaged["bitstamp"]["someAsset"]["someOrderbook"]
+	if ok {
+		t.Fatal("key should not exists")
+	}
+
+	ob := orderbook.Base{
+		Asks: []orderbook.Item{
+			{1, 2, 3},
+			{4, 5, 6},
+		},
+	}
+	var i IComm
+	i.Setup()
+
+	i.StageOrderbookData("bitstamp", "someAsset", &ob)
+
+	orderbook, ok := OrderbookStaged["bitstamp"]["someAsset"][ob.Pair.String()]
+	if !ok {
+		t.Fatal("key should exists")
+	}
+
+	if ob.Pair.String() != orderbook.CurrencyPair {
+		t.Fatal("currency missmatched")
+	}
+
+	_, totalAsks := ob.TotalAsksAmount()
+	if totalAsks != orderbook.TotalAsks {
+		t.Fatal("total asks missmatched")
+	}
+
+	_, totalBids := ob.TotalBidsAmount()
+	if totalBids != orderbook.TotalBids {
+		t.Fatal("total bids missmatched")
+	}
 }
