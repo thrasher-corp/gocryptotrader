@@ -142,7 +142,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 		g.BaseCurrencies = exch.BaseCurrencies
 		g.AvailablePairs = exch.AvailablePairs
 		g.EnabledPairs = exch.EnabledPairs
-
+		g.WebsocketURL = geminiWebsocketEndpoint
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -161,6 +161,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 		}
 		if exch.UseSandbox {
 			g.APIUrl = geminiSandboxAPIURL
+			g.WebsocketURL = geminiWebsocketSandboxEndpoint
 		}
 		err = g.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
@@ -172,8 +173,8 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
-			geminiWebsocketEndpoint,
-			exch.WebsocketURL)
+			g.WebsocketURL,
+			g.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -1,9 +1,11 @@
 package gemini
 
 import (
+	"net/http"
 	"net/url"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -62,7 +64,7 @@ func TestSetup(t *testing.T) {
 	}
 
 	geminiConfig.AuthenticatedAPISupport = true
-
+	geminiConfig.Websocket = true
 	Session[1].Setup(&geminiConfig)
 	Session[2].Setup(&geminiConfig)
 
@@ -553,4 +555,63 @@ func TestGetDepositAddress(t *testing.T) {
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress error cannot be nil")
 	}
+}
+
+func TestCanConnectToAuthWebsocket(t *testing.T) {
+	TestAddSession(t)
+	TestSetDefaults(t)
+	TestSetup(t)
+	g := Session[1]
+	g.Verbose = true
+
+	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
+		t.Error(exchange.WebsocketNotEnabled)
+	}
+	g.Websocket.DataHandler = make(chan interface{}, 999)
+	comms = make(chan ReadData, 1)
+	var dialer websocket.Dialer
+	endpoint := "wss://api.sandbox.gemini.com/v1/order/events"
+
+		payload := struct{
+			Request string `json:"request"`
+			Nonce int64 `json:"nonce"`
+		} {
+			Request: "/v1/order/events",
+			Nonce: int64(g.GetNonce(false)),
+		}
+
+	PayloadJSON, err := common.JSONEncode(payload)
+
+	if err != nil {
+		t.Error("sendAuthenticatedHTTPRequest: Unable to JSON request")
+	}
+
+	if g.Verbose {
+		t.Logf("Request JSON: %s", PayloadJSON)
+	}
+
+	PayloadBase64 := common.Base64Encode(PayloadJSON)
+	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
+	headers := http.Header{}
+	headers.Add("Content-Length", "0")
+	headers.Add("Content-Type", "text/plain")
+	headers.Add("X-GEMINI-PAYLOAD", PayloadBase64)
+	headers.Add("X-GEMINI-APIKEY", g.APIKey)
+	headers.Add("X-GEMINI-SIGNATURE", common.HexEncodeToString(hmac))
+	headers.Add("Cache-Control", "no-cache")
+	t.Log(headers)
+	conn, connStatus, err := dialer.Dial(endpoint, headers)
+	if err != nil {
+		t.Error(connStatus)
+		t.Logf("handshake failed with status %d", connStatus.StatusCode)
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	go g.WsHandleData()
+	msgType, message, err := conn.ReadMessage()
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(string(message))
+	t.Log(string(msgType))
 }

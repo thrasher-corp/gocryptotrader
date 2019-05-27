@@ -205,23 +205,7 @@ func (c *COINUT) WsHandleData() {
 					Side:         tradeUpdate.Side,
 				}
 			case "user_balance":
-				type Response struct {
-					Nonce             int64    `json:"nonce"`
-					Status            []string `json:"status"`
-					Btc               string   `json:"BTC"`
-					Ltc               string   `json:"LTC"`
-					Etc               string   `json:"ETC"`
-					Eth               string   `json:"ETH"`
-					FloatingPl        string   `json:"floating_pl"`
-					InitialMargin     string   `json:"initial_margin"`
-					RealizedPl        string   `json:"realized_pl"`
-					MaintenanceMargin string   `json:"maintenance_margin"`
-					Equity            string   `json:"equity"`
-					Reply             string   `json:"reply"`
-					TransID           int64    `json:"trans_id"`
-				}
-
-				var userBalance Response
+				var userBalance WsUserBalanceResponse
 				err := common.JSONDecode(resp.Raw, &userBalance)
 				if err != nil {
 					c.Websocket.DataHandler <- err
@@ -230,21 +214,7 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- userBalance
 
 			case "order_accepted":
-				type Response struct {
-					Nonce       int64    `json:"nonce"`
-					Status      []string `json:"status"`
-					OrderID     int64    `json:"order_id"`
-					OpenQty     string   `json:"open_qty"`
-					InstID      int64    `json:"inst_id"`
-					Qty         string   `json:"qty"`
-					ClientOrdID int64    `json:"client_ord_id"`
-					OrderPrice  string   `json:"order_price"`
-					Reply       string   `json:"reply"`
-					Side        string   `json:"side"`
-					TransID     int64    `json:"trans_id"`
-				}
-
-				var orderAccepted Response
+				var orderAccepted WsOrderAcceptedResponse
 				err := common.JSONDecode(resp.Raw, &orderAccepted)
 				if err != nil {
 					c.Websocket.DataHandler <- err
@@ -253,35 +223,7 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- orderAccepted
 
 			case "order_filled":
-				type Commission struct {
-					Amount   string `json:"amount"`
-					Currency string `json:"currency"`
-				}
-
-				type Order struct {
-					ClientOrdID int64  `json:"client_ord_id"`
-					InstID      int64  `json:"inst_id"`
-					OpenQty     string `json:"open_qty"`
-					OrderID     int64  `json:"order_id"`
-					Price       string `json:"price"`
-					Qty         string `json:"qty"`
-					Side        string `json:"side"`
-					Timestamp   int64  `json:"timestamp"`
-				}
-
-				type Response struct {
-					Commission Commission `json:"commission"`
-					FillPrice  string     `json:"fill_price"`
-					FillQty    string     `json:"fill_qty"`
-					Nonce      int64      `json:"nonce"`
-					Order      Order      `json:"order"`
-					Reply      string     `json:"reply"`
-					Status     []string   `json:"status"`
-					Timestamp  int64      `json:"timestamp"`
-					TransID    int64      `json:"trans_id"`
-				}
-
-				var orderFilled Response
+				var orderFilled WsOrderFilledResponse
 				err := common.JSONDecode(resp.Raw, &orderFilled)
 				if err != nil {
 					c.Websocket.DataHandler <- err
@@ -290,23 +232,7 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- orderFilled
 
 			case "order_rejected":
-				type Response struct {
-					Nonce       int64    `json:"nonce"`
-					Status      []string `json:"status"`
-					OrderID     int64    `json:"order_id"`
-					OpenQty     string   `json:"open_qty"`
-					Price       string   `json:"price"`
-					InstID      int64    `json:"inst_id"`
-					Reasons     []string `json:"reasons"`
-					ClientOrdID int64    `json:"client_ord_id"`
-					Timestamp   int64    `json:"timestamp"`
-					Reply       string   `json:"reply"`
-					Qty         string   `json:"qty"`
-					Side        string   `json:"side"`
-					TransID     int64    `json:"trans_id"`
-				}
-
-				var orderRejected Response
+				var orderRejected WsOrderRejectedResponse
 				err := common.JSONDecode(resp.Raw, &orderRejected)
 				if err != nil {
 					c.Websocket.DataHandler <- err
@@ -314,25 +240,7 @@ func (c *COINUT) WsHandleData() {
 				}
 				c.Websocket.DataHandler <- orderRejected
 			case "user_open_orders":
-				type Order struct {
-					OrderID     int64  `json:"order_id"`
-					OpenQty     string `json:"open_qty"`
-					Price       string `json:"price"`
-					InstID      int64  `json:"inst_id"`
-					ClientOrdID int64  `json:"client_ord_id"`
-					Timestamp   int64  `json:"timestamp"`
-					Qty         string `json:"qty"`
-					Side        string `json:"side"`
-				}
-
-				type Response struct {
-					Nonce  int64    `json:"nonce"`
-					Reply  string   `json:"reply"`
-					Status []string `json:"status"`
-					Orders []Order  `json:"orders"`
-				}
-
-				var openOrders Response
+				var openOrders WsUserOpenOrdersResponse
 				err := common.JSONDecode(resp.Raw, &openOrders)
 				if err != nil {
 					c.Websocket.DataHandler <- err
@@ -340,39 +248,7 @@ func (c *COINUT) WsHandleData() {
 				}
 				c.Websocket.DataHandler <- openOrders
 			case "trade_history":
-				type Trade struct {
-					Commission Commission `json:"commission"`
-					Order      Order      `json:"order"`
-					FillPrice  string     `json:"fill_price"`
-					FillQty    string     `json:"fill_qty"`
-					Timestamp  int64      `json:"timestamp"`
-					TransID    int64      `json:"trans_id"`
-				}
-
-				type Commission struct {
-					Amount   string `json:"amount"`
-					Currency string `json:"currency"`
-				}
-
-				type Order struct {
-					ClientOrdID int64  `json:"client_ord_id"`
-					InstID      int64  `json:"inst_id"`
-					OpenQty     string `json:"open_qty"`
-					OrderID     int64  `json:"order_id"`
-					Price       string `json:"price"`
-					Qty         string `json:"qty"`
-					Side        string `json:"side"`
-					Timestamp   int64  `json:"timestamp"`
-				}
-				type Response struct {
-					Nonce       int64    `json:"nonce"`
-					Reply       string   `json:"reply"`
-					Status      []string `json:"status"`
-					TotalNumber int64    `json:"total_number"`
-					Trades      []Trade  `json:"trades"`
-				}
-
-				var tradeHistory Response
+				var tradeHistory WsTradeHistoryResponse
 				err := common.JSONDecode(resp.Raw, &tradeHistory)
 				if err != nil {
 					c.Websocket.DataHandler <- err
