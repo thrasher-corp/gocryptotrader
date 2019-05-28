@@ -45,6 +45,14 @@ func (h *HitBTC) WsConnect() error {
 	}
 
 	go h.WsHandleData()
+	if h.AuthenticatedAPISupport {
+		time.Sleep(time.Second)
+		err = h.wsLogin()
+		if err != nil {
+			return err
+		}
+	}
+
 	h.GenerateDefaultSubscriptions()
 
 	return nil
@@ -94,77 +102,133 @@ func (h *HitBTC) WsHandleData() {
 					init.Error.Message)
 				continue
 			}
-
-			if init.Result {
-				continue
-			}
-
-			switch init.Method {
-			case "ticker":
-				var ticker WsTicker
-				err := common.JSONDecode(resp.Raw, &ticker)
-				if err != nil {
-					h.Websocket.DataHandler <- err
-					continue
-				}
-
-				ts, err := time.Parse(time.RFC3339, ticker.Params.Timestamp)
-				if err != nil {
-					h.Websocket.DataHandler <- err
-					continue
-				}
-
-				h.Websocket.DataHandler <- exchange.TickerData{
-					Exchange:  h.GetName(),
-					AssetType: "SPOT",
-					Pair:      currency.NewPairFromString(ticker.Params.Symbol),
-					Quantity:  ticker.Params.Volume,
-					Timestamp: ts,
-					OpenPrice: ticker.Params.Open,
-					HighPrice: ticker.Params.High,
-					LowPrice:  ticker.Params.Low,
-				}
-
-			case "snapshotOrderbook":
-				var obSnapshot WsOrderbook
-				err := common.JSONDecode(resp.Raw, &obSnapshot)
-				if err != nil {
-					h.Websocket.DataHandler <- err
-					continue
-				}
-
-				err = h.WsProcessOrderbookSnapshot(obSnapshot)
-				if err != nil {
-					h.Websocket.DataHandler <- err
-					continue
-				}
-
-			case "updateOrderbook":
-				var obUpdate WsOrderbook
-				err := common.JSONDecode(resp.Raw, &obUpdate)
-				if err != nil {
-					h.Websocket.DataHandler <- err
-					continue
-				}
-
-				h.WsProcessOrderbookUpdate(obUpdate)
-
-			case "snapshotTrades":
-				var tradeSnapshot WsTrade
-				err := common.JSONDecode(resp.Raw, &tradeSnapshot)
-				if err != nil {
-					h.Websocket.DataHandler <- err
-					continue
-				}
-
-			case "updateTrades":
-				var tradeUpdates WsTrade
-				err := common.JSONDecode(resp.Raw, &tradeUpdates)
-				if err != nil {
-					h.Websocket.DataHandler <- err
+			switch initResult := init.Result.(type) {
+			case bool:
+				if initResult {
 					continue
 				}
 			}
+			if init.Method != "" {
+				h.handleSubscriptionUpdates(resp, init)
+			} else {
+				h.handleCommandResponses(resp, init)
+			}
+		}
+	}
+}
+
+func (h *HitBTC) handleSubscriptionUpdates(resp exchange.WebsocketResponse, init capture) {
+	switch init.Method {
+	case "ticker":
+		var ticker WsTicker
+		err := common.JSONDecode(resp.Raw, &ticker)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+		ts, err := time.Parse(time.RFC3339, ticker.Params.Timestamp)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+		h.Websocket.DataHandler <- exchange.TickerData{
+			Exchange:  h.GetName(),
+			AssetType: "SPOT",
+			Pair:      currency.NewPairFromString(ticker.Params.Symbol),
+			Quantity:  ticker.Params.Volume,
+			Timestamp: ts,
+			OpenPrice: ticker.Params.Open,
+			HighPrice: ticker.Params.High,
+			LowPrice:  ticker.Params.Low,
+		}
+	case "snapshotOrderbook":
+		var obSnapshot WsOrderbook
+		err := common.JSONDecode(resp.Raw, &obSnapshot)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		err = h.WsProcessOrderbookSnapshot(obSnapshot)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+	case "updateOrderbook":
+		var obUpdate WsOrderbook
+		err := common.JSONDecode(resp.Raw, &obUpdate)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.WsProcessOrderbookUpdate(obUpdate)
+	case "snapshotTrades":
+		var tradeSnapshot WsTrade
+		err := common.JSONDecode(resp.Raw, &tradeSnapshot)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+	case "updateTrades":
+		var tradeUpdates WsTrade
+		err := common.JSONDecode(resp.Raw, &tradeUpdates)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+	case "activeOrders":
+		var activeOrders WsActiveOrdersResponse
+		err := common.JSONDecode(resp.Raw, &activeOrders)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- activeOrders
+	case "report":
+		var reportData WsReportResponse
+		err := common.JSONDecode(resp.Raw, &reportData)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- reportData
+	}
+}
+
+func (h *HitBTC) handleCommandResponses(resp exchange.WebsocketResponse, init capture) {
+	switch resultType := init.Result.(type) {
+	case map[string]interface{}:
+		// Order command related
+		switch resultType["reportType"].(string) {
+		case "new":
+			var response WsSubmitOrderSuccessResponse
+			err := common.JSONDecode(resp.Raw, &response)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+			}
+			h.Websocket.DataHandler <- response
+		case "canceled":
+			var response WsCancelOrderResponse
+			err := common.JSONDecode(resp.Raw, &response)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+			}
+			h.Websocket.DataHandler <- response
+		case "replaced":
+			var response WsReplaceOrderResponse
+			err := common.JSONDecode(resp.Raw, &response)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+			}
+			h.Websocket.DataHandler <- response
+		}
+	case []map[string]interface{}:
+		if _, ok := resultType[0]["available"]; ok {
+			var response WsActiveOrdersResponse
+			err := common.JSONDecode(resp.Raw, &response)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+			}
+			h.Websocket.DataHandler <- response
+		} else if _, ok := resultType[0]["clientOrderId"]; ok {
+			var response WsGetTradingBalanceResponse
+			err := common.JSONDecode(resp.Raw, &response)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+			}
+			h.Websocket.DataHandler <- response
 		}
 	}
 }
@@ -241,6 +305,11 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 func (h *HitBTC) GenerateDefaultSubscriptions() {
 	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
 	subscriptions := []exchange.WebsocketChannelSubscription{}
+	if h.AuthenticatedAPISupport {
+		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			Channel: "subscribeReports",
+		})
+	}
 	enabledCurrencies := h.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -314,7 +383,99 @@ func (h *HitBTC) wsSend(data interface{}) error {
 		return err
 	}
 	if h.Verbose {
-		log.Debugf("%v sending message to websocket %v", h.Name, data)
+		log.Debugf("%v sending message to websocket %v", h.Name, string(json))
 	}
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (h *HitBTC) wsLogin() error {
+	nonce := h.Requester.GetNonce(false).String()
+	hmac := common.GetHMAC(common.HashSHA256, []byte(nonce), []byte(h.APISecret))
+	request := WsLoginRequest{
+		Method: "login",
+		Params: WsLoginData{
+			Algo:      "HS256",
+			PKey:      h.APIKey,
+			Nonce:     nonce,
+			Signature: common.HexEncodeToString(hmac),
+		},
+	}
+
+	return h.wsSend(request)
+}
+
+// wsPlaceOrder sends a websocket message to submit an order
+func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity float64) error {
+	if !h.AuthenticatedAPISupport {
+		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+	}
+	request := WsSubmitOrderRequest{
+		Method: "newOrder",
+		Params: WsSubmitOrderRequestData{
+			ClientOrderID: h.Requester.GetNonce(false).String(),
+			Symbol:        pair,
+			Side:          side,
+			Price:         fmt.Sprintf("%v", price),
+			Quantity:      fmt.Sprintf("%v", quantity),
+		},
+	}
+	return h.wsSend(request)
+}
+
+// wsCancelOrder sends a websocket message to cancel an order
+func (h *HitBTC) wsCancelOrder(clientOrderID string) error {
+	if !h.AuthenticatedAPISupport {
+		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+	}
+	request := WsCancelOrderRequest{
+		Method: "cancelOrder",
+		Params: WsCancelOrderRequestData{
+			ClientOrderID: clientOrderID,
+		},
+	}
+	return h.wsSend(request)
+}
+
+// wsReplaceOrder sends a websocket message to replace an order
+func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) error {
+	if !h.AuthenticatedAPISupport {
+		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+	}
+	request := WsReplaceOrderRequest{
+		Method: "cancelReplaceOrder",
+		Params: WsReplaceOrderRequestData{
+			ClientOrderID:   clientOrderID,
+			RequestClientID: h.Requester.GetNonce(false).String(),
+			Quantity:        fmt.Sprintf("%v", quantity),
+			Price:           fmt.Sprintf("%v", price),
+		},
+	}
+	return h.wsSend(request)
+}
+
+// wsGetActiveOrders sends a websocket message to get all active orders
+func (h *HitBTC) wsGetActiveOrders() error {
+	if !h.AuthenticatedAPISupport {
+		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+	}
+	request := WsReplaceOrderRequest{
+		Method: "getOrders",
+		Params: WsReplaceOrderRequestData{},
+		ID:     1337,
+	}
+	return h.wsSend(request)
+}
+
+// wsGetTradingBalance sends a websocket message to get trading balance
+func (h *HitBTC) wsGetTradingBalance() error {
+	if !h.AuthenticatedAPISupport {
+		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+	}
+	request := WsReplaceOrderRequest{
+		Method: "getTradingBalance",
+		Params: WsReplaceOrderRequestData{},
+		ID:     1338,
+	}
+	return h.wsSend(request)
 }

@@ -1,8 +1,11 @@
 package hitbtc
 
 import (
+	"net/http"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -380,4 +383,100 @@ func TestGetDepositAddress(t *testing.T) {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}
 	}
+}
+
+// TestWsAuth dials websocket, sends login request. 
+// Will receive a message only on failure
+func TestWsAuth(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	h.Websocket.DataHandler = make(chan interface{}, 999)
+	h.WebsocketConn, _, err = dialer.Dial(hitbtcWebsocketAddress, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.WebsocketConn.Close()
+	go h.WsHandleData()
+	h.wsLogin()
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case dataError := <-h.Websocket.DataHandler:
+		t.Error(dataError)
+	case <-timer.C:
+		timer.Stop()
+	}	
+}
+
+// TestWsCancelOrder dials websocket, sends cancel request. 
+// Will receive a message only on failure
+func TestWsCancelOrder(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var ok bool
+	var dialer websocket.Dialer
+	h.Websocket.DataHandler = make(chan interface{}, 999)
+	h.WebsocketConn, _, err = dialer.Dial(hitbtcWebsocketAddress, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.WebsocketConn.Close()
+	go h.WsHandleData()
+	h.wsLogin()
+	err = h.wsCancelOrder("9cbe79cb6f864b71a811402a48d4b5b2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case dataError := <-h.Websocket.DataHandler:
+		if err, ok = dataError.(error); ok && err != nil {
+			t.Error(dataError)
+		}
+	case <-timer.C:
+		timer.Stop()
+	}	
+}
+
+// TestWsAuthFirst dials websocket, sends cancel request. 
+// Not logged in, should receive error
+func TestWsAuthFirst(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var ok bool
+	var dialer websocket.Dialer
+	h.Websocket.DataHandler = make(chan interface{}, 999)
+	h.WebsocketConn, _, err = dialer.Dial(hitbtcWebsocketAddress, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.WebsocketConn.Close()
+	go h.WsHandleData()
+	err = h.wsCancelOrder("9cbe79cb6f864b71a811402a48d4b5b2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case dataError := <-h.Websocket.DataHandler:
+		if err, ok = dataError.(error); ok && err != nil {
+			if !common.StringContains(err.Error(), "Authorization required") {
+				t.Error("Expected Authorization error")
+			}
+		}
+	case <-timer.C:
+		timer.Stop() 
+	}	
 }

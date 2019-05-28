@@ -466,11 +466,11 @@ func (c *COINUT) wsSubtmitOrders(orders []WsSubmitOrderParameters) error {
 		return fmt.Errorf("%v cannot submit more than 1000 orders", c.Name)
 	}
 
-	orderbutts := WsSubmitOrdersRequest{}
+	orderRequest := WsSubmitOrdersRequest{}
 	for i := range orders {
 		orders[i].Currency.Delimiter = ""
 		currency := orders[i].Currency.Upper().String()
-		orderbutts.Orders = append(orderbutts.Orders,
+		orderRequest.Orders = append(orderRequest.Orders,
 			WsSubmitOrdersRequestData{
 				Qty:         orders[i].Amount,
 				Price:       orders[i].Price,
@@ -480,9 +480,9 @@ func (c *COINUT) wsSubtmitOrders(orders []WsSubmitOrderParameters) error {
 			})
 	}
 
-	orderbutts.Nonce = c.GetNonce()
-	orderbutts.Request = "new_orders"
-	return c.wsSend(orderbutts)
+	orderRequest.Nonce = c.GetNonce()
+	orderRequest.Request = "new_orders"
+	return c.wsSend(orderRequest)
 }
 
 func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
