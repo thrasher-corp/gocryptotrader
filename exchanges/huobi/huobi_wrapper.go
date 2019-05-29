@@ -152,12 +152,6 @@ func (h *HUOBI) Run() {
 		}
 		exchCfg.BaseCurrencies = currency.Currencies{currency.USD}
 		h.BaseCurrencies = currency.Currencies{currency.USD}
-
-		err = cfg.UpdateExchangeConfig(exchCfg)
-		if err != nil {
-			log.Errorf("%s failed to update config. %s\n", h.Name, err)
-			return
-		}
 	}
 
 	if forceUpdate {

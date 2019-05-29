@@ -751,7 +751,7 @@ func TestReadConfig(t *testing.T) {
 
 	err = readConfig.ReadConfig("bla")
 	if err == nil {
-		t.Error("Test failed. TestReadConfig " + err.Error())
+		t.Error("Test failed. TestReadConfig error cannot be nil")
 	}
 
 	err = readConfig.ReadConfig("")

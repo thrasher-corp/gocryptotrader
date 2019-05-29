@@ -49,10 +49,6 @@ func (b *BTSE) WsConnect() error {
 			b.Name, err)
 	}
 
-	if err != nil {
-		return err
-	}
-
 	go b.WsHandleData()
 	b.GenerateDefaultSubscriptions()
 

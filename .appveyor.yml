@@ -2,10 +2,17 @@ build: off
 
 clone_folder: c:\gopath\src\github.com\thrasher-\gocryptotrader
 
+cache:
+  - '%APPDATA%\npm-cache'
+  - '%GOPATH%\pkg\mod'
+  - '%LOCALAPPDATA%\go-build'
+  - c:\gopath\src\github.com\thrasher-\gocryptotrader\web\node_modules
+
 environment:
   GOPATH: c:\gopath
   GO111MODULE: on
   NODEJS_VER: 10.15.3
+  APPVEYOR_SAVE_CACHE_ON_ERROR: true
 
 stack: go 1.12.3
 
@@ -21,7 +28,7 @@ before_test:
 
 test_script:
   # test back-end
-  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.15.0
+  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.16.0
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
   - go test -race ./...
   
