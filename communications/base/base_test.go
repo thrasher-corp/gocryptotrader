@@ -193,8 +193,8 @@ func TestOrderbookData(t *testing.T) {
 
 	ob := orderbook.Base{
 		Asks: []orderbook.Item{
-			{1, 2, 3},
-			{4, 5, 6},
+			{Amount: 1, Price: 2, ID: 3},
+			{Amount: 4, Price: 5, ID: 6},
 		},
 	}
 	var i IComm
