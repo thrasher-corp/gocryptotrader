@@ -108,10 +108,10 @@ func (p *CommunicationProvider) GetName() string {
 func TestSetup(t *testing.T) {
 	var ic IComm
 	testConfigs := []struct {
-		isEnabled          bool
-		isConnected        bool
-		shouldConnectCaled bool
-		provider           ICommunicate
+		isEnabled           bool
+		isConnected         bool
+		shouldConnectCalled bool
+		provider            ICommunicate
 	}{
 		{false, true, false, nil},
 		{false, false, false, nil},
@@ -128,7 +128,7 @@ func TestSetup(t *testing.T) {
 	ic.Setup()
 
 	for idx, provider := range ic {
-		exp := testConfigs[idx].shouldConnectCaled
+		exp := testConfigs[idx].shouldConnectCalled
 		act := provider.(*CommunicationProvider).ConnectCalled
 		if exp != act {
 			t.Fatalf("provider should be enabled and not be connected: exp=%v, act=%v", exp, act)
@@ -139,10 +139,10 @@ func TestSetup(t *testing.T) {
 func TestPushEvent(t *testing.T) {
 	var ic IComm
 	testConfigs := []struct {
-		Enabled        bool
-		Connected      bool
-		PushEventCaled bool
-		provider       ICommunicate
+		Enabled         bool
+		Connected       bool
+		PushEventCalled bool
+		provider        ICommunicate
 	}{
 		{false, true, false, nil},
 		{false, false, false, nil},
@@ -159,7 +159,7 @@ func TestPushEvent(t *testing.T) {
 	ic.PushEvent(Event{})
 
 	for idx, provider := range ic {
-		exp := testConfigs[idx].PushEventCaled
+		exp := testConfigs[idx].PushEventCalled
 		act := provider.(*CommunicationProvider).PushEventCalled
 		if exp != act {
 			t.Fatalf("provider should be enabled and connected: exp=%v, act=%v", exp, act)
