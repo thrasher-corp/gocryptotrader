@@ -198,7 +198,12 @@ func (o *OKGroup) WsConnect() error {
 	go o.WsHandleData(&wg)
 	go o.wsPingHandler(&wg)
 	o.GenerateDefaultSubscriptions()
-
+	if o.AuthenticatedAPISupport {
+		err = o.WsLogin()
+		if err != nil {
+			return err
+		}
+	}
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
 	return nil
@@ -681,6 +686,9 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 func (o *OKGroup) GenerateDefaultSubscriptions() {
 	enabledCurrencies := o.GetEnabledCurrencies()
 	subscriptions := []exchange.WebsocketChannelSubscription{}
+	if o.AuthenticatedAPISupport {
+		defaultSubscribedChannels = append(defaultSubscribedChannels, okGroupWsSpotMarginAccount, okGroupWsSpotAccount, okGroupWsSpotOrder)
+	}
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
@@ -699,6 +707,10 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 		Operation: "subscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
 	}
+	if strings.EqualFold(channelToSubscribe.Channel, okGroupWsSpotAccount) {
+		resp.Arguments = []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.Base.String())}
+	}
+
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if o.Verbose {

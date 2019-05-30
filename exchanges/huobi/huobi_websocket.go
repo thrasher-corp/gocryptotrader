@@ -366,13 +366,12 @@ func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscripti
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", "/ws/v1/"+channelToSubscribe.Channel, channelToSubscribe.Channel)
-	} else {
-		subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
-		if err != nil {
-			return err
-		}
-		return h.wsSend(subscription)
 	}
+	subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -380,13 +379,12 @@ func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", "/ws/v1/"+channelToSubscribe.Channel, channelToSubscribe.Channel)
-	} else {
-		subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
-		if err != nil {
-			return err
-		}
-		return h.wsSend(subscription)
 	}
+	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
 }
 
 // WsSend sends data to the websocket server
