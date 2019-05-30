@@ -63,6 +63,7 @@ const (
 // HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
 	WebsocketConn *websocket.Conn
+	AuthenticatedWebsocketConn *websocket.Conn
 	exchange.Base
 	wsRequestMtx sync.Mutex
 }
@@ -141,7 +142,7 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
-			huobiGlobalWebsocketEndpoint,
+			HuobiHadaxSocketIOAddress,
 			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)

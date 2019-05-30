@@ -69,6 +69,7 @@ type HUOBI struct {
 	exchange.Base
 	AccountID     string
 	WebsocketConn *websocket.Conn
+	AuthenticatedWebsocketConn *websocket.Conn
 	wsRequestMtx  sync.Mutex
 }
 
