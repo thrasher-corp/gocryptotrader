@@ -54,6 +54,7 @@ func (c IComm) PushEvent(event Event) {
 
 // GetEnabledCommunicationMediums prints out enabled and connected communication
 // packages
+// (#debug output only)
 func (c IComm) GetEnabledCommunicationMediums() {
 	var count int
 	for i := range c {
