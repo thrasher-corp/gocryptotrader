@@ -187,13 +187,13 @@ func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
 // If product ID is sent, all orders of that specified market will be cancelled
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var resp exchange.CancelAllOrdersResponse
 	r, err := b.CancelOrders(exchange.FormatExchangeCurrency(b.Name,
 		orderCancellation.CurrencyPair).String())
 	if err != nil {
-		return exchange.CancelAllOrdersResponse{}, err
+		return resp, err
 	}
 
-	var resp exchange.CancelAllOrdersResponse
 	switch r.Code {
 	case -1:
 		return resp, errors.New("order cancellation unsuccessful")
