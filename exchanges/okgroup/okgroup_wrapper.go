@@ -269,9 +269,9 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 
 	var orderIDNumbers []int64
 	for _, i := range orderIDs {
-		orderIDNumber, err := strconv.ParseInt(i, 10, 64)
+		orderIDNumber, strConvErr := strconv.ParseInt(i, 10, 64)
 		if err != nil {
-			resp.OrderStatus[i] = err.Error()
+			resp.OrderStatus[i] = strConvErr.Error()
 			continue
 		}
 		orderIDNumbers = append(orderIDNumbers, orderIDNumber)
