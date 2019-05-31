@@ -242,8 +242,8 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
-	var allOrders []OrderData
 
+	var allOrders []OrderData
 	for _, currency := range b.GetEnabledCurrencies() {
 		orders, err := b.GetOrders("",
 			orderCancellation.Side.ToString(),

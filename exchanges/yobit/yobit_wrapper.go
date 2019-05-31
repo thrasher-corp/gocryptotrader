@@ -219,7 +219,8 @@ func (y *Yobit) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelA
 		for key := range activeOrders {
 			orderIDInt, err := strconv.ParseInt(key, 10, 64)
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				cancelAllOrdersResponse.OrderStatus[key] = err.Error()
+				continue
 			}
 
 			_, err = y.CancelExistingOrder(orderIDInt)

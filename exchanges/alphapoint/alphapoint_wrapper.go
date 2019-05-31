@@ -170,7 +170,8 @@ func (a *Alphapoint) CancelOrder(order *exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders for a given account
 func (a *Alphapoint) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	return exchange.CancelAllOrdersResponse{}, a.CancelAllExistingOrders(orderCancellation.AccountID)
+	return exchange.CancelAllOrdersResponse{},
+		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
 
 // GetOrderInfo returns information on a current open order
