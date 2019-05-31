@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -607,39 +606,37 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request. 
-// Will receive a message only on failure
-func TestWsAuth(t *testing.T) { 
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
 	TestSetDefaults(t)
-		TestSetup(t) 
-		if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
-			t.Skip(exchange.WebsocketNotEnabled)
-		}
-		var err error
-		var dialer websocket.Dialer
-		comms = make(chan WsMessage, 999)
-		h.Websocket.DataHandler = make(chan interface{}, 999)
-		h.Websocket.TrafficAlert = make(chan struct{}, 999)
-		go h.WsHandleData()
-		err = h.wsAuthenticatedDial(&dialer)
-		if err != nil {
-			t.Error(err)
-		}
-		defer h.AuthenticatedWebsocketConn.Close()
-		err = h.wsLogin() 
-			if err != nil {
-				t.Error(err)
-			}
-		timer := time.NewTimer(3 * time.Second)
-	
-		select {
-		case response := <-  h.Websocket.DataHandler:
+	TestSetup(t)
+	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	comms = make(chan WsMessage, 999)
+	h.Websocket.DataHandler = make(chan interface{}, 999)
+	h.Websocket.TrafficAlert = make(chan struct{}, 999)
+	go h.WsHandleData()
+	err = h.wsAuthenticatedDial(&dialer)
+	if err != nil {
+		t.Error(err)
+	}
+	defer h.AuthenticatedWebsocketConn.Close()
+	err = h.wsLogin()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+
+	select {
+	case response := <-h.Websocket.DataHandler:
 		if response.(WsAuthenticatedDataResponse).ErrorCode > 0 {
 			t.Error(response)
 		}
-		case <- timer.C:
-			timer.Stop()
-			t.Error("Websocket did not receive a response")
-		}
-	} 
-	
+	case <-timer.C:
+		timer.Stop()
+		t.Error("Websocket did not receive a response")
+	}
+}

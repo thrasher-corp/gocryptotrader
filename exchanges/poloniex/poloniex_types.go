@@ -1,6 +1,10 @@
 package poloniex
 
-import "github.com/thrasher-/gocryptotrader/currency"
+import (
+	"time"
+
+	"github.com/thrasher-/gocryptotrader/currency"
+)
 
 // Ticker holds ticker data
 type Ticker struct {
@@ -400,4 +404,48 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.VTC:   0.001,
 	currency.VIA:   0.01,
 	currency.ZEC:   0.001,
+}
+
+// WsAccountBalanceUpdateResponse Authenticated Ws Account data
+type WsAccountBalanceUpdateResponse struct {
+	currencyID float64
+	wallet     string
+	amount     string
+}
+
+// WsNewLimitOrderResponse Authenticated Ws Account data
+type WsNewLimitOrderResponse struct {
+	currencyID  float64
+	orderNumber float64
+	orderType   float64
+	rate        string
+	amount      string
+	date        time.Time
+}
+
+// WsOrderUpdateResponse Authenticated Ws Account data
+type WsOrderUpdateResponse struct {
+	OrderNumber float64
+	NewAmount   string
+}
+
+// WsTradeNotificationResponse Authenticated Ws Account data
+type WsTradeNotificationResponse struct {
+	TradeID       float64
+	Rate          string
+	Amount        string
+	FeeMultiplier string
+	FundingType   float64
+	OrderNumber   float64
+	TotalFee      string
+	Date          time.Time
+}
+
+// WsAuthorisationRequest Authenticated Ws Account data request
+type WsAuthorisationRequest struct {
+	Command string `json:"command"`
+	Channel int64  `json:"channel"`
+	Sign    string `json:"sign"`
+	Key     string `json:"key"`
+	Payload string `json:"payload"`
 }
