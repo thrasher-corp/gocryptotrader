@@ -253,7 +253,7 @@ func (l *LocalBitcoins) CancelAllOrders(_ *exchange.OrderCancellation) (exchange
 		adIDString := strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
 		err = l.DeleteAd(adIDString)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(ads.AdList[i].Data.AdID, 10)] = err.Error()
+			cancelAllOrdersResponse.OrderStatus[adIDString] = err.Error()
 		}
 	}
 

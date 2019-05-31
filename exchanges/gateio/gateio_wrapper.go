@@ -266,15 +266,15 @@ func (g *Gateio) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 		return cancelAllOrdersResponse, err
 	}
 
-	uniqueSymbols := make(map[string]string)
+	uniqueSymbols := make(map[string]int)
 	for i := range openOrders.Orders {
-		uniqueSymbols[openOrders.Orders[i].CurrencyPair] = openOrders.Orders[i].CurrencyPair
+		uniqueSymbols[openOrders.Orders[i].CurrencyPair]++
 	}
 
 	for unique := range uniqueSymbols {
-		err = g.CancelAllExistingOrders(-1, uniqueSymbols[unique])
+		err = g.CancelAllExistingOrders(-1, unique)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			cancelAllOrdersResponse.OrderStatus[unique] = err.Error()
 		}
 	}
 

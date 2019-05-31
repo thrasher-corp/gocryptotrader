@@ -247,7 +247,9 @@ func (b *Bitmex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 	}
 
 	for i := range orders {
-		cancelAllOrdersResponse.OrderStatus[orders[i].OrderID] = orders[i].OrdRejReason
+		if orders[i].OrdRejReason != "" {
+			cancelAllOrdersResponse.OrderStatus[orders[i].OrderID] = orders[i].OrdRejReason
+		}
 	}
 
 	return cancelAllOrdersResponse, nil

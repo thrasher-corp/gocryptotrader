@@ -533,22 +533,21 @@ func (p *Poloniex) PlaceOrder(currency string, rate, amount float64, immediate, 
 }
 
 // CancelExistingOrder cancels and order by orderID
-func (p *Poloniex) CancelExistingOrder(orderID int64) (bool, error) {
+func (p *Poloniex) CancelExistingOrder(orderID int64) error {
 	result := GenericResponse{}
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderCancel, values, &result)
-
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if result.Success != 1 {
-		return false, errors.New(result.Error)
+		return errors.New(result.Error)
 	}
 
-	return true, nil
+	return nil
 }
 
 // MoveOrder moves an order

@@ -264,13 +264,15 @@ func (o *OKGroup) CancelOrder(orderCancellation *exchange.OrderCancellation) (er
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, _ error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, err error) {
 	orderIDs := strings.Split(orderCancellation.OrderID, ",")
+
 	var orderIDNumbers []int64
 	for _, i := range orderIDs {
 		orderIDNumber, err := strconv.ParseInt(i, 10, 64)
 		if err != nil {
-			return resp, err
+			resp.OrderStatus[i] = err.Error()
+			continue
 		}
 		orderIDNumbers = append(orderIDNumbers, orderIDNumber)
 	}

@@ -231,13 +231,19 @@ func (h *HitBTC) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
+
 	resp, err := h.CancelAllExistingOrders()
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for i := range resp {
-		cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(resp[i].ID, 10)] = fmt.Sprintf("Could not cancel order %v. Status: %v", resp[i].ID, resp[i].Status)
+		if resp[i].Status != "canceled" {
+			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(resp[i].ID, 10)] =
+				fmt.Sprintf("Could not cancel order %v. Status: %v",
+					resp[i].ID,
+					resp[i].Status)
+		}
 	}
 
 	return cancelAllOrdersResponse, nil
