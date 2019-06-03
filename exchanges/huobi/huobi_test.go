@@ -21,7 +21,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	testSymbol = "btcusdt"
+	testSymbol              = "btcusdt"
 )
 
 var h HUOBI

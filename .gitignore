@@ -13,6 +13,7 @@ testdata/writefiletest
 vendor/
 
 # Binaries for programs and plugins
+gocryptotrader
 *.exe
 *.exe~
 *.dll
