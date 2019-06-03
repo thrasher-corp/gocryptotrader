@@ -2,8 +2,11 @@ package zb
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -464,5 +467,89 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error")
 		}
+	}
+}
+
+// TestZBInvalidJSON ZB sends poorly formed JSON. this tests the JSON fixer
+// Then JSON decode it to test if successful
+func TestZBInvalidJSON(t *testing.T) {
+	json := `{"success":true,"code":1000,"channel":"getSubUserList","message":"[{"isOpenApi":false,"memo":"Memo","userName":"hello@imgoodthanksandyou.com@good","userId":1337,"isFreez":false}]","no":"0"}`
+	fixedJSON := z.wsFixInvalidJSON([]byte(json))
+	var response WsGetSubUserListResponse
+	err := common.JSONDecode([]byte(fixedJSON), &response)
+	if err != nil {
+		t.Log(err)
+	}
+	if response.Message[0].UserID != 1337 {
+		t.Error("Expected extracted JSON USERID to equal 1337")
+	}
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	z.SetDefaults()
+	TestSetup(t)
+	if !z.Websocket.IsEnabled() && !z.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	z.WebsocketConn, _, err = dialer.Dial(z.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	z.Websocket.DataHandler = make(chan interface{}, 999)
+	z.Websocket.TrafficAlert = make(chan struct{}, 999)
+	go z.WsHandleData()
+	defer z.WebsocketConn.Close()
+	err = z.wsGetSubUserList()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-z.Websocket.DataHandler:
+		return
+	case <-timer.C:
+		timer.Stop()
+		t.Error("Have not received a response")
+	}
+}
+
+// TestWsGetOrders dials websocket, sends getorder request.
+// Will return success false if you have no orders
+func TestWsGetOrders(t *testing.T) {
+	z.SetDefaults()
+	TestSetup(t)
+	if !z.Websocket.IsEnabled() && !z.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	z.WebsocketConn, _, err = dialer.Dial(z.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	z.Websocket.DataHandler = make(chan interface{}, 999)
+	z.Websocket.TrafficAlert = make(chan struct{}, 999)
+	go z.WsHandleData()
+	defer z.WebsocketConn.Close()
+	err = z.wsGetOrders(
+		currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(),
+		1,
+		1,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-z.Websocket.DataHandler:
+		return
+	case <-timer.C:
+		timer.Stop()
+		t.Error("Have not received a response")
 	}
 }
