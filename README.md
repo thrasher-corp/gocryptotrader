@@ -27,7 +27,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
-| BTCC | Yes  | Yes     | No  |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
