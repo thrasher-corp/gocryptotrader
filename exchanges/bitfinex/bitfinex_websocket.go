@@ -18,28 +18,30 @@ import (
 )
 
 const (
-	bitfinexWebsocket                   = "wss://api.bitfinex.com/ws"
-	bitfinexWebsocketVersion            = "1.1"
-	bitfinexWebsocketPositionSnapshot   = "ps"
-	bitfinexWebsocketPositionNew        = "pn"
-	bitfinexWebsocketPositionUpdate     = "pu"
-	bitfinexWebsocketPositionClose      = "pc"
-	bitfinexWebsocketWalletSnapshot     = "ws"
-	bitfinexWebsocketWalletUpdate       = "wu"
-	bitfinexWebsocketOrderSnapshot      = "os"
-	bitfinexWebsocketOrderNew           = "on"
-	bitfinexWebsocketOrderUpdate        = "ou"
-	bitfinexWebsocketOrderCancel        = "oc"
-	bitfinexWebsocketTradeExecuted      = "te"
-	bitfinexWebsocketHeartbeat          = "hb"
-	bitfinexWebsocketAlertRestarting    = "20051"
-	bitfinexWebsocketAlertRefreshing    = "20060"
-	bitfinexWebsocketAlertResume        = "20061"
-	bitfinexWebsocketUnknownEvent       = "10000"
-	bitfinexWebsocketUnknownPair        = "10001"
-	bitfinexWebsocketSubscriptionFailed = "10300"
-	bitfinexWebsocketAlreadySubscribed  = "10301"
-	bitfinexWebsocketUnknownChannel     = "10302"
+	bitfinexWebsocket                     = "wss://api.bitfinex.com/ws"
+	bitfinexWebsocketVersion              = "1.1"
+	bitfinexWebsocketPositionSnapshot     = "ps"
+	bitfinexWebsocketPositionNew          = "pn"
+	bitfinexWebsocketPositionUpdate       = "pu"
+	bitfinexWebsocketPositionClose        = "pc"
+	bitfinexWebsocketWalletSnapshot       = "ws"
+	bitfinexWebsocketWalletUpdate         = "wu"
+	bitfinexWebsocketOrderSnapshot        = "os"
+	bitfinexWebsocketOrderNew             = "on"
+	bitfinexWebsocketOrderUpdate          = "ou"
+	bitfinexWebsocketOrderCancel          = "oc"
+	bitfinexWebsocketTradeExecuted        = "te"
+	bitfinexWebsocketTradeExecutionUpdate = "tu"
+	bitfinexWebsocketTradeSnapshots       = "ts"
+	bitfinexWebsocketHeartbeat            = "hb"
+	bitfinexWebsocketAlertRestarting      = "20051"
+	bitfinexWebsocketAlertRefreshing      = "20060"
+	bitfinexWebsocketAlertResume          = "20061"
+	bitfinexWebsocketUnknownEvent         = "10000"
+	bitfinexWebsocketUnknownPair          = "10001"
+	bitfinexWebsocketSubscriptionFailed   = "10300"
+	bitfinexWebsocketAlreadySubscribed    = "10301"
+	bitfinexWebsocketUnknownChannel       = "10302"
 )
 
 // WebsocketHandshake defines the communication between the websocket API for
@@ -163,8 +165,6 @@ func (b *Bitfinex) WsConnect() error {
 		}
 	}
 
-
-
 	pongReceive = make(chan struct{}, 1)
 
 	go b.WsDataHandler()
@@ -207,6 +207,7 @@ func (b *Bitfinex) WsDataHandler() {
 				b.Websocket.DataHandler <- err
 				return
 			}
+			log.Debug(string(stream.Raw))
 
 			if stream.Type == websocket.TextMessage {
 				var result interface{}
@@ -417,6 +418,19 @@ func (b *Bitfinex) WsDataHandler() {
 								OrderID:        int64(data[3].(float64)),
 								AmountExecuted: data[4].(float64),
 								PriceExecuted:  data[5].(float64)}
+
+							b.Websocket.DataHandler <- trade
+						case bitfinexWebsocketTradeSnapshots, bitfinexWebsocketTradeExecutionUpdate:
+							data := chanData[2].([]interface{})
+							trade := WebsocketTradeData{
+								TradeID:        int64(data[0].(float64)),
+								Pair:           data[1].(string),
+								Timestamp:      int64(data[2].(float64)),
+								OrderID:        int64(data[3].(float64)),
+								AmountExecuted: data[4].(float64),
+								PriceExecuted:  data[5].(float64),
+								Fee:            data[6].(float64),
+								FeeCurrency:    data[7].(string)}
 
 							b.Websocket.DataHandler <- trade
 						}

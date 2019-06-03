@@ -140,7 +140,8 @@ func (b *Bitmex) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
 		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketAccountDataSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

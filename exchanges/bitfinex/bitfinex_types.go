@@ -448,6 +448,18 @@ type WebsocketTradeExecuted struct {
 	PriceExecuted  float64
 }
 
+// WebsocketTradeData holds executed trade data
+type WebsocketTradeData struct {
+	TradeID        int64
+	Pair           string
+	Timestamp      int64
+	OrderID        int64
+	AmountExecuted float64
+	PriceExecuted  float64
+	Fee            float64
+	FeeCurrency    string
+}
+
 // ErrorCapture is a simple type for returned errors from Bitfinex
 type ErrorCapture struct {
 	Message string `json:"message"`
