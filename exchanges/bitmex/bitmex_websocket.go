@@ -59,8 +59,7 @@ const (
 )
 
 var (
-	pongChan        = make(chan int, 1)
-	isAuthenticated bool
+	pongChan = make(chan int, 1)
 )
 
 // WsConnector initiates a new websocket connection
@@ -192,6 +191,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 				}
 
 				if decodedResp.Success {
+					b.Websocket.DataHandler <- decodedResp
 					if b.Verbose {
 						if len(quickCapture) == 3 {
 							log.Debugf("%s websocket: Successfully subscribed to %s",
@@ -266,7 +266,6 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 				case bitmexWSAnnouncement:
 					var announcement AnnouncementData
-
 					err = common.JSONDecode(resp.Raw, &announcement)
 					if err != nil {
 						b.Websocket.DataHandler <- err
@@ -278,7 +277,70 @@ func (b *Bitmex) wsHandleIncomingData() {
 					}
 
 					b.Websocket.DataHandler <- announcement.Data
-
+				case bitmexWSAffiliate:
+					var response WsAffiliateResponse
+					err = common.JSONDecode(resp.Raw, &response)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					b.Websocket.DataHandler <- response
+				case bitmexWSExecution:
+					var response WsExecutionResponse
+					err = common.JSONDecode(resp.Raw, &response)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					b.Websocket.DataHandler <- response
+				case bitmexWSOrder:
+					var response WsOrderResponse
+					err = common.JSONDecode(resp.Raw, &response)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					b.Websocket.DataHandler <- response
+				case bitmexWSMargin:
+					var response WsMarginResponse
+					err = common.JSONDecode(resp.Raw, &response)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					b.Websocket.DataHandler <- response
+				case bitmexWSPosition:
+					var response WsPositionResponse
+					err = common.JSONDecode(resp.Raw, &response)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					b.Websocket.DataHandler <- response
+				case bitmexWSPrivateNotifications:
+					var response WsPrivateNotificationsResponse
+					err = common.JSONDecode(resp.Raw, &response)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					b.Websocket.DataHandler <- response
+				case bitmexWSTransact:
+					var response WsTransactResponse
+					err = common.JSONDecode(resp.Raw, &response)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					b.Websocket.DataHandler <- response
+				case bitmexWSWallet:
+					var response WsWalletResponse
+					err = common.JSONDecode(resp.Raw, &response)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					b.Websocket.DataHandler <- response
 				default:
 					b.Websocket.DataHandler <- fmt.Errorf("%s websocket error: Table unknown - %s",
 						b.Name, decodedResp.Table)
@@ -407,23 +469,30 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 	b.Websocket.SubscribeToChannels(subscriptions)
 }
 
+// GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
-	if isAuthenticated {
-		return
-	}
 	contracts := b.GetEnabledCurrencies()
 	channels := []string{bitmexWSExecution,
-		bitmexWSMargin,
 		bitmexWSPosition,
-		bitmexWSPrivateNotifications,
-		bitmexWSTransact,
-		bitmexWSWallet}
+	}
 	subscriptions := []exchange.WebsocketChannelSubscription{
 		exchange.WebsocketChannelSubscription{
 			Channel: bitmexWSAffiliate,
 		},
 		exchange.WebsocketChannelSubscription{
 			Channel: bitmexWSOrder,
+		},
+		exchange.WebsocketChannelSubscription{
+			Channel: bitmexWSMargin,
+		},
+		exchange.WebsocketChannelSubscription{
+			Channel: bitmexWSPrivateNotifications,
+		},
+		exchange.WebsocketChannelSubscription{
+			Channel: bitmexWSTransact,
+		},
+		exchange.WebsocketChannelSubscription{
+			Channel: bitmexWSWallet,
 		},
 	}
 	for i := range channels {
@@ -463,17 +532,11 @@ func (b *Bitmex) websocketSendAuth() error {
 		[]byte("GET/realtime"+newTimestamp),
 		[]byte(b.APISecret))
 	signature := common.HexEncodeToString(hmac)
-
 	var sendAuth WebsocketRequest
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
 		signature)
-	err := b.wsSend(sendAuth)
-	if err != nil {
-		return err
-	}
-	isAuthenticated = true
-	return nil
+	return b.wsSend(sendAuth)
 }
 
 // WsSend sends data to the websocket server
