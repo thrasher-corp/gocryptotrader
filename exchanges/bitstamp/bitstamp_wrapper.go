@@ -344,8 +344,11 @@ func (b *Bitstamp) CancelOrder(order *exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitstamp) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	isCancelAllSuccessful, err := b.CancelAllExistingOrders()
-	if !isCancelAllSuccessful {
+	success, err := b.CancelAllExistingOrders()
+	if err != nil {
+		return exchange.CancelAllOrdersResponse{}, err
+	}
+	if !success {
 		err = errors.New("cancel all orders failed. Bitstamp provides no further information. Check order status to verify")
 	}
 

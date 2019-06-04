@@ -256,12 +256,12 @@ func (g *Gemini) CancelExistingOrder(orderID int64) (Order, error) {
 // the UI. If sessions = true will only cancel the order that is called on this
 // session asssociated with the APIKEY
 func (g *Gemini) CancelExistingOrders(cancelBySession bool) (OrderResult, error) {
-	response := OrderResult{}
 	path := geminiOrderCancelAll
 	if cancelBySession {
 		path = geminiOrderCancelSession
 	}
 
+	var response OrderResult
 	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, path, nil, &response)
 	if err != nil {
 		return response, err

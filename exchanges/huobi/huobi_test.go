@@ -22,6 +22,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+	testSymbol              = "btcusdt"
 )
 
 var h HUOBI
@@ -47,7 +48,7 @@ func TestSetup(t *testing.T) {
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetSpotKline(KlinesRequestParams{
-		Symbol: "btcusdt",
+		Symbol: testSymbol,
 		Period: TimeIntervalHour,
 		Size:   0,
 	})
@@ -58,7 +59,7 @@ func TestGetSpotKline(t *testing.T) {
 
 func TestGetMarketDetailMerged(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetMarketDetailMerged("btcusdt")
+	_, err := h.GetMarketDetailMerged(testSymbol)
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetMarketDetailMerged: %s", err)
 	}
@@ -67,7 +68,7 @@ func TestGetMarketDetailMerged(t *testing.T) {
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetDepth(OrderBookDataRequestParams{
-		Symbol: "btcusdt",
+		Symbol: testSymbol,
 		Type:   OrderBookDataRequestParamsTypeStep1,
 	})
 
@@ -78,7 +79,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetTrades("btcusdt")
+	_, err := h.GetTrades(testSymbol)
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetTrades: %s", err)
 	}
@@ -86,7 +87,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetLatestSpotPrice("btcusdt")
+	_, err := h.GetLatestSpotPrice(testSymbol)
 	if err != nil {
 		t.Errorf("Test failed - Huobi GetLatestSpotPrice: %s", err)
 	}
@@ -94,7 +95,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetTradeHistory("btcusdt", "50")
+	_, err := h.GetTradeHistory(testSymbol, "50")
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetTradeHistory: %s", err)
 	}
@@ -102,7 +103,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetMarketDetail(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetMarketDetail("btcusdt")
+	_, err := h.GetMarketDetail(testSymbol)
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetTradeHistory: %s", err)
 	}
@@ -172,7 +173,7 @@ func TestSpotNewOrder(t *testing.T) {
 	}
 
 	arg := SpotNewOrderRequestParams{
-		Symbol:    "btcusdt",
+		Symbol:    testSymbol,
 		AccountID: 1,
 		Amount:    0.01,
 		Price:     10.1,
@@ -210,7 +211,7 @@ func TestGetMarginLoanOrders(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := h.GetMarginLoanOrders("btcusdt", "", "", "", "", "", "", "")
+	_, err := h.GetMarginLoanOrders(testSymbol, "", "", "", "", "", "", "")
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetMarginLoanOrders: %s", err)
 	}
@@ -223,7 +224,7 @@ func TestGetMarginAccountBalance(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := h.GetMarginAccountBalance("btcusdt")
+	_, err := h.GetMarginAccountBalance(testSymbol)
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetMarginAccountBalance: %s", err)
 	}

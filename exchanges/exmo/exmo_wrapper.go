@@ -336,7 +336,6 @@ func (e *EXMO) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (e *EXMO) CancelOrder(order *exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
@@ -349,6 +348,7 @@ func (e *EXMO) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAl
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
+
 	openOrders, err := e.GetOpenOrders()
 	if err != nil {
 		return cancelAllOrdersResponse, err
@@ -388,7 +388,10 @@ func (e *EXMO) GetDepositAddress(cryptocurrency currency.Code, _ string) (string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	resp, err := e.WithdrawCryptocurrency(withdrawRequest.Currency.String(), withdrawRequest.Address, withdrawRequest.AddressTag, withdrawRequest.Amount)
+	resp, err := e.WithdrawCryptocurrency(withdrawRequest.Currency.String(),
+		withdrawRequest.Address,
+		withdrawRequest.AddressTag,
+		withdrawRequest.Amount)
 
 	return fmt.Sprintf("%v", resp), err
 }
@@ -425,6 +428,7 @@ func (e *EXMO) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 	if err != nil {
 		return nil, err
 	}
+
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		symbol := currency.NewPairDelimiter(order.Pair, "_")

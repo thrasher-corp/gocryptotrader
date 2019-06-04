@@ -348,14 +348,11 @@ func (p *Poloniex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (p *Poloniex) CancelOrder(order *exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
-	_, err = p.CancelExistingOrder(orderIDInt)
-
-	return err
+	return p.CancelExistingOrder(orderIDInt)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -370,7 +367,7 @@ func (p *Poloniex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Canc
 
 	for _, openOrderPerCurrency := range openOrders.Data {
 		for _, openOrder := range openOrderPerCurrency {
-			_, err = p.CancelExistingOrder(openOrder.OrderNumber)
+			err = p.CancelExistingOrder(openOrder.OrderNumber)
 			if err != nil {
 				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrder.OrderNumber, 10)] = err.Error()
 			}

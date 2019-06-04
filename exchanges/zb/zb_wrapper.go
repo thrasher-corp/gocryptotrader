@@ -353,7 +353,6 @@ func (z *ZB) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllO
 	}
 	var allOpenOrders []Order
 	for _, currency := range z.GetEnabledPairs(assets.AssetTypeSpot) {
-		var pageNumber int64
 		// Limiting to 10 pages
 		for i := 0; i < 10; i++ {
 			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(z.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String(), 1, 10)
@@ -366,7 +365,6 @@ func (z *ZB) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllO
 			}
 
 			allOpenOrders = append(allOpenOrders, openOrders...)
-			pageNumber++
 		}
 	}
 

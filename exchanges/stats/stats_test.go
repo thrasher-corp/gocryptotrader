@@ -64,7 +64,7 @@ func TestSwapByPrice(t *testing.T) {
 			Volume:    5,
 		},
 		{
-			Exchange:  "btcc",
+			Exchange:  "bitfinex",
 			Pair:      p,
 			AssetType: assets.AssetTypeSpot,
 			Price:     7863,
@@ -73,7 +73,7 @@ func TestSwapByPrice(t *testing.T) {
 	}
 
 	ByPrice.Swap(Items, 0, 1)
-	if Items[0].Exchange != "btcc" || Items[1].Exchange != "bitstamp" {
+	if Items[0].Exchange != "bitfinex" || Items[1].Exchange != "bitstamp" {
 		t.Error("Test Failed - stats SwapByPrice did not swap values.")
 	}
 }
@@ -96,7 +96,7 @@ func TestLessByVolume(t *testing.T) {
 func TestSwapByVolume(t *testing.T) {
 	ByPrice.Swap(Items, 0, 1)
 
-	if Items[1].Exchange != "btcc" || Items[0].Exchange != "bitstamp" {
+	if Items[1].Exchange != "bitfinex" || Items[0].Exchange != "bitstamp" {
 		t.Error("Test Failed - stats SwapByVolume did not swap values.")
 	}
 }

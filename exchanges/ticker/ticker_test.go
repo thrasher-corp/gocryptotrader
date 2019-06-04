@@ -248,6 +248,7 @@ func TestCreateNewTicker(t *testing.T) {
 
 func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	Tickers = []Ticker{}
+	exchName := "bitstamp"
 	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
@@ -260,17 +261,17 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		PriceATH: 1337,
 	}
 
-	err := ProcessTicker("btcc", &Price{}, assets.AssetTypeSpot)
+	err := ProcessTicker(exchName, &Price{}, assets.AssetTypeSpot)
 	if err == nil {
 		t.Fatal("Test failed. ProcessTicker error cannot be nil")
 	}
 
-	err = ProcessTicker("btcc", &priceStruct, assets.AssetTypeSpot)
+	err = ProcessTicker(exchName, &priceStruct, assets.AssetTypeSpot)
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
 
-	result, err := GetTicker("btcc", newPair, assets.AssetTypeSpot)
+	result, err := GetTicker(exchName, newPair, assets.AssetTypeSpot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
 	}
@@ -281,17 +282,17 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	secondPair := currency.NewPairFromStrings("BTC", "AUD")
 	priceStruct.Pair = secondPair
-	err = ProcessTicker("btcc", &priceStruct, assets.AssetTypeSpot)
+	err = ProcessTicker(exchName, &priceStruct, assets.AssetTypeSpot)
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
 
-	result, err = GetTicker("btcc", secondPair, assets.AssetTypeSpot)
+	result, err = GetTicker(exchName, secondPair, assets.AssetTypeSpot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
 	}
 
-	result, err = GetTicker("btcc", newPair, assets.AssetTypeSpot)
+	result, err = GetTicker(exchName, newPair, assets.AssetTypeSpot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessTicker failed to return an existing ticker")
 	}

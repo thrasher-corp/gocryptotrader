@@ -10,7 +10,6 @@ var Exchanges = []string{
 	"bitmex",
 	"bitstamp",
 	"bittrex",
-	"btcc",
 	"btc markets",
 	"btse",
 	"coinbasepro",

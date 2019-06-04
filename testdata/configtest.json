@@ -462,46 +462,6 @@
    ]
   },
   {
-   "name": "BTCC",
-   "enabled": true,
-   "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
-   "httpTimeout": 15000000000,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTCUSD",
-   "enabledPairs": "BTCUSD",
-   "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
-   },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
-   },
-   "bankAccounts": [
-    {
-     "bankName": "",
-     "bankAddress": "",
-     "accountName": "",
-     "accountNumber": "",
-     "swiftCode": "",
-     "iban": "",
-     "supportedCurrencies": ""
-    }
-   ]
-  },
-  {
    "name": "BTSE",
    "enabled": true,
    "verbose": false,
