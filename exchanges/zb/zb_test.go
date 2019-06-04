@@ -476,7 +476,7 @@ func TestZBInvalidJSON(t *testing.T) {
 	json := `{"success":true,"code":1000,"channel":"getSubUserList","message":"[{"isOpenApi":false,"memo":"Memo","userName":"hello@imgoodthanksandyou.com@good","userId":1337,"isFreez":false}]","no":"0"}`
 	fixedJSON := z.wsFixInvalidJSON([]byte(json))
 	var response WsGetSubUserListResponse
-	err := common.JSONDecode([]byte(fixedJSON), &response)
+	err := common.JSONDecode(fixedJSON, &response)
 	if err != nil {
 		t.Log(err)
 	}

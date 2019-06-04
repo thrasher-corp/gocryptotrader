@@ -258,7 +258,7 @@ func (p *Poloniex) wsHandleAccountData(accountData [][]interface{}) {
 			}
 			p.Websocket.DataHandler <- response
 		case "n":
-			timeParse, _ := time.Parse("2006-01-02 15:04:05", accountData[i][6].(string)) //,)
+			timeParse, _ := time.Parse("2006-01-02 15:04:05", accountData[i][6].(string))
 			response := WsNewLimitOrderResponse{
 				currencyID:  accountData[i][1].(float64),
 				orderNumber: accountData[i][2].(float64),
@@ -275,7 +275,7 @@ func (p *Poloniex) wsHandleAccountData(accountData [][]interface{}) {
 			}
 			p.Websocket.DataHandler <- response
 		case "t":
-			timeParse, _ := time.Parse("2006-01-02 15:04:05", accountData[i][8].(string)) //,)
+			timeParse, _ := time.Parse("2006-01-02 15:04:05", accountData[i][8].(string))
 			response := WsTradeNotificationResponse{
 				TradeID:       accountData[i][1].(float64),
 				Rate:          accountData[i][2].(string),

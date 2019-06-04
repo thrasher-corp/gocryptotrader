@@ -47,8 +47,7 @@ func (h *HUOBI) WsConnect() error {
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
-	var err error
-	err = h.wsDial(&dialer)
+	err := h.wsDial(&dialer)
 	if err != nil {
 		return err
 	}

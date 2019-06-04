@@ -368,11 +368,13 @@ type WsSupportedCurrency struct {
 	Quote         string `json:"quote"`
 }
 
+// WsRequest base request
 type WsRequest struct {
 	Request string `json:"request"`
 	Nonce   int64  `json:"nonce"`
 }
 
+// WsTradeHistoryRequest ws request
 type WsTradeHistoryRequest struct {
 	InstID int64 `json:"inst_id"`
 	Start  int64 `json:"start,omitempty"`
@@ -380,37 +382,44 @@ type WsTradeHistoryRequest struct {
 	WsRequest
 }
 
+// WsCancelOrdersRequest ws request
 type WsCancelOrdersRequest struct {
 	Entries []WsCancelOrdersRequestEntry `json:"entries"`
 	WsRequest
 }
 
+// WsCancelOrdersRequestEntry ws request entry
 type WsCancelOrdersRequestEntry struct {
 	InstID  int64 `json:"inst_id"`
 	OrderID int64 `json:"order_id"`
 }
 
+// WsCancelOrderParameters ws request parameters
 type WsCancelOrderParameters struct {
 	Currency currency.Pair
 	OrderID  int64
 }
 
+// WsCancelOrderRequest ws request
 type WsCancelOrderRequest struct {
 	InstID  int64 `json:"inst_id"`
 	OrderID int64 `json:"order_id"`
 	WsRequest
 }
 
+// WsGetOpenOrdersRequest ws request
 type WsGetOpenOrdersRequest struct {
 	InstID int64 `json:"inst_id"`
 	WsRequest
 }
 
+// WsSubmitOrdersRequest ws request
 type WsSubmitOrdersRequest struct {
 	Orders []WsSubmitOrdersRequestData `json:"orders"`
 	WsRequest
 }
 
+// WsSubmitOrdersRequestData ws request data
 type WsSubmitOrdersRequestData struct {
 	InstID      int64   `json:"inst_id"`
 	Price       float64 `json:"price,string"`
@@ -419,6 +428,7 @@ type WsSubmitOrdersRequestData struct {
 	Side        string  `json:"side"`
 }
 
+// WsSubmitOrderRequest ws request
 type WsSubmitOrderRequest struct {
 	InstID  int64   `json:"inst_id"`
 	Price   float64 `json:"price,string"`
@@ -428,6 +438,7 @@ type WsSubmitOrderRequest struct {
 	WsRequest
 }
 
+// WsSubmitOrderParameters ws request parameters
 type WsSubmitOrderParameters struct {
 	Currency      currency.Pair
 	Side          exchange.OrderSide
@@ -435,6 +446,7 @@ type WsSubmitOrderParameters struct {
 	OrderID       int64
 }
 
+// WsUserBalanceResponse ws response
 type WsUserBalanceResponse struct {
 	Nonce             int64    `json:"nonce"`
 	Status            []string `json:"status"`
@@ -451,6 +463,7 @@ type WsUserBalanceResponse struct {
 	TransID           int64    `json:"trans_id"`
 }
 
+// WsOrderAcceptedResponse ws response
 type WsOrderAcceptedResponse struct {
 	Nonce       int64    `json:"nonce"`
 	Status      []string `json:"status"`
@@ -465,6 +478,7 @@ type WsOrderAcceptedResponse struct {
 	TransID     int64    `json:"trans_id"`
 }
 
+// WsOrderFilledResponse ws response
 type WsOrderFilledResponse struct {
 	Commission WsOrderFilledCommissionData `json:"commission"`
 	FillPrice  string                      `json:"fill_price"`
@@ -477,6 +491,7 @@ type WsOrderFilledResponse struct {
 	TransID    int64                       `json:"trans_id"`
 }
 
+// WsOrderFilledOrderData ws response data
 type WsOrderFilledOrderData struct {
 	ClientOrdID int64  `json:"client_ord_id"`
 	InstID      int64  `json:"inst_id"`
@@ -488,11 +503,13 @@ type WsOrderFilledOrderData struct {
 	Timestamp   int64  `json:"timestamp"`
 }
 
+// WsOrderFilledCommissionData ws response data
 type WsOrderFilledCommissionData struct {
 	Amount   string `json:"amount"`
 	Currency string `json:"currency"`
 }
 
+// WsOrderRejectedResponse ws response
 type WsOrderRejectedResponse struct {
 	Nonce       int64    `json:"nonce"`
 	Status      []string `json:"status"`
@@ -509,6 +526,7 @@ type WsOrderRejectedResponse struct {
 	TransID     int64    `json:"trans_id"`
 }
 
+// WsUserOpenOrdersResponse ws response
 type WsUserOpenOrdersResponse struct {
 	Nonce  int64                       `json:"nonce"`
 	Reply  string                      `json:"reply"`
@@ -516,6 +534,7 @@ type WsUserOpenOrdersResponse struct {
 	Orders []WsUserOpenOrdersOrderData `json:"orders"`
 }
 
+// WsUserOpenOrdersOrderData ws response data
 type WsUserOpenOrdersOrderData struct {
 	OrderID     int64  `json:"order_id"`
 	OpenQty     string `json:"open_qty"`
@@ -527,6 +546,7 @@ type WsUserOpenOrdersOrderData struct {
 	Side        string `json:"side"`
 }
 
+// WsTradeHistoryResponse ws response
 type WsTradeHistoryResponse struct {
 	Nonce       int64                     `json:"nonce"`
 	Reply       string                    `json:"reply"`
@@ -535,6 +555,7 @@ type WsTradeHistoryResponse struct {
 	Trades      []WsTradeHistoryTradeData `json:"trades"`
 }
 
+// WsTradeHistoryOrderData ws response data
 type WsTradeHistoryOrderData struct {
 	ClientOrdID int64  `json:"client_ord_id"`
 	InstID      int64  `json:"inst_id"`
@@ -545,11 +566,14 @@ type WsTradeHistoryOrderData struct {
 	Side        string `json:"side"`
 	Timestamp   int64  `json:"timestamp"`
 }
+
+// WsTradeHistoryCommissionData ws response data
 type WsTradeHistoryCommissionData struct {
 	Amount   string `json:"amount"`
 	Currency string `json:"currency"`
 }
 
+// WsTradeHistoryTradeData ws response data
 type WsTradeHistoryTradeData struct {
 	Commission WsTradeHistoryCommissionData `json:"commission"`
 	Order      WsTradeHistoryOrderData      `json:"order"`

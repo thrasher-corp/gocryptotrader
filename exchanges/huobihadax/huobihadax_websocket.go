@@ -19,6 +19,7 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
+// WS URL values
 const (
 	HuobiHadaxSocketIOAddress       = "wss://api.hadax.com/ws"
 	HuobiHadaxAccountsOrdersAddress = "wss://api.huobi.pro/ws/v1"
@@ -47,8 +48,7 @@ func (h *HUOBIHADAX) WsConnect() error {
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
-	var err error
-	err = h.wsDial(&dialer)
+	err := h.wsDial(&dialer)
 	if err != nil {
 		return err
 	}

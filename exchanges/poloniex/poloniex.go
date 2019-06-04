@@ -93,7 +93,8 @@ func (p *Poloniex) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketTickerSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported
 }
 
 // Setup sets user exchange configuration settings

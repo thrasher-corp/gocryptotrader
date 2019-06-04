@@ -476,22 +476,22 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 		bitmexWSPosition,
 	}
 	subscriptions := []exchange.WebsocketChannelSubscription{
-		exchange.WebsocketChannelSubscription{
+		{
 			Channel: bitmexWSAffiliate,
 		},
-		exchange.WebsocketChannelSubscription{
+		{
 			Channel: bitmexWSOrder,
 		},
-		exchange.WebsocketChannelSubscription{
+		{
 			Channel: bitmexWSMargin,
 		},
-		exchange.WebsocketChannelSubscription{
+		{
 			Channel: bitmexWSPrivateNotifications,
 		},
-		exchange.WebsocketChannelSubscription{
+		{
 			Channel: bitmexWSTransact,
 		},
-		exchange.WebsocketChannelSubscription{
+		{
 			Channel: bitmexWSWallet,
 		},
 	}

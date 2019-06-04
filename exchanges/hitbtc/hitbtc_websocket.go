@@ -102,11 +102,8 @@ func (h *HitBTC) WsHandleData() {
 					init.Error.Message)
 				continue
 			}
-			switch initResult := init.Result.(type) {
-			case bool:
-				if initResult {
-					continue
-				}
+			if _, ok := init.Result.(bool); ok {
+				continue
 			}
 			if init.Method != "" {
 				h.handleSubscriptionUpdates(resp, init)

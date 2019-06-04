@@ -443,7 +443,7 @@ func (c *COINUT) wsGetAccountBalance() error {
 	return c.wsSend(loginRequest)
 }
 
-func (c *COINUT) wsSubmitOrder(order WsSubmitOrderParameters) error {
+func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) error {
 	order.Currency.Delimiter = ""
 	currency := order.Currency.Upper().String()
 	nonce := c.GetNonce()
