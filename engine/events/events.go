@@ -329,7 +329,7 @@ func IsValidExchange(exchangeName string) bool {
 	exchangeName = strings.ToLower(exchangeName)
 	cfg := config.GetConfig()
 	for x := range cfg.Exchanges {
-		if strings.ToLower(cfg.Exchanges[x].Name) == exchangeName && cfg.Exchanges[x].Enabled {
+		if strings.EqualFold(cfg.Exchanges[x].Name, exchangeName) && cfg.Exchanges[x].Enabled {
 			return true
 		}
 	}

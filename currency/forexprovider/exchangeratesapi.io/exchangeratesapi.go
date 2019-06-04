@@ -66,7 +66,7 @@ func cleanCurrencies(baseCurrency, symbols string) string {
 		}
 
 		// remove and warn about any unsupported currencies
-		if !strings.Contains(exchangeRatesSupportedCurrencies, x) {
+		if !strings.Contains(exchangeRatesSupportedCurrencies, x) { // nolint:gocritic
 			log.Warnf("Forex provider ExchangeRatesAPI does not support currency %s, removing from forex rates query.", x)
 			continue
 		}

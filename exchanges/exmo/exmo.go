@@ -238,7 +238,7 @@ func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount 
 	v.Set("currency", currency)
 	v.Set("address", address)
 
-	if strings.ToUpper(currency) == "XRP" {
+	if strings.EqualFold(currency, "XRP") {
 		v.Set(invoice, invoice)
 	}
 

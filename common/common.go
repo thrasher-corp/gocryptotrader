@@ -145,7 +145,7 @@ func IsValidCryptoAddress(address, crypto string) (bool, error) {
 
 // YesOrNo returns a boolean variable to check if input is "y" or "yes"
 func YesOrNo(input string) bool {
-	if strings.ToLower(input) == "y" || strings.ToLower(input) == "yes" {
+	if strings.EqualFold(input, "y") || strings.EqualFold(input, "yes") {
 		return true
 	}
 	return false
