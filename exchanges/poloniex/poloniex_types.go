@@ -4,6 +4,7 @@ import "github.com/thrasher-/gocryptotrader/currency"
 
 // Ticker holds ticker data
 type Ticker struct {
+	ID            int     `json:"id"`
 	Last          float64 `json:"last,string"`
 	LowestAsk     float64 `json:"lowestAsk,string"`
 	HighestBid    float64 `json:"highestBid,string"`

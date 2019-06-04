@@ -75,11 +75,11 @@ func (b *Bitmex) SetDefaults() {
 	// Upside and Downside profit contracts use the same format
 	fmt2 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
-			Delimiter: "-",
+			Delimiter: "_",
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
+			Delimiter: "_",
 			Uppercase: true,
 		},
 	}

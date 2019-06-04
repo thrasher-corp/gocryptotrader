@@ -78,8 +78,10 @@ func (c *COINUT) WsHandleData() {
 					continue
 				}
 
+				currencyPair := instrumentListByCode[ticker.InstID]
 				c.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Unix(0, ticker.Timestamp),
+					Pair:       currency.NewPairFromString(currencyPair),
 					Exchange:   c.GetName(),
 					AssetType:  assets.AssetTypeSpot,
 					HighPrice:  ticker.HighestBuy,
@@ -225,7 +227,7 @@ func (c *COINUT) GetNonce() int64 {
 func (c *COINUT) WsSetInstrumentList() error {
 	err := c.wsSend(wsRequest{
 		Request: "inst_list",
-		SecType: "spot",
+		SecType: "SPOT",
 		Nonce:   c.GetNonce(),
 	})
 	if err != nil {

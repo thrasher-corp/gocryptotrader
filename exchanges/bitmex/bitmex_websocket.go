@@ -388,7 +388,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateDefaultSubscriptions() {
-	contracts := b.GetEnabledPairs(assets.AssetTypeSpot)
+	contracts := b.GetEnabledPairs(assets.AssetTypePerpetualContract)
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
 	subscriptions := []exchange.WebsocketChannelSubscription{
 		{

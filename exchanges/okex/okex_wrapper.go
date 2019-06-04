@@ -113,7 +113,7 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.API.Endpoints.WebsocketURL)
 	}
 
 	if !o.GetEnabledFeatures().AutoPairUpdates {
@@ -153,14 +153,14 @@ func (o *OKEX) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 		return pairs, nil
 
 	case assets.AssetTypePerpetualSwap:
-		prods, err := o.GetAllSwapTokensInformation()
+		prods, err := o.GetSwapContractInformation()
 		if err != nil {
 			return nil, err
 		}
 
 		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, prods[x].InstrumentID)
+			pairs = append(pairs, prods[x].UnderlyingIndex+"_"+prods[x].QuoteCurrency+"_SWAP")
 		}
 		return pairs, nil
 	case assets.AssetTypeIndex:

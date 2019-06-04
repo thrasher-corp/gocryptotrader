@@ -91,7 +91,7 @@ func (b *BTSE) WsHandleData() {
 				ProductID string `json:"product_id"`
 			}
 
-			if strings.Contains(string(resp.Raw), "connect success") {
+			if strings.Contains(string(resp.Raw), "Welcome to BTSE") {
 				if b.Verbose {
 					log.Debugf("%s websocket client successfully connected to %s",
 						b.Name, b.Websocket.GetWebsocketURL())
@@ -121,11 +121,12 @@ func (b *BTSE) WsHandleData() {
 				}
 
 				b.Websocket.DataHandler <- exchange.TickerData{
-					Timestamp: time.Now(),
-					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
-					AssetType: assets.AssetTypeSpot,
-					Exchange:  b.GetName(),
-					OpenPrice: price,
+					Timestamp:  time.Now(),
+					Pair:       currency.NewPairDelimiter(t.ProductID, "-"),
+					AssetType:  assets.AssetTypeSpot,
+					Exchange:   b.GetName(),
+					ClosePrice: price,
+					Quantity:   t.LastSize,
 				}
 			case "snapshot":
 				snapshot := websocketOrderbookSnapshot{}

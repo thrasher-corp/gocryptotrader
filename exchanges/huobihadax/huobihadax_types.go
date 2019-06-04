@@ -313,9 +313,9 @@ type WsTrade struct {
 		ID        int64 `json:"id"`
 		Timestamp int64 `json:"ts"`
 		Data      []struct {
-			Amount    float64 `json:"amount"`
+			ID        float64 `json:"id"`
 			Timestamp int64   `json:"ts"`
-			ID        float64 `json:"id,string"`
+			Amount    float64 `json:"amount"`
 			Price     float64 `json:"price"`
 			Direction string  `json:"direction"`
 		} `json:"data"`

@@ -37,7 +37,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
-		o.WebsocketURL,
+		o.API.Endpoints.WebsocketURL,
 		exch.API.Endpoints.WebsocketURL)
 }
 
