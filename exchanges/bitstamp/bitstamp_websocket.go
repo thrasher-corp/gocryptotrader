@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -117,8 +118,8 @@ func (b *Bitstamp) WsHandleData() {
 					continue
 				}
 
-				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
-				p := currency.NewPairFromString(common.StringToUpper(currencyPair[3]))
+				currencyPair := strings.Split(wsResponse.Channel, "_")
+				p := currency.NewPairFromString(strings.ToUpper(currencyPair[3]))
 
 				err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, assets.AssetTypeSpot)
 				if err != nil {
@@ -135,8 +136,8 @@ func (b *Bitstamp) WsHandleData() {
 					continue
 				}
 
-				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
-				p := currency.NewPairFromString(common.StringToUpper(currencyPair[2]))
+				currencyPair := strings.Split(wsResponse.Channel, "_")
+				p := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
 
 				b.Websocket.DataHandler <- exchange.TradeData{
 					Price:        wsTradeTemp.Data.Price,

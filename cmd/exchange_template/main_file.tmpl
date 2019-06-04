@@ -60,9 +60,9 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 		{{.Variable}}.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		{{.Variable}}.Verbose = exch.Verbose
 		{{.Variable}}.Websocket.SetWsStatusAndConnection(exch.Features.Enabled.Websocket)
-		{{.Variable}}.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		{{.Variable}}.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		{{.Variable}}.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		{{.Variable}}.BaseCurrencies = strings.Split(exch.BaseCurrencies, ",")
+		{{.Variable}}.AvailablePairs = strings.Split(exch.AvailablePairs, ",")
+		{{.Variable}}.EnabledPairs = strings.Split(exch.EnabledPairs, ",")
 		err := {{.Variable}}.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)

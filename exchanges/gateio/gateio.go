@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common/convert"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -214,31 +215,31 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 
 	for _, k := range rawKlineDatas {
 		otString, _ := strconv.ParseFloat(k[0].(string), 64)
-		ot, err := common.TimeFromUnixTimestampFloat(otString)
+		ot, err := convert.TimeFromUnixTimestampFloat(otString)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
 		}
-		_vol, err := common.FloatFromString(k[1])
+		_vol, err := convert.FloatFromString(k[1])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Volume. Err: %s", err)
 		}
-		_id, err := common.FloatFromString(k[0])
+		_id, err := convert.FloatFromString(k[0])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Id. Err: %s", err)
 		}
-		_close, err := common.FloatFromString(k[2])
+		_close, err := convert.FloatFromString(k[2])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Close. Err: %s", err)
 		}
-		_high, err := common.FloatFromString(k[3])
+		_high, err := convert.FloatFromString(k[3])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.High. Err: %s", err)
 		}
-		_low, err := common.FloatFromString(k[4])
+		_low, err := convert.FloatFromString(k[4])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Low. Err: %s", err)
 		}
-		_open, err := common.FloatFromString(k[5])
+		_open, err := convert.FloatFromString(k[5])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
 		}

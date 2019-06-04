@@ -73,28 +73,6 @@ func TestIsValidCryptoAddress(t *testing.T) {
 	}
 }
 
-func TestStringToLower(t *testing.T) {
-	t.Parallel()
-	upperCaseString := "HEY MAN"
-	expectedResult := "hey man"
-	actualResult := StringToLower(upperCaseString)
-	if actualResult != expectedResult {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
-			expectedResult, actualResult)
-	}
-}
-
-func TestStringToUpper(t *testing.T) {
-	t.Parallel()
-	upperCaseString := "hey man"
-	expectedResult := "HEY MAN"
-	actualResult := StringToUpper(upperCaseString)
-	if actualResult != expectedResult {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
-			expectedResult, actualResult)
-	}
-}
-
 func TestStringSliceDifference(t *testing.T) {
 	t.Parallel()
 	originalInputOne := []string{"hello"}
@@ -103,18 +81,6 @@ func TestStringSliceDifference(t *testing.T) {
 	actualResult := StringSliceDifference(originalInputOne, originalInputTwo)
 	if reflect.DeepEqual(expectedOutput, actualResult) {
 		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult)
-	}
-}
-
-func TestStringContains(t *testing.T) {
-	t.Parallel()
-	originalInput := "hello"
-	originalInputSubstring := "he"
-	expectedOutput := true
-	actualResult := StringContains(originalInput, originalInputSubstring)
-	if actualResult != expectedOutput {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 }
@@ -193,64 +159,6 @@ func TestStringDataContainsUpper(t *testing.T) {
 	if actualResult != expectedOutputTwo {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
-	}
-}
-
-func TestJoinStrings(t *testing.T) {
-	t.Parallel()
-	originalInputOne := []string{"hello", "moto"}
-	separator := ","
-	expectedOutput := "hello,moto"
-	actualResult := JoinStrings(originalInputOne, separator)
-	if expectedOutput != actualResult {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult)
-	}
-}
-
-func TestSplitStrings(t *testing.T) {
-	t.Parallel()
-	originalInputOne := "hello,moto"
-	separator := ","
-	expectedOutput := []string{"hello", "moto"}
-	actualResult := SplitStrings(originalInputOne, separator)
-	if !reflect.DeepEqual(expectedOutput, actualResult) {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult)
-	}
-}
-
-func TestTrimString(t *testing.T) {
-	t.Parallel()
-	originalInput := "abcd"
-	cutset := "ad"
-	expectedOutput := "bc"
-	actualResult := TrimString(originalInput, cutset)
-	if expectedOutput != actualResult {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult)
-	}
-}
-
-// TestReplaceString replaces a string with another
-func TestReplaceString(t *testing.T) {
-	t.Parallel()
-	currency := "BTC-USD"
-	expectedOutput := "BTCUSD"
-
-	actualResult := ReplaceString(currency, "-", "", -1)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult,
-		)
-	}
-
-	currency = "BTC-USD--"
-	actualResult = ReplaceString(currency, "-", "", 3)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult,
-		)
 	}
 }
 
@@ -580,14 +488,6 @@ func TestGetExecutablePath(t *testing.T) {
 	}
 }
 
-func TestGetOSPathSlash(t *testing.T) {
-	output := GetOSPathSlash()
-	if output != "/" && output != "\\" {
-		t.Errorf("Test failed. Common GetOSPathSlash. Returned '%s'", output)
-	}
-
-}
-
 func TestUnixMillis(t *testing.T) {
 	t.Parallel()
 	testTime := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
@@ -609,96 +509,6 @@ func TestRecvWindow(t *testing.T) {
 	if actualOutput != expectedOutput {
 		t.Errorf("Test failed. Common RecvWindow. Expected '%d'. Actual '%d'",
 			expectedOutput, actualOutput)
-	}
-}
-
-func TestFloatFromString(t *testing.T) {
-	t.Parallel()
-	testString := "1.41421356237"
-	expectedOutput := float64(1.41421356237)
-
-	actualOutput, err := FloatFromString(testString)
-	if actualOutput != expectedOutput || err != nil {
-		t.Errorf("Test failed. Common FloatFromString. Expected '%v'. Actual '%v'. Error: %s",
-			expectedOutput, actualOutput, err)
-	}
-
-	var testByte []byte
-	_, err = FloatFromString(testByte)
-	if err == nil {
-		t.Error("Test failed. Common FloatFromString. Converted non-string.")
-	}
-
-	testString = "   something unconvertible  "
-	_, err = FloatFromString(testString)
-	if err == nil {
-		t.Error("Test failed. Common FloatFromString. Converted invalid syntax.")
-	}
-}
-
-func TestIntFromString(t *testing.T) {
-	t.Parallel()
-	testString := "1337"
-	expectedOutput := 1337
-
-	actualOutput, err := IntFromString(testString)
-	if actualOutput != expectedOutput || err != nil {
-		t.Errorf("Test failed. Common IntFromString. Expected '%v'. Actual '%v'. Error: %s",
-			expectedOutput, actualOutput, err)
-	}
-
-	var testByte []byte
-	_, err = IntFromString(testByte)
-	if err == nil {
-		t.Error("Test failed. Common IntFromString. Converted non-string.")
-	}
-
-	testString = "1.41421356237"
-	_, err = IntFromString(testString)
-	if err == nil {
-		t.Error("Test failed. Common IntFromString. Converted invalid syntax.")
-	}
-}
-
-func TestInt64FromString(t *testing.T) {
-	t.Parallel()
-	testString := "4398046511104"
-	expectedOutput := int64(1 << 42)
-
-	actualOutput, err := Int64FromString(testString)
-	if actualOutput != expectedOutput || err != nil {
-		t.Errorf("Test failed. Common Int64FromString. Expected '%v'. Actual '%v'. Error: %s",
-			expectedOutput, actualOutput, err)
-	}
-
-	var testByte []byte
-	_, err = Int64FromString(testByte)
-	if err == nil {
-		t.Error("Test failed. Common Int64FromString. Converted non-string.")
-	}
-
-	testString = "1.41421356237"
-	_, err = Int64FromString(testString)
-	if err == nil {
-		t.Error("Test failed. Common Int64FromString. Converted invalid syntax.")
-	}
-}
-
-func TestTimeFromUnixTimestampFloat(t *testing.T) {
-	t.Parallel()
-	testTimestamp := float64(1414456320000)
-	expectedOutput := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
-
-	actualOutput, err := TimeFromUnixTimestampFloat(testTimestamp)
-	if actualOutput.UTC().String() != expectedOutput.UTC().String() || err != nil {
-		t.Errorf("Test failed. Common TimeFromUnixTimestampFloat. Expected '%v'. Actual '%v'. Error: %s",
-			expectedOutput, actualOutput, err)
-	}
-
-	testString := "Time"
-	_, err = TimeFromUnixTimestampFloat(testString)
-	if err == nil {
-		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
 	}
 }
 
@@ -758,7 +568,7 @@ func TestCreateDir(t *testing.T) {
 		if !ok {
 			t.Fatal("LookupEnv failed. APPDATA is not set")
 		}
-		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
+		dir = filepath.Join(dir, "GoCryptoTrader", "TestFileASDFG")
 		err = CreateDir(dir)
 		if err != nil {
 			t.Fatalf("CreateDir failed. Err: %v", err)
@@ -796,13 +606,14 @@ func TestCreateDir(t *testing.T) {
 }
 
 func TestChangePerm(t *testing.T) {
+	testDir := filepath.Join(GetDefaultDataDir(runtime.GOOS), "TestFileASDFGHJ")
 	switch runtime.GOOS {
 	case "windows":
 		err := ChangePerm("*")
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
-		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		err = os.Mkdir(testDir, 0777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
@@ -810,11 +621,11 @@ func TestChangePerm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
 		}
-		_, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		_, err = os.Stat(testDir)
 		if err != nil {
 			t.Fatalf("os.Stat failed. Err: %v", err)
 		}
-		err = RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		err = RemoveFile(testDir)
 		if err != nil {
 			t.Fatalf("RemoveFile failed. Err: %v", err)
 		}
@@ -823,7 +634,7 @@ func TestChangePerm(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
-		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		err = os.Mkdir(testDir, 0777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
@@ -832,14 +643,14 @@ func TestChangePerm(t *testing.T) {
 			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
 		}
 		var a os.FileInfo
-		a, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		a, err = os.Stat(testDir)
 		if err != nil {
 			t.Fatalf("os.Stat failed. Err: %v", err)
 		}
 		if a.Mode().Perm() != 0770 {
 			t.Fatalf("expected file permissions differ. expecting 0770 got %#o", a.Mode().Perm())
 		}
-		err = RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		err = RemoveFile(testDir)
 		if err != nil {
 			t.Fatalf("RemoveFile failed. Err: %v", err)
 		}

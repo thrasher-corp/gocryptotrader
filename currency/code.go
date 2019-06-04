@@ -3,6 +3,7 @@ package currency
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -294,8 +295,8 @@ func (b *BaseCodes) UpdateContract(fullName, symbol, assocExchange string) error
 
 // Register registers a currency from a string and returns a currency code
 func (b *BaseCodes) Register(c string) Code {
-	NewUpperCode := common.StringToUpper(c)
-	format := common.StringContains(c, NewUpperCode)
+	NewUpperCode := strings.ToUpper(c)
+	format := strings.Contains(c, NewUpperCode)
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -321,7 +322,7 @@ func (b *BaseCodes) Register(c string) Code {
 // RegisterFiat registers a fiat currency from a string and returns a currency
 // code
 func (b *BaseCodes) RegisterFiat(c string) (Code, error) {
-	c = common.StringToUpper(c)
+	c = strings.ToUpper(c)
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -427,7 +428,7 @@ func (c Code) String() string {
 	if c.UpperCase {
 		return c.Item.Symbol
 	}
-	return common.StringToLower(c.Item.Symbol)
+	return strings.ToLower(c.Item.Symbol)
 }
 
 // Lower converts the code to lowercase formatting

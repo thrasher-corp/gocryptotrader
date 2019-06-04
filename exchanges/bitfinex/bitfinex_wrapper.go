@@ -170,7 +170,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ti
 		pairs = append(pairs, "t"+enabledPairs[x].String())
 	}
 
-	tickerNew, err := b.GetTickersV2(common.JoinStrings(pairs, ","))
+	tickerNew, err := b.GetTickersV2(strings.Join(pairs, ","))
 	if err != nil {
 		return tickerPrice, err
 	}

@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -122,7 +123,7 @@ func (c *WebsocketClient) read() {
 				break
 			}
 
-			req := common.StringToLower(evt.Event)
+			req := strings.ToLower(evt.Event)
 			log.Debugf("websocket: request received: %s", req)
 
 			result, ok := wsHandlers[req]

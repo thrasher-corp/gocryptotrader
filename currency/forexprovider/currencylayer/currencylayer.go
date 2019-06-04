@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -125,7 +126,7 @@ func (c *CurrencyLayer) GetliveData(currencies, source string) (map[string]float
 func (c *CurrencyLayer) GetHistoricalData(date string, currencies []string, source string) (map[string]float64, error) {
 	var resp HistoricalRates
 	v := url.Values{}
-	v.Set("currencies", common.JoinStrings(currencies, ","))
+	v.Set("currencies", strings.Join(currencies, ","))
 	v.Set("source", source)
 	v.Set("date", date)
 
@@ -179,7 +180,7 @@ func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, baseCurrency string, 
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
 	v.Set("base", baseCurrency)
-	v.Set("currencies", common.JoinStrings(currencies, ","))
+	v.Set("currencies", strings.Join(currencies, ","))
 
 	err := c.SendHTTPRequest(APIEndpointTimeframe, v, &resp)
 	if err != nil {
@@ -205,7 +206,7 @@ func (c *CurrencyLayer) QueryCurrencyChange(startDate, endDate, baseCurrency str
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
 	v.Set("base", baseCurrency)
-	v.Set("currencies", common.JoinStrings(currencies, ","))
+	v.Set("currencies", strings.Join(currencies, ","))
 
 	err := c.SendHTTPRequest(APIEndpointChange, v, &resp)
 	if err != nil {

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/assets"
@@ -164,7 +163,7 @@ const (
 
 // ToLower changes the ordertype to lower case
 func (o OrderType) ToLower() OrderType {
-	return OrderType(common.StringToLower(string(o)))
+	return OrderType(strings.ToLower(string(o)))
 }
 
 // ToString changes the ordertype to the exchange standard and returns a string
@@ -186,7 +185,7 @@ const (
 
 // ToLower changes the ordertype to lower case
 func (o OrderSide) ToLower() OrderSide {
-	return OrderSide(common.StringToLower(string(o)))
+	return OrderSide(strings.ToLower(string(o)))
 }
 
 // ToString changes the ordertype to the exchange standard and returns a string

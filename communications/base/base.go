@@ -2,10 +2,10 @@ package base
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -112,7 +112,7 @@ func (b *Base) GetTicker(exchangeName string) string {
 			tickerPrices[i].PriceATH,
 			tickerPrices[i].Volume))
 	}
-	return common.JoinStrings(packagedTickers, "\n")
+	return strings.Join(packagedTickers, "\n")
 }
 
 // GetOrderbook returns staged orderbook data
@@ -142,7 +142,7 @@ func (b *Base) GetOrderbook(exchangeName string) string {
 			orderbooks[i].TotalAsks,
 			orderbooks[i].TotalBids))
 	}
-	return common.JoinStrings(packagedOrderbooks, "\n")
+	return strings.Join(packagedOrderbooks, "\n")
 }
 
 // GetPortfolio returns staged portfolio info

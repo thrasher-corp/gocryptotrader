@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -751,8 +750,8 @@ func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...string) (TradeVolumeResp
 func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args *AddOrderOptions) (AddOrderResponse, error) {
 	params := url.Values{
 		"pair":      {symbol},
-		"type":      {common.StringToLower(side)},
-		"ordertype": {common.StringToLower(orderType)},
+		"type":      {strings.ToLower(side)},
+		"ordertype": {strings.ToLower(orderType)},
 		"volume":    {strconv.FormatFloat(volume, 'f', -1, 64)},
 	}
 

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -327,7 +328,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 
 		default:
 			switch {
-			case common.StringContains(resp.Header.Get("Content-Type"), "application/json"):
+			case strings.Contains(resp.Header.Get("Content-Type"), "application/json"):
 				reader = resp.Body
 
 			default:

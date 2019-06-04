@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 const (
 	DefaultCurrencyFileDelay    = 168 * time.Hour
 	DefaultForeignExchangeDelay = 1 * time.Minute
+	DefaultStorageFile          = "currency.json"
 )
 
 func init() {
@@ -132,7 +134,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		return errors.New("currency package runUpdater error filepath not set")
 	}
 
-	s.path = filePath + common.GetOSPathSlash() + "currency.json"
+	s.path = filepath.Join(filePath, DefaultStorageFile)
 
 	if settings.CurrencyDelay.Nanoseconds() == 0 {
 		s.currencyFileUpdateDelay = DefaultCurrencyFileDelay

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -152,12 +153,12 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			message := string(resp.Raw)
-			if common.StringContains(message, "pong") {
+			if strings.Contains(message, "pong") {
 				pongChan <- 1
 				continue
 			}
 
-			if common.StringContains(message, "ping") {
+			if strings.Contains(message, "ping") {
 				err = b.wsSend("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err

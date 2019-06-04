@@ -47,7 +47,7 @@ const (
 // Constants here hold some messages
 const (
 	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
-	ErrExchangeAvailablePairsEmpty             = "exchange %s avaiable pairs is empty"
+	ErrExchangeAvailablePairsEmpty             = "exchange %s available pairs is empty"
 	ErrExchangeEnabledPairsEmpty               = "exchange %s enabled pairs is empty"
 	ErrExchangeBaseCurrenciesEmpty             = "exchange %s base currencies is empty"
 	ErrExchangeNotFound                        = "exchange %s not found"
@@ -95,7 +95,7 @@ func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string
 	for x := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
 			for y := range c.Exchanges[x].BankAccounts {
-				if common.StringContains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
+				if strings.Contains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
 					depositingCurrency) {
 					return c.Exchanges[x].BankAccounts[y], nil
 				}
@@ -130,9 +130,9 @@ func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (Ban
 	defer m.Unlock()
 
 	for x := range c.BankAccounts {
-		if (common.StringContains(c.BankAccounts[x].SupportedExchanges, exchangeName) ||
+		if (strings.Contains(c.BankAccounts[x].SupportedExchanges, exchangeName) ||
 			c.BankAccounts[x].SupportedExchanges == "ALL") &&
-			common.StringContains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
+			strings.Contains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
 			return c.BankAccounts[x], nil
 
 		}
@@ -518,13 +518,13 @@ func (c *Config) CheckPairConfigFormats(exchName string) error {
 
 			for y := range loadedPairs {
 				if pairFmt.Delimiter != "" {
-					if !common.StringContains(loadedPairs[y].String(), pairFmt.Delimiter) {
+					if !strings.Contains(loadedPairs[y].String(), pairFmt.Delimiter) {
 						return fmt.Errorf("exchange %s %s %v pairs does not contain delimiter", exchName, pairsType, assetType)
 					}
 				}
 
 				if pairFmt.Index != "" {
-					if !common.StringContains(loadedPairs[y].String(), pairFmt.Index) {
+					if !strings.Contains(loadedPairs[y].String(), pairFmt.Index) {
 						return fmt.Errorf("exchange %s %s %v pairs does not contain an index", exchName, pairsType, assetType)
 					}
 				}
@@ -602,7 +602,8 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			if err != nil {
 				return fmt.Errorf("exchange %s failed to set pairs: %v", exchName, err)
 			}
-			log.Warnf("Exchange %s: No enabled pairs found in available pairs, randomly added %v pair.\n", exchName, newPair)
+			log.Warnf("Exchange %s: [%v] No enabled pairs found in available pairs, randomly added %v pair.\n",
+				exchName, assetTypes[x], newPair)
 			continue
 		} else {
 			err = c.SetPairs(exchName, assetTypes[x], true, pairs)
@@ -610,7 +611,8 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				return fmt.Errorf("exchange %s failed to set pairs: %v", exchName, err)
 			}
 		}
-		log.Warnf("Exchange %s: Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.", exchName, pairsRemoved.Strings())
+		log.Warnf("Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.",
+			exchName, assetTypes[x], pairsRemoved.Strings())
 	}
 	return nil
 }
@@ -1326,15 +1328,20 @@ func GetFilePath(file string) (string, error) {
 		return "", err
 	}
 
-	oldDir := exePath + common.GetOSPathSlash()
-	oldDirs := []string{oldDir + ConfigFile, oldDir + EncryptedConfigFile}
+	oldDirs := []string{
+		filepath.Join(exePath, ConfigFile),
+		filepath.Join(exePath, EncryptedConfigFile),
+	}
 
-	newDir := common.GetDefaultDataDir(runtime.GOOS) + common.GetOSPathSlash()
+	newDir := common.GetDefaultDataDir(runtime.GOOS)
 	err = common.CreateDir(newDir)
 	if err != nil {
 		return "", err
 	}
-	newDirs := []string{newDir + ConfigFile, newDir + EncryptedConfigFile}
+	newDirs := []string{
+		filepath.Join(newDir, ConfigFile),
+		filepath.Join(newDir, EncryptedConfigFile),
+	}
 
 	// First upgrade the old dir config file if it exists to the corresponding new one
 	for x := range oldDirs {

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -96,7 +96,7 @@ func (b *Bittrex) GetCurrencies() (Currency, error) {
 func (b *Bittrex) GetTicker(currencyPair string) (Ticker, error) {
 	tick := Ticker{}
 	path := fmt.Sprintf("%s/%s?market=%s", b.API.Endpoints.URL, bittrexAPIGetTicker,
-		common.StringToUpper(currencyPair),
+		strings.ToUpper(currencyPair),
 	)
 
 	if err := b.SendHTTPRequest(path, &tick); err != nil {
@@ -130,7 +130,7 @@ func (b *Bittrex) GetMarketSummaries() (MarketSummary, error) {
 func (b *Bittrex) GetMarketSummary(currencyPair string) (MarketSummary, error) {
 	var summary MarketSummary
 	path := fmt.Sprintf("%s/%s?market=%s", b.API.Endpoints.URL,
-		bittrexAPIGetMarketSummary, common.StringToLower(currencyPair),
+		bittrexAPIGetMarketSummary, strings.ToLower(currencyPair),
 	)
 
 	if err := b.SendHTTPRequest(path, &summary); err != nil {
@@ -153,7 +153,7 @@ func (b *Bittrex) GetMarketSummary(currencyPair string) (MarketSummary, error) {
 func (b *Bittrex) GetOrderbook(currencyPair string) (OrderBooks, error) {
 	var orderbooks OrderBooks
 	path := fmt.Sprintf("%s/%s?market=%s&type=both&depth=50", b.API.Endpoints.URL,
-		bittrexAPIGetOrderbook, common.StringToUpper(currencyPair),
+		bittrexAPIGetOrderbook, strings.ToUpper(currencyPair),
 	)
 
 	if err := b.SendHTTPRequest(path, &orderbooks); err != nil {
@@ -171,7 +171,7 @@ func (b *Bittrex) GetOrderbook(currencyPair string) (OrderBooks, error) {
 func (b *Bittrex) GetMarketHistory(currencyPair string) (MarketHistory, error) {
 	var marketHistoriae MarketHistory
 	path := fmt.Sprintf("%s/%s?market=%s", b.API.Endpoints.URL,
-		bittrexAPIGetMarketHistory, common.StringToUpper(currencyPair),
+		bittrexAPIGetMarketHistory, strings.ToUpper(currencyPair),
 	)
 
 	if err := b.SendHTTPRequest(path, &marketHistoriae); err != nil {

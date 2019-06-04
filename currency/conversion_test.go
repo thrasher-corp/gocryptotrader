@@ -1,9 +1,8 @@
 package currency
 
 import (
+	"strings"
 	"testing"
-
-	"github.com/thrasher-/gocryptotrader/common"
 )
 
 func TestNewConversionFromString(t *testing.T) {
@@ -18,7 +17,7 @@ func TestNewConversionFromString(t *testing.T) {
 			conv)
 	}
 
-	newexpected := common.StringToLower(expected)
+	newexpected := strings.ToLower(expected)
 	conv, err = NewConversionFromString(newexpected)
 	if err != nil {
 		t.Error("Test Failed - NewConversionFromString() error", err)
@@ -110,7 +109,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 	var SuperDuperConversionSystem ConversionRates
 
 	if SuperDuperConversionSystem.HasData() {
-		t.Fatalf("Test Failed - HasData() error expected false but recieved %v",
+		t.Fatalf("Test Failed - HasData() error expected false but received %v",
 			SuperDuperConversionSystem.HasData())
 	}
 
@@ -151,7 +150,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 	}
 
 	if !SuperDuperConversionSystem.HasData() {
-		t.Fatalf("Test Failed - HasData() error expected true but recieved %v",
+		t.Fatalf("Test Failed - HasData() error expected true but received %v",
 			SuperDuperConversionSystem.HasData())
 	}
 
@@ -162,7 +161,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 	r := *p * 1000
 	expectedRate := 1396.9317581
 	if r != expectedRate {
-		t.Errorf("Test Failed - Convert() error expected %.13f but recieved %.13f",
+		t.Errorf("Test Failed - Convert() error expected %.13f but received %.13f",
 			expectedRate,
 			r)
 	}
@@ -170,7 +169,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 	inverseR := *pi * expectedRate
 	expectedInverseRate := float64(1000)
 	if inverseR != expectedInverseRate {
-		t.Errorf("Test Failed - Convert() error expected %.13f but recieved %.13f",
+		t.Errorf("Test Failed - Convert() error expected %.13f but received %.13f",
 			expectedInverseRate,
 			inverseR)
 	}

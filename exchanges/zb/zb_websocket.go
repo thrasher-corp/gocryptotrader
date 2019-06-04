@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -89,7 +90,7 @@ func (z *ZB) WsHandleData() {
 				continue
 			}
 			switch {
-			case common.StringContains(result.Channel, "markets"):
+			case strings.Contains(result.Channel, "markets"):
 				if !result.Success {
 					z.Websocket.DataHandler <- fmt.Errorf("zb_websocket.go error - unsuccessful market response %s", wsErrCodes[result.Code])
 					continue
@@ -102,8 +103,8 @@ func (z *ZB) WsHandleData() {
 					continue
 				}
 
-			case common.StringContains(result.Channel, "ticker"):
-				cPair := common.SplitStrings(result.Channel, "_")
+			case strings.Contains(result.Channel, "ticker"):
+				cPair := strings.Split(result.Channel, "_")
 
 				var ticker WsTicker
 
@@ -123,7 +124,7 @@ func (z *ZB) WsHandleData() {
 					LowPrice:   ticker.Data.Low,
 				}
 
-			case common.StringContains(result.Channel, "depth"):
+			case strings.Contains(result.Channel, "depth"):
 				var depth WsDepth
 				err := common.JSONDecode(resp.Raw, &depth)
 				if err != nil {
@@ -149,7 +150,7 @@ func (z *ZB) WsHandleData() {
 					})
 				}
 
-				channelInfo := common.SplitStrings(result.Channel, "_")
+				channelInfo := strings.Split(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
 
 				var newOrderBook orderbook.Base
@@ -172,7 +173,7 @@ func (z *ZB) WsHandleData() {
 					Exchange: z.GetName(),
 				}
 
-			case common.StringContains(result.Channel, "trades"):
+			case strings.Contains(result.Channel, "trades"):
 				var trades WsTrades
 				err := common.JSONDecode(resp.Raw, &trades)
 				if err != nil {
@@ -183,7 +184,7 @@ func (z *ZB) WsHandleData() {
 				// Most up to date trade
 				t := trades.Data[len(trades.Data)-1]
 
-				channelInfo := common.SplitStrings(result.Channel, "_")
+				channelInfo := strings.Split(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
 
 				z.Websocket.DataHandler <- exchange.TradeData{

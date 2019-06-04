@@ -121,7 +121,7 @@ func UnloadExchange(name string) error {
 
 // LoadExchange loads an exchange by name
 func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
-	nameLower := common.StringToLower(name)
+	nameLower := strings.ToLower(name)
 	var exch exchange.IBotExchange
 
 	if len(Bot.Exchanges) > 0 {

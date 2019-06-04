@@ -138,7 +138,7 @@ func (y *Yobit) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 
 	var currencies []string
 	for x := range info.Pairs {
-		currencies = append(currencies, common.StringToUpper(x))
+		currencies = append(currencies, strings.ToUpper(x))
 	}
 
 	return currencies, nil

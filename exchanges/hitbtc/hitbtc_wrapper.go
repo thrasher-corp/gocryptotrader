@@ -296,8 +296,8 @@ func (h *HitBTC) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType
 	response, err := h.PlaceOrder(p.String(),
 		price,
 		amount,
-		common.StringToLower(orderType.ToString()),
-		common.StringToLower(side.ToString()))
+		strings.ToLower(orderType.ToString()),
+		strings.ToLower(side.ToString()))
 
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -126,7 +127,7 @@ func (o *OXR) GetHistoricalRates(date, baseCurrency string, symbols []string, pr
 
 	v := url.Values{}
 	v.Set("base", baseCurrency)
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 	v.Set("show_alternative", strconv.FormatBool(showAlternative))
 	endpoint := fmt.Sprintf(APIEndpointHistorical, date)
@@ -156,7 +157,7 @@ func (o *OXR) GetCurrencies(showInactive, prettyPrint, showAlternative bool) (ma
 
 // GetSupportedCurrencies returns a list of supported currencies
 func (o *OXR) GetSupportedCurrencies() ([]string, error) {
-	return common.SplitStrings(oxrSupportedCurrencies, ","), nil
+	return strings.Split(oxrSupportedCurrencies, ","), nil
 }
 
 // GetTimeSeries returns historical exchange rates for a given time period,
@@ -172,7 +173,7 @@ func (o *OXR) GetTimeSeries(baseCurrency, startDate, endDate string, symbols []s
 	v.Set("base", baseCurrency)
 	v.Set("start", startDate)
 	v.Set("end", endDate)
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 	v.Set("show_alternative", strconv.FormatBool(showAlternative))
 
@@ -220,7 +221,7 @@ func (o *OXR) GetOHLC(startTime, period, baseCurrency string, symbols []string, 
 	v.Set("start_time", startTime)
 	v.Set("period", period)
 	v.Set("base", baseCurrency)
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 
 	if err := o.SendHTTPRequest(APIEndpointOHLC, v, &resp); err != nil {

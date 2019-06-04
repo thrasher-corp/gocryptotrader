@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -118,7 +119,7 @@ func main() {
 	codebasePaths = make(map[string]string)
 	codebaseTemplatePath = make(map[string]string)
 	codebaseReadme = make(map[string]readme)
-	path = common.GetOSPathSlash()
+	path = getOSPathSlash()
 
 	if err := getContributorList(); err != nil {
 		log.Fatal("GoCryptoTrader: Exchange documentation tool GET error ", err)
@@ -137,6 +138,16 @@ func main() {
 	}
 
 	fmt.Println("\nTool finished")
+}
+
+// getOSPathSlash returns the slash used by the operating systems
+// file system
+// TO-DO: Change all paths to not use this
+func getOSPathSlash() string {
+	if runtime.GOOS == "windows" {
+		return "\\"
+	}
+	return "/"
 }
 
 // updateReadme iterates through codebase paths to check for readme files and either adds
@@ -295,18 +306,18 @@ func getslashFromName(packageName string) string {
 }
 
 var globS = []string{
-	fmt.Sprintf("common_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("communications_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("config_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("currency_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("events_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("exchanges_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("portfolio_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("root_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("sub_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("testdata_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("tools_templates%s*", common.GetOSPathSlash()),
-	fmt.Sprintf("web_templates%s*", common.GetOSPathSlash()),
+	fmt.Sprintf("common_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("communications_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("config_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("currency_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("events_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("exchanges_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("portfolio_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("root_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("sub_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("testdata_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("tools_templates%s*", getOSPathSlash()),
+	fmt.Sprintf("web_templates%s*", getOSPathSlash()),
 }
 
 // addTemplates adds all the template files

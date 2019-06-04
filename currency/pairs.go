@@ -2,6 +2,7 @@ package currency
 
 import (
 	"math/rand"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -35,7 +36,7 @@ func (p Pairs) Strings() []string {
 
 // Join returns a comma separated list of currency pairs
 func (p Pairs) Join() string {
-	return common.JoinStrings(p.Strings(), ",")
+	return strings.Join(p.Strings(), ",")
 }
 
 // Format formats the pair list to the exchange format configuration
@@ -75,7 +76,7 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 	}
 
 	var allThePairs Pairs
-	for _, data := range common.SplitStrings(pairs, ",") {
+	for _, data := range strings.Split(pairs, ",") {
 		allThePairs = append(allThePairs, NewPairFromString(data))
 	}
 

@@ -3,9 +3,9 @@ package events
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -134,8 +134,8 @@ func GetEventCounter() (total, executed int) {
 
 // ExecuteAction will execute the action pending on the chain
 func (e *Event) ExecuteAction() bool {
-	if common.StringContains(e.Action, ",") {
-		action := common.SplitStrings(e.Action, ",")
+	if strings.Contains(e.Action, ",") {
+		action := strings.Split(e.Action, ",")
 		if action[0] == ActionSMSNotify {
 			message := fmt.Sprintf("Event triggered: %s", e.String())
 			if action[1] == "ALL" {
@@ -251,9 +251,9 @@ func (e *Event) CheckCondition() bool {
 
 // IsValidEvent checks the actions to be taken and returns an error if incorrect
 func IsValidEvent(exchange, item string, condition ConditionParams, action string) error {
-	exchange = common.StringToUpper(exchange)
-	item = common.StringToUpper(item)
-	action = common.StringToUpper(action)
+	exchange = strings.ToUpper(exchange)
+	item = strings.ToUpper(item)
+	action = strings.ToUpper(action)
 
 	if !IsValidExchange(exchange) {
 		return errExchangeDisabled
@@ -279,8 +279,8 @@ func IsValidEvent(exchange, item string, condition ConditionParams, action strin
 		}
 	}
 
-	if common.StringContains(action, ",") {
-		a := common.SplitStrings(action, ",")
+	if strings.Contains(action, ",") {
+		a := strings.Split(action, ",")
 
 		if a[0] != ActionSMSNotify {
 			return errInvalidAction
@@ -326,10 +326,10 @@ func EventManger() {
 
 // IsValidExchange validates the exchange
 func IsValidExchange(exchangeName string) bool {
-	exchangeName = common.StringToLower(exchangeName)
+	exchangeName = strings.ToLower(exchangeName)
 	cfg := config.GetConfig()
 	for x := range cfg.Exchanges {
-		if common.StringToLower(cfg.Exchanges[x].Name) == exchangeName && cfg.Exchanges[x].Enabled {
+		if strings.ToLower(cfg.Exchanges[x].Name) == exchangeName && cfg.Exchanges[x].Enabled {
 			return true
 		}
 	}
@@ -347,7 +347,7 @@ func IsValidCondition(condition string) bool {
 
 // IsValidAction validates passed in action
 func IsValidAction(action string) bool {
-	action = common.StringToUpper(action)
+	action = strings.ToUpper(action)
 	switch action {
 	case ActionSMSNotify, ActionConsolePrint, ActionTest:
 		return true
@@ -357,7 +357,7 @@ func IsValidAction(action string) bool {
 
 // IsValidItem validates passed in Item
 func IsValidItem(item string) bool {
-	item = common.StringToUpper(item)
+	item = strings.ToUpper(item)
 	switch item {
 	case ItemPrice, ItemOrderbook:
 		return true

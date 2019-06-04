@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -301,7 +302,7 @@ func (b *Bithumb) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchan
 func (b *Bithumb) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 	order, err := b.ModifyTrade(action.OrderID,
 		action.CurrencyPair.Base.String(),
-		common.StringToLower(action.OrderSide.ToString()),
+		strings.ToLower(action.OrderSide.ToString()),
 		action.Amount,
 		int64(action.Price))
 

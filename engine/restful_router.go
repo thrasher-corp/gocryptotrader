@@ -5,6 +5,7 @@ import (
 	"net/http"
 	_ "net/http/pprof" // blank import required for pprof
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -64,7 +65,7 @@ func newRouter(isREST bool) *mux.Router {
 	if common.ExtractPort(listenAddr) == 80 {
 		listenAddr = common.ExtractHost(listenAddr)
 	} else {
-		listenAddr = common.JoinStrings([]string{common.ExtractHost(listenAddr),
+		listenAddr = strings.Join([]string{common.ExtractHost(listenAddr),
 			strconv.Itoa(common.ExtractPort(listenAddr))}, ":")
 	}
 

@@ -118,7 +118,7 @@ func (g *Gateio) WsHandleData() {
 			}
 
 			if result.Error.Code != 0 {
-				if common.StringContains(result.Error.Message, "authentication") {
+				if strings.Contains(result.Error.Message, "authentication") {
 					g.Websocket.DataHandler <- fmt.Errorf("%v - WebSocket authentication failed ",
 						g.GetName())
 					g.API.AuthenticatedSupport = false
@@ -170,7 +170,7 @@ func (g *Gateio) WsHandleData() {
 			}
 
 			switch {
-			case common.StringContains(result.Method, "ticker"):
+			case strings.Contains(result.Method, "ticker"):
 				var ticker WebsocketTicker
 				var c string
 				err = common.JSONDecode(result.Params[1], &ticker)
@@ -197,7 +197,7 @@ func (g *Gateio) WsHandleData() {
 					LowPrice:   ticker.Low,
 				}
 
-			case common.StringContains(result.Method, "trades"):
+			case strings.Contains(result.Method, "trades"):
 				var trades []WebsocketTrade
 				var c string
 				err = common.JSONDecode(result.Params[1], &trades)
@@ -224,7 +224,7 @@ func (g *Gateio) WsHandleData() {
 					}
 				}
 
-			case common.StringContains(result.Method, "depth"):
+			case strings.Contains(result.Method, "depth"):
 				var IsSnapshot bool
 				var c string
 				var data = make(map[string][][]string)
@@ -312,7 +312,7 @@ func (g *Gateio) WsHandleData() {
 					Exchange: g.GetName(),
 				}
 
-			case common.StringContains(result.Method, "kline"):
+			case strings.Contains(result.Method, "kline"):
 				var data []interface{}
 				err = common.JSONDecode(result.Params[0], &data)
 				if err != nil {

@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -398,7 +399,7 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 
 			case error:
 				switch {
-				case common.StringContains(d.Error(), "close 1006"):
+				case strings.Contains(d.Error(), "close 1006"):
 					go ws.WebsocketReset()
 					continue
 				default:

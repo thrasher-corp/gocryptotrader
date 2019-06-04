@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -179,7 +180,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.P
 	}
 
 	for _, x := range z.GetEnabledPairs(assetType) {
-		currencySplit := common.SplitStrings(z.FormatExchangeCurrency(x, assetType).String(), "_")
+		currencySplit := strings.Split(z.FormatExchangeCurrency(x, assetType).String(), "_")
 		currency := currencySplit[0] + currencySplit[1]
 		var tp ticker.Price
 		tp.Pair = x
@@ -312,7 +313,7 @@ func (z *ZB) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.Or
 	var params = SpotNewOrderRequestParams{
 		Amount: amount,
 		Price:  price,
-		Symbol: common.StringToLower(p.String()),
+		Symbol: strings.ToLower(p.String()),
 		Type:   oT,
 	}
 	response, err := z.SpotNewOrder(params)

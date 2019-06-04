@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -364,24 +365,24 @@ func (s *Slack) HandleMessage(msg *Message) error {
 		return errors.New("msg is nil")
 	}
 
-	msg.Text = common.StringToLower(msg.Text)
+	msg.Text = strings.ToLower(msg.Text)
 	switch {
-	case common.StringContains(msg.Text, cmdStatus):
+	case strings.Contains(msg.Text, cmdStatus):
 		return s.WebsocketSend("message", s.GetStatus())
 
-	case common.StringContains(msg.Text, cmdHelp):
+	case strings.Contains(msg.Text, cmdHelp):
 		return s.WebsocketSend("message", getHelp)
 
-	case common.StringContains(msg.Text, cmdTicker):
+	case strings.Contains(msg.Text, cmdTicker):
 		return s.WebsocketSend("message", s.GetTicker("ANX"))
 
-	case common.StringContains(msg.Text, cmdOrderbook):
+	case strings.Contains(msg.Text, cmdOrderbook):
 		return s.WebsocketSend("message", s.GetOrderbook("ANX"))
 
-	case common.StringContains(msg.Text, cmdSettings):
+	case strings.Contains(msg.Text, cmdSettings):
 		return s.WebsocketSend("message", s.GetSettings())
 
-	case common.StringContains(msg.Text, cmdPortfolio):
+	case strings.Contains(msg.Text, cmdPortfolio):
 		return s.WebsocketSend("message", s.GetPortfolio())
 
 	default:

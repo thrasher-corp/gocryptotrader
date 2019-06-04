@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -155,7 +156,7 @@ func (b *Bitstamp) FetchTradablePairs(asset assets.AssetType) ([]string, error) 
 			continue
 		}
 
-		pair := common.SplitStrings(pairs[x].Name, "/")
+		pair := strings.Split(pairs[x].Name, "/")
 		products = append(products, pair[0]+pair[1])
 	}
 

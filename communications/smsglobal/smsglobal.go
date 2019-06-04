@@ -89,7 +89,7 @@ func (s *SMSGlobal) GetContactByNumber(number string) (Contact, error) {
 // GetContactByName returns a contact with supplied name
 func (s *SMSGlobal) GetContactByName(name string) (Contact, error) {
 	for x := range s.Contacts {
-		if common.StringToLower(s.Contacts[x].Name) == common.StringToLower(name) {
+		if strings.ToLower(s.Contacts[x].Name) == strings.ToLower(name) {
 			return s.Contacts[x], nil
 		}
 	}
@@ -113,7 +113,7 @@ func (s *SMSGlobal) AddContact(contact Contact) error {
 // ContactExists checks to see if a contact exists
 func (s *SMSGlobal) ContactExists(contact Contact) bool {
 	for x := range s.Contacts {
-		if s.Contacts[x].Number == contact.Number && common.StringToLower(s.Contacts[x].Name) == common.StringToLower(contact.Name) {
+		if s.Contacts[x].Number == contact.Number && strings.ToLower(s.Contacts[x].Name) == strings.ToLower(contact.Name) {
 			return true
 		}
 	}
@@ -173,7 +173,7 @@ func (s *SMSGlobal) SendMessage(to, message string) error {
 		return err
 	}
 
-	if !common.StringContains(resp, "OK: 0; Sent queued message") {
+	if !strings.Contains(resp, "OK: 0; Sent queued message") {
 		return errSMSNotSent
 	}
 	return nil

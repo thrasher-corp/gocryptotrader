@@ -157,7 +157,7 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (Ticker, error) {
 		b.API.Endpoints.URL,
 		bitstampAPIVersion,
 		tickerEndpoint,
-		common.StringToLower(currency),
+		strings.ToLower(currency),
 	)
 	return response, b.SendHTTPRequest(path, &response)
 }
@@ -178,7 +178,7 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 		b.API.Endpoints.URL,
 		bitstampAPIVersion,
 		bitstampAPIOrderbook,
-		common.StringToLower(currency),
+		strings.ToLower(currency),
 	)
 
 	err := b.SendHTTPRequest(path, &resp)
@@ -244,7 +244,7 @@ func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Tr
 			b.API.Endpoints.URL,
 			bitstampAPIVersion,
 			bitstampAPITransactions,
-			common.StringToLower(currencyPair),
+			strings.ToLower(currencyPair),
 		),
 		values,
 	)
@@ -339,7 +339,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 func (b *Bitstamp) GetOpenOrders(currencyPair string) ([]Order, error) {
 	var resp []Order
 	path := fmt.Sprintf(
-		"%s/%s", bitstampAPIOpenOrders, common.StringToLower(currencyPair),
+		"%s/%s", bitstampAPIOpenOrders, strings.ToLower(currencyPair),
 	)
 
 	return resp, b.SendAuthenticatedHTTPRequest(path, true, nil, &resp)
@@ -385,10 +385,10 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, m
 		orderType = exchange.SellOrderSide.ToLower().ToString()
 	}
 
-	path := fmt.Sprintf("%s/%s", orderType, common.StringToLower(currencyPair))
+	path := fmt.Sprintf("%s/%s", orderType, strings.ToLower(currencyPair))
 
 	if market {
-		path = fmt.Sprintf("%s/%s/%s", orderType, bitstampAPIMarket, common.StringToLower(currencyPair))
+		path = fmt.Sprintf("%s/%s/%s", orderType, bitstampAPIMarket, strings.ToLower(currencyPair))
 	}
 
 	return response,
@@ -428,7 +428,7 @@ func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag str
 	resp := CryptoWithdrawalResponse{}
 	var endpoint string
 
-	switch common.StringToLower(symbol) {
+	switch strings.ToLower(symbol) {
 	case "btc":
 		if instant {
 			req.Add("instant", "1")
@@ -586,7 +586,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	hmac := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(n+b.API.Credentials.ClientID+b.API.Credentials.Key),
 		[]byte(b.API.Credentials.Secret))
-	values.Set("signature", common.StringToUpper(crypto.HexEncodeToString(hmac)))
+	values.Set("signature", strings.ToUpper(crypto.HexEncodeToString(hmac)))
 
 	if v2 {
 		path = fmt.Sprintf("%s/v%s/%s/", b.API.Endpoints.URL, bitstampAPIVersion, path)

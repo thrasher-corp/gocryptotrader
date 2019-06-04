@@ -390,7 +390,7 @@ func (h *HUOBI) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType 
 	var params = SpotNewOrderRequestParams{
 		Amount:    amount,
 		Source:    "api",
-		Symbol:    common.StringToLower(p.String()),
+		Symbol:    strings.ToLower(p.String()),
 		AccountID: int(accountID),
 	}
 

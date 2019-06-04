@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -843,7 +844,7 @@ func (h *HUOBIHADAX) GetDepositWithdrawalHistory(associatedID, currency string, 
 
 	vals.Set("from", associatedID)
 	vals.Set("size", strconv.FormatInt(size, 10))
-	vals.Set("currency", common.StringToLower(currency))
+	vals.Set("currency", strings.ToLower(currency))
 
 	err := h.SendAuthenticatedHTTPRequest(http.MethodGet,
 		huobiHadaxDepositAddress,

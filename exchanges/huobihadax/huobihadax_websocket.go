@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -129,7 +130,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 			}
 
 			switch {
-			case common.StringContains(init.Channel, "depth"):
+			case strings.Contains(init.Channel, "depth"):
 				var depth WsDepth
 				err := common.JSONDecode(resp.Raw, &depth)
 				if err != nil {
@@ -137,11 +138,11 @@ func (h *HUOBIHADAX) WsHandleData() {
 					continue
 				}
 
-				data := common.SplitStrings(depth.Channel, ".")
+				data := strings.Split(depth.Channel, ".")
 
 				h.WsProcessOrderbook(&depth, data[1])
 
-			case common.StringContains(init.Channel, "kline"):
+			case strings.Contains(init.Channel, "kline"):
 				var kline WsKline
 				err := common.JSONDecode(resp.Raw, &kline)
 				if err != nil {
@@ -149,7 +150,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 					continue
 				}
 
-				data := common.SplitStrings(kline.Channel, ".")
+				data := strings.Split(kline.Channel, ".")
 
 				h.Websocket.DataHandler <- exchange.KlineData{
 					Timestamp:  time.Unix(0, kline.Timestamp),
@@ -163,7 +164,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 					Volume:     kline.Tick.Volume,
 				}
 
-			case common.StringContains(init.Channel, "trade"):
+			case strings.Contains(init.Channel, "trade"):
 				var trade WsTrade
 				err := common.JSONDecode(resp.Raw, &trade)
 				if err != nil {
@@ -171,7 +172,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 					continue
 				}
 
-				data := common.SplitStrings(trade.Channel, ".")
+				data := strings.Split(trade.Channel, ".")
 
 				h.Websocket.DataHandler <- exchange.TradeData{
 					Exchange:     h.GetName(),

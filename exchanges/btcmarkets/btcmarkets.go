@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
@@ -75,8 +76,8 @@ func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
 	tick := Ticker{}
 	path := fmt.Sprintf("%s/market/%s/%s/tick",
 		b.API.Endpoints.URL,
-		common.StringToUpper(firstPair),
-		common.StringToUpper(secondPair))
+		strings.ToUpper(firstPair),
+		strings.ToUpper(secondPair))
 
 	return tick, b.SendHTTPRequest(path, &tick)
 }
@@ -87,8 +88,8 @@ func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, erro
 	orderbook := Orderbook{}
 	path := fmt.Sprintf("%s/market/%s/%s/orderbook",
 		b.API.Endpoints.URL,
-		common.StringToUpper(firstPair),
-		common.StringToUpper(secondPair))
+		strings.ToUpper(firstPair),
+		strings.ToUpper(secondPair))
 
 	return orderbook, b.SendHTTPRequest(path, &orderbook)
 }
@@ -99,8 +100,8 @@ func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, erro
 func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) ([]Trade, error) {
 	var trades []Trade
 	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/%s/trades",
-		b.API.Endpoints.URL, common.StringToUpper(firstPair),
-		common.StringToUpper(secondPair)), values)
+		b.API.Endpoints.URL, strings.ToUpper(firstPair),
+		strings.ToUpper(secondPair)), values)
 
 	return trades, b.SendHTTPRequest(path, &trades)
 }
@@ -118,8 +119,8 @@ func (b *BTCMarkets) NewOrder(instrument, currency string, price, amount float64
 	newVolume := int64(amount * float64(common.SatoshisPerBTC))
 
 	order := OrderToGo{
-		Currency:        common.StringToUpper(currency),
-		Instrument:      common.StringToUpper(instrument),
+		Currency:        strings.ToUpper(currency),
+		Instrument:      strings.ToUpper(instrument),
 		Price:           newPrice,
 		Volume:          newVolume,
 		OrderSide:       orderSide,
@@ -172,10 +173,10 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 	req := make(map[string]interface{})
 
 	if currency != "" {
-		req["currency"] = common.StringToUpper(currency)
+		req["currency"] = strings.ToUpper(currency)
 	}
 	if instrument != "" {
-		req["instrument"] = common.StringToUpper(instrument)
+		req["instrument"] = strings.ToUpper(instrument)
 	}
 	if limit != 0 {
 		req["limit"] = limit
@@ -312,7 +313,7 @@ func (b *BTCMarkets) WithdrawCrypto(amount float64, currency, address string) (s
 
 	req := WithdrawRequestCrypto{
 		Amount:   newAmount,
-		Currency: common.StringToUpper(currency),
+		Currency: strings.ToUpper(currency),
 		Address:  address,
 	}
 

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -41,17 +42,17 @@ func authenticateClient(ctx context.Context) (context.Context, error) {
 		return ctx, fmt.Errorf("authorization header missing")
 	}
 
-	if !common.StringContains(authStr[0], "Basic") {
+	if !strings.Contains(authStr[0], "Basic") {
 		return ctx, fmt.Errorf("basic not found in authorization header")
 	}
 
-	decoded, err := crypto.Base64Decode(common.SplitStrings(authStr[0], " ")[1])
+	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
 	if err != nil {
 		return ctx, fmt.Errorf("unable to base64 decode authorization header")
 	}
 
-	username := common.SplitStrings(string(decoded), ":")[0]
-	password := common.SplitStrings(string(decoded), ":")[1]
+	username := strings.Split(string(decoded), ":")[0]
+	password := strings.Split(string(decoded), ":")[1]
 
 	if username != Bot.Config.RemoteControl.Username || password != Bot.Config.RemoteControl.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
@@ -159,7 +160,7 @@ func (s *RPCServer) GetInfo(ctx context.Context, r *gctrpc.GetInfoRequest) (*gct
 // GetExchanges returns a list of exchanges
 // Param is whether or not you wish to list enabled exchanges
 func (s *RPCServer) GetExchanges(ctx context.Context, r *gctrpc.GetExchangesRequest) (*gctrpc.GetExchangesResponse, error) {
-	exchanges := common.JoinStrings(GetExchanges(r.Enabled), ",")
+	exchanges := strings.Join(GetExchanges(r.Enabled), ",")
 	return &gctrpc.GetExchangesResponse{Exchanges: exchanges}, nil
 }
 
@@ -190,13 +191,13 @@ func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchan
 		HttpTimeout:     exchCfg.HTTPTimeout.String(),
 		HttpUseragent:   exchCfg.HTTPUserAgent,
 		HttpProxy:       exchCfg.ProxyAddress,
-		BaseCurrencies:  common.JoinStrings(exchCfg.BaseCurrencies.Strings(), ","),
+		BaseCurrencies:  strings.Join(exchCfg.BaseCurrencies.Strings(), ","),
 		SupportedAssets: exchCfg.CurrencyPairs.AssetTypes.JoinToString(","),
 
 		// TO-DO fix pairs
-		//EnabledPairs: common.JoinStrings(
+		//EnabledPairs: strings.Join(
 		//	exchCfg.CurrencyPairs.Pairs.GetPairs().Enabled.Strings(), ","),
-		//AvailablePairs: common.JoinStrings(
+		//AvailablePairs: strings.Join(
 		//	exchCfg.CurrencyPairs.Spot.Available.Strings(), ","),
 	}, nil
 }

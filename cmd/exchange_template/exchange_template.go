@@ -7,12 +7,13 @@ import (
 	"log"
 	"os"
 	"os/exec"
-
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"path/filepath"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 )
 
 const (
@@ -22,9 +23,9 @@ const (
 	packageMain    = "%s.go"
 	packageReadme  = "README.md"
 
-	exchangePackageLocation = "..%s..%sexchanges%s"
-	exchangeLocation        = "..%s..%sexchange.go"
-	exchangeConfigPath      = "..%s..%stestdata%sconfigtest.json"
+	exchangePackageLocation = "../../exchanges"
+	exchangeLocation        = "../../exchange.go"
+	exchangeConfigPath      = "../../testdata/configtest.json"
 )
 
 var (
@@ -84,9 +85,9 @@ func main() {
 		log.Fatal("GoCryptoTrader: Exchange templating tool stopped...")
 	}
 
-	newExchangeName = common.StringToLower(newExchangeName)
+	newExchangeName = strings.ToLower(newExchangeName)
 	v := newExchangeName[:1]
-	capName := common.StringToUpper(v) + newExchangeName[1:]
+	capName := strings.ToUpper(v) + newExchangeName[1:]
 
 	exch := exchange{
 		Name:        newExchangeName,
@@ -97,18 +98,14 @@ func main() {
 		FIX:         fixSupport,
 	}
 
-	osPathSlash := common.GetOSPathSlash()
-	exchangeJSON := fmt.Sprintf(exchangeConfigPath, osPathSlash, osPathSlash, osPathSlash)
-
 	configTestFile := config.GetConfig()
-	err = configTestFile.LoadConfig(exchangeJSON)
+	err = configTestFile.LoadConfig(exchangeConfigPath)
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating configuration retrieval error ", err)
 	}
 	// NOTE need to nullify encrypt configuration
 
 	var configTestExchanges []string
-
 	for x := range configTestFile.Exchanges {
 		configTestExchanges = append(configTestExchanges, configTestFile.Exchanges[x].Name)
 	}
@@ -137,18 +134,12 @@ func main() {
 		log.Fatal("GoCryptoTrader: Exchange templating configuration error - cannot save")
 	}
 
-	exchangeDirectory = fmt.Sprintf(
-		exchangePackageLocation+newExchangeName+"%s",
-		osPathSlash,
-		osPathSlash,
-		osPathSlash,
-		osPathSlash)
-
-	exchangeTest = fmt.Sprintf(exchangeDirectory+packageTests, newExchangeName)
-	exchangeTypes = fmt.Sprintf(exchangeDirectory+packageTypes, newExchangeName)
-	exchangeWrapper = fmt.Sprintf(exchangeDirectory+packageWrapper, newExchangeName)
-	exchangeMain = fmt.Sprintf(exchangeDirectory+packageMain, newExchangeName)
-	exchangeReadme = exchangeDirectory + packageReadme
+	exchangeDirectory = filepath.Join(exchangePackageLocation, newExchangeName)
+	exchangeTest = filepath.Join(exchangeDirectory, fmt.Sprintf(packageTests, newExchangeName))
+	exchangeTypes = filepath.Join(exchangeDirectory, fmt.Sprintf(packageTypes, newExchangeName))
+	exchangeWrapper = filepath.Join(exchangeDirectory, fmt.Sprintf(packageWrapper, newExchangeName))
+	exchangeMain = filepath.Join(exchangeDirectory, fmt.Sprintf(packageMain, newExchangeName))
+	exchangeReadme = filepath.Join(exchangeDirectory, packageReadme)
 
 	err = os.Mkdir(exchangeDirectory, 0700)
 	if err != nil {

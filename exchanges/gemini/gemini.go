@@ -133,7 +133,7 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 
 	ticker.Volume.Currency, _ = strconv.ParseFloat(resp.Volume[currencyPair[0:3]].(string), 64)
 
-	if common.StringContains(currencyPair, "USD") {
+	if strings.Contains(currencyPair, "USD") {
 		ticker.Volume.USD, _ = strconv.ParseFloat(resp.Volume["USD"].(string), 64)
 	} else {
 		if resp.Volume["ETH"] != nil {
@@ -377,7 +377,7 @@ func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (Withd
 	req["address"] = address
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiWithdraw+common.StringToLower(currency), req, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiWithdraw+strings.ToLower(currency), req, &response)
 	if err != nil {
 		return response, err
 	}

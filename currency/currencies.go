@@ -1,6 +1,10 @@
 package currency
 
-import "github.com/thrasher-/gocryptotrader/common"
+import (
+	"strings"
+
+	"github.com/thrasher-/gocryptotrader/common"
+)
 
 // NewCurrenciesFromStringArray returns a Currencies object from strings
 func NewCurrenciesFromStringArray(currencies []string) Currencies {
@@ -38,7 +42,7 @@ func (c Currencies) Contains(cc Code) bool {
 
 // Join returns a comma serparated string
 func (c Currencies) Join() string {
-	return common.JoinStrings(c.Strings(), ",")
+	return strings.Join(c.Strings(), ",")
 }
 
 // UnmarshalJSON comforms type to the umarshaler interface
@@ -50,7 +54,7 @@ func (c *Currencies) UnmarshalJSON(d []byte) error {
 	}
 
 	var allTheCurrencies Currencies
-	for _, data := range common.SplitStrings(configCurrencies, ",") {
+	for _, data := range strings.Split(configCurrencies, ",") {
 		allTheCurrencies = append(allTheCurrencies, NewCode(data))
 	}
 

@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -81,12 +80,6 @@ func StringSliceDifference(slice1, slice2 []string) []string {
 	return diff
 }
 
-// StringContains checks a substring if it contains your input then returns a
-// bool
-func StringContains(input, substring string) bool {
-	return strings.Contains(input, substring)
-}
-
 // StringDataContains checks the substring array with an input and returns a bool
 func StringDataContains(haystack []string, needle string) bool {
 	data := strings.Join(haystack, ",")
@@ -118,43 +111,11 @@ func StringDataCompareInsensitive(haystack []string, needle string) bool {
 // a bool irrespective of lower or upper case strings
 func StringDataContainsInsensitive(haystack []string, needle string) bool {
 	for _, data := range haystack {
-		if strings.Contains(StringToUpper(data), StringToUpper(needle)) {
+		if strings.Contains(strings.ToUpper(data), strings.ToUpper(needle)) {
 			return true
 		}
 	}
 	return false
-}
-
-// JoinStrings joins an array together with the required separator and returns
-// it as a string
-func JoinStrings(input []string, separator string) string {
-	return strings.Join(input, separator)
-}
-
-// SplitStrings splits blocks of strings from string into a string array using
-// a separator ie "," or "_"
-func SplitStrings(input, separator string) []string {
-	return strings.Split(input, separator)
-}
-
-// TrimString trims unwanted prefixes or postfixes
-func TrimString(input, cutset string) string {
-	return strings.Trim(input, cutset)
-}
-
-// ReplaceString replaces a string with another
-func ReplaceString(input, old, newStr string, n int) string {
-	return strings.Replace(input, old, newStr, n)
-}
-
-// StringToUpper changes strings to uppercase
-func StringToUpper(input string) string {
-	return strings.ToUpper(input)
-}
-
-// StringToLower changes strings to lowercase
-func StringToLower(input string) string {
-	return strings.ToLower(input)
 }
 
 // IsEnabled takes in a boolean param  and returns a string if it is enabled
@@ -170,7 +131,7 @@ func IsEnabled(isEnabled bool) string {
 // regexp package // Validation issues occurring because "3" is contained in
 // litecoin and Bitcoin addresses - non-fatal
 func IsValidCryptoAddress(address, crypto string) (bool, error) {
-	switch StringToLower(crypto) {
+	switch strings.ToLower(crypto) {
 	case "btc":
 		return regexp.MatchString("^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
 	case "ltc":
@@ -184,7 +145,7 @@ func IsValidCryptoAddress(address, crypto string) (bool, error) {
 
 // YesOrNo returns a boolean variable to check if input is "y" or "yes"
 func YesOrNo(input string) bool {
-	if StringToLower(input) == "y" || StringToLower(input) == "yes" {
+	if strings.ToLower(input) == "y" || strings.ToLower(input) == "yes" {
 		return true
 	}
 	return false
@@ -276,7 +237,7 @@ func JSONEncode(v interface{}) ([]byte, error) {
 
 // JSONDecode decodes JSON data into a structure
 func JSONDecode(data []byte, to interface{}) error {
-	if !StringContains(reflect.ValueOf(to).Type().String(), "*") {
+	if !strings.Contains(reflect.ValueOf(to).Type().String(), "*") {
 		return errors.New("json decode error - memory address not supplied")
 	}
 	return json.Unmarshal(data, to)
@@ -294,7 +255,7 @@ func EncodeURLValues(urlPath string, values url.Values) string {
 
 // ExtractHost returns the hostname out of a string
 func ExtractHost(address string) string {
-	host := SplitStrings(address, ":")[0]
+	host := strings.Split(address, ":")[0]
 	if host == "" {
 		return "localhost"
 	}
@@ -303,7 +264,7 @@ func ExtractHost(address string) string {
 
 // ExtractPort returns the port name out of a string
 func ExtractPort(host string) int {
-	portStr := SplitStrings(host, ":")[1]
+	portStr := strings.Split(host, ":")[1]
 	port, _ := strconv.Atoi(portStr)
 	return port
 }
@@ -386,15 +347,6 @@ func GetExecutablePath() (string, error) {
 	return filepath.Dir(ex), nil
 }
 
-// GetOSPathSlash returns the slash used by the operating systems
-// file system
-func GetOSPathSlash() string {
-	if runtime.GOOS == "windows" {
-		return "\\"
-	}
-	return "/"
-}
-
 // UnixMillis converts a UnixNano timestamp to milliseconds
 func UnixMillis(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
@@ -403,54 +355,6 @@ func UnixMillis(t time.Time) int64 {
 // RecvWindow converts a supplied time.Duration to milliseconds
 func RecvWindow(d time.Duration) int64 {
 	return int64(d) / int64(time.Millisecond)
-}
-
-// FloatFromString format
-func FloatFromString(raw interface{}) (float64, error) {
-	str, ok := raw.(string)
-	if !ok {
-		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
-	}
-	flt, err := strconv.ParseFloat(str, 64)
-	if err != nil {
-		return 0, fmt.Errorf("could not convert value: %s Error: %s", str, err)
-	}
-	return flt, nil
-}
-
-// IntFromString format
-func IntFromString(raw interface{}) (int, error) {
-	str, ok := raw.(string)
-	if !ok {
-		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
-	}
-	n, err := strconv.Atoi(str)
-	if err != nil {
-		return 0, fmt.Errorf("unable to parse as int: %T", raw)
-	}
-	return n, nil
-}
-
-// Int64FromString format
-func Int64FromString(raw interface{}) (int64, error) {
-	str, ok := raw.(string)
-	if !ok {
-		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
-	}
-	n, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("unable to parse as int64: %T", raw)
-	}
-	return n, nil
-}
-
-// TimeFromUnixTimestampFloat format
-func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
-	ts, ok := raw.(float64)
-	if !ok {
-		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
-	}
-	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
 }
 
 // GetDefaultDataDir returns the default data directory

@@ -2,6 +2,7 @@ package bitflyer
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -136,7 +137,7 @@ func (b *Bitflyer) FetchTradablePairs(assetType assets.AssetType) ([]string, err
 	for _, info := range pairs {
 		if info.Alias != "" && assetType == assets.AssetTypeFutures {
 			products = append(products, info.Alias)
-		} else if info.Alias == "" && assetType == assets.AssetTypeSpot && common.StringContains(info.ProductCode, "_") {
+		} else if info.Alias == "" && assetType == assets.AssetTypeSpot && strings.Contains(info.ProductCode, "_") {
 			products = append(products, info.ProductCode)
 		}
 	}
@@ -198,7 +199,7 @@ func (b *Bitflyer) FetchTicker(p currency.Pair, assetType assets.AssetType) (tic
 
 // CheckFXString upgrades currency pair if needed
 func (b *Bitflyer) CheckFXString(p currency.Pair) currency.Pair {
-	if common.StringContains(p.Base.String(), "FX") {
+	if strings.Contains(p.Base.String(), "FX") {
 		p.Base = currency.FX_BTC
 		return p
 	}

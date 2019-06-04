@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -92,7 +93,7 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 	}
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(obd.Symbol))
+	params.Set("symbol", strings.ToUpper(obd.Symbol))
 	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, orderBookDepth, params.Encode())
@@ -143,7 +144,7 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 	var resp []RecentTrade
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(rtr.Symbol))
+	params.Set("symbol", strings.ToUpper(rtr.Symbol))
 	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, recentTrades, params.Encode())
@@ -164,7 +165,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 	}
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 	params.Set("limit", strconv.Itoa(limit))
 	params.Set("fromid", strconv.FormatInt(fromID, 10))
 
@@ -185,7 +186,7 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 	}
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 	params.Set("limit", strconv.Itoa(limit))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, aggregatedTrades, params.Encode())
@@ -263,7 +264,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
 	resp := AveragePrice{}
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, averagePrice, params.Encode())
 
@@ -276,7 +277,7 @@ func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
 func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 	resp := PriceChangeStats{}
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, priceChange, params.Encode())
 
@@ -296,7 +297,7 @@ func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 	resp := SymbolPrice{}
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, symbolPrice, params.Encode())
 
@@ -309,7 +310,7 @@ func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 	resp := BestPrice{}
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, bestPrice, params.Encode())
 
@@ -391,7 +392,7 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 	params := url.Values{}
 
 	if symbol != "" {
-		params.Set("symbol", common.StringToUpper(symbol))
+		params.Set("symbol", strings.ToUpper(symbol))
 	}
 
 	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
@@ -410,7 +411,7 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, allOrders)
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
@@ -431,7 +432,7 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, queryOrder)
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}

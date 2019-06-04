@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications/base"
@@ -139,25 +140,25 @@ func (t *Telegram) InitialConnect() {
 // HandleMessages handles incoming message from the long polling routine
 func (t *Telegram) HandleMessages(text string, chatID int64) error {
 	switch {
-	case common.StringContains(text, cmdHelp):
+	case strings.Contains(text, cmdHelp):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, cmdHelpReply), chatID)
 
-	case common.StringContains(text, cmdStart):
+	case strings.Contains(text, cmdStart):
 		return t.SendMessage(fmt.Sprintf("%s: START COMMANDS HERE", talkRoot), chatID)
 
-	case common.StringContains(text, cmdOrders):
+	case strings.Contains(text, cmdOrders):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetOrderbook("ANX")), chatID)
 
-	case common.StringContains(text, cmdStatus):
+	case strings.Contains(text, cmdStatus):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetStatus()), chatID)
 
-	case common.StringContains(text, cmdTicker):
+	case strings.Contains(text, cmdTicker):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetTicker("ANX")), chatID)
 
-	case common.StringContains(text, cmdSettings):
+	case strings.Contains(text, cmdSettings):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetSettings()), chatID)
 
-	case common.StringContains(text, cmdPortfolio):
+	case strings.Contains(text, cmdPortfolio):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetPortfolio()), chatID)
 
 	default:

@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -182,8 +183,8 @@ func (p *Base) RemoveAddress(address, description string, coinType currency.Code
 
 // UpdatePortfolio adds to the portfolio addresses by coin type
 func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) bool {
-	if common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressExchange) ||
-		common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressPersonal) {
+	if strings.Contains(strings.Join(addresses, ","), PortfolioAddressExchange) ||
+		strings.Contains(strings.Join(addresses, ","), PortfolioAddressPersonal) {
 		return true
 	}
 
@@ -224,7 +225,7 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) bool 
 func (p *Base) GetPortfolioByExchange(exchangeName string) map[currency.Code]float64 {
 	result := make(map[currency.Code]float64)
 	for x := range p.Addresses {
-		if common.StringContains(p.Addresses[x].Address, exchangeName) {
+		if strings.Contains(p.Addresses[x].Address, exchangeName) {
 			result[p.Addresses[x].CoinType] = p.Addresses[x].Balance
 		}
 	}
@@ -380,7 +381,7 @@ func (p *Base) GetPortfolioSummary() Summary {
 func (p *Base) GetPortfolioGroupedCoin() map[currency.Code][]string {
 	result := make(map[currency.Code][]string)
 	for _, x := range p.Addresses {
-		if common.StringContains(x.Description, PortfolioAddressExchange) {
+		if strings.Contains(x.Description, PortfolioAddressExchange) {
 			continue
 		}
 		result[x.CoinType] = append(result[x.CoinType], x.Address)

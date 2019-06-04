@@ -2,8 +2,6 @@ package assets
 
 import (
 	"strings"
-
-	"github.com/thrasher-/gocryptotrader/common"
 )
 
 // AssetType stores the asset type
@@ -93,7 +91,7 @@ func IsValid(input AssetType) bool {
 // New takes an input of asset types as string and returns an AssetTypes
 // array
 func New(input string) AssetTypes {
-	if !common.StringContains(input, ",") {
+	if !strings.Contains(input, ",") {
 		if IsValid(AssetType(input)) {
 			return AssetTypes{
 				AssetType(input),

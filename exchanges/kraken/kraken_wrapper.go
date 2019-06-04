@@ -172,7 +172,7 @@ func (k *Kraken) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 	var products []string
 	for i := range pairs {
 		v := pairs[i]
-		if common.StringContains(v.Altname, ".d") {
+		if strings.Contains(v.Altname, ".d") {
 			continue
 		}
 		if v.Base[0] == 'X' {
@@ -214,8 +214,8 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tick
 
 	for _, x := range pairs {
 		for y, z := range tickers {
-			if !common.StringContains(y, x.Base.Upper().String()) ||
-				!common.StringContains(y, x.Quote.Upper().String()) {
+			if !strings.Contains(y, x.Base.Upper().String()) ||
+				!strings.Contains(y, x.Quote.Upper().String()) {
 				continue
 			}
 			var tp ticker.Price

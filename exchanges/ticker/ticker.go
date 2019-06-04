@@ -3,10 +3,10 @@ package ticker
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 )
@@ -45,7 +45,7 @@ type Ticker struct {
 
 // PriceToString returns the string version of a stored price field
 func (t *Ticker) PriceToString(p currency.Pair, priceType string, tickerType assets.AssetType) string {
-	priceType = common.StringToLower(priceType)
+	priceType = strings.ToLower(priceType)
 
 	switch priceType {
 	case "last":

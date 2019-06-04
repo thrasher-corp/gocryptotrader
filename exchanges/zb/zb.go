@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common/convert"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -66,7 +67,7 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 		return 0, err
 	}
 	if result.Code != 1000 {
-		return 0, fmt.Errorf("unsucessful new order, message: %s code: %d", result.Message, result.Code)
+		return 0, fmt.Errorf("unsuccessful new order, message: %s code: %d", result.Message, result.Code)
 	}
 	newOrderID, err := strconv.ParseInt(result.ID, 10, 64)
 	if err != nil {
@@ -252,7 +253,7 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 		return res, errors.New("zb rawKlines unmarshal failed")
 	}
 	for _, k := range rawKlineDatas {
-		ot, err := common.TimeFromUnixTimestampFloat(k[0])
+		ot, err := convert.TimeFromUnixTimestampFloat(k[0])
 		if err != nil {
 			return res, errors.New("zb cannot parse Kline.OpenTime")
 		}

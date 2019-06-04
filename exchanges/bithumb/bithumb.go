@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
@@ -74,7 +75,7 @@ func (b *Bithumb) GetTradablePairs() ([]string, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 	response := Ticker{}
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicTicker, common.StringToUpper(symbol))
+	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicTicker, strings.ToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -140,7 +141,7 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 	response := Orderbook{}
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicOrderBook, common.StringToUpper(symbol))
+	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicOrderBook, strings.ToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -159,7 +160,7 @@ func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, error) {
 	response := TransactionHistory{}
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicTransactionHistory, common.StringToUpper(symbol))
+	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicTransactionHistory, strings.ToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -210,7 +211,7 @@ func (b *Bithumb) GetAccountBalance(c string) (FullBalance, error) {
 	// Added due to increasing of the usuable currencies on exchange, usually
 	// without notificatation, so we dont need to update structs later on
 	for tag, datum := range response.Data {
-		splitTag := common.SplitStrings(tag, "_")
+		splitTag := strings.Split(tag, "_")
 		c := splitTag[len(splitTag)-1]
 		var val float64
 		if reflect.TypeOf(datum).String() != "float64" {
@@ -253,7 +254,7 @@ func (b *Bithumb) GetAccountBalance(c string) (FullBalance, error) {
 func (b *Bithumb) GetWalletAddress(currency string) (WalletAddressRes, error) {
 	response := WalletAddressRes{}
 	params := url.Values{}
-	params.Set("currency", common.StringToUpper(currency))
+	params.Set("currency", strings.ToUpper(currency))
 
 	err := b.SendAuthenticatedHTTPRequest(privateWalletAdd, params, &response)
 	if err != nil {
@@ -305,7 +306,7 @@ func (b *Bithumb) GetOrders(orderID, transactionType, count, after, currency str
 	}
 
 	if len(currency) > 0 {
-		params.Set("currency", common.StringToUpper(currency))
+		params.Set("currency", strings.ToUpper(currency))
 	}
 
 	return response,
@@ -331,9 +332,9 @@ func (b *Bithumb) PlaceTrade(orderCurrency, transactionType string, units float6
 	response := OrderPlace{}
 
 	params := url.Values{}
-	params.Set("order_currency", common.StringToUpper(orderCurrency))
+	params.Set("order_currency", strings.ToUpper(orderCurrency))
 	params.Set("Payment_currency", "KRW")
-	params.Set("type", common.StringToUpper(transactionType))
+	params.Set("type", strings.ToUpper(transactionType))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 	params.Set("price", strconv.FormatInt(price, 10))
 
@@ -346,9 +347,9 @@ func (b *Bithumb) ModifyTrade(orderID, orderCurrency, transactionType string, un
 	response := OrderPlace{}
 
 	params := url.Values{}
-	params.Set("order_currency", common.StringToUpper(orderCurrency))
+	params.Set("order_currency", strings.ToUpper(orderCurrency))
 	params.Set("Payment_currency", "KRW")
-	params.Set("type", common.StringToUpper(transactionType))
+	params.Set("type", strings.ToUpper(transactionType))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 	params.Set("price", strconv.FormatInt(price, 10))
 	params.Set("order_id", orderID)
@@ -367,9 +368,9 @@ func (b *Bithumb) GetOrderDetails(orderID, transactionType, currency string) (Or
 	response := OrderDetails{}
 
 	params := url.Values{}
-	params.Set("order_id", common.StringToUpper(orderID))
+	params.Set("order_id", strings.ToUpper(orderID))
 	params.Set("type", transactionType)
-	params.Set("currency", common.StringToUpper(currency))
+	params.Set("currency", strings.ToUpper(currency))
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(privateOrderDetail, params, &response)
@@ -384,9 +385,9 @@ func (b *Bithumb) CancelTrade(transactionType, orderID, currency string) (Action
 	response := ActionStatus{}
 
 	params := url.Values{}
-	params.Set("order_id", common.StringToUpper(orderID))
-	params.Set("type", common.StringToUpper(transactionType))
-	params.Set("currency", common.StringToUpper(currency))
+	params.Set("order_id", strings.ToUpper(orderID))
+	params.Set("type", strings.ToUpper(transactionType))
+	params.Set("currency", strings.ToUpper(currency))
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(privateCancelTrade, nil, &response)
@@ -408,7 +409,7 @@ func (b *Bithumb) WithdrawCrypto(address, destination, currency string, units fl
 	if len(destination) > 0 {
 		params.Set("destination", destination)
 	}
-	params.Set("currency", common.StringToUpper(currency))
+	params.Set("currency", strings.ToUpper(currency))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
@@ -450,7 +451,7 @@ func (b *Bithumb) MarketBuyOrder(currency string, units float64) (MarketBuy, err
 	response := MarketBuy{}
 
 	params := url.Values{}
-	params.Set("currency", common.StringToUpper(currency))
+	params.Set("currency", strings.ToUpper(currency))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
@@ -466,7 +467,7 @@ func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, e
 	response := MarketSell{}
 
 	params := url.Values{}
-	params.Set("currency", common.StringToUpper(currency))
+	params.Set("currency", strings.ToUpper(currency))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,

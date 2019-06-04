@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -489,7 +488,7 @@ func (e *Base) ValidateAPICredentials() bool {
 
 	if e.API.CredentialsValidator.RequiresPEM {
 		if e.API.Credentials.PEMKey == "" ||
-			common.StringContains(e.API.Credentials.PEMKey, "JUSTADUMMY") {
+			strings.Contains(e.API.Credentials.PEMKey, "JUSTADUMMY") {
 			log.Warnf("exchange %s requires API PEM key but default/empty one set",
 				e.Name)
 			return false

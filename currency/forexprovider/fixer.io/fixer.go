@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -142,7 +143,7 @@ func (f *Fixer) GetHistoricalRates(date, baseCurrency string, symbols []string) 
 	var resp Rates
 
 	v := url.Values{}
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 
 	if baseCurrency != "" {
 		v.Set("base", baseCurrency)
@@ -205,7 +206,7 @@ func (f *Fixer) GetTimeSeriesData(startDate, endDate, baseCurrency string, symbo
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
 	v.Set("base", baseCurrency)
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 
 	err := f.SendOpenHTTPRequest(fixerAPITimeSeries, v, &resp)
 	if err != nil {
@@ -231,7 +232,7 @@ func (f *Fixer) GetFluctuationData(startDate, endDate, baseCurrency string, symb
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
 	v.Set("base", baseCurrency)
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 
 	err := f.SendOpenHTTPRequest(fixerAPIFluctuation, v, &resp)
 	if err != nil {

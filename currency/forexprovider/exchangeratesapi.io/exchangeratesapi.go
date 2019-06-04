@@ -66,7 +66,7 @@ func cleanCurrencies(baseCurrency, symbols string) string {
 		}
 
 		// remove and warn about any unsupported currencies
-		if !common.StringContains(exchangeRatesSupportedCurrencies, x) {
+		if !strings.Contains(exchangeRatesSupportedCurrencies, x) {
 			log.Warnf("Forex provider ExchangeRatesAPI does not support currency %s, removing from forex rates query.", x)
 			continue
 		}
@@ -164,7 +164,7 @@ func (e *ExchangeRates) GetRates(baseCurrency, symbols string) (map[string]float
 
 // GetSupportedCurrencies returns the supported currency list
 func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
-	return common.SplitStrings(exchangeRatesSupportedCurrencies, ","), nil
+	return strings.Split(exchangeRatesSupportedCurrencies, ","), nil
 }
 
 // SendHTTPRequest sends a HTTPS request to the desired endpoint and returns the result

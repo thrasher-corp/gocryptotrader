@@ -2,9 +2,8 @@ package utils
 
 import (
 	"errors"
+	"path/filepath"
 	"runtime"
-
-	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -32,5 +31,5 @@ func AdjustGoMaxProcs(maxProcs int) error {
 
 // GetTLSDir returns the default TLS dir
 func GetTLSDir(dir string) string {
-	return dir + common.GetOSPathSlash() + defaultTLSDir
+	return filepath.Join(dir, defaultTLSDir)
 }

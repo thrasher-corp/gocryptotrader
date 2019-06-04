@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/smtp"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications/base"
@@ -56,7 +57,7 @@ func (s *SMTPservice) Send(subject, alert string) error {
 		return errors.New("STMPservice Send() please add subject and alert")
 	}
 
-	list := common.SplitStrings(s.RecipientList, ",")
+	list := strings.Split(s.RecipientList, ",")
 
 	for i := range list {
 		messageToSend := fmt.Sprintf(

@@ -52,7 +52,7 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 
 	for k, v := range response {
 		var tick Ticker
-		key := common.StringToUpper(k)
+		key := strings.ToUpper(k)
 		if v.Ask != nil {
 			tick.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
 		}
@@ -82,7 +82,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 		Bids [][]string `json:"bids"`
 		Asks [][]string `json:"asks"`
 	}
-	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCOrderbook, common.StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCOrderbook, strings.ToLower(currency))
 	resp := Response{}
 	err := l.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -122,7 +122,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 
 // GetTradeHistory returns the trade history for a given currency pair
 func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
-	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCTrades, common.StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCTrades, strings.ToLower(currency))
 	var resp []TradeHistory
 	return resp, l.SendHTTPRequest(path, &resp)
 }
@@ -172,7 +172,7 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]Orders, error) {
 
 	var resp []Orders
 	return resp,
-		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, common.JoinStrings(ordersStr, ","), &resp)
+		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, strings.Join(ordersStr, ","), &resp)
 }
 
 // CancelExistingOrder cancels an order by ID number and returns an error
@@ -201,7 +201,7 @@ func (l *LakeBTC) CancelExistingOrders(orderIDs []string) error {
 	}
 
 	resp := Response{}
-	params := common.JoinStrings(orderIDs, ",")
+	params := strings.Join(orderIDs, ",")
 	err := l.SendAuthenticatedHTTPRequest(lakeBTCCancelOrder, params, &resp)
 	if err != nil {
 		return err
@@ -271,7 +271,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	postData := make(map[string]interface{})
 	postData["method"] = method
 	postData["id"] = 1
-	postData["params"] = common.SplitStrings(params, ",")
+	postData["params"] = strings.Split(params, ",")
 
 	data, err := common.JSONEncode(postData)
 	if err != nil {

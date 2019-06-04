@@ -684,7 +684,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 	headers := make(map[string]string)
 	headers["Apiauth-Key"] = l.API.Credentials.Key
 	headers["Apiauth-Nonce"] = n
-	headers["Apiauth-Signature"] = common.StringToUpper(crypto.HexEncodeToString(hmac))
+	headers["Apiauth-Signature"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if l.Verbose {

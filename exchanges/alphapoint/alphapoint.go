@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -534,7 +535,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 	hmac := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(n.String()+a.API.Credentials.ClientID+a.API.Credentials.Key),
 		[]byte(a.API.Credentials.Secret))
-	data["apiSig"] = common.StringToUpper(crypto.HexEncodeToString(hmac))
+	data["apiSig"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.API.Endpoints.URL, alphapointAPIVersion, path)
 
 	PayloadJSON, err := common.JSONEncode(data)
