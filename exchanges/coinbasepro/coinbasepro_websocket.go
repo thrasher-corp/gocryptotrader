@@ -317,13 +317,9 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 			},
 		},
 	}
-	if channelToSubscribe.Channel == "user" {
-		n := c.Requester.GetNonce(true).String()
-		payload, err := common.JSONEncode(subscribe)
-		if err != nil {
-			return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
-		}
-		message := n + "users/self/verify" + string(payload)
+	if channelToSubscribe.Channel == "user" || channelToSubscribe.Channel == "full" {
+		n := c.Requester.GetNonce(false).String()
+		message := n + "GET" + "/users/self/verify"
 		hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(c.APISecret))
 		subscribe.Signature = common.Base64Encode(hmac)
 		subscribe.Key = c.APIKey

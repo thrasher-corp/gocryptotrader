@@ -823,7 +823,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		}
 	}
 
-	n := c.Requester.GetNonce(true).String()
+	n := c.Requester.GetNonce(false).String()
 	message := n + method + "/" + path + string(payload)
 	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(c.APISecret))
 	headers := make(map[string]string)
