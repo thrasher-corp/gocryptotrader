@@ -303,10 +303,11 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 			}
 			var eventResponse WebsocketEventResponse
 			err = common.JSONDecode(resp.Raw, &eventResponse)
-			if err == nil && len(eventResponse.Channel) > 0 {
+			if err == nil && eventResponse.Event != "" {
 				if o.Verbose {
 					log.Debugf("WS Event: %v on Channel: %v", eventResponse.Event, eventResponse.Channel)
 				}
+				o.Websocket.DataHandler <- eventResponse
 				continue
 			}
 		}
@@ -372,6 +373,7 @@ func (o *OKGroup) GetAssetTypeFromTableName(table string) string {
 // WsHandleDataResponse classifies the WS response and sends to appropriate handler
 func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 	switch o.GetWsChannelWithoutOrderType(response.Table) {
+
 	case okGroupWsCandle60s, okGroupWsCandle180s, okGroupWsCandle300s, okGroupWsCandle900s,
 		okGroupWsCandle1800s, okGroupWsCandle3600s, okGroupWsCandle7200s, okGroupWsCandle14400s,
 		okGroupWsCandle21600s, okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:

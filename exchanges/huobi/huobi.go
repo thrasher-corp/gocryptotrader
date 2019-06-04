@@ -67,10 +67,10 @@ const (
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
-	AccountID     string
-	WebsocketConn *websocket.Conn
+	AccountID                  string
+	WebsocketConn              *websocket.Conn
 	AuthenticatedWebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	wsRequestMtx               sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -100,7 +100,9 @@ func (h *HUOBI) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketAccountDataSupported
 }
 
 // Setup sets user configuration

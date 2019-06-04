@@ -1,9 +1,11 @@
 package coinut
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -401,4 +403,41 @@ func TestGetDepositAddress(t *testing.T) {
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() function unsupported cannot be nil")
 	}
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	c.SetDefaults()
+	TestSetup(t)
+	if !c.Websocket.IsEnabled() && !c.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Websocket.DataHandler = make(chan interface{}, 999)
+	c.Websocket.TrafficAlert = make(chan struct{}, 999)
+	go c.WsHandleData()
+	defer c.WebsocketConn.Close()
+	err = c.wsAuthenticate()
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second)
+	err = c.wsGetAccountBalance()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-c.Websocket.DataHandler:
+		return
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
 }

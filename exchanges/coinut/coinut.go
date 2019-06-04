@@ -81,7 +81,10 @@ func (c *COINUT) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketSubmitOrderSupported |
+		exchange.WebsocketCancelOrderSupported
 }
 
 // Setup sets the current exchange configuration

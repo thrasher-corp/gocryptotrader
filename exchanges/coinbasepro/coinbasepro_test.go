@@ -608,6 +608,7 @@ func TestWsAuth(t *testing.T) {
 	case badResponse := <-c.Websocket.DataHandler:
 		t.Error(badResponse)
 	case <-timer.C:
-		timer.Stop()
 	}
+	timer.Stop()
+
 }

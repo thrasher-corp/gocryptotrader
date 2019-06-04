@@ -62,7 +62,7 @@ const (
 
 // HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn              *websocket.Conn
 	AuthenticatedWebsocketConn *websocket.Conn
 	exchange.Base
 	wsRequestMtx sync.Mutex
@@ -95,7 +95,9 @@ func (h *HUOBIHADAX) SetDefaults() {
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketAccountDataSupported
 }
 
 // Setup sets user configuration

@@ -385,7 +385,7 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request. 
+// TestWsAuth dials websocket, sends login request.
 // Will receive a message only on failure
 func TestWsAuth(t *testing.T) {
 	TestSetDefaults(t)
@@ -408,11 +408,11 @@ func TestWsAuth(t *testing.T) {
 	case dataError := <-h.Websocket.DataHandler:
 		t.Error(dataError)
 	case <-timer.C:
-		timer.Stop()
-	}	
+	}
+	timer.Stop()
 }
 
-// TestWsCancelOrder dials websocket, sends cancel request. 
+// TestWsCancelOrder dials websocket, sends cancel request.
 // Will receive a message only on failure
 func TestWsCancelOrder(t *testing.T) {
 	TestSetDefaults(t)
@@ -442,11 +442,11 @@ func TestWsCancelOrder(t *testing.T) {
 			t.Error(dataError)
 		}
 	case <-timer.C:
-		timer.Stop()
-	}	
+	}
+	timer.Stop()
 }
 
-// TestWsAuthFirst dials websocket, sends cancel request. 
+// TestWsAuthFirst dials websocket, sends cancel request.
 // Not logged in, should receive error
 func TestWsAuthFirst(t *testing.T) {
 	TestSetDefaults(t)
@@ -477,6 +477,6 @@ func TestWsAuthFirst(t *testing.T) {
 			}
 		}
 	case <-timer.C:
-		timer.Stop() 
-	}	
+	}
+	timer.Stop()
 }

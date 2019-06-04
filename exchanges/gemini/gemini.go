@@ -123,7 +123,8 @@ func (g *Gemini) SetDefaults() {
 	g.APIUrl = g.APIUrlDefault
 	g.WebsocketInit()
 	g.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported
 }
 
 // Setup sets exchange configuration parameters

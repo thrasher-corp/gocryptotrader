@@ -22,9 +22,9 @@ import (
 const (
 	HuobiHadaxSocketIOAddress       = "wss://api.hadax.com/ws"
 	HuobiHadaxAccountsOrdersAddress = "wss://api.huobi.pro/ws/v1"
-	wsMarketKline              = "market.%s.kline.1min"
-	wsMarketDepth              = "market.%s.depth.step0"
-	wsMarketTrade              = "market.%s.trade.detail"
+	wsMarketKline                   = "market.%s.kline.1min"
+	wsMarketDepth                   = "market.%s.depth.step0"
+	wsMarketTrade                   = "market.%s.trade.detail"
 )
 
 // Instantiates a communications channel between websocket connections
@@ -57,6 +57,10 @@ func (h *HUOBIHADAX) WsConnect() error {
 		if err != nil {
 			return err
 		}
+		err = h.wsLogin()
+		if err != nil {
+			return err
+		}
 	}
 
 	go h.WsHandleData()
@@ -84,10 +88,6 @@ func (h *HUOBIHADAX) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 		return fmt.Errorf("%v %v %v Error: %v", HuobiHadaxAccountsOrdersAddress, conStatus, conStatus.StatusCode, err)
 	}
 	go h.wsMultiConnectionFunnel(h.AuthenticatedWebsocketConn, HuobiHadaxAccountsOrdersAddress)
-	err = h.wsLogin()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -167,7 +167,7 @@ func (h *HUOBIHADAX) wsHandleAuthenticatedData(resp WsMessage) {
 		}
 		return
 	}
-	
+
 	if init.Op == "sub" {
 		if h.Verbose {
 			log.Debugf("%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
@@ -175,6 +175,13 @@ func (h *HUOBIHADAX) wsHandleAuthenticatedData(resp WsMessage) {
 	}
 
 	switch {
+	case strings.EqualFold(init.Op, "auth"):
+		var response WsAuthenticatedDataResponse
+		err := common.JSONDecode(resp.Raw, &response)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- response
 	case strings.EqualFold(init.Topic, "accounts"):
 		var response WsAuthenticatedAccountsResponse
 		err := common.JSONDecode(resp.Raw, &response)
@@ -359,13 +366,12 @@ func (h *HUOBIHADAX) Subscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", "/ws/v1/"+channelToSubscribe.Channel, channelToSubscribe.Channel)
-	} else {
-		subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
-		if err != nil {
-			return err
-		}
-		return h.wsSend(subscription)
 	}
+	subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -373,13 +379,12 @@ func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSub
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", "/ws/v1/"+channelToSubscribe.Channel, channelToSubscribe.Channel)
-	} else {
-		subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
-		if err != nil {
-			return err
-		}
-		return h.wsSend(subscription)
 	}
+	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
 }
 
 // WsSend sends data to the websocket server

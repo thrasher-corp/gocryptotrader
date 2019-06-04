@@ -512,9 +512,9 @@ func TestWsAuth(t *testing.T) {
 	case <-z.Websocket.DataHandler:
 		return
 	case <-timer.C:
-		timer.Stop()
 		t.Error("Have not received a response")
 	}
+	timer.Stop()
 }
 
 // TestWsGetOrders dials websocket, sends getorder request.
@@ -547,9 +547,9 @@ func TestWsGetOrders(t *testing.T) {
 	timer := time.NewTimer(3 * time.Second)
 	select {
 	case <-z.Websocket.DataHandler:
-		return
+		// will receive "The pending order was not found or completed" in response. That's okay
 	case <-timer.C:
-		timer.Stop()
 		t.Error("Have not received a response")
 	}
+	timer.Stop()
 }

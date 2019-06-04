@@ -463,6 +463,6 @@ func TestWsAuth(t *testing.T) {
 	case response := <-p.Websocket.DataHandler:
 		t.Error(response)
 	case <-timer.C:
-		timer.Stop()
 	}
+	timer.Stop()
 }

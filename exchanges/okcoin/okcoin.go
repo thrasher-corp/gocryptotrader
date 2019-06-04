@@ -56,5 +56,6 @@ func (o *OKCoin) SetDefaults() {
 		exchange.WebsocketKlineSupported |
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported
 }

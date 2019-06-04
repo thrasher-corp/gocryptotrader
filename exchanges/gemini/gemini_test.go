@@ -1,9 +1,9 @@
 package gemini
 
 import (
-	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -557,48 +557,28 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func TestCanConnectToAuthWebsocket(t *testing.T) {
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
 	g := Session[1]
+	g.WebsocketURL = geminiWebsocketSandboxEndpoint
+
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}
-	g.Websocket.DataHandler = make(chan interface{}, 999)
-	comms = make(chan ReadData, 1)
 	var dialer websocket.Dialer
-	endpoint := "wss://api.sandbox.gemini.com/v1/order/events"
-		payload := struct{
-			Request string `json:"request"`
-			Nonce int64 `json:"nonce"`
-		} {
-			Request: "/v1/order/events",
-			Nonce: int64(g.GetNonce(false)),
-		}
-
-	PayloadJSON, err := common.JSONEncode(payload)
-
-	if err != nil {
-		t.Error("sendAuthenticatedHTTPRequest: Unable to JSON request")
-	}
-	PayloadBase64 := common.Base64Encode(PayloadJSON)
-	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
-	headers := http.Header{}
-	headers.Add("Content-Length", "0")
-	headers.Add("Content-Type", "text/plain")
-	headers.Add("X-GEMINI-PAYLOAD", PayloadBase64)
-	headers.Add("X-GEMINI-APIKEY", g.APIKey)
-	headers.Add("X-GEMINI-SIGNATURE", common.HexEncodeToString(hmac))
-	headers.Add("Cache-Control", "no-cache")
-	conn, _, err := dialer.Dial(endpoint, headers)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
 	go g.WsHandleData()
-	_, _, err = conn.ReadMessage()
+	err := g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
 	if err != nil {
 		t.Error(err)
 	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-g.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
 }

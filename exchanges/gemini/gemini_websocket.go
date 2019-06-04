@@ -82,7 +82,7 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	payload := WsRequestPayload{
 		Request: fmt.Sprintf("/v1/%v", url),
-		Nonce:   int64(g.GetNonce(false)),
+		Nonce:   int64(g.GetNonce(true)),
 	}
 	PayloadJSON, err := common.JSONEncode(payload)
 	if err != nil {

@@ -981,7 +981,7 @@ func TestWsAuth(t *testing.T) {
 	select {
 	case <-b.Websocket.DataHandler:
 	case <-timer.C:
-		timer.Stop()
 		t.Error("Have not received a response")
 	}
+	timer.Stop()
 }

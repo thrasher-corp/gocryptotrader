@@ -84,7 +84,10 @@ func (h *HitBTC) SetDefaults() {
 	h.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketSubmitOrderSupported |
+		exchange.WebsocketCancelOrderSupported |
 }
 
 // Setup sets user exchange configuration settings

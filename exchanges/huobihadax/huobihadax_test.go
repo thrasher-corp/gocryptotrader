@@ -636,7 +636,7 @@ func TestWsAuth(t *testing.T) {
 			t.Error(response)
 		}
 	case <-timer.C:
-		timer.Stop()
 		t.Error("Websocket did not receive a response")
 	}
+	timer.Stop()
 }
