@@ -254,3 +254,14 @@ func (b *Bitflyer) SubscribeToWebsocketChannels(channels []exchange.WebsocketCha
 func (b *Bitflyer) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (b *Bitflyer) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	var nilResponse []exchange.WebsocketChannelSubscription
+	return nilResponse, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (b *Bitflyer) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

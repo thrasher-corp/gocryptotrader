@@ -517,3 +517,13 @@ func (c *COINUT) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketCha
 	c.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (c *COINUT) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return c.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (c *COINUT) AuthenticateWebsocket() error {
+	return c.wsAuthenticate()
+}

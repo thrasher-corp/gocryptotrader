@@ -24,8 +24,6 @@ const (
 	gateioWebsocketRateLimit = 120 * time.Millisecond
 )
 
-var isAuthenticated bool
-
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
@@ -48,6 +46,7 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
+	go g.WsHandleData()
 
 	if g.AuthenticatedAPISupport {
 		err = g.wsServerSignIn()
@@ -55,12 +54,10 @@ func (g *Gateio) WsConnect() error {
 			log.Errorf("%v - wsServerSignin() failed: %v", g.GetName(), err)
 		}
 		time.Sleep(time.Second * 2) // sleep to allow server to complete sign-on if further authenticated requests are sent piror to this they will fail
-		isAuthenticated = true
+		g.GenerateAuthenticatedSubscriptions()
 	}
 
-	go g.WsHandleData()
 	g.GenerateDefaultSubscriptions()
-
 	return nil
 }
 
@@ -117,7 +114,6 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- err
 				continue
 			}
-
 			if result.Error.Code != 0 {
 				if common.StringContains(result.Error.Message, "authentication") {
 					g.Websocket.DataHandler <- fmt.Errorf("%v - WebSocket authentication failed ",
@@ -131,6 +127,8 @@ func (g *Gateio) WsHandleData() {
 			}
 
 			switch result.ID {
+			case IDSignIn:
+				g.Websocket.DataHandler <- string(result.Result)
 			case IDBalance:
 				var balance WebsocketBalance
 				var balanceInterface interface{}
@@ -342,13 +340,25 @@ func (g *Gateio) WsHandleData() {
 	}
 }
 
+// GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
+func (g *Gateio) GenerateAuthenticatedSubscriptions() {
+	var channels = []string{"balance.subscribe", "order.subscribe"}
+	subscriptions := []exchange.WebsocketChannelSubscription{}
+	enabledCurrencies := g.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channels[i],
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+	g.Websocket.SubscribeToChannels(subscriptions)
+}
+
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
-	if isAuthenticated {
-		channels = append(channels, "balance.subscribe", "order.subscribe")
-	}
-
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {

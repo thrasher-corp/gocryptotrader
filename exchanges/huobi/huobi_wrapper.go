@@ -523,3 +523,13 @@ func (h *HUOBI) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChan
 	h.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (h *HUOBI) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return h.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (h *HUOBI) AuthenticateWebsocket() error {
+	return h.wsLogin()
+}

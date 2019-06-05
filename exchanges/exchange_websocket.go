@@ -878,3 +878,9 @@ func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannel
 	return strings.EqualFold(w.Channel, subscribedChannel.Channel) &&
 		strings.EqualFold(w.Currency.String(), subscribedChannel.Currency.String())
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+// subscriptions is a private member and cannot be manipulated
+func (w *Websocket) GetSubscriptions() []WebsocketChannelSubscription {
+	return append(w.subscribedChannels[:0:0], w.subscribedChannels...)
+}

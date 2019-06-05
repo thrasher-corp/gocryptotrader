@@ -439,3 +439,14 @@ func (l *LocalBitcoins) SubscribeToWebsocketChannels(channels []exchange.Websock
 func (l *LocalBitcoins) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (l *LocalBitcoins) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	var nilResponse []exchange.WebsocketChannelSubscription
+	return nilResponse, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (l *LocalBitcoins) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

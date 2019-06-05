@@ -408,3 +408,14 @@ func (e *EXMO) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannel
 func (e *EXMO) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (e *EXMO) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	var nilResponse []exchange.WebsocketChannelSubscription
+	return nilResponse, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (e *EXMO) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

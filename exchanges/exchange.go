@@ -325,8 +325,8 @@ type IBotExchange interface {
 	GetWebsocket() (*Websocket, error)
 	SubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
-	// AuthenticateWebsocket() error
-	// GetSubscriptions() []WebsocketChannelSubscription
+	AuthenticateWebsocket() error
+	GetSubscriptions() ([]WebsocketChannelSubscription, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the

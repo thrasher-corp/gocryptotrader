@@ -408,3 +408,13 @@ func (k *Kraken) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketCha
 	k.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (k *Kraken) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return k.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (k *Kraken) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

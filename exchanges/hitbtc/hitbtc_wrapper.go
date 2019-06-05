@@ -400,3 +400,13 @@ func (h *HitBTC) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketCha
 	h.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (h *HitBTC) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return h.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (h *HitBTC) AuthenticateWebsocket() error {
+	return h.wsLogin()
+}

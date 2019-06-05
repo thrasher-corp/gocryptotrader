@@ -1,8 +1,11 @@
 package gateio
 
 import (
+	"net/http"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -489,4 +492,40 @@ func TestGetOrderInfo(t *testing.T) {
 			t.Fatalf("GetOrderInfo() returned an error skipping test: %v", err)
 		}
 	}
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	g.SetDefaults()
+	TestSetup(t)
+	g.Verbose = true
+	if !g.Websocket.IsEnabled() && !g.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	g.WebsocketConn, _, err = dialer.Dial(g.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g.Websocket.DataHandler = make(chan interface{}, 999)
+	g.Websocket.TrafficAlert = make(chan struct{}, 999)
+	go g.WsHandleData()
+	defer g.WebsocketConn.Close()
+	err = g.wsServerSignIn()
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second)
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case resultString := <-g.Websocket.DataHandler:
+		if !common.StringContains(resultString.(string), "success") {
+			t.Error("Authentication failed")
+		}
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
 }

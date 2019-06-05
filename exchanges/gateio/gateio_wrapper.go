@@ -459,3 +459,13 @@ func (g *Gateio) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketCha
 	g.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (g *Gateio) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return g.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (g *Gateio) AuthenticateWebsocket() error {
+	return g.wsServerSignIn()
+}
