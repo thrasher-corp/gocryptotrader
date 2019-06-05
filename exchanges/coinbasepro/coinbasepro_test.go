@@ -170,7 +170,6 @@ func TestAuthRequests(t *testing.T) {
 	if err != nil {
 		t.Error("Test failed - GetCoinbaseAccounts() error", err)
 	}
-
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
@@ -579,6 +578,7 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
+// TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)

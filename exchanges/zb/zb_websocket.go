@@ -183,6 +183,9 @@ func (z *ZB) WsHandleData() {
 				}
 
 				// Most up to date trade
+				if len(trades.Data) == 0 {
+					continue
+				}
 				t := trades.Data[len(trades.Data)-1]
 
 				channelInfo := common.SplitStrings(result.Channel, "_")

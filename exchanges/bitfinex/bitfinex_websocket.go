@@ -207,7 +207,6 @@ func (b *Bitfinex) WsDataHandler() {
 				b.Websocket.DataHandler <- err
 				return
 			}
-			log.Debug(string(stream.Raw))
 
 			if stream.Type == websocket.TextMessage {
 				var result interface{}

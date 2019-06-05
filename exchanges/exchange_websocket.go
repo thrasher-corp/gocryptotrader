@@ -884,3 +884,4 @@ func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannel
 func (w *Websocket) GetSubscriptions() []WebsocketChannelSubscription {
 	return append(w.subscribedChannels[:0:0], w.subscribedChannels...)
 }
+	

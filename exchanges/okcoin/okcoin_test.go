@@ -1145,37 +1145,3 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
-
-// TestWsAuth dials websocket, sends login request.
-func TestWsAuth(t *testing.T) {
-	o.SetDefaults()
-	TestSetup(t)
-	if !o.Websocket.IsEnabled() && !o.AuthenticatedAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
-	}
-	var err error
-	var dialer websocket.Dialer
-	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
-		http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	o.Websocket.DataHandler = make(chan interface{}, 999)
-	o.Websocket.TrafficAlert = make(chan struct{}, 999)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go o.WsHandleData(&wg)
-	defer o.WebsocketConn.Close()
-	err = o.WsLogin()
-	if err != nil {
-		t.Error(err)
-	}
-	timer := time.NewTimer(3 * time.Second)
-	select {
-	case <-o.Websocket.DataHandler:
-		return
-	case <-timer.C:
-		t.Error("Expected response")
-	}
-	timer.Stop()
-}
