@@ -78,7 +78,7 @@ type OrderToGo struct {
 
 // Order holds order information
 type Order struct {
-	ID              string          `json:"id"`
+	ID              int64           `json:"id"`
 	Currency        string          `json:"currency"`
 	Instrument      string          `json:"instrument"`
 	OrderSide       string          `json:"orderSide"`
