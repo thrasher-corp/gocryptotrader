@@ -138,7 +138,19 @@ func TestUpdateAddressBalance(t *testing.T) {
 }
 
 func TestRemoveAddress(t *testing.T) {
-	newbase := Base{}
+	var newbase Base
+	if err := newbase.RemoveAddress("", "MEOW", currency.LTC); err == nil {
+		t.Error("invalid address should throw an error")
+	}
+
+	if err := newbase.RemoveAddress("Gibson", "", currency.NewCode("")); err == nil {
+		t.Error("invalid coin type should throw an error")
+	}
+
+	if err := newbase.RemoveAddress("HIDDENERINO", "MEOW", currency.LTC); err == nil {
+		t.Error("non-existent address should throw an error")
+	}
+
 	newbase.AddAddress("someaddr",
 		currency.LTC.String(),
 		currency.NewCode("LTCWALLETTEST"),
@@ -187,11 +199,35 @@ func TestUpdateExchangeAddressBalance(t *testing.T) {
 }
 
 func TestAddAddress(t *testing.T) {
-	newbase := Base{}
+	var newbase Base
+	if err := newbase.AddAddress("", "MEOW", currency.LTC, 1); err == nil {
+		t.Error("invalid address should throw an error")
+	}
+
+	if err := newbase.AddAddress("Gibson", "", currency.NewCode(""), 1); err == nil {
+		t.Error("invalid coin type should throw an error")
+	}
+
+	// test adding an exchange address
+	err := newbase.AddAddress("COINUT", PortfolioAddressExchange, currency.LTC, 0)
+	if err != nil {
+		t.Errorf("failed to add address: %v", err)
+	}
+
+	// add a test portfolio address and amount
 	newbase.AddAddress("Gibson",
 		currency.LTC.String(),
 		currency.NewCode("LTCWALLETTEST"),
 		0.02)
+
+	// test updating the balance and make sure it's reflected
+	newbase.AddAddress("Gibson", currency.LTC.String(),
+		currency.NewCode("LTCWALLETTEST"), 0.05)
+	b, _ := newbase.GetAddressBalance("Gibson", "LTC",
+		currency.NewCode("LTCWALLETTEST"))
+	if b != 0.05 {
+		t.Error("invalid portfolio amount")
+	}
 
 	portfolio := GetPortfolio()
 	portfolio.Seed(newbase)

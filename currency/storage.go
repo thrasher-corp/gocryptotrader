@@ -343,7 +343,7 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 // loads it into memory
 func (s *Storage) FetchCurrencyAnalysisData() error {
 	if s.currencyAnalysis == nil {
-		log.Warn("Currency analysis system offline please set api keys for coinmarketcap")
+		log.Warn("Currency analysis system offline, please set api keys for coinmarketcap if you wish to use this feature.")
 		return errors.New("currency analysis system offline")
 	}
 

@@ -158,7 +158,7 @@ func (c *Config) UpdateClientBankAccounts(bankCfg *BankAccount) error {
 }
 
 // CheckClientBankAccounts checks client bank details
-func (c *Config) CheckClientBankAccounts() error {
+func (c *Config) CheckClientBankAccounts() {
 	m.Lock()
 	defer m.Unlock()
 
@@ -175,24 +175,30 @@ func (c *Config) CheckClientBankAccounts() error {
 				SupportedExchanges:  "ANX,Kraken",
 			},
 		)
-		return nil
+		return
 	}
 
 	for i := range c.BankAccounts {
 		if c.BankAccounts[i].Enabled {
 			if c.BankAccounts[i].BankName == "" || c.BankAccounts[i].BankAddress == "" {
-				return fmt.Errorf("banking details for %s is enabled but variables not set correctly",
+				c.BankAccounts[i].Enabled = false
+				log.Warnf("banking details for %s is enabled but variables not set correctly",
 					c.BankAccounts[i].BankName)
+				continue
 			}
 
 			if c.BankAccounts[i].AccountName == "" || c.BankAccounts[i].AccountNumber == "" {
-				return fmt.Errorf("banking account details for %s variables not set correctly",
+				c.BankAccounts[i].Enabled = false
+				log.Warnf("banking account details for %s variables not set correctly",
 					c.BankAccounts[i].BankName)
+				continue
 			}
 			if c.BankAccounts[i].IBAN == "" && c.BankAccounts[i].SWIFTCode == "" && c.BankAccounts[i].BSBNumber == "" {
-				return fmt.Errorf("critical banking numbers not set for %s in %s account",
+				c.BankAccounts[i].Enabled = false
+				log.Warnf("critical banking numbers not set for %s in %s account",
 					c.BankAccounts[i].BankName,
 					c.BankAccounts[i].AccountName)
+				continue
 			}
 
 			if c.BankAccounts[i].SupportedExchanges == "" {
@@ -200,7 +206,6 @@ func (c *Config) CheckClientBankAccounts() error {
 			}
 		}
 	}
-	return nil
 }
 
 // PurgeExchangeAPICredentials purges the stored API credentials
@@ -1254,7 +1259,7 @@ func (c *Config) CheckNTPConfig() {
 	}
 
 	if len(c.NTPClient.Pool) < 1 {
-		log.Warn("NTPClient enabled with no servers configured enabling default pool")
+		log.Warn("NTPClient enabled with no servers configured, enabling default pool.")
 		c.NTPClient.Pool = []string{"pool.ntp.org:123"}
 	}
 }
@@ -1265,8 +1270,8 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	log.Warn("Your system time is out of sync this may cause issues with trading")
-	log.Warn("How would you like to show future notifications? (a)lert / (w)arn / (d)isable \n")
+	log.Warn("Your system time is out of sync, this may cause issues with trading.")
+	log.Warn("How would you like to show future notifications? (a)lert / (w)arn / (d)isable. \n")
 
 	var answered = false
 	for ok := true; ok; ok = (!answered) {
@@ -1291,7 +1296,7 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 			return "Future notications for out time sync have been disabled", nil
 		}
 	}
-	return "", errors.New("something went wrong NTPCheck should never make it this far")
+	return "", errors.New("something went wrong, NTPCheck should never make it this far")
 }
 
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
@@ -1502,15 +1507,11 @@ func (c *Config) SaveConfig(configPath string) error {
 	return common.WriteFile(defaultPath, payload)
 }
 
-// CheckConfig checks all config settings
-func (c *Config) CheckConfig() error {
-	err := c.CheckExchangeConfigValues()
-	if err != nil {
-		return fmt.Errorf(ErrCheckingConfigValues, err)
-	}
-
-	c.CheckConnectionMonitorConfig()
-	c.CheckCommunicationsConfig()
+// CheckRemoteControlConfig checks to see if the old c.Webserver field is used
+// and migrates the existing settings to the new RemoteControl struct
+func (c *Config) CheckRemoteControlConfig() {
+	m.Lock()
+	defer m.Unlock()
 
 	if c.Webserver != nil {
 		port := common.ExtractPort(c.Webserver.ListenAddress)
@@ -1548,6 +1549,25 @@ func (c *Config) CheckConfig() error {
 		c.Webserver = nil
 	}
 
+}
+
+// CheckConfig checks all config settings
+func (c *Config) CheckConfig() error {
+	err := c.CheckLoggerConfig()
+	if err != nil {
+		log.Errorf("Failed to configure logger. Err: %s", err)
+	}
+
+	err = c.CheckExchangeConfigValues()
+	if err != nil {
+		return fmt.Errorf(ErrCheckingConfigValues, err)
+	}
+
+	c.CheckConnectionMonitorConfig()
+	c.CheckCommunicationsConfig()
+	c.CheckClientBankAccounts()
+	c.CheckRemoteControlConfig()
+
 	err = c.CheckCurrencyConfigValues()
 	if err != nil {
 		return err
@@ -1558,7 +1578,11 @@ func (c *Config) CheckConfig() error {
 		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
 	}
 
-	return c.CheckClientBankAccounts()
+	if c.NTPClient.Level != 0 {
+		c.CheckNTPConfig()
+	}
+
+	return nil
 }
 
 // LoadConfig loads your configuration file into your configuration object

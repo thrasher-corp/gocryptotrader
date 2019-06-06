@@ -33,6 +33,7 @@ type Engine struct {
 	Exchanges                      []exchange.IBotExchange
 	ExchangeCurrencyPairManager    *ExchangeCurrencyPairSyncer
 	OrderManager                   *OrderManager
+	PortfolioManager               portfolioManager
 	CommsRelayer                   *communications.Communications
 	Connectivity                   *connchecker.Checker
 	Shutdown                       chan bool
@@ -86,11 +87,6 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		return nil, fmt.Errorf("failed to open/create data directory: %s. Err: %s", settings.DataDir, err)
 	}
 
-	err = b.Config.CheckLoggerConfig()
-	if err != nil {
-		log.Errorf("Failed to configure logger. Err: %s", err)
-	}
-
 	err = log.SetupLogger()
 	if err != nil {
 		log.Errorf("Failed to setup logger. Err: %s", err)
@@ -119,7 +115,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableDryRun = s.EnableDryRun
 	b.Settings.EnableAllExchanges = s.EnableAllExchanges
 	b.Settings.EnableAllPairs = s.EnableAllPairs
-	b.Settings.EnablePortfolioWatcher = s.EnablePortfolioWatcher
+	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 
 	// TO-DO: FIXME
@@ -159,10 +155,11 @@ func ValidateSettings(b *Engine, s *Settings) {
 		}
 	}
 
+	b.Settings.EnableConnectivityMonitor = s.EnableConnectivityMonitor
 	b.Settings.EnableNTPClient = s.EnableNTPClient
-	b.Settings.EnableTickerRoutine = s.EnableTickerRoutine
-	b.Settings.EnableOrderbookRoutine = s.EnableOrderbookRoutine
-	b.Settings.EnableWebsocketRoutine = s.EnableWebsocketRoutine
+	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
+	b.Settings.EnableTickerSyncing = s.EnableTickerSyncing
+	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
 	b.Settings.EnableExchangeWebsocketSupport = s.EnableExchangeWebsocketSupport
 	b.Settings.EnableExchangeRESTSupport = s.EnableExchangeRESTSupport
@@ -222,7 +219,7 @@ func PrintSettings(s *Settings) {
 	log.Debugf("\t Enable all exchanges: %v", s.EnableAllExchanges)
 	log.Debugf("\t Enable all pairs: %v", s.EnableAllPairs)
 	log.Debugf("\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
-	log.Debugf("\t Enable portfolio watcher: %v", s.EnablePortfolioWatcher)
+	log.Debugf("\t Enable portfolio watcher: %v", s.EnablePortfolioManager)
 	log.Debugf("\t Enable gPRC: %v", s.EnableGRPC)
 	log.Debugf("\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
 	log.Debugf("\t Enable websocket RPC: %v", s.EnableWebsocketRPC)
@@ -230,8 +227,10 @@ func PrintSettings(s *Settings) {
 	log.Debugf("\t Enable comms relayer: %v", s.EnableCommsRelayer)
 	log.Debugf("\t Enable event manager: %v", s.EnableEventManager)
 	log.Debugf("\t Event manager sleep delay: %v", s.EventManagerDelay)
-	log.Debugf("\t Enable ticker routine: %v", s.EnableTickerRoutine)
-	log.Debugf("\t Enable orderbook routine: %v", s.EnableOrderbookRoutine)
+	log.Debugf("\t Enable order manager: %v", s.EnableOrderManager)
+	log.Debugf("\t Enable exchange sync manager: %v", s.EnableExchangeSyncManager)
+	log.Debugf("\t Enable ticker syncing: %v", s.EnableTickerSyncing)
+	log.Debugf("\t Enable orderbook syncing: %v", s.EnableOrderbookSyncing)
 	log.Debugf("\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
 	log.Debugf("\t Enable NTP client: %v", s.EnableNTPClient)
 	log.Debugf("- FOREX SETTINGS:")
@@ -266,16 +265,17 @@ func (e *Engine) Start() {
 
 	// Sets up internet connectivity monitor
 	var err error
-	e.Connectivity, err = connchecker.New(e.Config.ConnectionMonitor.DNSList,
-		e.Config.ConnectionMonitor.PublicDomainList,
-		e.Config.ConnectionMonitor.CheckInterval)
-	if err != nil {
-		log.Fatalf("Connectivity checker failure: %s", err)
+	if e.Settings.EnableConnectivityMonitor {
+		e.Connectivity, err = connchecker.New(e.Config.ConnectionMonitor.DNSList,
+			e.Config.ConnectionMonitor.PublicDomainList,
+			e.Config.ConnectionMonitor.CheckInterval)
+		if err != nil {
+			log.Fatalf("Connectivity checker failure: %s", err)
+		}
 	}
 
 	if e.Settings.EnableNTPClient {
 		if e.Config.NTPClient.Level != -1 {
-			e.Config.CheckNTPConfig()
 			NTPTime, errNTP := ntpclient.NTPClient(e.Config.NTPClient.Pool)
 			currentTime := time.Now()
 			if errNTP != nil {
@@ -356,10 +356,6 @@ func (e *Engine) Start() {
 		log.Warn("currency updater system failed to start", err)
 	}
 
-	e.Portfolio = &portfolio.Portfolio
-	e.Portfolio.Seed(e.Config.Portfolio)
-	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
-
 	e.CryptocurrencyDepositAddresses = GetExchangeCryptocurrencyDepositAddresses()
 
 	if e.Settings.EnableGRPC {
@@ -375,42 +371,31 @@ func (e *Engine) Start() {
 		StartWebsocketHandler()
 	}
 
-	if e.Settings.EnablePortfolioWatcher {
-		go portfolio.StartPortfolioWatcher()
+	if e.Settings.EnablePortfolioManager {
+		if err = e.PortfolioManager.Start(); err != nil {
+			log.Errorf("Fund manager unable to start: %v", err)
+		}
 	}
 
-	/*
+	if e.Settings.EnableExchangeSyncManager {
 		exchangeSyncCfg := CurrencyPairSyncerConfig{
-			SyncTicker:       true,
-			SyncOrderbook:    true,
+			SyncTicker:       e.Settings.EnableTickerSyncing,
+			SyncOrderbook:    e.Settings.EnableOrderbookSyncing,
 			SyncContinuously: true,
 			NumWorkers:       15,
 		}
 
-
-			e.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
-			if err != nil {
-				log.Warnf("Unable to initialise exchange currency pair syncer. Err: %s", err)
-			} else {
-				e.ExchangeCurrencyPairManager.Start()
-			}
-	*/
-
-	go StartOrderManagerRoutine()
-
-	if e.Settings.EnableTickerRoutine {
-		go TickerUpdaterRoutine()
+		e.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
+		if err != nil {
+			log.Warnf("Unable to initialise exchange currency pair syncer. Err: %s", err)
+		} else {
+			go e.ExchangeCurrencyPairManager.Start()
+		}
 	}
-	/*
 
-		if e.Settings.EnableOrderbookRoutine {
-			go OrderbookUpdaterRoutine()
-		}
-
-		if e.Settings.EnableWebsocketRoutine {
-			go WebsocketRoutine()
-		}
-	*/
+	if e.Settings.EnableOrderManager {
+		go StartOrderManagerRoutine()
+	}
 
 	if e.Settings.EnableEventManager {
 		go events.EventManger()
@@ -428,9 +413,14 @@ func (e *Engine) Stop() {
 		e.Config.Portfolio = portfolio.Portfolio
 	}
 
+	if e.PortfolioManager.Started() {
+		if err := e.PortfolioManager.Stop(); err != nil {
+			log.Errorf("Fund manager unable to stop. Error: %v", err)
+		}
+	}
+
 	if !e.Settings.EnableDryRun {
 		err := e.Config.SaveConfig(e.Settings.ConfigFile)
-
 		if err != nil {
 			log.Error("Unable to save config.")
 		} else {

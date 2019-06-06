@@ -14,17 +14,20 @@ type Settings struct {
 	EnableAllExchanges          bool
 	EnableAllPairs              bool
 	EnableCoinmarketcapAnalysis bool
-	EnablePortfolioWatcher      bool
+	EnablePortfolioManager      bool
 	EnableGRPC                  bool
 	EnableGRPCProxy             bool
 	EnableWebsocketRPC          bool
 	EnableDeprecatedRPC         bool
-	EnableTickerRoutine         bool
-	EnableOrderbookRoutine      bool
-	EnableWebsocketRoutine      bool
 	EnableCommsRelayer          bool
+	EnableExchangeSyncManager   bool
+	EnableTickerSyncing         bool
+	EnableOrderbookSyncing      bool
 	EnableEventManager          bool
+	EnableOrderManager          bool
+	EnableConnectivityMonitor   bool
 	EnableNTPClient             bool
+	EnableWebsocketRoutine      bool
 	EventManagerDelay           time.Duration
 	Verbose                     bool
 

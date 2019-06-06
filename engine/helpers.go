@@ -26,6 +26,14 @@ import (
 	"github.com/thrasher-/gocryptotrader/utils"
 )
 
+// IsOnline returns whether or not the engine has Internet connectivity
+func IsOnline() bool {
+	if Bot.Connectivity == nil {
+		log.Warnf("IsOnline called but Bot.Connectivity is nil")
+	}
+	return Bot.Connectivity.IsConnected()
+}
+
 // GetAvailableExchanges returns a list of enabled exchanges
 func GetAvailableExchanges() []string {
 	var enExchanges []string

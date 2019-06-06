@@ -466,14 +466,14 @@ func (s *RPCServer) GetPortfolioSummary(ctx context.Context, r *gctrpc.GetPortfo
 
 // AddPortfolioAddress adds an address to the portfolio manager
 func (s *RPCServer) AddPortfolioAddress(ctx context.Context, r *gctrpc.AddPortfolioAddressRequest) (*gctrpc.AddPortfolioAddressResponse, error) {
-	Bot.Portfolio.AddAddress(r.Address, r.Description, currency.NewCode(r.CoinType), r.Balance)
-	return &gctrpc.AddPortfolioAddressResponse{}, nil
+	err := Bot.Portfolio.AddAddress(r.Address, r.Description, currency.NewCode(r.CoinType), r.Balance)
+	return &gctrpc.AddPortfolioAddressResponse{}, err
 }
 
 // RemovePortfolioAddress removes an address from the portfolio manager
 func (s *RPCServer) RemovePortfolioAddress(ctx context.Context, r *gctrpc.RemovePortfolioAddressRequest) (*gctrpc.RemovePortfolioAddressResponse, error) {
-	Bot.Portfolio.RemoveAddress(r.Address, r.Description, currency.NewCode(r.CoinType))
-	return &gctrpc.RemovePortfolioAddressResponse{}, nil
+	err := Bot.Portfolio.RemoveAddress(r.Address, r.Description, currency.NewCode(r.CoinType))
+	return &gctrpc.RemovePortfolioAddressResponse{}, err
 }
 
 // GetForexProviders returns a list of available forex providers

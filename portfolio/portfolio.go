@@ -149,10 +149,17 @@ func (p *Base) UpdateExchangeAddressBalance(exchangeName string, coinType curren
 }
 
 // AddAddress adds an address to the portfolio base
-func (p *Base) AddAddress(address, description string, coinType currency.Code, balance float64) {
+func (p *Base) AddAddress(address, description string, coinType currency.Code, balance float64) error {
+	if address == "" {
+		return errors.New("address is empty")
+	}
+
+	if coinType.String() == "" {
+		return errors.New("coin type is empty")
+	}
+
 	if description == PortfolioAddressExchange {
 		p.AddExchangeAddress(address, coinType, balance)
-		return
 	}
 	if !p.AddressExists(address) {
 		p.Addresses = append(
@@ -166,19 +173,30 @@ func (p *Base) AddAddress(address, description string, coinType currency.Code, b
 			p.UpdateAddressBalance(address, balance)
 		}
 	}
+	return nil
 }
 
 // RemoveAddress removes an address when checked against the correct address and
 // coinType
-func (p *Base) RemoveAddress(address, description string, coinType currency.Code) {
+func (p *Base) RemoveAddress(address, description string, coinType currency.Code) error {
+	if address == "" {
+		return errors.New("address is empty")
+	}
+
+	if coinType.String() == "" {
+		return errors.New("coin type is empty")
+	}
+
 	for x := range p.Addresses {
 		if p.Addresses[x].Address == address &&
 			p.Addresses[x].CoinType == coinType &&
 			p.Addresses[x].Description == description {
 			p.Addresses = append(p.Addresses[:x], p.Addresses[x+1:]...)
-			return
+			return nil
 		}
 	}
+
+	return errors.New("portfolio item does not exist")
 }
 
 // UpdatePortfolio adds to the portfolio addresses by coin type

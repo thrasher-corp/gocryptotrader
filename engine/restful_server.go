@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/config"
 	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
 // RESTfulJSONResponse outputs a JSON response of the response interface
@@ -100,7 +101,8 @@ func RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 
 // RESTGetPortfolio returns the Bot portfolio
 func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
-	result := Bot.Portfolio.GetPortfolioSummary()
+	p := portfolio.GetPortfolio()
+	result := p.GetPortfolioSummary()
 	err := RESTfulJSONResponse(w, result)
 	if err != nil {
 		RESTfulError(r.Method, err)

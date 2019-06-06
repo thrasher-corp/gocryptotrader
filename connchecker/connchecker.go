@@ -86,7 +86,7 @@ func (c *Checker) Shutdown() {
 // Monitor determines internet connectivity via a DNS lookup
 func (c *Checker) Monitor(wg *sync.WaitGroup) {
 	c.wg.Add(1)
-	tick := time.NewTicker(time.Second)
+	tick := time.NewTicker(c.CheckInterval)
 	defer func() { tick.Stop(); c.wg.Done() }()
 	wg.Done()
 	for {
