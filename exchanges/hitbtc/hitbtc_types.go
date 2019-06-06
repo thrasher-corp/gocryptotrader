@@ -305,6 +305,7 @@ type capture struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
+	ID int64 `json:"id,omitempty"`
 }
 
 // WsRequest defines a request obj for the JSON-RPC and gets a websocket
@@ -318,13 +319,13 @@ type WsRequest struct {
 // WsNotification defines a notification obj for the JSON-RPC this does not get
 // a websocket response
 type WsNotification struct {
-	JSONRPCVersion string      `json:"jsonrpc"`
+	JSONRPCVersion string      `json:"jsonrpc,omitempty"`
 	Method         string      `json:"method"`
-	Params         interface{} `json:"params"`
+	Params         interface{} `json:"params,omitempty"`
 }
 
 type params struct {
-	Symbol string `json:"symbol"`
+	Symbol string `json:"symbol,omitempty"`
 	Period string `json:"period,omitempty"`
 	Limit  int64  `json:"limit,omitempty"`
 }

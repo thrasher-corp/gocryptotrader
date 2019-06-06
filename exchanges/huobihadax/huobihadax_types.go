@@ -444,7 +444,7 @@ type WsAuthenticatedOrdersUpdateResponseData struct {
 // WsAuthenticatedOrdersResponse response from Orders authenticated subscription
 type WsAuthenticatedOrdersResponse struct {
 	WsAuthenticatedDataResponse
-	Data WsAuthenticatedOrdersResponseData `json:"data"`
+	Data []WsAuthenticatedOrdersResponseData `json:"data"`
 }
 
 // WsAuthenticatedOrdersResponseData order data

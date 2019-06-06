@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -106,157 +107,203 @@ func (c *COINUT) WsHandleData() {
 				return
 			}
 
-			var incoming wsResponse
-			err = common.JSONDecode(resp.Raw, &incoming)
-			if err != nil {
-				c.Websocket.DataHandler <- err
-				continue
+			if strings.HasPrefix(string(resp.Raw), "[") {
+				var incoming []wsResponse
+				err = common.JSONDecode(resp.Raw, &incoming)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				for i := range incoming {
+					individualJSON, err := common.JSONEncode(incoming[i])
+					if err != nil {
+						c.Websocket.DataHandler <- err
+						continue
+					}
+					c.wsProcessResponse(individualJSON)
+				}
+
+			} else {
+				var incoming wsResponse
+				err = common.JSONDecode(resp.Raw, &incoming)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.wsProcessResponse(resp.Raw)
 			}
-			switch incoming.Reply {
-			case "hb":
-				channels["hb"] <- resp.Raw
 
-			case "inst_tick":
-				var ticker WsTicker
-				err := common.JSONDecode(resp.Raw, &ticker)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				c.Websocket.DataHandler <- exchange.TickerData{
-					Timestamp:  time.Unix(0, ticker.Timestamp),
-					Exchange:   c.GetName(),
-					AssetType:  "SPOT",
-					HighPrice:  ticker.HighestBuy,
-					LowPrice:   ticker.LowestSell,
-					ClosePrice: ticker.Last,
-					Quantity:   ticker.Volume,
-				}
-
-			case "inst_order_book":
-				var orderbooksnapshot WsOrderbookSnapshot
-				err := common.JSONDecode(resp.Raw, &orderbooksnapshot)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				err = c.WsProcessOrderbookSnapshot(&orderbooksnapshot)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				currencyPair := instrumentListByCode[orderbooksnapshot.InstID]
-
-				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-					Exchange: c.GetName(),
-					Asset:    "SPOT",
-					Pair:     currency.NewPairFromString(currencyPair),
-				}
-
-			case "inst_order_book_update":
-				var orderbookUpdate WsOrderbookUpdate
-				err := common.JSONDecode(resp.Raw, &orderbookUpdate)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				err = c.WsProcessOrderbookUpdate(&orderbookUpdate)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				currencyPair := instrumentListByCode[orderbookUpdate.InstID]
-
-				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-					Exchange: c.GetName(),
-					Asset:    "SPOT",
-					Pair:     currency.NewPairFromString(currencyPair),
-				}
-
-			case "inst_trade":
-				var tradeSnap WsTradeSnapshot
-				err := common.JSONDecode(resp.Raw, &tradeSnap)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-			case "inst_trade_update":
-				var tradeUpdate WsTradeUpdate
-				err := common.JSONDecode(resp.Raw, &tradeUpdate)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				currencyPair := instrumentListByCode[tradeUpdate.InstID]
-
-				c.Websocket.DataHandler <- exchange.TradeData{
-					Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
-					CurrencyPair: currency.NewPairFromString(currencyPair),
-					AssetType:    "SPOT",
-					Exchange:     c.GetName(),
-					Price:        tradeUpdate.Price,
-					Side:         tradeUpdate.Side,
-				}
-			case "user_balance":
-				var userBalance WsUserBalanceResponse
-				err := common.JSONDecode(resp.Raw, &userBalance)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- userBalance
-
-			case "order_accepted":
-				var orderAccepted WsOrderAcceptedResponse
-				err := common.JSONDecode(resp.Raw, &orderAccepted)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- orderAccepted
-
-			case "order_filled":
-				var orderFilled WsOrderFilledResponse
-				err := common.JSONDecode(resp.Raw, &orderFilled)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- orderFilled
-
-			case "order_rejected":
-				var orderRejected WsOrderRejectedResponse
-				err := common.JSONDecode(resp.Raw, &orderRejected)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- orderRejected
-			case "user_open_orders":
-				var openOrders WsUserOpenOrdersResponse
-				err := common.JSONDecode(resp.Raw, &openOrders)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- openOrders
-			case "trade_history":
-				var tradeHistory WsTradeHistoryResponse
-				err := common.JSONDecode(resp.Raw, &tradeHistory)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- tradeHistory
-			}
 		}
+	}
+}
+
+func (c *COINUT) wsProcessResponse(resp []byte) {
+	var incoming wsResponse
+	err := common.JSONDecode(resp, &incoming)
+	if err != nil {
+		c.Websocket.DataHandler <- err
+		return
+	}
+	switch incoming.Reply {
+	case "login":
+		var login WsLoginResponse
+		err := common.JSONDecode(resp, &login)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- login
+	case "hb":
+		channels["hb"] <- resp
+	case "inst_tick":
+		var ticker WsTicker
+		err := common.JSONDecode(resp, &ticker)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- exchange.TickerData{
+			Timestamp:  time.Unix(0, ticker.Timestamp),
+			Exchange:   c.GetName(),
+			AssetType:  "SPOT",
+			HighPrice:  ticker.HighestBuy,
+			LowPrice:   ticker.LowestSell,
+			ClosePrice: ticker.Last,
+			Quantity:   ticker.Volume,
+		}
+
+	case "inst_order_book":
+		var orderbooksnapshot WsOrderbookSnapshot
+		err := common.JSONDecode(resp, &orderbooksnapshot)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		err = c.WsProcessOrderbookSnapshot(&orderbooksnapshot)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		currencyPair := instrumentListByCode[orderbooksnapshot.InstID]
+		c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			Exchange: c.GetName(),
+			Asset:    "SPOT",
+			Pair:     currency.NewPairFromString(currencyPair),
+		}
+	case "inst_order_book_update":
+		var orderbookUpdate WsOrderbookUpdate
+		err := common.JSONDecode(resp, &orderbookUpdate)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		err = c.WsProcessOrderbookUpdate(&orderbookUpdate)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		currencyPair := instrumentListByCode[orderbookUpdate.InstID]
+		c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			Exchange: c.GetName(),
+			Asset:    "SPOT",
+			Pair:     currency.NewPairFromString(currencyPair),
+		}
+	case "inst_trade":
+		var tradeSnap WsTradeSnapshot
+		err := common.JSONDecode(resp, &tradeSnap)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+
+	case "inst_trade_update":
+		var tradeUpdate WsTradeUpdate
+		err := common.JSONDecode(resp, &tradeUpdate)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		currencyPair := instrumentListByCode[tradeUpdate.InstID]
+		c.Websocket.DataHandler <- exchange.TradeData{
+			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
+			CurrencyPair: currency.NewPairFromString(currencyPair),
+			AssetType:    "SPOT",
+			Exchange:     c.GetName(),
+			Price:        tradeUpdate.Price,
+			Side:         tradeUpdate.Side,
+		}
+	case "user_balance":
+		var userBalance WsUserBalanceResponse
+		err := common.JSONDecode(resp, &userBalance)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- userBalance
+	case "new_order":
+		var newOrder WsNewOrderResponse
+		err := common.JSONDecode(resp, &newOrder)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- newOrder
+	case "order_accepted":
+		var orderAccepted WsOrderAcceptedResponse
+		err := common.JSONDecode(resp, &orderAccepted)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- orderAccepted
+	case "order_filled":
+		var orderFilled WsOrderFilledResponse
+		err := common.JSONDecode(resp, &orderFilled)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- orderFilled
+	case "order_rejected":
+		var orderRejected WsOrderRejectedResponse
+		err := common.JSONDecode(resp, &orderRejected)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- orderRejected
+	case "user_open_orders":
+		var openOrders WsUserOpenOrdersResponse
+		err := common.JSONDecode(resp, &openOrders)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- openOrders
+	case "trade_history":
+		var tradeHistory WsTradeHistoryResponse
+		err := common.JSONDecode(resp, &tradeHistory)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- tradeHistory
+	case "cancel_orders":
+		var cancelOrders WsCancelOrdersResponse
+		err := common.JSONDecode(resp, &cancelOrders)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- cancelOrders
+	case "cancel_order":
+		var cancelOrder WsCancelOrderResponse
+		err := common.JSONDecode(resp, &cancelOrder)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+		c.Websocket.DataHandler <- cancelOrder
 	}
 }
 
@@ -461,7 +508,7 @@ func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) error {
 	return c.wsSend(orderSubmissionRequest)
 }
 
-func (c *COINUT) wsSubtmitOrders(orders []WsSubmitOrderParameters) error {
+func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) error {
 	if len(orders) > 1000 {
 		return fmt.Errorf("%v cannot submit more than 1000 orders", c.Name)
 	}
@@ -476,7 +523,7 @@ func (c *COINUT) wsSubtmitOrders(orders []WsSubmitOrderParameters) error {
 				Price:       orders[i].Price,
 				Side:        string(orders[i].Side),
 				InstID:      instrumentListByString[currency],
-				ClientOrdID: i,
+				ClientOrdID: i + 1,
 			})
 	}
 
@@ -527,7 +574,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) error {
 	return c.wsSend(cancelOrderRequest)
 }
 
-func (c *COINUT) wsGetTradeHistory(p currency.Pair) error {
+func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) error {
 	nonce := c.GetNonce()
 	p.Delimiter = ""
 	currency := p.Upper().String()
@@ -536,6 +583,8 @@ func (c *COINUT) wsGetTradeHistory(p currency.Pair) error {
 	request.Request = "trade_history"
 	request.InstID = instrumentListByString[currency]
 	request.Nonce = nonce
+	request.Start = start
+	request.Limit = limit
 
 	return c.wsSend(request)
 }

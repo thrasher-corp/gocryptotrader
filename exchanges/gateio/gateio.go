@@ -82,7 +82,8 @@ func (g *Gateio) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketKlineSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported
 }
 
 // Setup sets user configuration

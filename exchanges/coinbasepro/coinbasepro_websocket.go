@@ -290,7 +290,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	enabledCurrencies := c.GetEnabledCurrencies()
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
-		if channels[i] == "user" && !c.AuthenticatedAPISupport {
+		if (channels[i] == "user" || channels[i] == "full") && !c.AuthenticatedAPISupport {
 			continue
 		}
 		for j := range enabledCurrencies {

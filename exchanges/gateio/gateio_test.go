@@ -517,13 +517,24 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second)
 	timer := time.NewTimer(3 * time.Second)
 	select {
 	case resultString := <-g.Websocket.DataHandler:
 		if !common.StringContains(resultString.(string), "success") {
 			t.Error("Authentication failed")
 		}
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
+	time.Sleep(time.Second)
+	err = g.wsGetBalance()
+	if err != nil {
+		t.Error(err)
+	}
+	timer = time.NewTimer(3 * time.Second)
+	select {
+	case <-g.Websocket.DataHandler:
 	case <-timer.C:
 		t.Error("Expected response")
 	}

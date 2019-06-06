@@ -102,7 +102,7 @@ func TestGetFee(t *testing.T) {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := h.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 			t.Error(err)
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
@@ -110,7 +110,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
 		if resp, err := h.GetFee(feeBuilder); resp != float64(1000) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(1000), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
 			t.Error(err)
 		}
 
@@ -118,7 +118,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
 		if resp, err := h.GetFee(feeBuilder); resp != float64(-0.0001) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(-0.0001), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 			t.Error(err)
 		}
 
@@ -126,7 +126,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
 		if resp, err := h.GetFee(feeBuilder); resp != float64(-1) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(-1), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
 
@@ -134,7 +134,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 		if resp, err := h.GetFee(feeBuilder); resp != float64(0.009580) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.009580), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.042800), resp)
 			t.Error(err)
 		}
 
@@ -384,10 +384,7 @@ func TestGetDepositAddress(t *testing.T) {
 		}
 	}
 }
-
-// TestWsAuth dials websocket, sends login request.
-// Will receive a message only on failure
-func TestWsAuth(t *testing.T) {
+func setupWsAuth(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
 	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
@@ -396,87 +393,98 @@ func TestWsAuth(t *testing.T) {
 	var err error
 	var dialer websocket.Dialer
 	h.Websocket.DataHandler = make(chan interface{}, 999)
+	h.Websocket.TrafficAlert = make(chan struct{}, 999)
 	h.WebsocketConn, _, err = dialer.Dial(hitbtcWebsocketAddress, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.WebsocketConn.Close()
 	go h.WsHandleData()
 	h.wsLogin()
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(time.Second)
 	select {
-	case dataError := <-h.Websocket.DataHandler:
-		t.Error(dataError)
+	case loginError := <-h.Websocket.DataHandler:
+		t.Error(loginError)
 	case <-timer.C:
 	}
 	timer.Stop()
 }
 
 // TestWsCancelOrder dials websocket, sends cancel request.
-// Will receive a message only on failure
 func TestWsCancelOrder(t *testing.T) {
-	TestSetDefaults(t)
-	TestSetup(t)
-	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
-	}
-	var err error
-	var ok bool
-	var dialer websocket.Dialer
-	h.Websocket.DataHandler = make(chan interface{}, 999)
-	h.WebsocketConn, _, err = dialer.Dial(hitbtcWebsocketAddress, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer h.WebsocketConn.Close()
-	go h.WsHandleData()
-	h.wsLogin()
-	err = h.wsCancelOrder("9cbe79cb6f864b71a811402a48d4b5b2")
+	setupWsAuth(t)
+	err := h.wsCancelOrder("ImNotARealOrderID")
 	if err != nil {
 		t.Fatal(err)
 	}
 	timer := time.NewTimer(3 * time.Second)
 	select {
-	case dataError := <-h.Websocket.DataHandler:
-		if err, ok = dataError.(error); ok && err != nil {
-			t.Error(dataError)
-		}
+	case <-h.Websocket.DataHandler:
 	case <-timer.C:
+		t.Error("Expecting response")
 	}
 	timer.Stop()
 }
 
-// TestWsAuthFirst dials websocket, sends cancel request.
-// Not logged in, should receive error
-func TestWsAuthFirst(t *testing.T) {
-	TestSetDefaults(t)
-	TestSetup(t)
-	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
-	}
-	var err error
-	var ok bool
-	var dialer websocket.Dialer
-	h.Websocket.DataHandler = make(chan interface{}, 999)
-	h.WebsocketConn, _, err = dialer.Dial(hitbtcWebsocketAddress, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer h.WebsocketConn.Close()
-	go h.WsHandleData()
-	err = h.wsCancelOrder("9cbe79cb6f864b71a811402a48d4b5b2")
+// TestWsCancelOrder dials websocket, sends cancel request.
+func TestWsPlaceOrder(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsPlaceOrder(currency.NewPair(currency.LTC, currency.BTC), exchange.BuyOrderSide.ToString(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	timer := time.NewTimer(3 * time.Second)
 	select {
-	case dataError := <-h.Websocket.DataHandler:
-		if err, ok = dataError.(error); ok && err != nil {
-			if !common.StringContains(err.Error(), "Authorization required") {
-				t.Error("Expected Authorization error")
-			}
-		}
+	case <-h.Websocket.DataHandler:
 	case <-timer.C:
+		t.Error("Expecting response")
+	}
+	timer.Stop()
+}
+
+// TestWsCancelOrder dials websocket, sends cancel request.
+func TestWsReplaceOrder(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsReplaceOrder("ImNotARealOrderID", 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expecting response")
+	}
+	timer.Stop()
+}
+
+// TestWsCancelOrder dials websocket, sends cancel request.
+func TestWsGetActiveOrders(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsGetActiveOrders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expecting response")
+	}
+	timer.Stop()
+}
+
+// TestWsCancelOrder dials websocket, sends cancel request.
+func TestWsGetTradingBalance(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsGetTradingBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expecting response")
 	}
 	timer.Stop()
 }

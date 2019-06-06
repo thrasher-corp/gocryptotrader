@@ -407,6 +407,28 @@ type WsCancelOrderRequest struct {
 	WsRequest
 }
 
+// WsCancelOrderResponse ws response
+type WsCancelOrderResponse struct {
+	Nonce       int64    `json:"nonce"`
+	Reply       string   `json:"reply"`
+	OrderID     int64    `json:"order_id"`
+	ClientOrdID int64    `json:"client_ord_id"`
+	Status      []string `json:"status"`
+}
+
+// WsCancelOrdersResponse ws response
+type WsCancelOrdersResponse struct {
+	Request string                        `json:"request"`
+	Entries []WsCancelOrdersResponseEntry `json:"entries"`
+	Nonce   int64                         `json:"nonce"`
+}
+
+// WsCancelOrdersResponseEntry ws response entry
+type WsCancelOrdersResponseEntry struct {
+	InstID  int64 `json:"inst_id"`
+	OrderID int64 `json:"order_id"`
+}
+
 // WsGetOpenOrdersRequest ws request
 type WsGetOpenOrdersRequest struct {
 	InstID int64 `json:"inst_id"`
@@ -581,4 +603,37 @@ type WsTradeHistoryTradeData struct {
 	FillQty    string                       `json:"fill_qty"`
 	Timestamp  int64                        `json:"timestamp"`
 	TransID    int64                        `json:"trans_id"`
+}
+
+// WsLoginResponse ws response data
+type WsLoginResponse struct {
+	APIKey          string   `json:"api_key"`
+	Country         string   `json:"country"`
+	DepositEnabled  bool     `json:"deposit_enabled"`
+	Deposited       bool     `json:"deposited"`
+	Email           string   `json:"email"`
+	FailedTimes     int64    `json:"failed_times"`
+	KycPassed       bool     `json:"kyc_passed"`
+	Lang            string   `json:"lang"`
+	Nonce           int64    `json:"nonce"`
+	OtpEnabled      bool     `json:"otp_enabled"`
+	PhoneNumber     string   `json:"phone_number"`
+	ProductsEnabled []string `json:"products_enabled"`
+	Referred        bool     `json:"referred"`
+	Reply           string   `json:"reply"`
+	SessionID       string   `json:"session_id"`
+	Status          []string `json:"status"`
+	Timezone        string   `json:"timezone"`
+	Traded          bool     `json:"traded"`
+	UnverifiedEmail string   `json:"unverified_email"`
+	Username        string   `json:"username"`
+	WithdrawEnabled bool     `json:"withdraw_enabled"`
+}
+
+// WsNewOrderResponse returns if new_order response failes
+type WsNewOrderResponse struct {
+	Msg    string   `json:"msg"`
+	Nonce  int64    `json:"nonce"`
+	Reply  string   `json:"reply"`
+	Status []string `json:"status"`
 }

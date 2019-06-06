@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -148,9 +147,6 @@ func (g *Gemini) WsHandleData() {
 			if err != nil {
 				g.Websocket.DataHandler <- fmt.Errorf("%v Error: %v, Raw: %v", g.Name, err, string(resp.Raw))
 				continue
-			}
-			if g.Verbose {
-				log.Debugf("MESSAGE: %v", string(resp.Raw))
 			}
 			switch result["type"] {
 			case "subscription_ack":

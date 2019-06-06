@@ -405,8 +405,7 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request.
-func TestWsAuth(t *testing.T) {
+func setupTestAuth(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
 	if !c.Websocket.IsEnabled() && !c.AuthenticatedAPISupport || !areTestAPIKeysSet() {
@@ -422,20 +421,115 @@ func TestWsAuth(t *testing.T) {
 	c.Websocket.DataHandler = make(chan interface{}, 999)
 	c.Websocket.TrafficAlert = make(chan struct{}, 999)
 	go c.WsHandleData()
-	defer c.WebsocketConn.Close()
 	err = c.wsAuthenticate()
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second)
-	err = c.wsGetAccountBalance()
+	timer := time.NewTimer(5 * time.Second)
+	select {
+	case <-c.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
+	time.Sleep(2 * time.Second)
+	instrumentListByString = make(map[string]int64)
+	instrumentListByString[currency.NewPair(currency.LTC, currency.BTC).String()] = 1
+}
+
+// TestWsAuthGetAccountBalance dials websocket, sends login request.
+func TestWsAuthGetAccountBalance(t *testing.T) {
+	setupTestAuth(t)
+
+	err := c.wsGetAccountBalance()
 	if err != nil {
 		t.Error(err)
 	}
 	timer := time.NewTimer(3 * time.Second)
 	select {
 	case <-c.Websocket.DataHandler:
-		return
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
+}
+
+// TestWsAuthSubmitOrders dials websocket, sends login request.
+func TestWsAuthSubmitOrders(t *testing.T) {
+	setupTestAuth(t)
+
+	order := WsSubmitOrderParameters{
+		Amount:   1,
+		Currency: currency.NewPair(currency.LTC, currency.BTC),
+		OrderID:  1,
+		Price:    1,
+		Side:     exchange.BuyOrderSide,
+	}
+	err := c.wsSubmitOrders([]WsSubmitOrderParameters{order, order})
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(5 * time.Second)
+	select {
+	case <-c.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
+}
+
+// TestWsAuthCancelOrders dials websocket, sends login request.
+func TestWsAuthCancelOrders(t *testing.T) {
+	setupTestAuth(t)
+	order := WsCancelOrderParameters{
+		Currency: currency.NewPair(currency.LTC, currency.BTC),
+		OrderID:  1,
+	}
+	err := c.wsCancelOrders([]WsCancelOrderParameters{order, order})
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(5 * time.Second)
+	select {
+	case <-c.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
+}
+
+// TestWsAuthCancelOrder dials websocket, sends login request.
+func TestWsAuthCancelOrder(t *testing.T) {
+	setupTestAuth(t)
+
+	order := WsCancelOrderParameters{
+		Currency: currency.NewPair(currency.LTC, currency.BTC),
+		OrderID:  1,
+	}
+	err := c.wsCancelOrder(order)
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(5 * time.Second)
+	select {
+	case <-c.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
+}
+
+// TestWsAuthGetOpenOrders dials websocket, sends login request.
+func TestWsAuthGetOpenOrders(t *testing.T) {
+	setupTestAuth(t)
+
+	err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC))
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(10 * time.Second)
+	select {
+	case <-c.Websocket.DataHandler:
 	case <-timer.C:
 		t.Error("Expected response")
 	}

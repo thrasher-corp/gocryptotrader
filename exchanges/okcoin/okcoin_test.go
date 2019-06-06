@@ -76,6 +76,7 @@ func TestSetup(t *testing.T) {
 	o.Setup(&okcoinConfig)
 	testSetupRan = true
 	o.Websocket.DataHandler = make(chan interface{}, 999)
+	o.Websocket.TrafficAlert = make(chan struct{}, 999)
 }
 
 func areTestAPIKeysSet() bool {

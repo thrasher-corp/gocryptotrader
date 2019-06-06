@@ -606,8 +606,7 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request.
-func TestWsAuth(t *testing.T) {
+func setupWsTests(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
 	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
@@ -623,18 +622,59 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	defer h.AuthenticatedWebsocketConn.Close()
 	err = h.wsLogin()
 	if err != nil {
 		t.Error(err)
 	}
 	timer := time.NewTimer(3 * time.Second)
-
 	select {
 	case response := <-h.Websocket.DataHandler:
 		if response.(WsAuthenticatedDataResponse).ErrorCode > 0 {
 			t.Error(response)
 		}
+	case <-timer.C:
+		t.Error("Websocket did not receive a response")
+	}
+	timer.Stop()
+	time.Sleep(time.Second)
+}
+
+// TestWsGetAccountsList connects to WS, logs in, gets account list
+func TestWsGetAccountsList(t *testing.T) {
+	setupWsTests(t)
+	h.wsGetAccountsList(currency.NewPairFromString("ethbtc"))
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case response := <-h.Websocket.DataHandler:
+		if response.(WsAuthenticatedAccountsListResponse).ErrorCode > 0 {
+			t.Error(response)
+		}
+	case <-timer.C:
+		t.Error("Websocket did not receive a response")
+	}
+	timer.Stop()
+}
+
+// TestWsGetOrderList connects to WS, logs in, gets order list
+func TestWsGetOrderList(t *testing.T) {
+	setupWsTests(t)
+	h.wsGetOrdersList(1, currency.NewPairFromString("ethbtc"))
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Websocket did not receive a response")
+	}
+	timer.Stop()
+}
+
+// TestWsGetOrderDetails connects to WS, logs in, gets order details
+func TestWsGetOrderDetails(t *testing.T) {
+	setupWsTests(t)
+	h.wsGetOrderDetails("123")
+	timer := time.NewTimer(3 * time.Second)
+	select {
+	case <-h.Websocket.DataHandler:
 	case <-timer.C:
 		t.Error("Websocket did not receive a response")
 	}

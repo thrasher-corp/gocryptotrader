@@ -451,7 +451,7 @@ func (h *HUOBIHADAX) wsAuthenticatedSubscribe(operation, endpoint, topic string)
 	return h.wsAuthenticatedSend(request)
 }
 
-func (h *HUOBIHADAX) wsGetAccountsList() error {
+func (h *HUOBIHADAX) wsGetAccountsList(pair currency.Pair) error {
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
 	request := WsAuthenticatedAccountsListRequest{
 		Op:               "req",
@@ -460,14 +460,14 @@ func (h *HUOBIHADAX) wsGetAccountsList() error {
 		SignatureVersion: "2",
 		Timestamp:        timestamp,
 		Topic:            "accounts.list",
-		Symbol:           currency.NewPairFromString("ethbtc"),
+		Symbol:           pair,
 	}
 	hmac := h.wsGenerateSignature(timestamp, "/ws/v1/accounts.list")
 	request.Signature = common.Base64Encode(hmac)
 	return h.wsAuthenticatedSend(request)
 }
 
-func (h *HUOBIHADAX) wsGetOrdersList() error {
+func (h *HUOBIHADAX) wsGetOrdersList(accountID int64, pair currency.Pair) error {
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
 	request := WsAuthenticatedOrdersListRequest{
 		Op:               "req",
@@ -476,8 +476,8 @@ func (h *HUOBIHADAX) wsGetOrdersList() error {
 		SignatureVersion: "2",
 		Timestamp:        timestamp,
 		Topic:            "orders.list",
-		AccountID:        1,
-		Symbol:           currency.NewPairFromString("ethbtc"),
+		AccountID:        accountID,
+		Symbol:           pair.Lower(),
 		States:           "submitted,partial-filled",
 	}
 	hmac := h.wsGenerateSignature(timestamp, "/ws/v1/orders.list")
@@ -485,7 +485,7 @@ func (h *HUOBIHADAX) wsGetOrdersList() error {
 	return h.wsAuthenticatedSend(request)
 }
 
-func (h *HUOBIHADAX) wsGetOrderDetails() error {
+func (h *HUOBIHADAX) wsGetOrderDetails(orderID string) error {
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
 	request := WsAuthenticatedOrderDetailsRequest{
 		Op:               "req",
@@ -494,7 +494,7 @@ func (h *HUOBIHADAX) wsGetOrderDetails() error {
 		SignatureVersion: "2",
 		Timestamp:        timestamp,
 		Topic:            "orders.detail",
-		OrderID:          "986",
+		OrderID:          orderID,
 	}
 	hmac := h.wsGenerateSignature(timestamp, "/ws/v1/orders.detail")
 	request.Signature = common.Base64Encode(hmac)

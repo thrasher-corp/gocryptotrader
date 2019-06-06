@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 
@@ -20,6 +21,8 @@ const (
 	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
 	rpcVersion             = "2.0"
 )
+
+var requestID int64
 
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
@@ -187,7 +190,6 @@ func (h *HitBTC) handleSubscriptionUpdates(resp exchange.WebsocketResponse, init
 func (h *HitBTC) handleCommandResponses(resp exchange.WebsocketResponse, init capture) {
 	switch resultType := init.Result.(type) {
 	case map[string]interface{}:
-		// Order command related
 		switch resultType["reportType"].(string) {
 		case "new":
 			var response WsSubmitOrderSuccessResponse
@@ -211,15 +213,20 @@ func (h *HitBTC) handleCommandResponses(resp exchange.WebsocketResponse, init ca
 			}
 			h.Websocket.DataHandler <- response
 		}
-	case []map[string]interface{}:
-		if _, ok := resultType[0]["available"]; ok {
+	case []interface{}:
+		if len(resultType) == 0 {
+			h.Websocket.DataHandler <- fmt.Sprintf("No data returned. ID: %v", init.ID)
+			return
+		}
+		data := resultType[0].(map[string]interface{})
+		if _, ok := data["clientOrderId"]; ok {
 			var response WsActiveOrdersResponse
 			err := common.JSONDecode(resp.Raw, &response)
 			if err != nil {
 				h.Websocket.DataHandler <- err
 			}
 			h.Websocket.DataHandler <- response
-		} else if _, ok := resultType[0]["clientOrderId"]; ok {
+		} else if _, ok := data["available"]; ok {
 			var response WsGetTradingBalanceResponse
 			err := common.JSONDecode(resp.Raw, &response)
 			if err != nil {
@@ -323,11 +330,12 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscribe := WsNotification{
-		JSONRPCVersion: rpcVersion,
-		Method:         channelToSubscribe.Channel,
-		Params: params{
+		Method: channelToSubscribe.Channel,
+	}
+	if channelToSubscribe.Currency.String() != "" {
+		subscribe.Params = params{
 			Symbol: channelToSubscribe.Currency.String(),
-		},
+		}
 	}
 	if strings.EqualFold(channelToSubscribe.Channel, "subscribeTrades") {
 		subscribe.Params = params{
@@ -407,15 +415,17 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+	requestID++
 	request := WsSubmitOrderRequest{
 		Method: "newOrder",
 		Params: WsSubmitOrderRequestData{
 			ClientOrderID: h.Requester.GetNonce(false).String(),
 			Symbol:        pair,
-			Side:          side,
+			Side:          common.StringToLower(side),
 			Price:         fmt.Sprintf("%v", price),
 			Quantity:      fmt.Sprintf("%v", quantity),
 		},
+		ID: requestID,
 	}
 	return h.wsSend(request)
 }
@@ -425,11 +435,13 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+	requestID++
 	request := WsCancelOrderRequest{
 		Method: "cancelOrder",
 		Params: WsCancelOrderRequestData{
 			ClientOrderID: clientOrderID,
 		},
+		ID: requestID,
 	}
 	return h.wsSend(request)
 }
@@ -439,6 +451,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) e
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+	requestID++
 	request := WsReplaceOrderRequest{
 		Method: "cancelReplaceOrder",
 		Params: WsReplaceOrderRequestData{
@@ -447,6 +460,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) e
 			Quantity:        fmt.Sprintf("%v", quantity),
 			Price:           fmt.Sprintf("%v", price),
 		},
+		ID: requestID,
 	}
 	return h.wsSend(request)
 }
@@ -456,10 +470,11 @@ func (h *HitBTC) wsGetActiveOrders() error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+	requestID++
 	request := WsReplaceOrderRequest{
 		Method: "getOrders",
 		Params: WsReplaceOrderRequestData{},
-		ID:     1337,
+		ID:     requestID,
 	}
 	return h.wsSend(request)
 }
@@ -469,10 +484,11 @@ func (h *HitBTC) wsGetTradingBalance() error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+	requestID++
 	request := WsReplaceOrderRequest{
 		Method: "getTradingBalance",
 		Params: WsReplaceOrderRequestData{},
-		ID:     1338,
+		ID:     requestID,
 	}
 	return h.wsSend(request)
 }
