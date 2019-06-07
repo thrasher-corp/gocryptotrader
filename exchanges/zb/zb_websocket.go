@@ -87,7 +87,7 @@ func (z *ZB) WsHandleData() {
 			var result Generic
 			err = common.JSONDecode(fixedJSON, &result)
 			if err != nil {
-				z.Websocket.DataHandler <- fmt.Errorf("11 %v", err)
+				z.Websocket.DataHandler <- err
 				continue
 			}
 			switch {

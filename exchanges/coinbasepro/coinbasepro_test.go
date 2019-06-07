@@ -610,5 +610,4 @@ func TestWsAuth(t *testing.T) {
 	case <-timer.C:
 	}
 	timer.Stop()
-
 }

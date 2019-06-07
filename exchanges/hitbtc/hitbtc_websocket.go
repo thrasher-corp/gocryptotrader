@@ -48,7 +48,6 @@ func (h *HitBTC) WsConnect() error {
 
 	go h.WsHandleData()
 	if h.AuthenticatedAPISupport {
-		time.Sleep(time.Second)
 		err = h.wsLogin()
 		if err != nil {
 			return err
