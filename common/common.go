@@ -44,7 +44,7 @@ const (
 )
 
 // GetV4UUID returns a RFC 4122 UUID based on random numbers
-func GetV4UUID() uuid.UUID {
+func GetV4UUID() (uuid.UUID, error) {
 	return uuid.NewV4()
 }
 
@@ -277,7 +277,7 @@ func ExtractPort(host string) int {
 
 // OutputCSV dumps data into a file as comma-separated values
 func OutputCSV(filePath string, data [][]string) error {
-	_, err := ReadFile(filePath)
+	_, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		errTwo := WriteFile(filePath, nil)
 		if errTwo != nil {
@@ -289,47 +289,15 @@ func OutputCSV(filePath string, data [][]string) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	writer := csv.NewWriter(file)
-
-	err = writer.WriteAll(data)
-	if err != nil {
-		return err
-	}
-
-	writer.Flush()
-	file.Close()
-	return nil
-}
-
-// UnixTimestampToTime returns time.time
-func UnixTimestampToTime(timeint64 int64) time.Time {
-	return time.Unix(timeint64, 0)
-}
-
-// UnixTimestampStrToTime returns a time.time and an error
-func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
-	i, err := strconv.ParseInt(timeStr, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return time.Unix(i, 0), nil
-}
-
-// ReadFile reads a file and returns read data as byte array.
-func ReadFile(file string) ([]byte, error) {
-	return ioutil.ReadFile(file)
+	return writer.WriteAll(data)
 }
 
 // WriteFile writes selected data to a file and returns an error
 func WriteFile(file string, data []byte) error {
 	return ioutil.WriteFile(file, data, 0644)
-}
-
-// RemoveFile removes a file
-func RemoveFile(file string) error {
-	return os.Remove(file)
 }
 
 // GetURIPath returns the path of a URL given a URI
@@ -351,16 +319,6 @@ func GetExecutablePath() (string, error) {
 		return "", err
 	}
 	return filepath.Dir(ex), nil
-}
-
-// UnixMillis converts a UnixNano timestamp to milliseconds
-func UnixMillis(t time.Time) int64 {
-	return t.UnixNano() / int64(time.Millisecond)
-}
-
-// RecvWindow converts a supplied time.Duration to milliseconds
-func RecvWindow(d time.Duration) int64 {
-	return int64(d) / int64(time.Millisecond)
 }
 
 // GetDefaultDataDir returns the default data directory

@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestIsEnabled(t *testing.T) {
@@ -29,7 +28,6 @@ func TestIsEnabled(t *testing.T) {
 
 func TestIsValidCryptoAddress(t *testing.T) {
 	t.Parallel()
-
 	b, err := IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC")
 	if err != nil && !b {
 		t.Errorf("Test Failed - Common IsValidCryptoAddress error: %s", err)
@@ -229,6 +227,7 @@ func TestSendHTTPRequest(t *testing.T) {
 }
 
 func TestSendHTTPGetRequest(t *testing.T) {
+	t.Parallel()
 	type test struct {
 		Address string `json:"address"`
 		ETH     struct {
@@ -265,6 +264,7 @@ func TestSendHTTPGetRequest(t *testing.T) {
 }
 
 func TestJSONEncode(t *testing.T) {
+	t.Parallel()
 	type test struct {
 		Status int `json:"status"`
 		Data   []struct {
@@ -320,6 +320,7 @@ func TestJSONDecode(t *testing.T) {
 }
 
 func TestEncodeURLValues(t *testing.T) {
+	t.Parallel()
 	urlstring := "https://www.test.com"
 	expectedOutput := `https://www.test.com?env=TEST%2FDATABASE&format=json`
 	values := url.Values{}
@@ -385,84 +386,6 @@ func TestOutputCSV(t *testing.T) {
 	}
 }
 
-func TestUnixTimestampToTime(t *testing.T) {
-	t.Parallel()
-	testTime := int64(1489439831)
-	tm := time.Unix(testTime, 0)
-	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
-	actualResult := UnixTimestampToTime(testTime)
-	if tm.String() != actualResult.String() {
-		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-}
-
-func TestUnixTimestampStrToTime(t *testing.T) {
-	t.Parallel()
-	testTime := "1489439831"
-	incorrectTime := "DINGDONG"
-	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
-	actualResult, err := UnixTimestampStrToTime(testTime)
-	if err != nil {
-		t.Error(err)
-	}
-	if actualResult.UTC().String() != expectedOutput {
-		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-	actualResult, err = UnixTimestampStrToTime(incorrectTime)
-	if err == nil {
-		t.Error("Test failed. Common UnixTimestampStrToTime error")
-	}
-}
-
-func TestReadFile(t *testing.T) {
-	pathCorrect := "../testdata/dump"
-	pathIncorrect := "testdata/dump"
-
-	_, err := ReadFile(pathCorrect)
-	if err != nil {
-		t.Errorf("Test failed - Common ReadFile error: %s", err)
-	}
-	_, err = ReadFile(pathIncorrect)
-	if err == nil {
-		t.Errorf("Test failed - Common ReadFile error")
-	}
-}
-
-func TestWriteFile(t *testing.T) {
-	path := "../testdata/writefiletest"
-	err := WriteFile(path, nil)
-	if err != nil {
-		t.Errorf("Test failed. Common WriteFile error: %s", err)
-	}
-	_, err = ReadFile(path)
-	if err != nil {
-		t.Errorf("Test failed. Common WriteFile error: %s", err)
-	}
-
-	err = WriteFile("", nil)
-	if err == nil {
-		t.Error("Test failed. Common WriteFile allowed bad path")
-	}
-}
-
-func TestRemoveFile(t *testing.T) {
-	TestWriteFile(t)
-	path := "../testdata/writefiletest"
-	err := RemoveFile(path)
-	if err != nil {
-		t.Errorf("Test failed. Common RemoveFile error: %s", err)
-	}
-
-	TestOutputCSV(t)
-	path = "../testdata/dump"
-	err = RemoveFile(path)
-	if err != nil {
-		t.Errorf("Test failed. Common RemoveFile error: %s", err)
-	}
-}
-
 func TestGetURIPath(t *testing.T) {
 	t.Parallel()
 	// mapping of input vs expected result
@@ -485,30 +408,6 @@ func TestGetExecutablePath(t *testing.T) {
 	_, err := GetExecutablePath()
 	if err != nil {
 		t.Errorf("Test failed. Common GetExecutablePath. Error: %s", err)
-	}
-}
-
-func TestUnixMillis(t *testing.T) {
-	t.Parallel()
-	testTime := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
-	expectedOutput := int64(1414456320000)
-
-	actualOutput := UnixMillis(testTime)
-	if actualOutput != expectedOutput {
-		t.Errorf("Test failed. Common UnixMillis. Expected '%d'. Actual '%d'.",
-			expectedOutput, actualOutput)
-	}
-}
-
-func TestRecvWindow(t *testing.T) {
-	t.Parallel()
-	testTime := time.Duration(24760000)
-	expectedOutput := int64(24)
-
-	actualOutput := RecvWindow(testTime)
-	if actualOutput != expectedOutput {
-		t.Errorf("Test failed. Common RecvWindow. Expected '%d'. Actual '%d'",
-			expectedOutput, actualOutput)
 	}
 }
 
@@ -625,9 +524,9 @@ func TestChangePerm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("os.Stat failed. Err: %v", err)
 		}
-		err = RemoveFile(testDir)
+		err = os.Remove(testDir)
 		if err != nil {
-			t.Fatalf("RemoveFile failed. Err: %v", err)
+			t.Fatalf("os.Remove failed. Err: %v", err)
 		}
 	default:
 		err := ChangePerm("")
@@ -650,9 +549,9 @@ func TestChangePerm(t *testing.T) {
 		if a.Mode().Perm() != 0770 {
 			t.Fatalf("expected file permissions differ. expecting 0770 got %#o", a.Mode().Perm())
 		}
-		err = RemoveFile(testDir)
+		err = os.Remove(testDir)
 		if err != nil {
-			t.Fatalf("RemoveFile failed. Err: %v", err)
+			t.Fatalf("os.Remove failed. Err: %v", err)
 		}
 	}
 }

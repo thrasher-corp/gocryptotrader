@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common/convert"
 	"github.com/thrasher-/gocryptotrader/connchecker"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
@@ -947,7 +949,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 				}
 			}
 			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates && !c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
-				lastUpdated := common.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
+				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
 					log.Warnf(WarningPairsLastUpdatedThresholdExceeded, c.Exchanges[i].Name, configPairsLastUpdatedWarningThreshold)
@@ -1125,8 +1127,8 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	}
 
 	if c.Currency.Cryptocurrencies.Join() == "" {
-		if c.Cryptocurrencies.Join() != "" {
-			c.Currency.Cryptocurrencies = c.Cryptocurrencies
+		if c.Cryptocurrencies != nil {
+			c.Currency.Cryptocurrencies = *c.Cryptocurrencies
 			c.Cryptocurrencies = nil
 		} else {
 			c.Currency.Cryptocurrencies = currency.GetDefaultCryptocurrencies()
@@ -1146,13 +1148,19 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	}
 
 	if c.Currency.FiatDisplayCurrency.IsEmpty() {
-		if c.FiatDisplayCurrency.IsEmpty() {
-			c.Currency.FiatDisplayCurrency = c.FiatDisplayCurrency
-			c.FiatDisplayCurrency = currency.NewCode("")
+		if c.FiatDisplayCurrency != nil {
+			c.Currency.FiatDisplayCurrency = *c.FiatDisplayCurrency
+			c.FiatDisplayCurrency = nil
 		} else {
 			c.Currency.FiatDisplayCurrency = currency.USD
 		}
 	}
+
+	// Flush old setting which still exists
+	if c.FiatDisplayCurrency != nil {
+		c.FiatDisplayCurrency = nil
+	}
+
 	return nil
 }
 
@@ -1376,7 +1384,7 @@ func GetFilePath(file string) (string, error) {
 			continue
 		}
 
-		data, err := common.ReadFile(newDirs[x])
+		data, err := ioutil.ReadFile(newDirs[x])
 		if err != nil {
 			return "", err
 		}
@@ -1416,7 +1424,7 @@ func (c *Config) ReadConfig(configPath string) error {
 		return err
 	}
 
-	file, err := common.ReadFile(defaultPath)
+	file, err := ioutil.ReadFile(defaultPath)
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,8 @@
 package config
 
 import (
+	"io/ioutil"
 	"testing"
-
-	"github.com/thrasher-/gocryptotrader/common"
 )
 
 func TestPromptForConfigEncryption(t *testing.T) {
@@ -87,7 +86,7 @@ func TestDecryptConfigFile(t *testing.T) {
 
 func TestConfirmConfigJSON(t *testing.T) {
 	var result interface{}
-	testConfirmJSON, err := common.ReadFile(ConfigTestFile)
+	testConfirmJSON, err := ioutil.ReadFile(ConfigTestFile)
 	if err != nil {
 		t.Errorf("Test failed. testConfirmJSON: %s", err)
 	}

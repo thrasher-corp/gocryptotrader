@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -59,7 +60,7 @@ func writeFile(file string, data []byte) error {
 
 func main() {
 	genKeys := false
-	privKeyData, err := common.ReadFile("privatekey.pem")
+	privKeyData, err := ioutil.ReadFile("privatekey.pem")
 	if err != nil {
 		genKeys = true
 	}
@@ -100,7 +101,7 @@ func main() {
 
 	} else {
 		var pubKeyData []byte
-		pubKeyData, err = common.ReadFile("publickey.pem")
+		pubKeyData, err = ioutil.ReadFile("publickey.pem")
 		if err != nil {
 			log.Fatal(err)
 		}

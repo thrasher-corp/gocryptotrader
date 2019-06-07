@@ -682,7 +682,8 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	checkExchangeConfigValues.Exchanges = checkExchangeConfigValues.Exchanges[:0]
-	checkExchangeConfigValues.Cryptocurrencies = currency.NewCurrenciesFromStringArray([]string{"TESTYTEST"})
+	cryptos := currency.NewCurrenciesFromStringArray([]string{"TESTYTEST"})
+	checkExchangeConfigValues.Cryptocurrencies = &cryptos
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err == nil {
 		t.Errorf(

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -42,7 +43,7 @@ func main() {
 		key = string(result)
 	}
 
-	file, err := common.ReadFile(inFile)
+	file, err := ioutil.ReadFile(inFile)
 	if err != nil {
 		log.Fatalf("Unable to read input file %s. Error: %s.", inFile, err)
 	}

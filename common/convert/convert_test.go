@@ -94,3 +94,58 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
 	}
 }
+
+func TestUnixTimestampToTime(t *testing.T) {
+	t.Parallel()
+	testTime := int64(1489439831)
+	tm := time.Unix(testTime, 0)
+	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
+	actualResult := UnixTimestampToTime(testTime)
+	if tm.String() != actualResult.String() {
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
+	}
+}
+
+func TestUnixTimestampStrToTime(t *testing.T) {
+	t.Parallel()
+	testTime := "1489439831"
+	incorrectTime := "DINGDONG"
+	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
+	actualResult, err := UnixTimestampStrToTime(testTime)
+	if err != nil {
+		t.Error(err)
+	}
+	if actualResult.UTC().String() != expectedOutput {
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
+	}
+	actualResult, err = UnixTimestampStrToTime(incorrectTime)
+	if err == nil {
+		t.Error("Test failed. Common UnixTimestampStrToTime error")
+	}
+}
+
+func TestUnixMillis(t *testing.T) {
+	t.Parallel()
+	testTime := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
+	expectedOutput := int64(1414456320000)
+
+	actualOutput := UnixMillis(testTime)
+	if actualOutput != expectedOutput {
+		t.Errorf("Test failed. Common UnixMillis. Expected '%d'. Actual '%d'.",
+			expectedOutput, actualOutput)
+	}
+}
+
+func TestRecvWindow(t *testing.T) {
+	t.Parallel()
+	testTime := time.Duration(24760000)
+	expectedOutput := int64(24)
+
+	actualOutput := RecvWindow(testTime)
+	if actualOutput != expectedOutput {
+		t.Errorf("Test failed. Common RecvWindow. Expected '%d'. Actual '%d'",
+			expectedOutput, actualOutput)
+	}
+}

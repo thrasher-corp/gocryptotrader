@@ -144,6 +144,9 @@ func (e *Base) SetFeatureDefaults() {
 // SetAPICredentialDefaults sets the API Credential validator defaults
 func (e *Base) SetAPICredentialDefaults() {
 	// Exchange hardcoded settings take precedence and overwrite the config settings
+	if e.Config.API.CredentialsValidator == nil {
+		e.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)
+	}
 	if e.Config.API.CredentialsValidator.RequiresKey != e.API.CredentialsValidator.RequiresKey {
 		e.Config.API.CredentialsValidator.RequiresKey = e.API.CredentialsValidator.RequiresKey
 	}

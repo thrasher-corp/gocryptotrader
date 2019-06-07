@@ -53,3 +53,27 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 	}
 	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
 }
+
+// UnixTimestampToTime returns time.time
+func UnixTimestampToTime(timeint64 int64) time.Time {
+	return time.Unix(timeint64, 0)
+}
+
+// UnixTimestampStrToTime returns a time.time and an error
+func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
+	i, err := strconv.ParseInt(timeStr, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(i, 0), nil
+}
+
+// UnixMillis converts a UnixNano timestamp to milliseconds
+func UnixMillis(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
+}
+
+// RecvWindow converts a supplied time.Duration to milliseconds
+func RecvWindow(d time.Duration) int64 {
+	return int64(d) / int64(time.Millisecond)
+}

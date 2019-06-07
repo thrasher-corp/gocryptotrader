@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"sync"
 	"time"
@@ -304,7 +305,7 @@ func (s *Storage) ForeignExchangeUpdater() {
 
 // SeedCurrencyAnalysisData sets a new instance of a coinmarketcap data.
 func (s *Storage) SeedCurrencyAnalysisData() error {
-	b, err := common.ReadFile(s.path)
+	b, err := ioutil.ReadFile(s.path)
 	if err != nil {
 		err = s.FetchCurrencyAnalysisData()
 		if err != nil {

@@ -303,7 +303,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 		[]byte(params.Encode()),
 		[]byte(crypto.Sha1ToHex(z.API.Credentials.Secret)))
 
-	params.Set("reqTime", fmt.Sprintf("%d", common.UnixMillis(time.Now())))
+	params.Set("reqTime", fmt.Sprintf("%d", convert.UnixMillis(time.Now())))
 	params.Set("sign", fmt.Sprintf("%x", hmac))
 
 	urlPath := fmt.Sprintf("%s/%s?%s",

@@ -30,8 +30,8 @@ type Config struct {
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
 	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat,omitempty"`
-	FiatDisplayCurrency currency.Code             `json:"fiatDispayCurrency,omitempty"`
-	Cryptocurrencies    currency.Currencies       `json:"cryptocurrencies,omitempty"`
+	FiatDisplayCurrency *currency.Code            `json:"fiatDispayCurrency,omitempty"`
+	Cryptocurrencies    *currency.Currencies      `json:"cryptocurrencies,omitempty"`
 	SMS                 *SMSGlobalConfig          `json:"smsGlobal,omitempty"`
 }
 
@@ -328,9 +328,9 @@ type APIConfig struct {
 	AuthenticatedSupport bool `json:"authenticatedSupport"`
 	PEMKeySupport        bool `json:"pemKeySupport,omitempty"`
 
-	Endpoints            APIEndpointsConfig            `json:"endpoints"`
-	Credentials          APICredentialsConfig          `json:"credentials"`
-	CredentialsValidator APICredentialsValidatorConfig `json:"credentialsValidator"`
+	Endpoints            APIEndpointsConfig             `json:"endpoints"`
+	Credentials          APICredentialsConfig           `json:"credentials"`
+	CredentialsValidator *APICredentialsValidatorConfig `json:"credentialsValidator,omitempty"`
 }
 
 // HTTPRateConfig stores the exchanges HTTP rate limiter config
