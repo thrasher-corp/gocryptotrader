@@ -362,7 +362,7 @@ func (z *ZB) wsSend(data interface{}) error {
 		return err
 	}
 	if z.Verbose {
-		log.Debugf("%v sending message to websocket %v", z.Name, data)
+		log.Debugf("%v sending message to websocket %v", z.Name, string(json))
 	}
 	return z.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }
@@ -376,7 +376,7 @@ func (z *ZB) wsAddSubUser(username, password string) error {
 	request.Channel = "addSubUser"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
@@ -386,22 +386,23 @@ func (z *ZB) wsGetSubUserList() error {
 	request.Channel = "getSubUserList"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
 
-func (z *ZB) wsDoTransferFunds(pair currency.Pair, amount float64, fromUserName, toUserName string) error {
+func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName, toUserName string) error {
 	request := WsDoTransferFundsRequest{
 		Amount:       amount,
 		Currency:     pair,
 		FromUserName: fromUserName,
 		ToUserName:   toUserName,
+		No:           z.GetNonce(false).String(),
 	}
 	request.Channel = "doTransferFunds"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
@@ -413,17 +414,18 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 		KeyName:     keyName,
 		LeverPerm:   leverPerm,
 		MoneyPerm:   moneyPerm,
+		No:          z.GetNonce(false).String(),
 		ToUserID:    toUserID,
 	}
 	request.Channel = "createSubUserKey"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
 
-func (z *ZB) wsGenerateSignature(request interface{}) []byte {
+func (z *ZB) wsGenerateSignature(request interface{}) string {
 	jsonResponse, err := common.JSONEncode(request)
 	if err != nil {
 		log.Error(err)
@@ -431,12 +433,12 @@ func (z *ZB) wsGenerateSignature(request interface{}) []byte {
 	hmac := common.GetHMAC(common.HashMD5,
 		jsonResponse,
 		[]byte(common.Sha1ToHex(z.APISecret)))
+	return fmt.Sprintf("%x", hmac)
 
-	return hmac
 }
 
 func (z *ZB) wsFixInvalidJSON(json []byte) []byte {
-	invalidZbJSONRegex := `(\"\[)(.*)(\]\")`
+	invalidZbJSONRegex := `(\"\[|\"\{)(.*)(\]\"|\}\")`
 	regexChecker := regexp.MustCompile(invalidZbJSONRegex)
 	matchingResults := regexChecker.Find(json)
 	if matchingResults == nil {
@@ -449,17 +451,17 @@ func (z *ZB) wsFixInvalidJSON(json []byte) []byte {
 	return []byte(common.ReplaceString(string(json), string(matchingResults), fixedJSON, 1))
 }
 
-func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType, accountType int64) error {
+func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType int64) error {
 	request := WsSubmitOrderRequest{
-		Amount:      amount,
-		Price:       price,
-		TradeType:   tradeType,
-		AccountType: accountType,
+		Amount:    amount,
+		Price:     price,
+		TradeType: tradeType,
+		No:        z.GetNonce(false).String(),
 	}
 	request.Channel = fmt.Sprintf("%v_order", pair.String())
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
@@ -471,7 +473,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) error {
 	request.Channel = fmt.Sprintf("%v_cancelorder", pair.String())
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
@@ -483,7 +485,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) error {
 	request.Channel = fmt.Sprintf("%v_getorder", pair.String())
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
@@ -496,32 +498,32 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) error {
 	request.Channel = fmt.Sprintf("%v_getorders", pair.String())
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
 
-func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize, tradeType int64) error {
+func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize int64) error {
 	request := WsGetOrdersIgnoreTradeTypeRequest{
 		PageIndex: pageIndex,
 		PageSize:  pageSize,
-		TradeType: tradeType,
 	}
 	request.Channel = fmt.Sprintf("%v_getordersignoretradetype", pair.String())
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }
 
-func (z *ZB) wsGetAccountInforRequest() error {
+func (z *ZB) wsGetAccountInfoRequest() error {
 	request := WsAuthenticatedRequest{
-		Channel:   "getAccountInfo",
+		Channel:   "getaccountinfo",
 		Event:     zWebsocketAddChannel,
 		Accesskey: z.APIKey,
+		No:        z.GetNonce(false).String(),
 	}
-	request.Sign = fmt.Sprintf("%x", z.wsGenerateSignature(request))
+	request.Sign = z.wsGenerateSignature(request)
 
 	return z.wsSend(request)
 }

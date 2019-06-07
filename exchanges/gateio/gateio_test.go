@@ -498,7 +498,6 @@ func TestGetOrderInfo(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
-	g.Verbose = true
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}

@@ -65,12 +65,16 @@ type WsAuthenticatedRequest struct {
 	Accesskey string `json:"accesskey"`
 	Channel   string `json:"channel"`
 	Event     string `json:"event"`
+	No        string `json:"no,omitempty"`
 	Sign      string `json:"sign,omitempty"`
 }
 
 // WsAddSubUserRequest data to add sub users
 type WsAddSubUserRequest struct {
-	WsAuthenticatedRequest
+	Accesskey   string `json:"accesskey"`
+	Channel     string `json:"channel"`
+	Event       string `json:"event"`
+	Sign        string `json:"sign,omitempty"`
 	Memo        string `json:"memo"`
 	Password    string `json:"password"`
 	SubUserName string `json:"subUserName"`
@@ -78,21 +82,29 @@ type WsAddSubUserRequest struct {
 
 // WsCreateSubUserKeyRequest data to add sub user keys
 type WsCreateSubUserKeyRequest struct {
-	WsAuthenticatedRequest
+	Accesskey   string `json:"accesskey"`
 	AssetPerm   bool   `json:"assetPerm,string"`
+	Channel     string `json:"channel"`
 	EntrustPerm bool   `json:"entrustPerm,string"`
+	Event       string `json:"event"`
 	KeyName     string `json:"keyName"`
 	LeverPerm   bool   `json:"leverPerm,string"`
 	MoneyPerm   bool   `json:"moneyPerm,string"`
+	No          string `json:"no"`
+	Sign        string `json:"sign,omitempty"`
 	ToUserID    string `json:"toUserId"`
 }
 
 // WsDoTransferFundsRequest data to transfer funds
 type WsDoTransferFundsRequest struct {
-	WsAuthenticatedRequest
+	Accesskey    string        `json:"accesskey"`
 	Amount       float64       `json:"amount,string"`
-	Currency     currency.Pair `json:"currency"`
+	Channel      string        `json:"channel"`
+	Currency     currency.Code `json:"currency"`
+	Event        string        `json:"event"`
 	FromUserName string        `json:"fromUserName"`
+	No           string        `json:"no"`
+	Sign         string        `json:"sign,omitempty"`
 	ToUserName   string        `json:"toUserName"`
 }
 
@@ -101,7 +113,7 @@ type WsGetSubUserListResponse struct {
 	Success bool                           `json:"success"`
 	Code    int64                          `json:"code"`
 	Channel string                         `json:"channel"`
-	Message []WsGetSubUserListResponseData `json:"message"` /*[] `json:"message,string"`*/
+	Message []WsGetSubUserListResponseData `json:"message"`
 	No      string                         `json:"no"`
 }
 
@@ -125,11 +137,14 @@ type WsRequestResponse struct {
 
 // WsSubmitOrderRequest creates an order via ws
 type WsSubmitOrderRequest struct {
-	WsAuthenticatedRequest
-	Amount      float64 `json:"amount"`
-	Price       float64 `json:"price"`
-	TradeType   int64   `json:"tradeType"`
-	AccountType int64   `json:"acccType"`
+	Accesskey string  `json:"accesskey"`
+	Amount    float64 `json:"amount,string"`
+	Channel   string  `json:"channel"`
+	Event     string  `json:"event"`
+	No        string  `json:"no,omitempty"`
+	Price     float64 `json:"price,string"`
+	Sign      string  `json:"sign,omitempty"`
+	TradeType int64   `json:"tradeType,string"`
 }
 
 // WsSubmitOrderResponse data about submitted order
@@ -146,8 +161,11 @@ type WsSubmitOrderResponse struct {
 
 // WsCancelOrderRequest order cancel request
 type WsCancelOrderRequest struct {
-	WsAuthenticatedRequest
-	ID int64 `json:"id"`
+	Accesskey string `json:"accesskey"`
+	Channel   string `json:"channel"`
+	Event     string `json:"event"`
+	ID        int64  `json:"id"`
+	Sign      string `json:"sign,omitempty"`
 }
 
 // WsCancelOrderResponse order cancel response
@@ -161,8 +179,11 @@ type WsCancelOrderResponse struct {
 
 // WsGetOrderRequest Get specific order details
 type WsGetOrderRequest struct {
-	WsAuthenticatedRequest
-	ID int64 `json:"id"`
+	Accesskey string `json:"accesskey"`
+	Channel   string `json:"channel"`
+	Event     string `json:"event"`
+	ID        int64  `json:"id"`
+	Sign      string `json:"sign,omitempty"`
 }
 
 // WsGetOrderResponse contains order data
@@ -192,9 +213,12 @@ type WsGetOrderResponseData struct {
 
 // WsGetOrdersRequest get more orders, with no orderID filtering
 type WsGetOrdersRequest struct {
-	WsAuthenticatedRequest
-	PageIndex int64 `json:"pageIndex"`
-	TradeType int64 `json:"tradeType"`
+	Accesskey string `json:"accesskey"`
+	Channel   string `json:"channel"`
+	Event     string `json:"event"`
+	PageIndex int64  `json:"pageIndex"`
+	TradeType int64  `json:"tradeType"`
+	Sign      string `json:"sign,omitempty"`
 }
 
 // WsGetOrdersResponse contains orders data
@@ -207,13 +231,15 @@ type WsGetOrdersResponse struct {
 	Data    []WsGetOrderResponseData `json:"data"`
 }
 
-// WsGetOrdersIgnoreTradeTypeRequest request weirdly requires tradetype
+// WsGetOrdersIgnoreTradeTypeRequest ws request
 type WsGetOrdersIgnoreTradeTypeRequest struct {
-	WsAuthenticatedRequest
-	PageIndex int64 `json:"pageIndex"`
-	PageSize  int64 `json:"pageSize"`
-	ID        int64 `json:"id"`
-	TradeType int64 `json:"tradeType"`
+	Accesskey string `json:"accesskey"`
+	Channel   string `json:"channel"`
+	Event     string `json:"event"`
+	ID        int64  `json:"id"`
+	PageIndex int64  `json:"pageIndex"`
+	PageSize  int64  `json:"pageSize"`
+	Sign      string `json:"sign,omitempty"`
 }
 
 // WsGetOrdersIgnoreTradeTypeResponse contains orders data

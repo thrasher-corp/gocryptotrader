@@ -958,7 +958,6 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	b.Verbose = true
 	if !b.Websocket.IsEnabled() && !b.AuthenticatedAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}

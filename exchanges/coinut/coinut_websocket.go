@@ -115,7 +115,8 @@ func (c *COINUT) WsHandleData() {
 					continue
 				}
 				for i := range incoming {
-					individualJSON, err := common.JSONEncode(incoming[i])
+					var individualJSON []byte
+					individualJSON, err = common.JSONEncode(incoming[i])
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
