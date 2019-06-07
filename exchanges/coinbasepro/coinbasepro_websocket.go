@@ -288,7 +288,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	var channels = []string{"heartbeat", "level2", "ticker", "user"}
 	enabledCurrencies := c.GetEnabledCurrencies()
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") && !c.AuthenticatedAPISupport {
 			continue
@@ -318,7 +318,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 		},
 	}
 	if channelToSubscribe.Channel == "user" || channelToSubscribe.Channel == "full" {
-		n := c.Requester.GetNonce(false).String()
+		n := fmt.Sprintf("%v", time.Now().Unix())
 		message := n + "GET" + "/users/self/verify"
 		hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(c.APISecret))
 		subscribe.Signature = common.Base64Encode(hmac)

@@ -253,7 +253,7 @@ type WsHeartbeatResponse struct {
 	SocketSequence int64  `json:"socket_sequence"`
 }
 
-// WsActiveOrdersResponse contains actove prders
+// WsActiveOrdersResponse contains active orders
 type WsActiveOrdersResponse struct {
 	Type              string        `json:"type"`
 	OrderID           string        `json:"order_id"`

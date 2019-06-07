@@ -408,7 +408,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() {
 	var channels = []string{"inst_tick", "inst_order_book"}
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	enabledCurrencies := c.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -483,21 +483,19 @@ func (c *COINUT) wsAuthenticate() error {
 }
 
 func (c *COINUT) wsGetAccountBalance() error {
-	nonce := c.GetNonce()
-	loginRequest := wsRequest{
+	accBalance := wsRequest{
 		Request: "user_balance",
-		Nonce:   nonce,
+		Nonce:   c.GetNonce(),
 	}
-	return c.wsSend(loginRequest)
+	return c.wsSend(accBalance)
 }
 
 func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) error {
 	order.Currency.Delimiter = ""
 	currency := order.Currency.Upper().String()
-	nonce := c.GetNonce()
 	var orderSubmissionRequest WsSubmitOrderRequest
 	orderSubmissionRequest.Request = "new_order"
-	orderSubmissionRequest.Nonce = nonce
+	orderSubmissionRequest.Nonce = c.GetNonce()
 	orderSubmissionRequest.InstID = instrumentListByString[currency]
 	orderSubmissionRequest.Qty = order.Amount
 	orderSubmissionRequest.Price = order.Price
@@ -534,26 +532,24 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) error {
 }
 
 func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
-	nonce := c.GetNonce()
 	p.Delimiter = ""
 	currency := p.Upper().String()
 	var openOrdersRequest WsGetOpenOrdersRequest
 	openOrdersRequest.Request = "user_open_orders"
-	openOrdersRequest.Nonce = nonce
+	openOrdersRequest.Nonce = c.GetNonce()
 	openOrdersRequest.InstID = instrumentListByString[currency]
 
 	return c.wsSend(openOrdersRequest)
 }
 
 func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
-	nonce := c.GetNonce()
 	cancellation.Currency.Delimiter = ""
 	currency := cancellation.Currency.Upper().String()
 	var cancellationRequest WsCancelOrderRequest
 	cancellationRequest.Request = "cancel_order"
 	cancellationRequest.InstID = instrumentListByString[currency]
 	cancellationRequest.OrderID = cancellation.OrderID
-	cancellationRequest.Nonce = nonce
+	cancellationRequest.Nonce = c.GetNonce()
 
 	return c.wsSend(cancellationRequest)
 }
@@ -569,21 +565,18 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) error {
 		})
 	}
 
-	nonce := c.GetNonce()
 	cancelOrderRequest.Request = "cancel_orders"
-	cancelOrderRequest.Nonce = nonce
+	cancelOrderRequest.Nonce = c.GetNonce()
 	return c.wsSend(cancelOrderRequest)
 }
 
 func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) error {
-	nonce := c.GetNonce()
 	p.Delimiter = ""
 	currency := p.Upper().String()
-
 	var request WsTradeHistoryRequest
 	request.Request = "trade_history"
 	request.InstID = instrumentListByString[currency]
-	request.Nonce = nonce
+	request.Nonce = c.GetNonce()
 	request.Start = start
 	request.Limit = limit
 

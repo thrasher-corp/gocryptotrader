@@ -71,8 +71,6 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 		if len(enabledCurrencies)-1 == i {
 			return nil
 		}
-		time.Sleep(time.Minute) // rate limiter, limit of 1 requests per
-		// minute
 	}
 	return nil
 }
@@ -81,7 +79,7 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	payload := WsRequestPayload{
 		Request: fmt.Sprintf("/v1/%v", url),
-		Nonce:   int64(g.GetNonce(true)),
+		Nonce:   time.Now().UnixNano(),
 	}
 	PayloadJSON, err := common.JSONEncode(payload)
 	if err != nil {

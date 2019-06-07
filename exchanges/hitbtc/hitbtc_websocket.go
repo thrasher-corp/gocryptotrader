@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -21,7 +22,7 @@ const (
 	rpcVersion             = "2.0"
 )
 
-var requestID int64
+var requestID nonce.Nonce
 
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
@@ -306,7 +307,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() {
 	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	if h.AuthenticatedAPISupport {
 		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 			Channel: "subscribeReports",
@@ -393,7 +394,7 @@ func (h *HitBTC) wsSend(data interface{}) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) wsLogin() error {
-	nonce := h.Requester.GetNonce(false).String()
+	nonce := fmt.Sprintf("%v", time.Now().Unix())
 	hmac := common.GetHMAC(common.HashSHA256, []byte(nonce), []byte(h.APISecret))
 	request := WsLoginRequest{
 		Method: "login",
@@ -413,17 +414,16 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-	requestID++
 	request := WsSubmitOrderRequest{
 		Method: "newOrder",
 		Params: WsSubmitOrderRequestData{
-			ClientOrderID: h.Requester.GetNonce(false).String(),
+			ClientOrderID: fmt.Sprintf("%v", time.Now().Unix()),
 			Symbol:        pair,
 			Side:          common.StringToLower(side),
 			Price:         fmt.Sprintf("%v", price),
 			Quantity:      fmt.Sprintf("%v", quantity),
 		},
-		ID: requestID,
+		ID: int64(requestID.GetInc()),
 	}
 	return h.wsSend(request)
 }
@@ -433,13 +433,12 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-	requestID++
 	request := WsCancelOrderRequest{
 		Method: "cancelOrder",
 		Params: WsCancelOrderRequestData{
 			ClientOrderID: clientOrderID,
 		},
-		ID: requestID,
+		ID: int64(requestID.GetInc()),
 	}
 	return h.wsSend(request)
 }
@@ -449,16 +448,15 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) e
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-	requestID++
 	request := WsReplaceOrderRequest{
 		Method: "cancelReplaceOrder",
 		Params: WsReplaceOrderRequestData{
 			ClientOrderID:   clientOrderID,
-			RequestClientID: h.Requester.GetNonce(false).String(),
+			RequestClientID: fmt.Sprintf("%v", time.Now().Unix()),
 			Quantity:        fmt.Sprintf("%v", quantity),
 			Price:           fmt.Sprintf("%v", price),
 		},
-		ID: requestID,
+		ID: int64(requestID.GetInc()),
 	}
 	return h.wsSend(request)
 }
@@ -468,11 +466,10 @@ func (h *HitBTC) wsGetActiveOrders() error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-	requestID++
 	request := WsReplaceOrderRequest{
 		Method: "getOrders",
 		Params: WsReplaceOrderRequestData{},
-		ID:     requestID,
+		ID:     int64(requestID.GetInc()),
 	}
 	return h.wsSend(request)
 }
@@ -482,11 +479,10 @@ func (h *HitBTC) wsGetTradingBalance() error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
-	requestID++
 	request := WsReplaceOrderRequest{
 		Method: "getTradingBalance",
 		Params: WsReplaceOrderRequestData{},
-		ID:     requestID,
+		ID:     int64(requestID.GetInc()),
 	}
 	return h.wsSend(request)
 }

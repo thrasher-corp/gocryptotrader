@@ -460,8 +460,7 @@ func (a *ANX) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChanne
 
 // GetSubscriptions returns a copied list of subscriptions
 func (a *ANX) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-	var nilResponse []exchange.WebsocketChannelSubscription
-	return nilResponse, common.ErrFunctionNotSupported
+		return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

@@ -343,7 +343,7 @@ func (g *Gateio) WsHandleData() {
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 	var channels = []string{"balance.subscribe", "order.subscribe"}
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -359,7 +359,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions  []exchange.WebsocketChannelSubscription
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {

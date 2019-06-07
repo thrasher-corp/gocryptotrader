@@ -616,7 +616,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{"book", "trades", "ticker"}
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range b.EnabledPairs {
 			params := make(map[string]interface{})

@@ -325,7 +325,7 @@ var wsErrCodes = map[int64]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	// Tickerdata is its own channel
 	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 		Channel: "markets",
@@ -397,7 +397,7 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 		Currency:     pair,
 		FromUserName: fromUserName,
 		ToUserName:   toUserName,
-		No:           z.GetNonce(false).String(),
+		No:           fmt.Sprintf("%v", time.Now().Unix()),
 	}
 	request.Channel = "doTransferFunds"
 	request.Event = zWebsocketAddChannel
@@ -414,7 +414,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 		KeyName:     keyName,
 		LeverPerm:   leverPerm,
 		MoneyPerm:   moneyPerm,
-		No:          z.GetNonce(false).String(),
+		No:          fmt.Sprintf("%v", time.Now().Unix()),
 		ToUserID:    toUserID,
 	}
 	request.Channel = "createSubUserKey"
@@ -456,7 +456,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 		Amount:    amount,
 		Price:     price,
 		TradeType: tradeType,
-		No:        z.GetNonce(false).String(),
+		No:        fmt.Sprintf("%v", time.Now().Unix()),
 	}
 	request.Channel = fmt.Sprintf("%v_order", pair.String())
 	request.Event = zWebsocketAddChannel
@@ -521,7 +521,7 @@ func (z *ZB) wsGetAccountInfoRequest() error {
 		Channel:   "getaccountinfo",
 		Event:     zWebsocketAddChannel,
 		Accesskey: z.APIKey,
-		No:        z.GetNonce(false).String(),
+		No:        fmt.Sprintf("%v", time.Now().Unix()),
 	}
 	request.Sign = z.wsGenerateSignature(request)
 

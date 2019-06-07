@@ -485,7 +485,7 @@ var CurrencyPairID = map[int]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() {
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	// Tickerdata is its own channel
 	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 		Channel: fmt.Sprintf("%v", wsTickerDataID),
@@ -555,7 +555,7 @@ func (p *Poloniex) wsSend(data interface{}) error {
 }
 
 func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
-	nonce := fmt.Sprintf("nonce=%v", p.Requester.GetNonce(true).String())
+	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
 	hmac := common.GetHMAC(common.HashSHA512, []byte(nonce), []byte(p.APISecret))
 	request := WsAuthorisationRequest{
 		Command: command,

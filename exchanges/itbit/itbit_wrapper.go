@@ -421,8 +421,7 @@ func (i *ItBit) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChan
 
 // GetSubscriptions returns a copied list of subscriptions
 func (i *ItBit) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-	var nilResponse []exchange.WebsocketChannelSubscription
-	return nilResponse, common.ErrFunctionNotSupported
+		return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

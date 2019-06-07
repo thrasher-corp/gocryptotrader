@@ -379,8 +379,7 @@ func (y *Yobit) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChan
 
 // GetSubscriptions returns a copied list of subscriptions
 func (y *Yobit) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-	var nilResponse []exchange.WebsocketChannelSubscription
-	return nilResponse, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

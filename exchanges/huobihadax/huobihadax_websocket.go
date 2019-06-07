@@ -117,7 +117,11 @@ func (h *HUOBIHADAX) wsMultiConnectionFunnel(ws *websocket.Conn, url string) {
 				h.Websocket.DataHandler <- err
 				return
 			}
-			gReader.Close()
+			err = gReader.Close()
+			if err != nil {
+				h.Websocket.DataHandler <- err
+				return
+			}
 			comms <- WsMessage{Raw: unzipped, URL: url}
 		}
 	}
@@ -340,7 +344,7 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	if h.AuthenticatedAPISupport {
 		channels = append(channels, "orders.%v", "orders.%v.update")
 		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
