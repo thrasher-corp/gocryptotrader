@@ -26,6 +26,18 @@ import (
 	"github.com/thrasher-/gocryptotrader/utils"
 )
 
+// GetAuthAPISupportedExchanges returns a list of auth api enabled exchanges
+func GetAuthAPISupportedExchanges() []string {
+	var exchanges []string
+	for x := range Bot.Exchanges {
+		if !Bot.Exchanges[x].GetAuthenticatedAPISupport() {
+			continue
+		}
+		exchanges = append(exchanges, Bot.Exchanges[x].GetName())
+	}
+	return exchanges
+}
+
 // IsOnline returns whether or not the engine has Internet connectivity
 func IsOnline() bool {
 	if Bot.Connectivity == nil {

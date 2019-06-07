@@ -458,8 +458,7 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest
 			Price:           resp[i].Price,
 			Status:          resp[i].Status,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Instrument,
-				resp[i].Currency,
-				b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+				resp[i].Currency, "-"),
 		}
 
 		for j := range resp[i].Trades {

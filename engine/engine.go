@@ -32,11 +32,11 @@ type Engine struct {
 	Portfolio                      *portfolio.Base
 	Exchanges                      []exchange.IBotExchange
 	ExchangeCurrencyPairManager    *ExchangeCurrencyPairSyncer
-	OrderManager                   *OrderManager
+	OrderManager                   orderManager
 	PortfolioManager               portfolioManager
 	CommsRelayer                   *communications.Communications
 	Connectivity                   *connchecker.Checker
-	Shutdown                       chan bool
+	Shutdown                       chan struct{}
 	Settings                       Settings
 	CryptocurrencyDepositAddresses map[string]map[string]string
 	Uptime                         time.Time
@@ -157,6 +157,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 
 	b.Settings.EnableConnectivityMonitor = s.EnableConnectivityMonitor
 	b.Settings.EnableNTPClient = s.EnableNTPClient
+	b.Settings.EnableOrderManager = s.EnableOrderManager
 	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
 	b.Settings.EnableTickerSyncing = s.EnableTickerSyncing
 	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
@@ -219,7 +220,7 @@ func PrintSettings(s *Settings) {
 	log.Debugf("\t Enable all exchanges: %v", s.EnableAllExchanges)
 	log.Debugf("\t Enable all pairs: %v", s.EnableAllPairs)
 	log.Debugf("\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
-	log.Debugf("\t Enable portfolio watcher: %v", s.EnablePortfolioManager)
+	log.Debugf("\t Enable portfolio manager: %v", s.EnablePortfolioManager)
 	log.Debugf("\t Enable gPRC: %v", s.EnableGRPC)
 	log.Debugf("\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
 	log.Debugf("\t Enable websocket RPC: %v", s.EnableWebsocketRPC)
@@ -377,6 +378,12 @@ func (e *Engine) Start() {
 		}
 	}
 
+	if e.Settings.EnableOrderManager {
+		if err = e.OrderManager.Start(); err != nil {
+			log.Errorf("Order manager unable to start: %v", err)
+		}
+	}
+
 	if e.Settings.EnableExchangeSyncManager {
 		exchangeSyncCfg := CurrencyPairSyncerConfig{
 			SyncTicker:       e.Settings.EnableTickerSyncing,
@@ -393,10 +400,6 @@ func (e *Engine) Start() {
 		}
 	}
 
-	if e.Settings.EnableOrderManager {
-		go StartOrderManagerRoutine()
-	}
-
 	if e.Settings.EnableEventManager {
 		go events.EventManger()
 	}
@@ -411,6 +414,12 @@ func (e *Engine) Stop() {
 
 	if len(portfolio.Portfolio.Addresses) != 0 {
 		e.Config.Portfolio = portfolio.Portfolio
+	}
+
+	if e.OrderManager.Started() {
+		if err := e.OrderManager.Stop(); err != nil {
+			log.Errorf("Order manager unable to stop. Error: %v", err)
+		}
 	}
 
 	if e.PortfolioManager.Started() {
@@ -436,11 +445,11 @@ func (e *Engine) Stop() {
 // shuts down the engine instance
 func (e *Engine) handleInterrupt() {
 	c := make(chan os.Signal, 1)
-	e.Shutdown = make(chan bool)
+	e.Shutdown = make(chan struct{})
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		sig := <-c
 		log.Debugf("Captured %v, shutdown requested.", sig)
-		e.Shutdown <- true
+		close(e.Shutdown)
 	}()
 }
