@@ -978,7 +978,10 @@ func TestWsAuth(t *testing.T) {
 	}
 	timer := time.NewTimer(3 * time.Second)
 	select {
-	case <-b.Websocket.DataHandler:
+	case resp := <-b.Websocket.DataHandler:
+		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {
+			t.Error("expected successful login")
+		}
 	case <-timer.C:
 		t.Error("Have not received a response")
 	}

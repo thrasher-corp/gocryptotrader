@@ -427,7 +427,10 @@ func setupTestAuth(t *testing.T) {
 	}
 	timer := time.NewTimer(5 * time.Second)
 	select {
-	case <-c.Websocket.DataHandler:
+	case resp := <-c.Websocket.DataHandler:
+		if resp.(WsLoginResponse).Username != clientID {
+			t.Fatal("Unsuccessful login")
+		}
 	case <-timer.C:
 		t.Error("Expected response")
 	}
@@ -447,7 +450,10 @@ func TestWsAuthGetAccountBalance(t *testing.T) {
 	}
 	timer := time.NewTimer(3 * time.Second)
 	select {
-	case <-c.Websocket.DataHandler:
+	case resp := <-c.Websocket.DataHandler:
+		if resp.(WsUserBalanceResponse).Status[0] != "OK" {
+			t.Error("Expected successful response")
+		}
 	case <-timer.C:
 		t.Error("Expected response")
 	}

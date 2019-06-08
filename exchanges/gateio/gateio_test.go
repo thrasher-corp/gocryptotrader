@@ -498,6 +498,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
+	g.Verbose = true
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}
@@ -533,7 +534,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	timer = time.NewTimer(3 * time.Second)
 	select {
-	case <-g.Websocket.DataHandler:
+	case resp := <-g.Websocket.DataHandler:
 	case <-timer.C:
 		t.Error("Expected response")
 	}

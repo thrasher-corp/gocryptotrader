@@ -228,6 +228,7 @@ func (b *Bitfinex) WsDataHandler() {
 						status := eventData["status"].(string)
 
 						if status == "OK" {
+							b.Websocket.DataHandler <- eventData
 							b.WsAddSubscriptionChannel(0, "account", "N/A")
 
 						} else if status == "fail" {

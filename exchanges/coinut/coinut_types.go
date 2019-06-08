@@ -418,9 +418,8 @@ type WsCancelOrderResponse struct {
 
 // WsCancelOrdersResponse ws response
 type WsCancelOrdersResponse struct {
-	Request string                        `json:"request"`
+	WsRequest
 	Entries []WsCancelOrdersResponseEntry `json:"entries"`
-	Nonce   int64                         `json:"nonce"`
 }
 
 // WsCancelOrdersResponseEntry ws response entry

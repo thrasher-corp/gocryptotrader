@@ -73,10 +73,7 @@ type AnnouncementData struct {
 
 // WsAffiliateResponse private api response
 type WsAffiliateResponse struct {
-	Table       string                        `json:"table"`
-	Action      string                        `json:"action"`
-	Keys        []string                      `json:"keys"`
-	Types       map[string]string             `json:"types"`
+	WsDataResponse
 	ForeignKeys interface{}                   `json:"foreignKeys"`
 	Attributes  WsAffiliateResponseAttributes `json:"attributes"`
 	Filter      WsAffiliateResponseFilter     `json:"filter"`
@@ -96,10 +93,7 @@ type WsAffiliateResponseFilter struct {
 
 // WsOrderResponse private api response
 type WsOrderResponse struct {
-	Table       string                     `json:"table"`
-	Action      string                     `json:"action"`
-	Keys        []string                   `json:"keys"`
-	Types       map[string]string          `json:"types"`
+	WsDataResponse
 	ForeignKeys WsOrderResponseForeignKeys `json:"foreignKeys"`
 	Attributes  WsOrderResponseAttributes  `json:"attributes"`
 	Filter      WsOrderResponseFilter      `json:"filter"`
@@ -128,10 +122,7 @@ type WsOrderResponseForeignKeys struct {
 
 // WsTransactResponse private api response
 type WsTransactResponse struct {
-	Table       string                       `json:"table"`
-	Action      string                       `json:"action"`
-	Keys        []string                     `json:"keys"`
-	Types       map[string]string            `json:"types"`
+	WsDataResponse
 	ForeignKeys interface{}                  `json:"foreignKeys"`
 	Attributes  WsTransactResponseAttributes `json:"attributes"`
 	Filter      WsTransactResponseFilter     `json:"filter"`
@@ -151,10 +142,7 @@ type WsTransactResponseFilter struct {
 
 // WsWalletResponse private api response
 type WsWalletResponse struct {
-	Table       string                     `json:"table"`
-	Action      string                     `json:"action"`
-	Keys        []string                   `json:"keys"`
-	Types       map[string]string          `json:"types"`
+	WsDataResponse
 	ForeignKeys interface{}                `json:"foreignKeys"`
 	Attributes  WsWalletResponseAttributes `json:"attributes"`
 	Filter      WsWalletResponseFilter     `json:"filter"`
@@ -203,10 +191,7 @@ type WsWalletResponseFilter struct {
 
 // WsExecutionResponse private api response
 type WsExecutionResponse struct {
-	Table       string                         `json:"table"`
-	Action      string                         `json:"action"`
-	Keys        []string                       `json:"keys"`
-	Types       map[string]string              `json:"types"`
+	WsDataResponse
 	ForeignKeys WsExecutionResponseForeignKeys `json:"foreignKeys"`
 	Attributes  WsExecutionResponseAttributes  `json:"attributes"`
 	Filter      WsExecutionResponseFilter      `json:"filter"`
@@ -234,12 +219,17 @@ type WsExecutionResponseForeignKeys struct {
 	OrdStatus string `json:"ordStatus"`
 }
 
+// WsDataResponse contains common elements
+type WsDataResponse struct {
+	Table  string            `json:"table"`
+	Action string            `json:"action"`
+	Keys   []string          `json:"keys"`
+	Types  map[string]string `json:"types"`
+}
+
 // WsMarginResponse private api response
 type WsMarginResponse struct {
-	Table       string                     `json:"table"`
-	Action      string                     `json:"action"`
-	Keys        []string                   `json:"keys"`
-	Types       map[string]string          `json:"types"`
+	WsDataResponse
 	ForeignKeys interface{}                `json:"foreignKeys"`
 	Attributes  WsMarginResponseAttributes `json:"attributes"`
 	Filter      WsMarginResponseFilter     `json:"filter"`
@@ -304,10 +294,7 @@ type WsMarginResponseFilter struct {
 
 // WsPositionResponse private api response
 type WsPositionResponse struct {
-	Table       string                        `json:"table"`
-	Action      string                        `json:"action"`
-	Keys        []string                      `json:"keys"`
-	Types       map[string]string             `json:"types"`
+	WsDataResponse
 	ForeignKeys WsPositionResponseForeignKeys `json:"foreignKeys"`
 	Attributes  WsPositionResponseAttributes  `json:"attributes"`
 	Filter      WsPositionResponseFilter      `json:"filter"`
