@@ -435,7 +435,7 @@ func (b *Bithumb) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketCh
 
 // GetSubscriptions returns a copied list of subscriptions
 func (b *Bithumb) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-		return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

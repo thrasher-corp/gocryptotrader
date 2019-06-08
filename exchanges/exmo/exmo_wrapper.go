@@ -411,7 +411,7 @@ func (e *EXMO) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChann
 
 // GetSubscriptions returns a copied list of subscriptions
 func (e *EXMO) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-		return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

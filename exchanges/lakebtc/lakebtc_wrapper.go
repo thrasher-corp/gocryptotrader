@@ -363,7 +363,7 @@ func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketCh
 
 // GetSubscriptions returns a copied list of subscriptions
 func (l *LakeBTC) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-		return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

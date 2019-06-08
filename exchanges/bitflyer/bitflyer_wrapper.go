@@ -257,7 +257,7 @@ func (b *Bitflyer) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketC
 
 // GetSubscriptions returns a copied list of subscriptions
 func (b *Bitflyer) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-		return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

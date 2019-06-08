@@ -332,7 +332,7 @@ func (a *Alphapoint) UnsubscribeToWebsocketChannels(channels []exchange.Websocke
 
 // GetSubscriptions returns a copied list of subscriptions
 func (a *Alphapoint) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-		return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

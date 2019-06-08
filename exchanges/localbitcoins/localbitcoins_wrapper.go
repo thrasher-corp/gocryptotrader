@@ -442,7 +442,7 @@ func (l *LocalBitcoins) UnsubscribeToWebsocketChannels(channels []exchange.Webso
 
 // GetSubscriptions returns a copied list of subscriptions
 func (l *LocalBitcoins) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
-		return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
