@@ -534,7 +534,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	timer = time.NewTimer(3 * time.Second)
 	select {
-	case resp := <-g.Websocket.DataHandler:
+	case <-g.Websocket.DataHandler:
 	case <-timer.C:
 		t.Error("Expected response")
 	}
