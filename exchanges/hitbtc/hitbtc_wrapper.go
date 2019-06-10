@@ -291,22 +291,27 @@ func (h *HitBTC) GetExchangeHistory(p currency.Pair, assetType assets.AssetType)
 }
 
 // SubmitOrder submits a new order
-func (h *HitBTC) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (h *HitBTC) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	response, err := h.PlaceOrder(p.String(),
-		price,
-		amount,
-		strings.ToLower(orderType.ToString()),
-		strings.ToLower(side.ToString()))
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := h.PlaceOrder(order.Pair.String(),
+		order.Price,
+		order.Amount,
+		strings.ToLower(order.OrderType.ToString()),
+		strings.ToLower(order.OrderSide.ToString()))
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

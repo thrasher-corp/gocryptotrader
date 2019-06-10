@@ -318,27 +318,31 @@ func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType assets.AssetType)
 }
 
 // SubmitOrder submits a new order
-func (k *Kraken) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (k *Kraken) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	var args = AddOrderOptions{}
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	response, err := k.AddOrder(p.String(),
-		side.ToString(),
-		orderType.ToString(),
-		amount,
-		price,
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	var args = AddOrderOptions{}
+	response, err := k.AddOrder(order.Pair.String(),
+		order.OrderSide.ToString(),
+		order.OrderType.ToString(),
+		order.Amount,
+		order.Price,
 		0,
 		0,
 		&args)
-
 	if len(response.TransactionIds) > 0 {
 		submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

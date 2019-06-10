@@ -222,6 +222,7 @@ type SMSContact struct {
 // messaging and broadcast used by SMSGlobal
 type SMSGlobalConfig struct {
 	Name     string       `json:"name"`
+	From     string       `json:"from"`
 	Enabled  bool         `json:"enabled"`
 	Verbose  bool         `json:"verbose"`
 	Username string       `json:"username"`

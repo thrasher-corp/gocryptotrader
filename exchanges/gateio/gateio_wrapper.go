@@ -318,25 +318,31 @@ func (g *Gateio) GetExchangeHistory(p currency.Pair, assetType assets.AssetType)
 
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
-func (g *Gateio) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (g *Gateio) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	var orderTypeFormat string
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	if side == exchange.BuyOrderSide {
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	var orderTypeFormat string
+	if order.OrderSide == exchange.BuyOrderSide {
 		orderTypeFormat = exchange.BuyOrderSide.ToLower().ToString()
 	} else {
 		orderTypeFormat = exchange.SellOrderSide.ToLower().ToString()
 	}
 
 	var spotNewOrderRequestParams = SpotNewOrderRequestParams{
-		Amount: amount,
-		Price:  price,
-		Symbol: p.String(),
+		Amount: order.Amount,
+		Price:  order.Price,
+		Symbol: order.Pair.String(),
 		Type:   orderTypeFormat,
 	}
 
 	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
-
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
 	}

@@ -260,11 +260,19 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) (
 }
 
 // SubmitOrder submits a new order
-func (b *BTSE) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *BTSE) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var resp exchange.SubmitOrderResponse
-	r, err := b.CreateOrder(amount, price, side.ToString(),
-		orderType.ToString(), b.FormatExchangeCurrency(p,
-			assets.AssetTypeSpot).String(), "GTC", clientID)
+	if order == nil {
+		return resp, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return resp, err
+	}
+
+	r, err := b.CreateOrder(order.Amount, order.Price, order.OrderSide.ToString(),
+		order.OrderType.ToString(), b.FormatExchangeCurrency(order.Pair,
+			assets.AssetTypeSpot).String(), "GTC", order.ClientID)
 	if err != nil {
 		return resp, err
 	}

@@ -308,11 +308,20 @@ func (b *Bitstamp) GetExchangeHistory(p currency.Pair, assetType assets.AssetTyp
 }
 
 // SubmitOrder submits a new order
-func (b *Bitstamp) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (b *Bitstamp) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	buy := side == exchange.BuyOrderSide
-	market := orderType == exchange.MarketOrderType
-	response, err := b.PlaceOrder(p.String(), price, amount, buy, market)
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	buy := order.OrderSide == exchange.BuyOrderSide
+	market := order.OrderType == exchange.MarketOrderType
+	response, err := b.PlaceOrder(order.Pair.String(), order.Price, order.Amount,
+		buy, market)
 
 	if response.ID > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)

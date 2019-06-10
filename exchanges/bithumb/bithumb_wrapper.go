@@ -272,28 +272,34 @@ func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType assets.AssetType
 
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
-func (b *Bithumb) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, _ float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (b *Bithumb) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	var err error
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
 	var orderID string
-	if side == exchange.BuyOrderSide {
+	var err error
+	if order.OrderSide == exchange.BuyOrderSide {
 		var result MarketBuy
-		result, err = b.MarketBuyOrder(p.Base.String(), amount)
+		result, err = b.MarketBuyOrder(order.Pair.Base.String(), order.Amount)
 		orderID = result.OrderID
-	} else if side == exchange.SellOrderSide {
+	} else if order.OrderSide == exchange.SellOrderSide {
 		var result MarketSell
-		result, err = b.MarketSellOrder(p.Base.String(), amount)
+		result, err = b.MarketSellOrder(order.Pair.Base.String(), order.Amount)
 		orderID = result.OrderID
 	}
 
 	if orderID != "" {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderID)
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

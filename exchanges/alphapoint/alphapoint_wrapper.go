@@ -183,20 +183,25 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (a *Alphapoint) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	response, err := a.CreateOrder(p.String(),
-		side.ToString(),
-		orderType.ToString(),
-		amount, price)
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := a.CreateOrder(order.Pair.String(),
+		order.OrderSide.ToString(),
+		order.OrderSide.ToString(),
+		order.Amount, order.Price)
 
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)

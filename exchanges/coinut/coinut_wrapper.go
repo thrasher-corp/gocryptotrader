@@ -1,7 +1,6 @@
 package coinut
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -328,33 +327,41 @@ func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType assets.AssetType)
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (c *COINUT) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	var err error
-	var APIresponse interface{}
-	isBuyOrder := side == exchange.BuyOrderSide
-	clientIDInt, err := strconv.ParseUint(clientID, 0, 32)
-	clientIDUint := uint32(clientIDInt)
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	var APIresponse interface{}
+	isBuyOrder := order.OrderSide == exchange.BuyOrderSide
+	clientIDInt, err := strconv.ParseUint(order.ClientID, 0, 32)
 	if err != nil {
 		return submitOrderResponse, err
 	}
+
+	clientIDUint := uint32(clientIDInt)
+
 	// Need to get the ID of the currency sent
 	instruments, err := c.GetInstruments()
 	if err != nil {
 		return submitOrderResponse, err
 	}
 
-	currencyArray := instruments.Instruments[p.String()]
+	currencyArray := instruments.Instruments[order.Pair.String()]
 	currencyID := currencyArray[0].InstID
 
-	switch orderType {
+	switch order.OrderType {
 	case exchange.LimitOrderType:
-		APIresponse, err = c.NewOrder(currencyID, amount, price, isBuyOrder, clientIDUint)
+		APIresponse, err = c.NewOrder(currencyID, order.Amount, order.Price,
+			isBuyOrder, clientIDUint)
 	case exchange.MarketOrderType:
-		APIresponse, err = c.NewOrder(currencyID, amount, 0, isBuyOrder, clientIDUint)
-	default:
-		return submitOrderResponse, errors.New("unsupported order type")
+		APIresponse, err = c.NewOrder(currencyID, order.Amount, 0, isBuyOrder,
+			clientIDUint)
 	}
 
 	switch apiResp := APIresponse.(type) {

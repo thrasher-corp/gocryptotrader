@@ -197,7 +197,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 			return
 		}
 	default:
-		log.Warnf("ExchangeCurrencyPairSyncer: unkown sync item %v", syncType)
+		log.Warnf("ExchangeCurrencyPairSyncer: unknown sync item %v", syncType)
 		return
 	}
 
@@ -264,10 +264,6 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 	for atomic.LoadInt32(&e.shutdown) != 1 {
 		for x := range Bot.Exchanges {
 			if !Bot.Exchanges[x].IsEnabled() {
-				continue
-			}
-
-			if Bot.Exchanges[x].GetName() == "BTCC" {
 				continue
 			}
 
@@ -456,17 +452,13 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			continue
 		}
 
-		if Bot.Exchanges[x].GetName() == "BTCC" {
-			continue
-		}
-
 		exchangeName := Bot.Exchanges[x].GetName()
 		supportsWebsocket := Bot.Exchanges[x].SupportsWebsocket()
 		assetTypes := Bot.Exchanges[x].GetAssetTypes()
 		supportsREST := Bot.Exchanges[x].SupportsREST()
 
 		if !supportsREST && !supportsWebsocket {
-			log.Warnf("Loaded exchange %s does not support REST or Websocket", exchangeName)
+			log.Warnf("Loaded exchange %s does not support REST or Websocket.", exchangeName)
 			continue
 		}
 

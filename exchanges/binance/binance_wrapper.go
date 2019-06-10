@@ -312,18 +312,25 @@ func (b *Binance) GetExchangeHistory(p currency.Pair, assetType assets.AssetType
 }
 
 // SubmitOrder submits a new order
-func (b *Binance) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (b *Binance) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
 
 	var sideType string
-	if side == exchange.BuyOrderSide {
+	if order.OrderSide == exchange.BuyOrderSide {
 		sideType = exchange.BuyOrderSide.ToString()
 	} else {
 		sideType = exchange.SellOrderSide.ToString()
 	}
 
 	var requestParamsOrderType RequestParamsOrderType
-	switch orderType {
+	switch order.OrderType {
 	case exchange.MarketOrderType:
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
 	case exchange.LimitOrderType:
@@ -334,10 +341,10 @@ func (b *Binance) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTyp
 	}
 
 	var orderRequest = NewOrderRequest{
-		Symbol:      p.Base.String() + p.Quote.String(),
+		Symbol:      order.Pair.Base.String() + order.Pair.Quote.String(),
 		Side:        sideType,
-		Price:       price,
-		Quantity:    amount,
+		Price:       order.Price,
+		Quantity:    order.Amount,
 		TradeType:   requestParamsOrderType,
 		TimeInForce: BinanceRequestParamsTimeGTC,
 	}

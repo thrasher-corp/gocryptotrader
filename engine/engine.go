@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"sync"
 	"syscall"
 	"time"
 
@@ -40,6 +41,7 @@ type Engine struct {
 	Settings                       Settings
 	CryptocurrencyDepositAddresses map[string]map[string]string
 	Uptime                         time.Time
+	ServicesWG                     sync.WaitGroup
 }
 
 // Vars for engine
@@ -436,6 +438,8 @@ func (e *Engine) Stop() {
 			log.Debugln("Config file saved successfully.")
 		}
 	}
+	// Wait for services to gracefully shutdown
+	e.ServicesWG.Wait()
 	log.Debugln("Exiting.")
 	log.CloseLogFile()
 	os.Exit(0)

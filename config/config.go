@@ -299,6 +299,7 @@ func (c *Config) CheckCommunicationsConfig() {
 			} else {
 				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
 					Name:     "SMSGlobal",
+					From:     c.Name,
 					Username: "main",
 					Password: "test",
 
@@ -328,6 +329,10 @@ func (c *Config) CheckCommunicationsConfig() {
 		}
 
 	} else {
+		if c.Communications.SMSGlobalConfig.From == "" {
+			c.Communications.SMSGlobalConfig.From = c.Name
+		}
+
 		if c.SMS != nil {
 			// flush old SMS config
 			c.SMS = nil
@@ -931,7 +936,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].Enabled = false
 				continue
 			}
-			if c.Exchanges[i].API.AuthenticatedSupport {
+			if c.Exchanges[i].API.AuthenticatedSupport && c.Exchanges[i].API.CredentialsValidator != nil {
 				if c.Exchanges[i].API.CredentialsValidator.RequiresKey && (c.Exchanges[i].API.Credentials.Key == "" || c.Exchanges[i].API.Credentials.Key == DefaultAPIKey) {
 					c.Exchanges[i].API.AuthenticatedSupport = false
 				}

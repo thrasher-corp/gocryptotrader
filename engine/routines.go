@@ -214,7 +214,6 @@ func TickerUpdaterRoutine() {
 					}
 					printTickerSummary(&result, c, assetType, exchangeName, err)
 					if err == nil {
-						Bot.CommsRelayer.StageTickerData(exchangeName, assetType, &result)
 						if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
 							relayWebsocketEvent(result, "ticker_update", assetType.String(), exchangeName)
 						}
@@ -261,7 +260,6 @@ func OrderbookUpdaterRoutine() {
 					result, err := exch.UpdateOrderbook(c, assetType)
 					printOrderbookSummary(&result, c, assetType, exchangeName, err)
 					if err == nil {
-						Bot.CommsRelayer.StageOrderbookData(exchangeName, assetType, &result)
 						if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
 							relayWebsocketEvent(result, "orderbook_update", assetType.String(), exchangeName)
 						}
@@ -324,7 +322,7 @@ var wg sync.WaitGroup
 func Websocketshutdown(ws *exchange.Websocket) error {
 	err := ws.Shutdown() // shutdown routines on the exchange
 	if err != nil {
-		log.Errorf("routines.go error - failed to shutodwn %s", err)
+		log.Errorf("routines.go error - failed to shutdown %s", err)
 	}
 
 	timer := time.NewTimer(5 * time.Second)
@@ -426,7 +424,10 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 					Low:         d.LowPrice,
 					Volume:      d.Quantity,
 				}
-				Bot.ExchangeCurrencyPairManager.update(ws.GetName(), d.Pair, d.AssetType, SyncItemTicker, nil)
+				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
+					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
+						d.Pair, d.AssetType, SyncItemTicker, nil)
+				}
 				ticker.ProcessTicker(ws.GetName(), &tickerNew, d.AssetType)
 				printTickerSummary(&tickerNew, tickerNew.Pair, d.AssetType, ws.GetName(), nil)
 			case exchange.KlineData:
@@ -437,7 +438,11 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 			case exchange.WebsocketOrderbookUpdate:
 				// Orderbook data
 				result := data.(exchange.WebsocketOrderbookUpdate)
-				Bot.ExchangeCurrencyPairManager.update(ws.GetName(), result.Pair, result.Asset, SyncItemOrderbook, nil)
+				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
+					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
+						result.Pair, result.Asset, SyncItemOrderbook, nil)
+				}
+				// TO-DO: printOrderbookSummary
 				//nolint:gocritic log.Infof("Websocket %s %s orderbook updated", ws.GetName(), result.Pair.Pair().String())
 			default:
 				if Bot.Settings.Verbose {

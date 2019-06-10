@@ -273,10 +273,17 @@ func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) 
 }
 
 // SubmitOrder submits a new order
-func (i *ItBit) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (i *ItBit) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	var wallet string
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	var wallet string
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return submitOrderResponse, err
@@ -285,8 +292,8 @@ func (i *ItBit) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType 
 	// Determine what wallet ID to use if there is any actual available currency to make the trade!
 	for _, i := range wallets {
 		for j := range i.Balances {
-			if i.Balances[j].Currency == p.Base.String() &&
-				i.Balances[j].AvailableBalance >= amount {
+			if i.Balances[j].Currency == order.Pair.Base.String() &&
+				i.Balances[j].AvailableBalance >= order.Amount {
 				wallet = i.ID
 			}
 		}
@@ -295,23 +302,21 @@ func (i *ItBit) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType 
 	if wallet == "" {
 		return submitOrderResponse,
 			fmt.Errorf("no wallet found with currency: %s with amount >= %v",
-				p.Base,
-				amount)
+				order.Pair.Base,
+				order.Amount)
 	}
 
 	response, err := i.PlaceOrder(wallet,
-		side.ToString(),
-		orderType.ToString(),
-		p.Base.String(),
-		amount,
-		price,
-		p.String(),
+		order.OrderSide.ToString(),
+		order.OrderType.ToString(),
+		order.Pair.Base.String(),
+		order.Amount,
+		order.Price,
+		order.Pair.String(),
 		"")
-
 	if response.ID != "" {
 		submitOrderResponse.OrderID = response.ID
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}

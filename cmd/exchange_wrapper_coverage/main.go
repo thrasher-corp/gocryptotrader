@@ -116,7 +116,15 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetFundingHistory")
 	}
 
-	_, err = e.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1000000, 10000000000, "meow")
+	s := &exchange.OrderSubmission{
+		Pair:      p,
+		OrderSide: exchange.BuyOrderSide,
+		OrderType: exchange.LimitOrderType,
+		Amount:    1000000,
+		Price:     10000000000,
+		ClientID:  "meow",
+	}
+	_, err = e.SubmitOrder(s)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "SubmitOrder")
 	}

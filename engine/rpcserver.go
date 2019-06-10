@@ -176,6 +176,12 @@ func (s *RPCServer) EnableExchange(ctx context.Context, r *gctrpc.GenericExchang
 	return &gctrpc.GenericExchangeNameResponse{}, err
 }
 
+// GetExchangeOTPCode retrieves an exchanges OTP code
+func (s *RPCServer) GetExchangeOTPCode(ctx context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeOTPReponse, error) {
+	result, err := GetOTPByExchange(r.Exchange)
+	return &gctrpc.GetExchangeOTPReponse{OtpCode: result}, err
+}
+
 // GetExchangeInfo gets info for a specific exchange
 func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeInfoResponse, error) {
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
@@ -580,9 +586,15 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	}
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	result, err := exch.SubmitOrder(p, exchange.OrderSide(r.Side),
-		exchange.OrderType(r.OrderType), r.Amount, r.Price, r.ClientId)
-
+	submission := &exchange.OrderSubmission{
+		Pair:      p,
+		OrderSide: exchange.OrderSide(r.Side),
+		OrderType: exchange.OrderType(r.OrderType),
+		Amount:    r.Amount,
+		Price:     r.Price,
+		ClientID:  r.ClientId,
+	}
+	result, err := exch.SubmitOrder(submission)
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     result.OrderID,
 		OrderPlaced: result.IsOrderPlaced,

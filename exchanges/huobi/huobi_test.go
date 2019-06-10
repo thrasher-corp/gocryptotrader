@@ -432,18 +432,23 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = currency.Pair{
-		Delimiter: "",
-		Base:      currency.BTC,
-		Quote:     currency.USDT,
-	}
-
 	accounts, err := h.GetAccounts()
 	if err != nil {
 		t.Fatalf("Failed to get accounts. Err: %s", err)
 	}
 
-	response, err := h.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 10, strconv.FormatInt(accounts[0].ID, 10))
+	var orderSubmission = &exchange.OrderSubmission{
+		Pair: currency.Pair{
+			Base:  currency.BTC,
+			Quote: currency.USDT,
+		},
+		OrderSide: exchange.BuyOrderSide,
+		OrderType: exchange.LimitOrderType,
+		Price:     1,
+		Amount:    1,
+		ClientID:  strconv.FormatInt(accounts[0].ID, 10),
+	}
+	response, err := h.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

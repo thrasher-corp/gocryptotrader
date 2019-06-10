@@ -303,12 +303,18 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = currency.Pair{
-		Delimiter: "",
-		Base:      currency.LTC,
-		Quote:     currency.BTC,
+	var orderSubmission = &exchange.OrderSubmission{
+		Pair: currency.Pair{
+			Base:  currency.BTC,
+			Quote: currency.LTC,
+		},
+		OrderSide: exchange.BuyOrderSide,
+		OrderType: exchange.LimitOrderType,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
 	}
-	_, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
+	_, err := b.SubmitOrder(orderSubmission)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}

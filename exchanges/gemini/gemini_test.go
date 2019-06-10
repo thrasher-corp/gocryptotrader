@@ -409,13 +409,19 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = currency.Pair{
-		Delimiter: "_",
-		Base:      currency.LTC,
-		Quote:     currency.BTC,
+	var orderSubmission = &exchange.OrderSubmission{
+		Pair: currency.Pair{
+			Delimiter: "_",
+			Base:      currency.LTC,
+			Quote:     currency.BTC,
+		},
+		OrderSide: exchange.BuyOrderSide,
+		OrderType: exchange.LimitOrderType,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
 	}
-	response, err := Session[1].SubmitOrder(p, exchange.BuyOrderSide,
-		exchange.LimitOrderType, 1, 10, "1234234")
+	response, err := Session[1].SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

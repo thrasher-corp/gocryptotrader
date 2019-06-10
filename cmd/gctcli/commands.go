@@ -171,6 +171,53 @@ func disableExchange(c *cli.Context) error {
 	return nil
 }
 
+var getExchangeOTPCommand = cli.Command{
+	Name:      "getexchangeotp",
+	Usage:     "gets a specific exchanges otp code",
+	ArgsUsage: "<exchange>",
+	Action:    getExchangeOTPCode,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the otp code for",
+		},
+	},
+}
+
+func getExchangeOTPCode(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getexchangeotp")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetExchangeOTPCode(context.Background(),
+		&gctrpc.GenericExchangeNameRequest{
+			Exchange: exchangeName,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var getExchangeInfoCommand = cli.Command{
 	Name:      "getexchangeinfo",
 	Usage:     "gets a specific exchanges info",

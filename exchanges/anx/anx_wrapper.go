@@ -339,26 +339,33 @@ func (a *ANX) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([
 }
 
 // SubmitOrder submits a new order
-func (a *ANX) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (a *ANX) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
 
 	var isBuying bool
 	var limitPriceInSettlementCurrency float64
 
-	if side == exchange.BuyOrderSide {
+	if order.OrderSide == exchange.BuyOrderSide {
 		isBuying = true
 	}
 
-	if orderType == exchange.LimitOrderType {
-		limitPriceInSettlementCurrency = price
+	if order.OrderType == exchange.LimitOrderType {
+		limitPriceInSettlementCurrency = order.Price
 	}
 
-	response, err := a.NewOrder(orderType.ToString(),
+	response, err := a.NewOrder(order.OrderType.ToString(),
 		isBuying,
-		p.Base.String(),
-		amount,
-		p.Quote.String(),
-		amount,
+		order.Pair.Base.String(),
+		order.Amount,
+		order.Pair.Quote.String(),
+		order.Amount,
 		limitPriceInSettlementCurrency,
 		false,
 		"",

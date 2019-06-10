@@ -1815,13 +1815,18 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	var p = currency.Pair{
-		Delimiter: "",
-		Base:      currency.BTC,
-		Quote:     currency.USDT,
+	var orderSubmission = &exchange.OrderSubmission{
+		Pair: currency.Pair{
+			Base:  currency.BTC,
+			Quote: currency.USDT,
+		},
+		OrderSide: exchange.BuyOrderSide,
+		OrderType: exchange.LimitOrderType,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
 	}
-	response, err := o.SubmitOrder(p, exchange.BuyOrderSide,
-		exchange.LimitOrderType, 1, 10, "hi")
+	response, err := o.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

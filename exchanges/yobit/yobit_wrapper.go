@@ -281,22 +281,28 @@ func (y *Yobit) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) 
 
 // SubmitOrder submits a new order
 // Yobit only supports limit orders
-func (y *Yobit) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (y *Yobit) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	if orderType != exchange.LimitOrderType {
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	if order.OrderType != exchange.LimitOrderType {
 		return submitOrderResponse, errors.New("only limit orders are allowed")
 	}
 
-	response, err := y.Trade(p.String(), side.ToString(), amount, price)
+	response, err := y.Trade(order.Pair.String(), order.OrderSide.ToString(),
+		order.Amount, order.Price)
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

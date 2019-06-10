@@ -343,7 +343,6 @@ func TestWebsocketSend(t *testing.T) {
 
 func TestHandleMessage(t *testing.T) {
 	msg := &Message{}
-
 	err := s.HandleMessage(msg)
 	if err == nil {
 		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
@@ -354,26 +353,6 @@ func TestHandleMessage(t *testing.T) {
 		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
 	}
 	msg.Text = cmdHelp
-	err = s.HandleMessage(msg)
-	if err == nil {
-		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
-	}
-	msg.Text = cmdTicker
-	err = s.HandleMessage(msg)
-	if err == nil {
-		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
-	}
-	msg.Text = cmdOrderbook
-	err = s.HandleMessage(msg)
-	if err == nil {
-		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
-	}
-	msg.Text = cmdSettings
-	err = s.HandleMessage(msg)
-	if err == nil {
-		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
-	}
-	msg.Text = cmdPortfolio
 	err = s.HandleMessage(msg)
 	if err == nil {
 		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")

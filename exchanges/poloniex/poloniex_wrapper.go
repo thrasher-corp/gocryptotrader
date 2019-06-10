@@ -302,26 +302,30 @@ func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType asse
 }
 
 // SubmitOrder submits a new order
-func (p *Poloniex) SubmitOrder(currencyPair currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (p *Poloniex) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	fillOrKill := orderType == exchange.MarketOrderType
-	isBuyOrder := side == exchange.BuyOrderSide
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	response, err := p.PlaceOrder(currencyPair.String(),
-		price,
-		amount,
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	fillOrKill := order.OrderType == exchange.MarketOrderType
+	isBuyOrder := order.OrderSide == exchange.BuyOrderSide
+	response, err := p.PlaceOrder(order.Pair.String(),
+		order.Price,
+		order.Amount,
 		false,
 		fillOrKill,
 		isBuyOrder)
-
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

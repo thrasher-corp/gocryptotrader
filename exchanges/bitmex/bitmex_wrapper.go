@@ -343,23 +343,30 @@ func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType assets.AssetType)
 }
 
 // SubmitOrder submits a new order
-func (b *Bitmex) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (b *Bitmex) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	if math.Mod(amount, 1) != 0 {
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	if math.Mod(order.Amount, 1) != 0 {
 		return submitOrderResponse,
-			errors.New("contract amount can not have decimals")
+			errors.New("order contract amount can not have decimals")
 	}
 
 	var orderNewParams = OrderNewParams{
-		OrdType:  side.ToString(),
-		Symbol:   p.String(),
-		OrderQty: amount,
-		Side:     side.ToString(),
+		OrdType:  order.OrderSide.ToString(),
+		Symbol:   order.Pair.String(),
+		OrderQty: order.Amount,
+		Side:     order.OrderSide.ToString(),
 	}
 
-	if orderType == exchange.LimitOrderType {
-		orderNewParams.Price = price
+	if order.OrderType == exchange.LimitOrderType {
+		orderNewParams.Price = order.Price
 	}
 
 	response, err := b.CreateOrder(&orderNewParams)

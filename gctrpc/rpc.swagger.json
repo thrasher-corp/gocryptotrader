@@ -303,6 +303,30 @@
         ]
       }
     },
+    "/v1/getexchangeotp": {
+      "get": {
+        "operationId": "GetExchangeOTPCode",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetExchangeOTPReponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getexchanges": {
       "get": {
         "operationId": "GetExchanges",
@@ -1069,6 +1093,14 @@
         "authenticated_api": {
           "type": "boolean",
           "format": "boolean"
+        }
+      }
+    },
+    "gctrpcGetExchangeOTPReponse": {
+      "type": "object",
+      "properties": {
+        "otp_code": {
+          "type": "string"
         }
       }
     },

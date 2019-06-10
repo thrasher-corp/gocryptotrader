@@ -40,7 +40,7 @@ type IBotExchange interface {
 	FormatWithdrawPermissions() string
 	SupportsWithdrawPermissions(permissions uint32) bool
 	GetFundingHistory() ([]FundHistory, error)
-	SubmitOrder(p currency.Pair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
+	SubmitOrder(order *OrderSubmission) (SubmitOrderResponse, error)
 	ModifyOrder(action *ModifyOrder) (string, error)
 	CancelOrder(order *OrderCancellation) error
 	CancelAllOrders(orders *OrderCancellation) (CancelAllOrdersResponse, error)

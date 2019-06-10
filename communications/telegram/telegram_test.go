@@ -58,27 +58,12 @@ func TestHandleMessages(t *testing.T) {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
-	err = T.HandleMessages(cmdOrders, chatID)
-	if err.Error() != testErrNotFound {
-		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
-			err)
-	}
 	err = T.HandleMessages(cmdStatus, chatID)
 	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
 	}
-	err = T.HandleMessages(cmdTicker, chatID)
-	if err.Error() != testErrNotFound {
-		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
-			err)
-	}
 	err = T.HandleMessages(cmdSettings, chatID)
-	if err.Error() != testErrNotFound {
-		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
-			err)
-	}
-	err = T.HandleMessages(cmdPortfolio, chatID)
 	if err.Error() != testErrNotFound {
 		t.Errorf("test failed - telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)

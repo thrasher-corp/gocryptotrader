@@ -266,22 +266,27 @@ func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType assets.AssetType)
 }
 
 // SubmitOrder submits a new order
-func (g *Gemini) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (g *Gemini) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	response, err := g.NewOrder(p.String(),
-		amount,
-		price,
-		side.ToString(),
-		orderType.ToString())
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := g.NewOrder(order.Pair.String(),
+		order.Amount,
+		order.Price,
+		order.OrderSide.ToString(),
+		order.OrderType.ToString())
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

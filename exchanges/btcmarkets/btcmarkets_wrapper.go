@@ -273,15 +273,30 @@ func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType assets.AssetT
 }
 
 // SubmitOrder submits a new order
-func (b *BTCMarkets) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *BTCMarkets) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	response, err := b.NewOrder(p.Base.Upper().String(),
-		p.Quote.Upper().String(),
-		price,
-		amount,
-		side.ToString(),
-		orderType.ToString(),
-		clientID)
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	if strings.EqualFold(order.OrderSide.ToString(), exchange.SellOrderSide.ToString()) {
+		order.OrderSide = exchange.AskOrderSide
+	}
+	if strings.EqualFold(order.OrderSide.ToString(), exchange.BuyOrderSide.ToString()) {
+		order.OrderSide = exchange.BuyOrderSide
+	}
+
+	response, err := b.NewOrder(order.Pair.Base.Upper().String(),
+		order.Pair.Quote.Upper().String(),
+		order.Price,
+		order.Amount,
+		order.OrderSide.ToString(),
+		order.OrderType.ToString(),
+		order.ClientID)
 
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)

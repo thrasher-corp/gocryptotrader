@@ -48,10 +48,12 @@ func (p *portfolioManager) Stop() error {
 
 func (p *portfolioManager) run() {
 	log.Debugln("Portfolio manager started.")
+	Bot.ServicesWG.Add(1)
 	tick := time.NewTicker(PortfolioSleepDelay)
 	defer func() {
 		log.Debugf("Portfolio manager shutdown.")
 		tick.Stop()
+		Bot.ServicesWG.Done()
 	}()
 
 	for {

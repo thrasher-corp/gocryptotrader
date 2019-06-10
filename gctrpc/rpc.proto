@@ -28,6 +28,10 @@ message GetExchangesResponse {
     string exchanges = 1;
 }
 
+message GetExchangeOTPReponse {
+    string otp_code = 1;
+}
+
 message DisableExchangeRequest {
     string exchange = 1;
 }
@@ -409,6 +413,12 @@ service GoCryptoTrader {
     rpc GetExchangeInfo (GenericExchangeNameRequest) returns (GetExchangeInfoResponse) {
         option (google.api.http) = {
             get: "/v1/getexchangeinfo"
+        };
+    }
+
+    rpc GetExchangeOTPCode (GenericExchangeNameRequest) returns (GetExchangeOTPReponse) {
+        option (google.api.http) = {
+            get: "/v1/getexchangeotp"
         };
     }
 

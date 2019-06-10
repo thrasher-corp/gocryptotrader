@@ -25,7 +25,7 @@ func TestConnect(t *testing.T) {
 
 func TestPushEvent(t *testing.T) {
 	err := s.PushEvent(base.Event{})
-	if err == nil {
+	if err != nil {
 		t.Error("test failed - SMSGlobal PushEvent() error")
 	}
 }

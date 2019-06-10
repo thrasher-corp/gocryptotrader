@@ -139,7 +139,10 @@ func (e *Event) ExecuteAction() bool {
 		if action[0] == ActionSMSNotify {
 			message := fmt.Sprintf("Event triggered: %s", e.String())
 			if action[1] == "ALL" {
-				comms.PushEvent(base.Event{TradeDetails: message})
+				comms.PushEvent(base.Event{
+					Type:    "event",
+					Message: message,
+				})
 			}
 		}
 	} else {

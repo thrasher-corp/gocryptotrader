@@ -285,27 +285,34 @@ func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType assets.Asset
 }
 
 // SubmitOrder submits a new order
-func (c *CoinbasePro) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (c *CoinbasePro) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
 	var response string
 	var err error
-
-	switch orderType {
+	switch order.OrderType {
 	case exchange.MarketOrderType:
-		response, err = c.PlaceMarginOrder("",
-			amount,
-			amount,
-			side.ToString(),
-			p.String(),
+		response, err = c.PlaceMarketOrder("",
+			order.Amount,
+			order.Amount,
+			order.OrderSide.ToString(),
+			order.Pair.String(),
 			"")
 	case exchange.LimitOrderType:
 		response, err = c.PlaceLimitOrder("",
-			price,
-			amount,
-			side.ToString(),
+			order.Price,
+			order.Amount,
+			order.OrderSide.ToString(),
 			"",
 			"",
-			p.String(),
+			order.Pair.String(),
 			"",
 			false)
 	default:

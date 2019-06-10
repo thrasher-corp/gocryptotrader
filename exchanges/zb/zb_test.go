@@ -288,25 +288,25 @@ func areTestAPIKeysSet() bool {
 func TestSubmitOrder(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v",
 			z.API.Credentials.Key,
 			canManipulateRealOrders))
 	}
-	var pair = currency.Pair{
-		Delimiter: "_",
-		Base:      currency.QTUM,
-		Quote:     currency.USDT,
+
+	var orderSubmission = &exchange.OrderSubmission{
+		Pair: currency.Pair{
+			Delimiter: "_",
+			Base:      currency.QTUM,
+			Quote:     currency.USD,
+		},
+		OrderSide: exchange.BuyOrderSide,
+		OrderType: exchange.LimitOrderType,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
 	}
-
-	response, err := z.SubmitOrder(pair,
-		exchange.BuyOrderSide,
-		exchange.LimitOrderType,
-		1,
-		10,
-		"hi")
-
+	response, err := z.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

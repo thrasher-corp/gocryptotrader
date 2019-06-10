@@ -340,48 +340,50 @@ func (h *HUOBIHADAX) GetExchangeHistory(p currency.Pair, assetType assets.AssetT
 }
 
 // SubmitOrder submits a new order
-func (h *HUOBIHADAX) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (h *HUOBIHADAX) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	accountID, err := strconv.ParseInt(clientID, 0, 64)
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	accountID, err := strconv.ParseInt(order.ClientID, 10, 64)
 	if err != nil {
 		return submitOrderResponse, err
 	}
 
 	var formattedType SpotNewOrderRequestParamsType
 	var params = SpotNewOrderRequestParams{
-		Amount:    amount,
+		Amount:    order.Amount,
 		Source:    "api",
-		Symbol:    strings.ToLower(p.String()),
+		Symbol:    strings.ToLower(order.Pair.String()),
 		AccountID: int(accountID),
 	}
 
 	switch {
-	case side == exchange.BuyOrderSide && orderType == exchange.MarketOrderType:
+	case order.OrderSide == exchange.BuyOrderSide && order.OrderType == exchange.MarketOrderType:
 		formattedType = SpotNewOrderRequestTypeBuyMarket
-	case side == exchange.SellOrderSide && orderType == exchange.MarketOrderType:
+	case order.OrderSide == exchange.SellOrderSide && order.OrderType == exchange.MarketOrderType:
 		formattedType = SpotNewOrderRequestTypeSellMarket
-	case side == exchange.BuyOrderSide && orderType == exchange.LimitOrderType:
+	case order.OrderSide == exchange.BuyOrderSide && order.OrderType == exchange.LimitOrderType:
 		formattedType = SpotNewOrderRequestTypeBuyLimit
-		params.Price = price
-	case side == exchange.SellOrderSide && orderType == exchange.LimitOrderType:
+		params.Price = order.Price
+	case order.OrderSide == exchange.SellOrderSide && order.OrderType == exchange.LimitOrderType:
 		formattedType = SpotNewOrderRequestTypeSellLimit
-		params.Price = price
-	default:
-		return submitOrderResponse, errors.New("unsupported order type")
+		params.Price = order.Price
 	}
 
 	params.Type = formattedType
-
 	response, err := h.SpotNewOrder(params)
-
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

@@ -300,32 +300,36 @@ func (z *ZB) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (z *ZB) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	var oT SpotNewOrderRequestParamsType
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	if side == exchange.BuyOrderSide {
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	var oT SpotNewOrderRequestParamsType
+	if order.OrderSide == exchange.BuyOrderSide {
 		oT = SpotNewOrderRequestParamsTypeBuy
 	} else {
 		oT = SpotNewOrderRequestParamsTypeSell
 	}
 
 	var params = SpotNewOrderRequestParams{
-		Amount: amount,
-		Price:  price,
-		Symbol: strings.ToLower(p.String()),
+		Amount: order.Amount,
+		Price:  order.Price,
+		Symbol: order.Pair.Lower().String(),
 		Type:   oT,
 	}
 	response, err := z.SpotNewOrder(params)
-
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

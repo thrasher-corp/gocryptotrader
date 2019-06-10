@@ -23,23 +23,17 @@ const (
 	methodGetUpdates  = "getUpdates"
 	methodSendMessage = "sendMessage"
 
-	cmdStart     = "/start"
-	cmdStatus    = "/status"
-	cmdHelp      = "/help"
-	cmdSettings  = "/settings"
-	cmdTicker    = "/ticker"
-	cmdPortfolio = "/portfolio"
-	cmdOrders    = "/orderbooks"
+	cmdStart    = "/start"
+	cmdStatus   = "/status"
+	cmdHelp     = "/help"
+	cmdSettings = "/settings"
 
 	cmdHelpReply = `GoCryptoTrader TelegramBot, thank you for using this service!
 	Current commands are:
 	/start  		- Will authenticate your ID
 	/status 		- Displays the status of the bot
 	/help 			- Displays current command list
-	/settings 	- Displays current bot settings
-	/ticker 		- Displays current ANX ticker data
-	/portfolio	- Displays your current portfolio
-	/orderbooks - Displays current orderbooks for ANX`
+	/settings 	- Displays current bot settings`
 
 	talkRoot = "GoCryptoTrader bot"
 )
@@ -51,6 +45,9 @@ type Telegram struct {
 	Offset            int64
 	AuthorisedClients []int64
 }
+
+// IsConnected returns whether or not the connection is connected
+func (t *Telegram) IsConnected() bool { return t.Connected }
 
 // Setup takes in a Telegram configuration and sets verification token
 func (t *Telegram) Setup(cfg *config.CommunicationsConfig) {
@@ -73,8 +70,8 @@ func (t *Telegram) Connect() error {
 // PushEvent sends an event to a supplied recipient list via telegram
 func (t *Telegram) PushEvent(event base.Event) error {
 	for i := range t.AuthorisedClients {
-		err := t.SendMessage(fmt.Sprintf("Type: %s Details: %s GainOrLoss: %s",
-			event.Type, event.TradeDetails, event.GainLoss), t.AuthorisedClients[i])
+		err := t.SendMessage(fmt.Sprintf("Type: %s Message: %s",
+			event.Type, event.Message), t.AuthorisedClients[i])
 		if err != nil {
 			return err
 		}
@@ -146,20 +143,8 @@ func (t *Telegram) HandleMessages(text string, chatID int64) error {
 	case strings.Contains(text, cmdStart):
 		return t.SendMessage(fmt.Sprintf("%s: START COMMANDS HERE", talkRoot), chatID)
 
-	case strings.Contains(text, cmdOrders):
-		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetOrderbook("ANX")), chatID)
-
 	case strings.Contains(text, cmdStatus):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetStatus()), chatID)
-
-	case strings.Contains(text, cmdTicker):
-		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetTicker("ANX")), chatID)
-
-	case strings.Contains(text, cmdSettings):
-		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetSettings()), chatID)
-
-	case strings.Contains(text, cmdPortfolio):
-		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetPortfolio()), chatID)
 
 	default:
 		return t.SendMessage(fmt.Sprintf("command %s not recognized", text), chatID)

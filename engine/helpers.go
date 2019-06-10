@@ -7,13 +7,16 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -25,6 +28,21 @@ import (
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/utils"
 )
+
+// GetOTPByExchange returns a OTP code for the desired exchange
+// if it exists
+func GetOTPByExchange(exchName string) (string, error) {
+	for x := range Bot.Config.Exchanges {
+		if !strings.EqualFold(Bot.Config.Exchanges[x].Name, exchName) {
+			continue
+		}
+
+		if otpSecret := Bot.Config.Exchanges[x].API.Credentials.OTPSecret; otpSecret != "" {
+			return totp.GenerateCode(otpSecret, time.Now())
+		}
+	}
+	return "", errors.New("exchange does not have a otpsecret stored")
+}
 
 // GetAuthAPISupportedExchanges returns a list of auth api enabled exchanges
 func GetAuthAPISupportedExchanges() []string {

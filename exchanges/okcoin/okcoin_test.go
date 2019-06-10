@@ -1045,13 +1045,18 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 // TestSubmitOrder Wrapper test
 func TestSubmitOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	var p = currency.Pair{
-		Delimiter: "",
-		Base:      currency.BTC,
-		Quote:     currency.EUR,
+	var orderSubmission = &exchange.OrderSubmission{
+		Pair: currency.Pair{
+			Base:  currency.BTC,
+			Quote: currency.USD,
+		},
+		OrderSide: exchange.BuyOrderSide,
+		OrderType: exchange.LimitOrderType,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
 	}
-	response, err := o.SubmitOrder(p, exchange.BuyOrderSide,
-		exchange.LimitOrderType, 1, 10, "hi")
+	response, err := o.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

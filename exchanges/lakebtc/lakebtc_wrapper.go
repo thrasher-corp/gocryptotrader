@@ -266,19 +266,25 @@ func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType assets.AssetType
 }
 
 // SubmitOrder submits a new order
-func (l *LakeBTC) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (l *LakeBTC) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	isBuyOrder := side == exchange.BuyOrderSide
-	response, err := l.Trade(isBuyOrder, amount, price, p.Lower().String())
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	isBuyOrder := order.OrderSide == exchange.BuyOrderSide
+	response, err := l.Trade(isBuyOrder, order.Amount, order.Price,
+		order.Pair.Lower().String())
 	if response.ID > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
 	}
-
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
 	}
-
 	return submitOrderResponse, err
 }
 

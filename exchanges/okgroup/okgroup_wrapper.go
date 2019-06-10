@@ -206,25 +206,34 @@ func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType assets.AssetType
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (resp exchange.SubmitOrderResponse, err error) {
-	request := PlaceSpotOrderRequest{
-		ClientOID:    clientID,
-		InstrumentID: o.FormatExchangeCurrency(p, assets.AssetTypeSpot).String(),
-		Side:         strings.ToLower(side.ToString()),
-		Type:         strings.ToLower(orderType.ToString()),
-		Size:         strconv.FormatFloat(amount, 'f', -1, 64),
+func (o *OKGroup) SubmitOrder(order *exchange.OrderSubmission) (resp exchange.SubmitOrderResponse, err error) {
+	if order == nil {
+		return resp, exchange.ErrOrderSubmissionIsNil
 	}
-	if orderType == exchange.LimitOrderType {
-		request.Price = strconv.FormatFloat(price, 'f', -1, 64)
+
+	err = order.Validate()
+	if err != nil {
+		return resp, err
+	}
+
+	request := PlaceSpotOrderRequest{
+		ClientOID:    order.ClientID,
+		InstrumentID: o.FormatExchangeCurrency(order.Pair, assets.AssetTypeSpot).String(),
+		Side:         strings.ToLower(order.OrderSide.ToString()),
+		Type:         strings.ToLower(order.OrderType.ToString()),
+		Size:         strconv.FormatFloat(order.Amount, 'f', -1, 64),
+	}
+	if order.OrderType == exchange.LimitOrderType {
+		request.Price = strconv.FormatFloat(order.Price, 'f', -1, 64)
 	}
 
 	orderResponse, err := o.PlaceSpotOrder(&request)
 	if err != nil {
 		return
 	}
+
 	resp.IsOrderPlaced = orderResponse.Result
 	resp.OrderID = orderResponse.OrderID
-
 	return
 }
 

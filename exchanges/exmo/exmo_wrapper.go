@@ -298,24 +298,29 @@ func (e *EXMO) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) (
 }
 
 // SubmitOrder submits a new order
-func (e *EXMO) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (e *EXMO) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	var oT string
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	switch orderType {
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	var oT string
+	switch order.OrderType {
 	case exchange.LimitOrderType:
 		return submitOrderResponse, errors.New("unsupported order type")
 	case exchange.MarketOrderType:
 		oT = "market_buy"
-		if side == exchange.SellOrderSide {
+		if order.OrderSide == exchange.SellOrderSide {
 			oT = "market_sell"
 		}
-	default:
-		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
-	response, err := e.CreateOrder(p.String(), oT, price, amount)
-
+	response, err := e.CreateOrder(order.Pair.String(), oT, order.Price,
+		order.Amount)
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}

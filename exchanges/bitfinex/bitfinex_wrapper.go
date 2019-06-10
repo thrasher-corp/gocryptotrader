@@ -295,19 +295,26 @@ func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType assets.AssetTyp
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (b *Bitfinex) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	var isBuying bool
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
 
-	if side == exchange.BuyOrderSide {
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	var isBuying bool
+	if order.OrderSide == exchange.BuyOrderSide {
 		isBuying = true
 	}
 
-	response, err := b.NewOrder(p.String(),
-		amount,
-		price,
+	response, err := b.NewOrder(order.Pair.String(),
+		order.Amount,
+		order.Price,
 		isBuying,
-		orderType.ToString(),
+		order.OrderType.ToString(),
 		false)
 
 	if response.OrderID > 0 {

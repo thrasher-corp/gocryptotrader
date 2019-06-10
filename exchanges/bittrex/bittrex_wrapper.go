@@ -288,20 +288,30 @@ func (b *Bittrex) GetExchangeHistory(p currency.Pair, assetType assets.AssetType
 }
 
 // SubmitOrder submits a new order
-func (b *Bittrex) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (b *Bittrex) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	buy := side == exchange.BuyOrderSide
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	buy := order.OrderSide == exchange.BuyOrderSide
 	var response UUID
 	var err error
 
-	if orderType != exchange.LimitOrderType {
-		return submitOrderResponse, errors.New("not supported on exchange")
+	if order.OrderType != exchange.LimitOrderType {
+		return submitOrderResponse, errors.New("limit order not supported on exchange")
 	}
 
 	if buy {
-		response, err = b.PlaceBuyLimit(p.String(), amount, price)
+		response, err = b.PlaceBuyLimit(order.Pair.String(), order.Amount,
+			order.Price)
 	} else {
-		response, err = b.PlaceSellLimit(p.String(), amount, price)
+		response, err = b.PlaceSellLimit(order.Pair.String(), order.Amount,
+			order.Price)
 	}
 
 	if response.Result.ID != "" {

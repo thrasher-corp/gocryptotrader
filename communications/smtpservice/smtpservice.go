@@ -39,6 +39,11 @@ func (s *SMTPservice) Setup(cfg *config.CommunicationsConfig) {
 	s.RecipientList = cfg.SMTPConfig.RecipientList
 }
 
+// IsConnected returns whether or not the connection is connected
+func (s *SMTPservice) IsConnected() bool {
+	return s.Connected
+}
+
 // Connect connects to service
 func (s *SMTPservice) Connect() error {
 	s.Connected = true

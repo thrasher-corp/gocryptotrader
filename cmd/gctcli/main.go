@@ -81,6 +81,7 @@ func main() {
 		getExchangesCommand,
 		enableExchangeCommand,
 		disableExchangeCommand,
+		getExchangeOTPCommand,
 		getExchangeInfoCommand,
 		getTickerCommand,
 		getTickersCommand,

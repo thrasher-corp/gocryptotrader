@@ -255,8 +255,16 @@ func (l *LocalBitcoins) GetExchangeHistory(p currency.Pair, assetType assets.Ass
 }
 
 // SubmitOrder submits a new order
-func (l *LocalBitcoins) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, _ float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (l *LocalBitcoins) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
 	// These are placeholder details
 	// TODO store a user's localbitcoin details to use here
 	var params = AdCreate{
@@ -266,17 +274,17 @@ func (l *LocalBitcoins) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ 
 		City:                       "City",
 		Location:                   "Location",
 		CountryCode:                "US",
-		Currency:                   p.Quote.String(),
+		Currency:                   order.Pair.Quote.String(),
 		AccountInfo:                "-",
 		BankName:                   "Bank",
-		MSG:                        side.ToString(),
+		MSG:                        order.OrderSide.ToString(),
 		SMSVerficationRequired:     true,
 		TrackMaxAmount:             true,
 		RequireTrustedByAdvertiser: true,
 		RequireIdentification:      true,
 		OnlineProvider:             "",
 		TradeType:                  "",
-		MinAmount:                  int(math.Round(amount)),
+		MinAmount:                  int(math.Round(order.Amount)),
 	}
 
 	// Does not return any orderID, so create the add, then get the order
