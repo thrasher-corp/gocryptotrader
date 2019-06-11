@@ -218,6 +218,31 @@ func getExchangeOTPCode(c *cli.Context) error {
 	return nil
 }
 
+var getExchangeOTPsCommand = cli.Command{
+	Name:   "getexchangeotps",
+	Usage:  "gets all exchange OTPs",
+	Action: getExchangeOTPCodes,
+}
+
+func getExchangeOTPCodes(c *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetExchangeOTPCodes(context.Background(),
+		&gctrpc.GetExchangeOTPsRequest{})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var getExchangeInfoCommand = cli.Command{
 	Name:      "getexchangeinfo",
 	Usage:     "gets a specific exchanges info",
@@ -320,7 +345,11 @@ func getTicker(c *cli.Context) error {
 		assetType = c.Args().Get(2)
 	}
 
-	p := currency.NewPairFromString(currencyPair)
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetTicker(context.Background(),
 		&gctrpc.GetTickerRequest{
@@ -420,7 +449,11 @@ func getOrderbook(c *cli.Context) error {
 		assetType = c.Args().Get(2)
 	}
 
-	p := currency.NewPairFromString(currencyPair)
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrderbook(context.Background(),
 		&gctrpc.GetOrderbookRequest{
@@ -832,7 +865,11 @@ func getOrders(c *cli.Context) error {
 		currencyPair = c.Args().Get(2)
 	}
 
-	p := currency.NewPairFromString(currencyPair)
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange:  exchangeName,
@@ -1007,7 +1044,11 @@ func submitOrder(c *cli.Context) error {
 		clientID = c.Args().Get(6)
 	}
 
-	p := currency.NewPairFromString(currencyPair)
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SubmitOrder(context.Background(), &gctrpc.SubmitOrderRequest{
 		Exchange: exchangeName,
@@ -1121,8 +1162,12 @@ func cancelOrder(c *cli.Context) error {
 
 	var p currency.Pair
 	if len(currencyPair) > 0 {
-		p = currency.NewPairFromString(currencyPair)
+		if !validPair(currencyPair) {
+			return errInvalidPair
+		}
+		p = currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.CancelOrder(context.Background(), &gctrpc.CancelOrderRequest{
 		Exchange:  exchangeName,
@@ -1329,7 +1374,11 @@ func addEvent(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairFromString(currencyPair)
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.AddEvent(context.Background(), &gctrpc.AddEventRequest{
 		Exchange: exchangeName,

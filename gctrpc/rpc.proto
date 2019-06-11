@@ -32,6 +32,12 @@ message GetExchangeOTPReponse {
     string otp_code = 1;
 }
 
+message GetExchangeOTPsRequest {} 
+
+message GetExchangeOTPsResponse {
+    map<string, string> otp_codes = 1;
+}
+
 message DisableExchangeRequest {
     string exchange = 1;
 }
@@ -419,6 +425,12 @@ service GoCryptoTrader {
     rpc GetExchangeOTPCode (GenericExchangeNameRequest) returns (GetExchangeOTPReponse) {
         option (google.api.http) = {
             get: "/v1/getexchangeotp"
+        };
+    }
+
+    rpc GetExchangeOTPCodes (GetExchangeOTPsRequest) returns (GetExchangeOTPsResponse) {
+        option (google.api.http) = {
+            get: "/v1/getexchangeotps"
         };
     }
 

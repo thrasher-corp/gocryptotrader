@@ -327,6 +327,22 @@
         ]
       }
     },
+    "/v1/getexchangeotps": {
+      "get": {
+        "operationId": "GetExchangeOTPCodes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetExchangeOTPsResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getexchanges": {
       "get": {
         "operationId": "GetExchanges",
@@ -1101,6 +1117,17 @@
       "properties": {
         "otp_code": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcGetExchangeOTPsResponse": {
+      "type": "object",
+      "properties": {
+        "otp_codes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },

@@ -9,13 +9,13 @@ It translates gRPC into RESTful JSON APIs.
 package gctrpc
 
 import (
-	"context"
 	"io"
 	"net/http"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -45,10 +45,7 @@ func request_GoCryptoTrader_GetExchanges_0(ctx context.Context, marshaler runtim
 	var protoReq GetExchangesRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetExchanges_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetExchanges_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -82,10 +79,7 @@ func request_GoCryptoTrader_GetExchangeInfo_0(ctx context.Context, marshaler run
 	var protoReq GenericExchangeNameRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetExchangeInfo_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetExchangeInfo_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -102,14 +96,20 @@ func request_GoCryptoTrader_GetExchangeOTPCode_0(ctx context.Context, marshaler 
 	var protoReq GenericExchangeNameRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetExchangeOTPCode_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetExchangeOTPCode_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.GetExchangeOTPCode(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func request_GoCryptoTrader_GetExchangeOTPCodes_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetExchangeOTPsRequest
+	var metadata runtime.ServerMetadata
+
+	msg, err := client.GetExchangeOTPCodes(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -191,10 +191,7 @@ func request_GoCryptoTrader_GetAccountInfo_0(ctx context.Context, marshaler runt
 	var protoReq GetAccountInfoRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetAccountInfo_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetAccountInfo_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -613,6 +610,26 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		}
 
 		forward_GoCryptoTrader_GetExchangeOTPCode_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_GoCryptoTrader_GetExchangeOTPCodes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTrader_GetExchangeOTPCodes_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_GetExchangeOTPCodes_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1130,6 +1147,8 @@ var (
 
 	pattern_GoCryptoTrader_GetExchangeOTPCode_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeotp"}, ""))
 
+	pattern_GoCryptoTrader_GetExchangeOTPCodes_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeotps"}, ""))
+
 	pattern_GoCryptoTrader_EnableExchange_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enableexchange"}, ""))
 
 	pattern_GoCryptoTrader_GetTicker_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getticker"}, ""))
@@ -1191,6 +1210,8 @@ var (
 	forward_GoCryptoTrader_GetExchangeInfo_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTrader_GetExchangeOTPCode_0 = runtime.ForwardResponseMessage
+
+	forward_GoCryptoTrader_GetExchangeOTPCodes_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTrader_EnableExchange_0 = runtime.ForwardResponseMessage
 

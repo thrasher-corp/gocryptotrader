@@ -333,6 +333,11 @@ func (c *Config) CheckCommunicationsConfig() {
 			c.Communications.SMSGlobalConfig.From = c.Name
 		}
 
+		if len(c.Communications.SMSGlobalConfig.From) > 11 {
+			log.Warnf("SMSGlobal config supplied from name exceeds 11 characters, trimming.")
+			c.Communications.SMSGlobalConfig.From = c.Communications.SMSGlobalConfig.From[:11]
+		}
+
 		if c.SMS != nil {
 			// flush old SMS config
 			c.SMS = nil

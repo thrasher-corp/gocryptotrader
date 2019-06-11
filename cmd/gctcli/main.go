@@ -17,9 +17,10 @@ import (
 )
 
 var (
-	host     string
-	username string
-	password string
+	host          string
+	username      string
+	password      string
+	pairDelimiter string
 )
 
 func jsonOutput(in interface{}) {
@@ -75,6 +76,12 @@ func main() {
 			Usage:       "the gRPC password",
 			Destination: &password,
 		},
+		cli.StringFlag{
+			Name:        "delimiter",
+			Value:       "-",
+			Usage:       "the default pair delimiter used to standardise currency pair input",
+			Destination: &pairDelimiter,
+		},
 	}
 	app.Commands = []cli.Command{
 		getInfoCommand,
@@ -82,6 +89,7 @@ func main() {
 		enableExchangeCommand,
 		disableExchangeCommand,
 		getExchangeOTPCommand,
+		getExchangeOTPsCommand,
 		getExchangeInfoCommand,
 		getTickerCommand,
 		getTickersCommand,

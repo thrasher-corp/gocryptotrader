@@ -178,8 +178,15 @@ func (s *RPCServer) EnableExchange(ctx context.Context, r *gctrpc.GenericExchang
 
 // GetExchangeOTPCode retrieves an exchanges OTP code
 func (s *RPCServer) GetExchangeOTPCode(ctx context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeOTPReponse, error) {
-	result, err := GetOTPByExchange(r.Exchange)
+	result, err := GetExchangeoOTPByName(r.Exchange)
 	return &gctrpc.GetExchangeOTPReponse{OtpCode: result}, err
+}
+
+// GetExchangeOTPCodes retrieves OTP codes for all exchanges which have an
+// OTP secret installed
+func (s *RPCServer) GetExchangeOTPCodes(ctx context.Context, r *gctrpc.GetExchangeOTPsRequest) (*gctrpc.GetExchangeOTPsResponse, error) {
+	result, err := GetExchangeOTPs()
+	return &gctrpc.GetExchangeOTPsResponse{OtpCodes: result}, err
 }
 
 // GetExchangeInfo gets info for a specific exchange

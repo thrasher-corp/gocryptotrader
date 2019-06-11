@@ -29,9 +29,33 @@ import (
 	"github.com/thrasher-/gocryptotrader/utils"
 )
 
-// GetOTPByExchange returns a OTP code for the desired exchange
+// GetExchangeOTPs returns OTP codes for all exchanges which have a otpsecret
+// stored
+func GetExchangeOTPs() (map[string]string, error) {
+	otpCodes := make(map[string]string)
+	for x := range Bot.Config.Exchanges {
+		if otpSecret := Bot.Config.Exchanges[x].API.Credentials.OTPSecret; otpSecret != "" {
+			exchName := Bot.Config.Exchanges[x].Name
+			o, err := totp.GenerateCode(otpSecret, time.Now())
+			if err != nil {
+				log.Errorf("Unable to generate OTP code for exchange %s. Err: %s",
+					exchName, err)
+				continue
+			}
+			otpCodes[exchName] = o
+		}
+	}
+
+	if len(otpCodes) == 0 {
+		return nil, errors.New("no exchanges found which have a OTP secret stored")
+	}
+
+	return otpCodes, nil
+}
+
+// GetExchangeoOTPByName returns a OTP code for the desired exchange
 // if it exists
-func GetOTPByExchange(exchName string) (string, error) {
+func GetExchangeoOTPByName(exchName string) (string, error) {
 	for x := range Bot.Config.Exchanges {
 		if !strings.EqualFold(Bot.Config.Exchanges[x].Name, exchName) {
 			continue
@@ -41,7 +65,7 @@ func GetOTPByExchange(exchName string) (string, error) {
 			return totp.GenerateCode(otpSecret, time.Now())
 		}
 	}
-	return "", errors.New("exchange does not have a otpsecret stored")
+	return "", errors.New("exchange does not have a OTP secret stored")
 }
 
 // GetAuthAPISupportedExchanges returns a list of auth api enabled exchanges
@@ -60,6 +84,7 @@ func GetAuthAPISupportedExchanges() []string {
 func IsOnline() bool {
 	if Bot.Connectivity == nil {
 		log.Warnf("IsOnline called but Bot.Connectivity is nil")
+		return false
 	}
 	return Bot.Connectivity.IsConnected()
 }

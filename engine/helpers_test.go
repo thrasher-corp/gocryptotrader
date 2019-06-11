@@ -2,9 +2,11 @@ package engine
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/connchecker"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/assets"
@@ -39,6 +41,110 @@ func SetupTestHelpers(t *testing.T) {
 			t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 		}
 		helperTestLoaded = true
+	}
+}
+
+func TestGetExchangeOTPs(t *testing.T) {
+	SetupTestHelpers(t)
+	_, err := GetExchangeOTPs()
+	if err == nil {
+		t.Fatal("Expected err with no exchange OTP secrets set")
+	}
+
+	bfxCfg, err := Bot.Config.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bCfg, err := Bot.Config.GetExchangeConfig("Bitstamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bfxCfg.API.Credentials.OTPSecret = "JBSWY3DPEHPK3PXP"
+	bCfg.API.Credentials.OTPSecret = "JBSWY3DPEHPK3PXP"
+	result, err := GetExchangeOTPs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 2 {
+		t.Fatal("Expected 2 OTP results")
+	}
+
+	bfxCfg.API.Credentials.OTPSecret = "°"
+	result, err = GetExchangeOTPs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 1 {
+		t.Fatal("Expected 1 OTP code with invalid OTP Secret")
+	}
+
+	// Flush settings
+	bfxCfg.API.Credentials.OTPSecret = ""
+	bCfg.API.Credentials.OTPSecret = ""
+}
+
+func TestGetExchangeoOTPByName(t *testing.T) {
+	SetupTestHelpers(t)
+	_, err := GetExchangeoOTPByName("Bitstamp")
+	if err == nil {
+		t.Fatal("Expected err with no exchange OTP secrets set")
+	}
+
+	bCfg, err := Bot.Config.GetExchangeConfig("Bitstamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bCfg.API.Credentials.OTPSecret = "JBSWY3DPEHPK3PXP"
+	result, err := GetExchangeoOTPByName("Bitstamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == "" {
+		t.Fatal("Expected valid OTP code")
+	}
+}
+
+func TestGetAuthAPISupportedExchanges(t *testing.T) {
+	SetupTestHelpers(t)
+	if result := GetAuthAPISupportedExchanges(); result != nil {
+		t.Fatal("Unexpected result")
+	}
+}
+
+func TestIsOnline(t *testing.T) {
+	SetupTestHelpers(t)
+	if r := IsOnline(); r {
+		t.Fatal("Unexpected result")
+	}
+
+	var err error
+	Bot.Connectivity, err = connchecker.New(Bot.Config.ConnectionMonitor.DNSList,
+		Bot.Config.ConnectionMonitor.PublicDomainList,
+		Bot.Config.ConnectionMonitor.CheckInterval)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tick := time.NewTicker(time.Second * 5)
+	for {
+		select {
+		case <-tick.C:
+			t.Fatal("Test timeout")
+		default:
+			if IsOnline() {
+				Bot.Connectivity.Shutdown()
+				return
+			}
+		}
+	}
+}
+
+func TestGetAvailableExchanges(t *testing.T) {
+	SetupTestHelpers(t)
+	if r := len(GetAvailableExchanges()); r == 0 {
+		t.Error("Expected len > 0")
 	}
 }
 
@@ -255,7 +361,6 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 	}
 
 	result = GetExchangeNamesByCurrency(currency.NewPairFromStrings("BTC", "JPY"), true, assetType)
-	t.Log(result)
 	if !common.StringDataCompare(result, "Bitflyer") {
 		t.Fatal("Unexpected result")
 	}

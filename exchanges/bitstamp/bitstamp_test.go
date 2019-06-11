@@ -419,8 +419,8 @@ func TestSubmitOrder(t *testing.T) {
 
 	var orderSubmission = &exchange.OrderSubmission{
 		Pair: currency.Pair{
-			Base:      currency.BTC,
-			Quote:     currency.USD,
+			Base:  currency.BTC,
+			Quote: currency.USD,
 		},
 		OrderSide: exchange.BuyOrderSide,
 		OrderType: exchange.LimitOrderType,
