@@ -79,7 +79,7 @@ func main() {
 		cli.StringFlag{
 			Name:        "delimiter",
 			Value:       "-",
-			Usage:       "the default pair delimiter used to standardise currency pair input",
+			Usage:       "the default currency pair delimiter used to standardise currency pair input",
 			Destination: &pairDelimiter,
 		},
 	}

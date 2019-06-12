@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/connchecker"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-/gocryptotrader/engine/events"
@@ -33,10 +32,10 @@ type Engine struct {
 	Portfolio                      *portfolio.Base
 	Exchanges                      []exchange.IBotExchange
 	ExchangeCurrencyPairManager    *ExchangeCurrencyPairSyncer
+	ConnectionManager              connectionManager
 	OrderManager                   orderManager
 	PortfolioManager               portfolioManager
 	CommsRelayer                   *communications.Communications
-	Connectivity                   *connchecker.Checker
 	Shutdown                       chan struct{}
 	Settings                       Settings
 	CryptocurrencyDepositAddresses map[string]map[string]string
@@ -267,13 +266,9 @@ func (e *Engine) Start() {
 	}
 
 	// Sets up internet connectivity monitor
-	var err error
 	if e.Settings.EnableConnectivityMonitor {
-		e.Connectivity, err = connchecker.New(e.Config.ConnectionMonitor.DNSList,
-			e.Config.ConnectionMonitor.PublicDomainList,
-			e.Config.ConnectionMonitor.CheckInterval)
-		if err != nil {
-			log.Fatalf("Connectivity checker failure: %s", err)
+		if err := e.ConnectionManager.Start(); err != nil {
+			log.Errorf("Connection manager unable to start: %v", err)
 		}
 	}
 
@@ -338,7 +333,7 @@ func (e *Engine) Start() {
 		newFxSettings = append(newFxSettings, currency.FXSettings(d))
 	}
 
-	err = currency.RunStorageUpdater(currency.BotOverrides{
+	err := currency.RunStorageUpdater(currency.BotOverrides{
 		Coinmarketcap:       e.Settings.EnableCoinmarketcapAnalysis,
 		FxCurrencyConverter: e.Settings.EnableCurrencyConverter,
 		FxCurrencyLayer:     e.Settings.EnableCurrencyLayer,
@@ -427,6 +422,12 @@ func (e *Engine) Stop() {
 	if e.PortfolioManager.Started() {
 		if err := e.PortfolioManager.Stop(); err != nil {
 			log.Errorf("Fund manager unable to stop. Error: %v", err)
+		}
+	}
+
+	if e.ConnectionManager.Started() {
+		if err := e.ConnectionManager.Stop(); err != nil {
+			log.Errorf("Connection manager unable to stop. Error: %v", err)
 		}
 	}
 

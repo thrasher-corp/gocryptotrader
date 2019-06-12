@@ -6,7 +6,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/connchecker"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/assets"
@@ -104,6 +103,9 @@ func TestGetExchangeoOTPByName(t *testing.T) {
 	if result == "" {
 		t.Fatal("Expected valid OTP code")
 	}
+
+	// Flush setting
+	bCfg.API.Credentials.OTPSecret = ""
 }
 
 func TestGetAuthAPISupportedExchanges(t *testing.T) {
@@ -119,22 +121,21 @@ func TestIsOnline(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	var err error
-	Bot.Connectivity, err = connchecker.New(Bot.Config.ConnectionMonitor.DNSList,
-		Bot.Config.ConnectionMonitor.PublicDomainList,
-		Bot.Config.ConnectionMonitor.CheckInterval)
-	if err != nil {
+	if err := Bot.ConnectionManager.Start(); err != nil {
 		t.Fatal(err)
 	}
 
 	tick := time.NewTicker(time.Second * 5)
+	defer tick.Stop()
 	for {
 		select {
 		case <-tick.C:
 			t.Fatal("Test timeout")
 		default:
 			if IsOnline() {
-				Bot.Connectivity.Shutdown()
+				if err := Bot.ConnectionManager.Stop(); err != nil {
+					t.Fatal("unable to shutdown connection manager")
+				}
 				return
 			}
 		}

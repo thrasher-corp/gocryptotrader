@@ -82,11 +82,7 @@ func GetAuthAPISupportedExchanges() []string {
 
 // IsOnline returns whether or not the engine has Internet connectivity
 func IsOnline() bool {
-	if Bot.Connectivity == nil {
-		log.Warnf("IsOnline called but Bot.Connectivity is nil")
-		return false
-	}
-	return Bot.Connectivity.IsConnected()
+	return Bot.ConnectionManager.IsOnline()
 }
 
 // GetAvailableExchanges returns a list of enabled exchanges
