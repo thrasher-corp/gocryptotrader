@@ -145,6 +145,30 @@
         ]
       }
     },
+    "/v1/disablesubsystem": {
+      "get": {
+        "operationId": "DisableSubsystem",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "subsystem",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/enableexchange": {
       "post": {
         "operationId": "EnableExchange",
@@ -164,6 +188,30 @@
             "schema": {
               "$ref": "#/definitions/gctrpcGenericExchangeNameRequest"
             }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/enablesubsystem": {
+      "get": {
+        "operationId": "EnableSubsystem",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "subsystem",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -534,6 +582,38 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/gctrpcGetPortfolioSummaryResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getrpcendpoints": {
+      "get": {
+        "operationId": "GetRPCEndpoints",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetRPCEndpointsResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getsusbsystems": {
+      "get": {
+        "operationId": "GetSubsystems",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetSusbsytemsResponse"
             }
           }
         },
@@ -978,6 +1058,9 @@
     "gctrpcGenericExchangeNameResponse": {
       "type": "object"
     },
+    "gctrpcGenericSubsystemResponse": {
+      "type": "object"
+    },
     "gctrpcGetAccountInfoResponse": {
       "type": "object",
       "properties": {
@@ -1180,6 +1263,19 @@
         },
         "default_fiat_currency": {
           "type": "string"
+        },
+        "subsystem_status": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean",
+            "format": "boolean"
+          }
+        },
+        "rpc_endpoints": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcRPCEndpoint"
+          }
         }
       }
     },
@@ -1286,6 +1382,29 @@
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcOnlineCoins"
+          }
+        }
+      }
+    },
+    "gctrpcGetRPCEndpointsResponse": {
+      "type": "object",
+      "properties": {
+        "endpoints": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcRPCEndpoint"
+          }
+        }
+      }
+    },
+    "gctrpcGetSusbsytemsResponse": {
+      "type": "object",
+      "properties": {
+        "subsystems_status": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean",
+            "format": "boolean"
           }
         }
       }
@@ -1487,6 +1606,18 @@
         "balance": {
           "type": "number",
           "format": "double"
+        }
+      }
+    },
+    "gctrpcRPCEndpoint": {
+      "type": "object",
+      "properties": {
+        "started": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "listen_address": {
+          "type": "string"
         }
       }
     },

@@ -202,6 +202,18 @@ type CommunicationsConfig struct {
 	TelegramConfig  TelegramConfig  `json:"telegram"`
 }
 
+// IsAnyEnabled returns whether or any any comms relayers
+// are enabled
+func (c *CommunicationsConfig) IsAnyEnabled() bool {
+	if c.SMSGlobalConfig.Enabled ||
+		c.SMTPConfig.Enabled ||
+		c.SlackConfig.Enabled ||
+		c.TelegramConfig.Enabled {
+		return true
+	}
+	return false
+}
+
 // SlackConfig holds all variables to start and run the Slack package
 type SlackConfig struct {
 	Name              string `json:"name"`

@@ -29,6 +29,87 @@ import (
 	"github.com/thrasher-/gocryptotrader/utils"
 )
 
+// GetSubsystemsStatus returns the status of various subsystems
+func GetSubsystemsStatus() map[string]bool {
+	systems := make(map[string]bool)
+	systems["communications"] = Bot.CommsManager.Started()
+	systems["internet_monitor"] = Bot.ConnectionManager.Started()
+	systems["orders"] = Bot.OrderManager.Started()
+	systems["portfolio"] = Bot.PortfolioManager.Started()
+	systems["ntp_timekeeper"] = Bot.NTPManager.Started()
+	systems["exchange_syncer"] = Bot.Settings.EnableExchangeSyncManager
+	systems["grpc"] = Bot.Settings.EnableGRPC
+	systems["grpc_proxy"] = Bot.Settings.EnableGRPCProxy
+	systems["deprecated_rpc"] = Bot.Settings.EnableDeprecatedRPC
+	systems["websocket_rpc"] = Bot.Settings.EnableWebsocketRPC
+	return systems
+}
+
+// RPCEndpoint stores an RPC endpoint status and addr
+type RPCEndpoint struct {
+	Started    bool
+	ListenAddr string
+}
+
+// GetRPCEndpoints returns a list of RPC endpoints and their listen addrs
+func GetRPCEndpoints() map[string]RPCEndpoint {
+	endpoints := make(map[string]RPCEndpoint)
+	endpoints["grpc"] = RPCEndpoint{
+		Started:    Bot.Settings.EnableGRPC,
+		ListenAddr: "grpc://" + Bot.Config.RemoteControl.GRPC.ListenAddress,
+	}
+	endpoints["grpc_proxy"] = RPCEndpoint{
+		Started:    Bot.Settings.EnableGRPCProxy,
+		ListenAddr: "http://" + Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+	}
+	endpoints["deprecated_rpc"] = RPCEndpoint{
+		Started:    Bot.Settings.EnableDeprecatedRPC,
+		ListenAddr: "http://" + Bot.Config.RemoteControl.DeprecatedRPC.ListenAddress,
+	}
+	endpoints["websocket_rpc"] = RPCEndpoint{
+		Started:    Bot.Settings.EnableWebsocketRPC,
+		ListenAddr: "ws://" + Bot.Config.RemoteControl.WebsocketRPC.ListenAddress,
+	}
+	return endpoints
+}
+
+// SetSubsystem enables or disables an engine subsystem
+func SetSubsystem(subsys string, enable bool) error {
+	switch strings.ToLower(subsys) {
+	case "communications":
+		if enable {
+			return Bot.CommsManager.Start()
+		}
+		return Bot.CommsManager.Stop()
+	case "internet_monitor":
+		if enable {
+			return Bot.ConnectionManager.Start()
+		}
+		return Bot.CommsManager.Stop()
+	case "orders":
+		if enable {
+			return Bot.OrderManager.Start()
+		}
+		return Bot.OrderManager.Stop()
+	case "portfolio":
+		if enable {
+			return Bot.PortfolioManager.Start()
+		}
+		return Bot.OrderManager.Stop()
+	case "ntp_timekeeper":
+		if enable {
+			return Bot.NTPManager.Start()
+		}
+		return Bot.NTPManager.Stop()
+	case "exchange_syncer":
+		if enable {
+			Bot.ExchangeCurrencyPairManager.Start()
+		}
+		Bot.ExchangeCurrencyPairManager.Stop()
+	}
+	return errors.New("subsystem not found")
+}
+
 // GetExchangeOTPs returns OTP codes for all exchanges which have a otpsecret
 // stored
 func GetExchangeOTPs() (map[string]string, error) {

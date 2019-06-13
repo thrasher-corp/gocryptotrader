@@ -12,6 +12,35 @@ message GetInfoResponse {
     int64 enabled_exchanges = 3;
     string default_forex_provider = 4;
     string default_fiat_currency = 5;
+    map<string, bool> subsystem_status = 6;
+    map<string, RPCEndpoint> rpc_endpoints = 7;
+}
+
+// TO-DO comms APIs
+message GetCommunicationRelayersRequest {}
+message GetCommunicationRelayersResponse {}
+
+message GenericSubsystemRequest {
+    string subsystem = 1;
+}
+
+message GenericSubsystemResponse {}
+
+message GetSubsystemsRequest {}
+
+message GetSusbsytemsResponse {
+    map<string, bool> subsystems_status = 1;
+}
+
+message GetRPCEndpointsRequest{}
+
+message RPCEndpoint {
+    bool started = 1;
+    string listen_address = 2;
+}
+
+message GetRPCEndpointsResponse {
+   map<string, RPCEndpoint> endpoints = 1;
 }
 
 message GenericExchangeNameRequest {
@@ -400,6 +429,30 @@ service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
             get :"/v1/getinfo"
+        };
+    }
+
+    rpc GetSubsystems (GetSubsystemsRequest) returns (GetSusbsytemsResponse) {
+        option (google.api.http) = {
+            get: "/v1/getsusbsystems"
+        };
+    }
+
+    rpc EnableSubsystem (GenericSubsystemRequest) returns (GenericSubsystemResponse) {
+        option (google.api.http) = {
+            get: "/v1/enablesubsystem"
+        };
+    }
+
+    rpc DisableSubsystem (GenericSubsystemRequest) returns (GenericSubsystemResponse) {
+        option (google.api.http) = {
+            get: "/v1/disablesubsystem"
+        };
+    }
+
+    rpc GetRPCEndpoints (GetRPCEndpointsRequest) returns (GetRPCEndpointsResponse) {
+        option (google.api.http) = {
+            get: "/v1/getrpcendpoints"
         };
     }
 

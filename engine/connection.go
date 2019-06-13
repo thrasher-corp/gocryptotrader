@@ -49,6 +49,8 @@ func (c *connectionManager) Stop() error {
 
 	log.Debugln("Connection manager shutting down...")
 	c.conn.Shutdown()
+	atomic.CompareAndSwapInt32(&c.stopped, 1, 0)
+	atomic.CompareAndSwapInt32(&c.started, 1, 0)
 	log.Debugln("Connection manager stopped.")
 	return nil
 }

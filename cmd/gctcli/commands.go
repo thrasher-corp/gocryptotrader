@@ -37,6 +37,152 @@ func getInfo(_ *cli.Context) error {
 	return nil
 }
 
+var getSubsystemsCommand = cli.Command{
+	Name:   "getsubsystems",
+	Usage:  "gets GoCryptoTrader subsystems and their status",
+	Action: getSubsystems,
+}
+
+func getSubsystems(_ *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetSubsystems(context.Background(),
+		&gctrpc.GetSubsystemsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var enableSubsystemCommand = cli.Command{
+	Name:      "enablesubsystem",
+	Usage:     "enables an engine subsystem",
+	ArgsUsage: "<subsystem>",
+	Action:    enableSubsystem,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "subsystem",
+			Usage: "the subsystem to enable",
+		},
+	},
+}
+
+func enableSubsystem(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "enablesubsystem")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var subsystemName string
+	if c.IsSet("subsystem") {
+		subsystemName = c.String("subsystem")
+	} else {
+		subsystemName = c.Args().First()
+	}
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.EnableSubsystem(context.Background(),
+		&gctrpc.GenericSubsystemRequest{
+			Subsystem: subsystemName,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var disableSubsystemCommand = cli.Command{
+	Name:      "disablesubsystem",
+	Usage:     "disables an engine subsystem",
+	ArgsUsage: "<subsystem>",
+	Action:    disableSubsystem,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "subsystem",
+			Usage: "the subsystem to disable",
+		},
+	},
+}
+
+func disableSubsystem(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "disablesubsystem")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var subsystemName string
+	if c.IsSet("subsystem") {
+		subsystemName = c.String("subsystem")
+	} else {
+		subsystemName = c.Args().First()
+	}
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.DisableSubsystem(context.Background(),
+		&gctrpc.GenericSubsystemRequest{
+			Subsystem: subsystemName,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getRPCEndpointsCommand = cli.Command{
+	Name:   "getrpcendpoints",
+	Usage:  "gets GoCryptoTrader endpoints info",
+	Action: getRPCEndpoints,
+}
+
+func getRPCEndpoints(_ *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetRPCEndpoints(context.Background(),
+		&gctrpc.GetRPCEndpointsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var getExchangesCommand = cli.Command{
 	Name:      "getexchanges",
 	Usage:     "gets a list of enabled or available exchanges",

@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/engine/events"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/gctrpc"
@@ -152,8 +151,47 @@ func (s *RPCServer) GetInfo(ctx context.Context, r *gctrpc.GetInfoRequest) (*gct
 		AvailableExchanges:   int64(len(Bot.Config.Exchanges)),
 		DefaultFiatCurrency:  Bot.Config.Currency.FiatDisplayCurrency.String(),
 		DefaultForexProvider: Bot.Config.GetPrimaryForexProvider(),
+		SubsystemStatus:      GetSubsystemsStatus(),
 	}
+	endpoints := GetRPCEndpoints()
+	resp.RpcEndpoints = make(map[string]*gctrpc.RPCEndpoint)
+	for k, v := range endpoints {
+		resp.RpcEndpoints[k] = &gctrpc.RPCEndpoint{
+			Started:       v.Started,
+			ListenAddress: v.ListenAddr,
+		}
+	}
+	return &resp, nil
+}
 
+// GetSubsystems returns a list of subsystems and their status
+func (s *RPCServer) GetSubsystems(ctx context.Context, r *gctrpc.GetSubsystemsRequest) (*gctrpc.GetSusbsytemsResponse, error) {
+	return &gctrpc.GetSusbsytemsResponse{SubsystemsStatus: GetSubsystemsStatus()}, nil
+}
+
+// EnableSubsystem enables a engine subsytem
+func (s *RPCServer) EnableSubsystem(ctx context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericSubsystemResponse, error) {
+	err := SetSubsystem(r.Subsystem, true)
+	return &gctrpc.GenericSubsystemResponse{}, err
+}
+
+// DisableSubsystem disables a engine subsytem
+func (s *RPCServer) DisableSubsystem(ctx context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericSubsystemResponse, error) {
+	err := SetSubsystem(r.Subsystem, false)
+	return &gctrpc.GenericSubsystemResponse{}, err
+}
+
+// GetRPCEndpoints returns a list of API endpoints
+func (s *RPCServer) GetRPCEndpoints(ctx context.Context, r *gctrpc.GetRPCEndpointsRequest) (*gctrpc.GetRPCEndpointsResponse, error) {
+	endpoints := GetRPCEndpoints()
+	var resp gctrpc.GetRPCEndpointsResponse
+	resp.Endpoints = make(map[string]*gctrpc.RPCEndpoint)
+	for k, v := range endpoints {
+		resp.Endpoints[k] = &gctrpc.RPCEndpoint{
+			Started:       v.Started,
+			ListenAddress: v.ListenAddr,
+		}
+	}
 	return &resp, nil
 }
 
@@ -638,7 +676,7 @@ func (s *RPCServer) GetEvents(ctx context.Context, r *gctrpc.GetEventsRequest) (
 
 // AddEvent adds an event
 func (s *RPCServer) AddEvent(ctx context.Context, r *gctrpc.AddEventRequest) (*gctrpc.AddEventResponse, error) {
-	evtCondition := events.ConditionParams{
+	evtCondition := EventConditionParams{
 		CheckBids:        r.ConditionParams.CheckBids,
 		CheckBidsAndAsks: r.ConditionParams.CheckBidsAndAsks,
 		Condition:        r.ConditionParams.Condition,
@@ -649,7 +687,7 @@ func (s *RPCServer) AddEvent(ctx context.Context, r *gctrpc.AddEventRequest) (*g
 	p := currency.NewPairWithDelimiter(r.Pair.Base,
 		r.Pair.Quote, r.Pair.Delimiter)
 
-	id, err := events.Add(r.Exchange, r.Item, evtCondition, p, assets.AssetType(r.AssetType), r.Action)
+	id, err := Add(r.Exchange, r.Item, evtCondition, p, assets.AssetType(r.AssetType), r.Action)
 	if err != nil {
 		return nil, err
 	}
@@ -659,7 +697,7 @@ func (s *RPCServer) AddEvent(ctx context.Context, r *gctrpc.AddEventRequest) (*g
 
 // RemoveEvent removes an event, specified by an event ID
 func (s *RPCServer) RemoveEvent(ctx context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.RemoveEventResponse, error) {
-	events.Remove(r.Id)
+	Remove(r.Id)
 	return &gctrpc.RemoveEventResponse{}, nil
 }
 

@@ -12,15 +12,12 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
-	"github.com/thrasher-/gocryptotrader/engine/events"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
-	"github.com/thrasher-/gocryptotrader/ntpclient"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/utils"
 )
@@ -32,10 +29,11 @@ type Engine struct {
 	Portfolio                      *portfolio.Base
 	Exchanges                      []exchange.IBotExchange
 	ExchangeCurrencyPairManager    *ExchangeCurrencyPairSyncer
+	NTPManager                     ntpManager
 	ConnectionManager              connectionManager
 	OrderManager                   orderManager
 	PortfolioManager               portfolioManager
-	CommsRelayer                   *communications.Communications
+	CommsManager                   commsManager
 	Shutdown                       chan struct{}
 	Settings                       Settings
 	CryptocurrencyDepositAddresses map[string]map[string]string
@@ -148,11 +146,10 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableEventManager = s.EnableEventManager
 
 	if b.Settings.EnableEventManager {
-		events.Verbose = b.Settings.Verbose
 		if b.Settings.EventManagerDelay != time.Duration(0) && s.EventManagerDelay > 0 {
 			b.Settings.EventManagerDelay = s.EventManagerDelay
 		} else {
-			b.Settings.EventManagerDelay = events.SleepDelay
+			b.Settings.EventManagerDelay = EventSleepDelay
 		}
 	}
 
@@ -273,27 +270,8 @@ func (e *Engine) Start() {
 	}
 
 	if e.Settings.EnableNTPClient {
-		if e.Config.NTPClient.Level != -1 {
-			NTPTime, errNTP := ntpclient.NTPClient(e.Config.NTPClient.Pool)
-			currentTime := time.Now()
-			if errNTP != nil {
-				log.Warnf("NTPClient failed to create: %v", errNTP)
-			} else {
-				NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
-				configNTPTime := *e.Config.NTPClient.AllowedDifference
-				configNTPNegativeTime := (*e.Config.NTPClient.AllowedNegativeDifference - (*e.Config.NTPClient.AllowedNegativeDifference * 2))
-				if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
-					log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
-					if e.Config.NTPClient.Level == 0 {
-						disable, errNTP := e.Config.DisableNTPCheck(os.Stdin)
-						if errNTP != nil {
-							log.Errorf("failed to disable ntp time check reason: %v", errNTP)
-						} else {
-							log.Info(disable)
-						}
-					}
-				}
-			}
+		if err := e.NTPManager.Start(); err != nil {
+			log.Errorf("NTP manager unable to start: %v", err)
 		}
 	}
 
@@ -322,10 +300,9 @@ func (e *Engine) Start() {
 	}
 
 	if e.Settings.EnableCommsRelayer {
-		log.Debugln("Starting communication mediums..")
-		commsCfg := e.Config.GetCommunicationsConfig()
-		e.CommsRelayer = communications.NewComm(&commsCfg)
-		e.CommsRelayer.GetEnabledCommunicationMediums()
+		if err := e.CommsManager.Start(); err != nil {
+			log.Errorf("Communications manager unable to start: %v", err)
+		}
 	}
 
 	var newFxSettings []currency.FXSettings
@@ -398,7 +375,7 @@ func (e *Engine) Start() {
 	}
 
 	if e.Settings.EnableEventManager {
-		go events.EventManger()
+		go EventManger()
 	}
 
 	<-e.Shutdown
@@ -416,6 +393,18 @@ func (e *Engine) Stop() {
 	if e.OrderManager.Started() {
 		if err := e.OrderManager.Stop(); err != nil {
 			log.Errorf("Order manager unable to stop. Error: %v", err)
+		}
+	}
+
+	if e.NTPManager.Started() {
+		if err := e.NTPManager.Stop(); err != nil {
+			log.Errorf("NTP manager unable to stop. Error: %v", err)
+		}
+	}
+
+	if e.CommsManager.Started() {
+		if err := e.CommsManager.Stop(); err != nil {
+			log.Errorf("Communication manager unable to stop. Error: %v", err)
 		}
 	}
 

@@ -85,6 +85,10 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		getInfoCommand,
+		getSubsystemsCommand,
+		enableSubsystemCommand,
+		disableSubsystemCommand,
+		getRPCEndpointsCommand,
 		getExchangesCommand,
 		enableExchangeCommand,
 		disableExchangeCommand,

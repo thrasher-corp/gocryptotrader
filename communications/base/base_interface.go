@@ -1,6 +1,7 @@
 package base
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -50,7 +51,7 @@ func (c IComm) PushEvent(event Event) {
 // GetEnabledCommunicationMediums prints out enabled and connected communication
 // packages
 // (#debug output only)
-func (c IComm) GetEnabledCommunicationMediums() {
+func (c IComm) GetEnabledCommunicationMediums() error {
 	var count int
 	for i := range c {
 		if c[i].IsEnabled() && c[i].IsConnected() {
@@ -59,6 +60,7 @@ func (c IComm) GetEnabledCommunicationMediums() {
 		}
 	}
 	if count == 0 {
-		log.Warnf("Communications: No communication mediums are enabled.")
+		return errors.New("no communication mediums are enabled")
 	}
+	return nil
 }

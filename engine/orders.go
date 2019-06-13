@@ -72,9 +72,17 @@ func (o *orderManager) Start() error {
 	return nil
 }
 func (o *orderManager) Stop() error {
+	if atomic.LoadInt32(&o.started) == 0 {
+		return errors.New("order manager not started")
+	}
+
 	if atomic.AddInt32(&o.stopped, 1) != 1 {
 		return errors.New("order manager is already stopped")
 	}
+	defer func() {
+		atomic.CompareAndSwapInt32(&o.stopped, 1, 0)
+		atomic.CompareAndSwapInt32(&o.started, 1, 0)
+	}()
 
 	log.Debugln("Order manager shutting down...")
 	close(o.shutdown)
@@ -101,7 +109,7 @@ func (o *orderManager) gracefulShutdown() {
 					msg := fmt.Sprintf("Order manager: Exchange %s unable to cancel order ID=%v. Err: %s",
 						k, v[y].ID, err)
 					log.Debugln(msg)
-					Bot.CommsRelayer.PushEvent(base.Event{
+					Bot.CommsManager.PushEvent(base.Event{
 						Type:    "order",
 						Message: msg,
 					})
@@ -111,7 +119,7 @@ func (o *orderManager) gracefulShutdown() {
 				msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
 					k, v[y].ID)
 				log.Debugln(msg)
-				Bot.CommsRelayer.PushEvent(base.Event{
+				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: msg,
 				})
@@ -222,7 +230,7 @@ func (o *orderManager) Submit(exchName string, order *exchange.OrderSubmission) 
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v.",
 		exchName, result.OrderID, id.String(), order.Pair, order.Price, order.Amount, order.OrderSide, order.OrderType)
 	log.Debugln(msg)
-	Bot.CommsRelayer.PushEvent(base.Event{
+	Bot.CommsManager.PushEvent(base.Event{
 		Type:    "order",
 		Message: msg,
 	})
@@ -257,7 +265,7 @@ func (o *orderManager) processOrders() {
 				msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
 					order.Exchange, order.ID, order.CurrencyPair, order.Price, order.Amount, order.OrderSide, order.OrderType)
 				log.Debug(msg)
-				Bot.CommsRelayer.PushEvent(base.Event{
+				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: msg,
 				})

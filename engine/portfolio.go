@@ -51,9 +51,11 @@ func (p *portfolioManager) run() {
 	Bot.ServicesWG.Add(1)
 	tick := time.NewTicker(PortfolioSleepDelay)
 	defer func() {
-		log.Debugf("Portfolio manager shutdown.")
+		atomic.CompareAndSwapInt32(&p.stopped, 1, 0)
+		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 		tick.Stop()
 		Bot.ServicesWG.Done()
+		log.Debugf("Portfolio manager shutdown.")
 	}()
 
 	for {

@@ -1,4 +1,4 @@
-package events
+package engine
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -15,6 +14,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
+
+// TO-DO MAKE THIS A SERVICE SUBSYSTEM
 
 // Event const vars
 const (
@@ -32,7 +33,6 @@ const (
 	ActionTest         = "ACTION_TEST"
 
 	defaultSleepDelay = time.Millisecond * 500
-	defaultVerbose    = true
 )
 
 // vars related to events package
@@ -41,16 +41,11 @@ var (
 	errInvalidCondition = errors.New("invalid conditional option")
 	errInvalidAction    = errors.New("invalid action")
 	errExchangeDisabled = errors.New("desired exchange is disabled")
-
-	SleepDelay = defaultSleepDelay
-	Verbose    = defaultVerbose
-
-	// NOTE comms is an interim implementation
-	comms *communications.Communications
+	EventSleepDelay     = defaultSleepDelay
 )
 
-// ConditionParams holds the event condition variables
-type ConditionParams struct {
+// EventConditionParams holds the event condition variables
+type EventConditionParams struct {
 	Condition string
 	Price     float64
 
@@ -64,7 +59,7 @@ type Event struct {
 	ID        int64
 	Exchange  string
 	Item      string
-	Condition ConditionParams
+	Condition EventConditionParams
 	Pair      currency.Pair
 	Asset     assets.AssetType
 	Action    string
@@ -75,15 +70,9 @@ type Event struct {
 // appended
 var Events []*Event
 
-// SetComms is an interim function that will support a median integration. This
-// sets the current comms package.
-func SetComms(commsP *communications.Communications) {
-	comms = commsP
-}
-
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
-func Add(exchange, item string, condition ConditionParams, currencyPair currency.Pair, asset assets.AssetType, action string) (int64, error) {
+func Add(exchange, item string, condition EventConditionParams, currencyPair currency.Pair, asset assets.AssetType, action string) (int64, error) {
 	err := IsValidEvent(exchange, item, condition, action)
 	if err != nil {
 		return 0, err
@@ -139,7 +128,7 @@ func (e *Event) ExecuteAction() bool {
 		if action[0] == ActionSMSNotify {
 			message := fmt.Sprintf("Event triggered: %s", e.String())
 			if action[1] == "ALL" {
-				comms.PushEvent(base.Event{
+				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "event",
 					Message: message,
 				})
@@ -164,7 +153,7 @@ func (e *Event) processTicker() bool {
 
 	t, err := ticker.GetTicker(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
-		if Verbose {
+		if Bot.Settings.Verbose {
 			log.Debugf("Events: failed to get ticker. Err: %s", err)
 		}
 		return false
@@ -173,7 +162,7 @@ func (e *Event) processTicker() bool {
 	lastPrice := t.Last
 
 	if lastPrice == 0 {
-		if Verbose {
+		if Bot.Settings.Verbose {
 			log.Debugln("Events: ticker last price is 0")
 		}
 		return false
@@ -211,7 +200,7 @@ func (e *Event) processCondition(actual, threshold float64) bool {
 func (e *Event) processOrderbook() bool {
 	ob, err := orderbook.Get(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
-		if Verbose {
+		if Bot.Settings.Verbose {
 			log.Debugf("Events: Failed to get orderbook. Err: %s", err)
 		}
 		return false
@@ -242,18 +231,17 @@ func (e *Event) processOrderbook() bool {
 	return success
 }
 
-// CheckCondition will check the event structure to see if there is a condition
+// CheckEventCondition will check the event structure to see if there is a condition
 // met
-func (e *Event) CheckCondition() bool {
+func (e *Event) CheckEventCondition() bool {
 	if e.Item == ItemPrice {
 		return e.processTicker()
 	}
-
 	return e.processOrderbook()
 }
 
 // IsValidEvent checks the actions to be taken and returns an error if incorrect
-func IsValidEvent(exchange, item string, condition ConditionParams, action string) error {
+func IsValidEvent(exchange, item string, condition EventConditionParams, action string) error {
 	exchange = strings.ToUpper(exchange)
 	item = strings.ToUpper(item)
 	action = strings.ToUpper(action)
@@ -290,7 +278,7 @@ func IsValidEvent(exchange, item string, condition ConditionParams, action strin
 		}
 
 		if a[1] != "ALL" {
-			comms.PushEvent(base.Event{Type: a[1]})
+			Bot.CommsManager.PushEvent(base.Event{Type: a[1]})
 		}
 	} else if action != ActionConsolePrint && action != ActionTest {
 		return errInvalidAction
@@ -302,17 +290,17 @@ func IsValidEvent(exchange, item string, condition ConditionParams, action strin
 // EventManger is the overarching routine that will iterate through the Events
 // chain
 func EventManger() {
-	log.Debugf("EventManager started. SleepDelay: %v", SleepDelay.String())
+	log.Debugf("EventManager started. SleepDelay: %v", EventSleepDelay.String())
 
 	for {
 		total, executed := GetEventCounter()
 		if total > 0 && executed != total {
 			for _, event := range Events {
 				if !event.Executed {
-					if Verbose {
+					if Bot.Settings.Verbose {
 						log.Debugf("Events: Processing event %s.", event.String())
 					}
-					success := event.CheckCondition()
+					success := event.CheckEventCondition()
 					if success {
 						log.Debugf(
 							"Events: ID: %d triggered on %s successfully.\n", event.ID,
@@ -323,7 +311,7 @@ func EventManger() {
 				}
 			}
 		}
-		time.Sleep(SleepDelay)
+		time.Sleep(EventSleepDelay)
 	}
 }
 
