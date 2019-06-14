@@ -110,6 +110,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 		o.Name = exch.Name
 		o.Enabled = true
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		o.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		o.SetHTTPClientTimeout(exch.HTTPTimeout)
 		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)

@@ -116,8 +116,8 @@ type OrderResponse struct {
 
 // Commission holds trade commission structure
 type Commission struct {
-	Currency string  `json:"currency"`
-	Amount   float64 `json:"amount,string"`
+	Currency currency.Pair `json:"currency"`
+	Amount   float64       `json:"amount,string"`
 }
 
 // OrderFilledResponse contains order filled response
@@ -505,29 +505,29 @@ type WsOrderFilledResponse struct {
 	FillPrice  string                      `json:"fill_price"`
 	FillQty    string                      `json:"fill_qty"`
 	Nonce      int64                       `json:"nonce"`
-	Order      WsOrderFilledOrderData      `json:"order"`
+	Order      WsOrderData                 `json:"order"`
 	Reply      string                      `json:"reply"`
 	Status     []string                    `json:"status"`
 	Timestamp  int64                       `json:"timestamp"`
 	TransID    int64                       `json:"trans_id"`
 }
 
-// WsOrderFilledOrderData ws response data
-type WsOrderFilledOrderData struct {
-	ClientOrdID int64  `json:"client_ord_id"`
-	InstID      int64  `json:"inst_id"`
-	OpenQty     string `json:"open_qty"`
-	OrderID     int64  `json:"order_id"`
-	Price       string `json:"price"`
-	Qty         string `json:"qty"`
-	Side        string `json:"side"`
-	Timestamp   int64  `json:"timestamp"`
+// WsOrderData ws response data
+type WsOrderData struct {
+	ClientOrdID int64   `json:"client_ord_id"`
+	InstID      int64   `json:"inst_id"`
+	OpenQty     float64 `json:"open_qty,string"`
+	OrderID     int64   `json:"order_id"`
+	Price       float64 `json:"price,string"`
+	Qty         float64 `json:"qty,string"`
+	Side        string  `json:"side"`
+	Timestamp   int64   `json:"timestamp"`
 }
 
 // WsOrderFilledCommissionData ws response data
 type WsOrderFilledCommissionData struct {
-	Amount   string `json:"amount"`
-	Currency string `json:"currency"`
+	Amount   float64       `json:"amount,string"`
+	Currency currency.Pair `json:"currency"`
 }
 
 // WsOrderRejectedResponse ws response
@@ -536,70 +536,46 @@ type WsOrderRejectedResponse struct {
 	Status      []string `json:"status"`
 	OrderID     int64    `json:"order_id"`
 	OpenQty     string   `json:"open_qty"`
-	Price       string   `json:"price"`
+	Price       float64  `json:"price,string"`
 	InstID      int64    `json:"inst_id"`
 	Reasons     []string `json:"reasons"`
 	ClientOrdID int64    `json:"client_ord_id"`
 	Timestamp   int64    `json:"timestamp"`
 	Reply       string   `json:"reply"`
-	Qty         string   `json:"qty"`
+	Qty         float64  `json:"qty,string"`
 	Side        string   `json:"side"`
 	TransID     int64    `json:"trans_id"`
 }
 
 // WsUserOpenOrdersResponse ws response
 type WsUserOpenOrdersResponse struct {
-	Nonce  int64                       `json:"nonce"`
-	Reply  string                      `json:"reply"`
-	Status []string                    `json:"status"`
-	Orders []WsUserOpenOrdersOrderData `json:"orders"`
-}
-
-// WsUserOpenOrdersOrderData ws response data
-type WsUserOpenOrdersOrderData struct {
-	OrderID     int64  `json:"order_id"`
-	OpenQty     string `json:"open_qty"`
-	Price       string `json:"price"`
-	InstID      int64  `json:"inst_id"`
-	ClientOrdID int64  `json:"client_ord_id"`
-	Timestamp   int64  `json:"timestamp"`
-	Qty         string `json:"qty"`
-	Side        string `json:"side"`
+	Nonce  int64         `json:"nonce"`
+	Reply  string        `json:"reply"`
+	Status []string      `json:"status"`
+	Orders []WsOrderData `json:"orders"`
 }
 
 // WsTradeHistoryResponse ws response
 type WsTradeHistoryResponse struct {
-	Nonce       int64                     `json:"nonce"`
-	Reply       string                    `json:"reply"`
-	Status      []string                  `json:"status"`
-	TotalNumber int64                     `json:"total_number"`
-	Trades      []WsTradeHistoryTradeData `json:"trades"`
-}
-
-// WsTradeHistoryOrderData ws response data
-type WsTradeHistoryOrderData struct {
-	ClientOrdID int64  `json:"client_ord_id"`
-	InstID      int64  `json:"inst_id"`
-	OpenQty     string `json:"open_qty"`
-	OrderID     int64  `json:"order_id"`
-	Price       string `json:"price"`
-	Qty         string `json:"qty"`
-	Side        string `json:"side"`
-	Timestamp   int64  `json:"timestamp"`
+	Nonce       int64         `json:"nonce"`
+	Reply       string        `json:"reply"`
+	Status      []string      `json:"status"`
+	TotalNumber int64         `json:"total_number"`
+	Trades      []WsOrderData `json:"trades"`
 }
 
 // WsTradeHistoryCommissionData ws response data
 type WsTradeHistoryCommissionData struct {
-	Amount   string `json:"amount"`
-	Currency string `json:"currency"`
+	Amount   float64       `json:"amount,string"`
+	Currency currency.Pair `json:"currency"`
 }
 
 // WsTradeHistoryTradeData ws response data
 type WsTradeHistoryTradeData struct {
 	Commission WsTradeHistoryCommissionData `json:"commission"`
-	Order      WsTradeHistoryOrderData      `json:"order"`
-	FillPrice  string                       `json:"fill_price"`
-	FillQty    string                       `json:"fill_qty"`
+	Order      WsOrderData                  `json:"order"`
+	FillPrice  float64                      `json:"fill_price,string"`
+	FillQty    float64                      `json:"fill_qty,string"`
 	Timestamp  int64                        `json:"timestamp"`
 	TransID    int64                        `json:"trans_id"`
 }

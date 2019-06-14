@@ -151,6 +151,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 	} else {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		b.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose

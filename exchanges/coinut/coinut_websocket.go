@@ -153,6 +153,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
+		c.Websocket.SetCanUseAuthenticatedEndpoints(login.Username == c.ClientID)
 		c.Websocket.DataHandler <- login
 	case "hb":
 		channels["hb"] <- resp
@@ -461,6 +462,9 @@ func (c *COINUT) wsSend(data interface{}) error {
 }
 
 func (c *COINUT) wsAuthenticate() error {
+	if !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", c.Name)
+	}
 	timestamp := time.Now().Unix()
 	nonce := c.GetNonce()
 	payload := fmt.Sprintf("%v|%v|%v", c.ClientID, timestamp, nonce)
@@ -479,10 +483,19 @@ func (c *COINUT) wsAuthenticate() error {
 		Timestamp: timestamp,
 	}
 
-	return c.wsSend(loginRequest)
+	err := c.wsSend(loginRequest)
+	if err != nil {
+		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return err
+	}
+	return nil
+
 }
 
 func (c *COINUT) wsGetAccountBalance() error {
+	if !c.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authorised to submit order", c.Name)
+	}
 	accBalance := wsRequest{
 		Request: "user_balance",
 		Nonce:   c.GetNonce(),
@@ -491,8 +504,10 @@ func (c *COINUT) wsGetAccountBalance() error {
 }
 
 func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) error {
-	order.Currency.Delimiter = ""
-	currency := order.Currency.Upper().String()
+	if !c.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authorised to submit order", c.Name)
+	}
+	currency := exchange.FormatExchangeCurrency(c.Name, order.Currency).String()
 	var orderSubmissionRequest WsSubmitOrderRequest
 	orderSubmissionRequest.Request = "new_order"
 	orderSubmissionRequest.Nonce = c.GetNonce()
@@ -508,14 +523,12 @@ func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) error {
 }
 
 func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) error {
-	if len(orders) > 1000 {
-		return fmt.Errorf("%v cannot submit more than 1000 orders", c.Name)
+	if !c.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authorised to submit orders", c.Name)
 	}
-
 	orderRequest := WsSubmitOrdersRequest{}
 	for i := range orders {
-		orders[i].Currency.Delimiter = ""
-		currency := orders[i].Currency.Upper().String()
+		currency := exchange.FormatExchangeCurrency(c.Name, orders[i].Currency).String()
 		orderRequest.Orders = append(orderRequest.Orders,
 			WsSubmitOrdersRequestData{
 				Qty:         orders[i].Amount,
@@ -532,8 +545,10 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) error {
 }
 
 func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
-	p.Delimiter = ""
-	currency := p.Upper().String()
+	if !c.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authorised to get open orders", c.Name)
+	}
+	currency := exchange.FormatExchangeCurrency(c.Name, p).String()
 	var openOrdersRequest WsGetOpenOrdersRequest
 	openOrdersRequest.Request = "user_open_orders"
 	openOrdersRequest.Nonce = c.GetNonce()
@@ -543,8 +558,10 @@ func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
 }
 
 func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
-	cancellation.Currency.Delimiter = ""
-	currency := cancellation.Currency.Upper().String()
+	if !c.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authorised to cancel order", c.Name)
+	}
+	currency := exchange.FormatExchangeCurrency(c.Name, cancellation.Currency).String()
 	var cancellationRequest WsCancelOrderRequest
 	cancellationRequest.Request = "cancel_order"
 	cancellationRequest.InstID = instrumentListByString[currency]
@@ -555,10 +572,12 @@ func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
 }
 
 func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) error {
+	if !c.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authorised to cancel orders", c.Name)
+	}
 	cancelOrderRequest := WsCancelOrdersRequest{}
 	for i := range cancellations {
-		cancellations[i].Currency.Delimiter = ""
-		currency := cancellations[i].Currency.Upper().String()
+		currency := exchange.FormatExchangeCurrency(c.Name, cancellations[i].Currency).String()
 		cancelOrderRequest.Entries = append(cancelOrderRequest.Entries, WsCancelOrdersRequestEntry{
 			InstID:  instrumentListByString[currency],
 			OrderID: cancellations[i].OrderID,
@@ -571,8 +590,10 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) error {
 }
 
 func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) error {
-	p.Delimiter = ""
-	currency := p.Upper().String()
+	if !c.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authorised to get trade history", c.Name)
+	}
+	currency := exchange.FormatExchangeCurrency(c.Name, p).String()
 	var request WsTradeHistoryRequest
 	request.Request = "trade_history"
 	request.InstID = instrumentListByString[currency]

@@ -197,13 +197,14 @@ func (o *OKGroup) WsConnect() error {
 	wg.Add(2)
 	go o.WsHandleData(&wg)
 	go o.wsPingHandler(&wg)
-	o.GenerateDefaultSubscriptions()
-	if o.AuthenticatedAPISupport {
+	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
-			return err
+			log.Errorf("%v - authentication failed: %v", o.Name, err)
 		}
 	}
+
+	o.GenerateDefaultSubscriptions()
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
 	return nil
@@ -304,6 +305,9 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 			var eventResponse WebsocketEventResponse
 			err = common.JSONDecode(resp.Raw, &eventResponse)
 			if err == nil && eventResponse.Event != "" {
+				if eventResponse.Event == "login" {
+					o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)
+				}
 				if o.Verbose {
 					log.Debugf("WS Event: %v on Channel: %v", eventResponse.Event, eventResponse.Channel)
 				}
@@ -316,6 +320,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
 func (o *OKGroup) WsLogin() error {
+	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	utcTime := time.Now().UTC()
 	unixTime := utcTime.Unix()
 	signPath := "/users/self/verify"
@@ -327,10 +332,12 @@ func (o *OKGroup) WsLogin() error {
 	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
+		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	err = o.writeToWebsocket(string(json))
 	if err != nil {
+		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	return nil
@@ -688,7 +695,7 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 func (o *OKGroup) GenerateDefaultSubscriptions() {
 	enabledCurrencies := o.GetEnabledCurrencies()
 	var subscriptions []exchange.WebsocketChannelSubscription
-	if o.AuthenticatedAPISupport {
+	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		defaultSubscribedChannels = append(defaultSubscribedChannels, okGroupWsSpotMarginAccount, okGroupWsSpotAccount, okGroupWsSpotOrder)
 	}
 	for i := range defaultSubscribedChannels {

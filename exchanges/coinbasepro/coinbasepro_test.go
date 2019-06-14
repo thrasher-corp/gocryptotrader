@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var c CoinbasePro
@@ -37,6 +38,7 @@ func TestSetup(t *testing.T) {
 	gdxConfig.APISecret = apiSecret
 	gdxConfig.ClientID = clientID
 	gdxConfig.AuthenticatedAPISupport = true
+	gdxConfig.AuthenticatedWebsocketAPISupport = true
 	c.Setup(&gdxConfig)
 }
 
@@ -582,7 +584,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
-	if !c.Websocket.IsEnabled() && !c.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+	if !c.Websocket.IsEnabled() && !c.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}
 	var err error
@@ -592,8 +594,8 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Websocket.DataHandler = make(chan interface{}, 999)
-	c.Websocket.TrafficAlert = make(chan struct{}, 999)
+	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go c.WsHandleData()
 	defer c.WebsocketConn.Close()
 	err = c.Subscribe(exchange.WebsocketChannelSubscription{
@@ -603,7 +605,7 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case badResponse := <-c.Websocket.DataHandler:
 		t.Error(badResponse)

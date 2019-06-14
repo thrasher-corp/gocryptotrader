@@ -97,6 +97,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
 	} else {
 		h.Enabled = true
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)

@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -33,6 +34,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - GateIO Setup() init error")
 	}
+	gateioConfig.AuthenticatedWebsocketAPISupport = true
 	gateioConfig.AuthenticatedAPISupport = true
 	gateioConfig.APIKey = apiKey
 	gateioConfig.APISecret = apiSecret
@@ -498,8 +500,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
-	g.Verbose = true
-	if !g.Websocket.IsEnabled() && !g.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}
 	var err error
@@ -509,15 +510,15 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g.Websocket.DataHandler = make(chan interface{}, 999)
-	g.Websocket.TrafficAlert = make(chan struct{}, 999)
+	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go g.WsHandleData()
 	defer g.WebsocketConn.Close()
 	err = g.wsServerSignIn()
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case resultString := <-g.Websocket.DataHandler:
 		if !common.StringContains(resultString.(string), "success") {
@@ -527,12 +528,11 @@ func TestWsAuth(t *testing.T) {
 		t.Error("Expected response")
 	}
 	timer.Stop()
-	time.Sleep(time.Second)
 	err = g.wsGetBalance()
 	if err != nil {
 		t.Error(err)
 	}
-	timer = time.NewTimer(3 * time.Second)
+	timer = time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case <-g.Websocket.DataHandler:
 	case <-timer.C:

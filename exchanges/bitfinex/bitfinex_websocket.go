@@ -78,6 +78,9 @@ func (b *Bitfinex) wsSend(data interface{}) error {
 
 // WsSendAuth sends a autheticated event payload
 func (b *Bitfinex) WsSendAuth() error {
+	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", b.Name)
+	}
 	req := make(map[string]interface{})
 	payload := "AUTH" + strconv.FormatInt(time.Now().UnixNano(), 10)[:13]
 	req["event"] = "auth"
@@ -91,7 +94,11 @@ func (b *Bitfinex) WsSendAuth() error {
 
 	req["authPayload"] = payload
 
-	return b.wsSend(req)
+	err := b.wsSend(req)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // WsSendUnauth sends an unauthenticated payload
@@ -151,11 +158,9 @@ func (b *Bitfinex) WsConnect() error {
 		return err
 	}
 
-	if b.AuthenticatedAPISupport {
-		err = b.WsSendAuth()
-		if err != nil {
-			return err
-		}
+	err = b.WsSendAuth()
+	if err != nil {
+		log.Errorf("%v - authentication failed: %v", b.Name, err)
 	}
 
 	b.GenerateDefaultSubscriptions()
@@ -226,7 +231,6 @@ func (b *Bitfinex) WsDataHandler() {
 
 					case "auth":
 						status := eventData["status"].(string)
-
 						if status == "OK" {
 							b.Websocket.DataHandler <- eventData
 							b.WsAddSubscriptionChannel(0, "account", "N/A")
@@ -234,8 +238,6 @@ func (b *Bitfinex) WsDataHandler() {
 						} else if status == "fail" {
 							b.Websocket.DataHandler <- fmt.Errorf("bitfinex.go error - Websocket unable to AUTH. Error code: %s",
 								eventData["code"].(string))
-
-							b.AuthenticatedAPISupport = false
 						}
 					}
 

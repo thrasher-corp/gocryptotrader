@@ -10,9 +10,11 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var c COINUT
+var wsSetupRan bool
 
 // Please supply your own keys here to do better tests
 const (
@@ -33,6 +35,7 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Coinut Setup() init error")
 	}
 	bConfig.AuthenticatedAPISupport = true
+	bConfig.AuthenticatedWebsocketAPISupport = true
 	bConfig.APIKey = apiKey
 	c.Setup(&bConfig)
 	c.ClientID = clientID
@@ -43,6 +46,46 @@ func TestSetup(t *testing.T) {
 		len(c.AvailablePairs) < 1 || len(c.EnabledPairs) < 1 {
 		t.Error("Test Failed - Coinut Setup values not set correctly")
 	}
+}
+
+func setupWSTestAuth(t *testing.T) {
+	if wsSetupRan {
+		return
+	}
+	c.SetDefaults()
+	TestSetup(t)
+	if !c.Websocket.IsEnabled() && !c.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go c.WsHandleData()
+	err = c.wsAuthenticate()
+	if err != nil {
+		t.Error(err)
+	}
+
+	timer := time.NewTimer(5 * time.Second)
+	select {
+	case resp := <-c.Websocket.DataHandler:
+		if resp.(WsLoginResponse).Username != clientID {
+			t.Fatal("Unsuccessful login")
+		}
+	case <-timer.C:
+		t.Fatal("Expected response")
+	}
+	timer.Stop()
+	time.Sleep(2 * time.Second)
+	instrumentListByString = make(map[string]int64)
+	instrumentListByString[currency.NewPair(currency.LTC, currency.BTC).String()] = 1
+	wsSetupRan = true
 }
 
 func TestGetInstruments(t *testing.T) {
@@ -405,50 +448,14 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func setupTestAuth(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-	if !c.Websocket.IsEnabled() && !c.AuthenticatedAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
-	}
-	var err error
-	var dialer websocket.Dialer
-	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
-		http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.Websocket.DataHandler = make(chan interface{}, 999)
-	c.Websocket.TrafficAlert = make(chan struct{}, 999)
-	go c.WsHandleData()
-	err = c.wsAuthenticate()
-	if err != nil {
-		t.Error(err)
-	}
-	timer := time.NewTimer(5 * time.Second)
-	select {
-	case resp := <-c.Websocket.DataHandler:
-		if resp.(WsLoginResponse).Username != clientID {
-			t.Fatal("Unsuccessful login")
-		}
-	case <-timer.C:
-		t.Error("Expected response")
-	}
-	timer.Stop()
-	time.Sleep(2 * time.Second)
-	instrumentListByString = make(map[string]int64)
-	instrumentListByString[currency.NewPair(currency.LTC, currency.BTC).String()] = 1
-}
-
 // TestWsAuthGetAccountBalance dials websocket, sends login request.
 func TestWsAuthGetAccountBalance(t *testing.T) {
-	setupTestAuth(t)
-
+	setupWSTestAuth(t)
 	err := c.wsGetAccountBalance()
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
 	select {
 	case resp := <-c.Websocket.DataHandler:
 		if resp.(WsUserBalanceResponse).Status[0] != "OK" {
@@ -462,8 +469,7 @@ func TestWsAuthGetAccountBalance(t *testing.T) {
 
 // TestWsAuthSubmitOrders dials websocket, sends login request.
 func TestWsAuthSubmitOrders(t *testing.T) {
-	setupTestAuth(t)
-
+	setupWSTestAuth(t)
 	order := WsSubmitOrderParameters{
 		Amount:   1,
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
@@ -475,7 +481,7 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(5 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
 	select {
 	case <-c.Websocket.DataHandler:
 	case <-timer.C:
@@ -486,7 +492,7 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 
 // TestWsAuthCancelOrders dials websocket, sends login request.
 func TestWsAuthCancelOrders(t *testing.T) {
-	setupTestAuth(t)
+	setupWSTestAuth(t)
 	order := WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
@@ -495,7 +501,7 @@ func TestWsAuthCancelOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(5 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
 	select {
 	case <-c.Websocket.DataHandler:
 	case <-timer.C:
@@ -506,8 +512,7 @@ func TestWsAuthCancelOrders(t *testing.T) {
 
 // TestWsAuthCancelOrder dials websocket, sends login request.
 func TestWsAuthCancelOrder(t *testing.T) {
-	setupTestAuth(t)
-
+	setupWSTestAuth(t)
 	order := WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
@@ -516,7 +521,7 @@ func TestWsAuthCancelOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(5 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
 	select {
 	case <-c.Websocket.DataHandler:
 	case <-timer.C:
@@ -527,13 +532,12 @@ func TestWsAuthCancelOrder(t *testing.T) {
 
 // TestWsAuthGetOpenOrders dials websocket, sends login request.
 func TestWsAuthGetOpenOrders(t *testing.T) {
-	setupTestAuth(t)
-
+	setupWSTestAuth(t)
 	err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC))
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(10 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
 	select {
 	case <-c.Websocket.DataHandler:
 	case <-timer.C:

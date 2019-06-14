@@ -321,7 +321,7 @@ type WsRequest struct {
 type WsNotification struct {
 	JSONRPCVersion string      `json:"jsonrpc,omitempty"`
 	Method         string      `json:"method"`
-	Params         interface{} `json:"params,omitempty"`
+	Params         interface{} `json:"params"`
 }
 
 type params struct {

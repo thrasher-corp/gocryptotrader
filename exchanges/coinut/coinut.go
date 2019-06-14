@@ -94,6 +94,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 	} else {
 		c.Enabled = true
 		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		c.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		c.SetHTTPClientTimeout(exch.HTTPTimeout)
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)

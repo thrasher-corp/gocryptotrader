@@ -48,11 +48,9 @@ func (h *HitBTC) WsConnect() error {
 	}
 
 	go h.WsHandleData()
-	if h.AuthenticatedAPISupport {
-		err = h.wsLogin()
-		if err != nil {
-			return err
-		}
+	err = h.wsLogin()
+	if err != nil {
+		log.Errorf("%v - authentication failed: %v", h.Name, err)
 	}
 
 	h.GenerateDefaultSubscriptions()
@@ -99,6 +97,9 @@ func (h *HitBTC) WsHandleData() {
 			}
 
 			if init.Error.Message != "" || init.Error.Code != 0 {
+				if init.Error.Code == 1002 {
+					h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				}
 				h.Websocket.DataHandler <- fmt.Errorf("hitbtc.go error - Code: %d, Message: %s",
 					init.Error.Code,
 					init.Error.Message)
@@ -308,7 +309,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 func (h *HitBTC) GenerateDefaultSubscriptions() {
 	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
 	var subscriptions []exchange.WebsocketChannelSubscription
-	if h.AuthenticatedAPISupport {
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 			Channel: "subscribeReports",
 		})
@@ -394,6 +395,10 @@ func (h *HitBTC) wsSend(data interface{}) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) wsLogin() error {
+	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
+	}
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	nonce := fmt.Sprintf("%v", time.Now().Unix())
 	hmac := common.GetHMAC(common.HashSHA256, []byte(nonce), []byte(h.APISecret))
 	request := WsLoginRequest{
@@ -406,12 +411,17 @@ func (h *HitBTC) wsLogin() error {
 		},
 	}
 
-	return h.wsSend(request)
+	err := h.wsSend(request)
+	if err != nil {
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return err
+	}
+	return nil
 }
 
 // wsPlaceOrder sends a websocket message to submit an order
 func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity float64) error {
-	if !h.AuthenticatedAPISupport {
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsSubmitOrderRequest{
@@ -430,7 +440,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 
 // wsCancelOrder sends a websocket message to cancel an order
 func (h *HitBTC) wsCancelOrder(clientOrderID string) error {
-	if !h.AuthenticatedAPISupport {
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsCancelOrderRequest{
@@ -445,7 +455,7 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) error {
 
 // wsReplaceOrder sends a websocket message to replace an order
 func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) error {
-	if !h.AuthenticatedAPISupport {
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsReplaceOrderRequest{
@@ -463,7 +473,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) e
 
 // wsGetActiveOrders sends a websocket message to get all active orders
 func (h *HitBTC) wsGetActiveOrders() error {
-	if !h.AuthenticatedAPISupport {
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsReplaceOrderRequest{
@@ -476,7 +486,7 @@ func (h *HitBTC) wsGetActiveOrders() error {
 
 // wsGetTradingBalance sends a websocket message to get trading balance
 func (h *HitBTC) wsGetTradingBalance() error {
-	if !h.AuthenticatedAPISupport {
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsReplaceOrderRequest{

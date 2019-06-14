@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var p Poloniex
@@ -31,6 +32,7 @@ func TestSetup(t *testing.T) {
 		if err != nil {
 			t.Error("Test Failed - Poloniex Setup() init error")
 		}
+		poloniexConfig.AuthenticatedWebsocketAPISupport = true
 		poloniexConfig.AuthenticatedAPISupport = true
 		poloniexConfig.APIKey = apiKey
 		poloniexConfig.APISecret = apiSecret
@@ -420,7 +422,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWsHandleAccountData(t *testing.T) {
 	t.Parallel()
 	TestSetup(t)
-	p.Websocket.DataHandler = make(chan interface{}, 99)
+	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	jsons := []string{
 		`[["n",225,807230187,0,"1000.00000000","0.10000000","2018-11-07 16:42:42"],["b",267,"e","-0.10000000"]]`,
 		`[["o",807230187,"0.00000000"],["b",267,"e","0.10000000"]]`,
@@ -440,7 +442,7 @@ func TestWsHandleAccountData(t *testing.T) {
 // Will receive a message only on failure
 func TestWsAuth(t *testing.T) {
 	TestSetup(t)
-	if !p.Websocket.IsEnabled() && !p.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+	if !p.Websocket.IsEnabled() && !p.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}
 	var err error
@@ -450,15 +452,15 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.Websocket.DataHandler = make(chan interface{}, 999)
-	p.Websocket.TrafficAlert = make(chan struct{}, 999)
+	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go p.WsHandleData()
 	defer p.WebsocketConn.Close()
 	err = p.wsSendAuthorisedCommand("subscribe")
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case response := <-p.Websocket.DataHandler:
 		t.Error(response)

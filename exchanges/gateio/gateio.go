@@ -93,6 +93,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 	} else {
 		g.Enabled = true
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		g.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		g.APIAuthPEMKey = exch.APIAuthPEMKey
 		g.SetHTTPClientTimeout(exch.HTTPTimeout)

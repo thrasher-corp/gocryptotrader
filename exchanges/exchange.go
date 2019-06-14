@@ -181,6 +181,9 @@ const (
 	NoFiatWithdrawalsText                   string = "NO FIAT WITHDRAWAL"
 
 	UnknownWithdrawalTypeText string = "UNKNOWN"
+
+	RestAuthentication      uint8 = 0
+	WebsocketAuthentication uint8 = 1
 )
 
 // AccountInfo is a Generic type to hold each exchange's holdings in
@@ -258,6 +261,7 @@ type Base struct {
 	Verbose                                    bool
 	RESTPollingDelay                           time.Duration
 	AuthenticatedAPISupport                    bool
+	AuthenticatedWebsocketAPISupport           bool
 	APIWithdrawPermissions                     uint32
 	APIAuthPEMKeySupport                       bool
 	APISecret, APIKey, APIAuthPEMKey, ClientID string
@@ -300,7 +304,7 @@ type IBotExchange interface {
 	GetAvailableCurrencies() currency.Pairs
 	GetAssetTypes() []string
 	GetAccountInfo() (AccountInfo, error)
-	GetAuthenticatedAPISupport() bool
+	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetCurrencies(pairs []currency.Pair, enabledPairs bool) error
 	GetExchangeHistory(p currency.Pair, assetType string) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
@@ -575,8 +579,14 @@ func (e *Base) SetCurrencyPairFormat() error {
 
 // GetAuthenticatedAPISupport returns whether the exchange supports
 // authenticated API requests
-func (e *Base) GetAuthenticatedAPISupport() bool {
-	return e.AuthenticatedAPISupport
+func (e *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
+	switch endpoint {
+	case RestAuthentication:
+		return e.AuthenticatedAPISupport
+	case WebsocketAuthentication:
+		return e.AuthenticatedWebsocketAPISupport
+	}
+	return false
 }
 
 // GetName is a method that returns the name of the exchange base

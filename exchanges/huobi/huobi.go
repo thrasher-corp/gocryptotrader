@@ -112,6 +112,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 	} else {
 		h.Enabled = true
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.APIAuthPEMKeySupport = exch.APIAuthPEMKeySupport
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
@@ -150,7 +151,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
-			huobiSocketIOAddress,
+			wsMarketURL,
 			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)

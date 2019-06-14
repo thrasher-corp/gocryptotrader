@@ -491,7 +491,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 		Channel: fmt.Sprintf("%v", wsTickerDataID),
 	})
 
-	if p.AuthenticatedAPISupport {
+	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 			Channel: fmt.Sprintf("%v", wsAccountNotificationID),
 		})

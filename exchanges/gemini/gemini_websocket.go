@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -43,11 +44,9 @@ func (g *Gemini) WsConnect() error {
 	}
 
 	go g.WsHandleData()
-	if g.AuthenticatedAPISupport {
-		err := g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
-		if err != nil {
-			return err
-		}
+	err := g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
+	if err != nil {
+		log.Errorf("%v - authentication failed: %v", g.Name, err)
 	}
 	return g.WsSubscribe(&dialer)
 }
@@ -77,6 +76,9 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 
 // WsSecureSubscribe will connect to Gemini's secure endpoint
 func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
+	if !g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
+	}
 	payload := WsRequestPayload{
 		Request: fmt.Sprintf("/v1/%v", url),
 		Nonce:   time.Now().UnixNano(),
@@ -213,8 +215,8 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "update":
 				if resp.Currency.IsEmpty() {
-					g.Websocket.DataHandler <- fmt.Errorf("gemini_websocket.go - unhandled data %s",
-						resp.Raw)
+					g.Websocket.DataHandler <- fmt.Errorf("%v - unhandled data %s",
+						g.Name, resp.Raw)
 					continue
 				}
 				var marketUpdate WsMarketUpdateResponse
@@ -225,8 +227,8 @@ func (g *Gemini) WsHandleData() {
 				}
 				g.wsProcessUpdate(marketUpdate, resp.Currency)
 			default:
-				g.Websocket.DataHandler <- fmt.Errorf("gemini_websocket.go - unhandled data %s",
-					resp.Raw)
+				g.Websocket.DataHandler <- fmt.Errorf("%v - unhandled data %s",
+					g.Name, resp.Raw)
 			}
 		}
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do better tests
@@ -39,6 +40,7 @@ func TestSetup(t *testing.T) {
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bitfinex Setup values not set correctly")
 	}
+	b.AuthenticatedWebsocketAPISupport = true
 	b.AuthenticatedAPISupport = true
 	// custom rate limit for testing
 	b.Requester.SetRateLimit(true, time.Millisecond*300, 1)
@@ -958,7 +960,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	if !b.Websocket.IsEnabled() && !b.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+	if !b.Websocket.IsEnabled() && !b.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}
 	var err error
@@ -968,15 +970,15 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b.Websocket.DataHandler = make(chan interface{}, 999)
-	b.Websocket.TrafficAlert = make(chan struct{}, 999)
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go b.WsDataHandler()
 	defer b.WebsocketConn.Close()
 	err = b.WsSendAuth()
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case resp := <-b.Websocket.DataHandler:
 		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {

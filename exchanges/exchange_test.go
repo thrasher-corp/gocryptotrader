@@ -376,7 +376,7 @@ func TestGetAuthenticatedAPISupport(t *testing.T) {
 		AuthenticatedAPISupport: false,
 	}
 
-	if base.GetAuthenticatedAPISupport() {
+	if base.GetAuthenticatedAPISupport(RestAuthentication) {
 		t.Fatal("Test failed. TestGetAuthenticatedAPISupport returned true when it should of been false.")
 	}
 }

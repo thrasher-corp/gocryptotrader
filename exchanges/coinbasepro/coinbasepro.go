@@ -103,6 +103,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 	} else {
 		c.Enabled = true
 		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		c.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
 		c.SetHTTPClientTimeout(exch.HTTPTimeout)
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)

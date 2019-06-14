@@ -107,13 +107,11 @@ func (b *Bitmex) WsConnector() error {
 	go b.wsHandleIncomingData()
 	b.GenerateDefaultSubscriptions()
 
-	if b.AuthenticatedAPISupport {
-		err := b.websocketSendAuth()
-		if err != nil {
-			return err
-		}
-		b.GenerateAuthenticatedSubscriptions()
+	err = b.websocketSendAuth()
+	if err != nil {
+		log.Errorf("%v - authentication failed: %v", b.Name, err)
 	}
+	b.GenerateAuthenticatedSubscriptions()
 	return nil
 }
 
@@ -192,11 +190,14 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 				if decodedResp.Success {
 					b.Websocket.DataHandler <- decodedResp
-					if b.Verbose {
-						if len(quickCapture) == 3 {
+					if len(quickCapture) == 3 {
+						if b.Verbose {
 							log.Debugf("%s websocket: Successfully subscribed to %s",
 								b.Name, decodedResp.Subscribe)
-						} else {
+						}
+					} else {
+						b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+						if b.Verbose {
 							log.Debugf("%s websocket: Successfully authenticated websocket connection",
 								b.Name)
 						}
@@ -471,6 +472,9 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
+	if !b.Websocket.CanUseAuthenticatedEndpoints() {
+		return
+	}
 	contracts := b.GetEnabledCurrencies()
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
@@ -526,6 +530,10 @@ func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 
 // WebsocketSendAuth sends an authenticated subscription
 func (b *Bitmex) websocketSendAuth() error {
+	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", b.Name)
+	}
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
 	newTimestamp := strconv.FormatInt(timestamp, 10)
 	hmac := common.GetHMAC(common.HashSHA256,
@@ -536,7 +544,12 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
 		signature)
-	return b.wsSend(sendAuth)
+	err := b.wsSend(sendAuth)
+	if err != nil {
+		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return err
+	}
+	return nil
 }
 
 // WsSend sends data to the websocket server

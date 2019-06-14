@@ -368,6 +368,9 @@ func (z *ZB) wsSend(data interface{}) error {
 }
 
 func (z *ZB) wsAddSubUser(username, password string) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsAddSubUserRequest{
 		Memo:        "Memo",
 		Password:    password,
@@ -382,6 +385,9 @@ func (z *ZB) wsAddSubUser(username, password string) error {
 }
 
 func (z *ZB) wsGetSubUserList() error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsAuthenticatedRequest{}
 	request.Channel = "getSubUserList"
 	request.Event = zWebsocketAddChannel
@@ -392,6 +398,9 @@ func (z *ZB) wsGetSubUserList() error {
 }
 
 func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName, toUserName string) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsDoTransferFundsRequest{
 		Amount:       amount,
 		Currency:     pair,
@@ -408,6 +417,9 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 }
 
 func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm bool, keyName, toUserID string) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsCreateSubUserKeyRequest{
 		AssetPerm:   assetPerm,
 		EntrustPerm: entrustPerm,
@@ -452,6 +464,9 @@ func (z *ZB) wsFixInvalidJSON(json []byte) []byte {
 }
 
 func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsSubmitOrderRequest{
 		Amount:    amount,
 		Price:     price,
@@ -467,6 +482,9 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 }
 
 func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsCancelOrderRequest{
 		ID: orderID,
 	}
@@ -479,6 +497,9 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) error {
 }
 
 func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsGetOrderRequest{
 		ID: orderID,
 	}
@@ -491,6 +512,9 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) error {
 }
 
 func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsGetOrdersRequest{
 		PageIndex: pageIndex,
 		TradeType: tradeType,
@@ -504,6 +528,9 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) error {
 }
 
 func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsGetOrdersIgnoreTradeTypeRequest{
 		PageIndex: pageIndex,
 		PageSize:  pageSize,
@@ -517,6 +544,9 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 }
 
 func (z *ZB) wsGetAccountInfoRequest() error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
 	request := WsAuthenticatedRequest{
 		Channel:   "getaccountinfo",
 		Event:     zWebsocketAddChannel,

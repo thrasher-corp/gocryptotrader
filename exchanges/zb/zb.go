@@ -95,6 +95,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 	} else {
 		z.Enabled = true
 		z.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		z.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		z.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		z.APIAuthPEMKey = exch.APIAuthPEMKey
 		z.SetHTTPClientTimeout(exch.HTTPTimeout)

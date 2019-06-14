@@ -50,6 +50,7 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.SetConnector(connector)
 	e.Websocket.SetWebsocketURL(runningURL)
 	e.Websocket.SetExchangeName(exchangeName)
+	e.Websocket.SetCanUseAuthenticatedEndpoints(e.AuthenticatedWebsocketAPISupport)
 
 	e.Websocket.init = false
 	e.Websocket.noConnectionCheckLimit = 5
@@ -883,4 +884,20 @@ func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannel
 // subscriptions is a private member and cannot be manipulated
 func (w *Websocket) GetSubscriptions() []WebsocketChannelSubscription {
 	return append(w.subscribedChannels[:0:0], w.subscribedChannels...)
+}
+
+// SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in
+// a thread safe manner
+func (w *Websocket) SetCanUseAuthenticatedEndpoints(val bool) {
+	w.subscriptionLock.Lock()
+	defer w.subscriptionLock.Unlock()
+	w.canUseAuthenticatedEndpoints = val
+}
+
+// CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in
+// a thread safe manner
+func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
+	w.subscriptionLock.Lock()
+	defer w.subscriptionLock.Unlock()
+	return w.canUseAuthenticatedEndpoints
 }

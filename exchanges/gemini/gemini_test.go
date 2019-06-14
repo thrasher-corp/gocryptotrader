@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please enter sandbox API keys & assigned roles for better testing procedures
@@ -63,6 +64,7 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Gemini Setup() init error")
 	}
 
+	geminiConfig.AuthenticatedWebsocketAPISupport = true
 	geminiConfig.AuthenticatedAPISupport = true
 	geminiConfig.Websocket = true
 	Session[1].Setup(&geminiConfig)
@@ -565,7 +567,7 @@ func TestWsAuth(t *testing.T) {
 	g := Session[1]
 	g.WebsocketURL = geminiWebsocketSandboxEndpoint
 
-	if !g.Websocket.IsEnabled() && !g.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
@@ -574,7 +576,7 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case resp := <-g.Websocket.DataHandler:
 		if resp.(WsSubscriptionAcknowledgementResponse).Type != "subscription_ack" {

@@ -104,6 +104,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 	} else {
 		p.Enabled = true
 		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		p.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		p.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		p.SetHTTPClientTimeout(exch.HTTPTimeout)
 		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)

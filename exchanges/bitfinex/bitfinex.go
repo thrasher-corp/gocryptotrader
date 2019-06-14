@@ -129,6 +129,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 	} else {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		b.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)

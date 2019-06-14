@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var h HitBTC
@@ -32,6 +33,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - HitBTC Setup() init error")
 	}
+	hitbtcConfig.AuthenticatedWebsocketAPISupport = true
 	hitbtcConfig.AuthenticatedAPISupport = true
 	hitbtcConfig.APIKey = apiKey
 	hitbtcConfig.APISecret = apiSecret
@@ -387,13 +389,13 @@ func TestGetDepositAddress(t *testing.T) {
 func setupWsAuth(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
-	if !h.Websocket.IsEnabled() && !h.AuthenticatedAPISupport || !areTestAPIKeysSet() {
+	if !h.Websocket.IsEnabled() && !h.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(exchange.WebsocketNotEnabled)
 	}
 	var err error
 	var dialer websocket.Dialer
-	h.Websocket.DataHandler = make(chan interface{}, 999)
-	h.Websocket.TrafficAlert = make(chan struct{}, 999)
+	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	h.WebsocketConn, _, err = dialer.Dial(hitbtcWebsocketAddress, http.Header{})
 	if err != nil {
 		t.Fatal(err)
@@ -403,7 +405,7 @@ func setupWsAuth(t *testing.T) {
 	timer := time.NewTimer(time.Second)
 	select {
 	case loginError := <-h.Websocket.DataHandler:
-		t.Error(loginError)
+		t.Fatal(loginError)
 	case <-timer.C:
 	}
 	timer.Stop()
@@ -416,7 +418,7 @@ func TestWsCancelOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case <-h.Websocket.DataHandler:
 	case <-timer.C:
@@ -432,7 +434,7 @@ func TestWsPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case <-h.Websocket.DataHandler:
 	case <-timer.C:
@@ -448,7 +450,7 @@ func TestWsReplaceOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case <-h.Websocket.DataHandler:
 	case <-timer.C:
@@ -464,7 +466,7 @@ func TestWsGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case <-h.Websocket.DataHandler:
 	case <-timer.C:
@@ -480,7 +482,7 @@ func TestWsGetTradingBalance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case <-h.Websocket.DataHandler:
 	case <-timer.C:

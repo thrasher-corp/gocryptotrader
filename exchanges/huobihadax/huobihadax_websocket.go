@@ -21,11 +21,27 @@ import (
 
 // WS URL values
 const (
-	HuobiHadaxSocketIOAddress       = "wss://api.hadax.com/ws"
-	HuobiHadaxAccountsOrdersAddress = "wss://api.huobi.pro/ws/v1"
-	wsMarketKline                   = "market.%s.kline.1min"
-	wsMarketDepth                   = "market.%s.depth.step0"
-	wsMarketTrade                   = "market.%s.trade.detail"
+	HuobiHadaxSocketIOAddress = "wss://api.hadax.com/ws"
+	wsMarketKline             = "market.%s.kline.1min"
+	wsMarketDepth             = "market.%s.depth.step0"
+	wsMarketTrade             = "market.%s.trade.detail"
+
+	wsAccountsOrdersBaseURL  = "wss://api.huobi.pro"
+	wsAccountsOrdersEndPoint = "/ws/v1"
+	wsAccountsList           = "accounts.list"
+	wsOrdersList             = "orders.list"
+	wsOrdersDetail           = "orders.detail"
+	wsAccountsOrdersURL      = wsAccountsOrdersBaseURL + wsAccountsOrdersEndPoint
+	wsAccountListEndpoint    = wsAccountsOrdersEndPoint + "/" + wsAccountsList
+	wsOrdersListEndpoint     = wsAccountsOrdersEndPoint + "/" + wsOrdersList
+	wsOrdersDetailEndpoint   = wsAccountsOrdersEndPoint + "/" + wsOrdersDetail
+
+	wsDateTimeFormatting = "2006-01-02T15:04:05"
+
+	signatureMethod  = "HmacSHA256"
+	signatureVersion = "2"
+	requestOp        = "req"
+	authOp           = "auth"
 )
 
 // Instantiates a communications channel between websocket connections
@@ -52,15 +68,13 @@ func (h *HUOBIHADAX) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	if h.AuthenticatedAPISupport {
-		err = h.wsAuthenticatedDial(&dialer)
-		if err != nil {
-			return err
-		}
-		err = h.wsLogin()
-		if err != nil {
-			return err
-		}
+	err = h.wsAuthenticatedDial(&dialer)
+	if err != nil {
+		log.Errorf("%v - authenticated dial failed: %v", h.Name, err)
+	}
+	err = h.wsLogin()
+	if err != nil {
+		log.Errorf("%v - authentication failed: %v", h.Name, err)
 	}
 
 	go h.WsHandleData()
@@ -81,13 +95,16 @@ func (h *HUOBIHADAX) wsDial(dialer *websocket.Dialer) error {
 }
 
 func (h *HUOBIHADAX) wsAuthenticatedDial(dialer *websocket.Dialer) error {
+	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
+	}
 	var err error
 	var conStatus *http.Response
-	h.AuthenticatedWebsocketConn, conStatus, err = dialer.Dial(HuobiHadaxAccountsOrdersAddress, http.Header{})
+	h.AuthenticatedWebsocketConn, conStatus, err = dialer.Dial(wsAccountsOrdersURL, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v %v %v Error: %v", HuobiHadaxAccountsOrdersAddress, conStatus, conStatus.StatusCode, err)
+		return fmt.Errorf("%v %v %v Error: %v", wsAccountsOrdersURL, conStatus, conStatus.StatusCode, err)
 	}
-	go h.wsMultiConnectionFunnel(h.AuthenticatedWebsocketConn, HuobiHadaxAccountsOrdersAddress)
+	go h.wsMultiConnectionFunnel(h.AuthenticatedWebsocketConn, wsAccountsOrdersURL)
 	return nil
 }
 
@@ -142,7 +159,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 			switch resp.URL {
 			case HuobiHadaxSocketIOAddress:
 				h.wsHandleMarketData(resp)
-			case HuobiHadaxAccountsOrdersAddress:
+			case wsAccountsOrdersURL:
 				h.wsHandleAuthenticatedData(resp)
 			}
 		}
@@ -157,6 +174,9 @@ func (h *HUOBIHADAX) wsHandleAuthenticatedData(resp WsMessage) {
 		return
 	}
 	if init.ErrorCode > 0 {
+		if init.ErrorMessage == "api-signature-not-valid" {
+			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
 		h.Websocket.DataHandler <- fmt.Errorf("%v %v Websocket error %v %s",
 			h.Name,
 			resp.URL,
@@ -176,10 +196,12 @@ func (h *HUOBIHADAX) wsHandleAuthenticatedData(resp WsMessage) {
 		if h.Verbose {
 			log.Debugf("%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
 		}
+		return
 	}
 
 	switch {
-	case strings.EqualFold(init.Op, "auth"):
+	case strings.EqualFold(init.Op, authOp):
+		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		var response WsAuthenticatedDataResponse
 		err := common.JSONDecode(resp.Raw, &response)
 		if err != nil {
@@ -208,21 +230,21 @@ func (h *HUOBIHADAX) wsHandleAuthenticatedData(resp WsMessage) {
 			h.Websocket.DataHandler <- err
 		}
 		h.Websocket.DataHandler <- response
-	case strings.EqualFold(init.Topic, "accounts.list"):
+	case strings.EqualFold(init.Topic, wsAccountsList):
 		var response WsAuthenticatedAccountsListResponse
 		err := common.JSONDecode(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
 		h.Websocket.DataHandler <- response
-	case strings.EqualFold(init.Topic, "orders.list"):
+	case strings.EqualFold(init.Topic, wsOrdersList):
 		var response WsAuthenticatedOrdersListResponse
 		err := common.JSONDecode(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
 		h.Websocket.DataHandler <- response
-	case strings.EqualFold(init.Topic, "orders.detail"):
+	case strings.EqualFold(init.Topic, wsOrdersDetail):
 		var response WsAuthenticatedOrderDetailResponse
 		err := common.JSONDecode(resp.Raw, &response)
 		if err != nil {
@@ -345,7 +367,7 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
 	var subscriptions []exchange.WebsocketChannelSubscription
-	if h.AuthenticatedAPISupport {
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, "orders.%v", "orders.%v.update")
 		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 			Channel: "accounts",
@@ -369,7 +391,7 @@ func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 func (h *HUOBIHADAX) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
-		return h.wsAuthenticatedSubscribe("sub", "/ws/v1/"+channelToSubscribe.Channel, channelToSubscribe.Channel)
+		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
 	subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
 	if err != nil {
@@ -382,7 +404,7 @@ func (h *HUOBIHADAX) Subscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
-		return h.wsAuthenticatedSubscribe("unsub", "/ws/v1/"+channelToSubscribe.Channel, channelToSubscribe.Channel)
+		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
 	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
 	if err != nil {
@@ -402,17 +424,26 @@ func (h *HUOBIHADAX) wsSend(data []byte) error {
 }
 
 func (h *HUOBIHADAX) wsLogin() error {
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
+	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
+	}
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticationRequest{
-		Op:               "auth",
+		Op:               authOp,
 		AccessKeyID:      h.APIKey,
-		SignatureMethod:  "HmacSHA256",
-		SignatureVersion: "2",
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 	}
-	hmac := h.wsGenerateSignature(timestamp, "/ws/v1")
+	hmac := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
 	request.Signature = common.Base64Encode(hmac)
-	return h.wsAuthenticatedSend(request)
+	err := h.wsAuthenticatedSend(request)
+	if err != nil {
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return err
+	}
+	return nil
 }
 
 func (h *HUOBIHADAX) wsAuthenticatedSend(request interface{}) error {
@@ -431,8 +462,8 @@ func (h *HUOBIHADAX) wsAuthenticatedSend(request interface{}) error {
 func (h *HUOBIHADAX) wsGenerateSignature(timestamp, endpoint string) []byte {
 	values := url.Values{}
 	values.Set("AccessKeyId", h.APIKey)
-	values.Set("SignatureMethod", "HmacSHA256")
-	values.Set("SignatureVersion", "2")
+	values.Set("SignatureMethod", signatureMethod)
+	values.Set("SignatureVersion", signatureVersion)
 	values.Set("Timestamp", timestamp)
 	host := "api.huobi.pro"
 	payload := fmt.Sprintf("%s\n%s\n%s\n%s",
@@ -441,12 +472,12 @@ func (h *HUOBIHADAX) wsGenerateSignature(timestamp, endpoint string) []byte {
 }
 
 func (h *HUOBIHADAX) wsAuthenticatedSubscribe(operation, endpoint, topic string) error {
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedSubscriptionRequest{
 		Op:               operation,
 		AccessKeyID:      h.APIKey,
-		SignatureMethod:  "HmacSHA256",
-		SignatureVersion: "2",
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            topic,
 	}
@@ -456,51 +487,60 @@ func (h *HUOBIHADAX) wsAuthenticatedSubscribe(operation, endpoint, topic string)
 }
 
 func (h *HUOBIHADAX) wsGetAccountsList(pair currency.Pair) error {
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
+	}
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedAccountsListRequest{
-		Op:               "req",
+		Op:               requestOp,
 		AccessKeyID:      h.APIKey,
-		SignatureMethod:  "HmacSHA256",
-		SignatureVersion: "2",
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
-		Topic:            "accounts.list",
+		Topic:            wsAccountsList,
 		Symbol:           pair,
 	}
-	hmac := h.wsGenerateSignature(timestamp, "/ws/v1/accounts.list")
+	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
 	request.Signature = common.Base64Encode(hmac)
 	return h.wsAuthenticatedSend(request)
 }
 
 func (h *HUOBIHADAX) wsGetOrdersList(accountID int64, pair currency.Pair) error {
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
+	}
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrdersListRequest{
-		Op:               "req",
+		Op:               requestOp,
 		AccessKeyID:      h.APIKey,
-		SignatureMethod:  "HmacSHA256",
-		SignatureVersion: "2",
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
-		Topic:            "orders.list",
+		Topic:            wsOrdersList,
 		AccountID:        accountID,
 		Symbol:           pair.Lower(),
 		States:           "submitted,partial-filled",
 	}
-	hmac := h.wsGenerateSignature(timestamp, "/ws/v1/orders.list")
+	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
 	request.Signature = common.Base64Encode(hmac)
 	return h.wsAuthenticatedSend(request)
 }
 
 func (h *HUOBIHADAX) wsGetOrderDetails(orderID string) error {
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authenticated cannot get order details", h.Name)
+	}
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrderDetailsRequest{
-		Op:               "req",
+		Op:               requestOp,
 		AccessKeyID:      h.APIKey,
-		SignatureMethod:  "HmacSHA256",
-		SignatureVersion: "2",
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
-		Topic:            "orders.detail",
+		Topic:            wsOrdersDetail,
 		OrderID:          orderID,
 	}
-	hmac := h.wsGenerateSignature(timestamp, "/ws/v1/orders.detail")
+	hmac := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
 	request.Signature = common.Base64Encode(hmac)
 	return h.wsAuthenticatedSend(request)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -69,14 +70,15 @@ func TestSetup(t *testing.T) {
 	}
 
 	okcoinConfig.AuthenticatedAPISupport = true
+	okcoinConfig.AuthenticatedWebsocketAPISupport = true
 	okcoinConfig.APIKey = apiKey
 	okcoinConfig.APISecret = apiSecret
 	okcoinConfig.ClientID = passphrase
 	okcoinConfig.WebsocketURL = o.WebsocketURL
 	o.Setup(&okcoinConfig)
 	testSetupRan = true
-	o.Websocket.DataHandler = make(chan interface{}, 999)
-	o.Websocket.TrafficAlert = make(chan struct{}, 999)
+	o.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	o.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 }
 
 func areTestAPIKeysSet() bool {
@@ -801,13 +803,12 @@ func TestGetMarginTransactionDetails(t *testing.T) {
 // Will log in if credentials are present
 func TestSendWsMessages(t *testing.T) {
 	TestSetDefaults(t)
-	if !websocketEnabled {
-		t.Skip("Websocket not enabled, skipping")
+	if !o.Websocket.IsEnabled() && !o.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	var err error
 	var ok bool
-	o.Websocket.TrafficAlert = make(chan struct{}, 99)
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
 	if err != nil {
@@ -831,16 +832,12 @@ func TestSendWsMessages(t *testing.T) {
 			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 		}
 	}
-
-	if !areTestAPIKeysSet() {
-		return
-	}
 	err = o.WsLogin()
 	if err != nil {
 		t.Error(err)
 	}
-	response = <-o.Websocket.DataHandler
-	if err, ok := response.(error); ok && err != nil {
+	responseTwo := <-o.Websocket.DataHandler
+	if err, ok := responseTwo.(error); ok && err != nil {
 		t.Error(err)
 	}
 }

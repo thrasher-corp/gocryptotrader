@@ -134,6 +134,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 	} else {
 		g.Enabled = true
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		g.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		g.SetHTTPClientTimeout(exch.HTTPTimeout)
 		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)

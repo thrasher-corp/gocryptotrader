@@ -98,7 +98,8 @@ type Websocket struct {
 	// TrafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
 	// Functionality defines websocket stream capabilities
-	Functionality uint32
+	Functionality                uint32
+	canUseAuthenticatedEndpoints bool
 }
 
 // WebsocketChannelSubscription container for websocket subscriptions
