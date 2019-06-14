@@ -30,7 +30,9 @@ func (c IComm) Setup() {
 			err := c[i].Connect()
 			if err != nil {
 				log.Errorf("Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
+				continue
 			}
+			log.Debugf("Communications: %v is enabled and online.", c[i].GetName())
 		}
 	}
 }
@@ -46,6 +48,18 @@ func (c IComm) PushEvent(event Event) {
 			}
 		}
 	}
+}
+
+// GetStatus returns the status of the comms relayers
+func (c IComm) GetStatus() map[string]CommsStatus {
+	result := make(map[string]CommsStatus)
+	for x := range c {
+		result[c[x].GetName()] = CommsStatus{
+			Enabled:   c[x].IsEnabled(),
+			Connected: c[x].IsConnected(),
+		}
+	}
+	return result
 }
 
 // GetEnabledCommunicationMediums prints out enabled and connected communication

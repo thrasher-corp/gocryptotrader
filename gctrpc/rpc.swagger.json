@@ -243,6 +243,22 @@
         ]
       }
     },
+    "/v1/getcommunicationrelayers": {
+      "get": {
+        "operationId": "GetCommunicationRelayers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCommunicationRelayersResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getconfig": {
       "get": {
         "operationId": "GetConfig",
@@ -960,6 +976,19 @@
         }
       }
     },
+    "gctrpcCommunicationRelayer": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "connected": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
     "gctrpcConditionParams": {
       "type": "object",
       "properties": {
@@ -1071,6 +1100,17 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcAccount"
+          }
+        }
+      }
+    },
+    "gctrpcGetCommunicationRelayersResponse": {
+      "type": "object",
+      "properties": {
+        "communication_relayers": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcCommunicationRelayer"
           }
         }
       }

@@ -6,9 +6,9 @@ import (
 	"net/smtp"
 	"strings"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -23,6 +23,7 @@ type SMTPservice struct {
 	Port            string
 	AccountName     string
 	AccountPassword string
+	From            string
 	RecipientList   string
 }
 
@@ -36,7 +37,9 @@ func (s *SMTPservice) Setup(cfg *config.CommunicationsConfig) {
 	s.Port = cfg.SMTPConfig.Port
 	s.AccountName = cfg.SMTPConfig.AccountName
 	s.AccountPassword = cfg.SMTPConfig.AccountPassword
+	s.From = cfg.SMTPConfig.From
 	s.RecipientList = cfg.SMTPConfig.RecipientList
+	log.Debugf("SMTP: Setup - From: %v. To: %s. Server: %s.", s.From, s.RecipientList, s.Host)
 }
 
 // IsConnected returns whether or not the connection is connected
@@ -51,36 +54,34 @@ func (s *SMTPservice) Connect() error {
 }
 
 // PushEvent sends an event to supplied recipient list via SMTP
-func (s *SMTPservice) PushEvent(base.Event) error {
-	return common.ErrNotYetImplemented
+func (s *SMTPservice) PushEvent(e base.Event) error {
+	return s.Send(e.Type, e.Message)
 }
 
 // Send sends an email template to the recipient list via your SMTP host when
 // an internal event is triggered by GoCryptoTrader
-func (s *SMTPservice) Send(subject, alert string) error {
-	if subject == "" || alert == "" {
+func (s *SMTPservice) Send(subject, msg string) error {
+	if subject == "" || msg == "" {
 		return errors.New("STMPservice Send() please add subject and alert")
 	}
 
-	list := strings.Split(s.RecipientList, ",")
+	log.Debugf("SMTP: Sending email to %v. Subject: %s Message: %s [From: %s]", s.RecipientList,
+		subject, msg, s.From)
+	messageToSend := fmt.Sprintf(
+		msgSMTP,
+		s.RecipientList,
+		subject,
+		mime,
+		msg)
 
-	for i := range list {
-		messageToSend := fmt.Sprintf(
-			msgSMTP,
-			list[i],
-			subject,
-			mime,
-			alert)
-
-		err := smtp.SendMail(
-			s.Host+":"+s.Port,
-			smtp.PlainAuth("", s.AccountName, s.AccountPassword, s.Host),
-			s.AccountName,
-			[]string{list[i]},
-			[]byte(messageToSend))
-		if err != nil {
-			return err
-		}
+	err := smtp.SendMail(
+		s.Host+":"+s.Port,
+		smtp.PlainAuth("", s.AccountName, s.AccountPassword, s.Host),
+		s.From,
+		strings.Split(s.RecipientList, ","),
+		[]byte(messageToSend))
+	if err != nil {
+		return err
 	}
 	return nil
 }

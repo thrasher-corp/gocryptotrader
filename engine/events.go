@@ -143,14 +143,12 @@ func (e *Event) ExecuteAction() bool {
 // String turns the structure event into a string
 func (e *Event) String() string {
 	return fmt.Sprintf(
-		"If the %s%s [%s] %s on %s meets the following %v then %s.", e.Pair.Base.String(),
-		e.Pair.Quote.String(), e.Asset, e.Item, e.Exchange, e.Condition, e.Action,
+		"If the %s [%s] %s on %s meets the following %v then %s.", e.Pair.String(),
+		strings.ToUpper(e.Asset.String()), e.Item, e.Exchange, e.Condition, e.Action,
 	)
 }
 
 func (e *Event) processTicker() bool {
-	targetPrice := e.Condition.Price
-
 	t, err := ticker.GetTicker(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
 		if Bot.Settings.Verbose {
@@ -159,16 +157,13 @@ func (e *Event) processTicker() bool {
 		return false
 	}
 
-	lastPrice := t.Last
-
-	if lastPrice == 0 {
+	if t.Last == 0 {
 		if Bot.Settings.Verbose {
 			log.Debugln("Events: ticker last price is 0")
 		}
 		return false
 	}
-
-	return e.processCondition(lastPrice, targetPrice)
+	return e.processCondition(t.Last, e.Condition.Price)
 }
 
 func (e *Event) processCondition(actual, threshold float64) bool {
@@ -259,14 +254,14 @@ func IsValidEvent(exchange, item string, condition EventConditionParams, action 
 	}
 
 	if item == ItemPrice {
-		if condition.Price == 0 {
+		if condition.Price <= 0 {
 			return errInvalidCondition
 		}
 	}
 
 	if item == ItemOrderbook {
-		if condition.OrderbookAmount == 0 {
-			return errInvalidAction
+		if condition.OrderbookAmount <= 0 {
+			return errInvalidCondition
 		}
 	}
 
@@ -275,10 +270,6 @@ func IsValidEvent(exchange, item string, condition EventConditionParams, action 
 
 		if a[0] != ActionSMSNotify {
 			return errInvalidAction
-		}
-
-		if a[1] != "ALL" {
-			Bot.CommsManager.PushEvent(base.Event{Type: a[1]})
 		}
 	} else if action != ActionConsolePrint && action != ActionTest {
 		return errInvalidAction
@@ -302,10 +293,12 @@ func EventManger() {
 					}
 					success := event.CheckEventCondition()
 					if success {
-						log.Debugf(
-							"Events: ID: %d triggered on %s successfully.\n", event.ID,
-							event.Exchange,
+						msg := fmt.Sprintf(
+							"Events: ID: %d triggered on %s successfully [%v]\n", event.ID,
+							event.Exchange, event.String(),
 						)
+						log.Info(msg)
+						Bot.CommsManager.PushEvent(base.Event{Type: "event", Message: msg})
 						event.Executed = true
 					}
 				}

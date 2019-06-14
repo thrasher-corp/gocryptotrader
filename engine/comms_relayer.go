@@ -47,6 +47,13 @@ func (c *commsManager) Start() (err error) {
 	return nil
 }
 
+func (c *commsManager) GetStatus() (map[string]base.CommsStatus, error) {
+	if !c.Started() {
+		return nil, errors.New("communications manager not started")
+	}
+	return c.comms.GetStatus(), nil
+}
+
 func (c *commsManager) Stop() error {
 	if atomic.LoadInt32(&c.started) == 0 {
 		return errors.New("communications manager not started")

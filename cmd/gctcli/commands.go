@@ -183,6 +183,32 @@ func getRPCEndpoints(_ *cli.Context) error {
 	return nil
 }
 
+var getCommunicationRelayersCommand = cli.Command{
+	Name:   "getcommsrelayers",
+	Usage:  "gets GoCryptoTrader communication relayers",
+	Action: getCommunicationRelayers,
+}
+
+func getCommunicationRelayers(_ *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetCommunicationRelayers(context.Background(),
+		&gctrpc.GetCommunicationRelayersRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var getExchangesCommand = cli.Command{
 	Name:      "getexchanges",
 	Usage:     "gets a list of enabled or available exchanges",

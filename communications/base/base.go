@@ -24,6 +24,12 @@ type Event struct {
 	Message string
 }
 
+// CommsStatus stores the status of a comms relayer
+type CommsStatus struct {
+	Enabled   bool `json:"enabled"`
+	Connected bool `json:"connected"`
+}
+
 // IsEnabled returns if the comms package has been enabled in the configuration
 func (b *Base) IsEnabled() bool {
 	return b.Enabled

@@ -16,9 +16,16 @@ message GetInfoResponse {
     map<string, RPCEndpoint> rpc_endpoints = 7;
 }
 
-// TO-DO comms APIs
 message GetCommunicationRelayersRequest {}
-message GetCommunicationRelayersResponse {}
+
+message CommunicationRelayer {
+    bool enabled = 1;
+    bool connected = 2;
+}
+
+message GetCommunicationRelayersResponse {
+    map<string, CommunicationRelayer> communication_relayers = 1;
+}
 
 message GenericSubsystemRequest {
     string subsystem = 1;
@@ -453,6 +460,12 @@ service GoCryptoTrader {
     rpc GetRPCEndpoints (GetRPCEndpointsRequest) returns (GetRPCEndpointsResponse) {
         option (google.api.http) = {
             get: "/v1/getrpcendpoints"
+        };
+    }
+
+    rpc GetCommunicationRelayers (GetCommunicationRelayersRequest) returns (GetCommunicationRelayersResponse) {
+        option (google.api.http) = {
+            get: "/v1/getcommunicationrelayers"
         };
     }
 

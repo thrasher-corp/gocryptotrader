@@ -195,6 +195,24 @@ func (s *RPCServer) GetRPCEndpoints(ctx context.Context, r *gctrpc.GetRPCEndpoin
 	return &resp, nil
 }
 
+// GetCommunicationRelayers returns the status of the engines communication relayers
+func (s *RPCServer) GetCommunicationRelayers(ctx context.Context, r *gctrpc.GetCommunicationRelayersRequest) (*gctrpc.GetCommunicationRelayersResponse, error) {
+	relayers, err := Bot.CommsManager.GetStatus()
+	if err != nil {
+		return nil, err
+	}
+
+	var resp gctrpc.GetCommunicationRelayersResponse
+	resp.CommunicationRelayers = make(map[string]*gctrpc.CommunicationRelayer)
+	for k, v := range relayers {
+		resp.CommunicationRelayers[k] = &gctrpc.CommunicationRelayer{
+			Enabled:   v.Enabled,
+			Connected: v.Connected,
+		}
+	}
+	return &resp, nil
+}
+
 // GetExchanges returns a list of exchanges
 // Param is whether or not you wish to list enabled exchanges
 func (s *RPCServer) GetExchanges(ctx context.Context, r *gctrpc.GetExchangesRequest) (*gctrpc.GetExchangesResponse, error) {

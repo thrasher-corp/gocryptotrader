@@ -1,369 +1,358 @@
 package engine
 
-//
-// import (
-// 	"testing"
-//
-// 	"github.com/thrasher-/gocryptotrader/config"
-// 	"github.com/thrasher-/gocryptotrader/currency/pair"
-// 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-// 	"github.com/thrasher-/gocryptotrader/smsglobal"
-// )
-//
-// var (
-// 	loaded = false
-// )
-//
-// func testSetup(t *testing.T) {
-// 	if !loaded {
-// 		cfg := config.GetConfig()
-// 		err := cfg.LoadConfig("")
-// 		if err != nil {
-// 			t.Fatalf("Test failed. Failed to load config %s", err)
-// 		}
-// 		smsglobal.New(cfg.SMS.Username, cfg.SMS.Password, cfg.Name, cfg.SMS.Contacts)
-// 		loaded = true
-// 	}
-// }
-//
-// func TestAddEvent(t *testing.T) {
-// 	testSetup(t)
-//
-// 	pair := currency.NewPairFromStrings("BTC", "USD")
-// 	eventID, err := AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil && eventID != 0 {
-// 		t.Errorf("Test Failed. AddEvent: Error, %s", err)
-// 	}
-// 	eventID, err = AddEvent("ANXX", "price", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err == nil && eventID == 0 {
-// 		t.Error("Test Failed. AddEvent: Error, error not captured in Exchange")
-// 	}
-// 	eventID, err = AddEvent("ANX", "prices", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err == nil && eventID == 0 {
-// 		t.Error("Test Failed. AddEvent: Error, error not captured in Item")
-// 	}
-// 	eventID, err = AddEvent("ANX", "price", "3===D", pair, assets.AssetTypeSpot, actionTest)
-// 	if err == nil && eventID == 0 {
-// 		t.Error("Test Failed. AddEvent: Error, error not captured in Condition")
-// 	}
-// 	eventID, err = AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, "console_prints")
-// 	if err == nil && eventID == 0 {
-// 		t.Error("Test Failed. AddEvent: Error, error not captured in Action")
-// 	}
-//
-// 	if !RemoveEvent(eventID) {
-// 		t.Error("Test Failed. RemoveEvent: Error, error removing event")
-// 	}
-// }
-//
-// func TestRemoveEvent(t *testing.T) {
-// 	testSetup(t)
-//
-// 	pair := currency.NewPairFromStrings("BTC", "USD")
-// 	eventID, err := AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil && eventID != 0 {
-// 		t.Errorf("Test Failed. RemoveEvent: Error, %s", err)
-// 	}
-// 	if !RemoveEvent(eventID) {
-// 		t.Error("Test Failed. RemoveEvent: Error, error removing event")
-// 	}
-// 	if RemoveEvent(1234) {
-// 		t.Error("Test Failed. RemoveEvent: Error, error removing event")
-// 	}
-// }
-//
-// func TestGetEventCounter(t *testing.T) {
-// 	testSetup(t)
-//
-// 	pair := currency.NewPairFromStrings("BTC", "USD")
-// 	one, err := AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil {
-// 		t.Errorf("Test Failed. GetEventCounter: Error, %s", err)
-// 	}
-// 	two, err := AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil {
-// 		t.Errorf("Test Failed. GetEventCounter: Error, %s", err)
-// 	}
-// 	three, err := AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil {
-// 		t.Errorf("Test Failed. GetEventCounter: Error, %s", err)
-// 	}
-//
-// 	Events[three-1].Executed = true
-//
-// 	total, _ := GetEventCounter()
-// 	if total <= 0 {
-// 		t.Errorf("Test Failed. GetEventCounter: Total = %d", total)
-// 	}
-// 	if !RemoveEvent(one) {
-// 		t.Error("Test Failed. GetEventCounter: Error, error removing event")
-// 	}
-// 	if !RemoveEvent(two) {
-// 		t.Error("Test Failed. GetEventCounter: Error, error removing event")
-// 	}
-// 	if !RemoveEvent(three) {
-// 		t.Error("Test Failed. GetEventCounter: Error, error removing event")
-// 	}
-//
-// 	total2, _ := GetEventCounter()
-// 	if total2 != 0 {
-// 		t.Errorf("Test Failed. GetEventCounter: Total = %d", total2)
-// 	}
-// }
-//
-// func TestExecuteAction(t *testing.T) {
-// 	testSetup(t)
-//
-// 	pair := currency.NewPairFromStrings("BTC", "USD")
-// 	one, err := AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil {
-// 		t.Fatalf("Test Failed. ExecuteAction: Error, %s", err)
-// 	}
-// 	isExecuted := Events[one].ExecuteAction()
-// 	if !isExecuted {
-// 		t.Error("Test Failed. ExecuteAction: Error, error removing event")
-// 	}
-// 	if !RemoveEvent(one) {
-// 		t.Error("Test Failed. ExecuteAction: Error, error removing event")
-// 	}
-//
-// 	action := actionSMSNotify + "," + "ALL"
-// 	one, err = AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, action)
-// 	if err != nil {
-// 		t.Fatalf("Test Failed. ExecuteAction: Error, %s", err)
-// 	}
-//
-// 	isExecuted = Events[one].ExecuteAction()
-// 	if !isExecuted {
-// 		t.Error("Test Failed. ExecuteAction: Error, error removing event")
-// 	}
-// 	if !RemoveEvent(one) {
-// 		t.Error("Test Failed. ExecuteAction: Error, error removing event")
-// 	}
-//
-// 	action = actionSMSNotify + "," + "StyleGherkin"
-// 	one, err = AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, action)
-// 	if err != nil {
-// 		t.Fatalf("Test Failed. ExecuteAction: Error, %s", err)
-// 	}
-//
-// 	isExecuted = Events[one].ExecuteAction()
-// 	if !isExecuted {
-// 		t.Error("Test Failed. ExecuteAction: Error, error removing event")
-// 	}
-// 	if !RemoveEvent(one) {
-// 		t.Error("Test Failed. ExecuteAction: Error, error removing event")
-// 	}
-// 	// More tests when ExecuteAction is expanded
-// }
-//
-// func TestEventToString(t *testing.T) {
-// 	testSetup(t)
-//
-// 	pair := currency.NewPairFromStrings("BTC", "USD")
-// 	one, err := AddEvent("ANX", "price", ">,==", pair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil {
-// 		t.Errorf("Test Failed. EventToString: Error, %s", err)
-// 	}
-//
-// 	eventString := Events[one].String()
-// 	if eventString != "If the BTCUSD [SPOT] price on ANX is > == then ACTION_TEST." {
-// 		t.Error("Test Failed. EventToString: Error, incorrect return string")
-// 	}
-//
-// 	if !RemoveEvent(one) {
-// 		t.Error("Test Failed. EventToString: Error, error removing event")
-// 	}
-// }
-//
-// func TestCheckCondition(t *testing.T) {
-// 	testSetup(t)
-//
-// 	// Test invalid currency pair
-// 	newPair := currency.NewPairFromStrings("A", "B")
-// 	one, err := AddEvent("ANX", "price", ">=,10", newPair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil {
-// 		t.Errorf("Test Failed. CheckCondition: Error, %s", err)
-// 	}
-// 	conditionBool := Events[one].CheckCondition()
-// 	if conditionBool {
-// 		t.Error("Test Failed. CheckCondition: Error, wrong conditional.")
-// 	}
-//
-// 	// Test last price == 0
-// 	var tickerNew ticker.Price
-// 	tickerNew.Last = 0
-// 	newPair = currency.NewPairFromStrings("BTC", "USD")
-// 	ticker.ProcessTicker("ANX", newPair, tickerNew, exchange.AssetTypeSpot)
-// 	Events[one].Pair = newPair
-// 	conditionBool = Events[one].CheckCondition()
-// 	if conditionBool {
-// 		t.Error("Test Failed. CheckCondition: Error, wrong conditional.")
-// 	}
-//
-// 	// Test last pricce > 0 and conditional logic
-// 	tickerNew.Last = 11
-// 	ticker.ProcessTicker("ANX", newPair, tickerNew, exchange.AssetTypeSpot)
-// 	Events[one].Condition = ">,10"
-// 	conditionBool = Events[one].CheckCondition()
-// 	if !conditionBool {
-// 		t.Error("Test Failed. CheckCondition: Error, wrong conditional.")
-// 	}
-//
-// 	// Test last price >= 10
-// 	Events[one].Condition = ">=,10"
-// 	conditionBool = Events[one].CheckCondition()
-// 	if !conditionBool {
-// 		t.Error("Test Failed. CheckCondition: Error, wrong conditional.")
-// 	}
-//
-// 	// Test last price <= 10
-// 	Events[one].Condition = "<,100"
-// 	conditionBool = Events[one].CheckCondition()
-// 	if !conditionBool {
-// 		t.Error("Test Failed. CheckCondition: Error, wrong conditional.")
-// 	}
-//
-// 	// Test last price <= 10
-// 	Events[one].Condition = "<=,100"
-// 	conditionBool = Events[one].CheckCondition()
-// 	if !conditionBool {
-// 		t.Error("Test Failed. CheckCondition: Error, wrong conditional.")
-// 	}
-//
-// 	Events[one].Condition = "==,11"
-// 	conditionBool = Events[one].CheckCondition()
-// 	if !conditionBool {
-// 		t.Error("Test Failed. CheckCondition: Error, wrong conditional.")
-// 	}
-//
-// 	Events[one].Condition = "^,11"
-// 	conditionBool = Events[one].CheckCondition()
-// 	if conditionBool {
-// 		t.Error("Test Failed. CheckCondition: Error, wrong conditional.")
-// 	}
-//
-// 	if !RemoveEvent(one) {
-// 		t.Error("Test Failed. CheckCondition: Error, error removing event")
-// 	}
-// }
-//
-// func TestIsValidEvent(t *testing.T) {
-// 	testSetup(t)
-//
-// 	err := IsValidEvent("ANX", "price", ">,==", actionTest)
-// 	if err != nil {
-// 		t.Errorf("Test Failed. IsValidEvent: %s", err)
-// 	}
-// 	err = IsValidEvent("ANX", "price", ">,", actionTest)
-// 	if err == nil {
-// 		t.Errorf("Test Failed. IsValidEvent: %s", err)
-// 	}
-// 	err = IsValidEvent("ANX", "Testy", ">,==", actionTest)
-// 	if err == nil {
-// 		t.Errorf("Test Failed. IsValidEvent: %s", err)
-// 	}
-// 	err = IsValidEvent("Testys", "price", ">,==", actionTest)
-// 	if err == nil {
-// 		t.Errorf("Test Failed. IsValidEvent: %s", err)
-// 	}
-//
-// 	action := "blah,blah"
-// 	err = IsValidEvent("ANX", "price", ">=,10", action)
-// 	if err == nil {
-// 		t.Errorf("Test Failed. IsValidEvent: %s", err)
-// 	}
-//
-// 	action = "SMS,blah"
-// 	err = IsValidEvent("ANX", "price", ">=,10", action)
-// 	if err == nil {
-// 		t.Errorf("Test Failed. IsValidEvent: %s", err)
-// 	}
-//
-// 	//Function tests need to appended to this function when more actions are
-// 	//implemented
-// }
-//
-// func TestCheckEvents(t *testing.T) {
-// 	testSetup(t)
-//
-// 	pair := currency.NewPairFromStrings("BTC", "USD")
-// 	_, err := AddEvent("ANX", "price", ">=,10", pair, assets.AssetTypeSpot, actionTest)
-// 	if err != nil {
-// 		t.Fatal("Test failed. TestChcheckEvents add event")
-// 	}
-//
-// 	go CheckEvents()
-// }
-//
-// func TestIsValidExchange(t *testing.T) {
-// 	testSetup(t)
-//
-// 	boolean := IsValidExchange("ANX")
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidExchange: Error, incorrect Exchange")
-// 	}
-// 	boolean = IsValidExchange("OBTUSE")
-// 	if boolean {
-// 		t.Error("Test Failed. IsValidExchange: Error, incorrect return")
-// 	}
-// }
-//
-// func TestIsValidCondition(t *testing.T) {
-// 	testSetup(t)
-//
-// 	boolean := IsValidCondition(">")
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidCondition: Error, incorrect Condition")
-// 	}
-// 	boolean = IsValidCondition(">=")
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidCondition: Error, incorrect Condition")
-// 	}
-// 	boolean = IsValidCondition("<")
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidCondition: Error, incorrect Condition")
-// 	}
-// 	boolean = IsValidCondition("<=")
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidCondition: Error, incorrect Condition")
-// 	}
-// 	boolean = IsValidCondition("==")
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidCondition: Error, incorrect Condition")
-// 	}
-// 	boolean = IsValidCondition("**********")
-// 	if boolean {
-// 		t.Error("Test Failed. IsValidCondition: Error, incorrect return")
-// 	}
-// }
-//
-// func TestIsValidAction(t *testing.T) {
-// 	testSetup(t)
-//
-// 	boolean := IsValidAction("sms")
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidAction: Error, incorrect Action")
-// 	}
-// 	boolean = IsValidAction(actionTest)
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidAction: Error, incorrect Action")
-// 	}
-// 	boolean = IsValidAction("randomstring")
-// 	if boolean {
-// 		t.Error("Test Failed. IsValidAction: Error, incorrect return")
-// 	}
-// }
-//
-// func TestIsValidItem(t *testing.T) {
-// 	testSetup(t)
-//
-// 	boolean := IsValidItem("price")
-// 	if !boolean {
-// 		t.Error("Test Failed. IsValidItem: Error, incorrect Item")
-// 	}
-// 	boolean = IsValidItem("obtuse")
-// 	if boolean {
-// 		t.Error("Test Failed. IsValidItem: Error, incorrect return")
-// 	}
-// }
+import (
+	"testing"
+
+	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+)
+
+const (
+	testExchange = "Bitstamp"
+)
+
+var (
+	configLoaded = false
+)
+
+func addValidEvent() (int64, error) {
+	return Add(testExchange,
+		ItemPrice,
+		EventConditionParams{Condition: ConditionGreaterThan, Price: 1},
+		currency.NewPair(currency.BTC, currency.USD),
+		assets.AssetTypeSpot,
+		"SMS,test")
+}
+
+func TestAdd(t *testing.T) {
+	if !configLoaded {
+		loadConfig(t)
+	}
+
+	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
+	if err == nil {
+		t.Error("should err on invalid params")
+	}
+
+	_, err = addValidEvent()
+	if err != nil {
+		t.Error("unexpected result", err)
+	}
+
+	_, err = addValidEvent()
+	if err != nil {
+		t.Error("unexpected result", err)
+	}
+
+	if len(Events) != 2 {
+		t.Error("2 events should be stored")
+	}
+}
+
+func TestRemove(t *testing.T) {
+	if !configLoaded {
+		loadConfig(t)
+	}
+
+	id, err := addValidEvent()
+	if err != nil {
+		t.Error("unexpected result", err)
+	}
+
+	if s := Remove(id); !s {
+		t.Error("unexpected result")
+	}
+
+	if s := Remove(id); s {
+		t.Error("unexpected result")
+	}
+}
+
+func TestGetEventCounter(t *testing.T) {
+	if !configLoaded {
+		loadConfig(t)
+	}
+
+	_, err := addValidEvent()
+	if err != nil {
+		t.Error("unexpected result", err)
+	}
+
+	n, e := GetEventCounter()
+	if n == 0 || e > 0 {
+		t.Error("unexpected result")
+	}
+
+	Events[0].Executed = true
+	n, e = GetEventCounter()
+	if n == 0 || e == 0 {
+		t.Error("unexpected result")
+	}
+}
+
+func TestExecuteAction(t *testing.T) {
+	t.Parallel()
+	if Bot == nil {
+		Bot = new(Engine)
+	}
+
+	var e Event
+	if r := e.ExecuteAction(); !r {
+		t.Error("unexpected result")
+	}
+
+	e.Action = "SMS,test"
+	if r := e.ExecuteAction(); !r {
+		t.Error("unexpected result")
+	}
+
+	e.Action = "SMS,ALL"
+	if r := e.ExecuteAction(); !r {
+		t.Error("unexpected result")
+	}
+}
+
+func TestString(t *testing.T) {
+	t.Parallel()
+	e := Event{
+		Exchange: testExchange,
+		Item:     ItemPrice,
+		Condition: EventConditionParams{
+			Condition: ConditionGreaterThan,
+			Price:     1,
+		},
+		Pair:   currency.NewPair(currency.BTC, currency.USD),
+		Asset:  assets.AssetTypeSpot,
+		Action: "SMS,ALL",
+	}
+
+	if r := e.String(); r != "If the BTCUSD [SPOT] PRICE on Bitstamp meets the following {> 1 false false 0} then SMS,ALL." {
+		t.Error("unexpected result")
+	}
+}
+
+func TestProcessTicker(t *testing.T) {
+	if Bot == nil {
+		Bot = new(Engine)
+	}
+	Bot.Settings.Verbose = true
+
+	e := Event{
+		Exchange: testExchange,
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Asset:    assets.AssetTypeSpot,
+		Condition: EventConditionParams{
+			Condition: ConditionGreaterThan,
+			Price:     1,
+		},
+	}
+
+	// this will throw an err with an unpopulated ticker
+	ticker.Tickers = nil
+	if r := e.processTicker(); r {
+		t.Error("unexpected result")
+	}
+
+	// now populate it with a 0 entry
+	tick := ticker.Price{
+		Pair: currency.NewPair(currency.BTC, currency.USD),
+		Last: 0,
+	}
+	if err := ticker.ProcessTicker(e.Exchange, &tick, e.Asset); err != nil {
+		t.Fatal("unexpected result:", err)
+	}
+	if r := e.processTicker(); r {
+		t.Error("unexpected result")
+	}
+
+	// now populate it with a number > 0
+	tick.Last = 1337
+	if err := ticker.ProcessTicker(e.Exchange, &tick, e.Asset); err != nil {
+		t.Fatal("unexpected result:", err)
+	}
+	if r := e.processTicker(); !r {
+		t.Error("unexpected result")
+	}
+}
+
+func TestProcessCondition(t *testing.T) {
+	t.Parallel()
+	var e Event
+	tester := []struct {
+		Condition      string
+		Actual         float64
+		Threshold      float64
+		ExpectedResult bool
+	}{
+		{ConditionGreaterThan, 1, 2, false},
+		{ConditionGreaterThan, 2, 1, true},
+		{ConditionGreaterThanOrEqual, 1, 2, false},
+		{ConditionGreaterThanOrEqual, 2, 1, true},
+		{ConditionIsEqual, 1, 1, true},
+		{ConditionIsEqual, 1, 2, false},
+		{ConditionLessThan, 1, 2, true},
+		{ConditionLessThan, 2, 1, false},
+		{ConditionLessThanOrEqual, 1, 2, true},
+		{ConditionLessThanOrEqual, 2, 1, false},
+	}
+	for x := range tester {
+		e.Condition.Condition = tester[x].Condition
+		if r := e.processCondition(tester[x].Actual, tester[x].Threshold); r != tester[x].ExpectedResult {
+			t.Error("unexpected result")
+		}
+	}
+}
+
+func TestProcessOrderbook(t *testing.T) {
+	if Bot == nil {
+		Bot = new(Engine)
+	}
+	Bot.Settings.Verbose = true
+
+	e := Event{
+		Exchange: testExchange,
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Asset:    assets.AssetTypeSpot,
+		Condition: EventConditionParams{
+			Condition:        ConditionGreaterThan,
+			CheckBidsAndAsks: true,
+			OrderbookAmount:  100,
+		},
+	}
+
+	// this will throw an err with an unpopulated orderbook
+	orderbook.Orderbooks = nil
+	if r := e.processOrderbook(); r {
+		t.Error("unexpected result")
+	}
+
+	// now populate it with a 0 entry
+	o := orderbook.Base{
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Bids:         []orderbook.Item{{Amount: 24, Price: 23}},
+		Asks:         []orderbook.Item{{Amount: 24, Price: 23}},
+		ExchangeName: e.Exchange,
+		AssetType:    e.Asset,
+	}
+	if err := o.Process(); err != nil {
+		t.Fatal("unexpected result:", err)
+	}
+
+	if r := e.processOrderbook(); !r {
+		t.Error("unexpected result")
+	}
+}
+
+func TestCheckEventCondition(t *testing.T) {
+	t.Parallel()
+	if Bot == nil {
+		Bot = new(Engine)
+	}
+	Bot.Settings.Verbose = true
+
+	e := Event{
+		Item: ItemPrice,
+	}
+	if r := e.CheckEventCondition(); r {
+		t.Error("unexpected result")
+	}
+
+	e.Item = ItemOrderbook
+	if r := e.CheckEventCondition(); r {
+		t.Error("unexpected result")
+	}
+}
+
+func TestIsValidEvent(t *testing.T) {
+	if !configLoaded {
+		loadConfig(t)
+	}
+
+	// invalid exchange name
+	if err := IsValidEvent("meow", "", EventConditionParams{}, ""); err != errExchangeDisabled {
+		t.Error("unexpected result:", err)
+	}
+
+	// invalid item
+	if err := IsValidEvent(testExchange, "", EventConditionParams{}, ""); err != errInvalidItem {
+		t.Error("unexpected result:", err)
+	}
+
+	// invalid condition
+	if err := IsValidEvent(testExchange, ItemPrice, EventConditionParams{}, ""); err != errInvalidCondition {
+		t.Error("unexpected result:", err)
+	}
+
+	// valid condition but empty price which will still throw an errInvalidCondition
+	c := EventConditionParams{
+		Condition: ConditionGreaterThan,
+	}
+	if err := IsValidEvent(testExchange, ItemPrice, c, ""); err != errInvalidCondition {
+		t.Error("unexpected result:", err)
+	}
+
+	// valid condition but empty orderbook amount will still still throw an errInvalidCondition
+	if err := IsValidEvent(testExchange, ItemOrderbook, c, ""); err != errInvalidCondition {
+		t.Error("unexpected result:", err)
+	}
+
+	// test action splitting, but invalid
+	c.OrderbookAmount = 1337
+	if err := IsValidEvent(testExchange, ItemOrderbook, c, "a,meow"); err != errInvalidAction {
+		t.Error("unexpected result:", err)
+	}
+
+	// check for invalid action without splitting
+	if err := IsValidEvent(testExchange, ItemOrderbook, c, "hi"); err != errInvalidAction {
+		t.Error("unexpected result:", err)
+	}
+
+	// valid event
+	if err := IsValidEvent(testExchange, ItemOrderbook, c, "SMS,test"); err != nil {
+		t.Error("unexpected result:", err)
+	}
+}
+
+func TestIsValidExchange(t *testing.T) {
+	t.Parallel()
+	if s := IsValidExchange("invalidexchangerino"); s {
+		t.Error("unexpected result")
+	}
+
+	loadConfig(t)
+	if s := IsValidExchange(testExchange); !s {
+		t.Error("unexpected result")
+	}
+}
+
+func TestIsValidCondition(t *testing.T) {
+	t.Parallel()
+	if s := IsValidCondition("invalidconditionerino"); s {
+		t.Error("unexpected result")
+	}
+	if s := IsValidCondition(ConditionGreaterThan); !s {
+		t.Error("unexpected result")
+	}
+}
+
+func TestIsValidAction(t *testing.T) {
+	t.Parallel()
+	if s := IsValidAction("invalidactionerino"); s {
+		t.Error("unexpected result")
+	}
+	if s := IsValidAction(ActionSMSNotify); !s {
+		t.Error("unexpected result")
+	}
+}
+
+func TestIsValidItem(t *testing.T) {
+	t.Parallel()
+	if s := IsValidItem("invaliditemerino"); s {
+		t.Error("unexpected result")
+	}
+	if s := IsValidItem(ItemPrice); !s {
+		t.Error("unexpected result")
+	}
+}

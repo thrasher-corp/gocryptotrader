@@ -251,6 +251,7 @@ type SMTPConfig struct {
 	Port            string `json:"port"`
 	AccountName     string `json:"accountName"`
 	AccountPassword string `json:"accountPassword"`
+	From            string `json:"from"`
 	RecipientList   string `json:"recipientList"`
 }
 

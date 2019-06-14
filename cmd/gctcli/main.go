@@ -89,6 +89,7 @@ func main() {
 		enableSubsystemCommand,
 		disableSubsystemCommand,
 		getRPCEndpointsCommand,
+		getCommunicationRelayersCommand,
 		getExchangesCommand,
 		enableExchangeCommand,
 		disableExchangeCommand,
