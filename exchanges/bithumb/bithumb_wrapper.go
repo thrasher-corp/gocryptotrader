@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -52,8 +52,8 @@ func (b *Bithumb) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 
 		UseGlobalFormat: true,
@@ -126,7 +126,7 @@ func (b *Bithumb) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bithumb) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (b *Bithumb) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	currencies, err := b.GetTradablePairs()
 	if err != nil {
 		return nil, err
@@ -142,16 +142,16 @@ func (b *Bithumb) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bithumb) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bithumb) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	tickers, err := b.GetAllTickers()
@@ -179,7 +179,7 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tic
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bithumb) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *Bithumb) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -188,7 +188,7 @@ func (b *Bithumb) FetchTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -197,7 +197,7 @@ func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (o
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	currency := p.Base.String()
 
@@ -266,7 +266,7 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -334,7 +334,7 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 	}
 
 	var allOrders []OrderData
-	for _, currency := range b.GetEnabledPairs(assets.AssetTypeSpot) {
+	for _, currency := range b.GetEnabledPairs(asset.Spot) {
 		orders, err := b.GetOrders("",
 			orderCancellation.Side.ToString(),
 			"100",
@@ -447,7 +447,7 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 			Status:          string(exchange.ActiveOrderStatus),
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
@@ -490,7 +490,7 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 			RemainingAmount: resp.Data[i].UnitsRemaining,
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {

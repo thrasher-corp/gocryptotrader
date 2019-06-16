@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -52,8 +52,8 @@ func (y *Yobit) SetDefaults() {
 	y.API.CredentialsValidator.RequiresSecret = true
 
 	y.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -130,7 +130,7 @@ func (y *Yobit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (y *Yobit) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (y *Yobit) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	info, err := y.GetInfo()
 	if err != nil {
 		return nil, err
@@ -147,16 +147,16 @@ func (y *Yobit) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (y *Yobit) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := y.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := y.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return y.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return y.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (y *Yobit) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	pairsCollated, err := y.FormatExchangeCurrencies(y.GetEnabledPairs(assetType), assetType)
 	if err != nil {
@@ -188,7 +188,7 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticke
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (y *Yobit) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (y *Yobit) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(y.GetName(), p, assetType)
 	if err != nil {
 		return y.UpdateTicker(p, assetType)
@@ -197,7 +197,7 @@ func (y *Yobit) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (y *Yobit) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (y *Yobit) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(y.GetName(), p, assetType)
 	if err != nil {
 		return y.UpdateOrderbook(p, assetType)
@@ -206,7 +206,7 @@ func (y *Yobit) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (ord
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := y.GetDepth(y.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
@@ -275,7 +275,7 @@ func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (y *Yobit) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (y *Yobit) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -330,9 +330,9 @@ func (y *Yobit) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelA
 	}
 	var allActiveOrders []map[string]ActiveOrders
 
-	for _, pair := range y.GetEnabledPairs(assets.AssetTypeSpot) {
+	for _, pair := range y.GetEnabledPairs(asset.Spot) {
 		activeOrdersForPair, err := y.GetOpenOrders(y.FormatExchangeCurrency(pair,
-			assets.AssetTypeSpot).String())
+			asset.Spot).String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -418,14 +418,14 @@ func (y *Yobit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for _, c := range getOrdersRequest.Currencies {
 		resp, err := y.GetOpenOrders(y.FormatExchangeCurrency(c,
-			assets.AssetTypeSpot).String())
+			asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
 
 		for ID, order := range resp {
 			symbol := currency.NewPairDelimiter(order.Pair,
-				y.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+				y.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 			orderDate := time.Unix(int64(order.TimestampCreated), 0)
 			side := exchange.OrderSide(strings.ToUpper(order.Type))
 			orders = append(orders, exchange.OrderDetail{
@@ -457,7 +457,7 @@ func (y *Yobit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			getOrdersRequest.StartTicks.Unix(),
 			getOrdersRequest.EndTicks.Unix(),
 			"DESC",
-			y.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String())
+			y.FormatExchangeCurrency(currency, asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -470,7 +470,7 @@ func (y *Yobit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := currency.NewPairDelimiter(order.Pair,
-			y.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			y.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(int64(order.Timestamp), 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 		orders = append(orders, exchange.OrderDetail{

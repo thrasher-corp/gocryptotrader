@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
@@ -118,7 +118,7 @@ type WebsocketResponse struct {
 // has been updated in the orderbook package
 type WebsocketOrderbookUpdate struct {
 	Pair     currency.Pair
-	Asset    assets.AssetType
+	Asset    asset.Item
 	Exchange string
 }
 
@@ -126,7 +126,7 @@ type WebsocketOrderbookUpdate struct {
 type TradeData struct {
 	Timestamp    time.Time
 	CurrencyPair currency.Pair
-	AssetType    assets.AssetType
+	AssetType    asset.Item
 	Exchange     string
 	EventType    string
 	EventTime    int64
@@ -139,7 +139,7 @@ type TradeData struct {
 type TickerData struct {
 	Timestamp  time.Time
 	Pair       currency.Pair
-	AssetType  assets.AssetType
+	AssetType  asset.Item
 	Exchange   string
 	ClosePrice float64
 	Quantity   float64
@@ -152,7 +152,7 @@ type TickerData struct {
 type KlineData struct {
 	Timestamp  time.Time
 	Pair       currency.Pair
-	AssetType  assets.AssetType
+	AssetType  asset.Item
 	Exchange   string
 	StartTime  time.Time
 	CloseTime  time.Time
@@ -168,6 +168,6 @@ type KlineData struct {
 type WebsocketPositionUpdated struct {
 	Timestamp time.Time
 	Pair      currency.Pair
-	AssetType assets.AssetType
+	AssetType asset.Item
 	Exchange  string
 }

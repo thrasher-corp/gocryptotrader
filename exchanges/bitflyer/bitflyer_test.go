@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -135,7 +135,7 @@ func TestFetchTicker(t *testing.T) {
 	t.Parallel()
 	var p currency.Pair
 
-	currencies := b.GetAvailablePairs(assets.AssetTypeSpot)
+	currencies := b.GetAvailablePairs(asset.Spot)
 	for _, pair := range currencies {
 		if pair.String() == "FXBTC_JPY" {
 			p = pair
@@ -143,7 +143,7 @@ func TestFetchTicker(t *testing.T) {
 		}
 	}
 
-	_, err := b.FetchTicker(p, assets.AssetTypeSpot)
+	_, err := b.FetchTicker(p, asset.Spot)
 	if err != nil {
 		t.Error("test failed - Bitflyer - FetchTicker() error", err)
 	}

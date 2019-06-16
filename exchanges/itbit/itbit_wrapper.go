@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,8 +51,8 @@ func (i *ItBit) SetDefaults() {
 	i.API.CredentialsValidator.RequiresSecret = true
 
 	i.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -115,7 +115,7 @@ func (i *ItBit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (i *ItBit) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (i *ItBit) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -126,7 +126,7 @@ func (i *ItBit) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (i *ItBit) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := i.GetTicker(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
@@ -150,7 +150,7 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticke
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (i *ItBit) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(i.GetName(), p, assetType)
 	if err != nil {
 		return i.UpdateTicker(p, assetType)
@@ -159,7 +159,7 @@ func (i *ItBit) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (i *ItBit) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(i.GetName(), p, assetType)
 	if err != nil {
 		return i.UpdateOrderbook(p, assetType)
@@ -168,7 +168,7 @@ func (i *ItBit) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (ord
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := i.GetOrderbook(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
@@ -268,7 +268,7 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -420,7 +420,7 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for j := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
-			i.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			i.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
@@ -471,7 +471,7 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 
 		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
-			i.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			i.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {

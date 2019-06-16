@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -51,8 +51,8 @@ func getDefaultConfig() config.ExchangeConfig {
 
 		HTTPTimeout: 15000000000,
 		CurrencyPairs: &currency.PairsManager{
-			AssetTypes: assets.AssetTypes{
-				assets.AssetTypeSpot,
+			AssetTypes: asset.Items{
+				asset.Spot,
 			},
 			UseGlobalFormat: true,
 			ConfigFormat: &currency.PairFormat{
@@ -67,10 +67,10 @@ func getDefaultConfig() config.ExchangeConfig {
 		BaseCurrencies: currency.NewCurrenciesFromStringArray([]string{"USD"}),
 	}
 
-	exchCfg.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	exchCfg.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTC-USDT", "BCH-USDT"}),
 		false)
-	exchCfg.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	exchCfg.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTC-USDT"}),
 		true)
 

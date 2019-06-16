@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -50,8 +50,8 @@ func (b *BTSE) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -140,7 +140,7 @@ func (b *BTSE) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTSE) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (b *BTSE) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	markets, err := b.GetMarkets()
 	if err != nil {
 		return nil, err
@@ -157,16 +157,16 @@ func (b *BTSE) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTSE) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	t, err := b.GetTicker(b.FormatExchangeCurrency(p,
@@ -198,7 +198,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *BTSE) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -207,7 +207,7 @@ func (b *BTSE) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *BTSE) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -216,7 +216,7 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orde
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	return orderbook.Base{}, common.ErrFunctionNotSupported
 }
 
@@ -255,7 +255,7 @@ func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -272,7 +272,7 @@ func (b *BTSE) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrde
 
 	r, err := b.CreateOrder(order.Amount, order.Price, order.OrderSide.ToString(),
 		order.OrderType.ToString(), b.FormatExchangeCurrency(order.Pair,
-			assets.AssetTypeSpot).String(), "GTC", order.ClientID)
+			asset.Spot).String(), "GTC", order.ClientID)
 	if err != nil {
 		return resp, err
 	}
@@ -295,7 +295,7 @@ func (b *BTSE) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
 	r, err := b.CancelExistingOrder(order.OrderID,
 		b.FormatExchangeCurrency(order.CurrencyPair,
-			assets.AssetTypeSpot).String())
+			asset.Spot).String())
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
 func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
 	r, err := b.CancelOrders(b.FormatExchangeCurrency(
-		orderCancellation.CurrencyPair, assets.AssetTypeSpot).String())
+		orderCancellation.CurrencyPair, asset.Spot).String())
 	if err != nil {
 		return resp, err
 	}
@@ -355,7 +355,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		}
 
 		od.CurrencyPair = currency.NewPairDelimiter(o.ProductID,
-			b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		od.Exchange = b.Name
 		od.Amount = o.Amount
 		od.ID = o.ID
@@ -432,7 +432,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 
 		openOrder := exchange.OrderDetail{
 			CurrencyPair: currency.NewPairDelimiter(order.ProductID,
-				b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
 			Exchange:  b.Name,
 			Amount:    order.Amount,
 			ID:        order.ID,

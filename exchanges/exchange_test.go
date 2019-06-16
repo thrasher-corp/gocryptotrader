@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 )
 
@@ -172,13 +172,13 @@ func TestSetAssetTypes(t *testing.T) {
 	}
 
 	b.Name = "ANX"
-	b.CurrencyPairs.AssetTypes = assets.AssetTypes{assets.AssetTypeSpot}
+	b.CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
 	exch, err := cfg.GetExchangeConfig(b.Name)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes load config failed. Error %s", err)
 	}
 
-	exch.CurrencyPairs.AssetTypes = assets.New("")
+	exch.CurrencyPairs.AssetTypes = asset.New("")
 	err = cfg.UpdateExchangeConfig(exch)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes update config failed. Error %s", err)
@@ -195,7 +195,7 @@ func TestSetAssetTypes(t *testing.T) {
 	}
 
 	b.SetAssetTypes()
-	if !common.StringDataCompare(b.CurrencyPairs.AssetTypes.Strings(), assets.AssetTypeSpot.String()) {
+	if !common.StringDataCompare(b.CurrencyPairs.AssetTypes.Strings(), asset.Spot.String()) {
 		t.Fatal("Test failed. TestSetAssetTypes assetTypes is not set")
 	}
 }
@@ -203,10 +203,10 @@ func TestSetAssetTypes(t *testing.T) {
 func TestGetAssetTypes(t *testing.T) {
 	testExchange := Base{
 		CurrencyPairs: currency.PairsManager{
-			AssetTypes: assets.AssetTypes{
-				assets.AssetTypeSpot,
-				assets.AssetTypeBinary,
-				assets.AssetTypeFutures,
+			AssetTypes: asset.Items{
+				asset.Spot,
+				asset.Binary,
+				asset.Futures,
 			},
 		},
 	}
@@ -237,7 +237,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 	b.Config = exch
 	b.SetCurrencyPairFormat()
-	if exch.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter != "-" && !exch.CurrencyPairs.ConfigFormat.Uppercase {
+	if exch.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter != "-" && !exch.CurrencyPairs.ConfigFormat.Uppercase {
 		t.Fatal("Test failed. TestSetCurrencyPairFormat exch values are not nil")
 	}
 
@@ -258,7 +258,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 
 	b.SetCurrencyPairFormat()
-	if exch.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter != "-" && !exch.CurrencyPairs.ConfigFormat.Uppercase {
+	if exch.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter != "-" && !exch.CurrencyPairs.ConfigFormat.Uppercase {
 		t.Fatal("Test failed. TestSetCurrencyPairFormat exch values are not nil")
 	}
 }
@@ -286,7 +286,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTC-USD"}), true)
 	format := currency.PairFormat{
 		Delimiter: "-",
@@ -294,7 +294,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		Uppercase: true,
 	}
 
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 	b.CurrencyPairs.UseGlobalFormat = true
 	b.CurrencyPairs.RequestFormat = &format
 	b.CurrencyPairs.ConfigFormat = &format
@@ -318,7 +318,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTCDOGE"}), true)
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
@@ -327,7 +327,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTC_USD"}), true)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
@@ -336,7 +336,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTCDOGE"}), true)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = ""
@@ -346,7 +346,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTCUSD"}), true)
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c = b.GetEnabledPairs(assetType)
@@ -360,7 +360,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{defaultTestCurrencyPair}), false)
 	format := currency.PairFormat{
 		Delimiter: "-",
@@ -368,7 +368,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		Uppercase: true,
 	}
 
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 	b.CurrencyPairs.UseGlobalFormat = true
 	b.CurrencyPairs.RequestFormat = &format
 	b.CurrencyPairs.ConfigFormat = &format
@@ -392,7 +392,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTCDOGE"}), false)
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
@@ -401,7 +401,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTC_USD"}), false)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
@@ -410,7 +410,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTCDOGE"}), false)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
@@ -420,7 +420,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{"BTCUSD"}), false)
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c = b.GetAvailablePairs(assetType)
@@ -434,10 +434,10 @@ func TestSupportsPair(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{
 			defaultTestCurrencyPair, "ETH-USD"}), false)
-	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+	b.CurrencyPairs.StorePairs(asset.Spot,
 		currency.NewPairsFromStrings([]string{defaultTestCurrencyPair}), true)
 
 	format := &currency.PairFormat{
@@ -448,7 +448,7 @@ func TestSupportsPair(t *testing.T) {
 	b.CurrencyPairs.UseGlobalFormat = true
 	b.CurrencyPairs.RequestFormat = format
 	b.CurrencyPairs.ConfigFormat = format
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 
 	if !b.SupportsPair(currency.NewPair(currency.BTC, currency.USD), true, assetType) {
 		t.Error("Test Failed - Exchange SupportsPair() incorrect value")
@@ -486,7 +486,7 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 		currency.NewPairDelimiter("LTC_BTC", "_"),
 	}
 
-	actual, err := e.FormatExchangeCurrencies(pairs, assets.AssetTypeSpot)
+	actual, err := e.FormatExchangeCurrencies(pairs, asset.Spot)
 	if err != nil {
 		t.Errorf("Test failed - Exchange TestFormatExchangeCurrencies error %s", err)
 	}
@@ -508,7 +508,7 @@ func TestFormatExchangeCurrency(t *testing.T) {
 
 	p := currency.NewPair(currency.BTC, currency.USD)
 	expected := defaultTestCurrencyPair
-	actual := b.FormatExchangeCurrency(p, assets.AssetTypeSpot)
+	actual := b.FormatExchangeCurrency(p, asset.Spot)
 
 	if actual.String() != expected {
 		t.Errorf("Test failed - Exchange TestFormatExchangeCurrency %s != %s",
@@ -569,7 +569,7 @@ func TestSetPairs(t *testing.T) {
 	}
 
 	newPair := currency.NewPairDelimiter("ETH_USDT", "_")
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 
 	var UAC Base
 	UAC.Name = "ANX"
@@ -579,7 +579,7 @@ func TestSetPairs(t *testing.T) {
 		t.Fatalf("Test failed. TestSetPairs unable to set defaults: %s", err)
 	}
 
-	err = UAC.SetPairs([]currency.Pair{newPair}, assets.AssetTypeSpot, true)
+	err = UAC.SetPairs([]currency.Pair{newPair}, asset.Spot, true)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetPairs failed to set currencies: %s", err)
 	}
@@ -588,12 +588,12 @@ func TestSetPairs(t *testing.T) {
 		t.Fatal("Test failed. TestSetPairs failed to set currencies")
 	}
 
-	UAC.SetPairs([]currency.Pair{newPair}, assets.AssetTypeSpot, false)
+	UAC.SetPairs([]currency.Pair{newPair}, asset.Spot, false)
 	if !UAC.GetAvailablePairs(assetType).Contains(newPair, true) {
 		t.Fatal("Test failed. TestSetPairs failed to set currencies")
 	}
 
-	err = UAC.SetPairs(nil, assets.AssetTypeSpot, false)
+	err = UAC.SetPairs(nil, asset.Spot, false)
 	if err == nil {
 		t.Fatal("Test failed. TestSetPairs should return an error when attempting to set an empty pairs array")
 	}
@@ -614,20 +614,20 @@ func TestUpdatePairs(t *testing.T) {
 	UAC := Base{Name: "ANX"}
 	UAC.Config = anxCfg
 	exchangeProducts := currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud", ""})
-	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, true, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
 	if err != nil {
 		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
-	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, true, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
 	if err != nil {
 		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
 	}
 
 	// Test force updating to only one product
 	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
-	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, true, true)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, true)
 	if err != nil {
 		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
 	}
@@ -635,34 +635,34 @@ func TestUpdatePairs(t *testing.T) {
 	// Test updating exchange products
 	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud"})
 	UAC.Name = "ANX"
-	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
 		t.Errorf("Test Failed - Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
-	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
 		t.Errorf("Test Failed - Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test force updating to only one product
 	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
-	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, true)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, true)
 	if err != nil {
 		t.Errorf("Test Failed - Forced Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test update currency pairs with btc excluded
 	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "eth"})
-	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
 		t.Errorf("Test Failed - Forced Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test that empty exchange products should return an error
 	exchangeProducts = nil
-	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err == nil {
 		t.Errorf("Test failed - empty available pairs should return an error")
 	}

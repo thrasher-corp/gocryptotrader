@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -188,7 +188,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(c),
-					AssetType:  assets.AssetTypeSpot,
+					AssetType:  asset.Spot,
 					Exchange:   g.GetName(),
 					ClosePrice: ticker.Close,
 					Quantity:   ticker.BaseVolume,
@@ -216,7 +216,7 @@ func (g *Gateio) WsHandleData() {
 					g.Websocket.DataHandler <- exchange.TradeData{
 						Timestamp:    time.Now(),
 						CurrencyPair: currency.NewPairFromString(c),
-						AssetType:    assets.AssetTypeSpot,
+						AssetType:    asset.Spot,
 						Exchange:     g.GetName(),
 						Price:        trade.Price,
 						Amount:       trade.Amount,
@@ -284,7 +284,7 @@ func (g *Gateio) WsHandleData() {
 					var newOrderBook orderbook.Base
 					newOrderBook.Asks = asks
 					newOrderBook.Bids = bids
-					newOrderBook.AssetType = assets.AssetTypeSpot
+					newOrderBook.AssetType = asset.Spot
 					newOrderBook.LastUpdated = time.Now()
 					newOrderBook.Pair = currency.NewPairFromString(c)
 
@@ -300,7 +300,7 @@ func (g *Gateio) WsHandleData() {
 						currency.NewPairFromString(c),
 						time.Now(),
 						g.GetName(),
-						assets.AssetTypeSpot)
+						asset.Spot)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}
@@ -308,7 +308,7 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Pair:     currency.NewPairFromString(c),
-					Asset:    assets.AssetTypeSpot,
+					Asset:    asset.Spot,
 					Exchange: g.GetName(),
 				}
 
@@ -329,7 +329,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- exchange.KlineData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(data[7].(string)),
-					AssetType:  assets.AssetTypeSpot,
+					AssetType:  asset.Spot,
 					Exchange:   g.GetName(),
 					OpenPrice:  open,
 					ClosePrice: closePrice,
@@ -350,7 +350,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 	}
 
 	subscriptions := []exchange.WebsocketChannelSubscription{}
-	enabledCurrencies := g.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			params := make(map[string]interface{})

@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 var y Yobit
@@ -41,7 +41,7 @@ func TestSetup(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := y.FetchTradablePairs(assets.AssetTypeSpot)
+	_, err := y.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		t.Errorf("Test failed. FetchTradablePairs err: %s", err)
 	}

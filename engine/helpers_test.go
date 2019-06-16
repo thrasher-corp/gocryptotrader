@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -151,7 +151,7 @@ func TestGetAvailableExchanges(t *testing.T) {
 
 func TestGetSpecificAvailablePairs(t *testing.T) {
 	SetupTestHelpers(t)
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 	result := GetSpecificAvailablePairs(true, true, true, false, assetType)
 
 	if !result.Contains(currency.NewPairFromStrings("BTC", "USD"), true) {
@@ -341,7 +341,7 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
 
-	result := MapCurrenciesByExchange(pairs, true, assets.AssetTypeSpot)
+	result := MapCurrenciesByExchange(pairs, true, asset.Spot)
 	pairs, ok := result["Bitstamp"]
 	if !ok {
 		t.Fatal("Unexpected result")
@@ -354,19 +354,25 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 
 func TestGetExchangeNamesByCurrency(t *testing.T) {
 	SetupTestHelpers(t)
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 
-	result := GetExchangeNamesByCurrency(currency.NewPairFromStrings("BTC", "USD"), true, assetType)
+	result := GetExchangeNamesByCurrency(currency.NewPairFromStrings("BTC", "USD"),
+		true,
+		assetType)
 	if !common.StringDataCompare(result, "Bitstamp") {
 		t.Fatal("Unexpected result")
 	}
 
-	result = GetExchangeNamesByCurrency(currency.NewPairFromStrings("BTC", "JPY"), true, assetType)
+	result = GetExchangeNamesByCurrency(currency.NewPairFromStrings("BTC", "JPY"),
+		true,
+		assetType)
 	if !common.StringDataCompare(result, "Bitflyer") {
 		t.Fatal("Unexpected result")
 	}
 
-	result = GetExchangeNamesByCurrency(currency.NewPairFromStrings("blah", "JPY"), true, assetType)
+	result = GetExchangeNamesByCurrency(currency.NewPairFromStrings("blah", "JPY"),
+		true,
+		assetType)
 	if len(result) > 0 {
 		t.Fatal("Unexpected result")
 	}
@@ -379,13 +385,12 @@ func TestGetSpecificOrderbook(t *testing.T) {
 
 	var bids []orderbook.Item
 	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
-	asset := assets.AssetTypeSpot
 
 	base := orderbook.Base{
 		Pair:         currency.NewPair(currency.BTC, currency.USD),
 		Bids:         bids,
 		ExchangeName: "Bitstamp",
-		AssetType:    asset,
+		AssetType:    asset.Spot,
 	}
 
 	err := base.Process()
@@ -393,7 +398,9 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal("Unexpected result", err)
 	}
 
-	ob, err := GetSpecificOrderbook(currency.NewPairFromString("BTCUSD"), "Bitstamp", assets.AssetTypeSpot)
+	ob, err := GetSpecificOrderbook(currency.NewPairFromString("BTCUSD"),
+		"Bitstamp",
+		asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +409,9 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	ob, err = GetSpecificOrderbook(currency.NewPairFromStrings("ETH", "LTC"), "Bitstamp", asset)
+	ob, err = GetSpecificOrderbook(currency.NewPairFromStrings("ETH", "LTC"),
+		"Bitstamp",
+		asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}
@@ -415,15 +424,15 @@ func TestGetSpecificTicker(t *testing.T) {
 
 	LoadExchange("Bitstamp", false, nil)
 	p := currency.NewPairFromStrings("BTC", "USD")
-	asset := assets.AssetTypeSpot
 	err := ticker.ProcessTicker("Bitstamp",
 		&ticker.Price{Pair: p, Last: 1000},
-		assets.AssetTypeSpot)
+		asset.Spot)
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
 
-	tick, err := GetSpecificTicker(currency.NewPairFromStrings("BTC", "USD"), "Bitstamp", asset)
+	tick, err := GetSpecificTicker(currency.NewPairFromStrings("BTC", "USD"), "Bitstamp",
+		asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -432,7 +441,8 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	tick, err = GetSpecificTicker(currency.NewPairFromStrings("ETH", "LTC"), "Bitstamp", asset)
+	tick, err = GetSpecificTicker(currency.NewPairFromStrings("ETH", "LTC"), "Bitstamp",
+		asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}
@@ -532,10 +542,9 @@ func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 	SetupTestHelpers(t)
 
 	p := currency.NewPairFromStrings("BTC", "USD")
-	asset := assets.AssetTypeSpot
-	stats.Add("Bitfinex", p, assets.AssetTypeSpot, 1000, 10000)
-	stats.Add("Bitstamp", p, assets.AssetTypeSpot, 1337, 10000)
-	exchangeName, err := GetExchangeHighestPriceByCurrencyPair(p, asset)
+	stats.Add("Bitfinex", p, asset.Spot, 1000, 10000)
+	stats.Add("Bitstamp", p, asset.Spot, 1337, 10000)
+	exchangeName, err := GetExchangeHighestPriceByCurrencyPair(p, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -544,7 +553,8 @@ func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 		t.Error("Unexpected result")
 	}
 
-	_, err = GetExchangeHighestPriceByCurrencyPair(currency.NewPairFromStrings("BTC", "AUD"), asset)
+	_, err = GetExchangeHighestPriceByCurrencyPair(currency.NewPairFromStrings("BTC", "AUD"),
+		asset.Spot)
 	if err == nil {
 		t.Error("Unexpected result")
 	}
@@ -554,10 +564,9 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 	SetupTestHelpers(t)
 
 	p := currency.NewPairFromStrings("BTC", "USD")
-	asset := assets.AssetTypeSpot
-	stats.Add("Bitfinex", p, assets.AssetTypeSpot, 1000, 10000)
-	stats.Add("Bitstamp", p, assets.AssetTypeSpot, 1337, 10000)
-	exchangeName, err := GetExchangeLowestPriceByCurrencyPair(p, asset)
+	stats.Add("Bitfinex", p, asset.Spot, 1000, 10000)
+	stats.Add("Bitstamp", p, asset.Spot, 1337, 10000)
+	exchangeName, err := GetExchangeLowestPriceByCurrencyPair(p, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -566,7 +575,8 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 		t.Error("Unexpected result")
 	}
 
-	_, err = GetExchangeLowestPriceByCurrencyPair(currency.NewPairFromStrings("BTC", "AUD"), asset)
+	_, err = GetExchangeLowestPriceByCurrencyPair(currency.NewPairFromStrings("BTC", "AUD"),
+		asset.Spot)
 	if err == nil {
 		t.Error("Unexpected reuslt")
 	}
@@ -575,7 +585,7 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 func TestGetCryptocurrenciesByExchange(t *testing.T) {
 	SetupTestHelpers(t)
 
-	_, err := GetCryptocurrenciesByExchange("Bitfinex", false, false, assets.AssetTypeSpot)
+	_, err := GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
 	if err != nil {
 		t.Fatalf("Test failed. Err %s", err)
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -117,7 +117,7 @@ func (z *ZB) WsHandleData() {
 				z.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Unix(0, ticker.Date),
 					Pair:       currency.NewPairFromString(cPair[0]),
-					AssetType:  assets.AssetTypeSpot,
+					AssetType:  asset.Spot,
 					Exchange:   z.GetName(),
 					ClosePrice: ticker.Data.Last,
 					HighPrice:  ticker.Data.High,
@@ -156,7 +156,7 @@ func (z *ZB) WsHandleData() {
 				var newOrderBook orderbook.Base
 				newOrderBook.Asks = asks
 				newOrderBook.Bids = bids
-				newOrderBook.AssetType = assets.AssetTypeSpot
+				newOrderBook.AssetType = asset.Spot
 				newOrderBook.Pair = cPair
 
 				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
@@ -169,7 +169,7 @@ func (z *ZB) WsHandleData() {
 
 				z.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Pair:     cPair,
-					Asset:    assets.AssetTypeSpot,
+					Asset:    asset.Spot,
 					Exchange: z.GetName(),
 				}
 
@@ -190,7 +190,7 @@ func (z *ZB) WsHandleData() {
 				z.Websocket.DataHandler <- exchange.TradeData{
 					Timestamp:    time.Unix(0, t.Date),
 					CurrencyPair: cPair,
-					AssetType:    assets.AssetTypeSpot,
+					AssetType:    asset.Spot,
 					Exchange:     z.GetName(),
 					EventTime:    t.Date,
 					Price:        t.Price,
@@ -248,7 +248,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
-	enabledCurrencies := z.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := z.GetEnabledPairs(asset.Spot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""

@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,8 +51,8 @@ func (k *Kraken) SetDefaults() {
 	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
 	k.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 
 		UseGlobalFormat: true,
@@ -140,13 +140,13 @@ func (k *Kraken) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(k.GetEnabledPairs(assets.AssetTypeSpot).Strings(), "-") ||
-		!common.StringDataContains(k.GetAvailablePairs(assets.AssetTypeSpot).Strings(), "-") {
+	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), "-") ||
+		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := currency.NewPairsFromStrings([]string{"XBT-USD"})
 		log.Warn("WARNING: Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
-		err := k.UpdatePairs(enabledPairs, assets.AssetTypeSpot, true, true)
+		err := k.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf("%s failed to update currencies. Err: %s\n", k.Name, err)
 		}
@@ -163,7 +163,7 @@ func (k *Kraken) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (k *Kraken) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	pairs, err := k.GetAssetPairs()
 	if err != nil {
 		return nil, err
@@ -191,16 +191,16 @@ func (k *Kraken) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := k.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := k.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return k.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return k.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (k *Kraken) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	pairs := k.GetEnabledPairs(assetType)
 	pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
@@ -233,7 +233,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (k *Kraken) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (k *Kraken) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(k.GetName(), p, assetType)
 	if err != nil {
 		return k.UpdateTicker(p, assetType)
@@ -242,7 +242,7 @@ func (k *Kraken) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticke
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (k *Kraken) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(k.GetName(), p, assetType)
 	if err != nil {
 		return k.UpdateOrderbook(p, assetType)
@@ -251,7 +251,7 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := k.GetDepth(k.FormatExchangeCurrency(p,
 		assetType).String())
@@ -313,7 +313,7 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -447,7 +447,7 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for i := range resp.Open {
 		symbol := currency.NewPairDelimiter(resp.Open[i].Descr.Pair,
-			k.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			k.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(int64(resp.Open[i].StartTm), 0)
 		side := exchange.OrderSide(strings.ToUpper(resp.Open[i].Descr.Type))
 
@@ -490,7 +490,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for i := range resp.Closed {
 		symbol := currency.NewPairDelimiter(resp.Closed[i].Descr.Pair,
-			k.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			k.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(int64(resp.Closed[i].StartTm), 0)
 		side := exchange.OrderSide(strings.ToUpper(resp.Closed[i].Descr.Type))
 

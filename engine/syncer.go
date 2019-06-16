@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -58,7 +58,7 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyn
 	return &s, nil
 }
 
-func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a assets.AssetType) (*CurrencyPairSyncAgent, error) {
+func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a asset.Item) (*CurrencyPairSyncAgent, error) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -73,7 +73,7 @@ func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a
 	return nil, errors.New("exchange currency pair syncer not found")
 }
 
-func (e *ExchangeCurrencyPairSyncer) exists(exchangeName string, p currency.Pair, a assets.AssetType) bool {
+func (e *ExchangeCurrencyPairSyncer) exists(exchangeName string, p currency.Pair, a asset.Item) bool {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -136,7 +136,7 @@ func (e *ExchangeCurrencyPairSyncer) remove(c *CurrencyPairSyncAgent) {
 	}
 }
 
-func (e *ExchangeCurrencyPairSyncer) isProcessing(exchangeName string, p currency.Pair, a assets.AssetType, syncType int) bool {
+func (e *ExchangeCurrencyPairSyncer) isProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int) bool {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -158,7 +158,7 @@ func (e *ExchangeCurrencyPairSyncer) isProcessing(exchangeName string, p currenc
 	return false
 }
 
-func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p currency.Pair, a assets.AssetType, syncType int, processing bool) {
+func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int, processing bool) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -178,7 +178,7 @@ func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p curren
 	}
 }
 
-func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair, a assets.AssetType, syncType int, err error) {
+func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) {
 	if atomic.LoadInt32(&e.initSyncStarted) != 1 {
 		return
 	}

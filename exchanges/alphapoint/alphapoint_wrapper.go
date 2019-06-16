@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -31,8 +31,8 @@ func (a *Alphapoint) SetDefaults() {
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
 
-	a.CurrencyPairs.AssetTypes = assets.AssetTypes{
-		assets.AssetTypeSpot,
+	a.CurrencyPairs.AssetTypes = asset.Items{
+		asset.Spot,
 	}
 
 	a.Features = exchange.Features{
@@ -62,7 +62,7 @@ func (a *Alphapoint) SetDefaults() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (a *Alphapoint) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (a *Alphapoint) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -100,7 +100,7 @@ func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := a.GetTicker(p.String())
 	if err != nil {
@@ -124,7 +124,7 @@ func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType assets.AssetType) (
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (a *Alphapoint) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (a *Alphapoint) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
@@ -133,7 +133,7 @@ func (a *Alphapoint) FetchTicker(p currency.Pair, assetType assets.AssetType) (t
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := a.GetOrderbook(p.String())
 	if err != nil {
@@ -165,7 +165,7 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType assets.AssetType
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (a *Alphapoint) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (a *Alphapoint) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
@@ -182,7 +182,7 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

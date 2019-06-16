@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 // Vars for the websocket client
@@ -44,7 +44,7 @@ type WebsocketEventResponse struct {
 type WebsocketOrderbookTickerRequest struct {
 	Exchange  string           `json:"exchangeName"`
 	Currency  string           `json:"currency"`
-	AssetType assets.AssetType `json:"assetType"`
+	AssetType asset.Item `json:"assetType"`
 }
 
 // SendWebsocketEvent sends a websocket event message
@@ -157,7 +157,7 @@ func main() {
 	dataReq := WebsocketOrderbookTickerRequest{
 		Exchange:  "Bitfinex",
 		Currency:  "BTCUSD",
-		AssetType: assets.AssetTypeSpot,
+		AssetType: asset.Spot,
 	}
 
 	err = SendWebsocketEvent("GetTicker", dataReq, &wsResp)

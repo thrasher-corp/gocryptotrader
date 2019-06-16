@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -123,7 +123,7 @@ func (b *BTSE) WsHandleData() {
 				b.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairDelimiter(t.ProductID, "-"),
-					AssetType:  assets.AssetTypeSpot,
+					AssetType:  asset.Spot,
 					Exchange:   b.GetName(),
 					ClosePrice: price,
 					Quantity:   t.LastSize,
@@ -184,7 +184,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	}
 
 	p := currency.NewPairDelimiter(snapshot.ProductID, "-")
-	base.AssetType = assets.AssetTypeSpot
+	base.AssetType = asset.Spot
 	base.Pair = p
 	base.LastUpdated = time.Now()
 	base.ExchangeName = b.Name
@@ -196,7 +196,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 
 	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Pair:     p,
-		Asset:    assets.AssetTypeSpot,
+		Asset:    asset.Spot,
 		Exchange: b.GetName(),
 	}
 
@@ -206,7 +206,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTSE) GenerateDefaultSubscriptions() {
 	var channels = []string{"snapshot", "ticker"}
-	enabledCurrencies := b.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range enabledCurrencies {

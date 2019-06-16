@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -50,8 +50,8 @@ func (c *COINUT) SetDefaults() {
 	c.API.CredentialsValidator.RequiresClientID = true
 
 	c.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -142,7 +142,7 @@ func (c *COINUT) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *COINUT) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (c *COINUT) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	i, err := c.GetInstruments()
 	if err != nil {
 		return nil, err
@@ -161,12 +161,12 @@ func (c *COINUT) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := c.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := c.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -245,7 +245,7 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *COINUT) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := c.GetInstrumentTicker(c.InstrumentMap[p.String()])
 	if err != nil {
@@ -268,7 +268,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *COINUT) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -277,7 +277,7 @@ func (c *COINUT) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticke
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *COINUT) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
@@ -286,7 +286,7 @@ func (c *COINUT) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := c.GetInstrumentOrderbook(c.InstrumentMap[p.String()], 200)
 	if err != nil {
@@ -322,7 +322,7 @@ func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -521,7 +521,7 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			for _, currency := range getOrdersRequest.Currencies {
 				currStr := fmt.Sprintf("%v%v%v",
 					currency.Base.String(),
-					c.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter,
+					c.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter,
 					currency.Quote.String())
 				if strings.EqualFold(currStr, instrument) {
 					openOrders, err := c.GetOpenOrders(instrumentData.InstID)

@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,8 +51,8 @@ func (g *Gateio) SetDefaults() {
 	g.API.CredentialsValidator.RequiresSecret = true
 
 	g.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -147,23 +147,23 @@ func (g *Gateio) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (g *Gateio) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (g *Gateio) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	return g.GetSymbols()
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (g *Gateio) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := g.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := g.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return g.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return g.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gateio) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	result, err := g.GetTickers()
 	if err != nil {
@@ -190,7 +190,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (g *Gateio) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (g *Gateio) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateTicker(p, assetType)
@@ -199,7 +199,7 @@ func (g *Gateio) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticke
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (g *Gateio) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
@@ -208,7 +208,7 @@ func (g *Gateio) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	currency := g.FormatExchangeCurrency(p, assetType).String()
 
@@ -312,7 +312,7 @@ func (g *Gateio) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gateio) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (g *Gateio) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -419,7 +419,7 @@ func (g *Gateio) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		orderDetail.Status = orders.Orders[x].Status
 		orderDetail.Price = orders.Orders[x].Rate
 		orderDetail.CurrencyPair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
-			g.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		if strings.EqualFold(orders.Orders[x].Type, exchange.AskOrderSide.ToString()) {
 			orderDetail.OrderSide = exchange.AskOrderSide
 		} else if strings.EqualFold(orders.Orders[x].Type, exchange.BidOrderSide.ToString()) {
@@ -505,7 +505,7 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		}
 
 		symbol := currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
-			g.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(resp.Orders[i].Type))
 		orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 
@@ -542,7 +542,7 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for _, trade := range trades {
 		symbol := currency.NewPairDelimiter(trade.Pair,
-			g.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(trade.Type))
 		orderDate := time.Unix(trade.TimeUnix, 0)
 		orders = append(orders, exchange.OrderDetail{

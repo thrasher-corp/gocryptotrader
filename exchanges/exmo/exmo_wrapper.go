@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,8 +51,8 @@ func (e *EXMO) SetDefaults() {
 	e.API.CredentialsValidator.RequiresSecret = true
 
 	e.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -127,7 +127,7 @@ func (e *EXMO) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (e *EXMO) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (e *EXMO) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	pairs, err := e.GetPairSettings()
 	if err != nil {
 		return nil, err
@@ -144,16 +144,16 @@ func (e *EXMO) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (e *EXMO) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := e.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := e.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return e.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return e.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (e *EXMO) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType), assetType)
 	if err != nil {
@@ -186,7 +186,7 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (e *EXMO) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(e.GetName(), p, assetType)
 	if err != nil {
 		return e.UpdateTicker(p, assetType)
@@ -195,7 +195,7 @@ func (e *EXMO) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (e *EXMO) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(e.GetName(), p, assetType)
 	if err != nil {
 		return e.UpdateOrderbook(p, assetType)
@@ -204,7 +204,7 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orde
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType), assetType)
 	if err != nil {
@@ -293,7 +293,7 @@ func (e *EXMO) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (e *EXMO) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (e *EXMO) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -465,7 +465,7 @@ func (e *EXMO) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 
 	var allTrades []UserTrades
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := e.GetUserTrades(e.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String(), "", "10000")
+		resp, err := e.GetUserTrades(e.FormatExchangeCurrency(currency, asset.Spot).String(), "", "10000")
 		if err != nil {
 			return nil, err
 		}
