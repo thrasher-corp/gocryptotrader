@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 // vars related to orders
@@ -153,7 +153,7 @@ type OrderCancellation struct {
 	AccountID     string
 	OrderID       string
 	CurrencyPair  currency.Pair
-	AssetType     assets.AssetType
+	AssetType     asset.Item
 	WalletAddress string
 	Side          OrderSide
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -50,8 +50,8 @@ func (p *Poloniex) SetDefaults() {
 	p.API.CredentialsValidator.RequiresSecret = true
 
 	p.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -134,7 +134,7 @@ func (p *Poloniex) Run() {
 	}
 
 	forceUpdate := false
-	if common.StringDataCompare(p.GetAvailablePairs(assets.AssetTypeSpot).Strings(), "BTC_USDT") {
+	if common.StringDataCompare(p.GetAvailablePairs(asset.Spot).Strings(), "BTC_USDT") {
 		log.Warnf("%s contains invalid pair, forcing upgrade of available currencies.\n",
 			p.Name)
 		forceUpdate = true
@@ -151,7 +151,7 @@ func (p *Poloniex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (p *Poloniex) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (p *Poloniex) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	resp, err := p.GetTicker()
 	if err != nil {
 		return nil, err
@@ -168,16 +168,16 @@ func (p *Poloniex) FetchTradablePairs(asset assets.AssetType) ([]string, error) 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (p *Poloniex) UpdateTradablePairs(forceUpgrade bool) error {
-	pairs, err := p.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := p.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return p.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpgrade)
+	return p.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpgrade)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := p.GetTicker()
 	if err != nil {
@@ -204,7 +204,7 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType assets.Ass
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (p *Poloniex) FetchTicker(currencyPair currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (p *Poloniex) FetchTicker(currencyPair currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair, assetType)
 	if err != nil {
 		return p.UpdateTicker(currencyPair, assetType)
@@ -213,7 +213,7 @@ func (p *Poloniex) FetchTicker(currencyPair currency.Pair, assetType assets.Asse
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(p.GetName(), currencyPair, assetType)
 	if err != nil {
 		return p.UpdateOrderbook(currencyPair, assetType)
@@ -222,7 +222,7 @@ func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType assets.A
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := p.GetOrderbook("", 1000)
 	if err != nil {
@@ -297,7 +297,7 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -446,7 +446,7 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 	var orders []exchange.OrderDetail
 	for currencyPair, openOrders := range resp.Data {
 		symbol := currency.NewPairDelimiter(currencyPair,
-			p.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			p.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 
 		for _, order := range openOrders {
 			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
@@ -488,7 +488,7 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 	var orders []exchange.OrderDetail
 	for currencyPair, historicOrders := range resp.Data {
 		symbol := currency.NewPairDelimiter(currencyPair,
-			p.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			p.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 
 		for _, order := range historicOrders {
 			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))

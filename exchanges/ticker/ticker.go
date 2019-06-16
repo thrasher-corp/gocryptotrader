@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 // Const values for the ticker package
@@ -44,7 +44,7 @@ type Ticker struct {
 }
 
 // PriceToString returns the string version of a stored price field
-func (t *Ticker) PriceToString(p currency.Pair, priceType string, tickerType assets.AssetType) string {
+func (t *Ticker) PriceToString(p currency.Pair, priceType string, tickerType asset.Item) string {
 	priceType = strings.ToLower(priceType)
 
 	switch priceType {
@@ -68,7 +68,7 @@ func (t *Ticker) PriceToString(p currency.Pair, priceType string, tickerType ass
 }
 
 // GetTicker checks and returns a requested ticker if it exists
-func GetTicker(exchange string, p currency.Pair, tickerType assets.AssetType) (Price, error) {
+func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (Price, error) {
 	ticker, err := GetTickerByExchange(exchange)
 	if err != nil {
 		return Price{}, err
@@ -130,7 +130,7 @@ func SecondCurrencyExists(exchange string, p currency.Pair) bool {
 }
 
 // CreateNewTicker creates a new Ticker
-func CreateNewTicker(exchangeName string, tickerNew *Price, tickerType assets.AssetType) Ticker {
+func CreateNewTicker(exchangeName string, tickerNew *Price, tickerType asset.Item) Ticker {
 	m.Lock()
 	defer m.Unlock()
 	ticker := Ticker{}
@@ -147,7 +147,7 @@ func CreateNewTicker(exchangeName string, tickerNew *Price, tickerType assets.As
 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers
 // list
-func ProcessTicker(exchangeName string, tickerNew *Price, tickerType assets.AssetType) error {
+func ProcessTicker(exchangeName string, tickerNew *Price, tickerType asset.Item) error {
 	if tickerNew.Pair.String() == "" {
 		return errors.New("")
 	}

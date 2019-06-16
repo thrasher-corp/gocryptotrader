@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -163,7 +163,7 @@ func (p *Poloniex) WsHandleData() {
 						Timestamp:  time.Now(),
 						Pair:       currency.NewPairDelimiter(currencyPair, "_"),
 						Exchange:   p.GetName(),
-						AssetType:  assets.AssetTypeSpot,
+						AssetType:  asset.Spot,
 						ClosePrice: t.LastPrice,
 						LowPrice:   t.LowestAsk,
 						HighPrice:  t.HighestBid,
@@ -201,7 +201,7 @@ func (p *Poloniex) WsHandleData() {
 
 								p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 									Exchange: p.GetName(),
-									Asset:    assets.AssetTypeSpot,
+									Asset:    asset.Spot,
 									Pair:     currency.NewPairFromString(currencyPair),
 								}
 							case "o":
@@ -214,7 +214,7 @@ func (p *Poloniex) WsHandleData() {
 
 								p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 									Exchange: p.GetName(),
-									Asset:    assets.AssetTypeSpot,
+									Asset:    asset.Spot,
 									Pair:     currency.NewPairFromString(currencyPair),
 								}
 							case "t":
@@ -292,7 +292,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.AssetType = assets.AssetTypeSpot
+	newOrderBook.AssetType = asset.Spot
 	newOrderBook.LastUpdated = time.Now()
 	newOrderBook.Pair = currency.NewPairFromString(symbol)
 
@@ -321,7 +321,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 			cP,
 			time.Now(),
 			p.GetName(),
-			assets.AssetTypeSpot)
+			asset.Spot)
 	}
 
 	return p.Websocket.Orderbook.Update([]orderbook.Item{{Price: price, Amount: volume}},
@@ -329,7 +329,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 		cP,
 		time.Now(),
 		p.GetName(),
-		assets.AssetTypeSpot)
+		asset.Spot)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
@@ -340,7 +340,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 		Channel: fmt.Sprintf("%v", wsTickerDataID),
 	})
 
-	enabledCurrencies := p.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := p.GetEnabledPairs(asset.Spot)
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = "_"
 		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{

@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -347,7 +347,7 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 	}
 
 	result, err := GetSpecificTicker(currency.NewPairFromString(tickerReq.Currency),
-		tickerReq.Exchange, assets.AssetType(tickerReq.AssetType))
+		tickerReq.Exchange, asset.Item(tickerReq.AssetType))
 
 	if err != nil {
 		wsResp.Error = err.Error()
@@ -379,7 +379,7 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 	}
 
 	result, err := GetSpecificOrderbook(currency.NewPairFromString(orderbookReq.Currency),
-		orderbookReq.Exchange, assets.AssetType(orderbookReq.AssetType))
+		orderbookReq.Exchange, asset.Item(orderbookReq.AssetType))
 
 	if err != nil {
 		wsResp.Error = err.Error()

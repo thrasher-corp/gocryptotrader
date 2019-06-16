@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
@@ -29,7 +29,7 @@ var m sync.Mutex
 func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	var newOrderBook orderbook.Base
 
-	formattedPair := b.FormatExchangeCurrency(p, assets.AssetTypeSpot)
+	formattedPair := b.FormatExchangeCurrency(p, asset.Spot)
 
 	orderbookNew, err := b.GetOrderBook(
 		OrderBookDataRequestParams{
@@ -59,7 +59,7 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	}
 
 	newOrderBook.Pair = currency.NewPairFromString(formattedPair.String())
-	newOrderBook.AssetType = assets.AssetTypeSpot
+	newOrderBook.AssetType = asset.Spot
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 }
 
@@ -117,7 +117,7 @@ func (b *Binance) UpdateLocalCache(ob *WebsocketDepthStream) error {
 		currencyPair,
 		updatedTime,
 		b.GetName(),
-		assets.AssetTypeSpot)
+		asset.Spot)
 }
 
 // WSConnect intiates a websocket connection
@@ -129,7 +129,7 @@ func (b *Binance) WSConnect() error {
 	var Dialer websocket.Dialer
 	var err error
 
-	pairs := b.GetEnabledPairs(assets.AssetTypeSpot).Strings()
+	pairs := b.GetEnabledPairs(asset.Spot).Strings()
 	tick := strings.ToLower(
 		strings.Replace(
 			strings.Join(pairs, "@ticker/"), "-", "", -1)) + "@ticker"
@@ -164,7 +164,7 @@ func (b *Binance) WSConnect() error {
 		Dialer.Proxy = http.ProxyURL(u)
 	}
 
-	for _, ePair := range b.GetEnabledPairs(assets.AssetTypeSpot) {
+	for _, ePair := range b.GetEnabledPairs(asset.Spot) {
 		err = b.SeedLocalCache(ePair)
 		if err != nil {
 			return err
@@ -254,7 +254,7 @@ func (b *Binance) WsHandleData() {
 						Price:        price,
 						Amount:       amount,
 						Exchange:     b.GetName(),
-						AssetType:    assets.AssetTypeSpot,
+						AssetType:    asset.Spot,
 						Side:         trade.EventType,
 					}
 					continue
@@ -272,7 +272,7 @@ func (b *Binance) WsHandleData() {
 
 					wsTicker.Timestamp = time.Unix(t.EventTime/1000, 0)
 					wsTicker.Pair = currency.NewPairFromString(t.Symbol)
-					wsTicker.AssetType = assets.AssetTypeSpot
+					wsTicker.AssetType = asset.Spot
 					wsTicker.Exchange = b.GetName()
 					wsTicker.ClosePrice, _ = strconv.ParseFloat(t.CurrDayClose, 64)
 					wsTicker.Quantity, _ = strconv.ParseFloat(t.TotalTradedVolume, 64)
@@ -297,7 +297,7 @@ func (b *Binance) WsHandleData() {
 
 					wsKline.Timestamp = time.Unix(0, kline.EventTime)
 					wsKline.Pair = currency.NewPairFromString(kline.Symbol)
-					wsKline.AssetType = assets.AssetTypeSpot
+					wsKline.AssetType = asset.Spot
 					wsKline.Exchange = b.GetName()
 					wsKline.StartTime = time.Unix(0, kline.Kline.StartTime)
 					wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime)
@@ -331,7 +331,7 @@ func (b *Binance) WsHandleData() {
 
 					b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 						Pair:     currencyPair,
-						Asset:    assets.AssetTypeSpot,
+						Asset:    asset.Spot,
 						Exchange: b.GetName(),
 					}
 					continue

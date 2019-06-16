@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -57,7 +57,7 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 	)
 }
 
-func printTickerSummary(result *ticker.Price, p currency.Pair, assetType assets.AssetType, exchangeName string, err error) {
+func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.Item, exchangeName string, err error) {
 	if err != nil {
 		log.Errorf("Failed to get %s %s ticker. Error: %s",
 			p.String(),
@@ -108,7 +108,7 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType assets.
 	}
 }
 
-func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType assets.AssetType, exchangeName string, err error) {
+func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType asset.Item, exchangeName string, err error) {
 	if err != nil {
 		log.Errorf("Failed to get %s %s orderbook of type %s. Error: %s",
 			p,
@@ -204,7 +204,7 @@ func TickerUpdaterRoutine() {
 				supportsBatching := Bot.Exchanges[x].SupportsRESTTickerBatchUpdates()
 				assetTypes := Bot.Exchanges[x].GetAssetTypes()
 
-				processTicker := func(exch exchange.IBotExchange, update bool, c currency.Pair, assetType assets.AssetType) {
+				processTicker := func(exch exchange.IBotExchange, update bool, c currency.Pair, assetType asset.Item) {
 					var result ticker.Price
 					var err error
 					if update {
@@ -256,7 +256,7 @@ func OrderbookUpdaterRoutine() {
 				exchangeName := Bot.Exchanges[x].GetName()
 				assetTypes := Bot.Exchanges[x].GetAssetTypes()
 
-				processOrderbook := func(exch exchange.IBotExchange, c currency.Pair, assetType assets.AssetType) {
+				processOrderbook := func(exch exchange.IBotExchange, c currency.Pair, assetType asset.Item) {
 					result, err := exch.UpdateOrderbook(c, assetType)
 					printOrderbookSummary(&result, c, assetType, exchangeName, err)
 					if err == nil {

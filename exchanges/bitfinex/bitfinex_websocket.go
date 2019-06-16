@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -282,7 +282,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 						if len(newOrderbook) > 1 {
 							err := b.WsInsertSnapshot(currency.NewPairFromString(chanInfo.Pair),
-								assets.AssetTypeSpot,
+								asset.Spot,
 								newOrderbook)
 
 							if err != nil {
@@ -293,7 +293,7 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 
 						err := b.WsUpdateOrderbook(currency.NewPairFromString(chanInfo.Pair),
-							assets.AssetTypeSpot,
+							asset.Spot,
 							newOrderbook[0])
 
 						if err != nil {
@@ -309,7 +309,7 @@ func (b *Bitfinex) WsDataHandler() {
 							LowPrice:   chanData[10].(float64),
 							Pair:       currency.NewPairFromString(chanInfo.Pair),
 							Exchange:   b.GetName(),
-							AssetType:  assets.AssetTypeSpot,
+							AssetType:  asset.Spot,
 						}
 
 					case "account":
@@ -465,7 +465,7 @@ func (b *Bitfinex) WsDataHandler() {
 								Price:        trades[0].Price,
 								Amount:       newAmount,
 								Exchange:     b.GetName(),
-								AssetType:    assets.AssetTypeSpot,
+								AssetType:    asset.Spot,
 								Side:         side,
 							}
 						}
@@ -478,7 +478,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a
 // channel
-func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType assets.AssetType, books []WebsocketBook) error {
+func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook) error {
 	if len(books) == 0 {
 		return errors.New("bitfinex.go error - no orderbooks submitted")
 	}
@@ -515,7 +515,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType assets.AssetType,
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType assets.AssetType, book WebsocketBook) error {
+func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book WebsocketBook) error {
 
 	if book.Count > 0 {
 		if book.Amount > 0 {
@@ -605,7 +605,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{"book", "trades", "ticker"}
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
-		enabledPairs := b.GetEnabledPairs(assets.AssetTypeSpot)
+		enabledPairs := b.GetEnabledPairs(asset.Spot)
 		for j := range enabledPairs {
 			params := make(map[string]interface{})
 			if channels[i] == "book" {

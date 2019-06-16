@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -289,17 +289,17 @@ func (b *Bitmex) wsHandleIncomingData() {
 	}
 }
 
-var snapshotloaded = make(map[currency.Pair]map[assets.AssetType]bool)
+var snapshotloaded = make(map[currency.Pair]map[asset.Item]bool)
 
 // ProcessOrderbook processes orderbook updates
-func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair currency.Pair, assetType assets.AssetType) error { // nolint: unparam
+func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair currency.Pair, assetType asset.Item) error { // nolint: unparam
 	if len(data) < 1 {
 		return errors.New("bitmex_websocket.go error - no orderbook data")
 	}
 
 	_, ok := snapshotloaded[currencyPair]
 	if !ok {
-		snapshotloaded[currencyPair] = make(map[assets.AssetType]bool)
+		snapshotloaded[currencyPair] = make(map[asset.Item]bool)
 	}
 
 	_, ok = snapshotloaded[currencyPair][assetType]
@@ -389,7 +389,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateDefaultSubscriptions() {
-	contracts := b.GetEnabledPairs(assets.AssetTypePerpetualContract)
+	contracts := b.GetEnabledPairs(asset.PerpetualContract)
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
 	subscriptions := []exchange.WebsocketChannelSubscription{
 		{

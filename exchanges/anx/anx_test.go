@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -65,7 +65,7 @@ func TestGetCurrencies(t *testing.T) {
 }
 
 func TestFetchTradablePairs(t *testing.T) {
-	_, err := a.FetchTradablePairs(assets.AssetTypeSpot)
+	_, err := a.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		t.Fatalf("Test failed. TestGetTradablePairs failed. Err: %s", err)
 	}

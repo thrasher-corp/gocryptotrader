@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,11 +51,11 @@ func (b *Bitmex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypePerpetualContract,
-			assets.AssetTypeFutures,
-			assets.AssetTypeDownsideProfitContract,
-			assets.AssetTypeUpsideProfitContract,
+		AssetTypes: asset.Items{
+			asset.PerpetualContract,
+			asset.Futures,
+			asset.DownsideProfitContract,
+			asset.UpsideProfitContract,
 		},
 		UseGlobalFormat: false,
 	}
@@ -69,8 +69,8 @@ func (b *Bitmex) SetDefaults() {
 			Uppercase: true,
 		},
 	}
-	b.CurrencyPairs.Store(assets.AssetTypePerpetualContract, fmt1)
-	b.CurrencyPairs.Store(assets.AssetTypeFutures, fmt1)
+	b.CurrencyPairs.Store(asset.PerpetualContract, fmt1)
+	b.CurrencyPairs.Store(asset.Futures, fmt1)
 
 	// Upside and Downside profit contracts use the same format
 	fmt2 := currency.PairStore{
@@ -83,8 +83,8 @@ func (b *Bitmex) SetDefaults() {
 			Uppercase: true,
 		},
 	}
-	b.CurrencyPairs.Store(assets.AssetTypeDownsideProfitContract, fmt2)
-	b.CurrencyPairs.Store(assets.AssetTypeUpsideProfitContract, fmt2)
+	b.CurrencyPairs.Store(asset.DownsideProfitContract, fmt2)
+	b.CurrencyPairs.Store(asset.UpsideProfitContract, fmt2)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -167,7 +167,7 @@ func (b *Bitmex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitmex) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	marketInfo, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (b *Bitmex) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -192,25 +192,25 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 	var assetPairs []string
 	for x := range b.CurrencyPairs.AssetTypes {
 		switch b.CurrencyPairs.AssetTypes[x] {
-		case assets.AssetTypePerpetualContract:
+		case asset.PerpetualContract:
 			for y := range pairs {
 				if strings.Contains(pairs[y], "USD") {
 					assetPairs = append(assetPairs, pairs[y])
 				}
 			}
-		case assets.AssetTypeFutures:
+		case asset.Futures:
 			for y := range pairs {
 				if strings.Contains(pairs[y], "19") {
 					assetPairs = append(assetPairs, pairs[y])
 				}
 			}
-		case assets.AssetTypeDownsideProfitContract:
+		case asset.DownsideProfitContract:
 			for y := range pairs {
 				if strings.Contains(pairs[y], "_D") {
 					assetPairs = append(assetPairs, pairs[y])
 				}
 			}
-		case assets.AssetTypeUpsideProfitContract:
+		case asset.UpsideProfitContract:
 			for y := range pairs {
 				if strings.Contains(pairs[y], "_U") {
 					assetPairs = append(assetPairs, pairs[y])
@@ -228,7 +228,7 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitmex) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	currency := b.FormatExchangeCurrency(p, assetType)
 
@@ -251,7 +251,7 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitmex) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *Bitmex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -260,7 +260,7 @@ func (b *Bitmex) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticke
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -269,7 +269,7 @@ func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 
 	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
@@ -338,7 +338,7 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -519,7 +519,7 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			Status:    resp[i].OrdStatus,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
-				b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)
@@ -561,7 +561,7 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			Status:    resp[i].OrdStatus,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
-				b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)

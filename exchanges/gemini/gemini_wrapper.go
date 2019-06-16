@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -52,8 +52,8 @@ func (g *Gemini) SetDefaults() {
 	g.API.CredentialsValidator.RequiresSecret = true
 
 	g.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -145,7 +145,7 @@ func (g *Gemini) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (g *Gemini) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (g *Gemini) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	return g.GetSymbols()
 }
 
@@ -157,7 +157,7 @@ func (g *Gemini) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return g.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return g.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // GetAccountInfo Retrieves balances for all enabled currencies for the
@@ -187,7 +187,7 @@ func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gemini) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := g.GetTicker(p.String())
 	if err != nil {
@@ -208,7 +208,7 @@ func (g *Gemini) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (g *Gemini) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (g *Gemini) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateTicker(p, assetType)
@@ -217,7 +217,7 @@ func (g *Gemini) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticke
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (g *Gemini) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (g *Gemini) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
@@ -226,7 +226,7 @@ func (g *Gemini) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := g.GetOrderbook(p.String(), url.Values{})
 	if err != nil {
@@ -261,7 +261,7 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -389,7 +389,7 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for i := range resp {
 		symbol := currency.NewPairDelimiter(resp[i].Symbol,
-			g.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		var orderType exchange.OrderType
 		if resp[i].Type == "exchange limit" {
 			orderType = exchange.LimitOrderType
@@ -432,7 +432,7 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var trades []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := g.GetTradeHistory(g.FormatExchangeCurrency(currency,
-			assets.AssetTypeSpot).String(), getOrdersRequest.StartTicks.Unix())
+			asset.Spot).String(), getOrdersRequest.StartTicks.Unix())
 		if err != nil {
 			return nil, err
 		}
@@ -459,7 +459,7 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			Price:     trades[i].Price,
 			CurrencyPair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
 				trades[i].QuoteCurrency,
-				g.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+				g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
 		})
 	}
 

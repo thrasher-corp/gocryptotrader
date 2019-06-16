@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -22,7 +22,7 @@ func addValidEvent() (int64, error) {
 		ItemPrice,
 		EventConditionParams{Condition: ConditionGreaterThan, Price: 1},
 		currency.NewPair(currency.BTC, currency.USD),
-		assets.AssetTypeSpot,
+		asset.Spot,
 		"SMS,test")
 }
 
@@ -124,7 +124,7 @@ func TestString(t *testing.T) {
 			Price:     1,
 		},
 		Pair:   currency.NewPair(currency.BTC, currency.USD),
-		Asset:  assets.AssetTypeSpot,
+		Asset:  asset.Spot,
 		Action: "SMS,ALL",
 	}
 
@@ -142,7 +142,7 @@ func TestProcessTicker(t *testing.T) {
 	e := Event{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Asset:    assets.AssetTypeSpot,
+		Asset:    asset.Spot,
 		Condition: EventConditionParams{
 			Condition: ConditionGreaterThan,
 			Price:     1,
@@ -214,7 +214,7 @@ func TestProcessOrderbook(t *testing.T) {
 	e := Event{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Asset:    assets.AssetTypeSpot,
+		Asset:    asset.Spot,
 		Condition: EventConditionParams{
 			Condition:        ConditionGreaterThan,
 			CheckBidsAndAsks: true,

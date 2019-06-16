@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -52,8 +52,8 @@ func (c *CoinbasePro) SetDefaults() {
 	c.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
 	c.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -144,7 +144,7 @@ func (c *CoinbasePro) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *CoinbasePro) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (c *CoinbasePro) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	pairs, err := c.GetProducts()
 	if err != nil {
 		return nil, err
@@ -161,12 +161,12 @@ func (c *CoinbasePro) FetchTradablePairs(asset assets.AssetType) ([]string, erro
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := c.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := c.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -197,7 +197,7 @@ func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := c.GetTicker(c.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
@@ -225,7 +225,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType assets.AssetType) 
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -234,7 +234,7 @@ func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType assets.AssetType) (
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
@@ -243,7 +243,7 @@ func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType assets.AssetType
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := c.GetOrderbook(c.FormatExchangeCurrency(p, assetType).String(), 2)
 	if err != nil {
@@ -280,7 +280,7 @@ func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -418,7 +418,7 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersReques
 	var respOrders []GeneralizedOrderResponse
 	for i := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"open", "pending", "active"},
-			c.FormatExchangeCurrency(getOrdersRequest.Currencies[i], assets.AssetTypeSpot).String())
+			c.FormatExchangeCurrency(getOrdersRequest.Currencies[i], asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -428,7 +428,7 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersReques
 	var orders []exchange.OrderDetail
 	for i := range respOrders {
 		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
-			c.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			c.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderSide := exchange.OrderSide(strings.ToUpper(respOrders[i].Side))
 		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
@@ -461,7 +461,7 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 	var respOrders []GeneralizedOrderResponse
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"done", "settled"},
-			c.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String())
+			c.FormatExchangeCurrency(currency, asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -471,7 +471,7 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 	var orders []exchange.OrderDetail
 	for i := range respOrders {
 		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
-			c.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			c.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderSide := exchange.OrderSide(strings.ToUpper(respOrders[i].Side))
 		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)

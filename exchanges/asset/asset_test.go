@@ -1,4 +1,4 @@
-package assets
+package asset
 
 import (
 	"testing"
@@ -7,14 +7,14 @@ import (
 )
 
 func TestString(t *testing.T) {
-	a := AssetTypeSpot
+	a := Spot
 	if a.String() != "spot" {
 		t.Fatal("Test failed - TestString returned an unexpected result")
 	}
 }
 
 func TestToStringArray(t *testing.T) {
-	a := AssetTypes{AssetTypeSpot, AssetTypeFutures}
+	a := Items{Spot, Futures}
 	result := a.Strings()
 	for x := range a {
 		if !common.StringDataCompare(result, a[x].String()) {
@@ -24,22 +24,22 @@ func TestToStringArray(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
-	a := AssetTypes{AssetTypeSpot, AssetTypeFutures}
+	a := Items{Spot, Futures}
 	if a.Contains("meow") {
 		t.Fatal("Test failed - TestContains returned an unexpected result")
 	}
 
-	if !a.Contains(AssetTypeSpot) {
+	if !a.Contains(Spot) {
 		t.Fatal("Test failed - TestContains returned an unexpected result")
 	}
 
-	if a.Contains(AssetTypeBinary) {
+	if a.Contains(Binary) {
 		t.Fatal("Test failed - TestContains returned an unexpected result")
 	}
 }
 
 func TestJoinToString(t *testing.T) {
-	a := AssetTypes{AssetTypeSpot, AssetTypeFutures}
+	a := Items{Spot, Futures}
 	if a.JoinToString(",") != "spot,futures" {
 		t.Fatal("Test failed - TestJoinToString returned an unexpected result")
 	}
@@ -50,7 +50,7 @@ func TestIsValid(t *testing.T) {
 		t.Fatal("Test failed - TestIsValid returned an unexpected result")
 	}
 
-	if !IsValid(AssetTypeSpot) {
+	if !IsValid(Spot) {
 		t.Fatal("Test failed - TestIsValid returned an unexpected result")
 	}
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -221,7 +221,7 @@ func (e *Base) SetAssetTypes() {
 }
 
 // GetAssetTypes returns the available asset types for an individual exchange
-func (e *Base) GetAssetTypes() assets.AssetTypes {
+func (e *Base) GetAssetTypes() asset.Items {
 	return e.CurrencyPairs.AssetTypes
 }
 
@@ -303,7 +303,7 @@ func (e *Base) GetSupportedFeatures() FeaturesSupported {
 
 // GetPairFormat returns the pair format based on the exchange and
 // asset type
-func (e *Base) GetPairFormat(assetType assets.AssetType, requestFormat bool) currency.PairFormat {
+func (e *Base) GetPairFormat(assetType asset.Item, requestFormat bool) currency.PairFormat {
 	if e.CurrencyPairs.UseGlobalFormat {
 		if requestFormat {
 			return *e.CurrencyPairs.RequestFormat
@@ -319,7 +319,7 @@ func (e *Base) GetPairFormat(assetType assets.AssetType, requestFormat bool) cur
 
 // GetEnabledPairs is a method that returns the enabled currency pairs of
 // the exchange by asset type
-func (e *Base) GetEnabledPairs(assetType assets.AssetType) currency.Pairs {
+func (e *Base) GetEnabledPairs(assetType asset.Item) currency.Pairs {
 	format := e.GetPairFormat(assetType, false)
 	pairs := e.CurrencyPairs.GetPairs(assetType, true)
 	return pairs.Format(format.Delimiter, format.Index, format.Uppercase)
@@ -327,7 +327,7 @@ func (e *Base) GetEnabledPairs(assetType assets.AssetType) currency.Pairs {
 
 // GetAvailablePairs is a method that returns the available currency pairs
 // of the exchange by asset type
-func (e *Base) GetAvailablePairs(assetType assets.AssetType) currency.Pairs {
+func (e *Base) GetAvailablePairs(assetType asset.Item) currency.Pairs {
 	format := e.GetPairFormat(assetType, false)
 	pairs := e.CurrencyPairs.GetPairs(assetType, false)
 	return pairs.Format(format.Delimiter, format.Index, format.Uppercase)
@@ -335,7 +335,7 @@ func (e *Base) GetAvailablePairs(assetType assets.AssetType) currency.Pairs {
 
 // SupportsPair returns true or not whether a currency pair exists in the
 // exchange available currencies or not
-func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType assets.AssetType) bool {
+func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.Item) bool {
 	if enabledPairs {
 		return e.GetEnabledPairs(assetType).Contains(p, false)
 	}
@@ -344,7 +344,7 @@ func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType assets
 
 // FormatExchangeCurrencies returns a string containing
 // the exchanges formatted currency pairs
-func (e *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType assets.AssetType) (string, error) {
+func (e *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.Item) (string, error) {
 	var currencyItems string
 	pairFmt := e.GetPairFormat(assetType, true)
 
@@ -364,7 +364,7 @@ func (e *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType assets.
 
 // FormatExchangeCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (e *Base) FormatExchangeCurrency(p currency.Pair, assetType assets.AssetType) currency.Pair {
+func (e *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) currency.Pair {
 	pairFmt := e.GetPairFormat(assetType, true)
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
 }
@@ -520,7 +520,7 @@ func (e *Base) ValidateAPICredentials() bool {
 
 // SetPairs sets the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (e *Base) SetPairs(pairs currency.Pairs, assetType assets.AssetType, enabled bool) error {
+func (e *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error {
 	if len(pairs) == 0 {
 		return fmt.Errorf("%s SetPairs error - pairs is empty", e.Name)
 	}
@@ -539,7 +539,7 @@ func (e *Base) SetPairs(pairs currency.Pairs, assetType assets.AssetType, enable
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType assets.AssetType, enabled, force bool) error {
+func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item, enabled, force bool) error {
 	if len(exchangeProducts) == 0 {
 		return fmt.Errorf("%s UpdatePairs error - exchangeProducts is empty", e.Name)
 	}
@@ -710,7 +710,7 @@ func (e *Base) FormatWithdrawPermissions() string {
 
 // IsAssetTypeSupported whether or not the supplied asset is supported
 // by the exchange
-func (e *Base) IsAssetTypeSupported(asset assets.AssetType) bool {
+func (e *Base) IsAssetTypeSupported(asset asset.Item) bool {
 	return e.CurrencyPairs.AssetTypes.Contains(asset)
 }
 

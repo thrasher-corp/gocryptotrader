@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -179,7 +179,7 @@ func GetAvailableExchanges() []string {
 
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
 // or disabled exchanges
-func GetAllAvailablePairs(enabledExchangesOnly bool, assetType assets.AssetType) currency.Pairs {
+func GetAllAvailablePairs(enabledExchangesOnly bool, assetType asset.Item) currency.Pairs {
 	var pairList currency.Pairs
 	for x := range Bot.Config.Exchanges {
 		if enabledExchangesOnly && !Bot.Config.Exchanges[x].Enabled {
@@ -204,7 +204,7 @@ func GetAllAvailablePairs(enabledExchangesOnly bool, assetType assets.AssetType)
 
 // GetSpecificAvailablePairs returns a list of supported pairs based on specific
 // parameters
-func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cryptoPairs bool, assetType assets.AssetType) currency.Pairs {
+func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cryptoPairs bool, assetType asset.Item) currency.Pairs {
 	var pairList currency.Pairs
 	supportedPairs := GetAllAvailablePairs(enabledExchangesOnly, assetType)
 
@@ -251,7 +251,7 @@ func IsRelatablePairs(p1, p2 currency.Pair, includeUSDT bool) bool {
 
 // MapCurrenciesByExchange returns a list of currency pairs mapped to an
 // exchange
-func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetType assets.AssetType) map[string]currency.Pairs {
+func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetType asset.Item) map[string]currency.Pairs {
 	currencyExchange := make(map[string]currency.Pairs)
 	for x := range p {
 		for y := range Bot.Config.Exchanges {
@@ -283,7 +283,7 @@ func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetT
 
 // GetExchangeNamesByCurrency returns a list of exchanges supporting
 // a currency pair based on whether the exchange is enabled or not
-func GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType assets.AssetType) []string {
+func GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType asset.Item) []string {
 	var exchanges []string
 	for x := range Bot.Config.Exchanges {
 		if enabled != Bot.Config.Exchanges[x].Enabled {
@@ -400,7 +400,7 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
-func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType assets.AssetType) (orderbook.Base, error) {
+func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (orderbook.Base, error) {
 	var specificOrderbook orderbook.Base
 	var err error
 	for x := range Bot.Exchanges {
@@ -419,7 +419,7 @@ func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType assets
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
-func GetSpecificTicker(p currency.Pair, exchangeName string, assetType assets.AssetType) (ticker.Price, error) {
+func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (ticker.Price, error) {
 	var specificTicker ticker.Price
 	var err error
 	for x := range Bot.Exchanges {
@@ -475,7 +475,7 @@ func GetAccountCurrencyInfoByExchangeName(accounts []exchange.AccountInfo, excha
 
 // GetExchangeHighestPriceByCurrencyPair returns the exchange with the highest
 // price for a given currency pair and asset type
-func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, assetType assets.AssetType) (string, error) {
+func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, assetType asset.Item) (string, error) {
 	result := stats.SortExchangesByPrice(p, assetType, true)
 	if len(result) == 0 {
 		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
@@ -486,7 +486,7 @@ func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, assetType assets.Ass
 
 // GetExchangeLowestPriceByCurrencyPair returns the exchange with the lowest
 // price for a given currency pair and asset type
-func GetExchangeLowestPriceByCurrencyPair(p currency.Pair, assetType assets.AssetType) (string, error) {
+func GetExchangeLowestPriceByCurrencyPair(p currency.Pair, assetType asset.Item) (string, error) {
 	result := stats.SortExchangesByPrice(p, assetType, false)
 	if len(result) == 0 {
 		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
@@ -586,7 +586,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 }
 
 // GetCryptocurrenciesByExchange returns a list of cryptocurrencies the exchange supports
-func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, enabledPairs bool, assetType assets.AssetType) ([]string, error) {
+func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, enabledPairs bool, assetType asset.Item) ([]string, error) {
 	var cryptocurrencies []string
 	for x := range Bot.Config.Exchanges {
 		if Bot.Config.Exchanges[x].Name != exchangeName {
@@ -656,7 +656,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 			continue
 		}
 
-		cryptoCurrencies, err := GetCryptocurrenciesByExchange(exchName, true, true, assets.AssetTypeSpot)
+		cryptoCurrencies, err := GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
 		if err != nil {
 			log.Debugf("%s failed to get cryptocurrency deposit addresses. Err: %s", exchName, err)
 			continue

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 // CurrencyPairSyncerConfig stores the currency pair config
@@ -53,7 +53,7 @@ type SyncBase struct {
 type CurrencyPairSyncAgent struct {
 	Created   time.Time
 	Exchange  string
-	AssetType assets.AssetType
+	AssetType asset.Item
 	Pair      currency.Pair
 	Ticker    SyncBase
 	Orderbook SyncBase

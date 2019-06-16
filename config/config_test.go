@@ -6,7 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/thrasher-/gocryptotrader/ntpclient"
 )
@@ -285,7 +285,7 @@ func TestCheckPairConsistency(t *testing.T) {
 			Uppercase: true,
 		},
 	}
-	pairsMan.Store(assets.AssetTypeSpot, currency.PairStore{
+	pairsMan.Store(asset.Spot, currency.PairStore{
 		Available: currency.NewPairsFromStrings([]string{"DOGE_USD,DOGE_AUD"}),
 		Enabled:   currency.NewPairsFromStrings([]string{"DOGE_USD,DOGE_AUD,DOGE_BTC"}),
 	})
@@ -311,7 +311,7 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("Test failed. CheckPairConsistency error:", err)
 	}
 
-	tec.CurrencyPairs.StorePairs(assets.AssetTypeSpot, currency.NewPairsFromStrings([]string{"DOGE_LTC,BTC_LTC"}), false)
+	tec.CurrencyPairs.StorePairs(asset.Spot, currency.NewPairsFromStrings([]string{"DOGE_LTC,BTC_LTC"}), false)
 	err = cfg.UpdateExchangeConfig(tec)
 	if err != nil {
 		t.Error("Test failed. CheckPairConsistency Update config failed, error:", err)
@@ -332,7 +332,7 @@ func TestSupportsPair(t *testing.T) {
 		)
 	}
 
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 	_, err = cfg.SupportsPair("asdf",
 		currency.NewPair(currency.BTC, currency.USD), assetType)
 	if err == nil {
@@ -358,7 +358,7 @@ func TestGetAvailablePairs(t *testing.T) {
 			"Test failed. TestGetAvailablePairs. LoadConfig Error: %s", err.Error())
 	}
 
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 	_, err = cfg.GetAvailablePairs("asdf", assetType)
 	if err == nil {
 		t.Error(
@@ -380,7 +380,7 @@ func TestGetEnabledPairs(t *testing.T) {
 			"Test failed. TestGetEnabledPairs. LoadConfig Error: %s", err.Error())
 	}
 
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 	_, err = cfg.GetEnabledPairs("asdf", assetType)
 	if err == nil {
 		t.Error(

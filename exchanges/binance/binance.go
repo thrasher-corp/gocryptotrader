@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -537,7 +537,7 @@ func (b *Binance) CheckLimit(limit int) error {
 }
 
 // CheckSymbol checks value against a variable list
-func (b *Binance) CheckSymbol(symbol string, assetType assets.AssetType) error {
+func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
 	enPairs := b.GetAvailablePairs(assetType)
 	for x := range enPairs {
 		if b.FormatExchangeCurrency(enPairs[x], assetType).String() == symbol {

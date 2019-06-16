@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,8 +51,8 @@ func (z *ZB) SetDefaults() {
 	z.API.CredentialsValidator.RequiresSecret = true
 
 	z.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 
 		UseGlobalFormat: true,
@@ -145,7 +145,7 @@ func (z *ZB) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (z *ZB) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (z *ZB) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	markets, err := z.GetMarkets()
 	if err != nil {
 		return nil, err
@@ -162,16 +162,16 @@ func (z *ZB) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (z *ZB) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := z.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := z.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return nil
 	}
 
-	return z.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return z.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (z *ZB) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	result, err := z.GetTickers()
@@ -202,7 +202,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (z *ZB) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (z *ZB) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(z.GetName(), p, assetType)
 	if err != nil {
 		return z.UpdateTicker(p, assetType)
@@ -211,7 +211,7 @@ func (z *ZB) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Pr
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (z *ZB) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(z.GetName(), p, assetType)
 	if err != nil {
 		return z.UpdateOrderbook(p, assetType)
@@ -220,7 +220,7 @@ func (z *ZB) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (z *ZB) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	currency := z.FormatExchangeCurrency(p, assetType).String()
 
@@ -295,7 +295,7 @@ func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (z *ZB) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -357,10 +357,10 @@ func (z *ZB) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllO
 		OrderStatus: make(map[string]string),
 	}
 	var allOpenOrders []Order
-	for _, currency := range z.GetEnabledPairs(assets.AssetTypeSpot) {
+	for _, currency := range z.GetEnabledPairs(asset.Spot) {
 		// Limiting to 10 pages
 		for i := 0; i < 10; i++ {
-			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(z.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String(), 1, 10)
+			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(z.FormatExchangeCurrency(currency, asset.Spot).String(), 1, 10)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -439,7 +439,7 @@ func (z *ZB) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 		var pageNumber int64
 		// Limiting to 10 pages
 		for i := 0; i < 10; i++ {
-			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(z.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String(), pageNumber, 10)
+			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(z.FormatExchangeCurrency(currency, asset.Spot).String(), pageNumber, 10)
 			if err != nil {
 				return nil, err
 			}
@@ -455,7 +455,7 @@ func (z *ZB) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := currency.NewPairDelimiter(order.Currency,
-			z.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			z.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]
 		orders = append(orders, exchange.OrderDetail{
@@ -494,7 +494,7 @@ func (z *ZB) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 		var pageNumber int64
 		// Limiting to 10 pages
 		for i := 0; i < 10; i++ {
-			resp, err := z.GetOrders(z.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String(), pageNumber, side)
+			resp, err := z.GetOrders(z.FormatExchangeCurrency(currency, asset.Spot).String(), pageNumber, side)
 			if err != nil {
 				return nil, err
 			}
@@ -511,7 +511,7 @@ func (z *ZB) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := currency.NewPairDelimiter(order.Currency,
-			z.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			z.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]
 		orders = append(orders, exchange.OrderDetail{

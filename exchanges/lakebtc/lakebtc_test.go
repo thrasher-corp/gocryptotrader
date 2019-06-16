@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 var l LakeBTC
@@ -39,7 +39,7 @@ func TestSetup(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := l.FetchTradablePairs(assets.AssetTypeSpot)
+	_, err := l.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		t.Fatalf("Test failed. GetTradablePairs err: %s", err)
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -83,7 +83,7 @@ func (c *COINUT) WsHandleData() {
 					Timestamp:  time.Unix(0, ticker.Timestamp),
 					Pair:       currency.NewPairFromString(currencyPair),
 					Exchange:   c.GetName(),
-					AssetType:  assets.AssetTypeSpot,
+					AssetType:  asset.Spot,
 					HighPrice:  ticker.HighestBuy,
 					LowPrice:   ticker.LowestSell,
 					ClosePrice: ticker.Last,
@@ -108,7 +108,7 @@ func (c *COINUT) WsHandleData() {
 
 				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Exchange: c.GetName(),
-					Asset:    assets.AssetTypeSpot,
+					Asset:    asset.Spot,
 					Pair:     currency.NewPairFromString(currencyPair),
 				}
 
@@ -130,7 +130,7 @@ func (c *COINUT) WsHandleData() {
 
 				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Exchange: c.GetName(),
-					Asset:    assets.AssetTypeSpot,
+					Asset:    asset.Spot,
 					Pair:     currency.NewPairFromString(currencyPair),
 				}
 
@@ -155,7 +155,7 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- exchange.TradeData{
 					Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 					CurrencyPair: currency.NewPairFromString(currencyPair),
-					AssetType:    assets.AssetTypeSpot,
+					AssetType:    asset.Spot,
 					Exchange:     c.GetName(),
 					Price:        tradeUpdate.Price,
 					Side:         tradeUpdate.Side,
@@ -281,7 +281,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = currency.NewPairFromString(instrumentListByCode[ob.InstID])
-	newOrderBook.AssetType = assets.AssetTypeSpot
+	newOrderBook.AssetType = asset.Spot
 	newOrderBook.LastUpdated = time.Now()
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook, c.GetName(), false)
@@ -298,7 +298,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 			p,
 			time.Now(),
 			c.GetName(),
-			assets.AssetTypeSpot)
+			asset.Spot)
 	}
 
 	return c.Websocket.Orderbook.Update([]orderbook.Item{
@@ -307,14 +307,14 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 		p,
 		time.Now(),
 		c.GetName(),
-		assets.AssetTypeSpot)
+		asset.Spot)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() {
 	var channels = []string{"inst_tick", "inst_order_book"}
 	subscriptions := []exchange.WebsocketChannelSubscription{}
-	enabledCurrencies := c.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{

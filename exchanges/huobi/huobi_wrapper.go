@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,8 +51,8 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresSecret = true
 
 	h.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 
 		UseGlobalFormat: true,
@@ -138,8 +138,8 @@ func (h *HUOBI) Run() {
 	}
 
 	var forceUpdate bool
-	if common.StringDataContains(h.GetEnabledPairs(assets.AssetTypeSpot).Strings(), "CNY") ||
-		common.StringDataContains(h.GetAvailablePairs(assets.AssetTypeSpot).Strings(), "CNY") {
+	if common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), "CNY") ||
+		common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), "CNY") {
 		forceUpdate = true
 	}
 
@@ -163,7 +163,7 @@ func (h *HUOBI) Run() {
 		}
 		log.Warn("WARNING: Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
 
-		err := h.UpdatePairs(enabledPairs, assets.AssetTypeSpot, true, true)
+		err := h.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf("%s Failed to update enabled currencies.\n", h.GetName())
 		}
@@ -180,7 +180,7 @@ func (h *HUOBI) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (h *HUOBI) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (h *HUOBI) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	symbols, err := h.GetSymbols()
 	if err != nil {
 		return nil, err
@@ -197,16 +197,16 @@ func (h *HUOBI) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := h.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := h.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return h.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return h.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HUOBI) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := h.GetMarketDetailMerged(h.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
@@ -236,7 +236,7 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticke
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (h *HUOBI) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (h *HUOBI) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(h.GetName(), p, assetType)
 	if err != nil {
 		return h.UpdateTicker(p, assetType)
@@ -245,7 +245,7 @@ func (h *HUOBI) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(h.GetName(), p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)
@@ -254,7 +254,7 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (ord
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
 		Symbol: h.FormatExchangeCurrency(p, assetType).String(),
@@ -374,7 +374,7 @@ func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -448,9 +448,9 @@ func (h *HUOBI) CancelOrder(order *exchange.OrderCancellation) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (h *HUOBI) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
-	for _, currency := range h.GetEnabledPairs(assets.AssetTypeSpot) {
+	for _, currency := range h.GetEnabledPairs(asset.Spot) {
 		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
-			h.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String())
+			h.FormatExchangeCurrency(currency, asset.Spot).String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}

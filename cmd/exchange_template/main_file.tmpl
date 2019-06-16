@@ -36,7 +36,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	{{.Variable}}.RequestCurrencyPairFormat.Uppercase = true
 	{{.Variable}}.ConfigCurrencyPairFormat.Delimiter = ""
 	{{.Variable}}.ConfigCurrencyPairFormat.Uppercase = true
-	{{.Variable}}.AssetTypes = assets.AssetTypes{assets.AssetTypeSpot}
+	{{.Variable}}.AssetTypes = asset.Items{asset.Spot}
 	{{.Variable}}.SupportsAutoPairUpdating = false
 	{{.Variable}}.SupportsRESTTickerBatching = false
 	{{.Variable}}.Requester = request.New({{.Variable}}.Name,
