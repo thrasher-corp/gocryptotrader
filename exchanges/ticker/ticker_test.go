@@ -138,7 +138,7 @@ func TestGetTickerByExchange(t *testing.T) {
 	}
 }
 
-func TestFirstCurrencyExists(t *testing.T) {
+func TestBaseCurrencyExists(t *testing.T) {
 	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
 		Pair:     newPair,
@@ -154,15 +154,15 @@ func TestFirstCurrencyExists(t *testing.T) {
 	alphaTicker := CreateNewTicker("alphapoint", &priceStruct, Spot)
 	Tickers = append(Tickers, alphaTicker)
 
-	if !FirstCurrencyExists("alphapoint", currency.BTC) {
-		t.Error("Test Failed - FirstCurrencyExists1 value return is incorrect")
+	if !BaseCurrencyExists("alphapoint", currency.BTC) {
+		t.Error("Test Failed - BaseCurrencyExists1 value return is incorrect")
 	}
-	if FirstCurrencyExists("alphapoint", currency.NewCode("CATS")) {
-		t.Error("Test Failed - FirstCurrencyExists2 value return is incorrect")
+	if BaseCurrencyExists("alphapoint", currency.NewCode("CATS")) {
+		t.Error("Test Failed - BaseCurrencyExists2 value return is incorrect")
 	}
 }
 
-func TestSecondCurrencyExists(t *testing.T) {
+func TestQuoteCurrencyExists(t *testing.T) {
 	t.Parallel()
 
 	newPair := currency.NewPairFromStrings("BTC", "USD")
@@ -180,13 +180,13 @@ func TestSecondCurrencyExists(t *testing.T) {
 	bitstampTicker := CreateNewTicker("bitstamp", &priceStruct, "SPOT")
 	Tickers = append(Tickers, bitstampTicker)
 
-	if !SecondCurrencyExists("bitstamp", newPair) {
-		t.Error("Test Failed - SecondCurrencyExists1 value return is incorrect")
+	if !QuoteCurrencyExists("bitstamp", newPair) {
+		t.Error("Test Failed - QuoteCurrencyExists1 value return is incorrect")
 	}
 
 	newPair.Quote = currency.NewCode("DOGS")
-	if SecondCurrencyExists("bitstamp", newPair) {
-		t.Error("Test Failed - SecondCurrencyExists2 value return is incorrect")
+	if QuoteCurrencyExists("bitstamp", newPair) {
+		t.Error("Test Failed - QuoteCurrencyExists2 value return is incorrect")
 	}
 }
 
@@ -250,7 +250,6 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	exchName := "bitstamp"
 	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
-		Pair:     newPair,
 		Last:     1200,
 		High:     1298,
 		Low:      1148,
@@ -260,37 +259,59 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		PriceATH: 1337,
 	}
 
-	err := ProcessTicker(exchName, &Price{}, Spot)
+	// test for empty pair
+	err := ProcessTicker(exchName, &priceStruct, Spot)
+	if err == nil {
+		t.Fatal("empty pair should throw an err")
+	}
+
+	// test for empty asset type
+	priceStruct.Pair = newPair
+	err = ProcessTicker(exchName, &priceStruct, "")
 	if err == nil {
 		t.Fatal("Test failed. ProcessTicker error cannot be nil")
 	}
 
+	// now process a valid ticker
 	err = ProcessTicker(exchName, &priceStruct, Spot)
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
-
 	result, err := GetTicker(exchName, newPair, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
 	}
-
 	if result.Pair.String() != newPair.String() {
 		t.Fatal("Test failed. TestProcessTicker pair mismatch")
 	}
 
-	secondPair := currency.NewPairFromStrings("BTC", "AUD")
-	priceStruct.Pair = secondPair
+	// now test for processing a pair with a different quote currency
+	newPair = currency.NewPairFromStrings("BTC", "AUD")
+	priceStruct.Pair = newPair
 	err = ProcessTicker(exchName, &priceStruct, Spot)
 	if err != nil {
 		t.Fatal("Test failed. ProcessTicker error", err)
 	}
-
-	result, err = GetTicker(exchName, secondPair, Spot)
+	result, err = GetTicker(exchName, newPair, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
 	}
+	result, err = GetTicker(exchName, newPair, Spot)
+	if err != nil {
+		t.Fatal("Test failed. TestProcessTicker failed to return an existing ticker")
+	}
 
+	// now test for processing a pair which has a different base currency
+	newPair = currency.NewPairFromStrings("LTC", "AUD")
+	priceStruct.Pair = newPair
+	err = ProcessTicker(exchName, &priceStruct, Spot)
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
+	result, err = GetTicker(exchName, newPair, Spot)
+	if err != nil {
+		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
+	}
 	result, err = GetTicker(exchName, newPair, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessTicker failed to return an existing ticker")
