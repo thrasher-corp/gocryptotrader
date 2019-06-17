@@ -9,11 +9,13 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
-// Const values for orderbook package
+// const values for orderbook package
 const (
-	ErrOrderbookForExchangeNotFound = "ticker for exchange does not exist"
-	ErrPrimaryCurrencyNotFound      = "primary currency for orderbook not found"
-	ErrSecondaryCurrencyNotFound    = "secondary currency for orderbook not found"
+	errExchangeOrderbookNotFound = "orderbook for exchange does not exist"
+	errPairNotSet                = "orderbook currency pair not set"
+	errAssetTypeNotSet           = "orderbook asset type not set"
+	errBaseCurrencyNotFound      = "orderbook base currency not found"
+	errQuoteCurrencyNotFound     = "orderbook quote currency not found"
 )
 
 // Vars for the orderbook package
@@ -81,11 +83,11 @@ func Get(exchange string, p currency.Pair, orderbookType asset.Item) (Base, erro
 	}
 
 	if !BaseCurrencyExists(exchange, p.Base) {
-		return Base{}, errors.New(ErrPrimaryCurrencyNotFound)
+		return Base{}, errors.New(errBaseCurrencyNotFound)
 	}
 
 	if !QuoteCurrencyExists(exchange, p) {
-		return Base{}, errors.New(ErrSecondaryCurrencyNotFound)
+		return Base{}, errors.New(errQuoteCurrencyNotFound)
 	}
 
 	return orderbook.Orderbook[p.Base.Item][p.Quote.Item][orderbookType], nil
@@ -100,7 +102,7 @@ func GetByExchange(exchange string) (*Orderbook, error) {
 			return &Orderbooks[x], nil
 		}
 	}
-	return nil, errors.New(ErrOrderbookForExchangeNotFound)
+	return nil, errors.New(errExchangeOrderbookNotFound)
 }
 
 // BaseCurrencyExists checks to see if the base currency of the orderbook map
@@ -155,11 +157,11 @@ func CreateNewOrderbook(exchangeName string, orderbookNew *Base, orderbookType a
 // list
 func (o *Base) Process() error {
 	if o.Pair.IsEmpty() {
-		return errors.New("orderbook currency pair not populated")
+		return errors.New(errPairNotSet)
 	}
 
 	if o.AssetType == "" {
-		return errors.New("orderbook asset type not set")
+		return errors.New(errAssetTypeNotSet)
 	}
 
 	if o.LastUpdated.IsZero() {

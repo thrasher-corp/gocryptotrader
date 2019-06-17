@@ -87,7 +87,7 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatalf("Test failed. TestGetOrderbook failed to get orderbook. Error %s",
 			err)
 	}
-	if result.Pair.String() != c.String() {
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestGetOrderbook failed. Mismatched pairs")
 	}
 
@@ -186,7 +186,7 @@ func TestCreateNewOrderbook(t *testing.T) {
 		t.Fatal("Test failed. TestCreateNewOrderbook failed to create new orderbook")
 	}
 
-	if result.Pair.String() != c.String() {
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestCreateNewOrderbook result pair is incorrect")
 	}
 
@@ -205,41 +205,66 @@ func TestProcessOrderbook(t *testing.T) {
 	Orderbooks = []Orderbook{}
 	c := currency.NewPairFromStrings("BTC", "USD")
 	base := Base{
-		Pair:         c,
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
 		ExchangeName: "Exchange",
-		AssetType:    asset.Spot,
 	}
 
+	// test for empty pair
+	base.Pair = currency.Pair{}
 	err := base.Process()
-	if err != nil {
-		t.Error("Test Failed - Process() error", err)
+	if err == nil {
+		t.Error("empty pair should throw an err")
 	}
 
+	// test for empty asset type
+	base.Pair = c
+	err = base.Process()
+	if err == nil {
+		t.Error("empty asset type should throw an err")
+	}
+
+	// now process a valid orderbook
+	base.AssetType = asset.Spot
+	err = base.Process()
+	if err != nil {
+		t.Error("unexpcted result: ", err)
+	}
 	result, err := Get("Exchange", c, asset.Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
 	}
-
-	if result.Pair.String() != c.String() {
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
 	}
 
+	// now test for processing a pair with a different quote currency
 	c = currency.NewPairFromStrings("BTC", "GBP")
 	base.Pair = c
-
 	err = base.Process()
 	if err != nil {
 		t.Error("Test Failed - Process() error", err)
 	}
-
 	result, err = Get("Exchange", c, asset.Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
 	}
+	if !result.Pair.Equal(c) {
+		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
+	}
 
-	if result.Pair.String() != c.String() {
+	// now test for processing a pair which has a different base currency
+	c = currency.NewPairFromStrings("LTC", "GBP")
+	base.Pair = c
+	err = base.Process()
+	if err != nil {
+		t.Error("Test Failed - Process() error", err)
+	}
+	result, err = Get("Exchange", c, asset.Spot)
+	if err != nil {
+		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
+	}
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
 	}
 
