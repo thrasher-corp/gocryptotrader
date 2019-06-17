@@ -86,7 +86,7 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatalf("Test failed. TestGetOrderbook failed to get orderbook. Error %s",
 			err)
 	}
-	if result.Pair.String() != c.String() {
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestGetOrderbook failed. Mismatched pairs")
 	}
 
@@ -185,7 +185,7 @@ func TestCreateNewOrderbook(t *testing.T) {
 		t.Fatal("Test failed. TestCreateNewOrderbook failed to create new orderbook")
 	}
 
-	if result.Pair.String() != c.String() {
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestCreateNewOrderbook result pair is incorrect")
 	}
 
@@ -233,7 +233,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
 	}
-	if result.Pair.String() != c.String() {
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
 	}
 
@@ -248,7 +248,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
 	}
-	if result.Pair.String() != c.String() {
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
 	}
 
@@ -263,7 +263,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
 	}
-	if result.Pair.String() != c.String() {
+	if !result.Pair.Equal(c) {
 		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
 	}
 

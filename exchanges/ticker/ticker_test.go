@@ -75,7 +75,7 @@ func TestGetTicker(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test Failed - Ticker GetTicker init error: %s", err)
 	}
-	if tickerPrice.Pair.String() != "BTCUSD" {
+	if !tickerPrice.Pair.Equal(newPair) {
 		t.Error("Test Failed - ticker tickerPrice.CurrencyPair value is incorrect")
 	}
 
@@ -216,7 +216,7 @@ func TestCreateNewTicker(t *testing.T) {
 		t.Error("Test Failed - ticker CreateNewTicker.ExchangeName value is not ANX")
 	}
 
-	if newTicker.Price[currency.BTC.Upper().String()][currency.USD.Upper().String()][Spot].Pair.String() != "BTCUSD" {
+	if !newTicker.Price[currency.BTC.Upper().String()][currency.USD.Upper().String()][Spot].Pair.Equal(newPair) {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Pair.Pair().String() value is not expected 'BTCUSD'")
 	}
 	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Ask).String() != float64Type {
@@ -281,7 +281,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	if err != nil {
 		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
 	}
-	if result.Pair.String() != newPair.String() {
+	if !result.Pair.Equal(newPair) {
 		t.Fatal("Test failed. TestProcessTicker pair mismatch")
 	}
 
