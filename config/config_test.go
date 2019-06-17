@@ -1060,7 +1060,7 @@ func TestAreAuthenticatedCredentialsValid(t *testing.T) {
 	}
 	resp = c.areAuthenticatedCredentialsValid(-1)
 	if resp {
-		t.Error("Expecting false with no an invalid index")
+		t.Error("Expecting false with an invalid index")
 	}
 
 	c.Exchanges = []ExchangeConfig{
@@ -1111,11 +1111,11 @@ func TestAreAuthenticatedCredentialsValid(t *testing.T) {
 	c.Exchanges[0].APISecret = "Im a Secret!"
 	resp = c.areAuthenticatedCredentialsValid(0)
 	if resp {
-		t.Error("Expecting false with Bitstamp and no APISecret set")
+		t.Error("Expecting false with ANX and no APIKey set")
 	}
 
 	resp = c.areAuthenticatedCredentialsValid(1337)
 	if resp {
-		t.Error("Expecting false with no an invalid index")
+		t.Error("Expecting false with an invalid index")
 	}
 }
