@@ -96,6 +96,7 @@ func (b *Bitfinex) WsSendAuth() error {
 
 	err := b.wsSend(req)
 	if err != nil {
+		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	return nil

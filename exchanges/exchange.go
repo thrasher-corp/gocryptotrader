@@ -684,17 +684,16 @@ func (e *Base) IsEnabled() bool {
 
 // SetAPIKeys is a method that sets the current API keys for the exchange
 func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string, b64Decode bool) {
-	if !e.AuthenticatedAPISupport {
+	if !e.AuthenticatedAPISupport && !e.AuthenticatedWebsocketAPISupport {
 		return
 	}
-
 	e.APIKey = apiKey
 	e.ClientID = clientID
-
 	if b64Decode {
 		result, err := common.Base64Decode(apiSecret)
 		if err != nil {
 			e.AuthenticatedAPISupport = false
+			e.AuthenticatedWebsocketAPISupport = false
 			log.Warnf(warningBase64DecryptSecretKeyFailed, e.Name)
 		}
 		e.APISecret = string(result)

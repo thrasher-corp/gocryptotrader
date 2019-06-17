@@ -872,6 +872,15 @@ func (c *Config) CheckExchangeConfigValues() error {
 }
 
 func (c *Config) areAuthenticatedCredentialsValid(i int) bool {
+	if c.Exchanges == nil {
+		log.Error("c.Exchanges not setup")
+		return false
+	}
+	if i < 0 || c.Exchanges == nil || len(c.Exchanges) < i {
+		log.Error("Invalid index")
+		return false
+	}
+
 	resp := true
 	if c.Exchanges[i].APIKey == "" || c.Exchanges[i].APIKey == DefaultUnsetAPIKey {
 		resp = false
@@ -886,7 +895,6 @@ func (c *Config) areAuthenticatedCredentialsValid(i int) bool {
 		(c.Exchanges[i].Name == "ITBIT" || c.Exchanges[i].Name == "Bitstamp" || c.Exchanges[i].Name == "COINUT" || c.Exchanges[i].Name == "CoinbasePro") {
 		resp = false
 	}
-
 	// non-fatal error
 	if !resp {
 		log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)

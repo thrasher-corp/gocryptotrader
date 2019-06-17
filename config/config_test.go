@@ -647,6 +647,7 @@ func TestUpdateExchangeConfig(t *testing.T) {
 	}
 }
 
+// TestCheckExchangeConfigValues logic test
 func TestCheckExchangeConfigValues(t *testing.T) {
 	checkExchangeConfigValues := Config{}
 
@@ -673,11 +674,15 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	checkExchangeConfigValues.Exchanges[0].APIKey = "Key"
 	checkExchangeConfigValues.Exchanges[0].APISecret = "Secret"
 	checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport = true
+	checkExchangeConfigValues.Exchanges[0].AuthenticatedWebsocketAPISupport = true
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err != nil {
 		t.Errorf(
 			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
 		)
+	}
+	if checkExchangeConfigValues.Exchanges[0].AuthenticatedWebsocketAPISupport {
+		t.Error("Expected AuthenticatedWebsocketAPISupport to be false from invalid API keys")
 	}
 
 	checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport = true
@@ -689,6 +694,24 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Errorf(
 			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
 		)
+	}
+	if checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport {
+		t.Error("Expected AuthenticatedAPISupport to be true from valid API keys")
+	}
+
+	checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport = true
+	checkExchangeConfigValues.Exchanges[0].AuthenticatedWebsocketAPISupport = true
+	checkExchangeConfigValues.Exchanges[0].APIKey = ""
+	checkExchangeConfigValues.Exchanges[0].APISecret = ""
+	checkExchangeConfigValues.Exchanges[0].Name = "ITBIT"
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err != nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
+	}
+	if checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport || checkExchangeConfigValues.Exchanges[0].AuthenticatedWebsocketAPISupport {
+		t.Error("Expected AuthenticatedAPISupport and AuthenticatedWebsocketAPISupport to be false from invalid API keys")
 	}
 
 	checkExchangeConfigValues.Exchanges[0].BaseCurrencies = currency.NewCurrenciesFromStringArray([]string{""})
@@ -1025,5 +1048,74 @@ func TestCheckNTPConfig(t *testing.T) {
 
 	if c.NTPClient.AllowedNegativeDifference == nil {
 		t.Error("ntpclient with nil allowednegativedifference should default to sane value")
+	}
+}
+
+// TestAreAuthenticatedCredentialsValid logic test
+func TestAreAuthenticatedCredentialsValid(t *testing.T) {
+	var c Config
+	resp := c.areAuthenticatedCredentialsValid(0)
+	if resp {
+		t.Error("Expecting false with no exchanges loaded")
+	}
+	resp = c.areAuthenticatedCredentialsValid(-1)
+	if resp {
+		t.Error("Expecting false with no an invalid index")
+	}
+
+	c.Exchanges = []ExchangeConfig{
+		{
+			APIKey:    "",
+			APISecret: "",
+			ClientID:  "",
+			Name:      "",
+		},
+	}
+	resp = c.areAuthenticatedCredentialsValid(0)
+	if resp {
+		t.Error("Expecting false with no credentials set")
+	}
+
+	c.Exchanges[0].APIKey = DefaultUnsetAPIKey
+	c.Exchanges[0].APISecret = DefaultUnsetAPISecret
+	resp = c.areAuthenticatedCredentialsValid(0)
+	if resp {
+		t.Error("Expecting false with default credentials set")
+	}
+
+	c.Exchanges[0].Name = "COINUT"
+	resp = c.areAuthenticatedCredentialsValid(0)
+	if resp {
+		t.Error("Expecting false with COINUT and no APIKEY set")
+	}
+	c.Exchanges[0].APIKey = "Im a key!"
+	c.Exchanges[0].ClientID = "Im a Client!"
+	resp = c.areAuthenticatedCredentialsValid(0)
+	if !resp {
+		t.Error("Expecting true with COINUT api credentials set")
+	}
+
+	c.Exchanges[0].Name = "Bitstamp"
+	resp = c.areAuthenticatedCredentialsValid(0)
+	if resp {
+		t.Error("Expecting false with Bitstamp and no APISecret set")
+	}
+	c.Exchanges[0].APISecret = "Im a Secret!"
+	resp = c.areAuthenticatedCredentialsValid(0)
+	if !resp {
+		t.Error("Expecting true with Bitstamp api credentials set")
+	}
+
+	c.Exchanges[0].Name = "ANX"
+	c.Exchanges[0].APIKey = DefaultUnsetAPIKey
+	c.Exchanges[0].APISecret = "Im a Secret!"
+	resp = c.areAuthenticatedCredentialsValid(0)
+	if resp {
+		t.Error("Expecting false with Bitstamp and no APISecret set")
+	}
+
+	resp = c.areAuthenticatedCredentialsValid(1337)
+	if resp {
+		t.Error("Expecting false with no an invalid index")
 	}
 }

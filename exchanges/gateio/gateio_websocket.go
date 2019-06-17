@@ -74,7 +74,7 @@ func (g *Gateio) wsServerSignIn() error {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
-	time.Sleep(time.Second * 2) // sleep to allow server to complete sign-on if further authenticated requests are sent piror to this they will fail
+	time.Sleep(time.Second * 2) // sleep to allow server to complete sign-on if further authenticated requests are sent prior to this they will fail
 	return nil
 }
 
