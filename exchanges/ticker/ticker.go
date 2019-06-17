@@ -10,11 +10,13 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 )
 
-// Const values for the ticker package
+// const values for the ticker package
 const (
-	ErrTickerForExchangeNotFound = "ticker for exchange does not exist"
-	ErrPrimaryCurrencyNotFound   = "primary currency for ticker not found"
-	ErrSecondaryCurrencyNotFound = "secondary currency for ticker not found"
+	errExchangeTickerNotFound = "ticker for exchange does not exist"
+	errPairNotSet             = "ticker currency pair not set"
+	errAssetTypeNotSet        = "ticker asset type not set"
+	errBaseCurrencyNotFound   = "ticker base currency not found"
+	errQuoteCurrencyNotFound  = "ticker quote currency not found"
 
 	Spot = "SPOT"
 )
@@ -75,12 +77,12 @@ func GetTicker(exchange string, p currency.Pair, tickerType string) (Price, erro
 		return Price{}, err
 	}
 
-	if !FirstCurrencyExists(exchange, p.Base) {
-		return Price{}, errors.New(ErrPrimaryCurrencyNotFound)
+	if !BaseCurrencyExists(exchange, p.Base) {
+		return Price{}, errors.New(errBaseCurrencyNotFound)
 	}
 
-	if !SecondCurrencyExists(exchange, p) {
-		return Price{}, errors.New(ErrSecondaryCurrencyNotFound)
+	if !QuoteCurrencyExists(exchange, p) {
+		return Price{}, errors.New(errQuoteCurrencyNotFound)
 	}
 
 	return ticker.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType], nil
@@ -95,12 +97,12 @@ func GetTickerByExchange(exchange string) (*Ticker, error) {
 			return &Tickers[x], nil
 		}
 	}
-	return nil, errors.New(ErrTickerForExchangeNotFound)
+	return nil, errors.New(errExchangeTickerNotFound)
 }
 
-// FirstCurrencyExists checks to see if the first currency of the Price map
+// BaseCurrencyExists checks to see if the base currency of the ticker map
 // exists
-func FirstCurrencyExists(exchange string, currency currency.Code) bool {
+func BaseCurrencyExists(exchange string, currency currency.Code) bool {
 	m.Lock()
 	defer m.Unlock()
 	for _, y := range Tickers {
@@ -113,9 +115,9 @@ func FirstCurrencyExists(exchange string, currency currency.Code) bool {
 	return false
 }
 
-// SecondCurrencyExists checks to see if the second currency of the Price map
+// QuoteCurrencyExists checks to see if the quote currency of the ticker map
 // exists
-func SecondCurrencyExists(exchange string, p currency.Pair) bool {
+func QuoteCurrencyExists(exchange string, p currency.Pair) bool {
 	m.Lock()
 	defer m.Unlock()
 	for _, y := range Tickers {
@@ -148,23 +150,29 @@ func CreateNewTicker(exchangeName string, tickerNew *Price, tickerType string) T
 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers
 // list
-func ProcessTicker(exchangeName string, tickerNew *Price, tickerType string) error {
-	if tickerNew.Pair.String() == "" {
-		return errors.New("")
+func ProcessTicker(exchangeName string, tickerNew *Price, assetType string) error {
+	if tickerNew.Pair.IsEmpty() {
+		return errors.New(errPairNotSet)
 	}
 
-	tickerNew.LastUpdated = time.Now()
+	if assetType == "" {
+		return errors.New(errAssetTypeNotSet)
+	}
+
+	if tickerNew.LastUpdated.IsZero() {
+		tickerNew.LastUpdated = time.Now()
+	}
 
 	ticker, err := GetTickerByExchange(exchangeName)
 	if err != nil {
-		CreateNewTicker(exchangeName, tickerNew, tickerType)
+		CreateNewTicker(exchangeName, tickerNew, assetType)
 		return nil
 	}
 
-	if FirstCurrencyExists(exchangeName, tickerNew.Pair.Base) {
+	if BaseCurrencyExists(exchangeName, tickerNew.Pair.Base) {
 		m.Lock()
 		a := make(map[string]Price)
-		a[tickerType] = *tickerNew
+		a[assetType] = *tickerNew
 		ticker.Price[tickerNew.Pair.Base.Upper().String()][tickerNew.Pair.Quote.Upper().String()] = a
 		m.Unlock()
 		return nil
@@ -173,7 +181,7 @@ func ProcessTicker(exchangeName string, tickerNew *Price, tickerType string) err
 	m.Lock()
 	a := make(map[string]map[string]Price)
 	b := make(map[string]Price)
-	b[tickerType] = *tickerNew
+	b[assetType] = *tickerNew
 	a[tickerNew.Pair.Quote.Upper().String()] = b
 	ticker.Price[tickerNew.Pair.Base.Upper().String()] = a
 	m.Unlock()
