@@ -190,19 +190,19 @@ type AuthenticatedTradeHistoryResponse struct {
 
 // OrderHistoryResponse used for GetOrderHistory
 type OrderHistoryResponse struct {
-	ID            string  `json:"id"`
-	ClientOrderID string  `json:"clientOrderId"`
-	Symbol        string  `json:"symbol"`
-	Side          string  `json:"side"`
-	Status        string  `json:"status"`
-	Type          string  `json:"type"`
-	TimeInForce   string  `json:"timeInForce"`
-	Price         float64 `json:"price,string"`
-	Quantity      float64 `json:"quantity,string"`
-	PostOnly      bool    `json:"postOnly"`
-	CumQuantity   float64 `json:"cumQuantity,string"`
-	CreatedAt     string  `json:"createdAt"`
-	UpdatedAt     string  `json:"updatedAt"`
+	ID            string    `json:"id"`
+	ClientOrderID string    `json:"clientOrderId"`
+	Symbol        string    `json:"symbol"`
+	Side          string    `json:"side"`
+	Status        string    `json:"status"`
+	Type          string    `json:"type"`
+	TimeInForce   string    `json:"timeInForce"`
+	Price         float64   `json:"price,string"`
+	Quantity      float64   `json:"quantity,string"`
+	PostOnly      bool      `json:"postOnly"`
+	CumQuantity   float64   `json:"cumQuantity,string"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 // ResultingTrades holds resulting trade information
@@ -404,12 +404,12 @@ type WsActiveOrdersResponseData struct {
 	Status        string        `json:"status"`
 	Type          string        `json:"type"`
 	TimeInForce   string        `json:"timeInForce"`
-	Quantity      string        `json:"quantity"`
-	Price         string        `json:"price"`
-	CumQuantity   string        `json:"cumQuantity"`
+	Quantity      float64       `json:"quantity,string"`
+	Price         float64       `json:"price,string"`
+	CumQuantity   float64       `json:"cumQuantity,string"`
 	PostOnly      bool          `json:"postOnly"`
-	CreatedAt     string        `json:"createdAt"`
-	UpdatedAt     string        `json:"updatedAt"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	UpdatedAt     time.Time     `json:"updatedAt"`
 	ReportType    string        `json:"reportType"`
 }
 
@@ -427,17 +427,17 @@ type WsReportResponseData struct {
 	Status        string        `json:"status"`
 	Type          string        `json:"type"`
 	TimeInForce   string        `json:"timeInForce"`
-	Quantity      string        `json:"quantity"`
-	Price         string        `json:"price"`
-	CumQuantity   string        `json:"cumQuantity"`
+	Quantity      float64       `json:"quantity,string"`
+	Price         float64       `json:"price,string"`
+	CumQuantity   float64       `json:"cumQuantity,string"`
 	PostOnly      bool          `json:"postOnly"`
-	CreatedAt     string        `json:"createdAt"`
-	UpdatedAt     string        `json:"updatedAt"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	UpdatedAt     time.Time     `json:"updatedAt"`
 	ReportType    string        `json:"reportType"`
-	TradeQuantity string        `json:"tradeQuantity"`
-	TradePrice    string        `json:"tradePrice"`
+	TradeQuantity float64       `json:"tradeQuantity,string"`
+	TradePrice    float64       `json:"tradePrice,string"`
 	TradeID       int64         `json:"tradeId"`
-	TradeFee      string        `json:"tradeFee"`
+	TradeFee      float64       `json:"tradeFee,string"`
 }
 
 // WsSubmitOrderRequest WS request
@@ -452,8 +452,8 @@ type WsSubmitOrderRequestData struct {
 	ClientOrderID string        `json:"clientOrderId"`
 	Symbol        currency.Pair `json:"symbol"`
 	Side          string        `json:"side"`
-	Price         string        `json:"price"`
-	Quantity      string        `json:"quantity"`
+	Price         float64       `json:"price,string"`
+	Quantity      float64       `json:"quantity,string"`
 }
 
 // WsSubmitOrderSuccessResponse WS response
@@ -464,20 +464,20 @@ type WsSubmitOrderSuccessResponse struct {
 
 // WsSubmitOrderSuccessResponseData WS response data
 type WsSubmitOrderSuccessResponseData struct {
-	ID            string `json:"id"`
-	ClientOrderID string `json:"clientOrderId"`
-	Symbol        string `json:"symbol"`
-	Side          string `json:"side"`
-	Status        string `json:"status"`
-	Type          string `json:"type"`
-	TimeInForce   string `json:"timeInForce"`
-	Quantity      string `json:"quantity"`
-	Price         string `json:"price"`
-	CumQuantity   string `json:"cumQuantity"`
-	PostOnly      bool   `json:"postOnly"`
-	CreatedAt     string `json:"createdAt"`
-	UpdatedAt     string `json:"updatedAt"`
-	ReportType    string `json:"reportType"`
+	ID            string    `json:"id"`
+	ClientOrderID string    `json:"clientOrderId"`
+	Symbol        string    `json:"symbol"`
+	Side          string    `json:"side"`
+	Status        string    `json:"status"`
+	Type          string    `json:"type"`
+	TimeInForce   string    `json:"timeInForce"`
+	Quantity      float64   `json:"quantity,string"`
+	Price         float64   `json:"price,string"`
+	CumQuantity   float64   `json:"cumQuantity,string"`
+	PostOnly      bool      `json:"postOnly"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+	ReportType    string    `json:"reportType"`
 }
 
 // WsSubmitOrderErrorResponse WS error response
@@ -508,12 +508,12 @@ type WsCancelOrderResponseData struct {
 	Status        string        `json:"status"`
 	Type          string        `json:"type"`
 	TimeInForce   string        `json:"timeInForce"`
-	Quantity      string        `json:"quantity"`
-	Price         string        `json:"price"`
-	CumQuantity   string        `json:"cumQuantity"`
+	Quantity      float64       `json:"quantity,string"`
+	Price         float64       `json:"price,string"`
+	CumQuantity   float64       `json:"cumQuantity,string"`
 	PostOnly      bool          `json:"postOnly"`
-	CreatedAt     string        `json:"createdAt"`
-	UpdatedAt     string        `json:"updatedAt"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	UpdatedAt     time.Time     `json:"updatedAt"`
 	ReportType    string        `json:"reportType"`
 }
 
@@ -532,12 +532,12 @@ type WsReplaceOrderResponseData struct {
 	Status                       string        `json:"status"`
 	Type                         string        `json:"type"`
 	TimeInForce                  string        `json:"timeInForce"`
-	Quantity                     string        `json:"quantity"`
-	Price                        string        `json:"price"`
-	CumQuantity                  string        `json:"cumQuantity"`
+	Quantity                     float64       `json:"quantity,string"`
+	Price                        float64       `json:"price,string"`
+	CumQuantity                  float64       `json:"cumQuantity,string"`
 	PostOnly                     bool          `json:"postOnly"`
-	CreatedAt                    string        `json:"createdAt"`
-	UpdatedAt                    string        `json:"updatedAt"`
+	CreatedAt                    time.Time     `json:"createdAt"`
+	UpdatedAt                    time.Time     `json:"updatedAt"`
 	ReportType                   string        `json:"reportType"`
 	OriginalRequestClientOrderID string        `json:"originalRequestClientOrderId"`
 }
@@ -557,12 +557,12 @@ type WsGetActiveOrdersResponseData struct {
 	Status                       string        `json:"status"`
 	Type                         string        `json:"type"`
 	TimeInForce                  string        `json:"timeInForce"`
-	Quantity                     string        `json:"quantity"`
-	Price                        string        `json:"price"`
-	CumQuantity                  string        `json:"cumQuantity"`
+	Quantity                     float64       `json:"quantity,string"`
+	Price                        float64       `json:"price,string"`
+	CumQuantity                  float64       `json:"cumQuantity,string"`
 	PostOnly                     bool          `json:"postOnly"`
-	CreatedAt                    string        `json:"createdAt"`
-	UpdatedAt                    string        `json:"updatedAt"`
+	CreatedAt                    time.Time     `json:"createdAt"`
+	UpdatedAt                    time.Time     `json:"updatedAt"`
 	ReportType                   string        `json:"reportType"`
 	OriginalRequestClientOrderID string        `json:"originalRequestClientOrderId"`
 }
@@ -576,8 +576,8 @@ type WsGetTradingBalanceResponse struct {
 // WsGetTradingBalanceResponseData WS response data
 type WsGetTradingBalanceResponseData struct {
 	Currency  currency.Code `json:"currency"`
-	Available string        `json:"available"`
-	Reserved  string        `json:"reserved"`
+	Available float64       `json:"available,string"`
+	Reserved  float64       `json:"reserved,string"`
 }
 
 // WsCancelOrderRequest WS request
@@ -601,8 +601,8 @@ type WsReplaceOrderRequest struct {
 
 // WsReplaceOrderRequestData WS request data
 type WsReplaceOrderRequestData struct {
-	ClientOrderID   string `json:"clientOrderId,omitempty"`
-	RequestClientID string `json:"requestClientId,omitempty"`
-	Quantity        string `json:"quantity,omitempty"`
-	Price           string `json:"price,omitempty"`
+	ClientOrderID   string  `json:"clientOrderId,omitempty"`
+	RequestClientID string  `json:"requestClientId,omitempty"`
+	Quantity        float64 `json:"quantity,string,omitempty"`
+	Price           float64 `json:"price,string,omitempty"`
 }

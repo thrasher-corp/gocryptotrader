@@ -266,11 +266,11 @@ type WsActiveOrdersResponse struct {
 	IsLive            bool          `json:"is_live"`
 	IsCancelled       bool          `json:"is_cancelled"`
 	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice string        `json:"avg_execution_price"`
-	ExecutedAmount    string        `json:"executed_amount"`
-	RemainingAmount   string        `json:"remaining_amount"`
-	OriginalAmount    string        `json:"original_amount"`
-	Price             string        `json:"price"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
 	SocketSequence    int64         `json:"socket_sequence"`
 }
 
@@ -287,8 +287,8 @@ type WsOrderRejectedResponse struct {
 	Timestamp      string        `json:"timestamp"`
 	Timestampms    int64         `json:"timestampms"`
 	IsLive         bool          `json:"is_live"`
-	OriginalAmount string        `json:"original_amount"`
-	Price          string        `json:"price"`
+	OriginalAmount float64       `json:"original_amount,string"`
+	Price          float64       `json:"price,string"`
 	SocketSequence int64         `json:"socket_sequence"`
 }
 
@@ -306,11 +306,11 @@ type WsOrderBookedResponse struct {
 	IsLive            bool          `json:"is_live"`
 	IsCancelled       bool          `json:"is_cancelled"`
 	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice string        `json:"avg_execution_price"`
-	ExecutedAmount    string        `json:"executed_amount"`
-	RemainingAmount   string        `json:"remaining_amount"`
-	OriginalAmount    string        `json:"original_amount"`
-	Price             string        `json:"price"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
 	SocketSequence    int64         `json:"socket_sequence"`
 }
 
@@ -327,23 +327,23 @@ type WsOrderFilledResponse struct {
 	IsLive            bool              `json:"is_live"`
 	IsCancelled       bool              `json:"is_cancelled"`
 	IsHidden          bool              `json:"is_hidden"`
-	AvgExecutionPrice string            `json:"avg_execution_price"`
-	ExecutedAmount    string            `json:"executed_amount"`
-	RemainingAmount   string            `json:"remaining_amount"`
-	OriginalAmount    string            `json:"original_amount"`
-	Price             string            `json:"price"`
+	AvgExecutionPrice float64           `json:"avg_execution_price,string"`
+	ExecutedAmount    float64           `json:"executed_amount,string"`
+	RemainingAmount   float64           `json:"remaining_amount,string"`
+	OriginalAmount    float64           `json:"original_amount,string"`
+	Price             float64           `json:"price,string"`
 	Fill              WsOrderFilledData `json:"fill"`
 	SocketSequence    int64             `json:"socket_sequence"`
 }
 
 // WsOrderFilledData ws response data
 type WsOrderFilledData struct {
-	TradeID     string `json:"trade_id"`
-	Liquidity   string `json:"liquidity"`
-	Price       string `json:"price"`
-	Amount      string `json:"amount"`
-	Fee         string `json:"fee"`
-	FeeCurrency string `json:"fee_currency"`
+	TradeID     string  `json:"trade_id"`
+	Liquidity   string  `json:"liquidity"`
+	Price       float64 `json:"price,string"`
+	Amount      float64 `json:"amount,string"`
+	Fee         float64 `json:"fee,string"`
+	FeeCurrency string  `json:"fee_currency"`
 }
 
 // WsOrderCancelledResponse ws response
@@ -362,11 +362,11 @@ type WsOrderCancelledResponse struct {
 	IsLive            bool          `json:"is_live"`
 	IsCancelled       bool          `json:"is_cancelled"`
 	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice string        `json:"avg_execution_price"`
-	ExecutedAmount    string        `json:"executed_amount"`
-	RemainingAmount   string        `json:"remaining_amount"`
-	OriginalAmount    string        `json:"original_amount"`
-	Price             string        `json:"price"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
 	SocketSequence    int64         `json:"socket_sequence"`
 }
 
@@ -386,11 +386,11 @@ type WsOrderCancellationRejectedResponse struct {
 	IsLive            bool          `json:"is_live"`
 	IsCancelled       bool          `json:"is_cancelled"`
 	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice string        `json:"avg_execution_price"`
-	ExecutedAmount    string        `json:"executed_amount"`
-	RemainingAmount   string        `json:"remaining_amount"`
-	OriginalAmount    string        `json:"original_amount"`
-	Price             string        `json:"price"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
 	SocketSequence    int64         `json:"socket_sequence"`
 }
 
@@ -408,10 +408,10 @@ type WsOrderClosedResponse struct {
 	IsLive            bool          `json:"is_live"`
 	IsCancelled       bool          `json:"is_cancelled"`
 	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice string        `json:"avg_execution_price"`
-	ExecutedAmount    string        `json:"executed_amount"`
-	RemainingAmount   string        `json:"remaining_amount"`
-	OriginalAmount    string        `json:"original_amount"`
-	Price             string        `json:"price"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
 	SocketSequence    int64         `json:"socket_sequence"`
 }

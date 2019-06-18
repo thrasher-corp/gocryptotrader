@@ -422,10 +422,10 @@ type WsAuthenticatedAccountsResponseData struct {
 
 // WsAuthenticatedAccountsResponseDataList detailed account data
 type WsAuthenticatedAccountsResponseDataList struct {
-	AccountID int64  `json:"account-id"`
-	Currency  string `json:"currency"`
-	Type      string `json:"type"`
-	Balance   string `json:"balance"`
+	AccountID int64   `json:"account-id"`
+	Currency  string  `json:"currency"`
+	Type      string  `json:"type"`
+	Balance   float64 `json:"balance,string"`
 }
 
 // WsAuthenticatedOrdersUpdateResponse response from OrdersUpdate authenticated subscription
@@ -436,13 +436,13 @@ type WsAuthenticatedOrdersUpdateResponse struct {
 
 // WsAuthenticatedOrdersUpdateResponseData order  updatedata
 type WsAuthenticatedOrdersUpdateResponseData struct {
-	UnfilledAmount   string        `json:"unfilled-amount"`
-	FilledAmount     string        `json:"filled-amount"`
-	Price            string        `json:"price"`
+	UnfilledAmount   float64       `json:"unfilled-amount,string"`
+	FilledAmount     float64       `json:"filled-amount,string"`
+	Price            float64       `json:"price,string"`
 	OrderID          int64         `json:"order-id"`
 	Symbol           currency.Pair `json:"symbol"`
 	MatchID          int64         `json:"match-id"`
-	FilledCashAmount string        `json:"filled-cash-amount"`
+	FilledCashAmount float64       `json:"filled-cash-amount,string"`
 	Role             string        `json:"role"`
 	OrderState       string        `json:"order-state"`
 }
@@ -459,18 +459,18 @@ type WsAuthenticatedOrdersResponseData struct {
 	OrderID          int64         `json:"order-id"`
 	Symbol           currency.Pair `json:"symbol"`
 	AccountID        int64         `json:"account-id"`
-	OrderAmount      string        `json:"order-amount"`
-	OrderPrice       string        `json:"order-price"`
+	OrderAmount      float64       `json:"order-amount,string"`
+	OrderPrice       float64       `json:"order-price,string"`
 	CreatedAt        int64         `json:"created-at"`
 	OrderType        string        `json:"order-type"`
 	OrderSource      string        `json:"order-source"`
 	OrderState       string        `json:"order-state"`
 	Role             string        `json:"role"`
-	Price            string        `json:"price"`
-	FilledAmount     string        `json:"filled-amount"`
-	UnfilledAmount   string        `json:"unfilled-amount"`
-	FilledCashAmount string        `json:"filled-cash-amount"`
-	FilledFees       string        `json:"filled-fees"`
+	Price            float64       `json:"price,string"`
+	FilledAmount     float64       `json:"filled-amount,string"`
+	UnfilledAmount   float64       `json:"unfilled-amount,string"`
+	FilledCashAmount float64       `json:"filled-cash-amount,string"`
+	FilledFees       float64       `json:"filled-fees,string"`
 }
 
 // WsAuthenticatedAccountsListResponse response from AccountsList authenticated endpoint
@@ -489,9 +489,9 @@ type WsAuthenticatedAccountsListResponseData struct {
 
 // WsAuthenticatedAccountsListResponseDataList detailed account data
 type WsAuthenticatedAccountsListResponseDataList struct {
-	Currency string `json:"currency"`
-	Type     string `json:"type"`
-	Balance  string `json:"balance"`
+	Currency string  `json:"currency"`
+	Type     string  `json:"type"`
+	Balance  float64 `json:"balance,string"`
 }
 
 // WsAuthenticatedOrdersListResponse response from OrdersList authenticated endpoint
@@ -505,13 +505,13 @@ type WsAuthenticatedOrdersListResponseData struct {
 	ID               int64         `json:"id"`
 	Symbol           currency.Pair `json:"symbol"`
 	AccountID        int64         `json:"account-id"`
-	Amount           string        `json:"amount"`
-	Price            string        `json:"price"`
+	Amount           float64       `json:"amount,string"`
+	Price            float64       `json:"price,string"`
 	CreatedAt        int64         `json:"created-at"`
 	Type             string        `json:"type"`
-	FilledAmount     string        `json:"filled-amount"`
-	FilledCashAmount string        `json:"filled-cash-amount"`
-	FilledFees       string        `json:"filled-fees"`
+	FilledAmount     float64       `json:"filled-amount,string"`
+	FilledCashAmount float64       `json:"filled-cash-amount,string"`
+	FilledFees       float64       `json:"filled-fees,string"`
 	FinishedAt       int64         `json:"finished-at"`
 	Source           string        `json:"source"`
 	State            string        `json:"state"`

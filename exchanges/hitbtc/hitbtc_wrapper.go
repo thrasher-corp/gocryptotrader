@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -319,18 +318,12 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
-		orderDate, err := time.Parse(time.RFC3339, allOrders[i].CreatedAt)
-		if err != nil {
-			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				h.Name, "GetActiveOrders", allOrders[i].ID, allOrders[i].CreatedAt)
-		}
-
 		orders = append(orders, exchange.OrderDetail{
 			ID:           allOrders[i].ID,
 			Amount:       allOrders[i].Quantity,
 			Exchange:     h.Name,
 			Price:        allOrders[i].Price,
-			OrderDate:    orderDate,
+			OrderDate:    allOrders[i].CreatedAt,
 			OrderSide:    side,
 			CurrencyPair: symbol,
 		})
@@ -364,18 +357,12 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
 			h.ConfigCurrencyPairFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
-		orderDate, err := time.Parse(time.RFC3339, allOrders[i].CreatedAt)
-		if err != nil {
-			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				h.Name, "GetOrderHistory", allOrders[i].ID, allOrders[i].CreatedAt)
-		}
-
 		orders = append(orders, exchange.OrderDetail{
 			ID:           allOrders[i].ID,
 			Amount:       allOrders[i].Quantity,
 			Exchange:     h.Name,
 			Price:        allOrders[i].Price,
-			OrderDate:    orderDate,
+			OrderDate:    allOrders[i].CreatedAt,
 			OrderSide:    side,
 			CurrencyPair: symbol,
 		})

@@ -470,17 +470,17 @@ type WebsocketL2Update struct {
 
 // WebsocketActivate an activate message is sent when a stop order is placed
 type WebsocketActivate struct {
-	Type         string `json:"type"`
-	ProductID    string `json:"product_id"`
-	Timestamp    string `json:"timestamp"`
-	UserID       string `json:"user_id"`
-	ProfileID    string `json:"profile_id"`
-	OrderID      string `json:"order_id"`
-	StopType     string `json:"stop_type"`
-	Side         string `json:"side"`
-	StopPrice    string `json:"stop_price"`
-	Size         string `json:"size"`
-	Funds        string `json:"funds"`
-	TakerFeeRate string `json:"taker_fee_rate"`
-	Private      bool   `json:"private"`
+	Type         string  `json:"type"`
+	ProductID    string  `json:"product_id"`
+	Timestamp    string  `json:"timestamp"`
+	UserID       string  `json:"user_id"`
+	ProfileID    string  `json:"profile_id"`
+	OrderID      string  `json:"order_id"`
+	StopType     string  `json:"stop_type"`
+	Side         string  `json:"side"`
+	StopPrice    float64 `json:"stop_price,string"`
+	Size         float64 `json:"size,string"`
+	Funds        float64 `json:"funds,string"`
+	TakerFeeRate float64 `json:"taker_fee_rate,string"`
+	Private      bool    `json:"private"`
 }

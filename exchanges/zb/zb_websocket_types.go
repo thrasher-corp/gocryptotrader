@@ -199,15 +199,15 @@ type WsGetOrderResponse struct {
 // WsGetOrderResponseData Detailed order data
 type WsGetOrderResponseData struct {
 	Currency    string  `json:"currency"`
-	Fees        int64   `json:"fees"`
+	Fees        float64 `json:"fees"`
 	ID          string  `json:"id"`
-	Price       int64   `json:"price"`
+	Price       float64 `json:"price"`
 	Status      int64   `json:"status"`
 	TotalAmount float64 `json:"total_amount"`
-	TradeAmount int64   `json:"trade_amount"`
-	TradePrice  int64   `json:"trade_price"`
+	TradeAmount float64 `json:"trade_amount"`
+	TradePrice  float64 `json:"trade_price"`
 	TradeDate   int64   `json:"trade_date"`
-	TradeMoney  int64   `json:"trade_money"`
+	TradeMoney  float64 `json:"trade_money"`
 	Type        int64   `json:"type"`
 }
 
@@ -258,13 +258,13 @@ type WsGetAccountInfoResponse struct {
 	No      string `json:"no"`
 	Data    struct {
 		Coins []struct {
-			Freez       string `json:"freez"`
-			EnName      string `json:"enName"`
-			UnitDecimal int    `json:"unitDecimal"`
-			CnName      string `json:"cnName"`
-			UnitTag     string `json:"unitTag"`
-			Available   string `json:"available"`
-			Key         string `json:"key"`
+			Freez       float64 `json:"freez,string"`
+			EnName      string  `json:"enName"`
+			UnitDecimal int     `json:"unitDecimal"`
+			CnName      string  `json:"cnName"`
+			UnitTag     string  `json:"unitTag"`
+			Available   float64 `json:"available,string"`
+			Key         string  `json:"key"`
 		} `json:"coins"`
 		Base struct {
 			Username             string `json:"username"`

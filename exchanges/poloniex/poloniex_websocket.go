@@ -251,20 +251,24 @@ func (p *Poloniex) wsHandleAccountData(accountData [][]interface{}) {
 	for i := range accountData {
 		switch accountData[i][0].(string) {
 		case "b":
+			amount, _ := strconv.ParseFloat(accountData[i][3].(string), 64)
 			response := WsAccountBalanceUpdateResponse{
 				currencyID: accountData[i][1].(float64),
 				wallet:     accountData[i][2].(string),
-				amount:     accountData[i][3].(string),
+				amount:     amount,
 			}
 			p.Websocket.DataHandler <- response
 		case "n":
 			timeParse, _ := time.Parse("2006-01-02 15:04:05", accountData[i][6].(string))
+			rate, _ := strconv.ParseFloat(accountData[i][4].(string), 64)
+			amount, _ := strconv.ParseFloat(accountData[i][5].(string), 64)
+
 			response := WsNewLimitOrderResponse{
 				currencyID:  accountData[i][1].(float64),
 				orderNumber: accountData[i][2].(float64),
 				orderType:   accountData[i][3].(float64),
-				rate:        accountData[i][4].(string),
-				amount:      accountData[i][5].(string),
+				rate:        rate,
+				amount:      amount,
 				date:        timeParse,
 			}
 			p.Websocket.DataHandler <- response
@@ -276,14 +280,19 @@ func (p *Poloniex) wsHandleAccountData(accountData [][]interface{}) {
 			p.Websocket.DataHandler <- response
 		case "t":
 			timeParse, _ := time.Parse("2006-01-02 15:04:05", accountData[i][8].(string))
+			rate, _ := strconv.ParseFloat(accountData[i][2].(string), 64)
+			amount, _ := strconv.ParseFloat(accountData[i][3].(string), 64)
+			feeMultiplier, _ := strconv.ParseFloat(accountData[i][4].(string), 64)
+			totalFee, _ := strconv.ParseFloat(accountData[i][7].(string), 64)
+
 			response := WsTradeNotificationResponse{
 				TradeID:       accountData[i][1].(float64),
-				Rate:          accountData[i][2].(string),
-				Amount:        accountData[i][3].(string),
-				FeeMultiplier: accountData[i][4].(string),
+				Rate:          rate,
+				Amount:        amount,
+				FeeMultiplier: feeMultiplier,
 				FundingType:   accountData[i][5].(float64),
 				OrderNumber:   accountData[i][6].(float64),
-				TotalFee:      accountData[i][7].(string),
+				TotalFee:      totalFee,
 				Date:          timeParse,
 			}
 			p.Websocket.DataHandler <- response

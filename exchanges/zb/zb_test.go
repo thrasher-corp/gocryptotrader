@@ -557,7 +557,7 @@ func TestWsCreateSuUserKey(t *testing.T) {
 		t.Fatal("Have not received a response")
 	}
 	timer.Stop()
-	err := z.wsCreateSubUserKey(true, true, true, true, "buttzo", fmt.Sprintf("%v", userID))
+	err := z.wsCreateSubUserKey(true, true, true, true, "subu", fmt.Sprintf("%v", userID))
 	if err != nil {
 		t.Error(err)
 	}

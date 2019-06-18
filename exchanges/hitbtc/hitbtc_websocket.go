@@ -430,8 +430,8 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 			ClientOrderID: fmt.Sprintf("%v", time.Now().Unix()),
 			Symbol:        pair,
 			Side:          common.StringToLower(side),
-			Price:         fmt.Sprintf("%v", price),
-			Quantity:      fmt.Sprintf("%v", quantity),
+			Price:         price,
+			Quantity:      quantity,
 		},
 		ID: int64(requestID.GetInc()),
 	}
@@ -463,8 +463,8 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) e
 		Params: WsReplaceOrderRequestData{
 			ClientOrderID:   clientOrderID,
 			RequestClientID: fmt.Sprintf("%v", time.Now().Unix()),
-			Quantity:        fmt.Sprintf("%v", quantity),
-			Price:           fmt.Sprintf("%v", price),
+			Quantity:        quantity,
+			Price:           price,
 		},
 		ID: int64(requestID.GetInc()),
 	}

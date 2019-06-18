@@ -873,11 +873,11 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 func (c *Config) areAuthenticatedCredentialsValid(i int) bool {
 	if c.Exchanges == nil {
-		log.Error("c.Exchanges not setup")
+		log.Error("Config: Failed to check exchange authenticated credentials due to c.Exchanges not setup")
 		return false
 	}
 	if i < 0 || c.Exchanges == nil || len(c.Exchanges) < i {
-		log.Error("Invalid index")
+		log.Error("Config: Failed to check exchange authenticated credentials due to invalid index")
 		return false
 	}
 

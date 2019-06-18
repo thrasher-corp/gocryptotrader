@@ -471,15 +471,15 @@ type WsSubmitOrderParameters struct {
 type WsUserBalanceResponse struct {
 	Nonce             int64    `json:"nonce"`
 	Status            []string `json:"status"`
-	Btc               string   `json:"BTC"`
-	Ltc               string   `json:"LTC"`
-	Etc               string   `json:"ETC"`
-	Eth               string   `json:"ETH"`
-	FloatingPl        string   `json:"floating_pl"`
-	InitialMargin     string   `json:"initial_margin"`
-	RealizedPl        string   `json:"realized_pl"`
-	MaintenanceMargin string   `json:"maintenance_margin"`
-	Equity            string   `json:"equity"`
+	Btc               float64  `json:"BTC,string"`
+	Ltc               float64  `json:"LTC,string"`
+	Etc               float64  `json:"ETC,string"`
+	Eth               float64  `json:"ETH,string"`
+	FloatingPl        float64  `json:"floating_pl,string"`
+	InitialMargin     float64  `json:"initial_margin,string"`
+	RealizedPl        float64  `json:"realized_pl,string"`
+	MaintenanceMargin float64  `json:"maintenance_margin,string"`
+	Equity            float64  `json:"equity,string"`
 	Reply             string   `json:"reply"`
 	TransID           int64    `json:"trans_id"`
 }
@@ -489,11 +489,11 @@ type WsOrderAcceptedResponse struct {
 	Nonce       int64    `json:"nonce"`
 	Status      []string `json:"status"`
 	OrderID     int64    `json:"order_id"`
-	OpenQty     string   `json:"open_qty"`
+	OpenQty     float64  `json:"open_qty,string"`
 	InstID      int64    `json:"inst_id"`
-	Qty         string   `json:"qty"`
+	Qty         float64  `json:"qty,string"`
 	ClientOrdID int64    `json:"client_ord_id"`
-	OrderPrice  string   `json:"order_price"`
+	OrderPrice  float64  `json:"order_price,string"`
 	Reply       string   `json:"reply"`
 	Side        string   `json:"side"`
 	TransID     int64    `json:"trans_id"`
@@ -502,8 +502,8 @@ type WsOrderAcceptedResponse struct {
 // WsOrderFilledResponse ws response
 type WsOrderFilledResponse struct {
 	Commission WsOrderFilledCommissionData `json:"commission"`
-	FillPrice  string                      `json:"fill_price"`
-	FillQty    string                      `json:"fill_qty"`
+	FillPrice  float64                     `json:"fill_price,string"`
+	FillQty    float64                     `json:"fill_qty,string"`
 	Nonce      int64                       `json:"nonce"`
 	Order      WsOrderData                 `json:"order"`
 	Reply      string                      `json:"reply"`
@@ -535,7 +535,7 @@ type WsOrderRejectedResponse struct {
 	Nonce       int64    `json:"nonce"`
 	Status      []string `json:"status"`
 	OrderID     int64    `json:"order_id"`
-	OpenQty     string   `json:"open_qty"`
+	OpenQty     float64  `json:"open_qty,string"`
 	Price       float64  `json:"price,string"`
 	InstID      int64    `json:"inst_id"`
 	Reasons     []string `json:"reasons"`

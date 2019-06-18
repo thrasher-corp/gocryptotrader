@@ -410,7 +410,7 @@ var WithdrawalFees = map[currency.Code]float64{
 type WsAccountBalanceUpdateResponse struct {
 	currencyID float64
 	wallet     string
-	amount     string
+	amount     float64
 }
 
 // WsNewLimitOrderResponse Authenticated Ws Account data
@@ -418,8 +418,8 @@ type WsNewLimitOrderResponse struct {
 	currencyID  float64
 	orderNumber float64
 	orderType   float64
-	rate        string
-	amount      string
+	rate        float64
+	amount      float64
 	date        time.Time
 }
 
@@ -432,12 +432,12 @@ type WsOrderUpdateResponse struct {
 // WsTradeNotificationResponse Authenticated Ws Account data
 type WsTradeNotificationResponse struct {
 	TradeID       float64
-	Rate          string
-	Amount        string
-	FeeMultiplier string
+	Rate          float64
+	Amount        float64
+	FeeMultiplier float64
 	FundingType   float64
 	OrderNumber   float64
-	TotalFee      string
+	TotalFee      float64
 	Date          time.Time
 }
 

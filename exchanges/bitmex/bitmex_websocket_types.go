@@ -159,24 +159,24 @@ type WsWalletResponseAttributes struct {
 type WsWalletResponseData struct {
 	Account          int64         `json:"account"`
 	Currency         string        `json:"currency"`
-	PrevDeposited    int64         `json:"prevDeposited"`
-	PrevWithdrawn    int64         `json:"prevWithdrawn"`
-	PrevTransferIn   int64         `json:"prevTransferIn"`
-	PrevTransferOut  int64         `json:"prevTransferOut"`
-	PrevAmount       int64         `json:"prevAmount"`
+	PrevDeposited    float64       `json:"prevDeposited"`
+	PrevWithdrawn    float64       `json:"prevWithdrawn"`
+	PrevTransferIn   float64       `json:"prevTransferIn"`
+	PrevTransferOut  float64       `json:"prevTransferOut"`
+	PrevAmount       float64       `json:"prevAmount"`
 	PrevTimestamp    string        `json:"prevTimestamp"`
-	DeltaDeposited   int64         `json:"deltaDeposited"`
-	DeltaWithdrawn   int64         `json:"deltaWithdrawn"`
-	DeltaTransferIn  int64         `json:"deltaTransferIn"`
-	DeltaTransferOut int64         `json:"deltaTransferOut"`
-	DeltaAmount      int64         `json:"deltaAmount"`
-	Deposited        int64         `json:"deposited"`
-	Withdrawn        int64         `json:"withdrawn"`
-	TransferIn       int64         `json:"transferIn"`
-	TransferOut      int64         `json:"transferOut"`
-	Amount           int64         `json:"amount"`
-	PendingCredit    int64         `json:"pendingCredit"`
-	PendingDebit     int64         `json:"pendingDebit"`
+	DeltaDeposited   float64       `json:"deltaDeposited"`
+	DeltaWithdrawn   float64       `json:"deltaWithdrawn"`
+	DeltaTransferIn  float64       `json:"deltaTransferIn"`
+	DeltaTransferOut float64       `json:"deltaTransferOut"`
+	DeltaAmount      float64       `json:"deltaAmount"`
+	Deposited        float64       `json:"deposited"`
+	Withdrawn        float64       `json:"withdrawn"`
+	TransferIn       float64       `json:"transferIn"`
+	TransferOut      float64       `json:"transferOut"`
+	Amount           float64       `json:"amount"`
+	PendingCredit    float64       `json:"pendingCredit"`
+	PendingDebit     float64       `json:"pendingDebit"`
 	ConfirmedDebit   int64         `json:"confirmedDebit"`
 	Timestamp        string        `json:"timestamp"`
 	Addr             string        `json:"addr"`
@@ -246,44 +246,44 @@ type WsMarginResponseAttributes struct {
 type WsMarginResponseData struct {
 	Account            int64       `json:"account"`
 	Currency           string      `json:"currency"`
-	RiskLimit          int64       `json:"riskLimit"`
+	RiskLimit          float64     `json:"riskLimit"`
 	PrevState          string      `json:"prevState"`
 	State              string      `json:"state"`
 	Action             string      `json:"action"`
-	Amount             int64       `json:"amount"`
-	PendingCredit      int64       `json:"pendingCredit"`
-	PendingDebit       int64       `json:"pendingDebit"`
-	ConfirmedDebit     int64       `json:"confirmedDebit"`
-	PrevRealisedPnl    int64       `json:"prevRealisedPnl"`
-	PrevUnrealisedPnl  int64       `json:"prevUnrealisedPnl"`
-	GrossComm          int64       `json:"grossComm"`
-	GrossOpenCost      int64       `json:"grossOpenCost"`
-	GrossOpenPremium   int64       `json:"grossOpenPremium"`
-	GrossExecCost      int64       `json:"grossExecCost"`
-	GrossMarkValue     int64       `json:"grossMarkValue"`
-	RiskValue          int64       `json:"riskValue"`
-	TaxableMargin      int64       `json:"taxableMargin"`
-	InitMargin         int64       `json:"initMargin"`
-	MaintMargin        int64       `json:"maintMargin"`
-	SessionMargin      int64       `json:"sessionMargin"`
-	TargetExcessMargin int64       `json:"targetExcessMargin"`
-	VarMargin          int64       `json:"varMargin"`
-	RealisedPnl        int64       `json:"realisedPnl"`
-	UnrealisedPnl      int64       `json:"unrealisedPnl"`
-	IndicativeTax      int64       `json:"indicativeTax"`
-	UnrealisedProfit   int64       `json:"unrealisedProfit"`
+	Amount             float64     `json:"amount"`
+	PendingCredit      float64     `json:"pendingCredit"`
+	PendingDebit       float64     `json:"pendingDebit"`
+	ConfirmedDebit     float64     `json:"confirmedDebit"`
+	PrevRealisedPnl    float64     `json:"prevRealisedPnl"`
+	PrevUnrealisedPnl  float64     `json:"prevUnrealisedPnl"`
+	GrossComm          float64     `json:"grossComm"`
+	GrossOpenCost      float64     `json:"grossOpenCost"`
+	GrossOpenPremium   float64     `json:"grossOpenPremium"`
+	GrossExecCost      float64     `json:"grossExecCost"`
+	GrossMarkValue     float64     `json:"grossMarkValue"`
+	RiskValue          float64     `json:"riskValue"`
+	TaxableMargin      float64     `json:"taxableMargin"`
+	InitMargin         float64     `json:"initMargin"`
+	MaintMargin        float64     `json:"maintMargin"`
+	SessionMargin      float64     `json:"sessionMargin"`
+	TargetExcessMargin float64     `json:"targetExcessMargin"`
+	VarMargin          float64     `json:"varMargin"`
+	RealisedPnl        float64     `json:"realisedPnl"`
+	UnrealisedPnl      float64     `json:"unrealisedPnl"`
+	IndicativeTax      float64     `json:"indicativeTax"`
+	UnrealisedProfit   float64     `json:"unrealisedProfit"`
 	SyntheticMargin    interface{} `json:"syntheticMargin"`
-	WalletBalance      int64       `json:"walletBalance"`
-	MarginBalance      int64       `json:"marginBalance"`
-	MarginBalancePcnt  int64       `json:"marginBalancePcnt"`
-	MarginLeverage     int64       `json:"marginLeverage"`
-	MarginUsedPcnt     int64       `json:"marginUsedPcnt"`
-	ExcessMargin       int64       `json:"excessMargin"`
-	ExcessMarginPcnt   int64       `json:"excessMarginPcnt"`
-	AvailableMargin    int64       `json:"availableMargin"`
-	WithdrawableMargin int64       `json:"withdrawableMargin"`
+	WalletBalance      float64     `json:"walletBalance"`
+	MarginBalance      float64     `json:"marginBalance"`
+	MarginBalancePcnt  float64     `json:"marginBalancePcnt"`
+	MarginLeverage     float64     `json:"marginLeverage"`
+	MarginUsedPcnt     float64     `json:"marginUsedPcnt"`
+	ExcessMargin       float64     `json:"excessMargin"`
+	ExcessMarginPcnt   float64     `json:"excessMarginPcnt"`
+	AvailableMargin    float64     `json:"availableMargin"`
+	WithdrawableMargin float64     `json:"withdrawableMargin"`
 	Timestamp          string      `json:"timestamp"`
-	GrossLastValue     int64       `json:"grossLastValue"`
+	GrossLastValue     float64     `json:"grossLastValue"`
 	Commission         interface{} `json:"commission"`
 }
 
