@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	log "github.com/thrasher-/gocryptotrader/logger"
+	logv2 "github.com/thrasher-/gocryptotrader/loggerv2"
 )
 
 // Constants declared here are filename strings and test strings
@@ -1224,6 +1225,13 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 	return nil
 }
 
+func (c *Config) CheckLoggerConfigV2() error {
+	m.Lock()
+	logv2.GlobalLogConfig = &c.Loggingv2
+	m.Unlock()
+	return nil
+}
+
 // CheckLoggerConfig checks to see logger values are present and valid in config
 // if not creates a default instance of the logger
 func (c *Config) CheckLoggerConfig() error {
@@ -1575,6 +1583,8 @@ func (c *Config) CheckConfig() error {
 	if err != nil {
 		log.Errorf("Failed to configure logger. Err: %s", err)
 	}
+
+	c.CheckLoggerConfigV2()
 
 	err = c.CheckExchangeConfigValues()
 	if err != nil {

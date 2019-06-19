@@ -5,7 +5,34 @@ import (
 	"sync"
 )
 
-const timestampFormat = "| 02/01/2006 15:04:05 | "
+const timestampFormat = "02/01/2006 15:04:05"
+
+const spacer = "|"
+
+type LoggerConfig struct {
+	Enabled          *bool            `json:"enabled"`
+	AdvancedSettings advancedSettings `json:"advancedSettings"`
+	SubLoggers       []subLoggers     `json:"subloggers"`
+}
+
+type headers struct {
+	Info  string `json:"info"`
+	Warn  string `json:"warn"`
+	Debug string `json:"debug"`
+	Error string `json:"error"`
+}
+
+type advancedSettings struct {
+	Spacer          string  `json:"spacer"`
+	TimeStampFormat string  `json:"timeStampFormat"`
+	Headers         headers `json:"headers"`
+}
+
+type subLoggers struct {
+	Name   string `json:"name"`
+	Level  string `json:"level"`
+	Output string `json:"output"`
+}
 
 type Logger struct {
 	InfoWriter, ErrorWriter, DebugWriter, WarnWriter io.Writer
@@ -15,7 +42,14 @@ type Logger struct {
 
 type subLogger struct {
 	Info, Debug, Warn, Error bool
+	output                   io.Writer
 }
+
+var (
+	GlobalLogConfig = &LoggerConfig{}
+)
+
+var logger = &Logger{}
 
 var subsystemLoggers = map[string]subLogger{}
 
@@ -28,7 +62,7 @@ type LogEvent struct {
 var eventPool = &sync.Pool{
 	New: func() interface{} {
 		return &LogEvent{
-			data: make([]byte, 0, 120),
+			data: make([]byte, 0, 80),
 		}
 	},
 }

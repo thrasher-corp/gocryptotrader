@@ -13,21 +13,9 @@ import (
 	"github.com/thrasher-/gocryptotrader/engine"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
-	nlog "github.com/thrasher-/gocryptotrader/loggerv2"
 )
 
 func main() {
-
-	nlog.Info("syslog", "Test")
-	nlog.Infof("syslog", "Test %v", 1)
-
-	nlog.Debug("syslog", "Test")
-	nlog.Debugf("syslog", "Test %v", 1)
-
-	nlog.Warn("syslog", "Test")
-	nlog.Warnf("syslog", "Test %v", 1)
-
-	os.Exit(0)
 
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {

@@ -3,48 +3,28 @@ package loggerv2
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 )
 
-func newPosixConsoleLogger() *Logger {
+func newLogger(c *LoggerConfig) *Logger {
 	return &Logger{
-		InfoWriter:  os.Stdout,
 		WarnWriter:  os.Stdout,
 		DebugWriter: os.Stdout,
 		ErrorWriter: os.Stderr,
-		Timestamp:   timestampFormat,
-		ErrorHeader: "\033[31m[ERROR]\033[0m ",
-		InfoHeader:  "\033[32m[INFO]\033[0m  ",
-		WarnHeader:  "\033[33m[WARN]\033[0m  ",
-		DebugHeader: "\033[34m[DEBUG]\033[0m ",
+		Timestamp:   c.AdvancedSettings.TimeStampFormat,
+		ErrorHeader: c.AdvancedSettings.Headers.Error,
+		InfoHeader:  c.AdvancedSettings.Headers.Info,
+		WarnHeader:  c.AdvancedSettings.Headers.Warn,
+		DebugHeader: c.AdvancedSettings.Headers.Debug,
 	}
 }
 
-func newWindowsConsoleLogger() *Logger {
-	return &Logger{
-		InfoWriter:  os.Stdout,
-		WarnWriter:  os.Stdout,
-		DebugWriter: os.Stdout,
-		ErrorWriter: os.Stderr,
-		Timestamp:   timestampFormat,
-		ErrorHeader: "[ERROR] ",
-		InfoHeader:  "[INFO] ",
-		WarnHeader:  "[WARN] ",
-		DebugHeader: "[DEBUG] ",
-	}
+func SetupGlobalLogger() {
+	logger = newLogger(GlobalLogConfig)
 }
-
-func NewLogger() *Logger {
-	if runtime.GOOS == "windows" {
-		return newWindowsConsoleLogger()
-	}
-	return newPosixConsoleLogger()
-}
-
-var logger = NewLogger()
 
 func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	if w == nil {
@@ -54,11 +34,13 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	e.output = w
 	e.data = e.data[:0]
 	e.data = append(e.data, []byte(header)...)
+	e.data = append(e.data, spacer...)
 	if l.Timestamp != "" {
 		e.data = time.Now().AppendFormat(e.data, l.Timestamp)
 	}
+	e.data = append(e.data, spacer...)
+	e.data = append(e.data, ' ')
 	e.data = append(e.data, []byte(data)...)
-	e.data = append(e.data, '\n')
 	e.mu.Lock()
 	e.output.Write(e.data)
 	e.mu.Unlock()
@@ -69,15 +51,35 @@ func Info(subSystem, data string) {
 	if !subsystemLoggers[subSystem].Info {
 		return
 	}
-	logger.newLogEvent(data, logger.InfoHeader, logger.InfoWriter)
+	logger.newLogEvent(data, logger.InfoHeader, subsystemLoggers[subSystem].output)
+}
+
+func Infoln(subSystem string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Info {
+		return
+	}
+	logger.newLogEvent(fmt.Sprintln(v...), logger.InfoHeader, subsystemLoggers[subSystem].output)
 }
 
 func Infof(subSystem, data string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Info {
+		return
+	}
 	Info(subSystem, fmt.Sprintf(data, v...))
 }
 
 func Debug(subSystem, data string) {
-	logger.newLogEvent(data, logger.DebugHeader, logger.DebugWriter)
+	if !subsystemLoggers[subSystem].Debug {
+		return
+	}
+	logger.newLogEvent(data, logger.DebugHeader, subsystemLoggers[subSystem].output)
+}
+
+func Debugln(subSystem string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Debug {
+		return
+	}
+	logger.newLogEvent(fmt.Sprintln(v...), logger.DebugHeader, subsystemLoggers[subSystem].output)
 }
 
 func Debugf(subSystem, data string, v ...interface{}) {
@@ -85,15 +87,51 @@ func Debugf(subSystem, data string, v ...interface{}) {
 }
 
 func Warn(subSystem, data string) {
-	logger.newLogEvent(data, logger.WarnHeader, logger.WarnWriter)
+	if !subsystemLoggers[subSystem].Warn {
+		return
+	}
+	logger.newLogEvent(data, logger.WarnHeader, subsystemLoggers[subSystem].output)
+}
+
+func Warnln(subSystem string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Warn {
+		return
+	}
+	logger.newLogEvent(fmt.Sprintln(v...), logger.WarnHeader, subsystemLoggers[subSystem].output)
 }
 
 func Warnf(subSystem, data string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Warn {
+		return
+	}
 	Warn(subSystem, fmt.Sprintf(data, v...))
 }
 
-func addSubLogger(subsystem, flags string) {
-	temp := subLogger{}
+func Error(subSystem, data string) {
+	if !subsystemLoggers[subSystem].Error {
+		return
+	}
+	logger.newLogEvent(data, logger.ErrorHeader, subsystemLoggers[subSystem].output)
+}
+
+func Errorln(subSystem string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Error {
+		return
+	}
+	logger.newLogEvent(fmt.Sprintln(v...), logger.ErrorHeader, subsystemLoggers[subSystem].output)
+}
+
+func Errorf(subSystem, data string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Error {
+		return
+	}
+	Warn(subSystem, fmt.Sprintf(data, v...))
+}
+
+func addSubLogger(subsystem, flags string, output io.Writer) {
+	temp := subLogger{
+		output: output,
+	}
 	enabledLevels := strings.Split(flags, "|")
 	for x := range enabledLevels {
 		switch level := enabledLevels[x]; level {
@@ -110,6 +148,19 @@ func addSubLogger(subsystem, flags string) {
 	subsystemLoggers[subsystem] = temp
 }
 
-func init() {
-	addSubLogger("syslog", "INFO|DEBUG|WARN|ERROR")
+func SetupSubLogger(s []subLoggers) {
+	for x := range s {
+		output := getWriter(s[x].Output)
+		addSubLogger(s[x].Name, s[x].Level, output)
+	}
+}
+
+func getWriter(output string) io.Writer {
+	switch output {
+	case "stdout":
+		return os.Stdout
+	case "stderr":
+		return os.Stderr
+	}
+	return ioutil.Discard
 }

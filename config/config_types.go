@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	log "github.com/thrasher-/gocryptotrader/logger"
+	logv2 "github.com/thrasher-/gocryptotrader/loggerv2"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -17,6 +18,7 @@ type Config struct {
 	EncryptConfig     int                     `json:"encryptConfig"`
 	GlobalHTTPTimeout time.Duration           `json:"globalHTTPTimeout"`
 	Logging           log.Logging             `json:"logging"`
+	Loggingv2         logv2.LoggerConfig      `json:"loggingv2"`
 	ConnectionMonitor ConnectionMonitorConfig `json:"connectionMonitor"`
 	Profiler          ProfilerConfig          `json:"profiler"`
 	NTPClient         NTPClientConfig         `json:"ntpclient"`
