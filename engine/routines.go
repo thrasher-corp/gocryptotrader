@@ -444,7 +444,9 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 				}
 				// TO-DO: printOrderbookSummary
 				//nolint:gocritic
-				log.Infof("core", "Websocket %s %s orderbook updated\n", ws.GetName(), result.Pair.String())
+				if Bot.Settings.Verbose {
+					log.Infof("core", "Websocket %s %s orderbook updated\n", ws.GetName(), result.Pair.String())
+				}
 			default:
 				if Bot.Settings.Verbose {
 					log.Warnf("core", "Websocket Unknown type:     %s\n", d)

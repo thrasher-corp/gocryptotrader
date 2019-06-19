@@ -35,7 +35,6 @@ type subLoggers struct {
 }
 
 type Logger struct {
-	InfoWriter, ErrorWriter, DebugWriter, WarnWriter io.Writer
 	Timestamp                                        string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 }

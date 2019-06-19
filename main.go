@@ -16,7 +16,6 @@ import (
 )
 
 func main() {
-
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
 		log.Fatal(err)

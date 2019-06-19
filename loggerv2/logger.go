@@ -11,9 +11,6 @@ import (
 
 func newLogger(c *LoggerConfig) *Logger {
 	return &Logger{
-		WarnWriter:  os.Stdout,
-		DebugWriter: os.Stdout,
-		ErrorWriter: os.Stderr,
 		Timestamp:   c.AdvancedSettings.TimeStampFormat,
 		ErrorHeader: c.AdvancedSettings.Headers.Error,
 		InfoHeader:  c.AdvancedSettings.Headers.Info,
