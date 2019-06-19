@@ -173,6 +173,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(kraken.Kraken)
 	case "lakebtc":
 		exch = new(lakebtc.LakeBTC)
+	case "lbank":
+		exch = new(lbank.Lbank)
 	case "localbitcoins":
 		exch = new(localbitcoins.LocalBitcoins)
 	case "okcoin international":

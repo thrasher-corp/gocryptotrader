@@ -445,3 +445,15 @@ func TestGetDepositAddress(t *testing.T) {
 		}
 	}
 }
+func TestUpdateOrderbook(t *testing.T) {
+	a.SetDefaults()
+	q := currency.Pair{
+		Delimiter: "_",
+		Base:      currency.BTC,
+		Quote:     currency.USD}
+
+	_, err := a.UpdateOrderbook(q, "spot")
+	if err != nil {
+		t.Fatalf("Update for orderbook failed: %v", err)
+	}
+}

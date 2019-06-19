@@ -444,6 +444,47 @@
    ]
   },
   {
+    "name": "LBank",
+    "enabled": true,
+    "verbose": false,
+    "websocket": false,
+    "useSandbox": false,
+    "restPollingDelay": 10,
+    "httpTimeout": 15000000000,
+    "httpUserAgent": "",
+    "httpDebugging": false,
+    "authenticatedApiSupport": false,
+    "apiKey": "Key",
+    "apiSecret": "Secret",
+    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+    "proxyAddress": "",
+    "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
+    "availablePairs": "BTC_USDT",
+    "enabledPairs": "BTC_USDT",
+    "baseCurrencies": "USD",
+    "assetTypes": "SPOT",
+    "supportsAutoPairUpdates": true,
+    "configCurrencyPairFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "requestCurrencyPairFormat": {
+     "uppercase": true
+    },
+    "bankAccounts": [
+     {
+      "bankName": "",
+      "bankAddress": "",
+      "accountName": "",
+      "accountNumber": "",
+      "swiftCode": "",
+      "iban": "",
+      "supportedCurrencies": ""
+     }
+    ]
+   },
+  {
    "name": "Bittrex",
    "enabled": true,
    "verbose": false,
