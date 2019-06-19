@@ -67,9 +67,10 @@ const (
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
-	AccountID     string
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	AccountID                  string
+	WebsocketConn              *websocket.Conn
+	AuthenticatedWebsocketConn *websocket.Conn
+	wsRequestMtx               sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -99,7 +100,9 @@ func (h *HUOBI) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketAccountDataSupported
 }
 
 // Setup sets user configuration
@@ -109,6 +112,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 	} else {
 		h.Enabled = true
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.APIAuthPEMKeySupport = exch.APIAuthPEMKeySupport
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
@@ -147,7 +151,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
-			huobiSocketIOAddress,
+			wsMarketURL,
 			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)

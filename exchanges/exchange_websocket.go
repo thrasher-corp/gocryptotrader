@@ -50,6 +50,7 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.SetConnector(connector)
 	e.Websocket.SetWebsocketURL(runningURL)
 	e.Websocket.SetExchangeName(exchangeName)
+	e.Websocket.SetCanUseAuthenticatedEndpoints(e.AuthenticatedWebsocketAPISupport)
 
 	e.Websocket.init = false
 	e.Websocket.noConnectionCheckLimit = 5
@@ -673,6 +674,21 @@ func (w *Websocket) FormatFunctionality() string {
 			case WebsocketUnsubscribeSupported:
 				functionality = append(functionality, WebsocketUnsubscribeSupportedText)
 
+			case WebsocketAuthenticatedEndpointsSupported:
+				functionality = append(functionality, WebsocketAuthenticatedEndpointsSupportedText)
+
+			case WebsocketAccountDataSupported:
+				functionality = append(functionality, WebsocketAccountDataSupportedText)
+
+			case WebsocketSubmitOrderSupported:
+				functionality = append(functionality, WebsocketSubmitOrderSupportedText)
+
+			case WebsocketCancelOrderSupported:
+				functionality = append(functionality, WebsocketCancelOrderSupportedText)
+
+			case WebsocketWithdrawSupported:
+				functionality = append(functionality, WebsocketWithdrawSupportedText)
+
 			default:
 				functionality = append(functionality,
 					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
@@ -838,7 +854,15 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
 func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription) {
 	for i := range channels {
-		w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
+		channelFound := false
+		for j := range w.channelsToSubscribe {
+			if w.channelsToSubscribe[j].Equal(&channels[i]) {
+				channelFound = true
+			}
+		}
+		if !channelFound {
+			w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
+		}
 	}
 	w.noConnectionChecks = 0
 }
@@ -854,4 +878,26 @@ func (w *Websocket) UnsubscribeToChannels(channels []WebsocketChannelSubscriptio
 func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannelSubscription) bool {
 	return strings.EqualFold(w.Channel, subscribedChannel.Channel) &&
 		strings.EqualFold(w.Currency.String(), subscribedChannel.Currency.String())
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+// subscriptions is a private member and cannot be manipulated
+func (w *Websocket) GetSubscriptions() []WebsocketChannelSubscription {
+	return append(w.subscribedChannels[:0:0], w.subscribedChannels...)
+}
+
+// SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in
+// a thread safe manner
+func (w *Websocket) SetCanUseAuthenticatedEndpoints(val bool) {
+	w.subscriptionLock.Lock()
+	defer w.subscriptionLock.Unlock()
+	w.canUseAuthenticatedEndpoints = val
+}
+
+// CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in
+// a thread safe manner
+func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
+	w.subscriptionLock.Lock()
+	defer w.subscriptionLock.Unlock()
+	return w.canUseAuthenticatedEndpoints
 }

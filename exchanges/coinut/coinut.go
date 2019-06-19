@@ -81,7 +81,10 @@ func (c *COINUT) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketSubmitOrderSupported |
+		exchange.WebsocketCancelOrderSupported
 }
 
 // Setup sets the current exchange configuration
@@ -91,6 +94,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 	} else {
 		c.Enabled = true
 		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		c.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		c.SetHTTPClientTimeout(exch.HTTPTimeout)
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)

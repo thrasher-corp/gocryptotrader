@@ -1,18 +1,21 @@
 package poloniex
 
 import (
+	"net/http"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var p Poloniex
 
 // Please supply your own APIKEYS here for due diligence testing
-
 const (
 	apiKey                  = ""
 	apiSecret               = ""
@@ -29,6 +32,7 @@ func TestSetup(t *testing.T) {
 		if err != nil {
 			t.Error("Test Failed - Poloniex Setup() init error")
 		}
+		poloniexConfig.AuthenticatedWebsocketAPISupport = true
 		poloniexConfig.AuthenticatedAPISupport = true
 		poloniexConfig.APIKey = apiKey
 		poloniexConfig.APISecret = apiSecret
@@ -413,4 +417,54 @@ func TestGetDepositAddress(t *testing.T) {
 			t.Error("Test Failed - GetDepositAddress()")
 		}
 	}
+}
+
+func TestWsHandleAccountData(t *testing.T) {
+	t.Parallel()
+	TestSetup(t)
+	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	jsons := []string{
+		`[["n",225,807230187,0,"1000.00000000","0.10000000","2018-11-07 16:42:42"],["b",267,"e","-0.10000000"]]`,
+		`[["o",807230187,"0.00000000"],["b",267,"e","0.10000000"]]`,
+		`[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09"]]`,
+	}
+	for i := range jsons {
+		var result [][]interface{}
+		err := common.JSONDecode([]byte(jsons[i]), &result)
+		if err != nil {
+			t.Error(err)
+		}
+		p.wsHandleAccountData(result)
+	}
+}
+
+// TestWsAuth dials websocket, sends login request.
+// Will receive a message only on failure
+func TestWsAuth(t *testing.T) {
+	TestSetup(t)
+	if !p.Websocket.IsEnabled() && !p.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	p.WebsocketConn, _, err = dialer.Dial(p.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go p.WsHandleData()
+	defer p.WebsocketConn.Close()
+	err = p.wsSendAuthorisedCommand("subscribe")
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case response := <-p.Websocket.DataHandler:
+		t.Error(response)
+	case <-timer.C:
+	}
+	timer.Stop()
 }

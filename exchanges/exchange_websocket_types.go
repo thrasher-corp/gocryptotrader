@@ -19,17 +19,27 @@ const (
 	WebsocketAllowsRequests
 	WebsocketSubscribeSupported
 	WebsocketUnsubscribeSupported
+	WebsocketAuthenticatedEndpointsSupported
+	WebsocketAccountDataSupported
+	WebsocketSubmitOrderSupported
+	WebsocketCancelOrderSupported
+	WebsocketWithdrawSupported
 
-	WebsocketTickerSupportedText      = "TICKER STREAMING SUPPORTED"
-	WebsocketOrderbookSupportedText   = "ORDERBOOK STREAMING SUPPORTED"
-	WebsocketKlineSupportedText       = "KLINE STREAMING SUPPORTED"
-	WebsocketTradeDataSupportedText   = "TRADE STREAMING SUPPORTED"
-	WebsocketAccountSupportedText     = "ACCOUNT STREAMING SUPPORTED"
-	WebsocketAllowsRequestsText       = "WEBSOCKET REQUESTS SUPPORTED"
-	NoWebsocketSupportText            = "WEBSOCKET NOT SUPPORTED"
-	UnknownWebsocketFunctionality     = "UNKNOWN FUNCTIONALITY BITMASK"
-	WebsocketSubscribeSupportedText   = "WEBSOCKET SUBSCRIBE SUPPORTED"
-	WebsocketUnsubscribeSupportedText = "WEBSOCKET UNSUBSCRIBE SUPPORTED"
+	WebsocketTickerSupportedText                 = "TICKER STREAMING SUPPORTED"
+	WebsocketOrderbookSupportedText              = "ORDERBOOK STREAMING SUPPORTED"
+	WebsocketKlineSupportedText                  = "KLINE STREAMING SUPPORTED"
+	WebsocketTradeDataSupportedText              = "TRADE STREAMING SUPPORTED"
+	WebsocketAccountSupportedText                = "ACCOUNT STREAMING SUPPORTED"
+	WebsocketAllowsRequestsText                  = "WEBSOCKET REQUESTS SUPPORTED"
+	NoWebsocketSupportText                       = "WEBSOCKET NOT SUPPORTED"
+	UnknownWebsocketFunctionality                = "UNKNOWN FUNCTIONALITY BITMASK"
+	WebsocketSubscribeSupportedText              = "WEBSOCKET SUBSCRIBE SUPPORTED"
+	WebsocketUnsubscribeSupportedText            = "WEBSOCKET UNSUBSCRIBE SUPPORTED"
+	WebsocketAuthenticatedEndpointsSupportedText = "WEBSOCKET AUTHENTICATED ENDPOINTS SUPPORTED"
+	WebsocketAccountDataSupportedText            = "WEBSOCKET ACCOUNT DATA SUPPORTED"
+	WebsocketSubmitOrderSupportedText            = "WEBSOCKET SUBMIT ORDER SUPPORTED"
+	WebsocketCancelOrderSupportedText            = "WEBSOCKET CANCEL ORDER SUPPORTED"
+	WebsocketWithdrawSupportedText               = "WEBSOCKET WITHDRAW SUPPORTED"
 
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
@@ -88,7 +98,8 @@ type Websocket struct {
 	// TrafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
 	// Functionality defines websocket stream capabilities
-	Functionality uint32
+	Functionality                uint32
+	canUseAuthenticatedEndpoints bool
 }
 
 // WebsocketChannelSubscription container for websocket subscriptions

@@ -62,7 +62,8 @@ const (
 
 // HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn              *websocket.Conn
+	AuthenticatedWebsocketConn *websocket.Conn
 	exchange.Base
 	wsRequestMtx sync.Mutex
 }
@@ -94,7 +95,9 @@ func (h *HUOBIHADAX) SetDefaults() {
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketAccountDataSupported
 }
 
 // Setup sets user configuration
@@ -104,6 +107,7 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 	} else {
 		h.Enabled = true
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.APIAuthPEMKeySupport = exch.APIAuthPEMKeySupport
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
@@ -141,7 +145,7 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
-			huobiGlobalWebsocketEndpoint,
+			HuobiHadaxSocketIOAddress,
 			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)

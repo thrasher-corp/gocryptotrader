@@ -130,39 +130,16 @@ func (p *Poloniex) WsHandleData() {
 							log.Debugf("poloniex websocket subscribed to channel successfully. %d", chanID)
 						}
 					} else {
-						if p.Verbose {
-							log.Debugf("poloniex websocket subscription to channel failed. %d", chanID)
-						}
+						p.Websocket.DataHandler <- fmt.Errorf("poloniex websocket subscription to channel failed. %d", chanID)
 					}
 					continue
 				}
 
 				switch chanID {
 				case wsAccountNotificationID:
+					p.wsHandleAccountData(data[2].([][]interface{}))
 				case wsTickerDataID:
-					tickerData := data[2].([]interface{})
-					var t WsTicker
-					t.LastPrice, _ = strconv.ParseFloat(tickerData[1].(string), 64)
-					t.LowestAsk, _ = strconv.ParseFloat(tickerData[2].(string), 64)
-					t.HighestBid, _ = strconv.ParseFloat(tickerData[3].(string), 64)
-					t.PercentageChange, _ = strconv.ParseFloat(tickerData[4].(string), 64)
-					t.BaseCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[5].(string), 64)
-					t.QuoteCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[6].(string), 64)
-					isFrozen := false
-					if tickerData[7].(float64) == 1 {
-						isFrozen = true
-					}
-					t.IsFrozen = isFrozen
-					t.HighestTradeIn24H, _ = strconv.ParseFloat(tickerData[8].(string), 64)
-					t.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
-
-					p.Websocket.DataHandler <- exchange.TickerData{
-						Timestamp: time.Now(),
-						Exchange:  p.GetName(),
-						AssetType: "SPOT",
-						LowPrice:  t.LowestAsk,
-						HighPrice: t.HighestBid,
-					}
+					p.wsHandleTickerData(data)
 				case ws24HourExchangeVolumeID:
 				case wsHeartbeat:
 				default:
@@ -239,6 +216,86 @@ func (p *Poloniex) WsHandleData() {
 					}
 				}
 			}
+		}
+	}
+}
+
+func (p *Poloniex) wsHandleTickerData(data []interface{}) {
+	tickerData := data[2].([]interface{})
+	var t WsTicker
+	t.LastPrice, _ = strconv.ParseFloat(tickerData[1].(string), 64)
+	t.LowestAsk, _ = strconv.ParseFloat(tickerData[2].(string), 64)
+	t.HighestBid, _ = strconv.ParseFloat(tickerData[3].(string), 64)
+	t.PercentageChange, _ = strconv.ParseFloat(tickerData[4].(string), 64)
+	t.BaseCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[5].(string), 64)
+	t.QuoteCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[6].(string), 64)
+	isFrozen := false
+	if tickerData[7].(float64) == 1 {
+		isFrozen = true
+	}
+	t.IsFrozen = isFrozen
+	t.HighestTradeIn24H, _ = strconv.ParseFloat(tickerData[8].(string), 64)
+	t.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
+
+	p.Websocket.DataHandler <- exchange.TickerData{
+		Timestamp: time.Now(),
+		Exchange:  p.GetName(),
+		AssetType: "SPOT",
+		LowPrice:  t.LowestAsk,
+		HighPrice: t.HighestBid,
+	}
+}
+
+// wsHandleAccountData Parses account data and sends to datahandler
+func (p *Poloniex) wsHandleAccountData(accountData [][]interface{}) {
+	for i := range accountData {
+		switch accountData[i][0].(string) {
+		case "b":
+			amount, _ := strconv.ParseFloat(accountData[i][3].(string), 64)
+			response := WsAccountBalanceUpdateResponse{
+				currencyID: accountData[i][1].(float64),
+				wallet:     accountData[i][2].(string),
+				amount:     amount,
+			}
+			p.Websocket.DataHandler <- response
+		case "n":
+			timeParse, _ := time.Parse("2006-01-02 15:04:05", accountData[i][6].(string))
+			rate, _ := strconv.ParseFloat(accountData[i][4].(string), 64)
+			amount, _ := strconv.ParseFloat(accountData[i][5].(string), 64)
+
+			response := WsNewLimitOrderResponse{
+				currencyID:  accountData[i][1].(float64),
+				orderNumber: accountData[i][2].(float64),
+				orderType:   accountData[i][3].(float64),
+				rate:        rate,
+				amount:      amount,
+				date:        timeParse,
+			}
+			p.Websocket.DataHandler <- response
+		case "o":
+			response := WsOrderUpdateResponse{
+				OrderNumber: accountData[i][1].(float64),
+				NewAmount:   accountData[i][2].(string),
+			}
+			p.Websocket.DataHandler <- response
+		case "t":
+			timeParse, _ := time.Parse("2006-01-02 15:04:05", accountData[i][8].(string))
+			rate, _ := strconv.ParseFloat(accountData[i][2].(string), 64)
+			amount, _ := strconv.ParseFloat(accountData[i][3].(string), 64)
+			feeMultiplier, _ := strconv.ParseFloat(accountData[i][4].(string), 64)
+			totalFee, _ := strconv.ParseFloat(accountData[i][7].(string), 64)
+
+			response := WsTradeNotificationResponse{
+				TradeID:       accountData[i][1].(float64),
+				Rate:          rate,
+				Amount:        amount,
+				FeeMultiplier: feeMultiplier,
+				FundingType:   accountData[i][5].(float64),
+				OrderNumber:   accountData[i][6].(float64),
+				TotalFee:      totalFee,
+				Date:          timeParse,
+			}
+			p.Websocket.DataHandler <- response
 		}
 	}
 }
@@ -437,11 +494,17 @@ var CurrencyPairID = map[int]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() {
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	// Tickerdata is its own channel
 	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 		Channel: fmt.Sprintf("%v", wsTickerDataID),
 	})
+
+	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			Channel: fmt.Sprintf("%v", wsAccountNotificationID),
+		})
+	}
 
 	enabledCurrencies := p.GetEnabledCurrencies()
 	for j := range enabledCurrencies {
@@ -459,9 +522,12 @@ func (p *Poloniex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	subscriptionRequest := WsCommand{
 		Command: "subscribe",
 	}
-	if strings.EqualFold(fmt.Sprintf("%v", wsTickerDataID), channelToSubscribe.Channel) {
+	switch {
+	case strings.EqualFold(fmt.Sprintf("%v", wsAccountNotificationID), channelToSubscribe.Channel):
+		return p.wsSendAuthorisedCommand("subscribe")
+	case strings.EqualFold(fmt.Sprintf("%v", wsTickerDataID), channelToSubscribe.Channel):
 		subscriptionRequest.Channel = wsTickerDataID
-	} else {
+	default:
 		subscriptionRequest.Channel = channelToSubscribe.Currency.String()
 	}
 	return p.wsSend(subscriptionRequest)
@@ -472,9 +538,12 @@ func (p *Poloniex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 	unsubscriptionRequest := WsCommand{
 		Command: "unsubscribe",
 	}
-	if strings.EqualFold(fmt.Sprintf("%v", wsTickerDataID), channelToSubscribe.Channel) {
+	switch {
+	case strings.EqualFold(fmt.Sprintf("%v", wsAccountNotificationID), channelToSubscribe.Channel):
+		return p.wsSendAuthorisedCommand("unsubscribe")
+	case strings.EqualFold(fmt.Sprintf("%v", wsTickerDataID), channelToSubscribe.Channel):
 		unsubscriptionRequest.Channel = wsTickerDataID
-	} else {
+	default:
 		unsubscriptionRequest.Channel = channelToSubscribe.Currency.String()
 	}
 	return p.wsSend(unsubscriptionRequest)
@@ -492,4 +561,17 @@ func (p *Poloniex) wsSend(data interface{}) error {
 		log.Debugf("%v sending message to websocket %v", p.Name, data)
 	}
 	return p.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+}
+
+func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
+	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
+	hmac := common.GetHMAC(common.HashSHA512, []byte(nonce), []byte(p.APISecret))
+	request := WsAuthorisationRequest{
+		Command: command,
+		Channel: 1000,
+		Sign:    common.HexEncodeToString(hmac),
+		Key:     p.APIKey,
+		Payload: nonce,
+	}
+	return p.wsSend(request)
 }

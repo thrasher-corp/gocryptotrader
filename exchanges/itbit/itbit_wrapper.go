@@ -418,3 +418,13 @@ func (i *ItBit) SubscribeToWebsocketChannels(channels []exchange.WebsocketChanne
 func (i *ItBit) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (i *ItBit) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (i *ItBit) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

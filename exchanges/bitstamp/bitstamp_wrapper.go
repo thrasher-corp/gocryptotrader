@@ -416,3 +416,13 @@ func (b *Bitstamp) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketC
 	b.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (b *Bitstamp) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return b.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (b *Bitstamp) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

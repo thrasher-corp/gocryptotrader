@@ -360,3 +360,13 @@ func (l *LakeBTC) SubscribeToWebsocketChannels(channels []exchange.WebsocketChan
 func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (l *LakeBTC) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (l *LakeBTC) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

@@ -1,15 +1,18 @@
 package bitfinex
 
 import (
+	"net/http"
 	"net/url"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do better tests
@@ -37,6 +40,7 @@ func TestSetup(t *testing.T) {
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bitfinex Setup values not set correctly")
 	}
+	b.AuthenticatedWebsocketAPISupport = true
 	b.AuthenticatedAPISupport = true
 	// custom rate limit for testing
 	b.Requester.SetRateLimit(true, time.Millisecond*300, 1)
@@ -950,4 +954,38 @@ func TestGetDepositAddress(t *testing.T) {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}
 	}
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+	if !b.Websocket.IsEnabled() && !b.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go b.WsDataHandler()
+	defer b.WebsocketConn.Close()
+	err = b.WsSendAuth()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resp := <-b.Websocket.DataHandler:
+		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {
+			t.Error("expected successful login")
+		}
+	case <-timer.C:
+		t.Error("Have not received a response")
+	}
+	timer.Stop()
 }

@@ -118,7 +118,8 @@ func (b *Bitfinex) SetDefaults() {
 		exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -128,6 +129,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 	} else {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		b.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)

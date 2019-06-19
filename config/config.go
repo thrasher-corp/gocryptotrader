@@ -150,34 +150,35 @@ type NTPClientConfig struct {
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
 type ExchangeConfig struct {
-	Name                      string                    `json:"name"`
-	Enabled                   bool                      `json:"enabled"`
-	Verbose                   bool                      `json:"verbose"`
-	Websocket                 bool                      `json:"websocket"`
-	UseSandbox                bool                      `json:"useSandbox"`
-	RESTPollingDelay          time.Duration             `json:"restPollingDelay"`
-	HTTPTimeout               time.Duration             `json:"httpTimeout"`
-	HTTPUserAgent             string                    `json:"httpUserAgent"`
-	HTTPDebugging             bool                      `json:"httpDebugging"`
-	AuthenticatedAPISupport   bool                      `json:"authenticatedApiSupport"`
-	APIKey                    string                    `json:"apiKey"`
-	APISecret                 string                    `json:"apiSecret"`
-	APIAuthPEMKeySupport      bool                      `json:"apiAuthPemKeySupport,omitempty"`
-	APIAuthPEMKey             string                    `json:"apiAuthPemKey,omitempty"`
-	APIURL                    string                    `json:"apiUrl"`
-	APIURLSecondary           string                    `json:"apiUrlSecondary"`
-	ProxyAddress              string                    `json:"proxyAddress"`
-	WebsocketURL              string                    `json:"websocketUrl"`
-	ClientID                  string                    `json:"clientId,omitempty"`
-	AvailablePairs            currency.Pairs            `json:"availablePairs"`
-	EnabledPairs              currency.Pairs            `json:"enabledPairs"`
-	BaseCurrencies            currency.Currencies       `json:"baseCurrencies"`
-	AssetTypes                string                    `json:"assetTypes"`
-	SupportsAutoPairUpdates   bool                      `json:"supportsAutoPairUpdates"`
-	PairsLastUpdated          int64                     `json:"pairsLastUpdated,omitempty"`
-	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"configCurrencyPairFormat"`
-	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"requestCurrencyPairFormat"`
-	BankAccounts              []BankAccount             `json:"bankAccounts"`
+	Name                             string                    `json:"name"`
+	Enabled                          bool                      `json:"enabled"`
+	Verbose                          bool                      `json:"verbose"`
+	Websocket                        bool                      `json:"websocket"`
+	UseSandbox                       bool                      `json:"useSandbox"`
+	RESTPollingDelay                 time.Duration             `json:"restPollingDelay"`
+	HTTPTimeout                      time.Duration             `json:"httpTimeout"`
+	HTTPUserAgent                    string                    `json:"httpUserAgent"`
+	HTTPDebugging                    bool                      `json:"httpDebugging"`
+	AuthenticatedAPISupport          bool                      `json:"authenticatedApiSupport"`
+	AuthenticatedWebsocketAPISupport bool                      `json:"authenticatedWebsocketApiSupport"`
+	APIKey                           string                    `json:"apiKey"`
+	APISecret                        string                    `json:"apiSecret"`
+	APIAuthPEMKeySupport             bool                      `json:"apiAuthPemKeySupport,omitempty"`
+	APIAuthPEMKey                    string                    `json:"apiAuthPemKey,omitempty"`
+	APIURL                           string                    `json:"apiUrl"`
+	APIURLSecondary                  string                    `json:"apiUrlSecondary"`
+	ProxyAddress                     string                    `json:"proxyAddress"`
+	WebsocketURL                     string                    `json:"websocketUrl"`
+	ClientID                         string                    `json:"clientId,omitempty"`
+	AvailablePairs                   currency.Pairs            `json:"availablePairs"`
+	EnabledPairs                     currency.Pairs            `json:"enabledPairs"`
+	BaseCurrencies                   currency.Currencies       `json:"baseCurrencies"`
+	AssetTypes                       string                    `json:"assetTypes"`
+	SupportsAutoPairUpdates          bool                      `json:"supportsAutoPairUpdates"`
+	PairsLastUpdated                 int64                     `json:"pairsLastUpdated,omitempty"`
+	ConfigCurrencyPairFormat         *CurrencyPairFormatConfig `json:"configCurrencyPairFormat"`
+	RequestCurrencyPairFormat        *CurrencyPairFormatConfig `json:"requestCurrencyPairFormat"`
+	BankAccounts                     []BankAccount             `json:"bankAccounts"`
 }
 
 // BankAccount holds differing bank account details by supported funding
@@ -798,25 +799,18 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if len(c.Exchanges[i].BaseCurrencies) == 0 {
 				return fmt.Errorf(ErrExchangeBaseCurrenciesEmpty, c.Exchanges[i].Name)
 			}
-			if c.Exchanges[i].AuthenticatedAPISupport { // non-fatal error
-				if c.Exchanges[i].APIKey == "" || c.Exchanges[i].APIKey == DefaultUnsetAPIKey {
-					c.Exchanges[i].AuthenticatedAPISupport = false
-				}
 
-				if (c.Exchanges[i].APISecret == "" || c.Exchanges[i].APISecret == DefaultUnsetAPISecret) &&
-					c.Exchanges[i].Name != "COINUT" {
-					c.Exchanges[i].AuthenticatedAPISupport = false
-				}
-
-				if (c.Exchanges[i].ClientID == "ClientID" || c.Exchanges[i].ClientID == "") &&
-					(c.Exchanges[i].Name == "ITBIT" || c.Exchanges[i].Name == "Bitstamp" || c.Exchanges[i].Name == "COINUT" || c.Exchanges[i].Name == "CoinbasePro") {
-					c.Exchanges[i].AuthenticatedAPISupport = false
-				}
-
-				if !c.Exchanges[i].AuthenticatedAPISupport {
-					log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
-				}
+			var areAuthenticatedCredentialsValid bool
+			if c.Exchanges[i].AuthenticatedWebsocketAPISupport || c.Exchanges[i].AuthenticatedAPISupport {
+				areAuthenticatedCredentialsValid = c.areAuthenticatedCredentialsValid(i)
 			}
+			if c.Exchanges[i].AuthenticatedWebsocketAPISupport {
+				c.Exchanges[i].AuthenticatedWebsocketAPISupport = areAuthenticatedCredentialsValid
+			}
+			if c.Exchanges[i].AuthenticatedAPISupport {
+				c.Exchanges[i].AuthenticatedAPISupport = areAuthenticatedCredentialsValid
+			}
+
 			if !c.Exchanges[i].SupportsAutoPairUpdates {
 				lastUpdated := common.UnixTimestampToTime(c.Exchanges[i].PairsLastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
@@ -875,6 +869,37 @@ func (c *Config) CheckExchangeConfigValues() error {
 		return errors.New(ErrNoEnabledExchanges)
 	}
 	return nil
+}
+
+func (c *Config) areAuthenticatedCredentialsValid(i int) bool {
+	if c.Exchanges == nil {
+		log.Error("Config: Failed to check exchange authenticated credentials due to c.Exchanges not setup")
+		return false
+	}
+	if i < 0 || c.Exchanges == nil || len(c.Exchanges) < i {
+		log.Error("Config: Failed to check exchange authenticated credentials due to invalid index")
+		return false
+	}
+
+	resp := true
+	if c.Exchanges[i].APIKey == "" || c.Exchanges[i].APIKey == DefaultUnsetAPIKey {
+		resp = false
+	}
+
+	if (c.Exchanges[i].APISecret == "" || c.Exchanges[i].APISecret == DefaultUnsetAPISecret) &&
+		c.Exchanges[i].Name != "COINUT" {
+		resp = false
+	}
+
+	if (c.Exchanges[i].ClientID == "ClientID" || c.Exchanges[i].ClientID == "") &&
+		(c.Exchanges[i].Name == "ITBIT" || c.Exchanges[i].Name == "Bitstamp" || c.Exchanges[i].Name == "COINUT" || c.Exchanges[i].Name == "CoinbasePro") {
+		resp = false
+	}
+	// non-fatal error
+	if !resp {
+		log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
+	}
+	return resp
 }
 
 // CheckWebserverConfigValues checks information before webserver starts and

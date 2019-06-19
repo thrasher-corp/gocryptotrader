@@ -407,3 +407,13 @@ func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketC
 	p.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (p *Poloniex) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return p.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (p *Poloniex) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

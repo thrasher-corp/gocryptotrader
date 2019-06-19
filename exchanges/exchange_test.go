@@ -371,13 +371,25 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 }
 
+// TestGetAuthenticatedAPISupport logic test
 func TestGetAuthenticatedAPISupport(t *testing.T) {
 	base := Base{
-		AuthenticatedAPISupport: false,
+		AuthenticatedAPISupport:          true,
+		AuthenticatedWebsocketAPISupport: false,
 	}
 
-	if base.GetAuthenticatedAPISupport() {
-		t.Fatal("Test failed. TestGetAuthenticatedAPISupport returned true when it should of been false.")
+	if !base.GetAuthenticatedAPISupport(RestAuthentication) {
+		t.Fatal("Test failed. Expected RestAuthentication to return true")
+	}
+	if base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+		t.Fatal("Test failed. Expected WebsocketAuthentication to return false")
+	}
+	base.AuthenticatedWebsocketAPISupport = true
+	if !base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+		t.Fatal("Test failed. Expected WebsocketAuthentication to return true")
+	}
+	if base.GetAuthenticatedAPISupport(2) {
+		t.Fatal("Test failed. Expected default case of 'false' to be returned")
 	}
 }
 
@@ -669,11 +681,13 @@ func TestIsEnabled(t *testing.T) {
 	}
 }
 
+// TestSetAPIKeys logic test
 func TestSetAPIKeys(t *testing.T) {
 	SetAPIKeys := Base{
-		Name:                    "TESTNAME",
-		Enabled:                 false,
-		AuthenticatedAPISupport: false,
+		Name:                             "TESTNAME",
+		Enabled:                          false,
+		AuthenticatedAPISupport:          false,
+		AuthenticatedWebsocketAPISupport: false,
 	}
 
 	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
@@ -682,10 +696,26 @@ func TestSetAPIKeys(t *testing.T) {
 	}
 
 	SetAPIKeys.AuthenticatedAPISupport = true
+	SetAPIKeys.AuthenticatedWebsocketAPISupport = true
 	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
 	if SetAPIKeys.APIKey != "RocketMan" && SetAPIKeys.APISecret != "Digereedoo" && SetAPIKeys.ClientID != "007" {
 		t.Error("Test Failed - Exchange SetAPIKeys() did not set correct values")
 	}
+
+	SetAPIKeys.AuthenticatedAPISupport = false
+	SetAPIKeys.AuthenticatedWebsocketAPISupport = true
+	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
+	if SetAPIKeys.APIKey != "RocketMan" && SetAPIKeys.APISecret != "Digereedoo" && SetAPIKeys.ClientID != "007" {
+		t.Error("Test Failed - Exchange SetAPIKeys() did not set correct values")
+	}
+
+	SetAPIKeys.AuthenticatedAPISupport = true
+	SetAPIKeys.AuthenticatedWebsocketAPISupport = false
+	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
+	if SetAPIKeys.APIKey != "RocketMan" && SetAPIKeys.APISecret != "Digereedoo" && SetAPIKeys.ClientID != "007" {
+		t.Error("Test Failed - Exchange SetAPIKeys() did not set correct values")
+	}
+
 	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", true)
 }
 

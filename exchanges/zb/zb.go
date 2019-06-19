@@ -81,7 +81,11 @@ func (z *ZB) SetDefaults() {
 	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketSubscribeSupported
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketAccountDataSupported |
+		exchange.WebsocketCancelOrderSupported |
+		exchange.WebsocketSubmitOrderSupported
 }
 
 // Setup sets user configuration
@@ -91,6 +95,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 	} else {
 		z.Enabled = true
 		z.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		z.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		z.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		z.APIAuthPEMKey = exch.APIAuthPEMKey
 		z.SetHTTPClientTimeout(exch.HTTPTimeout)

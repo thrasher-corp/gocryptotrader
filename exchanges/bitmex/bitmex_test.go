@@ -1,14 +1,17 @@
 package bitmex
 
 import (
+	"net/http"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -31,6 +34,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bitmex Setup() init error")
 	}
+	bitmexConfig.AuthenticatedWebsocketAPISupport = true
 	bitmexConfig.AuthenticatedAPISupport = true
 	bitmexConfig.APIKey = apiKey
 	bitmexConfig.APISecret = apiSecret
@@ -678,4 +682,38 @@ func TestGetDepositAddress(t *testing.T) {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}
 	}
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+	if !b.Websocket.IsEnabled() && !b.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go b.wsHandleIncomingData()
+	defer b.WebsocketConn.Close()
+	err = b.websocketSendAuth()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resp := <-b.Websocket.DataHandler:
+		if !resp.(WebsocketSubscribeResp).Success {
+			t.Error("Expected successful subscription")
+		}
+	case <-timer.C:
+		t.Error("Have not received a response")
+	}
+	timer.Stop()
 }
