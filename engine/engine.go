@@ -74,7 +74,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 
 	var b Engine
 	b.Config = &config.Cfg
-	log.Debugf("core", "core", "Loading config file %s..\n", settings.ConfigFile)
+	log.Debugf("core", "Loading config file %s..\n", settings.ConfigFile)
 	err := b.Config.LoadConfig(settings.ConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
@@ -85,22 +85,10 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		return nil, fmt.Errorf("failed to open/create data directory: %s. Err: %s", settings.DataDir, err)
 	}
 
-	log.SetupGlobalLogger()
-	log.SetupSubLogger(b.Config.Loggingv2.SubLoggers)
-
-	// for x := 0; x < 60; x++ {
-	// 	logv2.Info("syslog", "Test(Info)")
-	// }
-
-	// for x := 0; x < 60; x++ {
-	// 	logv2.Infoln("syslog", "Test(Infoln)")
-	// }
-
-	// for x := 0; x < 60; x++ {
-	// 	logv2.Infof("syslog", "Test %v(Infof)\n", x)
-	// }
-
-	// os.Exit(0)
+	if *b.Config.Loggingv2.Enabled {
+		log.SetupGlobalLogger()
+		log.SetupSubLogger(b.Config.Loggingv2.SubLoggers)
+	}
 
 	b.Settings.ConfigFile = settings.ConfigFile
 	b.Settings.DataDir = settings.DataDir
@@ -269,7 +257,7 @@ func PrintSettings(s *Settings) {
 // Start starts the engine
 func (e *Engine) Start() {
 	if e == nil {
-		log.Error("core", "Engine instance is nil")
+		log.Error("core", errors.New("Engine instance is nil"))
 		os.Exit(1)
 	}
 
@@ -306,7 +294,7 @@ func (e *Engine) Start() {
 	log.Debugln("core", "Setting up exchanges..")
 	SetupExchanges()
 	if len(e.Exchanges) == 0 {
-		log.Error("core", "No exchanges were able to be loaded. Exiting")
+		log.Error("core", errors.New("No exchanges were able to be loaded. Exiting"))
 		os.Exit(1)
 	}
 
@@ -339,7 +327,7 @@ func (e *Engine) Start() {
 		e.Settings.DataDir,
 		e.Settings.Verbose)
 	if err != nil {
-		log.Warnf("core", "currency updater system failed to start", err)
+		log.Errorf("core", "currency updater system failed to start %v", err)
 	}
 
 	e.CryptocurrencyDepositAddresses = GetExchangeCryptocurrencyDepositAddresses()
@@ -434,7 +422,7 @@ func (e *Engine) Stop() {
 	if !e.Settings.EnableDryRun {
 		err := e.Config.SaveConfig(e.Settings.ConfigFile)
 		if err != nil {
-			log.Error("core", "Unable to save config.")
+			log.Error("core", errors.New("unable to save config."))
 		} else {
 			log.Debugln("core", "Config file saved successfully.")
 		}
@@ -442,6 +430,7 @@ func (e *Engine) Stop() {
 	// Wait for services to gracefully shutdown
 	e.ServicesWG.Wait()
 	log.Debugln("core", "Exiting.")
+	log.CloseLogger()
 	os.Exit(0)
 }
 

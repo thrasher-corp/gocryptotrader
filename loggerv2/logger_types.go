@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-const timestampFormat = "02/01/2006 15:04:05"
+const timestampFormat = " 02/01/2006 15:04:05 "
 
 const spacer = "|"
 
@@ -37,6 +37,7 @@ type subLoggers struct {
 type Logger struct {
 	Timestamp                                        string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
+	Spacer                                           string
 }
 
 type subLogger struct {
@@ -44,24 +45,28 @@ type subLogger struct {
 	output                   io.Writer
 }
 
-var (
-	GlobalLogConfig = &LoggerConfig{}
-)
-
-var logger = &Logger{}
-
-var subsystemLoggers = map[string]subLogger{}
-
 type LogEvent struct {
 	data   []byte
 	output io.Writer
 	mu     sync.Mutex
 }
 
-var eventPool = &sync.Pool{
-	New: func() interface{} {
-		return &LogEvent{
-			data: make([]byte, 0, 80),
-		}
-	},
+type multiWriter struct {
+	writers []io.Writer
+	mu      sync.Mutex
 }
+
+var (
+	logger           = &Logger{}
+	GlobalLogConfig  = &LoggerConfig{}
+	subsystemLoggers = map[string]subLogger{}
+	eventPool        = &sync.Pool{
+		New: func() interface{} {
+			return &LogEvent{
+				data: make([]byte, 0, 80),
+			}
+		},
+	}
+
+	mw = MultiWriter()
+)

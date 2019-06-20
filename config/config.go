@@ -1227,6 +1227,9 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 
 func (c *Config) CheckLoggerConfigV2() error {
 	m.Lock()
+	if c.Loggingv2.Enabled == nil {
+		c.Loggingv2 = logv2.GenDefaultSettings()
+	}
 	logv2.GlobalLogConfig = &c.Loggingv2
 	m.Unlock()
 	return nil

@@ -19,7 +19,7 @@ import (
 	"time"
 
 	uuid "github.com/satori/go.uuid"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	log "github.com/thrasher-/gocryptotrader/loggerv2"
 )
 
 // Vars for common.go operations
@@ -201,7 +201,7 @@ func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.
 // on failure.
 func SendHTTPGetRequest(urlPath string, jsonDecode, isVerbose bool, result interface{}) error {
 	if isVerbose {
-		log.Debugf("Raw URL: %s", urlPath)
+		log.Debugf("app", "Raw URL: %s", urlPath)
 	}
 
 	initialiseHTTPClient()
@@ -221,7 +221,7 @@ func SendHTTPGetRequest(urlPath string, jsonDecode, isVerbose bool, result inter
 	}
 
 	if isVerbose {
-		log.Debugf("Raw Resp: %s", string(contents))
+		log.Debugf("app", "Raw Resp: %s", string(contents))
 	}
 
 	defer res.Body.Close()
@@ -336,7 +336,7 @@ func GetDefaultDataDir(env string) string {
 
 	dir, err := os.UserHomeDir()
 	if err != nil {
-		log.Warn("Environment variable unset, defaulting to current directory")
+		log.Warn("app", "Environment variable unset, defaulting to current directory")
 		dir = "."
 	}
 	return filepath.Join(dir, ".gocryptotrader")
@@ -349,7 +349,7 @@ func CreateDir(dir string) error {
 		return nil
 	}
 
-	log.Warnf("Directory %s does not exist.. creating.", dir)
+	log.Warnf("app", "Directory %s does not exist.. creating.", dir)
 	return os.MkdirAll(dir, 0770)
 }
 
