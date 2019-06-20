@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -61,7 +61,7 @@ type Event struct {
 	Item      string
 	Condition EventConditionParams
 	Pair      currency.Pair
-	Asset     assets.AssetType
+	Asset     asset.Item
 	Action    string
 	Executed  bool
 }
@@ -72,7 +72,7 @@ var Events []*Event
 
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
-func Add(exchange, item string, condition EventConditionParams, currencyPair currency.Pair, asset assets.AssetType, action string) (int64, error) {
+func Add(exchange, item string, condition EventConditionParams, currencyPair currency.Pair, asset asset.Item, action string) (int64, error) {
 	err := IsValidEvent(exchange, item, condition, action)
 	if err != nil {
 		return 0, err

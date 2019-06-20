@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/gctrpc"
 	"github.com/thrasher-/gocryptotrader/gctrpc/auth"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -281,7 +281,7 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 			Quote:     currency.NewCode(r.Pair.Quote),
 		},
 		r.Exchange,
-		assets.AssetType(r.AssetType),
+		asset.Item(r.AssetType),
 	)
 	if err != nil {
 		return nil, err
@@ -345,7 +345,7 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 			Quote:     currency.NewCode(r.Pair.Quote),
 		},
 		r.Exchange,
-		assets.AssetType(r.AssetType),
+		asset.Item(r.AssetType),
 	)
 	if err != nil {
 		return nil, err
@@ -622,7 +622,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			Id:            resp[x].ID,
 			BaseCurrency:  resp[x].CurrencyPair.Base.String(),
 			QuoteCurrency: resp[x].CurrencyPair.Quote.String(),
-			AssetType:     assets.AssetTypeSpot.String(),
+			AssetType:     asset.Spot.String(),
 			OrderType:     resp[x].OrderType.ToString(),
 			OrderSide:     resp[x].OrderSide.ToString(),
 			CreationTime:  resp[x].OrderDate.Unix(),
@@ -705,7 +705,7 @@ func (s *RPCServer) AddEvent(ctx context.Context, r *gctrpc.AddEventRequest) (*g
 	p := currency.NewPairWithDelimiter(r.Pair.Base,
 		r.Pair.Quote, r.Pair.Delimiter)
 
-	id, err := Add(r.Exchange, r.Item, evtCondition, p, assets.AssetType(r.AssetType), r.Action)
+	id, err := Add(r.Exchange, r.Item, evtCondition, p, asset.Item(r.AssetType), r.Action)
 	if err != nil {
 		return nil, err
 	}

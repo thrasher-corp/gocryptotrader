@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -751,7 +751,7 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interf
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateDefaultSubscriptions() {
-	enabledCurrencies := k.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := k.GetEnabledPairs(asset.Spot)
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {

@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -53,8 +53,8 @@ func (b *Bitfinex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -145,23 +145,23 @@ func (b *Bitfinex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitfinex) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (b *Bitfinex) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	return b.GetSymbols()
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	enabledPairs := b.GetEnabledPairs(assetType)
 
@@ -197,8 +197,8 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ti
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitfinex) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
-	tick, err := ticker.GetTicker(b.GetName(), p, assets.AssetTypeSpot)
+func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+	tick, err := ticker.GetTicker(b.GetName(), p, asset.Spot)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -206,7 +206,7 @@ func (b *Bitfinex) FetchTicker(p currency.Pair, assetType assets.AssetType) (tic
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -215,7 +215,7 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	urlVals := url.Values{}
 	urlVals.Set("limit_bids", "100")
@@ -290,7 +290,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

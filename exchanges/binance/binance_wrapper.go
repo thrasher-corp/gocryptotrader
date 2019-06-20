@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -52,8 +52,8 @@ func (b *Binance) SetDefaults() {
 	b.SetValues()
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 
 		UseGlobalFormat: true,
@@ -136,13 +136,13 @@ func (b *Binance) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(assets.AssetTypeSpot).Strings(), "-") ||
-		!common.StringDataContains(b.GetAvailablePairs(assets.AssetTypeSpot).Strings(), "-") {
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := currency.NewPairsFromStrings([]string{"BTC-USDT"})
 		log.Warn("WARNING: Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
-		err := b.UpdatePairs(enabledPairs, assets.AssetTypeSpot, true, true)
+		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf("%s failed to update currencies. Err: %s\n", b.Name, err)
 		}
@@ -159,7 +159,7 @@ func (b *Binance) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Binance) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (b *Binance) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	var validCurrencyPairs []string
 
 	info, err := b.GetExchangeInfo()
@@ -179,16 +179,16 @@ func (b *Binance) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Binance) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := b.GetTickers()
 	if err != nil {
@@ -215,7 +215,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tic
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Binance) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -224,7 +224,7 @@ func (b *Binance) FetchTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Binance) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -233,7 +233,7 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (o
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Binance) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{Symbol: b.FormatExchangeCurrency(p,
 		assetType).String(), Limit: 1000})
@@ -307,7 +307,7 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -456,7 +456,7 @@ func (b *Binance) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 	var orders []exchange.OrderDetail
 	for _, c := range getOrdersRequest.Currencies {
 		resp, err := b.OpenOrders(b.FormatExchangeCurrency(c,
-			assets.AssetTypeSpot).String())
+			asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +496,7 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 	var orders []exchange.OrderDetail
 	for _, c := range getOrdersRequest.Currencies {
 		resp, err := b.AllOrders(b.FormatExchangeCurrency(c,
-			assets.AssetTypeSpot).String(), "", "1000")
+			asset.Spot).String(), "", "1000")
 		if err != nil {
 			return nil, err
 		}

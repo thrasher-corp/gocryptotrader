@@ -3,13 +3,13 @@ package currency
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 var p PairsManager
 
 func initTest() {
-	p.Store(assets.AssetTypeSpot,
+	p.Store(asset.Spot,
 		PairStore{
 			Available: NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"}),
 			Enabled:   NewPairsFromStrings([]string{"BTC-USD"}),
@@ -32,7 +32,7 @@ func TestGetAssetTypes(t *testing.T) {
 		t.Errorf("Test failed. GetAssetTypes shouldn't be nil")
 	}
 
-	if !a.Contains(assets.AssetTypeSpot) {
+	if !a.Contains(asset.Spot) {
 		t.Errorf("Test failed. AssetTypeSpot should be in the assets list")
 	}
 }
@@ -40,17 +40,17 @@ func TestGetAssetTypes(t *testing.T) {
 func TestGet(t *testing.T) {
 	initTest()
 
-	if p.Get(assets.AssetTypeSpot) == nil {
+	if p.Get(asset.Spot) == nil {
 		t.Error("Test failed. Spot assets shouldn't be nil")
 	}
 
-	if p.Get(assets.AssetTypeFutures) != nil {
+	if p.Get(asset.Futures) != nil {
 		t.Error("Test Failed. Futures should be nil")
 	}
 }
 
 func TestStore(t *testing.T) {
-	p.Store(assets.AssetTypeFutures,
+	p.Store(asset.Futures,
 		PairStore{
 			Available: NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"}),
 			Enabled:   NewPairsFromStrings([]string{"BTC-USD"}),
@@ -64,27 +64,27 @@ func TestStore(t *testing.T) {
 		},
 	)
 
-	if p.Get(assets.AssetTypeFutures) == nil {
+	if p.Get(asset.Futures) == nil {
 		t.Error("Test failed. Futures assets shouldn't be nil")
 	}
 }
 
 func TestDelete(t *testing.T) {
 	p.Pairs = nil
-	p.Delete(assets.AssetTypeSpot)
+	p.Delete(asset.Spot)
 
-	p.Store(assets.AssetTypeSpot,
+	p.Store(asset.Spot,
 		PairStore{
 			Available: NewPairsFromStrings([]string{"BTC-USD"}),
 		},
 	)
-	p.Delete(assets.AssetTypeUpsideProfitContract)
-	if p.Get(assets.AssetTypeSpot) == nil {
+	p.Delete(asset.UpsideProfitContract)
+	if p.Get(asset.Spot) == nil {
 		t.Error("Test failed. AssetTypeSpot should exist")
 	}
 
-	p.Delete(assets.AssetTypeSpot)
-	if p.Get(assets.AssetTypeSpot) != nil {
+	p.Delete(asset.Spot)
+	if p.Get(asset.Spot) != nil {
 		t.Error("Test failed. Delete should have deleted AssetTypeSpot")
 	}
 
@@ -92,13 +92,13 @@ func TestDelete(t *testing.T) {
 
 func TestGetPairs(t *testing.T) {
 	p.Pairs = nil
-	pairs := p.GetPairs(assets.AssetTypeSpot, true)
+	pairs := p.GetPairs(asset.Spot, true)
 	if pairs != nil {
 		t.Fatal("pairs shouldn't be populated")
 	}
 
 	initTest()
-	pairs = p.GetPairs(assets.AssetTypeSpot, true)
+	pairs = p.GetPairs(asset.Spot, true)
 	if pairs == nil {
 		t.Fatal("pairs should be populated")
 	}
@@ -111,15 +111,15 @@ func TestGetPairs(t *testing.T) {
 
 func TestStorePairs(t *testing.T) {
 	p.Pairs = nil
-	p.StorePairs(assets.AssetTypeSpot, NewPairsFromStrings([]string{"ETH-USD"}), false)
-	pairs := p.GetPairs(assets.AssetTypeSpot, false)
+	p.StorePairs(asset.Spot, NewPairsFromStrings([]string{"ETH-USD"}), false)
+	pairs := p.GetPairs(asset.Spot, false)
 	if !pairs.Contains(NewPairFromString("ETH-USD"), true) {
 		t.Errorf("TestStorePairs failed, unexpected result")
 	}
 
 	initTest()
-	p.StorePairs(assets.AssetTypeSpot, NewPairsFromStrings([]string{"ETH-USD"}), false)
-	pairs = p.GetPairs(assets.AssetTypeSpot, false)
+	p.StorePairs(asset.Spot, NewPairsFromStrings([]string{"ETH-USD"}), false)
+	pairs = p.GetPairs(asset.Spot, false)
 	if pairs == nil {
 		t.Errorf("pairs should be populated")
 	}
@@ -128,8 +128,8 @@ func TestStorePairs(t *testing.T) {
 		t.Errorf("TestStorePairs failed, unexpected result")
 	}
 
-	p.StorePairs(assets.AssetTypeFutures, NewPairsFromStrings([]string{"ETH-KRW"}), true)
-	pairs = p.GetPairs(assets.AssetTypeFutures, true)
+	p.StorePairs(asset.Futures, NewPairsFromStrings([]string{"ETH-KRW"}), true)
+	pairs = p.GetPairs(asset.Futures, true)
 	if pairs == nil {
 		t.Errorf("pairs futures should be populated")
 	}

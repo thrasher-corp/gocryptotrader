@@ -5,7 +5,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -19,19 +19,19 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)
-	FetchTicker(currency currency.Pair, assetType assets.AssetType) (ticker.Price, error)
-	UpdateTicker(currency currency.Pair, assetType assets.AssetType) (ticker.Price, error)
-	FetchOrderbook(currency currency.Pair, assetType assets.AssetType) (orderbook.Base, error)
-	UpdateOrderbook(currency currency.Pair, assetType assets.AssetType) (orderbook.Base, error)
-	FetchTradablePairs(assetType assets.AssetType) ([]string, error)
+	FetchTicker(currency currency.Pair, assetType asset.Item) (ticker.Price, error)
+	UpdateTicker(currency currency.Pair, assetType asset.Item) (ticker.Price, error)
+	FetchOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error)
+	UpdateOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error)
+	FetchTradablePairs(assetType asset.Item) ([]string, error)
 	UpdateTradablePairs(forceUpdate bool) error
-	GetEnabledPairs(assetType assets.AssetType) currency.Pairs
-	GetAvailablePairs(assetType assets.AssetType) currency.Pairs
+	GetEnabledPairs(assetType asset.Item) currency.Pairs
+	GetAvailablePairs(assetType asset.Item) currency.Pairs
 	GetAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
-	SetPairs(pairs currency.Pairs, assetType assets.AssetType, enabled bool) error
-	GetAssetTypes() assets.AssetTypes
-	GetExchangeHistory(currencyPair currency.Pair, assetType assets.AssetType) ([]TradeHistory, error)
+	SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error
+	GetAssetTypes() asset.Items
+	GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	SupportsRESTTickerBatchUpdates() bool
 	GetFeeByType(feeBuilder *FeeBuilder) (float64, error)

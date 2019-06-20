@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 
 	"github.com/thrasher-/gocryptotrader/currency"
 
@@ -363,9 +363,9 @@ func (o *OKGroup) GetWsChannelWithoutOrderType(table string) string {
 
 // GetAssetTypeFromTableName gets the asset type from the table name
 // eg "spot/ticker:BTCUSD" results in "SPOT"
-func (o *OKGroup) GetAssetTypeFromTableName(table string) assets.AssetType {
+func (o *OKGroup) GetAssetTypeFromTableName(table string) asset.Item {
 	assetIndex := strings.Index(table, "/")
-	return assets.AssetType(strings.ToUpper(table[:assetIndex]))
+	return asset.Item(strings.ToUpper(table[:assetIndex]))
 }
 
 // WsHandleDataResponse classifies the WS response and sends to appropriate handler
@@ -683,7 +683,7 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (o *OKGroup) GenerateDefaultSubscriptions() {
-	enabledCurrencies := o.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := o.GetEnabledPairs(asset.Spot)
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {

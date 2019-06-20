@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -54,8 +54,8 @@ func (b *BTCMarkets) SetDefaults() {
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -115,13 +115,13 @@ func (b *BTCMarkets) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(assets.AssetTypeSpot).Strings(), "-") ||
-		!common.StringDataContains(b.GetAvailablePairs(assets.AssetTypeSpot).Strings(), "-") {
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := []string{"BTC-AUD"}
 		log.Println("WARNING: Available pairs for BTC Makrets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
 
-		err := b.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), assets.AssetTypeSpot, true, true)
+		err := b.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
 		if err != nil {
 			log.Errorf("%s failed to update currencies. Err: %s", b.Name, err)
 		}
@@ -138,7 +138,7 @@ func (b *BTCMarkets) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTCMarkets) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (b *BTCMarkets) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	markets, err := b.GetMarkets()
 	if err != nil {
 		return nil, err
@@ -155,16 +155,16 @@ func (b *BTCMarkets) FetchTradablePairs(asset assets.AssetType) ([]string, error
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *BTCMarkets) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := b.GetTicker(p.Base.String(), p.Quote.String())
 	if err != nil {
@@ -184,7 +184,7 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType assets.AssetType) (
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -193,7 +193,7 @@ func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType assets.AssetType) (t
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -202,7 +202,7 @@ func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType assets.AssetType)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := b.GetOrderbook(p.Base.String(),
 		p.Quote.String())
@@ -268,7 +268,7 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -399,7 +399,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (exchange.OrderDetail, error) 
 		OrderDetail.Status = orders[i].Status
 		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[i].Instrument,
 			orders[i].Currency,
-			b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 	}
 
 	return OrderDetail, nil
@@ -542,7 +542,7 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 			Status:          respOrders[i].Status,
 			CurrencyPair: currency.NewPairWithDelimiter(respOrders[i].Instrument,
 				respOrders[i].Currency,
-				b.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
 		}
 
 		for j := range respOrders[i].Trades {

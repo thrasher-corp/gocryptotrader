@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -113,7 +113,7 @@ func (c *CoinbasePro) WsHandleData() {
 				c.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  ticker.Time,
 					Pair:       currency.NewPairFromString(ticker.ProductID),
-					AssetType:  assets.AssetTypeSpot,
+					AssetType:  asset.Spot,
 					Exchange:   c.GetName(),
 					OpenPrice:  ticker.Open24H,
 					HighPrice:  ticker.High24H,
@@ -188,7 +188,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	}
 
 	p := currency.NewPairFromString(snapshot.ProductID)
-	base.AssetType = assets.AssetTypeSpot
+	base.AssetType = asset.Spot
 	base.Pair = p
 	base.LastUpdated = time.Now()
 
@@ -199,7 +199,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 
 	c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Pair:     p,
-		Asset:    assets.AssetTypeSpot,
+		Asset:    asset.Spot,
 		Exchange: c.GetName(),
 	}
 
@@ -227,14 +227,14 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 
 	p := currency.NewPairFromString(update.ProductID)
 
-	err := c.Websocket.Orderbook.Update(Bids, Asks, p, time.Now(), c.GetName(), assets.AssetTypeSpot)
+	err := c.Websocket.Orderbook.Update(Bids, Asks, p, time.Now(), c.GetName(), asset.Spot)
 	if err != nil {
 		return err
 	}
 
 	c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Pair:     p,
-		Asset:    assets.AssetTypeSpot,
+		Asset:    asset.Spot,
 		Exchange: c.GetName(),
 	}
 
@@ -244,7 +244,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	var channels = []string{"heartbeat", "level2", "ticker"}
-	enabledCurrencies := c.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range enabledCurrencies {

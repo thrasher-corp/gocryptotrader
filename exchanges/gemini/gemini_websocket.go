@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
@@ -49,7 +49,7 @@ func (g *Gemini) WsConnect() error {
 
 // WsSubscribe subscribes to the full websocket suite on gemini exchange
 func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
-	enabledCurrencies := g.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
 	for i, c := range enabledCurrencies {
 		val := url.Values{}
 		val.Set("heartbeat", "true")
@@ -157,7 +157,7 @@ func (g *Gemini) WsHandleData() {
 						var newOrderBook orderbook.Base
 						newOrderBook.Asks = asks
 						newOrderBook.Bids = bids
-						newOrderBook.AssetType = assets.AssetTypeSpot
+						newOrderBook.AssetType = asset.Spot
 						newOrderBook.LastUpdated = time.Now()
 						newOrderBook.Pair = resp.Currency
 
@@ -170,7 +170,7 @@ func (g *Gemini) WsHandleData() {
 						}
 
 						g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: resp.Currency,
-							Asset:    assets.AssetTypeSpot,
+							Asset:    asset.Spot,
 							Exchange: g.GetName()}
 
 					} else {
@@ -179,7 +179,7 @@ func (g *Gemini) WsHandleData() {
 								g.Websocket.DataHandler <- exchange.TradeData{
 									Timestamp:    time.Now(),
 									CurrencyPair: resp.Currency,
-									AssetType:    assets.AssetTypeSpot,
+									AssetType:    asset.Spot,
 									Exchange:     g.GetName(),
 									EventTime:    result.Timestamp,
 									Price:        event.Price,
@@ -197,7 +197,7 @@ func (g *Gemini) WsHandleData() {
 										resp.Currency,
 										time.Now(),
 										g.GetName(),
-										assets.AssetTypeSpot)
+										asset.Spot)
 									if err != nil {
 										g.Websocket.DataHandler <- err
 									}
@@ -207,7 +207,7 @@ func (g *Gemini) WsHandleData() {
 										resp.Currency,
 										time.Now(),
 										g.GetName(),
-										assets.AssetTypeSpot)
+										asset.Spot)
 									if err != nil {
 										g.Websocket.DataHandler <- err
 									}
@@ -216,7 +216,7 @@ func (g *Gemini) WsHandleData() {
 						}
 
 						g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: resp.Currency,
-							Asset:    assets.AssetTypeSpot,
+							Asset:    asset.Spot,
 							Exchange: g.GetName()}
 					}
 

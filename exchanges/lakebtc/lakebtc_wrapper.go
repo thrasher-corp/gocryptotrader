@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,8 +51,8 @@ func (l *LakeBTC) SetDefaults() {
 	l.API.CredentialsValidator.RequiresSecret = true
 
 	l.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
+		AssetTypes: asset.Items{
+			asset.Spot,
 		},
 
 		UseGlobalFormat: true,
@@ -125,7 +125,7 @@ func (l *LakeBTC) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (l *LakeBTC) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (l *LakeBTC) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	result, err := l.GetTicker()
 	if err != nil {
 		return nil, err
@@ -142,16 +142,16 @@ func (l *LakeBTC) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (l *LakeBTC) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := l.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := l.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	return l.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+	return l.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tick, err := l.GetTicker()
 	if err != nil {
 		return ticker.Price{}, err
@@ -177,7 +177,7 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tic
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (l *LakeBTC) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+func (l *LakeBTC) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
@@ -186,7 +186,7 @@ func (l *LakeBTC) FetchTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	ob, err := orderbook.Get(l.GetName(), p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
@@ -195,7 +195,7 @@ func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (o
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := l.GetOrderBook(p.String())
 	if err != nil {
@@ -261,7 +261,7 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -394,7 +394,7 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		symbol := currency.NewPairDelimiter(order.Symbol, l.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+		symbol := currency.NewPairDelimiter(order.Symbol, l.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(order.At, 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 
@@ -431,7 +431,7 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		symbol := currency.NewPairDelimiter(order.Symbol,
-			l.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
+			l.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(order.At, 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 

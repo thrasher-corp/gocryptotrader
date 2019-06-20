@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/engine"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 const (
@@ -68,7 +68,7 @@ func main() {
 
 func testWrappers(e exchange.IBotExchange) []string {
 	p := currency.NewPair(currency.BTC, currency.USD)
-	assetType := assets.AssetTypeSpot
+	assetType := asset.Spot
 	var funcs []string
 
 	_, err := e.FetchTicker(p, assetType)
@@ -91,7 +91,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "UpdateOrderbook")
 	}
 
-	_, err = e.FetchTradablePairs(assets.AssetTypeSpot)
+	_, err = e.FetchTradablePairs(asset.Spot)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "FetchTradablePairs")
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -117,7 +117,7 @@ func (h *HitBTC) WsHandleData() {
 
 				h.Websocket.DataHandler <- exchange.TickerData{
 					Exchange:  h.GetName(),
-					AssetType: assets.AssetTypeSpot,
+					AssetType: asset.Spot,
 					Pair:      currency.NewPairFromString(ticker.Params.Symbol),
 					Quantity:  ticker.Params.Volume,
 					Timestamp: ts,
@@ -191,7 +191,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.AssetType = assets.AssetTypeSpot
+	newOrderBook.AssetType = asset.Spot
 	newOrderBook.LastUpdated = time.Now()
 	newOrderBook.Pair = p
 
@@ -202,7 +202,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 
 	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
-		Asset:    assets.AssetTypeSpot,
+		Asset:    asset.Spot,
 		Pair:     p,
 	}
 
@@ -226,14 +226,14 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 
 	p := currency.NewPairFromString(ob.Params.Symbol)
 
-	err := h.Websocket.Orderbook.Update(bids, asks, p, time.Now(), h.GetName(), assets.AssetTypeSpot)
+	err := h.Websocket.Orderbook.Update(bids, asks, p, time.Now(), h.GetName(), asset.Spot)
 	if err != nil {
 		return err
 	}
 
 	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
-		Asset:    assets.AssetTypeSpot,
+		Asset:    asset.Spot,
 		Pair:     p,
 	}
 	return nil
@@ -243,7 +243,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 func (h *HitBTC) GenerateDefaultSubscriptions() {
 	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
 	subscriptions := []exchange.WebsocketChannelSubscription{}
-	enabledCurrencies := h.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := h.GetEnabledPairs(asset.Spot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""

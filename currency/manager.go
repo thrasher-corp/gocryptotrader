@@ -1,14 +1,14 @@
 package currency
 
 import (
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
 // GetAssetTypes returns a list of stored asset types
-func (p *PairsManager) GetAssetTypes() assets.AssetTypes {
+func (p *PairsManager) GetAssetTypes() asset.Items {
 	p.m.Lock()
 	defer p.m.Unlock()
-	var assetTypes assets.AssetTypes
+	var assetTypes asset.Items
 	for k := range p.Pairs {
 		assetTypes = append(assetTypes, k)
 	}
@@ -16,7 +16,7 @@ func (p *PairsManager) GetAssetTypes() assets.AssetTypes {
 }
 
 // Get gets the currency pair config based on the asset type
-func (p *PairsManager) Get(a assets.AssetType) *PairStore {
+func (p *PairsManager) Get(a asset.Item) *PairStore {
 	p.m.Lock()
 	defer p.m.Unlock()
 	c, ok := p.Pairs[a]
@@ -27,11 +27,11 @@ func (p *PairsManager) Get(a assets.AssetType) *PairStore {
 }
 
 // Store stores a new currency pair config based on its asset type
-func (p *PairsManager) Store(a assets.AssetType, ps PairStore) {
+func (p *PairsManager) Store(a asset.Item, ps PairStore) {
 	p.m.Lock()
 
 	if p.Pairs == nil {
-		p.Pairs = make(map[assets.AssetType]*PairStore)
+		p.Pairs = make(map[asset.Item]*PairStore)
 	}
 
 	if !p.AssetTypes.Contains(a) {
@@ -43,7 +43,7 @@ func (p *PairsManager) Store(a assets.AssetType, ps PairStore) {
 }
 
 // Delete deletes a map entry based on the supplied asset type
-func (p *PairsManager) Delete(a assets.AssetType) {
+func (p *PairsManager) Delete(a asset.Item) {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.Pairs == nil {
@@ -60,7 +60,7 @@ func (p *PairsManager) Delete(a assets.AssetType) {
 
 // GetPairs gets a list of stored pairs based on the asset type and whether
 // they're enabled or not
-func (p *PairsManager) GetPairs(a assets.AssetType, enabled bool) Pairs {
+func (p *PairsManager) GetPairs(a asset.Item, enabled bool) Pairs {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.Pairs == nil {
@@ -84,12 +84,12 @@ func (p *PairsManager) GetPairs(a assets.AssetType, enabled bool) Pairs {
 
 // StorePairs stores a list of pairs based on the asset type and whether
 // they're enabled or not
-func (p *PairsManager) StorePairs(a assets.AssetType, pairs Pairs, enabled bool) {
+func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
 	if p.Pairs == nil {
-		p.Pairs = make(map[assets.AssetType]*PairStore)
+		p.Pairs = make(map[asset.Item]*PairStore)
 	}
 
 	c, ok := p.Pairs[a]

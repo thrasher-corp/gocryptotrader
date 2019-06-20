@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -155,7 +155,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 				h.Websocket.DataHandler <- exchange.KlineData{
 					Timestamp:  time.Unix(0, kline.Timestamp),
 					Exchange:   h.GetName(),
-					AssetType:  assets.AssetTypeSpot,
+					AssetType:  asset.Spot,
 					Pair:       currency.NewPairFromString(data[1]),
 					OpenPrice:  kline.Tick.Open,
 					ClosePrice: kline.Tick.Close,
@@ -176,7 +176,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 
 				h.Websocket.DataHandler <- exchange.TradeData{
 					Exchange:     h.GetName(),
-					AssetType:    assets.AssetTypeSpot,
+					AssetType:    asset.Spot,
 					CurrencyPair: currency.NewPairFromString(data[1]),
 					Timestamp:    time.Unix(0, trade.Tick.Timestamp),
 				}
@@ -216,7 +216,7 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Exchange: h.GetName(),
-		Asset:    assets.AssetTypeSpot,
+		Asset:    asset.Spot,
 	}
 
 	return nil
@@ -225,7 +225,7 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
-	enabledCurrencies := h.GetEnabledPairs(assets.AssetTypeSpot)
+	enabledCurrencies := h.GetEnabledPairs(asset.Spot)
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range enabledCurrencies {

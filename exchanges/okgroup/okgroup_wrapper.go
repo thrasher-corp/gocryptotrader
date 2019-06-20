@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -42,7 +42,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKGroup) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tickerData ticker.Price, err error) {
+func (o *OKGroup) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, err error) {
 	resp, err := o.GetSpotAllTokenPairsInformationForCurrency(o.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return
@@ -63,7 +63,7 @@ func (o *OKGroup) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tic
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKGroup) FetchTicker(p currency.Pair, assetType assets.AssetType) (tickerData ticker.Price, err error) {
+func (o *OKGroup) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, err error) {
 	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
 	if err != nil {
 		return o.UpdateTicker(p, assetType)
@@ -72,7 +72,7 @@ func (o *OKGroup) FetchTicker(p currency.Pair, assetType assets.AssetType) (tick
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (resp orderbook.Base, err error) {
+func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (resp orderbook.Base, err error) {
 	ob, err := orderbook.Get(o.GetName(), p, assetType)
 	if err != nil {
 		return o.UpdateOrderbook(p, assetType)
@@ -81,7 +81,7 @@ func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (r
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (resp orderbook.Base, err error) {
+func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType asset.Item) (resp orderbook.Base, err error) {
 	orderbookNew, err := o.GetSpotOrderBook(GetSpotOrderBookRequest{
 		InstrumentID: o.FormatExchangeCurrency(p, assetType).String(),
 	})
@@ -201,7 +201,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -218,7 +218,7 @@ func (o *OKGroup) SubmitOrder(order *exchange.OrderSubmission) (resp exchange.Su
 
 	request := PlaceSpotOrderRequest{
 		ClientOID:    order.ClientID,
-		InstrumentID: o.FormatExchangeCurrency(order.Pair, assets.AssetTypeSpot).String(),
+		InstrumentID: o.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
 		Side:         strings.ToLower(order.OrderSide.ToString()),
 		Type:         strings.ToLower(order.OrderType.ToString()),
 		Size:         strconv.FormatFloat(order.Amount, 'f', -1, 64),
@@ -251,7 +251,7 @@ func (o *OKGroup) CancelOrder(orderCancellation *exchange.OrderCancellation) (er
 	}
 	orderCancellationResponse, err := o.CancelSpotOrder(CancelSpotOrderRequest{
 		InstrumentID: o.FormatExchangeCurrency(orderCancellation.CurrencyPair,
-			assets.AssetTypeSpot).String(),
+			asset.Spot).String(),
 		OrderID: orderID,
 	})
 	if !orderCancellationResponse.Result {
@@ -277,7 +277,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(CancelMultipleSpotOrdersRequest{
 		InstrumentID: o.FormatExchangeCurrency(orderCancellation.CurrencyPair,
-			assets.AssetTypeSpot).String(),
+			asset.Spot).String(),
 		OrderIDs: orderIDNumbers,
 	})
 	if err != nil {
@@ -302,7 +302,7 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err e
 	resp = exchange.OrderDetail{
 		Amount: order.Size,
 		CurrencyPair: currency.NewPairDelimiter(order.InstrumentID,
-			o.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
+			o.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
 		Exchange:       o.Name,
 		OrderDate:      order.Timestamp,
 		ExecutedAmount: order.FilledSize,
@@ -359,7 +359,7 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
 			InstrumentID: o.FormatExchangeCurrency(currency,
-				assets.AssetTypeSpot).String(),
+				asset.Spot).String(),
 		})
 		if err != nil {
 			return resp, err
@@ -390,7 +390,7 @@ func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
 			Status: strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
 			InstrumentID: o.FormatExchangeCurrency(currency,
-				assets.AssetTypeSpot).String(),
+				asset.Spot).String(),
 		})
 		if err != nil {
 			return resp, err

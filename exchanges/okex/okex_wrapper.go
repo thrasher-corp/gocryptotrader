@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -49,11 +49,11 @@ func (o *OKEX) SetDefaults() {
 	o.API.CredentialsValidator.RequiresClientID = true
 
 	o.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
-			assets.AssetTypeFutures,
-			assets.AssetTypePerpetualSwap,
-			assets.AssetTypeIndex,
+		AssetTypes: asset.Items{
+			asset.Spot,
+			asset.Futures,
+			asset.PerpetualSwap,
+			asset.Index,
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
@@ -127,10 +127,10 @@ func (o *OKEX) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKEX) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 	var pairs []string
-	switch asset {
-	case assets.AssetTypeSpot:
+	switch i {
+	case asset.Spot:
 		prods, err := o.GetSpotTokenPairDetails()
 		if err != nil {
 			return nil, err
@@ -140,7 +140,7 @@ func (o *OKEX) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 			pairs = append(pairs, prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency)
 		}
 		return pairs, nil
-	case assets.AssetTypeFutures:
+	case asset.Futures:
 		prods, err := o.GetFuturesContractInformation()
 		if err != nil {
 			return nil, err
@@ -152,7 +152,7 @@ func (o *OKEX) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 		}
 		return pairs, nil
 
-	case assets.AssetTypePerpetualSwap:
+	case asset.PerpetualSwap:
 		prods, err := o.GetSwapContractInformation()
 		if err != nil {
 			return nil, err
@@ -163,7 +163,7 @@ func (o *OKEX) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 			pairs = append(pairs, prods[x].UnderlyingIndex+"_"+prods[x].QuoteCurrency+"_SWAP")
 		}
 		return pairs, nil
-	case assets.AssetTypeIndex:
+	case asset.Index:
 		return []string{"BTC_USD"}, nil
 	}
 

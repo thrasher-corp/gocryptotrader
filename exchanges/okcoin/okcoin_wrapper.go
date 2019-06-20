@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -49,9 +49,9 @@ func (o *OKCoin) SetDefaults() {
 	o.API.CredentialsValidator.RequiresClientID = true
 
 	o.CurrencyPairs = currency.PairsManager{
-		AssetTypes: assets.AssetTypes{
-			assets.AssetTypeSpot,
-			assets.AssetTypeMargin,
+		AssetTypes: asset.Items{
+			asset.Spot,
+			asset.Margin,
 		},
 
 		UseGlobalFormat: true,
@@ -127,7 +127,7 @@ func (o *OKCoin) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKCoin) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+func (o *OKCoin) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	prods, err := o.GetSpotTokenPairDetails()
 	if err != nil {
 		return nil, err
@@ -144,11 +144,11 @@ func (o *OKCoin) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := o.FetchTradablePairs(assets.AssetTypeSpot)
+	pairs, err := o.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
 	return o.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		assets.AssetTypeSpot, false, forceUpdate)
+		asset.Spot, false, forceUpdate)
 }
