@@ -98,7 +98,9 @@ func (h *HUOBIHADAX) SetDefaults() {
 		exchange.WebsocketSubscribeSupported |
 		exchange.WebsocketUnsubscribeSupported |
 		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketAccountDataSupported
+		exchange.WebsocketAccountDataSupported |
+		exchange.WebsocketMessageCorrelationSupported
+
 }
 
 // Setup sets user configuration

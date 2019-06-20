@@ -96,7 +96,8 @@ func (k *Kraken) SetDefaults() {
 		exchange.WebsocketKlineSupported |
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketMessageCorrelationSupported
 
 }
 

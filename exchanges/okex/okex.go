@@ -82,7 +82,9 @@ func (o *OKEX) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
 		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketMessageCorrelationSupported
+
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.

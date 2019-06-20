@@ -7,9 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -689,6 +692,18 @@ func (w *Websocket) FormatFunctionality() string {
 			case WebsocketWithdrawSupported:
 				functionality = append(functionality, WebsocketWithdrawSupportedText)
 
+			case WebsocketMessageCorrelationSupported:
+				functionality = append(functionality, WebsocketMessageCorrelationSupportedText)
+
+			case WebsocketOrderMessageCorrelationSupported:
+				functionality = append(functionality, WebsocketOrderMessageCorrelationSupportedText)
+
+			case WebsocketSequenceNumberSupported:
+				functionality = append(functionality, WebsocketSequenceNumberSupportedText)
+
+			case WebsocketDeadMansSwitchSupported:
+				functionality = append(functionality, WebsocketDeadMansSwitchSupportedText)
+
 			default:
 				functionality = append(functionality,
 					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
@@ -900,4 +915,24 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
 	return w.canUseAuthenticatedEndpoints
+}
+
+// SendMessage
+func (w *Websocket) SendMessage(req WebsocketRequest) error {
+	w.messageLock.Lock()
+	defer w.messageLock.Unlock()
+	json, err := common.JSONEncode(req.Message)
+	if err != nil {
+		return err
+	}
+	if w.verbose {
+		log.Debugf("%v sending message to websocket %v", req.ExchangeName, string(json))
+	}
+	return req.WebsocketConnection.WriteMessage(websocket.TextMessage, json)
+}
+
+type WebsocketRequest struct {
+	ExchangeName        string
+	Message             interface{}
+	WebsocketConnection *websocket.Conn
 }

@@ -85,7 +85,8 @@ func (z *ZB) SetDefaults() {
 		exchange.WebsocketAuthenticatedEndpointsSupported |
 		exchange.WebsocketAccountDataSupported |
 		exchange.WebsocketCancelOrderSupported |
-		exchange.WebsocketSubmitOrderSupported
+		exchange.WebsocketSubmitOrderSupported |
+		exchange.WebsocketMessageCorrelationSupported
 }
 
 // Setup sets user configuration

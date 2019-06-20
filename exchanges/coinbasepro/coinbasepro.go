@@ -93,7 +93,8 @@ func (c *CoinbasePro) SetDefaults() {
 		exchange.WebsocketOrderbookSupported |
 		exchange.WebsocketSubscribeSupported |
 		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketSequenceNumberSupported
 }
 
 // Setup initialises the exchange parameters with the current configuration
