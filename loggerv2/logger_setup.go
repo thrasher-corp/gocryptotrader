@@ -36,7 +36,9 @@ func SetupSubLogger(s []subLoggers) {
 }
 
 func getWriters(s *subLoggers) io.Writer {
+	mw := MultiWriter()
 	m := mw.(*multiWriter)
+
 	outputWriters := strings.Split(s.Output, "|")
 	for x := range outputWriters {
 		switch outputWriters[x] {

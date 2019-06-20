@@ -17,7 +17,7 @@ func (mw *multiWriter) Remove(writers ...io.Writer) {
 		for v := range writers {
 			if mw.writers[i] == writers[v] {
 				fmt.Println(writers[v])
-				//	mw.writers = append(mw.writers[:i], mw.writers[i+1:]...)
+				mw.writers = append(mw.writers[:i], mw.writers[i+1:]...)
 				break
 			}
 		}

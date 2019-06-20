@@ -67,6 +67,4 @@ var (
 			}
 		},
 	}
-
-	mw = MultiWriter()
 )
