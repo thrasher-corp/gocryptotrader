@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"os"
-	"runtime"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,262 +17,271 @@ import (
 )
 
 const (
-	commonPath                      = "..%s..%scommon%s"
-	communicationsPath              = "..%s..%scommunications%s"
-	communicationsBasePath          = "..%s..%scommunications%sbase%s"
-	communicationsSlackPath         = "..%s..%scommunications%sslack%s"
-	communicationsSmsglobalPath     = "..%s..%scommunications%ssmsglobal%s"
-	communicationsSMTPPath          = "..%s..%scommunications%ssmtpservice%s"
-	communicationsTelegramPath      = "..%s..%scommunications%stelegram%s"
-	configPath                      = "..%s..%sconfig%s"
-	currencyPath                    = "..%s..%scurrency%s"
-	currencyFXPath                  = "..%s..%scurrency%sforexprovider%s"
-	currencyFXBasePath              = "..%s..%scurrency%sforexprovider%sbase%s"
-	currencyFXCurrencyConverterPath = "..%s..%scurrency%sforexprovider%scurrencyconverterapi%s"
-	currencyFXCurrencylayerPath     = "..%s..%scurrency%sforexprovider%scurrencylayer%s"
-	currencyFXFixerPath             = "..%s..%scurrency%sforexprovider%sfixer.io%s"
-	currencyFXOpenExchangeRatesPath = "..%s..%scurrency%sforexprovider%sopenexchangerates%s"
-	currencyPairPath                = "..%s..%scurrency%spair%s"
-	currencySymbolPath              = "..%s..%scurrency%ssymbol%s"
-	currencyTranslationPath         = "..%s..%scurrency%stranslation%s"
-	eventsPath                      = "..%s..%sevents%s"
-	exchangesPath                   = "..%s..%sexchanges%s"
-	exchangesNoncePath              = "..%s..%sexchanges%snonce%s"
-	exchangesOrderbookPath          = "..%s..%sexchanges%sorderbook%s"
-	exchangesStatsPath              = "..%s..%sexchanges%sstats%s"
-	exchangesTickerPath             = "..%s..%sexchanges%sticker%s"
-	exchangesOrdersPath             = "..%s..%sexchanges%sorders%s"
-	exchangesRequestPath            = "..%s..%sexchanges%srequest%s"
-	portfolioPath                   = "..%s..%sportfolio%s"
-	testdataPath                    = "..%s..%stestdata%s"
-	toolsPath                       = "..%s..%stools%s"
-	webPath                         = "..%s..%sweb%s"
-	rootPath                        = "..%s..%s"
+	// DefaultRepo is the main example repository
+	DefaultRepo = "https://api.github.com/repos/thrasher-/gocryptotrader"
+	// GithubAPIEndpoint allows the program to query your repository
+	// contributor list
+	GithubAPIEndpoint = "/contributors"
 
-	// exchange packages
-	alphapoint    = "..%s..%sexchanges%salphapoint%s"
-	anx           = "..%s..%sexchanges%sanx%s"
-	binance       = "..%s..%sexchanges%sbinance%s"
-	bitfinex      = "..%s..%sexchanges%sbitfinex%s"
-	bitflyer      = "..%s..%sexchanges%sbitflyer%s"
-	bithumb       = "..%s..%sexchanges%sbithumb%s"
-	bitmex        = "..%s..%sexchanges%sbitmex%s"
-	bitstamp      = "..%s..%sexchanges%sbitstamp%s"
-	bittrex       = "..%s..%sexchanges%sbittrex%s"
-	btcmarkets    = "..%s..%sexchanges%sbtcmarkets%s"
-	coinbasepro   = "..%s..%sexchanges%scoinbasepro%s"
-	coinut        = "..%s..%sexchanges%scoinut%s"
-	exmo          = "..%s..%sexchanges%sexmo%s"
-	gateio        = "..%s..%sexchanges%sgateio%s"
-	gemini        = "..%s..%sexchanges%sgemini%s"
-	hitbtc        = "..%s..%sexchanges%shitbtc%s"
-	huobi         = "..%s..%sexchanges%shuobi%s"
-	huobihadax    = "..%s..%sexchanges%shuobihadax%s"
-	itbit         = "..%s..%sexchanges%sitbit%s"
-	kraken        = "..%s..%sexchanges%skraken%s"
-	lakebtc       = "..%s..%sexchanges%slakebtc%s"
-	localbitcoins = "..%s..%sexchanges%slocalbitcoins%s"
-	okcoin        = "..%s..%sexchanges%sokcoin%s"
-	okex          = "..%s..%sexchanges%sokex%s"
-	poloniex      = "..%s..%sexchanges%spoloniex%s"
-	yobit         = "..%s..%sexchanges%syobit%s"
-	zb            = "..%s..%sexchanges%szb%s"
+	// LicenseFile defines a license file
+	LicenseFile = "LICENSE"
+	// ContributorFile defines contributor file
+	ContributorFile = "CONTRIBUTORS"
 
-	contributorsList = "https://api.github.com/repos/thrasher-/gocryptotrader/contributors"
+	welcome = `
+	___________.__                        .__                           _________                      
+	\__    ___/|  |______________    _____|  |__   ___________          \_   ___ \  _________________  
+	  |    |   |  |  \_  __ \__  \  /  ___/  |  \_/ __ \_  __ \  ______ /    \  \/ /  _ \_  __ \____ \ 
+	  |    |   |   Y  \  | \// __ \_\___ \|   Y  \  ___/|  | \/ /_____/ \     \___(  <_> )  | \/  |_> >
+	  |____|   |___|  /__|  (____  /____  >___|  /\___  >__|             \______  /\____/|__|  |   __/ 
+					\/           \/     \/     \/     \/                        \/             |__|    
 
-	licenseName     = "LICENSE"
-	contributorName = "CONTRIBUTORS"
+	This will update and regenerate documentation for the different packages in your repo.`
 )
 
-var (
-	verbose, replace     bool
-	codebasePaths        map[string]string
-	codebaseTemplatePath map[string]string
-	codebaseReadme       map[string]readme
-	tmpl                 *template.Template
-	path                 string
-	contributors         []contributor
-)
-
-type readme struct {
-	Name         string
-	Contributors []contributor
-	NameURL      string
-	Year         int
-	CapitalName  string
-}
-
-type contributor struct {
+// Contributor defines an account associated with this code base by doing
+// contributions
+type Contributor struct {
 	Login         string `json:"login"`
 	URL           string `json:"html_url"`
 	Contributions int    `json:"contributions"`
 }
 
+// Config defines the running config to deploy documentation across a github
+// repository including exclusion lists for files and directories
+type Config struct {
+	GithubRepo          string     `json:"githubRepo"`
+	Exclusions          Exclusions `json:"exclusionList"`
+	RootReadme          bool       `json:"rootReadmeActive"`
+	LicenseFile         bool       `json:"licenseFileActive"`
+	ContributorFile     bool       `json:"contributorFileActive"`
+	ReferencePathToRepo string     `json:"referencePathToRepo"`
+}
+
+// Exclusions defines the exclusion list so documents are not generated
+type Exclusions struct {
+	Files       []string `json:"Files"`
+	Directories []string `json:"Directories"`
+}
+
+// DocumentationDetails defines parameters to update documentation
+type DocumentationDetails struct {
+	Directories  []string
+	Tmpl         *template.Template
+	Contributors []Contributor
+	Verbose      bool
+	Config       *Config
+}
+
+// Attributes defines specific documentation attributes when a template is
+// executed
+type Attributes struct {
+	Name         string
+	Contributors []Contributor
+	NameURL      string
+	Year         int
+	CapitalName  string
+}
+
 func main() {
-	flag.BoolVar(&verbose, "v", false, "-v Verbose flag prints more information to the std output")
-	flag.BoolVar(&replace, "r", false, "-r Replace flag generates and replaces all documentation across the code base")
+	verbose := flag.Bool("v", false, "Verbose output")
+
 	flag.Parse()
 
-	fmt.Println(`
-              GoCryptoTrader: Exchange documentation tool
+	fmt.Println(welcome)
+	fmt.Println()
 
-    This will update and regenerate documentation for the different packages
-    in GoCryptoTrader.`)
-
-	codebasePaths = make(map[string]string)
-	codebaseTemplatePath = make(map[string]string)
-	codebaseReadme = make(map[string]readme)
-	path = getOSPathSlash()
-
-	if err := getContributorList(); err != nil {
-		log.Fatal("GoCryptoTrader: Exchange documentation tool GET error ", err)
+	config, err := GetConfiguration()
+	if err != nil {
+		log.Fatalf("Documentation Generation Tool - GetConfiguration error %s",
+			err)
 	}
 
-	fmt.Println("Contributor list fetched")
-
-	if err := addTemplates(); err != nil {
-		log.Fatal("GoCryptoTrader: Exchange documentation tool add template error ", err)
+	dirList, err := GetProjectDirectoryTree(&config)
+	if err != nil {
+		log.Fatalf("Documentation Generation Tool - GetProjectDirectoryTree error %s",
+			err)
 	}
 
-	fmt.Println("Templates parsed")
-
-	if err := updateReadme(); err != nil {
-		log.Fatal("GoCryptoTrader: Exchange documentation tool update readme error ", err)
-	}
-
-	fmt.Println("\nTool finished")
-}
-
-// getOSPathSlash returns the slash used by the operating systems
-// file system
-// TO-DO: Change all paths to not use this
-func getOSPathSlash() string {
-	if runtime.GOOS == "windows" {
-		return "\\"
-	}
-	return "/"
-}
-
-// updateReadme iterates through codebase paths to check for readme files and either adds
-// or replaces with new readme files.
-func updateReadme() error {
-	addPaths()
-
-	for packageName := range codebasePaths {
-		addReadmeData(packageName)
-
-		if !checkReadme(packageName) {
-			if verbose {
-				fmt.Printf("* %s Readme file FOUND.\n", packageName)
-			}
-			if replace {
-				if verbose {
-					fmt.Println("file replacement")
-				}
-				if err := replaceReadme(packageName); err != nil {
-					return err
-				}
-				continue
-			}
-			continue
+	var contributors []Contributor
+	if config.ContributorFile {
+		contributors, err = GetContributorList(config.GithubRepo, *verbose)
+		if err != nil {
+			log.Fatalf("Documentation Generation Tool - GetContributorList error %s",
+				err)
 		}
-		if verbose {
-			fmt.Printf("* %s Readme file NOT FOUND.\n", packageName)
+
+		if *verbose {
+			fmt.Println("Contributor List Fetched")
+			for i := range contributors {
+				fmt.Println(contributors[i].Login)
+			}
 		}
-		if replace {
-			if verbose {
-				log.Println("file creation")
-			}
-			if err := createReadme(packageName); err != nil {
-				return err
-			}
-			continue
+	} else {
+		fmt.Println("Contributor list file disabled skipping fetching details")
+	}
+
+	tmpl, err := GetTemplateFiles()
+	if err != nil {
+		log.Fatalf("Documentation Generation Tool - GetTemplateFiles error %s",
+			err)
+	}
+
+	if *verbose {
+		fmt.Println("Templates Fetched")
+	}
+
+	err = UpdateDocumentation(DocumentationDetails{
+		dirList,
+		tmpl,
+		contributors,
+		*verbose,
+		&config})
+	if err != nil {
+		log.Fatalf("Documentation Generation Tool - UpdateDocumentation error %s",
+			err)
+	}
+
+	fmt.Println("\nDocumentation Generation Tool - Finished")
+}
+
+// GetConfiguration retrieves the documentation configuration
+func GetConfiguration() (Config, error) {
+	var c Config
+	file, err := os.OpenFile("config.json", os.O_RDWR, os.ModePerm)
+	if err != nil {
+		fmt.Println("Creating configuration file, please add github repository path and preferences")
+
+		file, err = os.Create("config.json")
+		if err != nil {
+			return c, err
+		}
+
+		data, err := json.MarshalIndent(c, "", " ")
+		if err != nil {
+			return c, err
+		}
+
+		_, err = file.WriteAt(data, 0)
+		if err != nil {
+			return c, err
 		}
 	}
-	return nil
+
+	defer file.Close()
+
+	config, err := ioutil.ReadAll(file)
+	if err != nil {
+		return c, err
+	}
+
+	err = json.Unmarshal(config, &c)
+	if err != nil {
+		return c, err
+	}
+
+	if c.GithubRepo == "" {
+		return c, errors.New("repository not set")
+	}
+
+	if c.ReferencePathToRepo == "" {
+		return c, errors.New("reference path not set")
+	}
+
+	return c, nil
 }
 
-// addPaths adds paths to different potential README.md files in the codebase
-func addPaths() {
-	codebasePaths["common"] = fmt.Sprintf(commonPath, path, path, path)
-
-	codebasePaths["communications comms"] = fmt.Sprintf(communicationsPath, path, path, path)
-	codebasePaths["communications base"] = fmt.Sprintf(communicationsBasePath, path, path, path, path)
-	codebasePaths["communications slack"] = fmt.Sprintf(communicationsSlackPath, path, path, path, path)
-	codebasePaths["communications smsglobal"] = fmt.Sprintf(communicationsSmsglobalPath, path, path, path, path)
-	codebasePaths["communications smtp"] = fmt.Sprintf(communicationsSMTPPath, path, path, path, path)
-	codebasePaths["communications telegram"] = fmt.Sprintf(communicationsTelegramPath, path, path, path, path)
-
-	codebasePaths["config"] = fmt.Sprintf(configPath, path, path, path)
-
-	codebasePaths["currency"] = fmt.Sprintf(currencyPath, path, path, path)
-	codebasePaths["currency forexprovider"] = fmt.Sprintf(currencyFXPath, path, path, path, path)
-	codebasePaths["currency forexprovider base"] = fmt.Sprintf(currencyFXBasePath, path, path, path, path, path)
-	codebasePaths["currency forexprovider currencyconverter"] = fmt.Sprintf(currencyFXCurrencyConverterPath, path, path, path, path, path)
-	codebasePaths["currency forexprovider currencylayer"] = fmt.Sprintf(currencyFXCurrencylayerPath, path, path, path, path, path)
-	codebasePaths["currency forexprovider fixer"] = fmt.Sprintf(currencyFXFixerPath, path, path, path, path, path)
-	codebasePaths["currency forexprovider openexchangerates"] = fmt.Sprintf(currencyFXOpenExchangeRatesPath, path, path, path, path, path)
-	codebasePaths["currency pair"] = fmt.Sprintf(currencyPairPath, path, path, path, path)
-	codebasePaths["currency symbol"] = fmt.Sprintf(currencySymbolPath, path, path, path, path)
-	codebasePaths["currency translation"] = fmt.Sprintf(currencyTranslationPath, path, path, path, path)
-
-	codebasePaths["events"] = fmt.Sprintf(eventsPath, path, path, path)
-
-	codebasePaths["portfolio"] = fmt.Sprintf(portfolioPath, path, path, path)
-	codebasePaths["testdata"] = fmt.Sprintf(testdataPath, path, path, path)
-	codebasePaths["tools"] = fmt.Sprintf(toolsPath, path, path, path)
-	codebasePaths["web"] = fmt.Sprintf(webPath, path, path, path)
-	codebasePaths["root"] = fmt.Sprintf(rootPath, path, path)
-
-	codebasePaths["exchanges"] = fmt.Sprintf(exchangesPath, path, path, path)
-	codebasePaths["exchanges nonce"] = fmt.Sprintf(exchangesNoncePath, path, path, path, path)
-	codebasePaths["exchanges orderbook"] = fmt.Sprintf(exchangesOrderbookPath, path, path, path, path)
-	codebasePaths["exchanges stats"] = fmt.Sprintf(exchangesStatsPath, path, path, path, path)
-	codebasePaths["exchanges ticker"] = fmt.Sprintf(exchangesTickerPath, path, path, path, path)
-	codebasePaths["exchanges orders"] = fmt.Sprintf(exchangesOrdersPath, path, path, path, path)
-	codebasePaths["exchanges request"] = fmt.Sprintf(exchangesRequestPath, path, path, path, path)
-
-	codebasePaths["exchanges alphapoint"] = fmt.Sprintf(alphapoint, path, path, path, path)
-	codebasePaths["exchanges anx"] = fmt.Sprintf(anx, path, path, path, path)
-	codebasePaths["exchanges binance"] = fmt.Sprintf(binance, path, path, path, path)
-	codebasePaths["exchanges bitfinex"] = fmt.Sprintf(bitfinex, path, path, path, path)
-	codebasePaths["exchanges bitflyer"] = fmt.Sprintf(bitflyer, path, path, path, path)
-	codebasePaths["exchanges bithumb"] = fmt.Sprintf(bithumb, path, path, path, path)
-	codebasePaths["exchanges bitmex"] = fmt.Sprintf(bitmex, path, path, path, path)
-	codebasePaths["exchanges bitstamp"] = fmt.Sprintf(bitstamp, path, path, path, path)
-	codebasePaths["exchanges bittrex"] = fmt.Sprintf(bittrex, path, path, path, path)
-	codebasePaths["exchanges btcmarkets"] = fmt.Sprintf(btcmarkets, path, path, path, path)
-	codebasePaths["exchanges coinut"] = fmt.Sprintf(coinut, path, path, path, path)
-	codebasePaths["exchanges exmo"] = fmt.Sprintf(exmo, path, path, path, path)
-	codebasePaths["exchanges coinbasepro"] = fmt.Sprintf(coinbasepro, path, path, path, path)
-	codebasePaths["exchanges gateio"] = fmt.Sprintf(gateio, path, path, path, path)
-	codebasePaths["exchanges gemini"] = fmt.Sprintf(gemini, path, path, path, path)
-	codebasePaths["exchanges hitbtc"] = fmt.Sprintf(hitbtc, path, path, path, path)
-	codebasePaths["exchanges huobi"] = fmt.Sprintf(huobi, path, path, path, path)
-	codebasePaths["exchanges huobihadax"] = fmt.Sprintf(huobihadax, path, path, path, path)
-	codebasePaths["exchanges itbit"] = fmt.Sprintf(itbit, path, path, path, path)
-	codebasePaths["exchanges kraken"] = fmt.Sprintf(kraken, path, path, path, path)
-	codebasePaths["exchanges lakebtc"] = fmt.Sprintf(lakebtc, path, path, path, path)
-	codebasePaths["exchanges localbitcoins"] = fmt.Sprintf(localbitcoins, path, path, path, path)
-	codebasePaths["exchanges okcoin"] = fmt.Sprintf(okcoin, path, path, path, path)
-	codebasePaths["exchanges okex"] = fmt.Sprintf(okex, path, path, path, path)
-	codebasePaths["exchanges poloniex"] = fmt.Sprintf(poloniex, path, path, path, path)
-	codebasePaths["exchanges yobit"] = fmt.Sprintf(yobit, path, path, path, path)
-	codebasePaths["exchanges zb"] = fmt.Sprintf(zb, path, path, path, path)
-
-	codebasePaths["CONTRIBUTORS"] = fmt.Sprintf(rootPath, path, path)
-	codebasePaths["LICENSE"] = fmt.Sprintf(rootPath, path, path)
+// IsExcluded returns if the file path is included in the exclusion list
+func IsExcluded(path string, exclusion []string) bool {
+	for _, data := range exclusion {
+		if strings.Contains(path, data) {
+			return true
+		}
+	}
+	return false
 }
 
-func addReadmeData(packageName string) {
-	readmeInfo := readme{
+// GetProjectDirectoryTree uses filepath walk functions to get each individual
+// directory name and path to match templates with
+func GetProjectDirectoryTree(c *Config) ([]string, error) {
+	var directoryData []string
+	if c.RootReadme {
+		directoryData = append(directoryData, c.ReferencePathToRepo) // Root Readme
+	}
+
+	if c.LicenseFile {
+		directoryData = append(directoryData, c.ReferencePathToRepo+LicenseFile)
+	}
+
+	if c.ContributorFile {
+		directoryData = append(directoryData, c.ReferencePathToRepo+ContributorFile)
+	}
+
+	walkfn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			// Bypass .git and web (front end) directories
+			if IsExcluded(info.Name(), c.Exclusions.Directories) {
+				fmt.Println("Excluding Directory:", info.Name())
+				return filepath.SkipDir
+			}
+			// Don't append parent directory
+			if strings.EqualFold(info.Name(), "..") {
+				return nil
+			}
+			directoryData = append(directoryData, path)
+		}
+		return nil
+	}
+
+	return directoryData, filepath.Walk(c.ReferencePathToRepo, walkfn)
+}
+
+// GetTemplateFiles parses and returns all template files in the documentation
+// tree
+func GetTemplateFiles() (*template.Template, error) {
+	tmpl := template.New("")
+
+	walkfn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if path == "." || path == ".." {
+				return nil
+			}
+
+			var parseError error
+			tmpl, parseError = tmpl.ParseGlob(filepath.Join(path, "*.tmpl"))
+			if parseError != nil {
+				return parseError
+			}
+			return filepath.SkipDir
+		}
+		return nil
+	}
+
+	return tmpl, filepath.Walk(".", walkfn)
+}
+
+// GetContributorList fetches a list of contributors from the github api
+// endpoint
+func GetContributorList(repo string, verbose bool) ([]Contributor, error) {
+	var resp []Contributor
+	return resp, common.SendHTTPGetRequest(repo+GithubAPIEndpoint, true, verbose, &resp)
+}
+
+// GetDocumentationAttributes returns specific attributes for a file template
+func GetDocumentationAttributes(packageName string, contributors []Contributor) Attributes {
+	return Attributes{
 		Name:         getName(packageName, false),
 		Contributors: contributors,
 		NameURL:      getslashFromName(packageName),
 		Year:         time.Now().Year(),
 		CapitalName:  getName(packageName, true),
 	}
-	codebaseReadme[packageName] = readmeInfo
 }
 
 func getName(name string, capital bool) string {
@@ -294,97 +306,77 @@ func getCapital(name string) string {
 }
 
 // getslashFromName returns a string for godoc package names
-func getslashFromName(packageName string) string {
-	if strings.Contains(packageName, " ") {
-		s := strings.Split(packageName, " ")
+func getslashFromName(name string) string {
+	if strings.Contains(name, " ") {
+		s := strings.Split(name, " ")
 		return strings.Join(s, "/")
 	}
-	if packageName == "testdata" || packageName == "tools" || packageName == contributorName || packageName == licenseName {
+	if name == "testdata" || name == "tools" || name == ContributorFile || name == LicenseFile {
 		return ""
 	}
-	return packageName
+	return name
 }
 
-var globS = []string{
-	fmt.Sprintf("common_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("communications_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("config_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("currency_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("events_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("exchanges_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("portfolio_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("root_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("sub_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("testdata_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("tools_templates%s*", getOSPathSlash()),
-	fmt.Sprintf("web_templates%s*", getOSPathSlash()),
-}
+// UpdateDocumentation generates or updates readme/documentation files across
+// the codebase
+func UpdateDocumentation(details DocumentationDetails) error {
+	for _, path := range details.Directories {
+		data := strings.Split(path, "/")
+		var temp []string
+		for _, d := range data {
+			if d == ".." {
+				continue
+			}
+			if len(d) == 0 {
+				break
+			}
 
-// addTemplates adds all the template files
-func addTemplates() error {
-	tmpl = template.New("")
+			temp = append(temp, d)
+		}
 
-	for _, s := range globS {
-		_, err := tmpl.ParseGlob(s)
+		var name string
+		if len(temp) == 0 {
+			name = "root"
+		} else {
+			name = strings.Join(temp, " ")
+		}
+
+		if IsExcluded(name, details.Config.Exclusions.Files) {
+			fmt.Println("Excluding file:", name)
+			continue
+		}
+
+		if details.Tmpl.Lookup(name) == nil {
+			fmt.Printf("Template not found for path %s create new template with {{define \"%s\" -}}\n",
+				path,
+				name)
+			continue
+		}
+
+		var mainPath string
+		if name == LicenseFile || name == ContributorFile {
+			mainPath = path
+		} else {
+			mainPath = filepath.Join(path, "README.md")
+		}
+
+		err := os.Remove(mainPath)
+		if err != nil {
+			return err
+		}
+
+		file, err := os.Create(mainPath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		attr := GetDocumentationAttributes(name, details.Contributors)
+
+		err = details.Tmpl.ExecuteTemplate(file, name, attr)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// checkReadme checks to see if the file exists
-func checkReadme(packageName string) bool {
-	if packageName == licenseName || packageName == contributorName {
-		_, err := os.Stat(codebasePaths[packageName] + packageName)
-		return os.IsNotExist(err)
-	}
-	_, err := os.Stat(codebasePaths[packageName] + "README.md")
-	return os.IsNotExist(err)
-}
-
-// replaceReadme replaces readme file
-func replaceReadme(packageName string) error {
-	if packageName == licenseName || packageName == contributorName {
-		if err := deleteFile(codebasePaths[packageName] + packageName); err != nil {
-			return err
-		}
-		return createReadme(packageName)
-	}
-	if err := deleteFile(codebasePaths[packageName] + "README.md"); err != nil {
-		return err
-	}
-	return createReadme(packageName)
-}
-
-// createReadme creates new readme file and executes template
-func createReadme(packageName string) error {
-	if packageName == licenseName || packageName == contributorName {
-		file, err := os.Create(codebasePaths[packageName] + packageName)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		if verbose {
-			fmt.Println("File done")
-		}
-		return tmpl.ExecuteTemplate(file, packageName, codebaseReadme[packageName])
-	}
-	file, err := os.Create(codebasePaths[packageName] + "README.md")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	if verbose {
-		fmt.Println("File done")
-	}
-	return tmpl.ExecuteTemplate(file, packageName, codebaseReadme[packageName])
-}
-
-func deleteFile(path string) error {
-	return os.Remove(path)
-}
-
-func getContributorList() error {
-	return common.SendHTTPGetRequest(contributorsList, true, false, &contributors)
 }
