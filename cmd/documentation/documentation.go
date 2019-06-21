@@ -376,7 +376,7 @@ func UpdateDocumentation(details DocumentationDetails) error {
 		}
 
 		err := os.Remove(mainPath)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
 			return err
 		}
 
