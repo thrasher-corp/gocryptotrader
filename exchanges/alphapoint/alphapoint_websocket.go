@@ -20,12 +20,12 @@ func (a *Alphapoint) WebsocketClient() {
 		a.WebsocketConn, _, err = Dialer.Dial(a.API.Endpoints.WebsocketURL, http.Header{})
 
 		if err != nil {
-			log.Errorf(log.SubSystemExchSys,"%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
+			log.Errorf(log.SubSystemExchSys, "%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
 			continue
 		}
 
 		if a.Verbose {
-			log.Debugf(log.SubSystemExchSys,"%s Connected to Websocket.\n", a.Name)
+			log.Debugf(log.SubSystemExchSys, "%s Connected to Websocket.\n", a.Name)
 		}
 
 		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
@@ -65,6 +65,6 @@ func (a *Alphapoint) WebsocketClient() {
 			}
 		}
 		a.WebsocketConn.Close()
-		log.Debugf(log.SubSystemExchSys,"%s Websocket client disconnected.", a.Name)
+		log.Debugf(log.SubSystemExchSys, "%s Websocket client disconnected.", a.Name)
 	}
 }

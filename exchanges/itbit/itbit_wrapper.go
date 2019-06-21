@@ -424,7 +424,7 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
-			log.Warnf(log.SubSystemExchSys,"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.SubSystemExchSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				i.Name, "GetActiveOrders", allOrders[j].ID, allOrders[j].CreatedTime)
 		}
 
@@ -475,7 +475,7 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
-			log.Warnf(log.SubSystemExchSys,"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.SubSystemExchSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				i.Name, "GetActiveOrders", allOrders[j].ID, allOrders[j].CreatedTime)
 		}
 

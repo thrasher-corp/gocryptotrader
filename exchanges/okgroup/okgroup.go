@@ -495,7 +495,7 @@ func (o *OKGroup) GetMarginTransactionDetails(request GetSpotTransactionDetailsR
 func FormatParameters(request interface{}) (parameters string) {
 	v, err := query.Values(request)
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys,"Could not parse %v to URL values. Check that the type has url fields", reflect.TypeOf(request).Name())
+		log.Errorf(log.SubSystemExchSys, "Could not parse %v to URL values. Check that the type has url fields", reflect.TypeOf(request).Name())
 		return
 	}
 	urlEncodedValues := v.Encode()
@@ -546,13 +546,13 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		}
 
 		if o.Verbose {
-			log.Debugf(log.SubSystemExchSys,"Request JSON: %s\n", payload)
+			log.Debugf(log.SubSystemExchSys, "Request JSON: %s\n", payload)
 		}
 	}
 
 	path := o.API.Endpoints.URL + requestType + o.APIVersion + requestPath
 	if o.Verbose {
-		log.Debugf(log.SubSystemExchSys,"Sending %v request to %s \n", requestType, path)
+		log.Debugf(log.SubSystemExchSys, "Sending %v request to %s \n", requestType, path)
 	}
 
 	headers := make(map[string]string)

@@ -121,7 +121,7 @@ func (l *LocalBitcoins) Run() {
 
 	err := l.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", l.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
 	}
 }
 
@@ -420,7 +420,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequ
 	for i := range resp {
 		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
 		if err != nil {
-			log.Warnf(log.SubSystemExchSys,"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.SubSystemExchSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",
 				resp[i].Data.Advertisement.ID,
@@ -481,7 +481,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequ
 	for i := range allTrades {
 		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
-			log.Warnf(log.SubSystemExchSys,"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.SubSystemExchSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",
 				allTrades[i].Data.Advertisement.ID,

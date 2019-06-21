@@ -52,7 +52,7 @@ func (g *Gateio) WsConnect() error {
 	if g.API.AuthenticatedSupport {
 		err = g.wsServerSignIn()
 		if err != nil {
-			log.Errorf(log.SubSystemExchSys,"%v - wsServerSignin() failed: %v", g.GetName(), err)
+			log.Errorf(log.SubSystemExchSys, "%v - wsServerSignin() failed: %v", g.GetName(), err)
 		}
 		time.Sleep(time.Second * 2) // sleep to allow server to complete sign-on if further authenticated requests are sent piror to this they will fail
 	}
@@ -428,7 +428,7 @@ func (g *Gateio) wsSend(data interface{}) error {
 	g.wsRequestMtx.Lock()
 	defer g.wsRequestMtx.Unlock()
 	if g.Verbose {
-		log.Debugf(log.SubSystemExchSys,"%v sending message to websocket %v", g.Name, data)
+		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %v", g.Name, data)
 	}
 	// Basic rate limiter
 	time.Sleep(gateioWebsocketRateLimit)

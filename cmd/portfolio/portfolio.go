@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
-	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -25,7 +26,7 @@ func printSummary(msg string, amount float64) {
 			currency.USD,
 			displayCurrency)
 		if err != nil {
-			log.Error(err)
+			log.Println(err)
 		} else {
 			symb, err := currency.GetSymbolByCurrencyName(displayCurrency)
 			if err != nil {
@@ -64,7 +65,8 @@ func main() {
 
 	defaultCfg, err := config.GetFilePath("")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		os.Exit(0)
 	}
 
 	flag.StringVar(&inFile, "infile", defaultCfg, "The config input file to process.")
@@ -76,7 +78,8 @@ func main() {
 	var cfg config.Config
 	err = cfg.LoadConfig(inFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		os.Exit(0)
 	}
 	log.Println("Loaded config file.")
 
@@ -105,7 +108,8 @@ func main() {
 	}
 	err = currency.SeedForeignExchangeData(fiatCurrencies)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		os.Exit(0)
 	}
 
 	log.Println("Fetched currency data.")

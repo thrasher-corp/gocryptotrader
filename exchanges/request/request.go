@@ -295,7 +295,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
 				if verbose {
-					log.Errorf(log.SubSystemExchSys,"%s request has timed-out retrying request, count %d",
+					log.Errorf(log.SubSystemExchSys, "%s request has timed-out retrying request, count %d",
 						r.Name,
 						i)
 				}
@@ -333,7 +333,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 				reader = resp.Body
 
 			default:
-				log.Warnf(log.SubSystemExchSys,"%s request response content type differs from JSON; received %v [path: %s]",
+				log.Warnf(log.SubSystemExchSys, "%s request response content type differs from JSON; received %v [path: %s]",
 					r.Name, resp.Header.Get("Content-Type"), path)
 				reader = resp.Body
 			}
@@ -365,9 +365,9 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 
 		resp.Body.Close()
 		if verbose {
-			log.Debugf(log.SubSystemExchSys,"HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
+			log.Debugf(log.SubSystemExchSys, "HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 			if !httpDebug {
-				log.Debugf(log.SubSystemExchSys,"%s exchange raw response: %s", r.Name, string(contents))
+				log.Debugf(log.SubSystemExchSys, "%s exchange raw response: %s", r.Name, string(contents))
 			}
 		}
 
@@ -396,7 +396,7 @@ func (r *Requester) worker() {
 				limit := r.GetRateLimit(x.AuthRequest)
 				diff := limit.GetDuration() - time.Since(r.Cycle)
 				if x.Verbose {
-					log.Debugf(log.SubSystemExchSys,"%s request. Rate limited! Sleeping for %v", r.Name, diff)
+					log.Debugf(log.SubSystemExchSys, "%s request. Rate limited! Sleeping for %v", r.Name, diff)
 				}
 				time.Sleep(diff)
 
@@ -408,7 +408,7 @@ func (r *Requester) worker() {
 					r.IncrementRequests(x.AuthRequest)
 
 					if x.Verbose {
-						log.Debugf(log.SubSystemExchSys,"%s request. No longer rate limited! Doing request", r.Name)
+						log.Debugf(log.SubSystemExchSys, "%s request. No longer rate limited! Doing request", r.Name)
 					}
 
 					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDebugging)
@@ -494,18 +494,18 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	}
 
 	if verbose {
-		log.Debugf(log.SubSystemExchSys,"%s request. Attaching new job.", r.Name)
+		log.Debugf(log.SubSystemExchSys, "%s request. Attaching new job.", r.Name)
 	}
 	r.Jobs <- newJob
 	r.unlock()
 
 	if verbose {
-		log.Debugf(log.SubSystemExchSys,"%s request. Waiting for job to complete.", r.Name)
+		log.Debugf(log.SubSystemExchSys, "%s request. Waiting for job to complete.", r.Name)
 	}
 	resp := <-newJob.JobResult
 
 	if verbose {
-		log.Debugf(log.SubSystemExchSys,"%s request. Job complete.", r.Name)
+		log.Debugf(log.SubSystemExchSys, "%s request. Job complete.", r.Name)
 	}
 
 	return resp.Error
@@ -566,7 +566,7 @@ func (r *Requester) lock() {
 		wg.Done()
 		select {
 		case <-timer.C:
-			log.Errorf(log.SubSystemExchSys,"Unlocking due to possible error for %s", r.Name)
+			log.Errorf(log.SubSystemExchSys, "Unlocking due to possible error for %s", r.Name)
 			r.fifoLock.Unlock()
 
 		case <-r.disengage:

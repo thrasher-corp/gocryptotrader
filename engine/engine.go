@@ -257,7 +257,7 @@ func PrintSettings(s *Settings) {
 // Start starts the engine
 func (e *Engine) Start() {
 	if e == nil {
-		log.Error(log.LogGlobal, errors.New("Engine instance is nil"))
+		log.Errorln(log.LogGlobal, "Engine instance is nil")
 		os.Exit(1)
 	}
 
@@ -294,7 +294,7 @@ func (e *Engine) Start() {
 	log.Debugln(log.LogGlobal, "Setting up exchanges..")
 	SetupExchanges()
 	if len(e.Exchanges) == 0 {
-		log.Error(log.LogGlobal, errors.New("No exchanges were able to be loaded. Exiting"))
+		log.Errorln(log.LogGlobal, "No exchanges were able to be loaded. Exiting")
 		os.Exit(1)
 	}
 
@@ -422,7 +422,7 @@ func (e *Engine) Stop() {
 	if !e.Settings.EnableDryRun {
 		err := e.Config.SaveConfig(e.Settings.ConfigFile)
 		if err != nil {
-			log.Error(log.LogGlobal, errors.New("unable to save config."))
+			log.Errorln(log.LogGlobal, "Unable to save config.")
 		} else {
 			log.Debugln(log.LogGlobal, "Config file saved successfully.")
 		}

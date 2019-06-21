@@ -279,7 +279,7 @@ func (z *ZB) wsSend(data interface{}) error {
 		return err
 	}
 	if z.Verbose {
-		log.Debugf(log.SubSystemExchSys,"%v sending message to websocket %v", z.Name, data)
+		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %v", z.Name, data)
 	}
 	return z.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

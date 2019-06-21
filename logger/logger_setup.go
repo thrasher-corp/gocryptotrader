@@ -59,9 +59,9 @@ func getWriters(s *subLoggers) io.Writer {
 	return m
 }
 
-func GenDefaultSettings() (log LoggerConfig) {
+func GenDefaultSettings() (log Config) {
 	t := func(t bool) *bool { return &t }(true)
-	log = LoggerConfig{
+	log = Config{
 		Enabled: t,
 		AdvancedSettings: advancedSettings{
 			Spacer:          " | ",

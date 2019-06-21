@@ -42,8 +42,8 @@ type WebsocketEventResponse struct {
 // WebsocketOrderbookTickerRequest is a struct used for ticker and orderbook
 // requests
 type WebsocketOrderbookTickerRequest struct {
-	Exchange  string           `json:"exchangeName"`
-	Currency  string           `json:"currency"`
+	Exchange  string     `json:"exchangeName"`
+	Currency  string     `json:"currency"`
 	AssetType asset.Item `json:"assetType"`
 }
 

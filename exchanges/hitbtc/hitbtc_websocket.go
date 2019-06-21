@@ -316,7 +316,7 @@ func (h *HitBTC) wsSend(data interface{}) error {
 		return err
 	}
 	if h.Verbose {
-		log.Debugf(log.SubSystemExchSys,"%v sending message to websocket %v", h.Name, data)
+		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %v", h.Name, data)
 	}
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

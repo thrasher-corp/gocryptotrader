@@ -9,7 +9,7 @@ const timestampFormat = " 02/01/2006 15:04:05 "
 
 const spacer = "|"
 
-type LoggerConfig struct {
+type Config struct {
 	Enabled          *bool            `json:"enabled"`
 	AdvancedSettings advancedSettings `json:"advancedSettings"`
 	SubLoggers       []subLoggers     `json:"subloggers"`
@@ -58,7 +58,7 @@ type multiWriter struct {
 
 var (
 	logger           = &Logger{}
-	GlobalLogConfig  = &LoggerConfig{}
+	GlobalLogConfig  = &Config{}
 	subsystemLoggers = map[string]subLogger{}
 	eventPool        = &sync.Pool{
 		New: func() interface{} {
@@ -68,8 +68,6 @@ var (
 		},
 	}
 )
-
-var validSubSystems = [...]string{"log", "exchange"}
 
 const (
 	LogGlobal = "log"

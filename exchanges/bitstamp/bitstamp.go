@@ -595,7 +595,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	}
 
 	if b.Verbose {
-		log.Debugf(log.SubSystemExchSys,"Sending POST request to " + path)
+		log.Debugf(log.SubSystemExchSys, "Sending POST request to "+path)
 	}
 
 	headers := make(map[string]string)

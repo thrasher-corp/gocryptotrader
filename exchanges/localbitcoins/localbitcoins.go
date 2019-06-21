@@ -688,7 +688,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if l.Verbose {
-		log.Debugf(log.SubSystemExchSys,"Sending POST request to `%s`, path: `%s`, params: `%s`.", l.API.Endpoints.URL, path, encoded)
+		log.Debugf(log.SubSystemExchSys, "Sending POST request to `%s`, path: `%s`, params: `%s`.", l.API.Endpoints.URL, path, encoded)
 	}
 
 	if method == http.MethodGet && len(encoded) > 0 {

@@ -101,7 +101,7 @@ func (b *Bitmex) WsConnector() error {
 	}
 
 	if b.Verbose {
-		log.Debugf(log.SubSystemExchSys,"Successfully connected to Bitmex %s at time: %s Limit: %d",
+		log.Debugf(log.SubSystemExchSys, "Successfully connected to Bitmex %s at time: %s Limit: %d",
 			welcomeResp.Info,
 			welcomeResp.Timestamp,
 			welcomeResp.Limit.Remaining)
@@ -195,10 +195,10 @@ func (b *Bitmex) wsHandleIncomingData() {
 				if decodedResp.Success {
 					if b.Verbose {
 						if len(quickCapture) == 3 {
-							log.Debugf(log.SubSystemExchSys,"%s websocket: Successfully subscribed to %s",
+							log.Debugf(log.SubSystemExchSys, "%s websocket: Successfully subscribed to %s",
 								b.Name, decodedResp.Subscribe)
 						} else {
-							log.Debugf(log.SubSystemExchSys,"%s websocket: Successfully authenticated websocket connection",
+							log.Debugf(log.SubSystemExchSys, "%s websocket: Successfully authenticated websocket connection",
 								b.Name)
 						}
 					}
@@ -447,7 +447,7 @@ func (b *Bitmex) wsSend(data interface{}) error {
 	b.wsRequestMtx.Lock()
 	defer b.wsRequestMtx.Unlock()
 	if b.Verbose {
-		log.Debugf(log.SubSystemExchSys,"%v sending message to websocket %v", b.Name, data)
+		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %v", b.Name, data)
 	}
 	return b.WebsocketConn.WriteJSON(data)
 }

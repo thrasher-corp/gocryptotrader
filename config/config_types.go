@@ -16,7 +16,7 @@ type Config struct {
 	Name              string                  `json:"name"`
 	EncryptConfig     int                     `json:"encryptConfig"`
 	GlobalHTTPTimeout time.Duration           `json:"globalHTTPTimeout"`
-	Logging           log.LoggerConfig        `json:"loggingv2"`
+	Logging           log.Config              `json:"loggingv2"`
 	ConnectionMonitor ConnectionMonitorConfig `json:"connectionMonitor"`
 	Profiler          ProfilerConfig          `json:"profiler"`
 	NTPClient         NTPClientConfig         `json:"ntpclient"`

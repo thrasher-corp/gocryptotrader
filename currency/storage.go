@@ -114,7 +114,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 	}
 	s.baseCurrency = settings.FiatDisplayCurrency
 	log.Debugf(log.LogGlobal,
-		"Fiat display currency: %s.", s.baseCurrency)
+		"Fiat display currency: %s.\n", s.baseCurrency)
 
 	if settings.CryptocurrencyProvider.Enabled {
 		log.Debugf(

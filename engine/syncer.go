@@ -92,7 +92,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 	defer e.mux.Unlock()
 
 	if e.Cfg.SyncTicker {
-		log.Debugf("%s: Added ticker sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
+		log.Debugf(log.SubSystemSyncMgr, "%s: Added ticker sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
 			c.Ticker.IsUsingWebsocket, c.Ticker.IsUsingREST)
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
 			e.initSyncWG.Add(1)
@@ -101,7 +101,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 	}
 
 	if e.Cfg.SyncOrderbook {
-		log.Debugf("%s: Added orderbook sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
+		log.Debugf(log.SubSystemSyncMgr, "%s: Added orderbook sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
 			c.Orderbook.IsUsingWebsocket, c.Orderbook.IsUsingREST)
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
 			e.initSyncWG.Add(1)
@@ -110,7 +110,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 	}
 
 	if e.Cfg.SyncTrades {
-		log.Debugf("%s: Added trade sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
+		log.Debugf(log.SubSystemSyncMgr, "%s: Added trade sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
 			c.Trade.IsUsingWebsocket, c.Trade.IsUsingREST)
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
 			e.initSyncWG.Add(1)

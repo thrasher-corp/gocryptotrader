@@ -140,7 +140,7 @@ func (z *ZB) Run() {
 
 	err := z.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", z.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%s failed to update tradable pairs. Err: %s", z.Name, err)
 	}
 }
 

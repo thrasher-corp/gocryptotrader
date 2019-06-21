@@ -302,7 +302,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		}
 
 		if i.Verbose {
-			log.Debugf(log.SubSystemExchSys,"Request JSON: %s\n", PayloadJSON)
+			log.Debugf(log.SubSystemExchSys, "Request JSON: %s\n", PayloadJSON)
 		}
 	}
 

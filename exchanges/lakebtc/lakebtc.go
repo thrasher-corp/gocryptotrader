@@ -265,7 +265,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	hmac := crypto.GetHMAC(crypto.HashSHA1, []byte(req), []byte(l.API.Credentials.Secret))
 
 	if l.Verbose {
-		log.Debugf(log.SubSystemExchSys,"Sending POST request to %s calling method %s with params %s\n", l.API.Endpoints.URL, method, req)
+		log.Debugf(log.SubSystemExchSys, "Sending POST request to %s calling method %s with params %s\n", l.API.Endpoints.URL, method, req)
 	}
 
 	postData := make(map[string]interface{})

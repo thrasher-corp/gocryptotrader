@@ -263,7 +263,7 @@ func (h *HUOBIHADAX) wsSend(data []byte) error {
 	h.wsRequestMtx.Lock()
 	defer h.wsRequestMtx.Unlock()
 	if h.Verbose {
-		log.Debugf(log.SubSystemExchSys,"%v sending message to websocket %s", h.Name, string(data))
+		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %s", h.Name, string(data))
 	}
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

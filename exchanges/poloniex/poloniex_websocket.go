@@ -128,11 +128,11 @@ func (p *Poloniex) WsHandleData() {
 				if len(data) == 2 && chanID != wsHeartbeat {
 					if checkSubscriptionSuccess(data) {
 						if p.Verbose {
-							log.Debugf(log.SubSystemExchSys,"poloniex websocket subscribed to channel successfully. %d", chanID)
+							log.Debugf(log.SubSystemExchSys, "poloniex websocket subscribed to channel successfully. %d", chanID)
 						}
 					} else {
 						if p.Verbose {
-							log.Debugf(log.SubSystemExchSys,"poloniex websocket subscription to channel failed. %d", chanID)
+							log.Debugf(log.SubSystemExchSys, "poloniex websocket subscription to channel failed. %d", chanID)
 						}
 					}
 					continue
@@ -386,7 +386,7 @@ func (p *Poloniex) wsSend(data interface{}) error {
 		return err
 	}
 	if p.Verbose {
-		log.Debugf(log.SubSystemExchSys,"%v sending message to websocket %v", p.Name, data)
+		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %v", p.Name, data)
 	}
 	return p.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

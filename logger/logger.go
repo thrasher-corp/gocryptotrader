@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func newLogger(c *LoggerConfig) *Logger {
+func newLogger(c *Config) *Logger {
 	return &Logger{
 		Timestamp:   c.AdvancedSettings.TimeStampFormat,
 		Spacer:      c.AdvancedSettings.Spacer,
@@ -34,6 +34,9 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	}
 	e.data = append(e.data, l.Spacer...)
 	e.data = append(e.data, []byte(data)...)
+	if data == "" || data[len(data)-1] != '\n' {
+		e.data = append(e.data, '\n')
+	}
 	e.mu.Lock()
 	e.output.Write(e.data)
 	e.mu.Unlock()
@@ -42,4 +45,13 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 
 func CloseLogger() {
 	closeAllFiles()
+}
+
+func subSystemData(subsystem string) (sl *subLogger) {
+	if val, found := subsystemLoggers[subsystem]; found {
+		sl = &val
+		return
+	}
+	temp := subsystemLoggers["log"]
+	return &temp
 }

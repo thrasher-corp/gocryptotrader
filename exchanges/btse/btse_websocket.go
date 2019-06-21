@@ -93,7 +93,7 @@ func (b *BTSE) WsHandleData() {
 
 			if strings.Contains(string(resp.Raw), "Welcome to BTSE") {
 				if b.Verbose {
-					log.Debugf(log.SubSystemExchSys,"%s websocket client successfully connected to %s",
+					log.Debugf(log.SubSystemExchSys, "%s websocket client successfully connected to %s",
 						b.Name, b.Websocket.GetWebsocketURL())
 				}
 				continue
@@ -252,7 +252,7 @@ func (b *BTSE) wsSend(data interface{}) error {
 	b.wsRequestMtx.Lock()
 	defer b.wsRequestMtx.Unlock()
 	if b.Verbose {
-		log.Debugf(log.SubSystemExchSys,"%v sending message to websocket %v", b.Name, data)
+		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %v", b.Name, data)
 	}
 	json, err := common.JSONEncode(data)
 	if err != nil {
