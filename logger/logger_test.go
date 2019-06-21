@@ -1,11 +1,10 @@
 package logger
 
 import (
-	"os"
 	"testing"
 )
 
-func BenchmarkInfo(b *testing.B) {
+func SetupTest() {
 	t := func(t bool) *bool { return &t }(true)
 	logTest := Config{
 		Enabled: t,
@@ -26,9 +25,12 @@ func BenchmarkInfo(b *testing.B) {
 				Output: "stdout",
 			}},
 	}
-
 	logger = newLogger(&logTest)
 	SetupSubLogger(logTest.SubLoggers)
+}
+
+func BenchmarkInfo(b *testing.B) {
+	SetupTest()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Info("log", "Hello this is an info benchmark")
@@ -36,7 +38,6 @@ func BenchmarkInfo(b *testing.B) {
 }
 
 func BenchmarkInfoDisabled(b *testing.B) {
-
 	logTest := Config{
 		SubLoggers: []subLoggers{
 			{
@@ -55,8 +56,8 @@ func BenchmarkInfoDisabled(b *testing.B) {
 }
 
 func BenchmarkInfof(b *testing.B) {
-	logger = newLogger(GlobalLogConfig)
-	addSubLogger("sys", "DEBUG|WARN|ERROR", os.Stdout)
+	SetupTest()
+
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Infof("sys", "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
@@ -64,8 +65,8 @@ func BenchmarkInfof(b *testing.B) {
 }
 
 func BenchmarkInfoln(b *testing.B) {
-	logger = newLogger(GlobalLogConfig)
-	addSubLogger("sys", "INFO|DEBUG|WARN|ERROR", os.Stdout)
+	SetupTest()
+
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Infoln("sys", "Hello this is an infoln benchmark")
