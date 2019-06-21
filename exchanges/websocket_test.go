@@ -567,3 +567,17 @@ func TestSliceCopyDoesntImpactBoth(t *testing.T) {
 		t.Errorf("Slice has not been copies appropriately")
 	}
 }
+
+// TestSetCanUseAuthenticatedEndpoints logic test
+func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
+	w := Websocket{}
+	result := w.CanUseAuthenticatedEndpoints()
+	if result {
+		t.Error("expected `canUseAuthenticatedEndpoints` to be false")
+	}
+	w.SetCanUseAuthenticatedEndpoints(true)
+	result = w.CanUseAuthenticatedEndpoints()
+	if !result {
+		t.Error("expected `canUseAuthenticatedEndpoints` to be true")
+	}
+}

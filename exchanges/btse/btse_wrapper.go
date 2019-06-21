@@ -499,3 +499,13 @@ func (b *BTSE) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChann
 	b.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (b *BTSE) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return b.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (b *BTSE) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

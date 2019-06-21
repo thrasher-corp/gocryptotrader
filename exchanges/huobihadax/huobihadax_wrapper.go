@@ -114,7 +114,7 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) error {
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
-		huobiGlobalWebsocketEndpoint,
+		HuobiHadaxSocketIOAddress,
 		exch.API.Endpoints.WebsocketURL)
 }
 
@@ -576,4 +576,14 @@ func (h *HUOBIHADAX) SubscribeToWebsocketChannels(channels []exchange.WebsocketC
 func (h *HUOBIHADAX) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	h.Websocket.UnsubscribeToChannels(channels)
 	return nil
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (h *HUOBIHADAX) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return h.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (h *HUOBIHADAX) AuthenticateWebsocket() error {
+	return h.wsLogin()
 }

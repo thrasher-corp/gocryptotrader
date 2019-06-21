@@ -343,9 +343,13 @@ type FillResponse struct {
 
 // WebsocketSubscribe takes in subscription information
 type WebsocketSubscribe struct {
-	Type      string       `json:"type"`
-	ProductID string       `json:"product_id,omitempty"`
-	Channels  []WsChannels `json:"channels,omitempty"`
+	Type       string       `json:"type"`
+	ProductID  string       `json:"product_id,omitempty"`
+	Channels   []WsChannels `json:"channels,omitempty"`
+	Signature  string       `json:"signature,omitempty"`
+	Key        string       `json:"key,omitempty"`
+	Passphrase string       `json:"passphrase,omitempty"`
+	Timestamp  string       `json:"timestamp,omitempty"`
 }
 
 // WsChannels defines outgoing channels for subscription purposes
@@ -360,7 +364,8 @@ type WebsocketReceived struct {
 	OrderID   string  `json:"order_id"`
 	OrderType string  `json:"order_type"`
 	Size      float64 `json:"size,string"`
-	Price     float64 `json:"price,string"`
+	Price     float64 `json:"price,omitempty,string"`
+	Funds     float64 `json:"funds,omitempty,string"`
 	Side      string  `json:"side"`
 	ClientOID string  `json:"client_oid"`
 	ProductID string  `json:"product_id"`
@@ -461,4 +466,21 @@ type WebsocketL2Update struct {
 	ProductID string          `json:"product_id"`
 	Time      string          `json:"time"`
 	Changes   [][]interface{} `json:"changes"`
+}
+
+// WebsocketActivate an activate message is sent when a stop order is placed
+type WebsocketActivate struct {
+	Type         string  `json:"type"`
+	ProductID    string  `json:"product_id"`
+	Timestamp    string  `json:"timestamp"`
+	UserID       string  `json:"user_id"`
+	ProfileID    string  `json:"profile_id"`
+	OrderID      string  `json:"order_id"`
+	StopType     string  `json:"stop_type"`
+	Side         string  `json:"side"`
+	StopPrice    float64 `json:"stop_price,string"`
+	Size         float64 `json:"size,string"`
+	Funds        float64 `json:"funds,string"`
+	TakerFeeRate float64 `json:"taker_fee_rate,string"`
+	Private      bool    `json:"private"`
 }

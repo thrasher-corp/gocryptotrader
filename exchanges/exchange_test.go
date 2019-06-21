@@ -263,10 +263,27 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 }
 
+// TestGetAuthenticatedAPISupport logic test
 func TestGetAuthenticatedAPISupport(t *testing.T) {
-	var base Base
-	if base.GetAuthenticatedAPISupport() {
-		t.Fatal("Test failed. TestGetAuthenticatedAPISupport returned true when it should of been false.")
+	base := Base{
+		API: API{
+			AuthenticatedSupport:          true,
+			AuthenticatedWebsocketSupport: false,
+		},
+	}
+
+	if !base.GetAuthenticatedAPISupport(RestAuthentication) {
+		t.Fatal("Test failed. Expected RestAuthentication to return true")
+	}
+	if base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+		t.Fatal("Test failed. Expected WebsocketAuthentication to return false")
+	}
+	base.API.AuthenticatedWebsocketSupport = true
+	if !base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+		t.Fatal("Test failed. Expected WebsocketAuthentication to return true")
+	}
+	if base.GetAuthenticatedAPISupport(2) {
+		t.Fatal("Test failed. Expected default case of 'false' to be returned")
 	}
 }
 
@@ -539,19 +556,21 @@ func TestIsEnabled(t *testing.T) {
 	}
 }
 
+// TestSetAPIKeys logic test
 func TestSetAPIKeys(t *testing.T) {
 	SetAPIKeys := Base{
 		Name:    "TESTNAME",
 		Enabled: false,
+		API: API{
+			AuthenticatedSupport:          false,
+			AuthenticatedWebsocketSupport: false,
+		},
 	}
 
 	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007")
 	if SetAPIKeys.API.Credentials.Key != "RocketMan" && SetAPIKeys.API.Credentials.Secret != "Digereedoo" && SetAPIKeys.API.Credentials.ClientID != "007" {
 		t.Error("Test Failed - SetAPIKeys() unable to set API credentials")
 	}
-
-	SetAPIKeys.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007")
 }
 
 func TestSetPairs(t *testing.T) {

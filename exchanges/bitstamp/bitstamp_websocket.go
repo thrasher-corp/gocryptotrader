@@ -154,7 +154,7 @@ func (b *Bitstamp) WsHandleData() {
 func (b *Bitstamp) generateDefaultSubscriptions() {
 	var channels = []string{"live_trades_", "diff_order_book_"}
 	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{

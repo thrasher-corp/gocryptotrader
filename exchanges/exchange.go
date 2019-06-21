@@ -282,8 +282,14 @@ func (e *Base) SetCurrencyPairFormat() {
 
 // GetAuthenticatedAPISupport returns whether the exchange supports
 // authenticated API requests
-func (e *Base) GetAuthenticatedAPISupport() bool {
-	return e.API.AuthenticatedSupport
+func (e *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
+	switch endpoint {
+	case RestAuthentication:
+		return e.API.AuthenticatedSupport
+	case WebsocketAuthentication:
+		return e.API.AuthenticatedWebsocketSupport
+	}
+	return false
 }
 
 // GetName is a method that returns the name of the exchange base
@@ -388,6 +394,7 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 		result, err := crypto.Base64Decode(apiSecret)
 		if err != nil {
 			e.API.AuthenticatedSupport = false
+			e.API.AuthenticatedWebsocketSupport = false
 			log.Warnf(warningBase64DecryptSecretKeyFailed, e.Name)
 		}
 		e.API.Credentials.Secret = string(result)
@@ -404,7 +411,8 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.Verbose = exch.Verbose
 
 	e.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
-	if e.API.AuthenticatedSupport {
+	e.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
+	if e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport {
 		e.SetAPIKeys(exch.API.Credentials.Key, exch.API.Credentials.Secret, exch.API.Credentials.ClientID)
 	}
 
@@ -456,13 +464,13 @@ func (e *Base) AllowAuthenticatedRequest() bool {
 
 	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so don't
 	// allow authenticated requests.
-	if !e.API.AuthenticatedSupport && e.LoadedByConfig {
+	if (!e.API.AuthenticatedSupport && !e.API.AuthenticatedWebsocketSupport) && e.LoadedByConfig {
 		return false
 	}
 
 	// Check to see if the user has enabled AuthenticatedSupport, but has invalid
 	// API credentials set and loaded by config
-	if e.API.AuthenticatedSupport && e.LoadedByConfig && !e.ValidateAPICredentials() {
+	if (e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport) && e.LoadedByConfig && !e.ValidateAPICredentials() {
 		return false
 	}
 

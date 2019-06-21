@@ -8,6 +8,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 )
 
+// Endpoint authentication types
+const (
+	RestAuthentication      uint8 = 0
+	WebsocketAuthentication uint8 = 1
+)
+
 // FeeType custom type for calculating fees based on method
 type FeeType uint8
 
@@ -261,8 +267,9 @@ type FeaturesSupported struct {
 
 // API stores the exchange API settings
 type API struct {
-	AuthenticatedSupport bool
-	PEMKeySupport        bool
+	AuthenticatedSupport          bool
+	AuthenticatedWebsocketSupport bool
+	PEMKeySupport                 bool
 
 	Endpoints struct {
 		URL                 string

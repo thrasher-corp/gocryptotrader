@@ -541,3 +541,13 @@ func (b *Binance) SubscribeToWebsocketChannels(channels []exchange.WebsocketChan
 func (b *Binance) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (b *Binance) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return b.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (b *Binance) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

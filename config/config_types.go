@@ -61,23 +61,24 @@ type ExchangeConfig struct {
 	BankAccounts    []BankAccount          `json:"bankAccounts,omitempty"`
 
 	// Deprecated settings which will be removed in a future update
-	AvailablePairs            *currency.Pairs      `json:"availablePairs,omitempty"`
-	EnabledPairs              *currency.Pairs      `json:"enabledPairs,omitempty"`
-	AssetTypes                *string              `json:"assetTypes,omitempty"`
-	PairsLastUpdated          *int64               `json:"pairsLastUpdated,omitempty"`
-	ConfigCurrencyPairFormat  *currency.PairFormat `json:"configCurrencyPairFormat,omitempty"`
-	RequestCurrencyPairFormat *currency.PairFormat `json:"requestCurrencyPairFormat,omitempty"`
-	AuthenticatedAPISupport   *bool                `json:"authenticatedApiSupport,omitempty"`
-	APIKey                    *string              `json:"apiKey,omitempty"`
-	APISecret                 *string              `json:"apiSecret,omitempty"`
-	APIAuthPEMKeySupport      *bool                `json:"apiAuthPemKeySupport,omitempty"`
-	APIAuthPEMKey             *string              `json:"apiAuthPemKey,omitempty"`
-	APIURL                    *string              `json:"apiUrl,omitempty"`
-	APIURLSecondary           *string              `json:"apiUrlSecondary,omitempty"`
-	ClientID                  *string              `json:"clientId,omitempty"`
-	SupportsAutoPairUpdates   *bool                `json:"supportsAutoPairUpdates,omitempty"`
-	Websocket                 *bool                `json:"websocket,omitempty"`
-	WebsocketURL              *string              `json:"websocketUrl,omitempty"`
+	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
+	EnabledPairs                     *currency.Pairs      `json:"enabledPairs,omitempty"`
+	AssetTypes                       *string              `json:"assetTypes,omitempty"`
+	PairsLastUpdated                 *int64               `json:"pairsLastUpdated,omitempty"`
+	ConfigCurrencyPairFormat         *currency.PairFormat `json:"configCurrencyPairFormat,omitempty"`
+	RequestCurrencyPairFormat        *currency.PairFormat `json:"requestCurrencyPairFormat,omitempty"`
+	AuthenticatedAPISupport          *bool                `json:"authenticatedApiSupport,omitempty"`
+	AuthenticatedWebsocketAPISupport *bool                `json:"authenticatedWebsocketApiSupport,omitempty"`
+	APIKey                           *string              `json:"apiKey,omitempty"`
+	APISecret                        *string              `json:"apiSecret,omitempty"`
+	APIAuthPEMKeySupport             *bool                `json:"apiAuthPemKeySupport,omitempty"`
+	APIAuthPEMKey                    *string              `json:"apiAuthPemKey,omitempty"`
+	APIURL                           *string              `json:"apiUrl,omitempty"`
+	APIURLSecondary                  *string              `json:"apiUrlSecondary,omitempty"`
+	ClientID                         *string              `json:"clientId,omitempty"`
+	SupportsAutoPairUpdates          *bool                `json:"supportsAutoPairUpdates,omitempty"`
+	Websocket                        *bool                `json:"websocket,omitempty"`
+	WebsocketURL                     *string              `json:"websocketUrl,omitempty"`
 }
 
 // ProfilerConfig defines the profiler configuration to enable pprof
@@ -339,8 +340,9 @@ type APICredentialsValidatorConfig struct {
 
 // APIConfig stores the exchange API config
 type APIConfig struct {
-	AuthenticatedSupport bool `json:"authenticatedSupport"`
-	PEMKeySupport        bool `json:"pemKeySupport,omitempty"`
+	AuthenticatedSupport          bool `json:"authenticatedSupport"`
+	AuthenticatedWebsocketSupport bool `json:"authenticatedWebsocketApiSupport"`
+	PEMKeySupport                 bool `json:"pemKeySupport,omitempty"`
 
 	Endpoints            APIEndpointsConfig             `json:"endpoints"`
 	Credentials          APICredentialsConfig           `json:"credentials"`

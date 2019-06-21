@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -13,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -53,7 +55,7 @@ type COINUT struct {
 func (c *COINUT) GetInstruments() (Instruments, error) {
 	var result Instruments
 	params := make(map[string]interface{})
-	params["sec_type"] = "SPOT"
+	params["sec_type"] = strings.ToUpper(asset.Spot.String())
 
 	return result, c.SendHTTPRequest(coinutInstruments, params, false, &result)
 }

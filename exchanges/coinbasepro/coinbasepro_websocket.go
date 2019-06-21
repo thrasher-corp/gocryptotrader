@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
@@ -149,6 +150,51 @@ func (c *CoinbasePro) WsHandleData() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
+			case "received":
+				// We currently use l2update to calculate orderbook changes
+				received := WebsocketReceived{}
+				err := common.JSONDecode(resp.Raw, &received)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- received
+			case "open":
+				// We currently use l2update to calculate orderbook changes
+				open := WebsocketOpen{}
+				err := common.JSONDecode(resp.Raw, &open)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- open
+			case "done":
+				// We currently use l2update to calculate orderbook changes
+				done := WebsocketDone{}
+				err := common.JSONDecode(resp.Raw, &done)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- done
+			case "change":
+				// We currently use l2update to calculate orderbook changes
+				change := WebsocketChange{}
+				err := common.JSONDecode(resp.Raw, &change)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- change
+			case "activate":
+				// We currently use l2update to calculate orderbook changes
+				activate := WebsocketActivate{}
+				err := common.JSONDecode(resp.Raw, &activate)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
+				c.Websocket.DataHandler <- activate
 			}
 		}
 	}
@@ -243,10 +289,13 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
-	var channels = []string{"heartbeat", "level2", "ticker"}
+	var channels = []string{"heartbeat", "level2", "ticker", "user"}
 	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	for i := range channels {
+		if (channels[i] == "user" || channels[i] == "full") && !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			continue
+		}
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
 			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
@@ -270,6 +319,16 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 				},
 			},
 		},
+	}
+	if channelToSubscribe.Channel == "user" || channelToSubscribe.Channel == "full" {
+		n := fmt.Sprintf("%v", time.Now().Unix())
+		message := n + "GET" + "/users/self/verify"
+		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message),
+			[]byte(c.API.Credentials.Secret))
+		subscribe.Signature = crypto.Base64Encode(hmac)
+		subscribe.Key = c.API.Credentials.Key
+		subscribe.Passphrase = c.API.Credentials.ClientID
+		subscribe.Timestamp = n
 	}
 	return c.wsSend(subscribe)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var k Kraken
@@ -666,7 +667,7 @@ func TestOrderbookBufferReset(t *testing.T) {
 	for i := 1; i < orderbookBufferLimit+2; i++ {
 		obUpdates = append(obUpdates, fmt.Sprintf(`[0,{"a":[["5541.30000","2.50700000","%v"]],"b":[["5541.30000","1.00000000","%v"]]}]`, i, i))
 	}
-	k.Websocket.DataHandler = make(chan interface{}, 10)
+	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	var dataResponse WebsocketDataResponse
 	err := common.JSONDecode([]byte(obpartial), &dataResponse)
 	if err != nil {
@@ -715,7 +716,7 @@ func TestOrderBookOutOfOrder(t *testing.T) {
 	obupdate1 := `[0,{"a":[["5541.30000","0.00000000","1"]],"b":[["5541.30000","0.00000000","3"]]}]`
 	obupdate2 := `[0,{"a":[["5541.30000","2.50700000","2"]],"b":[["5541.30000","0.00000000","1"]]}]`
 
-	k.Websocket.DataHandler = make(chan interface{}, 10)
+	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	var dataResponse WebsocketDataResponse
 	err := common.JSONDecode([]byte(obpartial), &dataResponse)
 	if err != nil {

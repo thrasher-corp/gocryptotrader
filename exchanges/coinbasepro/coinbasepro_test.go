@@ -1,12 +1,15 @@
 package coinbasepro
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var c CoinbasePro
@@ -33,7 +36,9 @@ func TestSetup(t *testing.T) {
 	}
 	gdxConfig.API.Credentials.Key = apiKey
 	gdxConfig.API.Credentials.Secret = apiSecret
+	gdxConfig.API.Credentials.ClientID = clientID
 	gdxConfig.API.AuthenticatedSupport = true
+	gdxConfig.API.AuthenticatedWebsocketSupport = true
 	c.Setup(gdxConfig)
 }
 
@@ -87,139 +92,85 @@ func TestGetServerTime(t *testing.T) {
 }
 
 func TestAuthRequests(t *testing.T) {
-
-	if c.ValidateAPICredentials() {
-
-		_, err := c.GetAccounts()
-		if err == nil {
-			t.Error("Test failed - GetAccounts() error", err)
-		}
-
-		_, err = c.GetAccount("234cb213-ac6f-4ed8-b7b6-e62512930945")
-		if err == nil {
-			t.Error("Test failed - GetAccount() error", err)
-		}
-
-		_, err = c.GetAccountHistory("234cb213-ac6f-4ed8-b7b6-e62512930945")
-		if err == nil {
-			t.Error("Test failed - GetAccountHistory() error", err)
-		}
-
-		_, err = c.GetHolds("234cb213-ac6f-4ed8-b7b6-e62512930945")
-		if err == nil {
-			t.Error("Test failed - GetHolds() error", err)
-		}
-
-		_, err = c.PlaceLimitOrder("", 0, 0, exchange.BuyOrderSide.ToLower().ToString(),
-			"", "", "BTC-USD", "", false)
-		if err == nil {
-			t.Error("Test failed - PlaceLimitOrder() error", err)
-		}
-
-		_, err = c.PlaceMarketOrder("", 1, 0, exchange.BuyOrderSide.ToLower().ToString(),
-			"BTC-USD", "")
-		if err == nil {
-			t.Error("Test failed - PlaceMarketOrder() error", err)
-		}
-
-		err = c.CancelExistingOrder("1337")
-		if err == nil {
-			t.Error("Test failed - CancelExistingOrder() error", err)
-		}
-
-		_, err = c.CancelAllExistingOrders("BTC-USD")
-		if err == nil {
-			t.Error("Test failed - CancelAllExistingOrders() error", err)
-		}
-
-		_, err = c.GetOrders([]string{"open", "done"}, "BTC-USD")
-		if err == nil {
-			t.Error("Test failed - GetOrders() error", err)
-		}
-
-		_, err = c.GetOrder("1337")
-		if err == nil {
-			t.Error("Test failed - GetOrders() error", err)
-		}
-
-		_, err = c.GetFills("1337", "BTC-USD")
-		if err == nil {
-			t.Error("Test failed - GetFills() error", err)
-		}
-		_, err = c.GetFills("", "")
-		if err == nil {
-			t.Error("Test failed - GetFills() error", err)
-		}
-
-		_, err = c.GetFundingRecords("rejected")
-		if err == nil {
-			t.Error("Test failed - GetFundingRecords() error", err)
-		}
-
-		// 	_, err := c.RepayFunding("1", "BTC")
-		// 	if err != nil {
-		// 		t.Error("Test failed - RepayFunding() error", err)
-		// 	}
-
-		_, err = c.MarginTransfer(1, "withdraw", "45fa9e3b-00ba-4631-b907-8a98cbdf21be", "BTC")
-		if err == nil {
-			t.Error("Test failed - MarginTransfer() error", err)
-		}
-
-		_, err = c.GetPosition()
-		if err == nil {
-			t.Error("Test failed - GetPosition() error", err)
-		}
-
-		_, err = c.ClosePosition(false)
-		if err == nil {
-			t.Error("Test failed - ClosePosition() error", err)
-		}
-
-		_, err = c.GetPayMethods()
-		if err == nil {
-			t.Error("Test failed - GetPayMethods() error", err)
-		}
-
-		_, err = c.DepositViaPaymentMethod(1, "BTC", "1337")
-		if err == nil {
-			t.Error("Test failed - DepositViaPaymentMethod() error", err)
-		}
-
-		_, err = c.DepositViaCoinbase(1, "BTC", "1337")
-		if err == nil {
-			t.Error("Test failed - DepositViaCoinbase() error", err)
-		}
-
-		_, err = c.WithdrawViaPaymentMethod(1, "BTC", "1337")
-		if err == nil {
-			t.Error("Test failed - WithdrawViaPaymentMethod() error", err)
-		}
-
-		// 	_, err := c.WithdrawViaCoinbase(1, "BTC", "c13cd0fc-72ca-55e9-843b-b84ef628c198")
-		// 	if err != nil {
-		// 		t.Error("Test failed - WithdrawViaCoinbase() error", err)
-		// 	}
-
-		_, err = c.WithdrawCrypto(1, "BTC", "1337")
-		if err == nil {
-			t.Error("Test failed - WithdrawViaCoinbase() error", err)
-		}
-
-		_, err = c.GetCoinbaseAccounts()
-		if err == nil {
-			t.Error("Test failed - GetCoinbaseAccounts() error", err)
-		}
-
-		_, err = c.GetReportStatus("1337")
-		if err == nil {
-			t.Error("Test failed - GetReportStatus() error", err)
-		}
-
-		_, err = c.GetTrailingVolume()
-		if err == nil {
-			t.Error("Test failed - GetTrailingVolume() error", err)
-		}
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	_, err := c.GetAccounts()
+	if err != nil {
+		t.Error("Test failed - GetAccounts() error", err)
+	}
+	accountResponse, err := c.GetAccount("13371337-1337-1337-1337-133713371337")
+	if accountResponse.ID != "" {
+		t.Error("Expecting no data returned")
+	}
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	accountHistoryResponse, err := c.GetAccountHistory("13371337-1337-1337-1337-133713371337")
+	if len(accountHistoryResponse) > 0 {
+		t.Error("Expecting no data returned")
+	}
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	getHoldsResponse, err := c.GetHolds("13371337-1337-1337-1337-133713371337")
+	if len(getHoldsResponse) > 0 {
+		t.Error("Expecting no data returned")
+	}
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	orderResponse, err := c.PlaceLimitOrder("", 0.001, 0.001, "buy", "", "", "BTC-USD", "", false)
+	if orderResponse != "" {
+		t.Error("Expecting no data returned")
+	}
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	marketOrderResponse, err := c.PlaceMarketOrder("", 1, 0, "buy", "BTC-USD", "")
+	if marketOrderResponse != "" {
+		t.Error("Expecting no data returned")
+	}
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	fillsResponse, err := c.GetFills("1337", "BTC-USD")
+	if len(fillsResponse) > 0 {
+		t.Error("Expecting no data returned")
+	}
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	_, err = c.GetFills("", "")
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	_, err = c.GetFundingRecords("rejected")
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	marginTransferResponse, err := c.MarginTransfer(1, "withdraw", "13371337-1337-1337-1337-133713371337", "BTC")
+	if marginTransferResponse.ID != "" {
+		t.Error("Expecting no data returned")
+	}
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	_, err = c.GetPosition()
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	_, err = c.ClosePosition(false)
+	if err == nil {
+		t.Error("Expecting error")
+	}
+	_, err = c.GetPayMethods()
+	if err != nil {
+		t.Error("Test failed - GetPayMethods() error", err)
+	}
+	_, err = c.GetCoinbaseAccounts()
+	if err != nil {
+		t.Error("Test failed - GetCoinbaseAccounts() error", err)
 	}
 }
 
@@ -636,4 +587,38 @@ func TestGetDepositAddress(t *testing.T) {
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() error", err)
 	}
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	c.SetDefaults()
+	TestSetup(t)
+	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go c.WsHandleData()
+	defer c.WebsocketConn.Close()
+	err = c.Subscribe(exchange.WebsocketChannelSubscription{
+		Channel:  "user",
+		Currency: currency.NewPairFromString("BTC-USD"),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case badResponse := <-c.Websocket.DataHandler:
+		t.Error(badResponse)
+	case <-timer.C:
+	}
+	timer.Stop()
 }

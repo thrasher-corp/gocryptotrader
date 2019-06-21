@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
@@ -18,7 +20,8 @@ import (
 )
 
 const (
-	zbWebsocketAPI = "wss://api.zb.cn:9999/websocket"
+	zbWebsocketAPI       = "wss://api.zb.cn:9999/websocket"
+	zWebsocketAddChannel = "addChannel"
 )
 
 // WsConnect initiates a websocket connection
@@ -82,9 +85,9 @@ func (z *ZB) WsHandleData() {
 				time.Sleep(time.Second)
 				continue
 			}
-
+			fixedJSON := z.wsFixInvalidJSON(resp.Raw)
 			var result Generic
-			err = common.JSONDecode(resp.Raw, &result)
+			err = common.JSONDecode(fixedJSON, &result)
 			if err != nil {
 				z.Websocket.DataHandler <- err
 				continue
@@ -108,7 +111,7 @@ func (z *ZB) WsHandleData() {
 
 				var ticker WsTicker
 
-				err := common.JSONDecode(resp.Raw, &ticker)
+				err := common.JSONDecode(fixedJSON, &ticker)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -126,7 +129,7 @@ func (z *ZB) WsHandleData() {
 
 			case strings.Contains(result.Channel, "depth"):
 				var depth WsDepth
-				err := common.JSONDecode(resp.Raw, &depth)
+				err := common.JSONDecode(fixedJSON, &depth)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -175,13 +178,16 @@ func (z *ZB) WsHandleData() {
 
 			case strings.Contains(result.Channel, "trades"):
 				var trades WsTrades
-				err := common.JSONDecode(resp.Raw, &trades)
+				err := common.JSONDecode(fixedJSON, &trades)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
 				}
 
 				// Most up to date trade
+				if len(trades.Data) == 0 {
+					continue
+				}
 				t := trades.Data[len(trades.Data)-1]
 
 				channelInfo := strings.Split(result.Channel, "_")
@@ -197,7 +203,86 @@ func (z *ZB) WsHandleData() {
 					Amount:       t.Amount,
 					Side:         t.TradeType,
 				}
-
+			case strings.EqualFold(result.Channel, "addSubUser"):
+				var response WsRequestResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.EqualFold(result.Channel, "getSubUserList"):
+				var response WsGetSubUserListResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.EqualFold(result.Channel, "doTransferFunds"):
+				var response WsRequestResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.EqualFold(result.Channel, "createSubUserKey"):
+				var response WsRequestResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.Contains(result.Channel, "_order"):
+				var response WsSubmitOrderResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.Contains(result.Channel, "_cancelorder"):
+				var response WsCancelOrderResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.Contains(result.Channel, "_getorders"):
+				var response WsGetOrdersResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.Contains(result.Channel, "_getorder"):
+				var response WsGetOrderResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.Contains(result.Channel, "_getordersignoretradetype"):
+				var response WsGetOrdersIgnoreTradeTypeResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
+			case strings.EqualFold(result.Channel, "getAccountInfo"):
+				var response WsGetAccountInfoResponse
+				err := common.JSONDecode(fixedJSON, &response)
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+				z.Websocket.DataHandler <- response
 			default:
 				z.Websocket.DataHandler <- errors.New("zb_websocket.go error - unhandled websocket response")
 				continue
@@ -242,7 +327,7 @@ var wsErrCodes = map[int64]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	// Tickerdata is its own channel
 	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 		Channel: "markets",
@@ -264,7 +349,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 // Subscribe sends a websocket message to receive data from the channel
 func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
-		Event:   "addChannel",
+		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,
 	}
 	return z.wsSend(subscriptionRequest)
@@ -279,7 +364,198 @@ func (z *ZB) wsSend(data interface{}) error {
 		return err
 	}
 	if z.Verbose {
-		log.Debugf("%v sending message to websocket %v", z.Name, data)
+		log.Debugf("%v sending message to websocket %v", z.Name, string(json))
 	}
 	return z.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+}
+
+func (z *ZB) wsAddSubUser(username, password string) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsAddSubUserRequest{
+		Memo:        "Memo",
+		Password:    password,
+		SubUserName: username,
+	}
+	request.Channel = "addSubUser"
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsGetSubUserList() error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsAuthenticatedRequest{}
+	request.Channel = "getSubUserList"
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName, toUserName string) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsDoTransferFundsRequest{
+		Amount:       amount,
+		Currency:     pair,
+		FromUserName: fromUserName,
+		ToUserName:   toUserName,
+		No:           fmt.Sprintf("%v", time.Now().Unix()),
+	}
+	request.Channel = "doTransferFunds"
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm bool, keyName, toUserID string) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsCreateSubUserKeyRequest{
+		AssetPerm:   assetPerm,
+		EntrustPerm: entrustPerm,
+		KeyName:     keyName,
+		LeverPerm:   leverPerm,
+		MoneyPerm:   moneyPerm,
+		No:          fmt.Sprintf("%v", time.Now().Unix()),
+		ToUserID:    toUserID,
+	}
+	request.Channel = "createSubUserKey"
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsGenerateSignature(request interface{}) string {
+	jsonResponse, err := common.JSONEncode(request)
+	if err != nil {
+		log.Error(err)
+	}
+	hmac := crypto.GetHMAC(crypto.HashMD5,
+		jsonResponse,
+		[]byte(crypto.Sha1ToHex(z.API.Credentials.Secret)))
+	return fmt.Sprintf("%x", hmac)
+
+}
+
+func (z *ZB) wsFixInvalidJSON(json []byte) []byte {
+	invalidZbJSONRegex := `(\"\[|\"\{)(.*)(\]\"|\}\")`
+	regexChecker := regexp.MustCompile(invalidZbJSONRegex)
+	matchingResults := regexChecker.Find(json)
+	if matchingResults == nil {
+		return json
+	}
+	// Remove first quote character
+	capturedInvalidZBJSON := strings.Replace(string(matchingResults), "\"", "", 1)
+	// Remove last quote character
+	fixedJSON := capturedInvalidZBJSON[:len(capturedInvalidZBJSON)-1]
+	return []byte(strings.Replace(string(json), string(matchingResults), fixedJSON, 1))
+}
+
+func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsSubmitOrderRequest{
+		Amount:    amount,
+		Price:     price,
+		TradeType: tradeType,
+		No:        fmt.Sprintf("%v", time.Now().Unix()),
+	}
+	request.Channel = fmt.Sprintf("%v_order", pair.String())
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsCancelOrderRequest{
+		ID: orderID,
+	}
+	request.Channel = fmt.Sprintf("%v_cancelorder", pair.String())
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsGetOrderRequest{
+		ID: orderID,
+	}
+	request.Channel = fmt.Sprintf("%v_getorder", pair.String())
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsGetOrdersRequest{
+		PageIndex: pageIndex,
+		TradeType: tradeType,
+	}
+	request.Channel = fmt.Sprintf("%v_getorders", pair.String())
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize int64) error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsGetOrdersIgnoreTradeTypeRequest{
+		PageIndex: pageIndex,
+		PageSize:  pageSize,
+	}
+	request.Channel = fmt.Sprintf("%v_getordersignoretradetype", pair.String())
+	request.Event = zWebsocketAddChannel
+	request.Accesskey = z.API.Credentials.Key
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
+}
+
+func (z *ZB) wsGetAccountInfoRequest() error {
+	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+	}
+	request := WsAuthenticatedRequest{
+		Channel:   "getaccountinfo",
+		Event:     zWebsocketAddChannel,
+		Accesskey: z.API.Credentials.Key,
+		No:        fmt.Sprintf("%v", time.Now().Unix()),
+	}
+	request.Sign = z.wsGenerateSignature(request)
+
+	return z.wsSend(request)
 }

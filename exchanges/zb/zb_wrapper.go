@@ -541,3 +541,13 @@ func (z *ZB) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSu
 func (z *ZB) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (z *ZB) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return z.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (z *ZB) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

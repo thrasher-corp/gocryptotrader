@@ -199,4 +199,14 @@ func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels [
 	return nil
 }
 
+// GetSubscriptions returns a copied list of subscriptions
+func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func  ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
+	return common.ErrNotYetImplemented
+}
+
 {{end}}

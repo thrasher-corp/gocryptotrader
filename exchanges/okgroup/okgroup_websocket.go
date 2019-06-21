@@ -200,8 +200,14 @@ func (o *OKGroup) WsConnect() error {
 	wg.Add(2)
 	go o.WsHandleData(&wg)
 	go o.wsPingHandler(&wg)
-	o.GenerateDefaultSubscriptions()
+	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		err = o.WsLogin()
+		if err != nil {
+			log.Errorf("%v - authentication failed: %v", o.Name, err)
+		}
+	}
 
+	o.GenerateDefaultSubscriptions()
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
 	return nil
@@ -301,10 +307,14 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 			}
 			var eventResponse WebsocketEventResponse
 			err = common.JSONDecode(resp.Raw, &eventResponse)
-			if err == nil && len(eventResponse.Channel) > 0 {
+			if err == nil && eventResponse.Event != "" {
+				if eventResponse.Event == "login" {
+					o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)
+				}
 				if o.Verbose {
 					log.Debugf("WS Event: %v on Channel: %v", eventResponse.Event, eventResponse.Channel)
 				}
+				o.Websocket.DataHandler <- eventResponse
 				continue
 			}
 		}
@@ -313,6 +323,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
 func (o *OKGroup) WsLogin() error {
+	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	utcTime := time.Now().UTC()
 	unixTime := utcTime.Unix()
 	signPath := "/users/self/verify"
@@ -325,10 +336,12 @@ func (o *OKGroup) WsLogin() error {
 	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
+		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	err = o.writeToWebsocket(string(json))
 	if err != nil {
+		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	return nil
@@ -371,6 +384,7 @@ func (o *OKGroup) GetAssetTypeFromTableName(table string) asset.Item {
 // WsHandleDataResponse classifies the WS response and sends to appropriate handler
 func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 	switch o.GetWsChannelWithoutOrderType(response.Table) {
+
 	case okGroupWsCandle60s, okGroupWsCandle180s, okGroupWsCandle300s, okGroupWsCandle900s,
 		okGroupWsCandle1800s, okGroupWsCandle3600s, okGroupWsCandle7200s, okGroupWsCandle14400s,
 		okGroupWsCandle21600s, okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:
@@ -684,7 +698,10 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (o *OKGroup) GenerateDefaultSubscriptions() {
 	enabledCurrencies := o.GetEnabledPairs(asset.Spot)
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
+	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		defaultSubscribedChannels = append(defaultSubscribedChannels, okGroupWsSpotMarginAccount, okGroupWsSpotAccount, okGroupWsSpotOrder)
+	}
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
@@ -703,6 +720,10 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 		Operation: "subscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
 	}
+	if strings.EqualFold(channelToSubscribe.Channel, okGroupWsSpotAccount) {
+		resp.Arguments = []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.Base.String())}
+	}
+
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if o.Verbose {

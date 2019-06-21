@@ -215,10 +215,11 @@ func (c *Config) PurgeExchangeAPICredentials() {
 	m.Lock()
 	defer m.Unlock()
 	for x := range c.Exchanges {
-		if !c.Exchanges[x].API.AuthenticatedSupport {
+		if !c.Exchanges[x].API.AuthenticatedSupport && !c.Exchanges[x].API.AuthenticatedWebsocketSupport {
 			continue
 		}
 		c.Exchanges[x].API.AuthenticatedSupport = false
+		c.Exchanges[x].API.AuthenticatedWebsocketSupport = false
 
 		if c.Exchanges[x].API.CredentialsValidator.RequiresKey {
 			c.Exchanges[x].API.Credentials.Key = DefaultAPIKey
@@ -838,6 +839,9 @@ func (c *Config) CheckExchangeConfigValues() error {
 		if c.Exchanges[i].APIKey != nil {
 			// It is, migrate settings to new format
 			c.Exchanges[i].API.AuthenticatedSupport = *c.Exchanges[i].AuthenticatedAPISupport
+			if c.Exchanges[i].AuthenticatedWebsocketAPISupport != nil {
+				c.Exchanges[i].API.AuthenticatedWebsocketSupport = *c.Exchanges[i].AuthenticatedWebsocketAPISupport
+			}
 			c.Exchanges[i].API.Credentials.Key = *c.Exchanges[i].APIKey
 			c.Exchanges[i].API.Credentials.Secret = *c.Exchanges[i].APISecret
 
@@ -862,6 +866,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 			// Flush settings
 			c.Exchanges[i].AuthenticatedAPISupport = nil
+			c.Exchanges[i].AuthenticatedWebsocketAPISupport = nil
 			c.Exchanges[i].APIKey = nil
 			c.Exchanges[i].APIAuthPEMKey = nil
 			c.Exchanges[i].APISecret = nil
@@ -941,20 +946,23 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].Enabled = false
 				continue
 			}
-			if c.Exchanges[i].API.AuthenticatedSupport && c.Exchanges[i].API.CredentialsValidator != nil {
+			if (c.Exchanges[i].API.AuthenticatedSupport || c.Exchanges[i].API.AuthenticatedWebsocketSupport) && c.Exchanges[i].API.CredentialsValidator != nil {
+				var failed bool
 				if c.Exchanges[i].API.CredentialsValidator.RequiresKey && (c.Exchanges[i].API.Credentials.Key == "" || c.Exchanges[i].API.Credentials.Key == DefaultAPIKey) {
-					c.Exchanges[i].API.AuthenticatedSupport = false
+					failed = true
 				}
 
 				if c.Exchanges[i].API.CredentialsValidator.RequiresSecret && (c.Exchanges[i].API.Credentials.Secret == "" || c.Exchanges[i].API.Credentials.Secret == DefaultAPISecret) {
-					c.Exchanges[i].API.AuthenticatedSupport = false
+					failed = true
 				}
 
 				if c.Exchanges[i].API.CredentialsValidator.RequiresClientID && (c.Exchanges[i].API.Credentials.ClientID == DefaultAPIClientID || c.Exchanges[i].API.Credentials.ClientID == "") {
-					c.Exchanges[i].API.AuthenticatedSupport = false
+					failed = true
 				}
 
-				if !c.Exchanges[i].API.AuthenticatedSupport {
+				if failed {
+					c.Exchanges[i].API.AuthenticatedSupport = false
+					c.Exchanges[i].API.AuthenticatedWebsocketSupport = false
 					log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
 				}
 			}

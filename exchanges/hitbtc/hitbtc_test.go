@@ -1,12 +1,16 @@
 package hitbtc
 
 import (
+	"net/http"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var h HitBTC
@@ -30,6 +34,7 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - HitBTC Setup() init error")
 	}
 	hitbtcConfig.API.AuthenticatedSupport = true
+	hitbtcConfig.API.AuthenticatedWebsocketSupport = true
 	hitbtcConfig.API.Credentials.Key = apiKey
 	hitbtcConfig.API.Credentials.Secret = apiSecret
 
@@ -99,7 +104,7 @@ func TestGetFee(t *testing.T) {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := h.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 			t.Error(err)
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
@@ -107,7 +112,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
 		if resp, err := h.GetFee(feeBuilder); resp != float64(1000) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(1000), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
 			t.Error(err)
 		}
 
@@ -115,7 +120,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
 		if resp, err := h.GetFee(feeBuilder); resp != float64(-0.0001) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(-0.0001), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 			t.Error(err)
 		}
 
@@ -123,7 +128,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
 		if resp, err := h.GetFee(feeBuilder); resp != float64(-1) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(-1), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
 
@@ -131,7 +136,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 		if resp, err := h.GetFee(feeBuilder); resp != float64(0.009580) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.009580), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.042800), resp)
 			t.Error(err)
 		}
 
@@ -382,4 +387,108 @@ func TestGetDepositAddress(t *testing.T) {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}
 	}
+}
+func setupWsAuth(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	h.WebsocketConn, _, err = dialer.Dial(hitbtcWebsocketAddress, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go h.WsHandleData()
+	h.wsLogin()
+	timer := time.NewTimer(time.Second)
+	select {
+	case loginError := <-h.Websocket.DataHandler:
+		t.Fatal(loginError)
+	case <-timer.C:
+	}
+	timer.Stop()
+}
+
+// TestWsCancelOrder dials websocket, sends cancel request.
+func TestWsCancelOrder(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsCancelOrder("ImNotARealOrderID")
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expecting response")
+	}
+	timer.Stop()
+}
+
+// TestWsPlaceOrder dials websocket, sends order submission.
+func TestWsPlaceOrder(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsPlaceOrder(currency.NewPair(currency.LTC, currency.BTC), exchange.BuyOrderSide.ToString(), 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expecting response")
+	}
+	timer.Stop()
+}
+
+// TestWsReplaceOrder dials websocket, sends replace order request.
+func TestWsReplaceOrder(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsReplaceOrder("ImNotARealOrderID", 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expecting response")
+	}
+	timer.Stop()
+}
+
+// TestWsGetActiveOrders dials websocket, sends get active orders request.
+func TestWsGetActiveOrders(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsGetActiveOrders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expecting response")
+	}
+	timer.Stop()
+}
+
+// TestWsGetTradingBalance dials websocket, sends get trading balance request.
+func TestWsGetTradingBalance(t *testing.T) {
+	setupWsAuth(t)
+	err := h.wsGetTradingBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expecting response")
+	}
+	timer.Stop()
 }

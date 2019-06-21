@@ -1303,7 +1303,8 @@ type WebsocketEventRequest struct {
 // WebsocketEventResponse contains event data for a websocket channel
 type WebsocketEventResponse struct {
 	Event   string `json:"event"`
-	Channel string `json:"channel"`
+	Channel string `json:"channel,omitempty"`
+	Success bool   `json:"success,omitempty"`
 }
 
 // WebsocketDataResponse formats all response data for a websocket event

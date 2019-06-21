@@ -13,7 +13,9 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -70,13 +72,15 @@ func TestSetup(t *testing.T) {
 		websocketEnabled = true
 	}
 	okexConfig.API.AuthenticatedSupport = true
+	okexConfig.API.AuthenticatedWebsocketSupport = true
 	okexConfig.API.Credentials.Key = apiKey
 	okexConfig.API.Credentials.Secret = apiSecret
 	okexConfig.API.Credentials.ClientID = passphrase
 	okexConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
 	o.Setup(okexConfig)
 	testSetupRan = true
-	o.Websocket.DataHandler = make(chan interface{}, 999)
+	o.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	o.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 }
 
 func areTestAPIKeysSet() bool {
@@ -1557,13 +1561,12 @@ func TestGetETTSettlementPriceHistory(t *testing.T) {
 // Will log in if credentials are present
 func TestSendWsMessages(t *testing.T) {
 	TestSetDefaults(t)
-	if !websocketEnabled {
-		t.Skip("Websocket not enabled, skipping")
+	if !o.Websocket.IsEnabled() && !o.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	var err error
 	var ok bool
-	o.Websocket.TrafficAlert = make(chan struct{}, 99)
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
 	if err != nil {
@@ -1587,16 +1590,12 @@ func TestSendWsMessages(t *testing.T) {
 			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 		}
 	}
-
-	if !areTestAPIKeysSet() {
-		return
-	}
 	err = o.WsLogin()
 	if err != nil {
 		t.Error(err)
 	}
-	response = <-o.Websocket.DataHandler
-	if err, ok := response.(error); ok && err != nil {
+	responseTwo := <-o.Websocket.DataHandler
+	if err, ok := responseTwo.(error); ok && err != nil {
 		t.Error(err)
 	}
 }
@@ -1605,7 +1604,7 @@ func TestSendWsMessages(t *testing.T) {
 func TestGetAssetTypeFromTableName(t *testing.T) {
 	str := "spot/candle300s:BTC-USDT"
 	spot := o.GetAssetTypeFromTableName(str)
-	if spot != "SPOT" {
+	if !strings.EqualFold(spot.String(), asset.Spot.String()) {
 		t.Errorf("Error, expected 'SPOT', received: '%v'", spot)
 	}
 }

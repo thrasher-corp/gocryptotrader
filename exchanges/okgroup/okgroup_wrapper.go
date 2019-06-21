@@ -446,3 +446,13 @@ func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketCh
 	o.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (o *OKGroup) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return o.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (o *OKGroup) AuthenticateWebsocket() error {
+	return o.WsLogin()
+}

@@ -427,18 +427,12 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
 			h.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
-		orderDate, err := time.Parse(time.RFC3339, allOrders[i].CreatedAt)
-		if err != nil {
-			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				h.Name, "GetActiveOrders", allOrders[i].ID, allOrders[i].CreatedAt)
-		}
-
 		orders = append(orders, exchange.OrderDetail{
 			ID:           allOrders[i].ID,
 			Amount:       allOrders[i].Quantity,
 			Exchange:     h.Name,
 			Price:        allOrders[i].Price,
-			OrderDate:    orderDate,
+			OrderDate:    allOrders[i].CreatedAt,
 			OrderSide:    side,
 			CurrencyPair: symbol,
 		})
@@ -471,18 +465,12 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
 			h.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
-		orderDate, err := time.Parse(time.RFC3339, allOrders[i].CreatedAt)
-		if err != nil {
-			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				h.Name, "GetOrderHistory", allOrders[i].ID, allOrders[i].CreatedAt)
-		}
-
 		orders = append(orders, exchange.OrderDetail{
 			ID:           allOrders[i].ID,
 			Amount:       allOrders[i].Quantity,
 			Exchange:     h.Name,
 			Price:        allOrders[i].Price,
-			OrderDate:    orderDate,
+			OrderDate:    allOrders[i].CreatedAt,
 			OrderSide:    side,
 			CurrencyPair: symbol,
 		})
@@ -505,4 +493,14 @@ func (h *HitBTC) SubscribeToWebsocketChannels(channels []exchange.WebsocketChann
 func (h *HitBTC) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	h.Websocket.UnsubscribeToChannels(channels)
 	return nil
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (h *HitBTC) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return h.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (h *HitBTC) AuthenticateWebsocket() error {
+	return h.wsLogin()
 }

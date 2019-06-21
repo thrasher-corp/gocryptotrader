@@ -500,3 +500,13 @@ func (y *Yobit) SubscribeToWebsocketChannels(channels []exchange.WebsocketChanne
 func (y *Yobit) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (y *Yobit) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (y *Yobit) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

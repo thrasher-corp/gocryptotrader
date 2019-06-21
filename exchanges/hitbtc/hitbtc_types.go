@@ -1,6 +1,10 @@
 package hitbtc
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-/gocryptotrader/currency"
+)
 
 // Ticker holds ticker information
 type Ticker struct {
@@ -186,19 +190,19 @@ type AuthenticatedTradeHistoryResponse struct {
 
 // OrderHistoryResponse used for GetOrderHistory
 type OrderHistoryResponse struct {
-	ID            string  `json:"id"`
-	ClientOrderID string  `json:"clientOrderId"`
-	Symbol        string  `json:"symbol"`
-	Side          string  `json:"side"`
-	Status        string  `json:"status"`
-	Type          string  `json:"type"`
-	TimeInForce   string  `json:"timeInForce"`
-	Price         float64 `json:"price,string"`
-	Quantity      float64 `json:"quantity,string"`
-	PostOnly      bool    `json:"postOnly"`
-	CumQuantity   float64 `json:"cumQuantity,string"`
-	CreatedAt     string  `json:"createdAt"`
-	UpdatedAt     string  `json:"updatedAt"`
+	ID            string    `json:"id"`
+	ClientOrderID string    `json:"clientOrderId"`
+	Symbol        string    `json:"symbol"`
+	Side          string    `json:"side"`
+	Status        string    `json:"status"`
+	Type          string    `json:"type"`
+	TimeInForce   string    `json:"timeInForce"`
+	Price         float64   `json:"price,string"`
+	Quantity      float64   `json:"quantity,string"`
+	PostOnly      bool      `json:"postOnly"`
+	CumQuantity   float64   `json:"cumQuantity,string"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 // ResultingTrades holds resulting trade information
@@ -295,12 +299,13 @@ type LendingHistory struct {
 }
 
 type capture struct {
-	Method string `json:"method"`
-	Result bool   `json:"result"`
+	Method string      `json:"method,omitempty"`
+	Result interface{} `json:"result"`
 	Error  struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
+	ID int64 `json:"id,omitempty"`
 }
 
 // WsRequest defines a request obj for the JSON-RPC and gets a websocket
@@ -314,13 +319,13 @@ type WsRequest struct {
 // WsNotification defines a notification obj for the JSON-RPC this does not get
 // a websocket response
 type WsNotification struct {
-	JSONRPCVersion string      `json:"jsonrpc"`
+	JSONRPCVersion string      `json:"jsonrpc,omitempty"`
 	Method         string      `json:"method"`
 	Params         interface{} `json:"params"`
 }
 
 type params struct {
-	Symbol string `json:"symbol"`
+	Symbol string `json:"symbol,omitempty"`
 	Period string `json:"period,omitempty"`
 	Limit  int64  `json:"limit,omitempty"`
 }
@@ -369,4 +374,235 @@ type WsTrade struct {
 		} `json:"data"`
 		Symbol string `json:"symbol"`
 	} `json:"params"`
+}
+
+// WsLoginRequest defines login requirements for ws
+type WsLoginRequest struct {
+	Method string      `json:"method"`
+	Params WsLoginData `json:"params"`
+}
+
+// WsLoginData sets credentials for WsLoginRequest
+type WsLoginData struct {
+	Algo      string `json:"algo"`
+	PKey      string `json:"pKey"`
+	Nonce     string `json:"nonce"`
+	Signature string `json:"signature"`
+}
+
+// WsActiveOrdersResponse Active order response for auth subscription to reports
+type WsActiveOrdersResponse struct {
+	Params []WsActiveOrdersResponseData `json:"params"`
+}
+
+// WsActiveOrdersResponseData Active order data for WsActiveOrdersResponse
+type WsActiveOrdersResponseData struct {
+	ID            string        `json:"id"`
+	ClientOrderID string        `json:"clientOrderId"`
+	Symbol        currency.Pair `json:"symbol"`
+	Side          string        `json:"side"`
+	Status        string        `json:"status"`
+	Type          string        `json:"type"`
+	TimeInForce   string        `json:"timeInForce"`
+	Quantity      float64       `json:"quantity,string"`
+	Price         float64       `json:"price,string"`
+	CumQuantity   float64       `json:"cumQuantity,string"`
+	PostOnly      bool          `json:"postOnly"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	UpdatedAt     time.Time     `json:"updatedAt"`
+	ReportType    string        `json:"reportType"`
+}
+
+// WsReportResponse report response for auth subscription to reports
+type WsReportResponse struct {
+	Params WsReportResponseData `json:"params"`
+}
+
+// WsReportResponseData Report data for WsReportResponse
+type WsReportResponseData struct {
+	ID            string        `json:"id"`
+	ClientOrderID string        `json:"clientOrderId"`
+	Symbol        currency.Pair `json:"symbol"`
+	Side          string        `json:"side"`
+	Status        string        `json:"status"`
+	Type          string        `json:"type"`
+	TimeInForce   string        `json:"timeInForce"`
+	Quantity      float64       `json:"quantity,string"`
+	Price         float64       `json:"price,string"`
+	CumQuantity   float64       `json:"cumQuantity,string"`
+	PostOnly      bool          `json:"postOnly"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	UpdatedAt     time.Time     `json:"updatedAt"`
+	ReportType    string        `json:"reportType"`
+	TradeQuantity float64       `json:"tradeQuantity,string"`
+	TradePrice    float64       `json:"tradePrice,string"`
+	TradeID       int64         `json:"tradeId"`
+	TradeFee      float64       `json:"tradeFee,string"`
+}
+
+// WsSubmitOrderRequest WS request
+type WsSubmitOrderRequest struct {
+	Method string                   `json:"method"`
+	Params WsSubmitOrderRequestData `json:"params"`
+	ID     int64                    `json:"id"`
+}
+
+// WsSubmitOrderRequestData WS request data
+type WsSubmitOrderRequestData struct {
+	ClientOrderID string        `json:"clientOrderId"`
+	Symbol        currency.Pair `json:"symbol"`
+	Side          string        `json:"side"`
+	Price         float64       `json:"price,string"`
+	Quantity      float64       `json:"quantity,string"`
+}
+
+// WsSubmitOrderSuccessResponse WS response
+type WsSubmitOrderSuccessResponse struct {
+	Result WsSubmitOrderSuccessResponseData `json:"result"`
+	ID     int64                            `json:"id"`
+}
+
+// WsSubmitOrderSuccessResponseData WS response data
+type WsSubmitOrderSuccessResponseData struct {
+	ID            string    `json:"id"`
+	ClientOrderID string    `json:"clientOrderId"`
+	Symbol        string    `json:"symbol"`
+	Side          string    `json:"side"`
+	Status        string    `json:"status"`
+	Type          string    `json:"type"`
+	TimeInForce   string    `json:"timeInForce"`
+	Quantity      float64   `json:"quantity,string"`
+	Price         float64   `json:"price,string"`
+	CumQuantity   float64   `json:"cumQuantity,string"`
+	PostOnly      bool      `json:"postOnly"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+	ReportType    string    `json:"reportType"`
+}
+
+// WsSubmitOrderErrorResponse WS error response
+type WsSubmitOrderErrorResponse struct {
+	Error WsSubmitOrderErrorResponseData `json:"error"`
+	ID    int64                          `json:"id"`
+}
+
+// WsSubmitOrderErrorResponseData WS error response data
+type WsSubmitOrderErrorResponseData struct {
+	Code        int64  `json:"code"`
+	Message     string `json:"message"`
+	Description string `json:"description"`
+}
+
+// WsCancelOrderResponse WS response
+type WsCancelOrderResponse struct {
+	Result WsCancelOrderResponseData `json:"result"`
+	ID     int64                     `json:"id"`
+}
+
+// WsCancelOrderResponseData WS response data
+type WsCancelOrderResponseData struct {
+	ID            string        `json:"id"`
+	ClientOrderID string        `json:"clientOrderId"`
+	Symbol        currency.Pair `json:"symbol"`
+	Side          string        `json:"side"`
+	Status        string        `json:"status"`
+	Type          string        `json:"type"`
+	TimeInForce   string        `json:"timeInForce"`
+	Quantity      float64       `json:"quantity,string"`
+	Price         float64       `json:"price,string"`
+	CumQuantity   float64       `json:"cumQuantity,string"`
+	PostOnly      bool          `json:"postOnly"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	UpdatedAt     time.Time     `json:"updatedAt"`
+	ReportType    string        `json:"reportType"`
+}
+
+// WsReplaceOrderResponse WS response
+type WsReplaceOrderResponse struct {
+	Result WsReplaceOrderResponseData `json:"result"`
+	ID     int64                      `json:"id"`
+}
+
+// WsReplaceOrderResponseData WS response data
+type WsReplaceOrderResponseData struct {
+	ID                           string        `json:"id"`
+	ClientOrderID                string        `json:"clientOrderId"`
+	Symbol                       currency.Pair `json:"symbol"`
+	Side                         string        `json:"side"`
+	Status                       string        `json:"status"`
+	Type                         string        `json:"type"`
+	TimeInForce                  string        `json:"timeInForce"`
+	Quantity                     float64       `json:"quantity,string"`
+	Price                        float64       `json:"price,string"`
+	CumQuantity                  float64       `json:"cumQuantity,string"`
+	PostOnly                     bool          `json:"postOnly"`
+	CreatedAt                    time.Time     `json:"createdAt"`
+	UpdatedAt                    time.Time     `json:"updatedAt"`
+	ReportType                   string        `json:"reportType"`
+	OriginalRequestClientOrderID string        `json:"originalRequestClientOrderId"`
+}
+
+// WsGetActiveOrdersResponse WS response
+type WsGetActiveOrdersResponse struct {
+	Result []WsGetActiveOrdersResponseData `json:"result"`
+	ID     int64                           `json:"id"`
+}
+
+// WsGetActiveOrdersResponseData WS response data
+type WsGetActiveOrdersResponseData struct {
+	ID                           string        `json:"id"`
+	ClientOrderID                string        `json:"clientOrderId"`
+	Symbol                       currency.Pair `json:"symbol"`
+	Side                         string        `json:"side"`
+	Status                       string        `json:"status"`
+	Type                         string        `json:"type"`
+	TimeInForce                  string        `json:"timeInForce"`
+	Quantity                     float64       `json:"quantity,string"`
+	Price                        float64       `json:"price,string"`
+	CumQuantity                  float64       `json:"cumQuantity,string"`
+	PostOnly                     bool          `json:"postOnly"`
+	CreatedAt                    time.Time     `json:"createdAt"`
+	UpdatedAt                    time.Time     `json:"updatedAt"`
+	ReportType                   string        `json:"reportType"`
+	OriginalRequestClientOrderID string        `json:"originalRequestClientOrderId"`
+}
+
+// WsGetTradingBalanceResponse WS response
+type WsGetTradingBalanceResponse struct {
+	Result []WsGetTradingBalanceResponseData `json:"result"`
+	ID     int64                             `json:"id"`
+}
+
+// WsGetTradingBalanceResponseData WS response data
+type WsGetTradingBalanceResponseData struct {
+	Currency  currency.Code `json:"currency"`
+	Available float64       `json:"available,string"`
+	Reserved  float64       `json:"reserved,string"`
+}
+
+// WsCancelOrderRequest WS request
+type WsCancelOrderRequest struct {
+	Method string                   `json:"method"`
+	Params WsCancelOrderRequestData `json:"params"`
+	ID     int64                    `json:"id"`
+}
+
+// WsCancelOrderRequestData WS request data
+type WsCancelOrderRequestData struct {
+	ClientOrderID string `json:"clientOrderId"`
+}
+
+// WsReplaceOrderRequest WS request
+type WsReplaceOrderRequest struct {
+	Method string                    `json:"method"`
+	Params WsReplaceOrderRequestData `json:"params"`
+	ID     int64                     `json:"id,omitempty"`
+}
+
+// WsReplaceOrderRequestData WS request data
+type WsReplaceOrderRequestData struct {
+	ClientOrderID   string  `json:"clientOrderId,omitempty"`
+	RequestClientID string  `json:"requestClientId,omitempty"`
+	Quantity        float64 `json:"quantity,string,omitempty"`
+	Price           float64 `json:"price,string,omitempty"`
 }
