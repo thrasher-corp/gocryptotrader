@@ -14,29 +14,22 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/core"
 )
 
 const (
 	// DefaultRepo is the main example repository
-	DefaultRepo = "https://api.github.com/repos/thrasher-/gocryptotrader"
+	DefaultRepo = "https://api.github.com/repos/[REPO ADDRESS HERE]"
+
 	// GithubAPIEndpoint allows the program to query your repository
 	// contributor list
 	GithubAPIEndpoint = "/contributors"
 
 	// LicenseFile defines a license file
 	LicenseFile = "LICENSE"
+
 	// ContributorFile defines contributor file
 	ContributorFile = "CONTRIBUTORS"
-
-	welcome = `
-	___________.__                        .__                           _________                      
-	\__    ___/|  |______________    _____|  |__   ___________          \_   ___ \  _________________  
-	  |    |   |  |  \_  __ \__  \  /  ___/  |  \_/ __ \_  __ \  ______ /    \  \/ /  _ \_  __ \____ \ 
-	  |    |   |   Y  \  | \// __ \_\___ \|   Y  \  ___/|  | \/ /_____/ \     \___(  <_> )  | \/  |_> >
-	  |____|   |___|  /__|  (____  /____  >___|  /\___  >__|             \______  /\____/|__|  |   __/ 
-					\/           \/     \/     \/     \/                        \/             |__|    
-
-	This will update and regenerate documentation for the different packages in your repo.`
 )
 
 // Contributor defines an account associated with this code base by doing
@@ -88,8 +81,13 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Println(welcome)
+	fmt.Println(core.Banner)
+	fmt.Println("This will update and regenerate documentation for the different packages in your repo.")
 	fmt.Println()
+
+	if *verbose {
+		fmt.Println("Fetching configuration...")
+	}
 
 	config, err := GetConfiguration()
 	if err != nil {
@@ -97,7 +95,11 @@ func main() {
 			err)
 	}
 
-	dirList, err := GetProjectDirectoryTree(&config)
+	if *verbose {
+		fmt.Println("Fetching project directory tree...")
+	}
+
+	dirList, err := GetProjectDirectoryTree(&config, *verbose)
 	if err != nil {
 		log.Fatalf("Documentation Generation Tool - GetProjectDirectoryTree error %s",
 			err)
@@ -105,7 +107,10 @@ func main() {
 
 	var contributors []Contributor
 	if config.ContributorFile {
-		contributors, err = GetContributorList(config.GithubRepo, *verbose)
+		if *verbose {
+			fmt.Println("Fetching repository contributor list...")
+		}
+		contributors, err = GetContributorList(config.GithubRepo)
 		if err != nil {
 			log.Fatalf("Documentation Generation Tool - GetContributorList error %s",
 				err)
@@ -121,6 +126,10 @@ func main() {
 		fmt.Println("Contributor list file disabled skipping fetching details")
 	}
 
+	if *verbose {
+		fmt.Println("Fetching template files...")
+	}
+
 	tmpl, err := GetTemplateFiles()
 	if err != nil {
 		log.Fatalf("Documentation Generation Tool - GetTemplateFiles error %s",
@@ -128,7 +137,7 @@ func main() {
 	}
 
 	if *verbose {
-		fmt.Println("Templates Fetched")
+		fmt.Println("All core systems fetched, updating documentation...")
 	}
 
 	err = UpdateDocumentation(DocumentationDetails{
@@ -157,6 +166,14 @@ func GetConfiguration() (Config, error) {
 			return c, err
 		}
 
+		// Set default params for configuration
+		c.GithubRepo = DefaultRepo
+		c.ContributorFile = true
+		c.LicenseFile = true
+		c.RootReadme = true
+		c.ReferencePathToRepo = "../../"
+		c.Exclusions.Directories = []string{".github"}
+
 		data, err := json.MarshalIndent(c, "", " ")
 		if err != nil {
 			return c, err
@@ -180,12 +197,12 @@ func GetConfiguration() (Config, error) {
 		return c, err
 	}
 
-	if c.GithubRepo == "" {
-		return c, errors.New("repository not set")
+	if c.GithubRepo == "" || c.GithubRepo == DefaultRepo {
+		return c, errors.New("repository not set in config.json file, please change")
 	}
 
 	if c.ReferencePathToRepo == "" {
-		return c, errors.New("reference path not set")
+		return c, errors.New("reference path not set in the config.json file, please set")
 	}
 
 	return c, nil
@@ -203,17 +220,17 @@ func IsExcluded(path string, exclusion []string) bool {
 
 // GetProjectDirectoryTree uses filepath walk functions to get each individual
 // directory name and path to match templates with
-func GetProjectDirectoryTree(c *Config) ([]string, error) {
+func GetProjectDirectoryTree(c *Config, verbose bool) ([]string, error) {
 	var directoryData []string
-	if c.RootReadme {
-		directoryData = append(directoryData, c.ReferencePathToRepo) // Root Readme
+	if c.RootReadme { // Projects root README.md
+		directoryData = append(directoryData, c.ReferencePathToRepo)
 	}
 
-	if c.LicenseFile {
+	if c.LicenseFile { // Standard license file
 		directoryData = append(directoryData, c.ReferencePathToRepo+LicenseFile)
 	}
 
-	if c.ContributorFile {
+	if c.ContributorFile { // Standard contributor file
 		directoryData = append(directoryData, c.ReferencePathToRepo+ContributorFile)
 	}
 
@@ -222,9 +239,11 @@ func GetProjectDirectoryTree(c *Config) ([]string, error) {
 			return err
 		}
 		if info.IsDir() {
-			// Bypass .git and web (front end) directories
+			// Bypass what is contained in config.json directory exclusion
 			if IsExcluded(info.Name(), c.Exclusions.Directories) {
-				fmt.Println("Excluding Directory:", info.Name())
+				if verbose {
+					fmt.Println("Excluding Directory:", info.Name())
+				}
 				return filepath.SkipDir
 			}
 			// Don't append parent directory
@@ -268,50 +287,44 @@ func GetTemplateFiles() (*template.Template, error) {
 
 // GetContributorList fetches a list of contributors from the github api
 // endpoint
-func GetContributorList(repo string, verbose bool) ([]Contributor, error) {
+func GetContributorList(repo string) ([]Contributor, error) {
 	var resp []Contributor
-	return resp, common.SendHTTPGetRequest(repo+GithubAPIEndpoint, true, verbose, &resp)
+	return resp, common.SendHTTPGetRequest(repo+GithubAPIEndpoint, true, false, &resp)
 }
 
 // GetDocumentationAttributes returns specific attributes for a file template
 func GetDocumentationAttributes(packageName string, contributors []Contributor) Attributes {
 	return Attributes{
-		Name:         getName(packageName, false),
+		Name:         GetPackageName(packageName, false),
 		Contributors: contributors,
-		NameURL:      getslashFromName(packageName),
+		NameURL:      GetGoDocURL(packageName),
 		Year:         time.Now().Year(),
-		CapitalName:  getName(packageName, true),
+		CapitalName:  GetPackageName(packageName, true),
 	}
 }
 
-func getName(name string, capital bool) string {
+// GetPackageName returns the package name after cleaning path as a string
+func GetPackageName(name string, capital bool) string {
 	newStrings := strings.Split(name, " ")
+	var i int
 	if len(newStrings) > 1 {
-		if capital {
-			return getCapital(newStrings[1])
-		}
-		return newStrings[1]
+		i = 1
 	}
 	if capital {
-		return getCapital(name)
+		return strings.Title(newStrings[i])
 	}
-	return name
+	return newStrings[i]
 }
 
-func getCapital(name string) string {
-	capLetter := strings.ToUpper(string(name[0]))
-	last := name[1:]
-
-	return capLetter + last
-}
-
-// getslashFromName returns a string for godoc package names
-func getslashFromName(name string) string {
+// GetGoDocURL returns a string for godoc package names
+func GetGoDocURL(name string) string {
 	if strings.Contains(name, " ") {
-		s := strings.Split(name, " ")
-		return strings.Join(s, "/")
+		return strings.Join(strings.Split(name, " "), "/")
 	}
-	if name == "testdata" || name == "tools" || name == ContributorFile || name == LicenseFile {
+	if name == "testdata" ||
+		name == "tools" ||
+		name == ContributorFile ||
+		name == LicenseFile {
 		return ""
 	}
 	return name
@@ -342,12 +355,14 @@ func UpdateDocumentation(details DocumentationDetails) error {
 		}
 
 		if IsExcluded(name, details.Config.Exclusions.Files) {
-			fmt.Println("Excluding file:", name)
+			if details.Verbose {
+				fmt.Println("Excluding file:", name)
+			}
 			continue
 		}
 
 		if details.Tmpl.Lookup(name) == nil {
-			fmt.Printf("Template not found for path %s create new template with {{define \"%s\" -}}\n",
+			fmt.Printf("Template not found for path %s create new template with {{define \"%s\" -}} TEMPLATE HERE {{end}}\n",
 				path,
 				name)
 			continue
