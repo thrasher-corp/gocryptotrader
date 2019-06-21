@@ -18,7 +18,7 @@ func RESTfulJSONResponse(w http.ResponseWriter, response interface{}) error {
 
 // RESTfulError prints the REST method and error
 func RESTfulError(method string, err error) {
-	log.Errorf("RESTful %s: server failed to send JSON response. Error %s",
+	log.Errorf(log.SubSystemRestSys, "RESTful %s: server failed to send JSON response. Error %s",
 		method, err)
 }
 
@@ -74,7 +74,8 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 			for z := range currencies {
 				ob, err := exch.FetchOrderbook(currencies[z], assets[y])
 				if err != nil {
-					log.Errorf("Exchange %s failed to retrieve %s orderbook. Err: %s", exchName,
+					log.Errorf(log.SubSystemRestSys,
+						"Exchange %s failed to retrieve %s orderbook. Err: %s", exchName,
 						currencies[z].String(),
 						err)
 					continue

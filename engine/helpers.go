@@ -119,7 +119,7 @@ func GetExchangeOTPs() (map[string]string, error) {
 			exchName := Bot.Config.Exchanges[x].Name
 			o, err := totp.GenerateCode(otpSecret, time.Now())
 			if err != nil {
-				log.Errorf("Unable to generate OTP code for exchange %s. Err: %s",
+				log.Errorf(log.LogGlobal, "Unable to generate OTP code for exchange %s. Err: %s",
 					exchName, err)
 				continue
 			}
@@ -540,7 +540,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					continue
 				}
 
-				log.Debugf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+				log.Debugf("portfolio", "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
 					exchangeName,
 					currencyName,
 					total,
@@ -555,7 +555,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 
 			} else {
 				if total <= 0 {
-					log.Debugf("Portfolio: Removing %s %s entry.\n",
+					log.Debugf("portfolio", "Portfolio: Removing %s %s entry.\n",
 						exchangeName,
 						currencyName)
 
@@ -570,7 +570,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					}
 
 					if balance != total {
-						log.Debugf("Portfolio: Updating %s %s entry with balance %f.\n",
+						log.Debugf("portfolio", "Portfolio: Updating %s %s entry with balance %f.\n",
 							exchangeName,
 							currencyName,
 							total)
@@ -651,14 +651,14 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 
 		if !Bot.Exchanges[x].GetAuthenticatedAPISupport() {
 			if Bot.Settings.Verbose {
-				log.Debugf("GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.", exchName)
+				log.Debugf(log.SubSystemExchSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.", exchName)
 			}
 			continue
 		}
 
 		cryptoCurrencies, err := GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
 		if err != nil {
-			log.Debugf("%s failed to get cryptocurrency deposit addresses. Err: %s", exchName, err)
+			log.Debugf(log.SubSystemExchSys, "%s failed to get cryptocurrency deposit addresses. Err: %s", exchName, err)
 			continue
 		}
 
@@ -800,7 +800,7 @@ func checkCerts() error {
 		return genCert(targetDir)
 	}
 
-	log.Debugf("gRPC TLS certs directory already exists, will use them.")
+	log.Debugf(log.LogGlobal, "gRPC TLS certs directory already exists, will use them.")
 	return nil
 }
 

@@ -131,7 +131,8 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 // Run implements the Binance wrapper
 func (b *Binance) Run() {
 	if b.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.Websocket.GetWebsocketURL())
+		log.Debugf(log.SubSystemExchSys,
+			"%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.Websocket.GetWebsocketURL())
 		b.PrintEnabledPairs()
 	}
 
@@ -139,12 +140,13 @@ func (b *Binance) Run() {
 	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := currency.NewPairsFromStrings([]string{"BTC-USDT"})
-		log.Warn("WARNING: Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
+		log.Warn(log.SubSystemExchSys,
+			"WARNING: Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf("%s failed to update currencies. Err: %s\n", b.Name, err)
+			log.Errorf(log.SubSystemExchSys, "%s failed to update currencies. Err: %s\n", b.Name, err)
 		}
 	}
 
@@ -154,7 +156,7 @@ func (b *Binance) Run() {
 
 	err := b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 

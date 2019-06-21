@@ -48,12 +48,12 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyn
 
 	s.tickerBatchLastRequested = make(map[string]time.Time)
 
-	log.Debugf("Exchange currency pair syncer config:")
-	log.Debugf("SyncContinuously: %v", s.Cfg.SyncContinuously)
-	log.Debugf("SyncTicker: %v", s.Cfg.SyncTicker)
-	log.Debugf("SyncOrderbook: %v", s.Cfg.SyncOrderbook)
-	log.Debugf("SyncTrades: %v", s.Cfg.SyncTrades)
-	log.Debugf("NumWorkers: %v", s.Cfg.NumWorkers)
+	log.Debugf(log.SubSystemSyncMgr, "Exchange currency pair syncer config:")
+	log.Debugf(log.SubSystemSyncMgr, "SyncContinuously: %v", s.Cfg.SyncContinuously)
+	log.Debugf(log.SubSystemSyncMgr, "SyncTicker: %v", s.Cfg.SyncTicker)
+	log.Debugf(log.SubSystemSyncMgr, "SyncOrderbook: %v", s.Cfg.SyncOrderbook)
+	log.Debugf(log.SubSystemSyncMgr, "SyncTrades: %v", s.Cfg.SyncTrades)
+	log.Debugf(log.SubSystemSyncMgr, "NumWorkers: %v", s.Cfg.NumWorkers)
 
 	return &s, nil
 }
@@ -197,7 +197,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 			return
 		}
 	default:
-		log.Warnf("ExchangeCurrencyPairSyncer: unknown sync item %v", syncType)
+		log.Warnf(log.SubSystemSyncMgr, "ExchangeCurrencyPairSyncer: unknown sync item %v", syncType)
 		return
 	}
 
@@ -257,7 +257,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 
 func (e *ExchangeCurrencyPairSyncer) worker() {
 	cleanup := func() {
-		log.Debugf("Exchange CurrencyPairSyncer worker shutting down.")
+		log.Debugf(log.SubSystemSyncMgr, "Exchange CurrencyPairSyncer worker shutting down.")
 	}
 	defer cleanup()
 
@@ -277,7 +277,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			if Bot.Exchanges[x].SupportsWebsocket() && Bot.Exchanges[x].IsWebsocketEnabled() {
 				ws, err := Bot.Exchanges[x].GetWebsocket()
 				if err != nil {
-					log.Debugf("%s unable to get websocket pointer. Err: %s", exchangeName, err)
+					log.Debugf(log.SubSystemSyncMgr, "%s unable to get websocket pointer. Err: %s", exchangeName, err)
 					usingREST = true
 				}
 
@@ -329,7 +329,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 					c, err := e.get(exchangeName, p, assetTypes[y])
 					if err != nil {
-						log.Errorf("failed to get item. Err: %s", err)
+						log.Errorf(log.SubSystemSyncMgr, "failed to get item. Err: %s", err)
 						continue
 					}
 
@@ -445,7 +445,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
-	log.Debugf("Exchange CurrencyPairSyncer started.")
+	log.Debugf(log.SubSystemSyncMgr, "Exchange CurrencyPairSyncer started.")
 
 	for x := range Bot.Exchanges {
 		if !Bot.Exchanges[x].IsEnabled() {
@@ -531,19 +531,19 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 	if atomic.CompareAndSwapInt32(&e.initSyncStarted, 0, 1) {
 		log.Debugln("Exchange CurrencyPairSyncer initial sync started.")
 		e.initSyncStartTime = time.Now()
-		log.Debugln(createdCounter)
-		log.Debugln(removedCounter)
+		log.Debugln(log.SubSystemSyncMgr, createdCounter)
+		log.Debugln(log.SubSystemSyncMgr, removedCounter)
 	}
 
 	go func() {
 		e.initSyncWG.Wait()
 		if atomic.CompareAndSwapInt32(&e.initSyncCompleted, 0, 1) {
-			log.Debugf("Exchange CurrencyPairSyncer initial sync is complete.")
+			log.Debugf(log.SubSystemSyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.")
 			completedTime := time.Now()
-			log.Debugf("Exchange CurrencyPairSyncer initiial sync took %v [%v sync items].", completedTime.Sub(e.initSyncStartTime), createdCounter)
+			log.Debugf(log.SubSystemSyncMgr, "Exchange CurrencyPairSyncer initiial sync took %v [%v sync items].", completedTime.Sub(e.initSyncStartTime), createdCounter)
 
 			if !e.Cfg.SyncContinuously {
-				log.Debugf("Exchange CurrencyPairSyncer stopping.")
+				log.Debugf(log.SubSystemSyncMgr, "Exchange CurrencyPairSyncer stopping.")
 				e.Stop()
 				Bot.Stop()
 				return
@@ -564,6 +564,6 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 func (e *ExchangeCurrencyPairSyncer) Stop() {
 	stopped := atomic.CompareAndSwapInt32(&e.shutdown, 0, 1)
 	if stopped {
-		log.Debugf("Exchange CurrencyPairSyncer stopped.")
+		log.Debugf(log.SubSystemSyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	}
 }

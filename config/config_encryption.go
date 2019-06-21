@@ -34,7 +34,7 @@ var (
 
 // PromptForConfigEncryption asks for encryption key
 func (c *Config) PromptForConfigEncryption() bool {
-	log.Infof("Would you like to encrypt your config file (y/n)?")
+	log.Infof(log.LogGlobal, "Would you like to encrypt your config file (y/n)?")
 
 	input := ""
 	_, err := fmt.Scanln(&input)
@@ -55,7 +55,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 	var cryptoKey []byte
 
 	for {
-		log.Println("Please enter in your password: ")
+		fmt.Println("Please enter in your password: ")
 		pwPrompt := func(i *[]byte) error {
 			_, err := fmt.Scanln(i)
 			return err
@@ -73,7 +73,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 		}
 
 		var p2 []byte
-		log.Println("Please re-enter your password: ")
+		fmt.Println("Please re-enter your password: ")
 		err = pwPrompt(&p2)
 		if err != nil {
 			return nil, err
@@ -83,7 +83,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 			cryptoKey = p1
 			break
 		}
-		log.Printf("Passwords did not match, please try again.")
+		fmt.Printf("Passwords did not match, please try again.")
 	}
 	return cryptoKey, nil
 }

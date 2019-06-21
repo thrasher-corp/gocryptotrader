@@ -130,12 +130,13 @@ func (a *ANX) Run() {
 	if !common.StringDataContains(a.GetEnabledPairs(asset.Spot).Strings(), "_") ||
 		!common.StringDataContains(a.GetAvailablePairs(asset.Spot).Strings(), "_") {
 		enabledPairs := currency.NewPairsFromStrings([]string{"BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,DOG_EBTC,STR_BTC,XRP_BTC"})
-		log.Warn("WARNING: Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
+		log.Warn(log.SubSystemExchSys,
+			"WARNING: Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
 
 		forceUpdate = true
 		err := a.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf("%s failed to update currencies.\n", a.GetName())
+			log.Errorf(log.SubSystemExchSys, "%s failed to update currencies.\n", a.GetName())
 			return
 		}
 	}
@@ -146,7 +147,7 @@ func (a *ANX) Run() {
 
 	err := a.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", a.GetName(), err)
+		log.Errorf(log.SubSystemExchSys, "%s failed to update tradable pairs. Err: %s", a.GetName(), err)
 	}
 }
 

@@ -140,7 +140,7 @@ func (g *Gemini) Run() {
 
 	err := g.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", g.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", g.Name, err)
 	}
 }
 

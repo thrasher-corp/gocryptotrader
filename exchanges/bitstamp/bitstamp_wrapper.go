@@ -129,7 +129,7 @@ func (b *Bitstamp) Start(wg *sync.WaitGroup) {
 // Run implements the Bitstamp wrapper
 func (b *Bitstamp) Run() {
 	if b.Verbose {
-		log.Debugf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
+		log.Debugf(log.SubSystemExchSys,"%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
 		b.PrintEnabledPairs()
 	}
 
@@ -139,7 +139,7 @@ func (b *Bitstamp) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 
@@ -489,7 +489,7 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 		case order.XRP > 0:
 			baseCurrency = currency.XRP
 		default:
-			log.Warnf("no base currency found for OrderID '%v'", order.OrderID)
+			log.Warnf(log.SubSystemExchSys,"no base currency found for OrderID '%v'", order.OrderID)
 		}
 
 		switch {
@@ -498,7 +498,7 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 		case order.EUR > 0:
 			quoteCurrency = currency.EUR
 		default:
-			log.Warnf("no quote currency found for orderID '%v'", order.OrderID)
+			log.Warnf(log.SubSystemExchSys,"no quote currency found for orderID '%v'", order.OrderID)
 		}
 
 		var currPair currency.Pair

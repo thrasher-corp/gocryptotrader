@@ -19,7 +19,7 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 		start := time.Now()
 		inner.ServeHTTP(w, r)
 
-		log.Debugf(
+		log.Debugf(log.SubSystemRestSys,
 			"%s\t%s\t%s\t%s",
 			r.Method,
 			r.RequestURI,
@@ -32,20 +32,24 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 // StartRESTServer starts a REST server
 func StartRESTServer() {
 	listenAddr := Bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
-	log.Debugf("Deprecated RPC server support enabled. Listen URL: http://%s:%d\n", common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
+	log.Debugf(log.SubSystemRestSys,
+		"Deprecated RPC server support enabled. Listen URL: http://%s:%d\n",
+		common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
 	err := http.ListenAndServe(listenAddr, newRouter(true))
 	if err != nil {
-		log.Errorf("Failed to start deprecated RPC server. Err: %s", err)
+		log.Errorf(log.SubSystemRestSys, "Failed to start deprecated RPC server. Err: %s", err)
 	}
 }
 
 // StartWebsocketServer starts a Websocket server
 func StartWebsocketServer() {
 	listenAddr := Bot.Config.RemoteControl.WebsocketRPC.ListenAddress
-	log.Debugf("Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n", common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
+	log.Debugf(log.SubSystemRestSys,
+		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
+		common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
 	err := http.ListenAndServe(listenAddr, newRouter(false))
 	if err != nil {
-		log.Errorf("Failed to start websocket RPC server. Err: %s", err)
+		log.Errorf(log.SubSystemRestSys, "Failed to start websocket RPC server. Err: %s", err)
 	}
 }
 
@@ -81,7 +85,9 @@ func newRouter(isREST bool) *mux.Router {
 		}
 
 		if Bot.Config.Profiler.Enabled {
-			log.Debugf("HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug", common.ExtractHost(listenAddr),
+			log.Debugf(log.SubSystemRestSys,
+				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug",
+				common.ExtractHost(listenAddr),
 				common.ExtractPort(listenAddr))
 			router.PathPrefix("/debug").Handler(http.DefaultServeMux)
 		}

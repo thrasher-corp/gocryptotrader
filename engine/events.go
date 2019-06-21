@@ -152,14 +152,14 @@ func (e *Event) processTicker() bool {
 	t, err := ticker.GetTicker(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
 		if Bot.Settings.Verbose {
-			log.Debugf("Events: failed to get ticker. Err: %s", err)
+			log.Debugf("events", "Events: failed to get ticker. Err: %s", err)
 		}
 		return false
 	}
 
 	if t.Last == 0 {
 		if Bot.Settings.Verbose {
-			log.Debugln("Events: ticker last price is 0")
+			log.Debugln("events", "Events: ticker last price is 0")
 		}
 		return false
 	}
@@ -196,7 +196,7 @@ func (e *Event) processOrderbook() bool {
 	ob, err := orderbook.Get(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
 		if Bot.Settings.Verbose {
-			log.Debugf("Events: Failed to get orderbook. Err: %s", err)
+			log.Debugf("events", "Events: Failed to get orderbook. Err: %s", err)
 		}
 		return false
 	}
@@ -208,7 +208,7 @@ func (e *Event) processOrderbook() bool {
 			result := e.processCondition(subtotal, e.Condition.OrderbookAmount)
 			if result {
 				success = true
-				log.Debugf("Events: Bid Amount: %f Price: %v Subtotal: %v", ob.Bids[x].Amount, ob.Bids[x].Price, subtotal)
+				log.Debugf("events", "Events: Bid Amount: %f Price: %v Subtotal: %v", ob.Bids[x].Amount, ob.Bids[x].Price, subtotal)
 			}
 		}
 	}
@@ -219,7 +219,7 @@ func (e *Event) processOrderbook() bool {
 			result := e.processCondition(subtotal, e.Condition.OrderbookAmount)
 			if result {
 				success = true
-				log.Debugf("Events: Ask Amount: %f Price: %v Subtotal: %v", ob.Asks[x].Amount, ob.Asks[x].Price, subtotal)
+				log.Debugf("events", "Events: Ask Amount: %f Price: %v Subtotal: %v", ob.Asks[x].Amount, ob.Asks[x].Price, subtotal)
 			}
 		}
 	}
@@ -281,7 +281,7 @@ func IsValidEvent(exchange, item string, condition EventConditionParams, action 
 // EventManger is the overarching routine that will iterate through the Events
 // chain
 func EventManger() {
-	log.Debugf("EventManager started. SleepDelay: %v", EventSleepDelay.String())
+	log.Debugf("events", "EventManager started. SleepDelay: %v", EventSleepDelay.String())
 
 	for {
 		total, executed := GetEventCounter()
@@ -289,7 +289,7 @@ func EventManger() {
 			for _, event := range Events {
 				if !event.Executed {
 					if Bot.Settings.Verbose {
-						log.Debugf("Events: Processing event %s.", event.String())
+						log.Debugf("events", "Events: Processing event %s.", event.String())
 					}
 					success := event.CheckEventCondition()
 					if success {
@@ -297,7 +297,7 @@ func EventManger() {
 							"Events: ID: %d triggered on %s successfully [%v]\n", event.ID,
 							event.Exchange, event.String(),
 						)
-						log.Info(msg)
+						log.Info("events", msg)
 						Bot.CommsManager.PushEvent(base.Event{Type: "event", Message: msg})
 						event.Executed = true
 					}

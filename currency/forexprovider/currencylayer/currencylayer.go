@@ -57,7 +57,8 @@ type CurrencyLayer struct {
 // Setup sets appropriate values for CurrencyLayer
 func (c *CurrencyLayer) Setup(config base.Settings) error {
 	if config.APIKeyLvl < 0 || config.APIKeyLvl > 3 {
-		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+		log.Errorf(log.LogGlobal,
+			"apikey incorrectly set in config.json for %s, please set appropriate account levels",
 			config.Name)
 		return errors.New("apikey set failure")
 	}

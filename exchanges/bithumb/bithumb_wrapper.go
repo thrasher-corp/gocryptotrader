@@ -121,7 +121,7 @@ func (b *Bithumb) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 

@@ -121,7 +121,7 @@ func (h *HUOBI) WsHandleData() {
 			if init.Ping != 0 {
 				err = h.WebsocketConn.WriteJSON(`{"pong":1337}`)
 				if err != nil {
-					log.Error(err)
+					log.Error(log.SubSystemExchSys, err)
 				}
 				continue
 			}
@@ -241,7 +241,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
 	subscriptionRequest := WsRequest{Subscribe: channelToSubscribe.Channel}
 	if h.Verbose {
-		log.Debugf("Subscription: %v", subscriptionRequest)
+		log.Debugf(log.SubSystemExchSys,"Subscription: %v", subscriptionRequest)
 	}
 	subscription, err := common.JSONEncode(subscriptionRequest)
 	if err != nil {
@@ -264,7 +264,7 @@ func (h *HUOBI) wsSend(data []byte) error {
 	h.wsRequestMtx.Lock()
 	defer h.wsRequestMtx.Unlock()
 	if h.Verbose {
-		log.Debugf("%v sending message to websocket %s", h.Name, string(data))
+		log.Debugf(log.SubSystemExchSys,"%v sending message to websocket %s", h.Name, string(data))
 	}
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }

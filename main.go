@@ -12,13 +12,13 @@ import (
 	"github.com/thrasher-/gocryptotrader/core"
 	"github.com/thrasher-/gocryptotrader/engine"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	log "github.com/thrasher-/gocryptotrader/loggerv2"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 func main() {
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
-		log.Error("app", err)
+		log.Error(log.LogGlobal, err)
 		os.Exit(1)
 	}
 
@@ -89,7 +89,7 @@ func main() {
 
 	engine.Bot, err = engine.NewFromSettings(&settings)
 	if engine.Bot == nil || err != nil {
-		log.Errorf("app", "Unable to initialise bot engine. Err: %s", err)
+		log.Errorf(log.LogGlobal, "Unable to initialise bot engine. Err: %s", err)
 		os.Exit(1)
 	}
 

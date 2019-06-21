@@ -274,7 +274,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	}
 
 	if c.Verbose {
-		log.Debugf("Request JSON: %s", payload)
+		log.Debugf(log.SubSystemExchSys,"Request JSON: %s", payload)
 	}
 
 	headers := make(map[string]string)

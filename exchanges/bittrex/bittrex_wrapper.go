@@ -119,11 +119,11 @@ func (b *Bittrex) Run() {
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		forceUpdate = true
 		enabledPairs := []string{"USDT-BTC"}
-		log.Warn("WARNING: Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
+		log.Warn(log.SubSystemExchSys,"WARNING: Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
 
 		err := b.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
 		if err != nil {
-			log.Errorf("%s failed to update currencies. Err: %s\n", b.Name, err)
+			log.Errorf(log.SubSystemExchSys,"%s failed to update currencies. Err: %s\n", b.Name, err)
 		}
 	}
 
@@ -133,7 +133,7 @@ func (b *Bittrex) Run() {
 
 	err := b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 
@@ -424,7 +424,7 @@ func (b *Bittrex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 	for i := range resp.Result {
 		orderDate, err := time.Parse(time.RFC3339, resp.Result[i].Opened)
 		if err != nil {
-			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.SubSystemExchSys,"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				b.Name, "GetActiveOrders", resp.Result[i].OrderUUID, resp.Result[i].Opened)
 		}
 
@@ -468,7 +468,7 @@ func (b *Bittrex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 	for i := range resp.Result {
 		orderDate, err := time.Parse(time.RFC3339, resp.Result[i].TimeStamp)
 		if err != nil {
-			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.SubSystemExchSys,"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				b.Name, "GetActiveOrders", resp.Result[i].OrderUUID, resp.Result[i].Opened)
 		}
 

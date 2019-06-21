@@ -122,7 +122,7 @@ func (e *EXMO) Run() {
 
 	err := e.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", e.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", e.Name, err)
 	}
 }
 

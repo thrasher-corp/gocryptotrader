@@ -118,17 +118,17 @@ func (w *Websocket) wsConnectionMonitor() {
 			w.DataHandler <- fmt.Errorf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)
 			err := w.Shutdown()
 			if err != nil {
-				log.Error(err)
+				log.Error(log.SubSystemWsocMgr, err)
 			}
 			if w.verbose {
-				log.Debugf("%v WsConnectionMonitor exiting", w.exchangeName)
+				log.Debugf(log.SubSystemWsocMgr, "%v WsConnectionMonitor exiting", w.exchangeName)
 			}
 			return
 		}
 		w.m.Unlock()
 		err := w.checkConnection()
 		if err != nil {
-			log.Error(err)
+			log.Error(log.SubSystemWsocMgr, err)
 		}
 	}
 }
@@ -137,18 +137,18 @@ func (w *Websocket) wsConnectionMonitor() {
 // Will reconnect on disconnect
 func (w *Websocket) checkConnection() error {
 	if w.verbose {
-		log.Debugf("%v checking connection", w.exchangeName)
+		log.Debugf(log.SubSystemExchSys, "%v checking connection", w.exchangeName)
 	}
 	switch {
 	case !w.IsConnected() && !w.IsConnecting():
 		w.m.Lock()
 		defer w.m.Unlock()
 		if w.verbose {
-			log.Debugf("%v no connection. Attempt %v/%v", w.exchangeName, w.noConnectionChecks, w.noConnectionCheckLimit)
+			log.Debugf(log.SubSystemExchSys, "%v no connection. Attempt %v/%v", w.exchangeName, w.noConnectionChecks, w.noConnectionCheckLimit)
 		}
 		if w.noConnectionChecks >= w.noConnectionCheckLimit {
 			if w.verbose {
-				log.Debugf("%v resetting connection", w.exchangeName)
+				log.Debugf(log.SubSystemExchSys, "%v resetting connection", w.exchangeName)
 			}
 			w.connecting = true
 			go w.WebsocketReset()
@@ -162,7 +162,7 @@ func (w *Websocket) checkConnection() error {
 				w.reconnectionLimit*int(connectionMonitorDelay.Seconds()))
 		}
 		if w.verbose {
-			log.Debugf("%v Busy reconnecting", w.exchangeName)
+			log.Debugf(log.SubSystemExchSys, "%v Busy reconnecting", w.exchangeName)
 		}
 		w.reconnectionChecks++
 	default:
@@ -199,7 +199,7 @@ func (w *Websocket) Shutdown() error {
 	}
 
 	if w.verbose {
-		log.Debugf("%v shutting down websocket channels", w.exchangeName)
+		log.Debugf(log.SubSystemExchSys, "%v shutting down websocket channels", w.exchangeName)
 	}
 	timer := time.NewTimer(15 * time.Second)
 	c := make(chan struct{}, 1)
@@ -208,7 +208,7 @@ func (w *Websocket) Shutdown() error {
 		close(w.ShutdownC)
 		w.Wg.Wait()
 		if w.verbose {
-			log.Debugf("%v completed websocket channel shutdown", w.exchangeName)
+			log.Debugf(log.SubSystemExchSys, "%v completed websocket channel shutdown", w.exchangeName)
 		}
 		c <- struct{}{}
 	}(c)
@@ -228,7 +228,7 @@ func (w *Websocket) WebsocketReset() error {
 	err := w.Shutdown()
 	if err != nil {
 		// does not return here to allow connection to be made if already shut down
-		log.Errorf("%v shutdown error: %v", w.exchangeName, err)
+		log.Errorf(log.SubSystemExchSys, "%v shutdown error: %v", w.exchangeName, err)
 	}
 	log.Infof("%v reconnecting to websocket", w.exchangeName)
 	w.m.Lock()
@@ -236,7 +236,7 @@ func (w *Websocket) WebsocketReset() error {
 	w.m.Unlock()
 	err = w.Connect()
 	if err != nil {
-		log.Errorf("%v connection error: %v", w.exchangeName, err)
+		log.Errorf(log.SubSystemExchSys, "%v connection error: %v", w.exchangeName, err)
 	}
 	return err
 }
@@ -259,7 +259,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 		select {
 		case <-w.ShutdownC: // Returns on shutdown channel close
 			if w.verbose {
-				log.Debugf("%v trafficMonitor shutdown message received", w.exchangeName)
+				log.Debugf(log.SubSystemExchSys, "%v trafficMonitor shutdown message received", w.exchangeName)
 			}
 			return
 		case <-w.TrafficAlert: // Resets timer on traffic
@@ -270,13 +270,13 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 			w.m.Unlock()
 			if w.verbose {
-				log.Debugf("%v received a traffic alert", w.exchangeName)
+				log.Debugf(log.SubSystemExchSys, "%v received a traffic alert", w.exchangeName)
 			}
 			trafficTimer.Reset(WebsocketTrafficLimitTime)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set
 			if w.verbose {
-				log.Debugf("%v has not received a traffic alert in 5 seconds.", w.exchangeName)
+				log.Debugf(log.SubSystemExchSys, "%v has not received a traffic alert in 5 seconds.", w.exchangeName)
 			}
 			w.m.Lock()
 			if w.connected {
@@ -295,7 +295,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 
 			case <-newtimer.C: // If secondary timer runs state timeout is sent to the data handler
 				if w.verbose {
-					log.Debugf("%v has not received a traffic alert in 15 seconds, exiting", w.exchangeName)
+					log.Debugf(log.SubSystemExchSys, "%v has not received a traffic alert in 15 seconds, exiting", w.exchangeName)
 				}
 				w.DataHandler <- fmt.Errorf("trafficMonitor %v", WebsocketStateTimeout)
 				return
@@ -307,7 +307,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 					// If not connected dive rt traffic from REST to websocket
 					w.Connected <- struct{}{}
 					if w.verbose {
-						log.Debugf("%v has received a traffic alert. Setting status to connected", w.exchangeName)
+						log.Debugf(log.SubSystemExchSys, "%v has received a traffic alert. Setting status to connected", w.exchangeName)
 					}
 					w.connected = true
 				}
@@ -706,7 +706,7 @@ func (w *Websocket) manageSubscriptions() error {
 	w.Wg.Add(1)
 	defer func() {
 		if w.verbose {
-			log.Debugf("%v ManageSubscriptions exiting", w.exchangeName)
+			log.Debugf(log.SubSystemExchSys, "%v ManageSubscriptions exiting", w.exchangeName)
 		}
 		w.Wg.Done()
 	}()
@@ -715,13 +715,13 @@ func (w *Websocket) manageSubscriptions() error {
 		case <-w.ShutdownC:
 			w.subscribedChannels = []WebsocketChannelSubscription{}
 			if w.verbose {
-				log.Debugf("%v shutdown manageSubscriptions", w.exchangeName)
+				log.Debugf(log.SubSystemExchSys, "%v shutdown manageSubscriptions", w.exchangeName)
 			}
 			return nil
 		default:
 			time.Sleep(manageSubscriptionsDelay)
 			if w.verbose {
-				log.Debugf("%v checking subscriptions", w.exchangeName)
+				log.Debugf(log.SubSystemExchSys, "%v checking subscriptions", w.exchangeName)
 			}
 			// Subscribe to channels Pending a subscription
 			if w.SupportsFunctionality(WebsocketSubscribeSupported) {
@@ -755,7 +755,7 @@ func (w *Websocket) subscribeToChannels() error {
 		}
 		if !channelIsSubscribed {
 			if w.verbose {
-				log.Debugf("%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
+				log.Debugf(log.SubSystemExchSys, "%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
 			}
 			err := w.channelSubscriber(w.channelsToSubscribe[i])
 			if err != nil {

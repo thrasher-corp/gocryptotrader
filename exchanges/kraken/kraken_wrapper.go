@@ -143,12 +143,12 @@ func (k *Kraken) Run() {
 	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), "-") ||
 		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := currency.NewPairsFromStrings([]string{"XBT-USD"})
-		log.Warn("WARNING: Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
+		log.Warn(log.SubSystemExchSys,"WARNING: Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
 		err := k.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf("%s failed to update currencies. Err: %s\n", k.Name, err)
+			log.Errorf(log.SubSystemExchSys,"%s failed to update currencies. Err: %s\n", k.Name, err)
 		}
 	}
 
@@ -158,7 +158,7 @@ func (k *Kraken) Run() {
 
 	err := k.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", k.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", k.Name, err)
 	}
 }
 

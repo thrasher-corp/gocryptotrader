@@ -29,7 +29,7 @@ func (p *portfolioManager) Start() error {
 		return errors.New("portfolio manager already started")
 	}
 
-	log.Debugln("Portfolio manager starting...")
+	log.Debugln(log.SubSystemPortMgr, "Portfolio manager starting...")
 	Bot.Portfolio = &portfolio.Portfolio
 	Bot.Portfolio.Seed(Bot.Config.Portfolio)
 	p.shutdown = make(chan struct{})
@@ -41,13 +41,13 @@ func (p *portfolioManager) Stop() error {
 		return errors.New("portfolio manager is already stopped")
 	}
 
-	log.Debugln("Portfolio manager shutting down...")
+	log.Debugln(log.SubSystemPortMgr, "Portfolio manager shutting down...")
 	close(p.shutdown)
 	return nil
 }
 
 func (p *portfolioManager) run() {
-	log.Debugln("Portfolio manager started.")
+	log.Debugln(log.SubSystemPortMgr, "Portfolio manager started.")
 	Bot.ServicesWG.Add(1)
 	tick := time.NewTicker(PortfolioSleepDelay)
 	defer func() {
@@ -55,7 +55,7 @@ func (p *portfolioManager) run() {
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 		tick.Stop()
 		Bot.ServicesWG.Done()
-		log.Debugf("Portfolio manager shutdown.")
+		log.Debugf(log.SubSystemPortMgr, "Portfolio manager shutdown.")
 	}()
 
 	for {
@@ -75,7 +75,7 @@ func (p *portfolioManager) processPortfolio() {
 	for key, value := range data {
 		success := pf.UpdatePortfolio(value, key)
 		if success {
-			log.Debugf(
+			log.Debugf(log.SubSystemPortMgr,
 				"Portfolio manager: Successfully updated address balance for %s address(es) %s\n",
 				key, value,
 			)

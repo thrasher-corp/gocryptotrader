@@ -113,7 +113,7 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.API.Endpoints.WebsocketURL)
+		log.Debugf(log.SubSystemExchSys,"%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.API.Endpoints.WebsocketURL)
 	}
 
 	if !o.GetEnabledFeatures().AutoPairUpdates {
@@ -122,7 +122,7 @@ func (o *OKEX) Run() {
 
 	err := o.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", o.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", o.Name, err)
 	}
 }
 

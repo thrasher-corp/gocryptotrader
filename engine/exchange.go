@@ -83,7 +83,7 @@ func ReloadExchange(name string) error {
 
 	e := GetExchangeByName(name)
 	e.Setup(exchCfg)
-	log.Debugf("%s exchange reloaded successfully.\n", name)
+	log.Debugf(log.SubSystemExchSys, "%s exchange reloaded successfully.\n", name)
 	return nil
 }
 
@@ -275,13 +275,13 @@ func SetupExchanges() {
 		if CheckExchangeExists(exch.Name) {
 			e := GetExchangeByName(exch.Name)
 			if e == nil {
-				log.Errorf("%s", ErrExchangeNotFound)
+				log.Error("exchange", ErrExchangeNotFound)
 				continue
 			}
 
 			err := ReloadExchange(exch.Name)
 			if err != nil {
-				log.Errorf("ReloadExchange %s failed: %s", exch.Name, err)
+				log.Errorf(log.SubSystemExchSys, "ReloadExchange %s failed: %s", exch.Name, err)
 				continue
 			}
 
@@ -293,15 +293,15 @@ func SetupExchanges() {
 
 		}
 		if !exch.Enabled && !Bot.Settings.EnableAllExchanges {
-			log.Debugf("%s: Exchange support: Disabled", exch.Name)
+			log.Debugf(log.SubSystemExchSys, "%s: Exchange support: Disabled", exch.Name)
 			continue
 		}
 		err := LoadExchange(exch.Name, true, &wg)
 		if err != nil {
-			log.Errorf("LoadExchange %s failed: %s", exch.Name, err)
+			log.Errorf(log.SubSystemExchSys, "LoadExchange %s failed: %s", exch.Name, err)
 			continue
 		}
-		log.Debugf(
+		log.Debugf("exchange",
 			"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
 			exch.Name,
 			common.IsEnabled(exch.API.AuthenticatedSupport),

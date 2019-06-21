@@ -51,7 +51,8 @@ func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
 		if index != "" {
 			newP, err := NewPairFromIndex(p[i].String(), index)
 			if err != nil {
-				log.Errorf("failed to create NewPairFromIndex. Err: %s", err)
+				log.Errorf(log.LogGlobal,
+					"failed to create NewPairFromIndex. Err: %s", err)
 				continue
 			}
 			formattedPair.Base = newP.Base

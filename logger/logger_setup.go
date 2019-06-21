@@ -1,4 +1,4 @@
-package loggerv2
+package logger
 
 import (
 	"fmt"
@@ -75,7 +75,7 @@ func GenDefaultSettings() (log LoggerConfig) {
 		},
 		SubLoggers: []subLoggers{
 			{
-				Name:   "core",
+				Name:   "log",
 				Level:  "INFO|DEBUG|WARN|ERROR",
 				Output: "stdout",
 			}},

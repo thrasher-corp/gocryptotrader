@@ -135,7 +135,7 @@ func (b *BTSE) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 
@@ -445,7 +445,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 
 		fills, err := b.GetFills(order.ID, "", "", "", "")
 		if err != nil {
-			log.Errorf("unable to get order fills for orderID %s", order.ID)
+			log.Errorf(log.SubSystemExchSys,"unable to get order fills for orderID %s", order.ID)
 			continue
 		}
 

@@ -1,4 +1,4 @@
-package loggerv2
+package logger
 
 import (
 	"fmt"

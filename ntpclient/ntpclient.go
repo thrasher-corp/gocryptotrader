@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	log "github.com/thrasher-/gocryptotrader/loggerv2"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 type ntppacket struct {

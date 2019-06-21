@@ -152,7 +152,7 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.API.Endpoints.WebsocketURL)
+		log.Debugf(log.SubSystemExchSys,"%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.API.Endpoints.WebsocketURL)
 		b.PrintEnabledPairs()
 	}
 
@@ -162,7 +162,7 @@ func (b *Bitmex) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 
@@ -220,7 +220,7 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 
 		err = b.UpdatePairs(currency.NewPairsFromStrings(assetPairs), b.CurrencyPairs.AssetTypes[x], false, false)
 		if err != nil {
-			log.Warnf("%s failed to update available pairs. Err: %v", b.Name, err)
+			log.Warnf(log.SubSystemExchSys,"%s failed to update available pairs. Err: %v", b.Name, err)
 		}
 		assetPairs = nil
 	}

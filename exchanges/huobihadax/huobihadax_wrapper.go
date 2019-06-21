@@ -139,7 +139,7 @@ func (h *HUOBIHADAX) Run() {
 
 	err := h.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", h.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", h.Name, err)
 	}
 }
 

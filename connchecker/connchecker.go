@@ -53,9 +53,9 @@ func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, e
 	}
 
 	if c.connected {
-		log.Debug(ConnFound)
+		log.Debugln(log.LogGlobal, ConnFound)
 	} else {
-		log.Warnf(ConnNotFound)
+		log.Warnf(log.LogGlobal, ConnNotFound)
 	}
 
 	c.shutdown = make(chan struct{}, 1)
@@ -137,7 +137,7 @@ func (c *Checker) connectionTest() {
 		if err == nil {
 			c.Lock()
 			if !c.connected {
-				log.Debug(ConnRe)
+				log.Debugln(log.LogGlobal, ConnRe)
 				c.connected = true
 			}
 			c.Unlock()
@@ -150,7 +150,7 @@ func (c *Checker) connectionTest() {
 		if err == nil {
 			c.Lock()
 			if !c.connected {
-				log.Debug(ConnRe)
+				log.Debugln(log.LogGlobal, ConnRe)
 				c.connected = true
 			}
 			c.Unlock()
@@ -160,7 +160,7 @@ func (c *Checker) connectionTest() {
 
 	c.Lock()
 	if c.connected {
-		log.Warn(ConnLost)
+		log.Warn(log.LogGlobal, ConnLost)
 		c.connected = false
 	}
 	c.Unlock()

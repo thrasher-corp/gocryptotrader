@@ -54,7 +54,7 @@ func TestSpotNewOrder(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed - ZB SpotNewOrder: %s", err)
 	} else {
-		fmt.Println(orderid)
+		t.Log(orderid)
 	}
 }
 

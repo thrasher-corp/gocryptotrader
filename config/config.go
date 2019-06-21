@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-/gocryptotrader/logger"
-	logv2 "github.com/thrasher-/gocryptotrader/loggerv2"
 )
 
 // Constants declared here are filename strings and test strings
@@ -185,20 +184,20 @@ func (c *Config) CheckClientBankAccounts() {
 		if c.BankAccounts[i].Enabled {
 			if c.BankAccounts[i].BankName == "" || c.BankAccounts[i].BankAddress == "" {
 				c.BankAccounts[i].Enabled = false
-				log.Warnf("banking details for %s is enabled but variables not set correctly",
+				log.Warnf(log.SubSystemConfMgr, "banking details for %s is enabled but variables not set correctly",
 					c.BankAccounts[i].BankName)
 				continue
 			}
 
 			if c.BankAccounts[i].AccountName == "" || c.BankAccounts[i].AccountNumber == "" {
 				c.BankAccounts[i].Enabled = false
-				log.Warnf("banking account details for %s variables not set correctly",
+				log.Warnf(log.SubSystemConfMgr, "banking account details for %s variables not set correctly",
 					c.BankAccounts[i].BankName)
 				continue
 			}
 			if c.BankAccounts[i].IBAN == "" && c.BankAccounts[i].SWIFTCode == "" && c.BankAccounts[i].BSBNumber == "" {
 				c.BankAccounts[i].Enabled = false
-				log.Warnf("critical banking numbers not set for %s in %s account",
+				log.Warnf(log.SubSystemConfMgr, "critical banking numbers not set for %s in %s account",
 					c.BankAccounts[i].BankName,
 					c.BankAccounts[i].AccountName)
 				continue
@@ -335,7 +334,7 @@ func (c *Config) CheckCommunicationsConfig() {
 		}
 
 		if len(c.Communications.SMSGlobalConfig.From) > 11 {
-			log.Warnf("SMSGlobal config supplied from name exceeds 11 characters, trimming.")
+			log.Warnf(log.SubSystemConfMgr, "SMSGlobal config supplied from name exceeds 11 characters, trimming.")
 			c.Communications.SMSGlobalConfig.From = c.Communications.SMSGlobalConfig.From[:11]
 		}
 
@@ -367,14 +366,14 @@ func (c *Config) CheckCommunicationsConfig() {
 		c.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
 		c.Communications.SMTPConfig.Name != "SMTP" ||
 		c.Communications.TelegramConfig.Name != "Telegram" {
-		log.Warn("Communications config name/s not set correctly")
+		log.Warn(log.SubSystemConfMgr, "Communications config name/s not set correctly")
 	}
 	if c.Communications.SlackConfig.Enabled {
 		if c.Communications.SlackConfig.TargetChannel == "" ||
 			c.Communications.SlackConfig.VerificationToken == "" ||
 			c.Communications.SlackConfig.VerificationToken == "testtest" {
 			c.Communications.SlackConfig.Enabled = false
-			log.Warn("Slack enabled in config but variable data not set, disabling.")
+			log.Warn(log.SubSystemConfMgr, "Slack enabled in config but variable data not set, disabling.")
 		}
 	}
 	if c.Communications.SMSGlobalConfig.Enabled {
@@ -382,7 +381,7 @@ func (c *Config) CheckCommunicationsConfig() {
 			c.Communications.SMSGlobalConfig.Password == "" ||
 			len(c.Communications.SMSGlobalConfig.Contacts) == 0 {
 			c.Communications.SMSGlobalConfig.Enabled = false
-			log.Warn("SMSGlobal enabled in config but variable data not set, disabling.")
+			log.Warn(log.SubSystemConfMgr, "SMSGlobal enabled in config but variable data not set, disabling.")
 		}
 	}
 	if c.Communications.SMTPConfig.Enabled {
@@ -391,13 +390,13 @@ func (c *Config) CheckCommunicationsConfig() {
 			c.Communications.SMTPConfig.AccountName == "" ||
 			c.Communications.SMTPConfig.AccountPassword == "" {
 			c.Communications.SMTPConfig.Enabled = false
-			log.Warn("SMTP enabled in config but variable data not set, disabling.")
+			log.Warn(log.SubSystemConfMgr, "SMTP enabled in config but variable data not set, disabling.")
 		}
 	}
 	if c.Communications.TelegramConfig.Enabled {
 		if c.Communications.TelegramConfig.VerificationToken == "" {
 			c.Communications.TelegramConfig.Enabled = false
-			log.Warn("Telegram enabled in config but variable data not set, disabling.")
+			log.Warn(log.SubSystemConfMgr, "Telegram enabled in config but variable data not set, disabling.")
 		}
 	}
 }
@@ -454,7 +453,7 @@ func (c *Config) CheckExchangeAssetsConsistency(exchName string) {
 	storedAssetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
 	for x := range storedAssetTypes {
 		if !exchangeAssetTypes.Contains(storedAssetTypes[x]) {
-			log.Warnf("%s has non-needed stored asset type %v. Removing..", exchName, storedAssetTypes[x])
+			log.Warnf(log.SubSystemConfMgr, "%s has non-needed stored asset type %v. Removing..", exchName, storedAssetTypes[x])
 			exchCfg.CurrencyPairs.Delete(storedAssetTypes[x])
 		}
 	}
@@ -1084,7 +1083,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 					c.Currency.ForexProviders[i].PrimaryProvider &&
 					(c.Currency.ForexProviders[i].APIKey == "" ||
 						c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-					log.Warnf("CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
+					log.Warnf(log.SubSystemConfMgr, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
 					c.Currency.ForexProviders[i].Enabled = false
 					c.Currency.ForexProviders[i].PrimaryProvider = false
 					c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
@@ -1106,7 +1105,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			if c.Currency.ForexProviders[x].Name == DefaultForexProviderExchangeRatesAPI {
 				c.Currency.ForexProviders[x].Enabled = true
 				c.Currency.ForexProviders[x].PrimaryProvider = true
-				log.Warn("Using ExchangeRatesAPI for default forex provider.")
+				log.Warn(log.SubSystemConfMgr, "Using ExchangeRatesAPI for default forex provider.")
 			}
 		}
 	}
@@ -1122,11 +1121,11 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	if c.Currency.CryptocurrencyProvider.Enabled {
 		if c.Currency.CryptocurrencyProvider.APIkey == "" ||
 			c.Currency.CryptocurrencyProvider.APIkey == DefaultUnsetAPIKey {
-			log.Warnf("CryptocurrencyProvider enabled but api key is unset please set this in your config.json file")
+			log.Warnf(log.SubSystemConfMgr, "CryptocurrencyProvider enabled but api key is unset please set this in your config.json file")
 		}
 		if c.Currency.CryptocurrencyProvider.AccountPlan == "" ||
 			c.Currency.CryptocurrencyProvider.AccountPlan == DefaultUnsetAccountPlan {
-			log.Warnf("CryptocurrencyProvider enabled but account plan is unset please set this in your config.json file")
+			log.Warnf(log.SubSystemConfMgr, "CryptocurrencyProvider enabled but account plan is unset please set this in your config.json file")
 		}
 	} else {
 		if c.Currency.CryptocurrencyProvider.APIkey == "" {
@@ -1225,50 +1224,15 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 	return nil
 }
 
-func (c *Config) CheckLoggerConfigV2() error {
-	m.Lock()
-	if c.Loggingv2.Enabled == nil {
-		c.Loggingv2 = logv2.GenDefaultSettings()
-	}
-	logv2.GlobalLogConfig = &c.Loggingv2
-	m.Unlock()
-	return nil
-}
-
 // CheckLoggerConfig checks to see logger values are present and valid in config
 // if not creates a default instance of the logger
 func (c *Config) CheckLoggerConfig() error {
 	m.Lock()
-	defer m.Unlock()
-
-	// check if enabled is nil or level is a blank string
-	if c.Logging.Enabled == nil || c.Logging.Level == "" {
-		// Creates a new pointer to bool and sets it as true
-		t := func(t bool) *bool { return &t }(true)
-
-		log.Warn("Missing or invalid config settings using safe defaults")
-
-		// Set logger to safe defaults
-		c.Logging = log.Logging{
-			Enabled:      t,
-			Level:        "DEBUG|INFO|WARN|ERROR|FATAL",
-			ColourOutput: false,
-			File:         "debug.txt",
-			Rotate:       false,
-		}
-		log.Logger = &c.Logging
-	} else {
-		log.Logger = &c.Logging
+	if c.Logging.Enabled == nil {
+		c.Logging = log.GenDefaultSettings()
 	}
-
-	if len(c.Logging.File) > 0 {
-		logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
-		err := common.CreateDir(logPath)
-		if err != nil {
-			return err
-		}
-		log.LogPath = logPath
-	}
+	log.GlobalLogConfig = &c.Logging
+	m.Unlock()
 	return nil
 }
 
@@ -1288,7 +1252,7 @@ func (c *Config) CheckNTPConfig() {
 	}
 
 	if len(c.NTPClient.Pool) < 1 {
-		log.Warn("NTPClient enabled with no servers configured, enabling default pool.")
+		log.Warn(log.SubSystemConfMgr, "NTPClient enabled with no servers configured, enabling default pool.")
 		c.NTPClient.Pool = []string{"pool.ntp.org:123"}
 	}
 }
@@ -1299,8 +1263,8 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	log.Warn("Your system time is out of sync, this may cause issues with trading.")
-	log.Warn("How would you like to show future notifications? (a)lert / (w)arn / (d)isable. \n")
+	log.Warn(log.SubSystemConfMgr, "Your system time is out of sync, this may cause issues with trading.")
+	log.Warn(log.SubSystemConfMgr, "How would you like to show future notifications? (a)lert / (w)arn / (d)isable. \n")
 
 	var answered = false
 	for ok := true; ok; ok = (!answered) {
@@ -1477,7 +1441,7 @@ func (c *Config) ReadConfig(configPath string) error {
 			}
 			key, err := PromptForConfigKey(IsInitialSetup)
 			if err != nil {
-				log.Errorf("PromptForConfigKey err: %s", err)
+				log.Errorf(log.SubSystemConfMgr, "PromptForConfigKey err: %s", err)
 				errCounter++
 				continue
 			}
@@ -1486,7 +1450,7 @@ func (c *Config) ReadConfig(configPath string) error {
 			f = append(f, file...)
 			data, err := DecryptConfigFile(f, key)
 			if err != nil {
-				log.Errorf("DecryptConfigFile err: %s", err)
+				log.Errorf(log.SubSystemConfMgr, "DecryptConfigFile err: %s", err)
 				errCounter++
 				continue
 			}
@@ -1494,7 +1458,7 @@ func (c *Config) ReadConfig(configPath string) error {
 			err = ConfirmConfigJSON(data, &c)
 			if err != nil {
 				if errCounter < configMaxAuthFailures {
-					log.Errorf("Invalid password.")
+					log.Error(log.SubSystemConfMgr, "Invalid password.")
 				}
 				errCounter++
 				continue
@@ -1584,10 +1548,8 @@ func (c *Config) CheckRemoteControlConfig() {
 func (c *Config) CheckConfig() error {
 	err := c.CheckLoggerConfig()
 	if err != nil {
-		log.Errorf("Failed to configure logger. Err: %s", err)
+		log.Errorf(log.SubSystemConfMgr, "Failed to configure logger. Err: %s", err)
 	}
-
-	c.CheckLoggerConfigV2()
 
 	err = c.CheckExchangeConfigValues()
 	if err != nil {
@@ -1605,7 +1567,7 @@ func (c *Config) CheckConfig() error {
 	}
 
 	if c.GlobalHTTPTimeout <= 0 {
-		log.Warnf("Global HTTP Timeout value not set, defaulting to %v.", configDefaultHTTPTimeout)
+		log.Warnf(log.SubSystemConfMgr, "Global HTTP Timeout value not set, defaulting to %v.", configDefaultHTTPTimeout)
 		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
 	}
 

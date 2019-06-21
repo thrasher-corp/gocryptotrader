@@ -635,12 +635,12 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.SubSystemExchSys, err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.SubSystemExchSys, err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, Price{price, amount})
@@ -649,12 +649,12 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.SubSystemExchSys, err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.SubSystemExchSys, err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, Price{price, amount})
@@ -688,7 +688,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if l.Verbose {
-		log.Debugf("Sending POST request to `%s`, path: `%s`, params: `%s`.", l.API.Endpoints.URL, path, encoded)
+		log.Debugf(log.SubSystemExchSys,"Sending POST request to `%s`, path: `%s`, params: `%s`.", l.API.Endpoints.URL, path, encoded)
 	}
 
 	if method == http.MethodGet && len(encoded) > 0 {

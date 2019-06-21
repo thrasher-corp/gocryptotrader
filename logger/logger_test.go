@@ -2,86 +2,41 @@ package logger
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 )
 
-var (
-	trueptr  = func(b bool) *bool { return &b }(true)
-	falseptr = func(b bool) *bool { return &b }(false)
-)
-
-func TestCloseLogFile(t *testing.T) {
-	Logger = &Logging{
-		Enabled:      trueptr,
-		Level:        "DEBUG",
-		ColourOutput: false,
-		File:         "",
-		Rotate:       false,
-	}
-	SetupLogger()
-	err := CloseLogFile()
-	if err != nil {
-		t.Fatalf("CloseLogFile failed with %v", err)
-	}
-	os.Remove(filepath.Join(LogPath, Logger.File))
-}
-
-func TestSetupOutputsValidPath(t *testing.T) {
-	Logger.Enabled = trueptr
-	Logger.File = "debug.txt"
-	LogPath = "../testdata/"
-	err := setupOutputs()
-	if err != nil {
-		t.Fatalf("SetupOutputs failed expected nil got %v", err)
-	}
-
-	err = CloseLogFile()
-	if err != nil {
-		t.Fatalf("CloseLogFile failed with %v", err)
-	}
-
-	err = os.Remove(filepath.Join(LogPath, Logger.File))
-	if err != nil {
-		t.Fatal("Test Failed - SetupOutputsValidPath() error could not remove test file", err)
-	}
-}
-
-func TestSetupOutputsInValidPath(t *testing.T) {
-	Logger.Enabled = trueptr
-	Logger.File = "debug.txt"
-	LogPath = "../testdataa/"
-	err := setupOutputs()
-	if err != nil {
-		if !os.IsNotExist(err) {
-			t.Fatalf("SetupOutputs failed expected %v got %v", os.ErrNotExist, err)
-		}
-	}
-	err = os.Remove(filepath.Join(LogPath, Logger.File))
-	if err == nil {
-		t.Fatal("Test Failed - SetupOutputsInValidPath() error cannot be nil")
-	}
-}
-
-func BenchmarkDebugf(b *testing.B) {
-	Logger = &Logging{
-		Enabled:      trueptr,
-		Level:        "DEBUG",
-		ColourOutput: false,
-		File:         "",
-		Rotate:       false,
-	}
-	SetupLogger()
+func BenchmarkInfo(b *testing.B) {
+	logger = newLogger(GlobalLogConfig)
+	addSubLogger("testlog", "INFO|DEBUG|WARN|ERROR", os.Stdout)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Debugf("This is a debug benchmark %d", n)
+		Info("testlog", "Hello this is an info benchmark")
 	}
 }
 
-func BenchmarkDebugfLoggerDisabled(b *testing.B) {
-	clearAllLoggers()
+func BenchmarkAllDisabled(b *testing.B) {
+	logger = newLogger(GlobalLogConfig)
+	addSubLogger("testlog", "", os.Stdout)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Debugf("this is a debug benchmark")
+		Info("testlog", "Hello this is an info benchmark")
+	}
+}
+
+func BenchmarkInfof(b *testing.B) {
+	logger = newLogger(GlobalLogConfig)
+	addSubLogger("sys", "DEBUG|WARN|ERROR", os.Stdout)
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		Infof("sys", "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
+	}
+}
+
+func BenchmarkInfoln(b *testing.B) {
+	logger = newLogger(GlobalLogConfig)
+	addSubLogger("sys", "INFO|DEBUG|WARN|ERROR", os.Stdout)
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		Infoln("sys", "Hello this is an infoln benchmark")
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -230,7 +231,7 @@ func TestSpotNewOrder(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed - Huobi SpotNewOrder: %s", err)
 	} else {
-		fmt.Println(newOrderID)
+		fmt.Info(log.SubSystemExchSys, newOrderID)
 	}
 }
 

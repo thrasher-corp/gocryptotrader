@@ -1,80 +1,84 @@
 package logger
 
-import (
-	"fmt"
-	"log"
-	"os"
-)
+import "fmt"
 
-// Info handler takes any input returns unformatted output to infoLogger writer
-func Info(v ...interface{}) {
-	infoLogger.Print(v...)
+func Info(subSystem, data string) {
+	if !subsystemLoggers[subSystem].Info {
+		return
+	}
+	logger.newLogEvent(data, logger.InfoHeader, subsystemLoggers[subSystem].output)
 }
 
-// Infof handler takes any input infoLogger returns formatted output to infoLogger writer
-func Infof(data string, v ...interface{}) {
-	infoLogger.Printf(data, v...)
+func Infoln(subSystem string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Info {
+		return
+	}
+	logger.newLogEvent(fmt.Sprintln(v...), logger.InfoHeader, subsystemLoggers[subSystem].output)
 }
 
-// Infoln handler takes any input infoLogger returns formatted output to infoLogger writer
-func Infoln(v ...interface{}) {
-	infoLogger.Println(v...)
+func Infof(subSystem, data string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Info {
+		return
+	}
+	Info(subSystem, fmt.Sprintf(data, v...))
 }
 
-// Print aliased to Standard log.Print
-var Print = log.Print
-
-// Printf aliased to Standard log.Printf
-var Printf = log.Printf
-
-// Println aliased to Standard log.Println
-var Println = log.Println
-
-// Debug handler takes any input returns unformatted output to infoLogger writer
-func Debug(v ...interface{}) {
-	debugLogger.Print(v...)
+func Debug(subSystem, data string) {
+	if !subsystemLoggers[subSystem].Debug {
+		return
+	}
+	logger.newLogEvent(data, logger.DebugHeader, subsystemLoggers[subSystem].output)
 }
 
-// Debugf handler takes any input infoLogger returns formatted output to infoLogger writer
-func Debugf(data string, v ...interface{}) {
-	debugLogger.Printf(data, v...)
+func Debugln(subSystem string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Debug {
+		return
+	}
+	logger.newLogEvent(fmt.Sprintln(v...), logger.DebugHeader, subsystemLoggers[subSystem].output)
 }
 
-// Debugln handler takes any input infoLogger returns formatted output to infoLogger writer
-func Debugln(v ...interface{}) {
-	debugLogger.Println(v...)
+func Debugf(subSystem, data string, v ...interface{}) {
+	Debug(subSystem, fmt.Sprintf(data, v...))
 }
 
-// Warn handler takes any input returns unformatted output to warnLogger writer
-func Warn(v ...interface{}) {
-	warnLogger.Print(v...)
+func Warn(subSystem, data string) {
+	if !subsystemLoggers[subSystem].Warn {
+		return
+	}
+	logger.newLogEvent(data, logger.WarnHeader, subsystemLoggers[subSystem].output)
 }
 
-// Warnf handler takes any input returns unformatted output to warnLogger writer
-func Warnf(data string, v ...interface{}) {
-	warnLogger.Printf(data, v...)
+func Warnln(subSystem string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Warn {
+		return
+	}
+	logger.newLogEvent(fmt.Sprintln(v...), logger.WarnHeader, subsystemLoggers[subSystem].output)
 }
 
-// Error handler takes any input returns unformatted output to errorLogger writer
-func Error(v ...interface{}) {
-	errorLogger.Print(v...)
+func Warnf(subSystem, data string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Warn {
+		return
+	}
+	Warn(subSystem, fmt.Sprintf(data, v...))
 }
 
-// Errorf handler takes any input returns unformatted output to errorLogger writer
-func Errorf(data string, v ...interface{}) {
-	errorLogger.Printf(data, v...)
+func Error(subSystem string, data ...interface{}) {
+	if !subsystemLoggers[subSystem].Error {
+		return
+	}
+	logger.newLogEvent(fmt.Sprint(data...), logger.ErrorHeader, subsystemLoggers[subSystem].output)
 }
 
-// Fatal handler takes any input returns unformatted output to fatalLogger writer
-func Fatal(v ...interface{}) {
-	// Send to Output instead of Fatal to allow us to increase the output depth by 1 to make sure the correct file is displayed
-	fatalLogger.Output(2, fmt.Sprint(v...))
-	os.Exit(1)
+func Errorln(subSystem string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Error {
+		return
+	}
+	logger.newLogEvent(fmt.Sprintln(v...), logger.ErrorHeader, subsystemLoggers[subSystem].output)
 }
 
-// Fatalf handler takes any input returns unformatted output to fatalLogger writer
-func Fatalf(data string, v ...interface{}) {
-	// Send to Output instead of Fatal to allow us to increase the output depth by 1 to make sure the correct file is displayed
-	fatalLogger.Output(2, fmt.Sprintf(data, v...))
-	os.Exit(1)
+func Errorf(subSystem, data string, v ...interface{}) {
+	if !subsystemLoggers[subSystem].Error {
+		return
+	}
+	Warn(subSystem, fmt.Sprintf(data, v...))
 }

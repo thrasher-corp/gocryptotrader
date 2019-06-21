@@ -33,7 +33,7 @@ func (c *commsManager) Start() (err error) {
 		}
 	}()
 
-	log.Debugln("Communications manager starting...")
+	log.Debugln(log.SubSystemCommMgr, "Communications manager starting...")
 	commsCfg := Bot.Config.GetCommunicationsConfig()
 	c.comms, err = communications.NewComm(&commsCfg)
 	if err != nil {
@@ -43,7 +43,7 @@ func (c *commsManager) Start() (err error) {
 	c.shutdown = make(chan struct{})
 	c.relayMsg = make(chan base.Event)
 	go c.run()
-	log.Debugln("Communications manager started.")
+	log.Debugln(log.SubSystemCommMgr, "Communications manager started.")
 	return nil
 }
 
@@ -64,7 +64,7 @@ func (c *commsManager) Stop() error {
 	}
 
 	close(c.shutdown)
-	log.Debugln("Communications manager shutting down...")
+	log.Debugln(log.SubSystemCommMgr, "Communications manager shutting down...")
 	return nil
 }
 
@@ -80,7 +80,7 @@ func (c *commsManager) run() {
 		// TO-DO shutdown comms connections for connected services (Slack etc)
 		atomic.CompareAndSwapInt32(&c.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&c.started, 1, 0)
-		log.Debugln("Communications manager shutdown.")
+		log.Debugln(log.SubSystemCommMgr, "Communications manager shutdown.")
 	}()
 
 	for {

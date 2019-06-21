@@ -129,13 +129,13 @@ func (p *Poloniex) Start(wg *sync.WaitGroup) {
 // Run implements the Poloniex wrapper
 func (p *Poloniex) Run() {
 	if p.Verbose {
-		log.Debugf("%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
+		log.Debugf(log.SubSystemExchSys,"%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
 		p.PrintEnabledPairs()
 	}
 
 	forceUpdate := false
 	if common.StringDataCompare(p.GetAvailablePairs(asset.Spot).Strings(), "BTC_USDT") {
-		log.Warnf("%s contains invalid pair, forcing upgrade of available currencies.\n",
+		log.Warnf(log.SubSystemExchSys,"%s contains invalid pair, forcing upgrade of available currencies.\n",
 			p.Name)
 		forceUpdate = true
 	}
@@ -146,7 +146,7 @@ func (p *Poloniex) Run() {
 
 	err := p.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", p.Name, err)
+		log.Errorf(log.SubSystemExchSys,"%s failed to update tradable pairs. Err: %s", p.Name, err)
 	}
 }
 
@@ -452,7 +452,7 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
 			orderDate, err := time.Parse(poloniexDateLayout, order.Date)
 			if err != nil {
-				log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				log.Warnf(log.SubSystemExchSys,"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
 			}
 
@@ -494,7 +494,7 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
 			orderDate, err := time.Parse(poloniexDateLayout, order.Date)
 			if err != nil {
-				log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				log.Warnf(log.SubSystemExchSys,"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
 			}
 

@@ -1,7 +1,6 @@
-package loggerv2
+package logger
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -16,7 +15,6 @@ func (mw *multiWriter) Remove(writers ...io.Writer) {
 	for i := len(mw.writers) - 1; i > 0; i-- {
 		for v := range writers {
 			if mw.writers[i] == writers[v] {
-				fmt.Println(writers[v])
 				mw.writers = append(mw.writers[:i], mw.writers[i+1:]...)
 				break
 			}
