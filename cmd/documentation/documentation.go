@@ -174,9 +174,9 @@ func GetConfiguration() (Config, error) {
 		c.ReferencePathToRepo = "../../"
 		c.Exclusions.Directories = []string{".github"}
 
-		data, err := json.MarshalIndent(c, "", " ")
-		if err != nil {
-			return c, err
+		data, mErr := json.MarshalIndent(c, "", " ")
+		if mErr != nil {
+			return c, mErr
 		}
 
 		_, err = file.WriteAt(data, 0)
@@ -340,7 +340,7 @@ func UpdateDocumentation(details DocumentationDetails) error {
 			if d == ".." {
 				continue
 			}
-			if len(d) == 0 {
+			if d == "" {
 				break
 			}
 
