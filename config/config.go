@@ -184,20 +184,20 @@ func (c *Config) CheckClientBankAccounts() {
 		if c.BankAccounts[i].Enabled {
 			if c.BankAccounts[i].BankName == "" || c.BankAccounts[i].BankAddress == "" {
 				c.BankAccounts[i].Enabled = false
-				log.Warnf(log.SubSystemConfMgr, "banking details for %s is enabled but variables not set correctly",
+				log.Warnf(log.SubSystemConfMgr, "banking details for %s is enabled but variables not set correctly\n",
 					c.BankAccounts[i].BankName)
 				continue
 			}
 
 			if c.BankAccounts[i].AccountName == "" || c.BankAccounts[i].AccountNumber == "" {
 				c.BankAccounts[i].Enabled = false
-				log.Warnf(log.SubSystemConfMgr, "banking account details for %s variables not set correctly",
+				log.Warnf(log.SubSystemConfMgr, "banking account details for %s variables not set correctly\n",
 					c.BankAccounts[i].BankName)
 				continue
 			}
 			if c.BankAccounts[i].IBAN == "" && c.BankAccounts[i].SWIFTCode == "" && c.BankAccounts[i].BSBNumber == "" {
 				c.BankAccounts[i].Enabled = false
-				log.Warnf(log.SubSystemConfMgr, "critical banking numbers not set for %s in %s account",
+				log.Warnf(log.SubSystemConfMgr, "critical banking numbers not set for %s in %s account\n",
 					c.BankAccounts[i].BankName,
 					c.BankAccounts[i].AccountName)
 				continue
@@ -334,7 +334,7 @@ func (c *Config) CheckCommunicationsConfig() {
 		}
 
 		if len(c.Communications.SMSGlobalConfig.From) > 11 {
-			log.Warnf(log.SubSystemConfMgr, "SMSGlobal config supplied from name exceeds 11 characters, trimming.")
+			log.Warnf(log.SubSystemConfMgr, "SMSGlobal config supplied from name exceeds 11 characters, trimming.\n")
 			c.Communications.SMSGlobalConfig.From = c.Communications.SMSGlobalConfig.From[:11]
 		}
 
@@ -453,7 +453,7 @@ func (c *Config) CheckExchangeAssetsConsistency(exchName string) {
 	storedAssetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
 	for x := range storedAssetTypes {
 		if !exchangeAssetTypes.Contains(storedAssetTypes[x]) {
-			log.Warnf(log.SubSystemConfMgr, "%s has non-needed stored asset type %v. Removing..", exchName, storedAssetTypes[x])
+			log.Warnf(log.SubSystemConfMgr, "%s has non-needed stored asset type %v. Removing..\n", exchName, storedAssetTypes[x])
 			exchCfg.CurrencyPairs.Delete(storedAssetTypes[x])
 		}
 	}
@@ -628,7 +628,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				return fmt.Errorf("exchange %s failed to set pairs: %v", exchName, err)
 			}
 		}
-		log.Warnf("Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.",
+		log.Warnf("Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.\n",
 			exchName, assetTypes[x], pairsRemoved.Strings())
 	}
 	return nil
@@ -955,46 +955,46 @@ func (c *Config) CheckExchangeConfigValues() error {
 				}
 
 				if !c.Exchanges[i].API.AuthenticatedSupport {
-					log.Warnf(WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
+					log.Warnf("%s %s\n", WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
 				}
 			}
 			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates && !c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
 				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Warnf(WarningPairsLastUpdatedThresholdExceeded, c.Exchanges[i].Name, configPairsLastUpdatedWarningThreshold)
+					log.Warnf("%s %s\n", WarningPairsLastUpdatedThresholdExceeded, c.Exchanges[i].Name, configPairsLastUpdatedWarningThreshold)
 				}
 			}
 			if c.Exchanges[i].HTTPTimeout <= 0 {
-				log.Warnf("Exchange %s HTTP Timeout value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultHTTPTimeout)
+				log.Warnf("Exchange %s HTTP Timeout value not set, defaulting to %v.\n", c.Exchanges[i].Name, configDefaultHTTPTimeout)
 				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
 			}
 
 			if c.Exchanges[i].HTTPRateLimiter != nil {
 				if c.Exchanges[i].HTTPRateLimiter.Authenticated.Duration < 0 {
-					log.Warnf("Exchange %s HTTP Rate Limiter authenticated duration set to negative value, defaulting to 0", c.Exchanges[i].Name)
+					log.Warnf("Exchange %s HTTP Rate Limiter authenticated duration set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
 					c.Exchanges[i].HTTPRateLimiter.Authenticated.Duration = 0
 				}
 
 				if c.Exchanges[i].HTTPRateLimiter.Authenticated.Rate < 0 {
-					log.Warnf("Exchange %s HTTP Rate Limiter authenticated rate set to negative value, defaulting to 0", c.Exchanges[i].Name)
+					log.Warnf("Exchange %s HTTP Rate Limiter authenticated rate set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
 					c.Exchanges[i].HTTPRateLimiter.Authenticated.Rate = 0
 				}
 
 				if c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Duration < 0 {
-					log.Warnf("Exchange %s HTTP Rate Limiter unauthenticated duration set to negative value, defaulting to 0", c.Exchanges[i].Name)
+					log.Warnf("Exchange %s HTTP Rate Limiter unauthenticated duration set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
 					c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Duration = 0
 				}
 
 				if c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Rate < 0 {
-					log.Warnf("Exchange %s HTTP Rate Limiter unauthenticated rate set to negative value, defaulting to 0", c.Exchanges[i].Name)
+					log.Warnf("Exchange %s HTTP Rate Limiter unauthenticated rate set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
 					c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Rate = 0
 				}
 			}
 
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
-				log.Errorf("Exchange %s: CheckPairConsistency error: %s", c.Exchanges[i].Name, err)
+				log.Errorf("Exchange %s: CheckPairConsistency error: %s\n", c.Exchanges[i].Name, err)
 				c.Exchanges[i].Enabled = false
 				continue
 			}
@@ -1008,26 +1008,26 @@ func (c *Config) CheckExchangeConfigValues() error {
 					}
 					bankError := false
 					if c.Exchanges[i].BankAccounts[x].BankName == "" || c.Exchanges[i].BankAccounts[x].BankAddress == "" {
-						log.Warnf("banking details for %s is enabled but variables not set",
+						log.Warnf("banking details for %s is enabled but variables not set\n",
 							c.Exchanges[i].Name)
 						bankError = true
 					}
 
 					if c.Exchanges[i].BankAccounts[x].AccountName == "" || c.Exchanges[i].BankAccounts[x].AccountNumber == "" {
-						log.Warnf("banking account details for %s variables not set",
+						log.Warnf("banking account details for %s variables not set\n",
 							c.Exchanges[i].Name)
 						bankError = true
 					}
 
 					if c.Exchanges[i].BankAccounts[x].SupportedCurrencies == "" {
-						log.Warnf("banking account details for %s acceptable funding currencies not set",
+						log.Warnf("banking account details for %s acceptable funding currencies not set\n",
 							c.Exchanges[i].Name)
 						bankError = true
 					}
 
 					if c.Exchanges[i].BankAccounts[x].BSBNumber == "" && c.Exchanges[i].BankAccounts[x].IBAN == "" &&
 						c.Exchanges[i].BankAccounts[x].SWIFTCode == "" {
-						log.Warnf("banking account details for %s critical banking numbers not set",
+						log.Warnf("banking account details for %s critical banking numbers not set\n",
 							c.Exchanges[i].Name)
 						bankError = true
 					}
@@ -1057,7 +1057,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		for x := range fxProviders {
 			_, err := c.GetForexProviderConfig(fxProviders[x])
 			if err != nil {
-				log.Warnf("%s forex provider not found, adding to config..", fxProviders[x])
+				log.Warnf("%s forex provider not found, adding to config..\n", fxProviders[x])
 				c.Currency.ForexProviders = append(c.Currency.ForexProviders, base.Settings{
 					Name:             fxProviders[x],
 					RESTPollingDelay: 600,
@@ -1072,7 +1072,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
 			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-				log.Warnf("%s enabled forex provider API key not set. Please set this in your config.json file", c.Currency.ForexProviders[i].Name)
+				log.Warnf("%s enabled forex provider API key not set. Please set this in your config.json file\n", c.Currency.ForexProviders[i].Name)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				continue
@@ -1083,7 +1083,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 					c.Currency.ForexProviders[i].PrimaryProvider &&
 					(c.Currency.ForexProviders[i].APIKey == "" ||
 						c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-					log.Warnf(log.SubSystemConfMgr, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
+					log.Warnf(log.SubSystemConfMgr, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..\n")
 					c.Currency.ForexProviders[i].Enabled = false
 					c.Currency.ForexProviders[i].PrimaryProvider = false
 					c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
@@ -1093,7 +1093,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			}
 
 			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-				log.Warnf("%s APIKey Level not set, functions limited. Please set this in your config.json file",
+				log.Warnf("%s APIKey Level not set, functions limited. Please set this in your config.json file\n",
 					c.Currency.ForexProviders[i].Name)
 			}
 			count++
@@ -1105,7 +1105,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			if c.Currency.ForexProviders[x].Name == DefaultForexProviderExchangeRatesAPI {
 				c.Currency.ForexProviders[x].Enabled = true
 				c.Currency.ForexProviders[x].PrimaryProvider = true
-				log.Warn(log.SubSystemConfMgr, "Using ExchangeRatesAPI for default forex provider.")
+				log.Warnln(log.SubSystemConfMgr, "Using ExchangeRatesAPI for default forex provider.")
 			}
 		}
 	}
@@ -1121,11 +1121,11 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	if c.Currency.CryptocurrencyProvider.Enabled {
 		if c.Currency.CryptocurrencyProvider.APIkey == "" ||
 			c.Currency.CryptocurrencyProvider.APIkey == DefaultUnsetAPIKey {
-			log.Warnf(log.SubSystemConfMgr, "CryptocurrencyProvider enabled but api key is unset please set this in your config.json file")
+			log.Warnln(log.SubSystemConfMgr, "CryptocurrencyProvider enabled but api key is unset please set this in your config.json file")
 		}
 		if c.Currency.CryptocurrencyProvider.AccountPlan == "" ||
 			c.Currency.CryptocurrencyProvider.AccountPlan == DefaultUnsetAccountPlan {
-			log.Warnf(log.SubSystemConfMgr, "CryptocurrencyProvider enabled but account plan is unset please set this in your config.json file")
+			log.Warnln(log.SubSystemConfMgr, "CryptocurrencyProvider enabled but account plan is unset please set this in your config.json file")
 		}
 	} else {
 		if c.Currency.CryptocurrencyProvider.APIkey == "" {
@@ -1228,11 +1228,19 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 // if not creates a default instance of the logger
 func (c *Config) CheckLoggerConfig() error {
 	m.Lock()
+	defer m.Unlock()
 	if c.Logging.Enabled == nil {
 		c.Logging = log.GenDefaultSettings()
 	}
 	log.GlobalLogConfig = &c.Logging
-	m.Unlock()
+
+	logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
+	err := common.CreateDir(logPath)
+	if err != nil {
+		return err
+	}
+	log.LogPath = logPath
+
 	return nil
 }
 
@@ -1252,7 +1260,7 @@ func (c *Config) CheckNTPConfig() {
 	}
 
 	if len(c.NTPClient.Pool) < 1 {
-		log.Warn(log.SubSystemConfMgr, "NTPClient enabled with no servers configured, enabling default pool.")
+		log.Warnln(log.SubSystemConfMgr, "NTPClient enabled with no servers configured, enabling default pool.")
 		c.NTPClient.Pool = []string{"pool.ntp.org:123"}
 	}
 }
@@ -1263,8 +1271,8 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	log.Warn(log.SubSystemConfMgr, "Your system time is out of sync, this may cause issues with trading.")
-	log.Warn(log.SubSystemConfMgr, "How would you like to show future notifications? (a)lert / (w)arn / (d)isable. \n")
+	log.Warnln(log.SubSystemConfMgr, "Your system time is out of sync, this may cause issues with trading.")
+	log.Warnln(log.SubSystemConfMgr, "How would you like to show future notifications? (a)lert / (w)arn / (d)isable.")
 
 	var answered = false
 	for ok := true; ok; ok = (!answered) {
@@ -1352,13 +1360,13 @@ func GetFilePath(file string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[0])
+			log.Debugf("Renamed old config file %s to %s\n", oldDirs[x], newDirs[0])
 		} else {
 			err = os.Rename(oldDirs[x], newDirs[1])
 			if err != nil {
 				return "", err
 			}
-			log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[1])
+			log.Debugf("Renamed old config file %s to %s\n", oldDirs[x], newDirs[1])
 		}
 	}
 
@@ -1548,7 +1556,7 @@ func (c *Config) CheckRemoteControlConfig() {
 func (c *Config) CheckConfig() error {
 	err := c.CheckLoggerConfig()
 	if err != nil {
-		log.Errorf(log.SubSystemConfMgr, "Failed to configure logger. Err: %s", err)
+		fmt.Printf("Failed to configure logger some logging features unavailable: %s\n", err)
 	}
 
 	err = c.CheckExchangeConfigValues()
@@ -1567,7 +1575,7 @@ func (c *Config) CheckConfig() error {
 	}
 
 	if c.GlobalHTTPTimeout <= 0 {
-		log.Warnf(log.SubSystemConfMgr, "Global HTTP Timeout value not set, defaulting to %v.", configDefaultHTTPTimeout)
+		log.Warnf(log.SubSystemConfMgr, "Global HTTP Timeout value not set, defaulting to %v.\n", configDefaultHTTPTimeout)
 		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
 	}
 

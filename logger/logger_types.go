@@ -48,7 +48,6 @@ type subLogger struct {
 type LogEvent struct {
 	data   []byte
 	output io.Writer
-	mu     sync.Mutex
 }
 
 type multiWriter struct {
@@ -67,6 +66,7 @@ var (
 			}
 		},
 	}
+	LogPath string
 )
 
 const (
@@ -84,8 +84,6 @@ const (
 	SubSystemExchSys = "exchsys"
 	SubSystemGrpcSys = "grpcsys"
 	SubSystemRestSys = "restsys"
-
-	SubSystem
 
 	SubSystemTicker    = "ticker"
 	SubSystemOrderBook = "orderbook"

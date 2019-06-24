@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 type fileWriters struct {
@@ -13,7 +14,8 @@ type fileWriters struct {
 var f = fileWriters{}
 
 func createFileHandle(subsystem string) (io.Writer, error) {
-	fileHandle, err := os.OpenFile(subsystem+".txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	logFile := filepath.Join(LogPath, subsystem+".txt")
+	fileHandle, err := os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, err
 	}

@@ -349,7 +349,7 @@ func CreateDir(dir string) error {
 		return nil
 	}
 
-	log.Warnf(log.LogGlobal, "Directory %s does not exist.. creating.", dir)
+	log.Warnf(log.LogGlobal, "Directory %s does not exist.. creating.\n", dir)
 	return os.MkdirAll(dir, 0770)
 }
 

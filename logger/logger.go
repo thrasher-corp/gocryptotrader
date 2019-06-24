@@ -37,9 +37,8 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	if data == "" || data[len(data)-1] != '\n' {
 		e.data = append(e.data, '\n')
 	}
-	e.mu.Lock()
 	e.output.Write(e.data)
-	e.mu.Unlock()
+	e.data = (e.data)[:0]
 	eventPool.Put(e)
 }
 
