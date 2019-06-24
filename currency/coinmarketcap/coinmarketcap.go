@@ -86,7 +86,7 @@ func (c *Coinmarketcap) Setup(conf Settings) {
 	} else {
 		err := c.SetAccountPlan(conf.AccountPlan)
 		if err != nil {
-			log.Errorf(log.LogGlobal, "CoinMarketCap enabled but SetAccountPlan failed. Err: %s", err)
+			log.Errorf(log.LogGlobal, "CoinMarketCap enabled but SetAccountPlan failed. Err: %s\n", err)
 			return
 		}
 		c.Enabled = true

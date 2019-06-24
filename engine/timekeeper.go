@@ -55,7 +55,7 @@ func (n *ntpManager) Start() (err error) {
 			case nil:
 				break
 			case errNTPDisabled:
-				log.Debugf(log.SubSystemTimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
+				log.Debugln(log.SubSystemTimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
 				disable = true
 				err = nil
 				return
@@ -123,14 +123,14 @@ func (n *ntpManager) processTime() error {
 	configNTPTime := *Bot.Config.NTPClient.AllowedDifference
 	configNTPNegativeTime := (*Bot.Config.NTPClient.AllowedNegativeDifference - (*Bot.Config.NTPClient.AllowedNegativeDifference * 2))
 	if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
-		log.Warnf(log.SubSystemTimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
+		log.Warnf(log.SubSystemTimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
 		if n.inititalCheck {
 			n.inititalCheck = false
 			disable, err := Bot.Config.DisableNTPCheck(os.Stdin)
 			if err != nil {
 				return fmt.Errorf("unable to disable NTP check: %s", err)
 			}
-			log.Info(log.SubSystemTimeMgr, disable)
+			log.Infoln(log.SubSystemTimeMgr, disable)
 			if Bot.Config.NTPClient.Level == -1 {
 				return errNTPDisabled
 			}

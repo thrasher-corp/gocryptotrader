@@ -20,7 +20,7 @@ import (
 func printCurrencyFormat(price float64) string {
 	displaySymbol, err := currency.GetSymbolByCurrencyName(Bot.Config.Currency.FiatDisplayCurrency)
 	if err != nil {
-		log.Errorf(log.LogGlobal, "Failed to get display symbol: %s", err)
+		log.Errorf(log.LogGlobal, "Failed to get display symbol: %s\n", err)
 	}
 
 	return fmt.Sprintf("%s%.8f", displaySymbol, price)
@@ -32,17 +32,17 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 		origCurrency,
 		displayCurrency)
 	if err != nil {
-		log.Errorf(log.LogGlobal, "Failed to convert currency: %s", err)
+		log.Errorf(log.LogGlobal, "Failed to convert currency: %s\n", err)
 	}
 
 	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
 	if err != nil {
-		log.Errorf(log.LogGlobal, "Failed to get display symbol: %s", err)
+		log.Errorf(log.LogGlobal, "Failed to get display symbol: %s\n", err)
 	}
 
 	origSymbol, err := currency.GetSymbolByCurrencyName(origCurrency)
 	if err != nil {
-		log.Errorf(log.LogGlobal, "Failed to get original currency symbol for %s: %s",
+		log.Errorf(log.LogGlobal, "Failed to get original currency symbol for %s: %s\n",
 			origCurrency,
 			err)
 	}
@@ -59,7 +59,7 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 
 func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.Item, exchangeName string, err error) {
 	if err != nil {
-		log.Errorf(log.SubSystemTicker, "Failed to get %s %s ticker. Error: %s",
+		log.Errorf(log.SubSystemTicker, "Failed to get %s %s ticker. Error: %s\n",
 			p.String(),
 			exchangeName,
 			err)
@@ -180,7 +180,7 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 	}
 	err := BroadcastWebsocketMessage(evt)
 	if err != nil {
-		log.Errorf("websocket", "Failed to broadcast websocket event %v. Error: %s\n",
+		log.Errorf(log.SubSystemWsocMgr, "websocket", "Failed to broadcast websocket event %v. Error: %s\n",
 			event, err)
 	}
 }
@@ -283,14 +283,14 @@ func OrderbookUpdaterRoutine() {
 // WebsocketRoutine Initial routine management system for websocket
 func WebsocketRoutine() {
 	if Bot.Settings.Verbose {
-		log.Debugln("websocket", "Connecting exchange websocket services...")
+		log.Debugln(log.SubSystemWsocMgr, "Connecting exchange websocket services...")
 	}
 
 	for i := range Bot.Exchanges {
 		go func(i int) {
 			if Bot.Exchanges[i].SupportsWebsocket() {
 				if Bot.Settings.Verbose {
-					log.Debugf("websocket", "Exchange %s websocket support: Yes Enabled: %v", Bot.Exchanges[i].GetName(),
+					log.Debugf(log.SubSystemWsocMgr, "Exchange %s websocket support: Yes Enabled: %v\n", Bot.Exchanges[i].GetName(),
 						common.IsEnabled(Bot.Exchanges[i].IsWebsocketEnabled()))
 				}
 
@@ -304,11 +304,11 @@ func WebsocketRoutine() {
 
 					err = ws.Connect()
 					if err != nil {
-						log.Debugf("websocket", "%v\n", err)
+						log.Debugf(log.SubSystemWsocMgr, "%v\n", err)
 					}
 				}
 			} else if Bot.Settings.Verbose {
-				log.Debugf("websocket", "Exchange %s websocket support: No", Bot.Exchanges[i].GetName())
+				log.Debugf(log.SubSystemWsocMgr, "Exchange %s websocket support: No\n", Bot.Exchanges[i].GetName())
 			}
 		}(i)
 	}
@@ -322,7 +322,7 @@ var wg sync.WaitGroup
 func Websocketshutdown(ws *exchange.Websocket) error {
 	err := ws.Shutdown() // shutdown routines on the exchange
 	if err != nil {
-		log.Errorf("websocket", "routines.go error - failed to shutdown %s", err)
+		log.Errorf(log.SubSystemWsocMgr, "routines.go error - failed to shutdown %s\n", err)
 	}
 
 	timer := time.NewTimer(5 * time.Second)
@@ -356,12 +356,12 @@ func streamDiversion(ws *exchange.Websocket) {
 
 		case <-ws.Connected:
 			if Bot.Settings.Verbose {
-				log.Debugf("websocket", "exchange %s websocket feed connected", ws.GetName())
+				log.Debugf(log.SubSystemWsocMgr, "exchange %s websocket feed connected\n", ws.GetName())
 			}
 
 		case <-ws.Disconnected:
 			if Bot.Settings.Verbose {
-				log.Debugf("websocket", "exchange %s websocket feed disconnected, switching to REST functionality",
+				log.Debugf(log.SubSystemWsocMgr, "exchange %s websocket feed disconnected, switching to REST functionality\n",
 					ws.GetName())
 			}
 		}
@@ -387,12 +387,12 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 				switch d {
 				case exchange.WebsocketNotEnabled:
 					if Bot.Settings.Verbose {
-						log.Warnf("routines.go warning - exchange %s weboscket not enabled",
+						log.Warnf(log.SubSystemWsocMgr, "routines.go warning - exchange %s weboscket not enabled\n",
 							ws.GetName())
 					}
 
 				default:
-					log.Info("core", d)
+					log.Info(log.SubSystemWsocMgr, d)
 				}
 
 			case error:
@@ -401,7 +401,7 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 					go ws.WebsocketReset()
 					continue
 				default:
-					log.Errorf("core", "routines.go exchange %s websocket error - %s", ws.GetName(), data)
+					log.Errorf(log.SubSystemWsocMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
 				}
 
 			case exchange.TradeData:
@@ -433,7 +433,7 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 			case exchange.KlineData:
 				// Kline data
 				if Bot.Settings.Verbose {
-					log.Infoln("websocket", "Websocket Kline Updated:    ", d)
+					log.Infof(log.SubSystemWsocMgr, "Websocket Kline Updated:   %v\n", d)
 				}
 			case exchange.WebsocketOrderbookUpdate:
 				// Orderbook data
@@ -445,11 +445,11 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 				// TO-DO: printOrderbookSummary
 				//nolint:gocritic
 				if Bot.Settings.Verbose {
-					log.Infof("websocket", "Websocket %s %s orderbook updated\n", ws.GetName(), result.Pair.String())
+					log.Infof(log.SubSystemWsocMgr, "Websocket %s %s orderbook updated\n", ws.GetName(), result.Pair.String())
 				}
 			default:
 				if Bot.Settings.Verbose {
-					log.Warnf("websocket", "Websocket Unknown type:     %s\n", d)
+					log.Warnf(log.SubSystemWsocMgr, "Websocket Unknown type:     %s\n", d)
 				}
 			}
 		}

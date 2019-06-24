@@ -64,11 +64,11 @@ func authenticateClient(ctx context.Context) (context.Context, error) {
 func StartRPCServer() {
 	err := checkCerts()
 	if err != nil {
-		log.Errorf(log.SubSystemGrpcSys, "gRPC checkCerts failed. err: %s", err)
+		log.Errorf(log.SubSystemGrpcSys, "gRPC checkCerts failed. err: %s\n", err)
 		return
 	}
 
-	log.Debugf("gRPC server support enabled. Starting gRPC server on https://%v.", Bot.Config.RemoteControl.GRPC.ListenAddress)
+	log.Debugf(log.SubSystemGrpcSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", Bot.Config.RemoteControl.GRPC.ListenAddress)
 	lis, err := net.Listen("tcp", Bot.Config.RemoteControl.GRPC.ListenAddress)
 	if err != nil {
 		log.Errorf(log.SubSystemGrpcSys, "gRPC server failed to bind to port: %s", err)
@@ -78,7 +78,7 @@ func StartRPCServer() {
 	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
 	creds, err := credentials.NewServerTLSFromFile(filepath.Join(targetDir, "cert.pem"), filepath.Join(targetDir, "key.pem"))
 	if err != nil {
-		log.Errorf(log.SubSystemGrpcSys, "gRPC server could not load TLS keys: %s", err)
+		log.Errorf(log.SubSystemGrpcSys, "gRPC server could not load TLS keys: %s\n", err)
 		return
 	}
 
@@ -92,12 +92,12 @@ func StartRPCServer() {
 
 	go func() {
 		if err := server.Serve(lis); err != nil {
-			log.Errorf(log.SubSystemGrpcSys, "gRPC server failed to serve: %s", err)
+			log.Errorf(log.SubSystemGrpcSys, "gRPC server failed to serve: %s\n", err)
 			return
 		}
 	}()
 
-	log.Debugf(log.SubSystemGrpcSys, "gRPC server started!")
+	log.Debugln(log.SubSystemGrpcSys, "gRPC server started!")
 
 	if Bot.Settings.EnableGRPCProxy {
 		StartRPCRESTProxy()
@@ -106,7 +106,7 @@ func StartRPCServer() {
 
 // StartRPCRESTProxy starts a gRPC proxy
 func StartRPCRESTProxy() {
-	log.Debugf(log.SubSystemGrpcSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.", Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
+	log.Debugf(log.SubSystemGrpcSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -114,7 +114,7 @@ func StartRPCRESTProxy() {
 	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
 	if err != nil {
-		log.Errorf(log.SubSystemGrpcSys, "Unabled to start gRPC proxy. Err: %s", err)
+		log.Errorf(log.SubSystemGrpcSys, "Unabled to start gRPC proxy. Err: %s\n", err)
 		return
 	}
 
@@ -127,17 +127,17 @@ func StartRPCRESTProxy() {
 	}
 	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(ctx, mux, Bot.Config.RemoteControl.GRPC.ListenAddress, opts)
 	if err != nil {
-		log.Errorf(log.SubSystemGrpcSys, "Failed to register gRPC proxy. Err: %s", err)
+		log.Errorf(log.SubSystemGrpcSys, "Failed to register gRPC proxy. Err: %s\n", err)
 	}
 
 	go func() {
 		if err := http.ListenAndServe(Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress, mux); err != nil {
-			log.Errorf(log.SubSystemGrpcSys, "gRPC proxy failed to server: %s", err)
+			log.Errorf(log.SubSystemGrpcSys, "gRPC proxy failed to server: %s\n", err)
 			return
 		}
 	}()
 
-	log.Debugf(log.SubSystemGrpcSys, "gRPC proxy server started!")
+	log.Debugln(log.SubSystemGrpcSys, "gRPC proxy server started!")
 	select {}
 
 }

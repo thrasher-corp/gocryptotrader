@@ -203,7 +203,7 @@ func (o *OKGroup) WsConnect() error {
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
-			log.Errorf("%v - authentication failed: %v", o.Name, err)
+			log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v", o.Name, err)
 		}
 	}
 

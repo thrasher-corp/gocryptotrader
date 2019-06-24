@@ -11,7 +11,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	gctcrypto "github.com/thrasher-/gocryptotrader/common/crypto"
-	log "github.com/thrasher-/gocryptotrader/logger"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -34,7 +33,7 @@ var (
 
 // PromptForConfigEncryption asks for encryption key
 func (c *Config) PromptForConfigEncryption() bool {
-	log.Infof(log.LogGlobal, "Would you like to encrypt your config file (y/n)?")
+	fmt.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
 	_, err := fmt.Scanln(&input)

@@ -168,7 +168,7 @@ func (s *Slack) NewConnection() error {
 				s.Details.Team.Domain,
 				s.Details.Team.ID,
 				s.Details.URL)
-			log.Debugf(log.SubSystemCommMgr, "Slack: Public channels: %s", s.GetChannelsString())
+			log.Debugf(log.SubSystemCommMgr, "Slack: Public channels: %s\n", s.GetChannelsString())
 		}
 
 		s.TargetChannelID, err = s.GetIDByName(s.TargetChannel)
@@ -176,7 +176,7 @@ func (s *Slack) NewConnection() error {
 			return err
 		}
 
-		log.Debugf("Slack: Target channel ID: %v [#%v]", s.TargetChannelID,
+		log.Debugf(log.SubSystemCommMgr, "Slack: Target channel ID: %v [#%v]\n", s.TargetChannelID,
 			s.TargetChannel)
 		return s.WebsocketConnect()
 	}
@@ -208,13 +208,13 @@ func (s *Slack) WebsocketReader() {
 	for {
 		_, resp, err := s.WebsocketConn.ReadMessage()
 		if err != nil {
-			log.Error(log.SubSystemCommMgr, err)
+			log.Errorln(log.SubSystemCommMgr, err)
 		}
 
 		var data WebsocketResponse
 		err = common.JSONDecode(resp, &data)
 		if err != nil {
-			log.Error(log.SubSystemCommMgr, err)
+			log.Errorln(log.SubSystemCommMgr, err)
 			continue
 		}
 
@@ -249,7 +249,7 @@ func (s *Slack) WebsocketReader() {
 
 		case "pong":
 			if s.Verbose {
-				log.Debugf(log.SubSystemCommMgr, "Slack: Pong received from server")
+				log.Debugln(log.SubSystemCommMgr, "Slack: Pong received from server")
 			}
 		default:
 			log.Debugln(log.SubSystemCommMgr, string(resp))
@@ -293,7 +293,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 	if data.Error.Msg == "Socket URL has expired" {
 		if s.Verbose {
-			log.Debugf(log.SubSystemCommMgr, "Slack websocket URL has expired.. Reconnecting")
+			log.Debugln(log.SubSystemCommMgr, "Slack websocket URL has expired.. Reconnecting")
 		}
 
 		if s.WebsocketConn == nil {
@@ -301,7 +301,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 		}
 
 		if err := s.WebsocketConn.Close(); err != nil {
-			log.Error(log.SubSystemCommMgr, err)
+			log.Errorln(log.SubSystemCommMgr, err)
 		}
 
 		s.ReconnectURL = ""
@@ -343,7 +343,7 @@ func (s *Slack) WebsocketKeepAlive() {
 	for {
 		<-ticker.C
 		if err := s.WebsocketSend("ping", ""); err != nil {
-			log.Debugf(log.SubSystemCommMgr, "Slack: WebsocketKeepAlive() error %s", err)
+			log.Debugf(log.SubSystemCommMgr, "Slack: WebsocketKeepAlive() error %s\n", err)
 		}
 	}
 }
@@ -364,7 +364,7 @@ func (s *Slack) WebsocketSend(eventType, text string) error {
 	}
 
 	if s.Verbose {
-		log.Debugf("Slack: Sending websocket message: %s", string(data))
+		log.Debugf(log.SubSystemCommMgr, "Slack: Sending websocket message: %s\n", string(data))
 	}
 
 	if s.WebsocketConn == nil {

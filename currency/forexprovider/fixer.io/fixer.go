@@ -52,7 +52,7 @@ type Fixer struct {
 func (f *Fixer) Setup(config base.Settings) error {
 	if config.APIKeyLvl < 0 || config.APIKeyLvl > 4 {
 		log.Errorf(log.LogGlobal,
-			"apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			"apikey incorrectly set in config.json for %s, please set appropriate account levels\n",
 			config.Name)
 		return errors.New("apikey set failure")
 	}

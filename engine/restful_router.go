@@ -86,7 +86,7 @@ func newRouter(isREST bool) *mux.Router {
 
 		if Bot.Config.Profiler.Enabled {
 			log.Debugf(log.SubSystemRestSys,
-				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug",
+				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug\n",
 				common.ExtractHost(listenAddr),
 				common.ExtractPort(listenAddr))
 			router.PathPrefix("/debug").Handler(http.DefaultServeMux)

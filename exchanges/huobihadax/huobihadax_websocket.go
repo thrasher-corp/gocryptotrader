@@ -72,11 +72,11 @@ func (h *HUOBIHADAX) WsConnect() error {
 	}
 	err = h.wsAuthenticatedDial(&dialer)
 	if err != nil {
-		log.Errorf("%v - authenticated dial failed: %v", h.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%v - authenticated dial failed: %v", h.Name, err)
 	}
 	err = h.wsLogin()
 	if err != nil {
-		log.Errorf("%v - authentication failed: %v", h.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v", h.Name, err)
 	}
 
 	go h.WsHandleData()
@@ -156,7 +156,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 			return
 		case resp := <-comms:
 			if h.Verbose {
-				log.Debugf("%v: %v: %v", h.Name, resp.URL, string(resp.Raw))
+				log.Debugf(log.SubSystemExchSys, "%v: %v: %v", h.Name, resp.URL, string(resp.Raw))
 			}
 			switch resp.URL {
 			case HuobiHadaxSocketIOAddress:
@@ -196,7 +196,7 @@ func (h *HUOBIHADAX) wsHandleAuthenticatedData(resp WsMessage) {
 
 	if init.Op == "sub" {
 		if h.Verbose {
-			log.Debugf("%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
+			log.Debugf(log.SubSystemExchSys, "%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
 		}
 		return
 	}
@@ -456,7 +456,7 @@ func (h *HUOBIHADAX) wsAuthenticatedSend(request interface{}) error {
 		return err
 	}
 	if h.Verbose {
-		log.Debugf("%v sending Authenticated message to websocket %s", h.Name, string(encodedRequest))
+		log.Debugf(log.SubSystemExchSys, "%v sending Authenticated message to websocket %s", h.Name, string(encodedRequest))
 	}
 	return h.AuthenticatedWebsocketConn.WriteMessage(websocket.TextMessage, encodedRequest)
 }

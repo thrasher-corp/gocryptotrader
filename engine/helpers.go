@@ -119,7 +119,7 @@ func GetExchangeOTPs() (map[string]string, error) {
 			exchName := Bot.Config.Exchanges[x].Name
 			o, err := totp.GenerateCode(otpSecret, time.Now())
 			if err != nil {
-				log.Errorf(log.LogGlobal, "Unable to generate OTP code for exchange %s. Err: %s",
+				log.Errorf(log.LogGlobal, "Unable to generate OTP code for exchange %s. Err: %s\n",
 					exchName, err)
 				continue
 			}
@@ -541,7 +541,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					continue
 				}
 
-				log.Debugf("portfolio", "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+				log.Debugf(log.SubSystemPortMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
 					exchangeName,
 					currencyName,
 					total,
@@ -556,7 +556,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 
 			} else {
 				if total <= 0 {
-					log.Debugf("portfolio", "Portfolio: Removing %s %s entry.\n",
+					log.Debugf(log.SubSystemPortMgr, "Portfolio: Removing %s %s entry.\n",
 						exchangeName,
 						currencyName)
 
@@ -571,7 +571,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					}
 
 					if balance != total {
-						log.Debugf("portfolio", "Portfolio: Updating %s %s entry with balance %f.\n",
+						log.Debugf(log.SubSystemPortMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
 							exchangeName,
 							currencyName,
 							total)
@@ -652,14 +652,14 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 
 		if !Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if Bot.Settings.Verbose {
-				log.Debugf(log.SubSystemExchSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.", exchName)
+				log.Debugf(log.SubSystemExchSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 			}
 			continue
 		}
 
 		cryptoCurrencies, err := GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
 		if err != nil {
-			log.Debugf(log.SubSystemExchSys, "%s failed to get cryptocurrency deposit addresses. Err: %s", exchName, err)
+			log.Debugf(log.SubSystemExchSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 			continue
 		}
 
@@ -668,7 +668,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 			cryptocurrency := cryptoCurrencies[y]
 			depositAddr, err := Bot.Exchanges[x].GetDepositAddress(currency.NewCode(cryptocurrency), "")
 			if err != nil {
-				log.Debugf("%s failed to get cryptocurrency deposit addresses. Err: %s", exchName, err)
+				log.Debugf(log.LogGlobal, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 				continue
 			}
 			cryptoAddr[cryptocurrency] = depositAddr
@@ -754,7 +754,7 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 			for z := range currencies {
 				tp, err := exch.FetchTicker(currencies[z], assets[y])
 				if err != nil {
-					log.Debugf("Exchange %s failed to retrieve %s ticker. Err: %s", exchName,
+					log.Debugf(log.SubSystemExchSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -774,13 +774,13 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 		if individualBot != nil && individualBot.IsEnabled() {
 			if !individualBot.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 				if Bot.Settings.Verbose {
-					log.Debugf("GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.", individualBot.GetName())
+					log.Debugf(log.SubSystemExchSys, "GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n", individualBot.GetName())
 				}
 				continue
 			}
 			individualExchange, err := individualBot.GetAccountInfo()
 			if err != nil {
-				log.Debugf("Error encountered retrieving exchange account info for %s. Error %s",
+				log.Debugf(log.SubSystemExchSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
 					individualBot.GetName(), err)
 				continue
 			}
@@ -801,7 +801,7 @@ func checkCerts() error {
 		return genCert(targetDir)
 	}
 
-	log.Debugf(log.LogGlobal, "gRPC TLS certs directory already exists, will use them.")
+	log.Debugln(log.LogGlobal, "gRPC TLS certs directory already exists, will use them.")
 	return nil
 }
 
@@ -881,6 +881,6 @@ func genCert(targetDir string) error {
 		return fmt.Errorf("failed to write cert.pem file %s", err)
 	}
 
-	log.Debugf("TLS key.pem and cert.pem files written to %s", targetDir)
+	log.Debugf(log.LogGlobal, "TLS key.pem and cert.pem files written to %s\n", targetDir)
 	return nil
 }

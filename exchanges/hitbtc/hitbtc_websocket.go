@@ -52,7 +52,7 @@ func (h *HitBTC) WsConnect() error {
 	go h.WsHandleData()
 	err = h.wsLogin()
 	if err != nil {
-		log.Errorf("%v - authentication failed: %v", h.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v", h.Name, err)
 	}
 
 	h.GenerateDefaultSubscriptions()

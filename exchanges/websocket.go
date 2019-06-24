@@ -231,7 +231,7 @@ func (w *Websocket) WebsocketReset() error {
 		// does not return here to allow connection to be made if already shut down
 		log.Errorf(log.SubSystemExchSys, "%v shutdown error: %v", w.exchangeName, err)
 	}
-	log.Infof("%v reconnecting to websocket", w.exchangeName)
+	log.Infof(log.SubSystemWsocMgr, "%v reconnecting to websocket", w.exchangeName)
 	w.m.Lock()
 	w.init = true
 	w.m.Unlock()

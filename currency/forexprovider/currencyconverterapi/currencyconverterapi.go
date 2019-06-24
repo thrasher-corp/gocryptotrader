@@ -76,7 +76,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 			batch := completedStrings[i : i+2]
 			result, err := c.ConvertMany(batch)
 			if err != nil {
-				log.Errorf(log.LogGlobal, "Failed to get batch err: %s", err)
+				log.Errorf(log.LogGlobal, "Failed to get batch err: %s\n", err)
 				continue
 			}
 			for k, v := range result {

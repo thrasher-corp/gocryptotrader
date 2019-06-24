@@ -32,7 +32,7 @@ func NTPClient(pool []string) (time.Time, error) {
 	for i := range pool {
 		con, err := net.Dial("udp", pool[i])
 		if err != nil {
-			log.Warnf("Unable to connect to hosts %v attempting next", pool[i])
+			log.Warnf(log.SubSystemTimeMgr, "Unable to connect to hosts %v attempting next", pool[i])
 			continue
 		}
 

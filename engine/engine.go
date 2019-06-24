@@ -300,7 +300,7 @@ func (e *Engine) Start() {
 
 	if e.Settings.EnableCommsRelayer {
 		if err := e.CommsManager.Start(); err != nil {
-			log.Errorf(log.LogGlobal, "Communications manager unable to start: %v", err)
+			log.Errorf(log.LogGlobal, "Communications manager unable to start: %v\n", err)
 		}
 	}
 
