@@ -193,7 +193,7 @@ func (o *OKGroup) WsConnect() error {
 			err)
 	}
 	if o.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Successful connection to %v",
+		log.Debugf(log.SubSystemExchSys, "Successful connection to %v\n",
 			o.Websocket.GetWebsocketURL())
 	}
 	wg := sync.WaitGroup{}
@@ -203,7 +203,7 @@ func (o *OKGroup) WsConnect() error {
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
-			log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v", o.Name, err)
+			log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v\n", o.Name, err)
 		}
 	}
 

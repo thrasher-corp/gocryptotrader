@@ -112,7 +112,7 @@ func (b *Bitmex) WsConnector() error {
 
 	err = b.websocketSendAuth()
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v", b.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v\n", b.Name, err)
 	}
 	b.GenerateAuthenticatedSubscriptions()
 	return nil

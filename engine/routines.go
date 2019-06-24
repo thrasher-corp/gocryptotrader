@@ -180,7 +180,7 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 	}
 	err := BroadcastWebsocketMessage(evt)
 	if err != nil {
-		log.Errorf(log.SubSystemWsocMgr, "websocket", "Failed to broadcast websocket event %v. Error: %s\n",
+		log.Errorf(log.SubSystemWsocMgr, "Failed to broadcast websocket event %v. Error: %s\n",
 			event, err)
 	}
 }

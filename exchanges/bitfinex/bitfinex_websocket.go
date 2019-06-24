@@ -163,7 +163,7 @@ func (b *Bitfinex) WsConnect() error {
 
 	err = b.WsSendAuth()
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v", b.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v\n", b.Name, err)
 	}
 
 	b.GenerateDefaultSubscriptions()

@@ -52,7 +52,7 @@ func (g *Gateio) WsConnect() error {
 
 	err = g.wsServerSignIn()
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v", g.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v\n", g.Name, err)
 	}
 	g.GenerateAuthenticatedSubscriptions()
 	g.GenerateDefaultSubscriptions()

@@ -72,11 +72,11 @@ func (h *HUOBI) WsConnect() error {
 	}
 	err = h.wsAuthenticatedDial(&dialer)
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys, "%v - authenticated dial failed: %v", h.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%v - authenticated dial failed: %v\n", h.Name, err)
 	}
 	err = h.wsLogin()
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v", h.Name, err)
+		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v\n", h.Name, err)
 	}
 
 	go h.WsHandleData()

@@ -57,9 +57,6 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	e.data = append(e.data, l.Spacer...)
 	e.data = append(e.data, []byte(data)...)
 
-	//if data == "" || data[len(data)-1] != '\n' {
-	//	e.data = append(e.data, '\n')
-	//}
 	e.output.Write(e.data)
 	e.data = (e.data)[:0]
 	eventPool.Put(e)
