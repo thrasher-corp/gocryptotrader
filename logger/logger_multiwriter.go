@@ -1,23 +1,23 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 )
 
-func (mw *multiWriter) Add(writers ...io.Writer) {
+func (mw *multiWriter) Add(writer io.Writer) {
 	mw.mu.Lock()
-	mw.writers = append(mw.writers, writers...)
+	mw.writers = append(mw.writers, writer)
 	mw.mu.Unlock()
 }
 
-func (mw *multiWriter) Remove(writers ...io.Writer) {
+func (mw *multiWriter) Remove(writer io.Writer) {
 	mw.mu.Lock()
-	for i := len(mw.writers) - 1; i > 0; i-- {
-		for v := range writers {
-			if mw.writers[i] == writers[v] {
-				mw.writers = append(mw.writers[:i], mw.writers[i+1:]...)
-				break
-			}
+	for i := range mw.writers {
+		fmt.Print(mw.writers[i])
+		if mw.writers[i] == writer {
+			mw.writers = append(mw.writers[:i], mw.writers[i+1:]...)
+			fmt.Print(mw.writers[i])
 		}
 	}
 	mw.mu.Unlock()
@@ -59,8 +59,4 @@ func MultiWriter(writers ...io.Writer) io.Writer {
 	w := make([]io.Writer, len(writers))
 	copy(w, writers)
 	return &multiWriter{writers: w}
-}
-
-func test() {
-
 }

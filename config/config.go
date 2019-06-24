@@ -942,7 +942,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 		if c.Exchanges[i].Enabled {
 			if c.Exchanges[i].Name == "" {
-				log.Error(ErrExchangeNameEmpty, i)
+				log.Error(log.SubSystemConfMgr, ErrExchangeNameEmpty, i)
 				c.Exchanges[i].Enabled = false
 				continue
 			}
@@ -1241,6 +1241,10 @@ func (c *Config) CheckLoggerConfig() error {
 		c.Logging = log.GenDefaultSettings()
 	}
 	log.GlobalLogConfig = &c.Logging
+
+	if len(log.GlobalLogConfig.SubLoggers) == 0 {
+		log.GlobalLogConfig.SubLoggers = log.GetDefaultSubLogger()
+	}
 
 	logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
 	err := common.CreateDir(logPath)

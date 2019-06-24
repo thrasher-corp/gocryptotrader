@@ -2,8 +2,6 @@ package logger
 
 import (
 	"io"
-	"runtime"
-	"strconv"
 	"time"
 )
 
@@ -22,20 +20,6 @@ func SetupGlobalLogger() {
 	logger = newLogger(GlobalLogConfig)
 }
 
-func shortPath(path string) string {
-	var ls, ps int
-	for i, c := range path {
-		if c == '/' {
-			ps = ls
-			ls = i
-		}
-	}
-	if path[ps] == '/' {
-		ps++
-	}
-	return path[ps:]
-}
-
 func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	if w == nil {
 		return
@@ -49,12 +33,6 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 		e.data = time.Now().AppendFormat(e.data, l.Timestamp)
 	}
 	e.data = append(e.data, l.Spacer...)
-	_, fn, line, _ := runtime.Caller(3)
-	lineByte := []byte(strconv.Itoa(line))
-	e.data = append(e.data, shortPath(fn)...)
-	e.data = append(e.data, '@')
-	e.data = append(e.data, lineByte...)
-	e.data = append(e.data, l.Spacer...)
 	e.data = append(e.data, []byte(data)...)
 
 	e.output.Write(e.data)
@@ -66,11 +44,10 @@ func CloseLogger() {
 	closeAllFiles()
 }
 
-func subSystemData(subsystem string) (sl *subLogger) {
-	if val, found := subsystemLoggers[subsystem]; found {
-		sl = &val
-		return
+func subSystemData(subsystem string) *subLogger {
+	if v, found := subSystemLoggers[subsystem]; found {
+		return &v
 	}
-	temp := subsystemLoggers["log"]
+	temp := subSystemLoggers["log"]
 	return &temp
 }

@@ -12,7 +12,7 @@ const spacer = "|"
 type Config struct {
 	Enabled          *bool            `json:"enabled"`
 	AdvancedSettings advancedSettings `json:"advancedSettings"`
-	SubLoggers       []subLoggers     `json:"subloggers"`
+	SubLoggers       []SubLoggers     `json:"subloggers"`
 }
 
 type headers struct {
@@ -28,7 +28,7 @@ type advancedSettings struct {
 	Headers         headers `json:"headers"`
 }
 
-type subLoggers struct {
+type SubLoggers struct {
 	Name   string `json:"name"`
 	Level  string `json:"level"`
 	Output string `json:"output"`
@@ -58,7 +58,7 @@ type multiWriter struct {
 var (
 	logger           = &Logger{}
 	GlobalLogConfig  = &Config{}
-	subsystemLoggers = map[string]subLogger{}
+	subSystemLoggers = map[string]subLogger{}
 	eventPool        = &sync.Pool{
 		New: func() interface{} {
 			return &LogEvent{

@@ -1,13 +1,19 @@
 package logger
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 )
 
+var (
+	trueptr  = func(b bool) *bool { return &b }(true)
+	falseptr = func(b bool) *bool { return &b }(false)
+)
+
 func SetupTest() {
-	t := func(t bool) *bool { return &t }(true)
 	logTest := Config{
-		Enabled: t,
+		Enabled: trueptr,
 		AdvancedSettings: advancedSettings{
 			Spacer:          " | ",
 			TimeStampFormat: timestampFormat,
@@ -18,7 +24,7 @@ func SetupTest() {
 				Error: "[ERROR]",
 			},
 		},
-		SubLoggers: []subLoggers{
+		SubLoggers: []SubLoggers{
 			{
 				Name:   "log",
 				Level:  "INFO|DEBUG|WARN|ERROR",
@@ -27,6 +33,28 @@ func SetupTest() {
 	}
 	logger = newLogger(&logTest)
 	SetupSubLogger(logTest.SubLoggers)
+}
+
+func TestRemoveWriter(t *testing.T) {
+	mw := MultiWriter()
+	m := mw.(*multiWriter)
+
+	m.Add(ioutil.Discard)
+	m.Add(os.Stdin)
+	m.Add(os.Stdout)
+
+	total := len(m.writers)
+
+	if total != 3 {
+		t.Errorf("expected m.Writers to be 1 %v", total)
+	}
+
+	t.Log(m.writers)
+
+	m.Remove(ioutil.Discard)
+
+	t.Log(m.writers)
+	t.Log(len(m.writers))
 }
 
 func BenchmarkInfo(b *testing.B) {
@@ -39,7 +67,7 @@ func BenchmarkInfo(b *testing.B) {
 
 func BenchmarkInfoDisabled(b *testing.B) {
 	logTest := Config{
-		SubLoggers: []subLoggers{
+		SubLoggers: []SubLoggers{
 			{
 				Name:   "log",
 				Level:  "DEBUG|WARN|ERROR",
@@ -60,7 +88,7 @@ func BenchmarkInfof(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Infof("sys", "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
+		Infof("log", "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
 	}
 }
 
@@ -69,6 +97,6 @@ func BenchmarkInfoln(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Infoln("sys", "Hello this is an infoln benchmark")
+		Infoln("log", "Hello this is an infoln benchmark")
 	}
 }

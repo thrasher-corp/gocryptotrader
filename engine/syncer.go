@@ -529,7 +529,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 	}
 
 	if atomic.CompareAndSwapInt32(&e.initSyncStarted, 0, 1) {
-		log.Debugln("Exchange CurrencyPairSyncer initial sync started.")
+		log.Debugln(log.SubSystemSyncMgr, "Exchange CurrencyPairSyncer initial sync started.")
 		e.initSyncStartTime = time.Now()
 		log.Debugln(log.SubSystemSyncMgr, createdCounter)
 		log.Debugln(log.SubSystemSyncMgr, removedCounter)

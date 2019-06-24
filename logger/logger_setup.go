@@ -25,17 +25,17 @@ func addSubLogger(subsystem, flags string, output io.Writer) {
 			temp.Error = true
 		}
 	}
-	subsystemLoggers[subsystem] = temp
+	subSystemLoggers[subsystem] = temp
 }
 
-func SetupSubLogger(s []subLoggers) {
+func SetupSubLogger(s []SubLoggers) {
 	for x := range s {
 		output := getWriters(&s[x])
 		addSubLogger(s[x].Name, s[x].Level, output)
 	}
 }
 
-func getWriters(s *subLoggers) io.Writer {
+func getWriters(s *SubLoggers) io.Writer {
 	mw := MultiWriter()
 	m := mw.(*multiWriter)
 
@@ -73,12 +73,16 @@ func GenDefaultSettings() (log Config) {
 				Error: "[ERROR]",
 			},
 		},
-		SubLoggers: []subLoggers{
-			{
-				Name:   "log",
-				Level:  "INFO|DEBUG|WARN|ERROR",
-				Output: "stdout",
-			}},
+		SubLoggers: GetDefaultSubLogger(),
 	}
 	return
+}
+
+func GetDefaultSubLogger() []SubLoggers {
+	return []SubLoggers{
+		{
+			Name:   "log",
+			Level:  "INFO|DEBUG|WARN|ERROR",
+			Output: "stdout",
+		}}
 }

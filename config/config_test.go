@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
+	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/thrasher-/gocryptotrader/ntpclient"
 )
 
@@ -849,21 +850,21 @@ func BenchmarkUpdateConfig(b *testing.B) {
 }
 
 func TestCheckLoggerConfig(t *testing.T) {
-	// c := GetConfig()
-	// err := c.LoadConfig(ConfigTestFile)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// c.Logging = log.Logging{}
-	// err = c.CheckLoggerConfig()
-	// if err != nil {
-	// 	t.Errorf("Failed to create default logger reason: %v", err)
-	// }
-	// c.LoadConfig(ConfigTestFile)
-	// err = c.CheckLoggerConfig()
-	// if err != nil {
-	// 	t.Errorf("Failed to create logger with user settings: reason: %v", err)
-	// }
+	c := GetConfig()
+	err := c.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Logging = log.Config{}
+	err = c.CheckLoggerConfig()
+	if err != nil {
+		t.Errorf("Failed to create default logger reason: %v", err)
+	}
+	c.LoadConfig(ConfigTestFile)
+	err = c.CheckLoggerConfig()
+	if err != nil {
+		t.Errorf("Failed to create logger with user settings: reason: %v", err)
+	}
 }
 
 func TestDisableNTPCheck(t *testing.T) {

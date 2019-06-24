@@ -62,7 +62,7 @@ func (o *orderManager) Start() error {
 		return errors.New("order manager already started")
 	}
 
-	log.Debugln("Order manager starting...")
+	log.Debugln(log.SubSystemOrderBook, "Order manager starting...")
 
 	// test param
 	o.cfg.CancelOrdersOnShutdown = true
@@ -84,7 +84,7 @@ func (o *orderManager) Stop() error {
 		atomic.CompareAndSwapInt32(&o.started, 1, 0)
 	}()
 
-	log.Debugln("Order manager shutting down...")
+	log.Debugln(log.SubSystemOrderBook, "Order manager shutting down...")
 	close(o.shutdown)
 	return nil
 }
@@ -108,7 +108,7 @@ func (o *orderManager) gracefulShutdown() {
 				if err != nil {
 					msg := fmt.Sprintf("Order manager: Exchange %s unable to cancel order ID=%v. Err: %s",
 						k, v[y].ID, err)
-					log.Debugln(msg)
+					log.Debugln(log.SubSystemOrderBook, msg)
 					Bot.CommsManager.PushEvent(base.Event{
 						Type:    "order",
 						Message: msg,
@@ -118,7 +118,7 @@ func (o *orderManager) gracefulShutdown() {
 
 				msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
 					k, v[y].ID)
-				log.Debugln(msg)
+				log.Debugln(log.SubSystemOrderBook, msg)
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: msg,
@@ -129,7 +129,7 @@ func (o *orderManager) gracefulShutdown() {
 }
 
 func (o *orderManager) run() {
-	log.Debugln("Order manager started.")
+	log.Debugln(log.SubSystemOrderBook, "Order manager started.")
 	tick := time.NewTicker(OrderManagerDelay)
 	Bot.ServicesWG.Add(1)
 	defer func() {
