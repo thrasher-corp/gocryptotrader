@@ -64,8 +64,6 @@ func (o *orderManager) Start() error {
 
 	log.Debugln("Order manager starting...")
 
-	// test param
-	o.cfg.CancelOrdersOnShutdown = true
 	o.shutdown = make(chan struct{})
 	o.orderStore.Orders = make(map[string][]exchange.OrderDetail)
 	go o.run()

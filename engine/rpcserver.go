@@ -727,7 +727,8 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	return &gctrpc.GetCryptocurrencyDepositAddressesResponse{}, common.ErrNotYetImplemented
+	result, err := GetCryptocurrencyDepositAddressesByExchange(r.Exchange)
+	return &gctrpc.GetCryptocurrencyDepositAddressesResponse{Addresses: result}, err
 }
 
 // GetCryptocurrencyDepositAddress returns a cryptocurrency deposit address
@@ -738,7 +739,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	addr, err := exch.GetDepositAddress(currency.NewCode(r.Cryptocurrency), "")
+	addr, err := GetExchangeCryptocurrencyDepositAddress(r.Exchange, "", currency.NewCode(r.Cryptocurrency))
 	return &gctrpc.GetCryptocurrencyDepositAddressResponse{Address: addr}, err
 }
 

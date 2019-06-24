@@ -443,7 +443,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequ
 			OrderSide: side,
 			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				resp[i].Data.Currency,
-				l.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				l.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange: l.Name,
 		})
 	}
@@ -516,7 +516,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequ
 			Status:    status,
 			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				allTrades[i].Data.Currency,
-				l.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				l.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange: l.Name,
 		})
 	}

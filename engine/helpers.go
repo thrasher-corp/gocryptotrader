@@ -629,15 +629,34 @@ func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, en
 	return cryptocurrencies, nil
 }
 
+// GetCryptocurrencyDepositAddressesByExchange returns the cryptocurrency deposit addresses for a particular exchange
+func GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string]string, error) {
+	if Bot.DepositAddressManager != nil {
+		return Bot.DepositAddressManager.GetDepositAddressesByExchange(exchName)
+	}
+
+	result := GetExchangeCryptocurrencyDepositAddresses()
+	r, ok := result[exchName]
+	if !ok {
+		return nil, ErrExchangeNotFound
+	}
+
+	return r, nil
+}
+
 // GetExchangeCryptocurrencyDepositAddress returns the cryptocurrency deposit address for a particular
 // exchange
-func GetExchangeCryptocurrencyDepositAddress(exchName string, item currency.Code) (string, error) {
+func GetExchangeCryptocurrencyDepositAddress(exchName, accountID string, item currency.Code) (string, error) {
+	if Bot.DepositAddressManager != nil {
+		return Bot.DepositAddressManager.GetDepositAddressByExchange(exchName, item)
+	}
+
 	exch := GetExchangeByName(exchName)
 	if exch == nil {
 		return "", ErrExchangeNotFound
 	}
 
-	return exch.GetDepositAddress(item, "")
+	return exch.GetDepositAddress(item, accountID)
 }
 
 // GetExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
@@ -649,7 +668,6 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 			continue
 		}
 		exchName := Bot.Exchanges[x].GetName()
-
 		if !Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if Bot.Settings.Verbose {
 				log.Debugf("GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.", exchName)
@@ -679,40 +697,18 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 	return result
 }
 
-// GetDepositAddressByExchange returns a deposit address for the specified exchange and cryptocurrency
-// if it exists
-func GetDepositAddressByExchange(exchName string, currencyItem currency.Code) string {
-	for x, y := range Bot.CryptocurrencyDepositAddresses {
-		if exchName == x {
-			addr, ok := y[currencyItem.String()]
-			if ok {
-				return addr
-			}
-		}
-	}
-	return ""
-}
-
-// GetDepositAddressesByExchange returns a list of cryptocurrency addresses for the specified
-// exchange if they exist
-func GetDepositAddressesByExchange(exchName string) map[string]string {
-	for x, y := range Bot.CryptocurrencyDepositAddresses {
-		if exchName == x {
-			return y
-		}
-	}
-	return nil
-}
-
 // WithdrawCryptocurrencyFundsByExchange withdraws the desired cryptocurrency and amount to a desired cryptocurrency address
-func WithdrawCryptocurrencyFundsByExchange(exchName string) (string, error) {
+func WithdrawCryptocurrencyFundsByExchange(exchName string, req *exchange.CryptoWithdrawRequest) (string, error) {
+	if req == nil {
+		return "", errors.New("crypto withdraw request param is nil")
+	}
+
 	exch := GetExchangeByName(exchName)
 	if exch == nil {
 		return "", ErrExchangeNotFound
 	}
 
-	// TO-DO: FILL
-	return exch.WithdrawCryptocurrencyFunds(&exchange.CryptoWithdrawRequest{})
+	return exch.WithdrawCryptocurrencyFunds(req)
 }
 
 // FormatCurrency is a method that formats and returns a currency pair

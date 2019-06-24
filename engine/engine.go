@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path"
 	"sync"
 	"syscall"
 	"time"
@@ -25,20 +24,20 @@ import (
 // Engine contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
 type Engine struct {
-	Config                         *config.Config
-	Portfolio                      *portfolio.Base
-	Exchanges                      []exchange.IBotExchange
-	ExchangeCurrencyPairManager    *ExchangeCurrencyPairSyncer
-	NTPManager                     ntpManager
-	ConnectionManager              connectionManager
-	OrderManager                   orderManager
-	PortfolioManager               portfolioManager
-	CommsManager                   commsManager
-	Shutdown                       chan struct{}
-	Settings                       Settings
-	CryptocurrencyDepositAddresses map[string]map[string]string
-	Uptime                         time.Time
-	ServicesWG                     sync.WaitGroup
+	Config                      *config.Config
+	Portfolio                   *portfolio.Base
+	Exchanges                   []exchange.IBotExchange
+	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
+	NTPManager                  ntpManager
+	ConnectionManager           connectionManager
+	OrderManager                orderManager
+	PortfolioManager            portfolioManager
+	CommsManager                commsManager
+	DepositAddressManager       *DepositAddressManager
+	Shutdown                    chan struct{}
+	Settings                    Settings
+	Uptime                      time.Time
+	ServicesWG                  sync.WaitGroup
 }
 
 // Vars for engine
@@ -62,8 +61,6 @@ func New() (*Engine, error) {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
 
-	b.CryptocurrencyDepositAddresses = make(map[string]map[string]string)
-
 	return &b, nil
 }
 
@@ -75,7 +72,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 
 	var b Engine
 	b.Config = &config.Cfg
-	log.Debugf("Loading config file %s..\n", settings.ConfigFile)
+	log.Debugf("Loading config file %s...\n", settings.ConfigFile)
 	err := b.Config.LoadConfig(settings.ConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
@@ -93,8 +90,11 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 
 	b.Settings.ConfigFile = settings.ConfigFile
 	b.Settings.DataDir = settings.DataDir
-	b.Settings.LogFile = path.Join(log.LogPath, log.Logger.File)
-	b.CryptocurrencyDepositAddresses = make(map[string]map[string]string)
+
+	if *log.Logger.Enabled {
+		b.Settings.LogFile = log.LogPath
+		log.Debugf("Using log file: %s.\n", log.LogPath)
+	}
 
 	err = utils.AdjustGoMaxProcs(settings.GoMaxProcs)
 	if err != nil {
@@ -102,9 +102,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	}
 
 	b.handleInterrupt()
-
 	ValidateSettings(&b, settings)
-
 	return &b, nil
 }
 
@@ -157,6 +155,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableNTPClient = s.EnableNTPClient
 	b.Settings.EnableOrderManager = s.EnableOrderManager
 	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
+	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableTickerSyncing = s.EnableTickerSyncing
 	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
@@ -228,6 +227,7 @@ func PrintSettings(s *Settings) {
 	log.Debugf("\t Event manager sleep delay: %v", s.EventManagerDelay)
 	log.Debugf("\t Enable order manager: %v", s.EnableOrderManager)
 	log.Debugf("\t Enable exchange sync manager: %v", s.EnableExchangeSyncManager)
+	log.Debugf("\t Enable deposit address manager: %v\n", s.EnableDepositAddressManager)
 	log.Debugf("\t Enable ticker syncing: %v", s.EnableTickerSyncing)
 	log.Debugf("\t Enable orderbook syncing: %v", s.EnableOrderbookSyncing)
 	log.Debugf("\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
@@ -277,6 +277,7 @@ func (e *Engine) Start() {
 
 	e.Uptime = time.Now()
 	log.Debugf("Bot '%s' started.\n", e.Config.Name)
+	log.Debugf("Using data dir: %s\n", e.Settings.DataDir)
 
 	enabledExchanges := e.Config.CountEnabledExchanges()
 	if e.Settings.EnableAllExchanges {
@@ -331,8 +332,6 @@ func (e *Engine) Start() {
 		log.Warn("currency updater system failed to start", err)
 	}
 
-	e.CryptocurrencyDepositAddresses = GetExchangeCryptocurrencyDepositAddresses()
-
 	if e.Settings.EnableGRPC {
 		go StartRPCServer()
 	}
@@ -350,6 +349,11 @@ func (e *Engine) Start() {
 		if err = e.PortfolioManager.Start(); err != nil {
 			log.Errorf("Fund manager unable to start: %v", err)
 		}
+	}
+
+	if e.Settings.EnableDepositAddressManager {
+		e.DepositAddressManager = new(DepositAddressManager)
+		e.DepositAddressManager.Sync()
 	}
 
 	if e.Settings.EnableOrderManager {

@@ -459,7 +459,7 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			Price:     trades[i].Price,
 			CurrencyPair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
 				trades[i].QuoteCurrency,
-				g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				g.GetPairFormat(asset.Spot, false).Delimiter),
 		})
 	}
 
