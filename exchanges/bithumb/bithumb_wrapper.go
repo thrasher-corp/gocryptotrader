@@ -520,3 +520,13 @@ func (b *Bithumb) SubscribeToWebsocketChannels(channels []exchange.WebsocketChan
 func (b *Bithumb) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (b *Bithumb) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (b *Bithumb) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

@@ -153,7 +153,8 @@ func GetExchangeoOTPByName(exchName string) (string, error) {
 func GetAuthAPISupportedExchanges() []string {
 	var exchanges []string
 	for x := range Bot.Exchanges {
-		if !Bot.Exchanges[x].GetAuthenticatedAPISupport() {
+		if !Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) &&
+			!Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 			continue
 		}
 		exchanges = append(exchanges, Bot.Exchanges[x].GetName())
@@ -649,7 +650,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 		}
 		exchName := Bot.Exchanges[x].GetName()
 
-		if !Bot.Exchanges[x].GetAuthenticatedAPISupport() {
+		if !Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if Bot.Settings.Verbose {
 				log.Debugf(log.SubSystemExchSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.", exchName)
 			}
@@ -771,7 +772,7 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
 	for _, individualBot := range Bot.Exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
-			if !individualBot.GetAuthenticatedAPISupport() {
+			if !individualBot.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 				if Bot.Settings.Verbose {
 					log.Debugf("GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.", individualBot.GetName())
 				}

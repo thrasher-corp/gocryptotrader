@@ -55,6 +55,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 	} else {
 		{{.Variable}}.Enabled = true
 		{{.Variable}}.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
+		{{.Variable}}.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
 		{{.Variable}}.SetAPIKeys(exch.API.Credentials.Key, exch.API.Credentials.Secret, "", false)
 		{{.Variable}}.SetHTTPClientTimeout(exch.HTTPTimeout)
 		{{.Variable}}.SetHTTPClientUserAgent(exch.HTTPUserAgent)

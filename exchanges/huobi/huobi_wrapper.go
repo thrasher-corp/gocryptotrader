@@ -117,7 +117,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
-		huobiSocketIOAddress,
+		wsMarketURL,
 		exch.API.Endpoints.WebsocketURL)
 }
 
@@ -133,7 +133,7 @@ func (h *HUOBI) Start(wg *sync.WaitGroup) {
 // Run implements the HUOBI wrapper
 func (h *HUOBI) Run() {
 	if h.Verbose {
-		log.Debugf(log.SubSystemExchSys, "%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), huobiSocketIOAddress)
+		log.Debugf(log.SubSystemExchSys, "%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), wsMarketURL)
 		h.PrintEnabledPairs()
 	}
 
@@ -634,4 +634,14 @@ func (h *HUOBI) SubscribeToWebsocketChannels(channels []exchange.WebsocketChanne
 func (h *HUOBI) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	h.Websocket.UnsubscribeToChannels(channels)
 	return nil
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (h *HUOBI) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return h.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (h *HUOBI) AuthenticateWebsocket() error {
+	return h.wsLogin()
 }

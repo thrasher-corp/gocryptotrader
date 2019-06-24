@@ -1,12 +1,17 @@
 package gateio
 
 import (
+	"net/http"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -31,6 +36,7 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - GateIO Setup() init error")
 	}
 	gateioConfig.API.AuthenticatedSupport = true
+	gateioConfig.API.AuthenticatedWebsocketSupport = true
 	gateioConfig.API.Credentials.Key = apiKey
 	gateioConfig.API.Credentials.Secret = apiSecret
 
@@ -492,4 +498,49 @@ func TestGetOrderInfo(t *testing.T) {
 			t.Fatalf("GetOrderInfo() returned an error skipping test: %v", err)
 		}
 	}
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	g.SetDefaults()
+	TestSetup(t)
+	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	g.WebsocketConn, _, err = dialer.Dial(g.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go g.WsHandleData()
+	defer g.WebsocketConn.Close()
+	err = g.wsServerSignIn()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resultString := <-g.Websocket.DataHandler:
+		if !strings.Contains(resultString.(string), "success") {
+			t.Error("Authentication failed")
+		}
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
+	err = g.wsGetBalance()
+	if err != nil {
+		t.Error(err)
+	}
+	timer = time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case <-g.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Expected response")
+	}
+	timer.Stop()
 }

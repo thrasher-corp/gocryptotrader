@@ -207,7 +207,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 func (b *BTSE) GenerateDefaultSubscriptions() {
 	var channels = []string{"snapshot", "ticker"}
 	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{

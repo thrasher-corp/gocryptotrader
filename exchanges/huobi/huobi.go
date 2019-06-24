@@ -64,9 +64,10 @@ const (
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
-	AccountID     string
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	AccountID                  string
+	WebsocketConn              *websocket.Conn
+	AuthenticatedWebsocketConn *websocket.Conn
+	wsRequestMtx               sync.Mutex
 }
 
 // GetSpotKline returns kline data

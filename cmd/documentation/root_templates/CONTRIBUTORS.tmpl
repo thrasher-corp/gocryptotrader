@@ -1,6 +1,6 @@
 {{define "CONTRIBUTORS"}}
 Thanks to the following contributors:
-{{ range $contributor := .Contributors -}}
+{{range $contributor := .Contributors -}}
 {{$contributor.Login}} | {{$contributor.URL}}
-{{ end }}
+{{end}}
 {{end}}

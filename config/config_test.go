@@ -627,6 +627,7 @@ func TestUpdateExchangeConfig(t *testing.T) {
 	}
 }
 
+// TestCheckExchangeConfigValues logic test
 func TestCheckExchangeConfigValues(t *testing.T) {
 	checkExchangeConfigValues := Config{}
 
@@ -650,25 +651,43 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Fatalf("Test failed. Expected exchange %s to have updated HTTPTimeout value", checkExchangeConfigValues.Exchanges[0].Name)
 	}
 
+	v := &APICredentialsValidatorConfig{
+		RequiresKey:    true,
+		RequiresSecret: true,
+	}
+	checkExchangeConfigValues.Exchanges[0].API.CredentialsValidator = v
 	checkExchangeConfigValues.Exchanges[0].API.Credentials.Key = "Key"
 	checkExchangeConfigValues.Exchanges[0].API.Credentials.Secret = "Secret"
 	checkExchangeConfigValues.Exchanges[0].API.AuthenticatedSupport = true
-	err = checkExchangeConfigValues.CheckExchangeConfigValues()
-	if err != nil {
-		t.Errorf(
-			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
-		)
+	checkExchangeConfigValues.Exchanges[0].API.AuthenticatedWebsocketSupport = true
+	checkExchangeConfigValues.CheckExchangeConfigValues()
+	if checkExchangeConfigValues.Exchanges[0].API.AuthenticatedSupport ||
+		checkExchangeConfigValues.Exchanges[0].API.AuthenticatedWebsocketSupport {
+		t.Error("Expected authenticated endpoints to be false from invalid API keys")
 	}
 
+	v.RequiresKey = false
+	v.RequiresClientID = true
 	checkExchangeConfigValues.Exchanges[0].API.AuthenticatedSupport = true
-	checkExchangeConfigValues.Exchanges[0].API.Credentials.Key = "TESTYTEST"
+	checkExchangeConfigValues.Exchanges[0].API.AuthenticatedWebsocketSupport = true
+	checkExchangeConfigValues.Exchanges[0].API.Credentials.ClientID = DefaultAPIClientID
 	checkExchangeConfigValues.Exchanges[0].API.Credentials.Secret = "TESTYTEST"
-	checkExchangeConfigValues.Exchanges[0].Name = "ITBIT"
-	err = checkExchangeConfigValues.CheckExchangeConfigValues()
-	if err != nil {
-		t.Errorf(
-			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
-		)
+	checkExchangeConfigValues.CheckExchangeConfigValues()
+	if checkExchangeConfigValues.Exchanges[0].API.AuthenticatedSupport ||
+		checkExchangeConfigValues.Exchanges[0].API.AuthenticatedWebsocketSupport {
+		t.Error("Expected AuthenticatedAPISupport to be false from invalid API keys")
+	}
+
+	v.RequiresKey = true
+	checkExchangeConfigValues.Exchanges[0].API.AuthenticatedSupport = true
+	checkExchangeConfigValues.Exchanges[0].API.AuthenticatedWebsocketSupport = true
+	checkExchangeConfigValues.Exchanges[0].API.Credentials.Key = "meow"
+	checkExchangeConfigValues.Exchanges[0].API.Credentials.Secret = "test123"
+	checkExchangeConfigValues.Exchanges[0].API.Credentials.ClientID = "clientIDerino"
+	checkExchangeConfigValues.CheckExchangeConfigValues()
+	if !checkExchangeConfigValues.Exchanges[0].API.AuthenticatedSupport ||
+		!checkExchangeConfigValues.Exchanges[0].API.AuthenticatedWebsocketSupport {
+		t.Error("Expected AuthenticatedAPISupport and AuthenticatedWebsocketAPISupport to be false from invalid API keys")
 	}
 
 	checkExchangeConfigValues.Exchanges[0].Enabled = true

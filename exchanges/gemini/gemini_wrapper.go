@@ -480,3 +480,13 @@ func (g *Gemini) SubscribeToWebsocketChannels(channels []exchange.WebsocketChann
 func (g *Gemini) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (g *Gemini) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (g *Gemini) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}

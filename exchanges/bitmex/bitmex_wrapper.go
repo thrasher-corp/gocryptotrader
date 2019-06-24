@@ -587,3 +587,13 @@ func (b *Bitmex) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketCha
 	b.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (b *Bitmex) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return b.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (b *Bitmex) AuthenticateWebsocket() error {
+	return b.websocketSendAuth()
+}

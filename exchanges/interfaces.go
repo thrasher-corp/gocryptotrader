@@ -28,7 +28,7 @@ type IBotExchange interface {
 	GetEnabledPairs(assetType asset.Item) currency.Pairs
 	GetAvailablePairs(assetType asset.Item) currency.Pairs
 	GetAccountInfo() (AccountInfo, error)
-	GetAuthenticatedAPISupport() bool
+	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error
 	GetAssetTypes() asset.Items
 	GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item) ([]TradeHistory, error)
@@ -61,4 +61,6 @@ type IBotExchange interface {
 	SubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
 	GetDefaultConfig() (*config.ExchangeConfig, error)
+	GetSubscriptions() ([]WebsocketChannelSubscription, error)
+	AuthenticateWebsocket() error
 }

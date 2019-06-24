@@ -1,5 +1,10 @@
 package coinut
 
+import (
+	"github.com/thrasher-/gocryptotrader/currency"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+)
+
 // GenericResponse is the generic response you will get from coinut
 type GenericResponse struct {
 	Nonce   int64    `json:"nonce"`
@@ -111,8 +116,8 @@ type OrderResponse struct {
 
 // Commission holds trade commission structure
 type Commission struct {
-	Currency string  `json:"currency"`
-	Amount   float64 `json:"amount,string"`
+	Currency currency.Pair `json:"currency"`
+	Amount   float64       `json:"amount,string"`
 }
 
 // OrderFilledResponse contains order filled response
@@ -361,4 +366,249 @@ type WsSupportedCurrency struct {
 	InstID        int64  `json:"inst_id"`
 	DecimalPlaces int64  `json:"decimal_places"`
 	Quote         string `json:"quote"`
+}
+
+// WsRequest base request
+type WsRequest struct {
+	Request string `json:"request"`
+	Nonce   int64  `json:"nonce"`
+}
+
+// WsTradeHistoryRequest ws request
+type WsTradeHistoryRequest struct {
+	InstID int64 `json:"inst_id"`
+	Start  int64 `json:"start,omitempty"`
+	Limit  int64 `json:"limit,omitempty"`
+	WsRequest
+}
+
+// WsCancelOrdersRequest ws request
+type WsCancelOrdersRequest struct {
+	Entries []WsCancelOrdersRequestEntry `json:"entries"`
+	WsRequest
+}
+
+// WsCancelOrdersRequestEntry ws request entry
+type WsCancelOrdersRequestEntry struct {
+	InstID  int64 `json:"inst_id"`
+	OrderID int64 `json:"order_id"`
+}
+
+// WsCancelOrderParameters ws request parameters
+type WsCancelOrderParameters struct {
+	Currency currency.Pair
+	OrderID  int64
+}
+
+// WsCancelOrderRequest ws request
+type WsCancelOrderRequest struct {
+	InstID  int64 `json:"inst_id"`
+	OrderID int64 `json:"order_id"`
+	WsRequest
+}
+
+// WsCancelOrderResponse ws response
+type WsCancelOrderResponse struct {
+	Nonce       int64    `json:"nonce"`
+	Reply       string   `json:"reply"`
+	OrderID     int64    `json:"order_id"`
+	ClientOrdID int64    `json:"client_ord_id"`
+	Status      []string `json:"status"`
+}
+
+// WsCancelOrdersResponse ws response
+type WsCancelOrdersResponse struct {
+	WsRequest
+	Entries []WsCancelOrdersResponseEntry `json:"entries"`
+}
+
+// WsCancelOrdersResponseEntry ws response entry
+type WsCancelOrdersResponseEntry struct {
+	InstID  int64 `json:"inst_id"`
+	OrderID int64 `json:"order_id"`
+}
+
+// WsGetOpenOrdersRequest ws request
+type WsGetOpenOrdersRequest struct {
+	InstID int64 `json:"inst_id"`
+	WsRequest
+}
+
+// WsSubmitOrdersRequest ws request
+type WsSubmitOrdersRequest struct {
+	Orders []WsSubmitOrdersRequestData `json:"orders"`
+	WsRequest
+}
+
+// WsSubmitOrdersRequestData ws request data
+type WsSubmitOrdersRequestData struct {
+	InstID      int64   `json:"inst_id"`
+	Price       float64 `json:"price,string"`
+	Qty         float64 `json:"qty,string"`
+	ClientOrdID int     `json:"client_ord_id"`
+	Side        string  `json:"side"`
+}
+
+// WsSubmitOrderRequest ws request
+type WsSubmitOrderRequest struct {
+	InstID  int64   `json:"inst_id"`
+	Price   float64 `json:"price,string"`
+	Qty     float64 `json:"qty,string"`
+	OrderID int64   `json:"client_ord_id"`
+	Side    string  `json:"side"`
+	WsRequest
+}
+
+// WsSubmitOrderParameters ws request parameters
+type WsSubmitOrderParameters struct {
+	Currency      currency.Pair
+	Side          exchange.OrderSide
+	Amount, Price float64
+	OrderID       int64
+}
+
+// WsUserBalanceResponse ws response
+type WsUserBalanceResponse struct {
+	Nonce             int64    `json:"nonce"`
+	Status            []string `json:"status"`
+	Btc               float64  `json:"BTC,string"`
+	Ltc               float64  `json:"LTC,string"`
+	Etc               float64  `json:"ETC,string"`
+	Eth               float64  `json:"ETH,string"`
+	FloatingPl        float64  `json:"floating_pl,string"`
+	InitialMargin     float64  `json:"initial_margin,string"`
+	RealizedPl        float64  `json:"realized_pl,string"`
+	MaintenanceMargin float64  `json:"maintenance_margin,string"`
+	Equity            float64  `json:"equity,string"`
+	Reply             string   `json:"reply"`
+	TransID           int64    `json:"trans_id"`
+}
+
+// WsOrderAcceptedResponse ws response
+type WsOrderAcceptedResponse struct {
+	Nonce       int64    `json:"nonce"`
+	Status      []string `json:"status"`
+	OrderID     int64    `json:"order_id"`
+	OpenQty     float64  `json:"open_qty,string"`
+	InstID      int64    `json:"inst_id"`
+	Qty         float64  `json:"qty,string"`
+	ClientOrdID int64    `json:"client_ord_id"`
+	OrderPrice  float64  `json:"order_price,string"`
+	Reply       string   `json:"reply"`
+	Side        string   `json:"side"`
+	TransID     int64    `json:"trans_id"`
+}
+
+// WsOrderFilledResponse ws response
+type WsOrderFilledResponse struct {
+	Commission WsOrderFilledCommissionData `json:"commission"`
+	FillPrice  float64                     `json:"fill_price,string"`
+	FillQty    float64                     `json:"fill_qty,string"`
+	Nonce      int64                       `json:"nonce"`
+	Order      WsOrderData                 `json:"order"`
+	Reply      string                      `json:"reply"`
+	Status     []string                    `json:"status"`
+	Timestamp  int64                       `json:"timestamp"`
+	TransID    int64                       `json:"trans_id"`
+}
+
+// WsOrderData ws response data
+type WsOrderData struct {
+	ClientOrdID int64   `json:"client_ord_id"`
+	InstID      int64   `json:"inst_id"`
+	OpenQty     float64 `json:"open_qty,string"`
+	OrderID     int64   `json:"order_id"`
+	Price       float64 `json:"price,string"`
+	Qty         float64 `json:"qty,string"`
+	Side        string  `json:"side"`
+	Timestamp   int64   `json:"timestamp"`
+}
+
+// WsOrderFilledCommissionData ws response data
+type WsOrderFilledCommissionData struct {
+	Amount   float64       `json:"amount,string"`
+	Currency currency.Pair `json:"currency"`
+}
+
+// WsOrderRejectedResponse ws response
+type WsOrderRejectedResponse struct {
+	Nonce       int64    `json:"nonce"`
+	Status      []string `json:"status"`
+	OrderID     int64    `json:"order_id"`
+	OpenQty     float64  `json:"open_qty,string"`
+	Price       float64  `json:"price,string"`
+	InstID      int64    `json:"inst_id"`
+	Reasons     []string `json:"reasons"`
+	ClientOrdID int64    `json:"client_ord_id"`
+	Timestamp   int64    `json:"timestamp"`
+	Reply       string   `json:"reply"`
+	Qty         float64  `json:"qty,string"`
+	Side        string   `json:"side"`
+	TransID     int64    `json:"trans_id"`
+}
+
+// WsUserOpenOrdersResponse ws response
+type WsUserOpenOrdersResponse struct {
+	Nonce  int64         `json:"nonce"`
+	Reply  string        `json:"reply"`
+	Status []string      `json:"status"`
+	Orders []WsOrderData `json:"orders"`
+}
+
+// WsTradeHistoryResponse ws response
+type WsTradeHistoryResponse struct {
+	Nonce       int64         `json:"nonce"`
+	Reply       string        `json:"reply"`
+	Status      []string      `json:"status"`
+	TotalNumber int64         `json:"total_number"`
+	Trades      []WsOrderData `json:"trades"`
+}
+
+// WsTradeHistoryCommissionData ws response data
+type WsTradeHistoryCommissionData struct {
+	Amount   float64       `json:"amount,string"`
+	Currency currency.Pair `json:"currency"`
+}
+
+// WsTradeHistoryTradeData ws response data
+type WsTradeHistoryTradeData struct {
+	Commission WsTradeHistoryCommissionData `json:"commission"`
+	Order      WsOrderData                  `json:"order"`
+	FillPrice  float64                      `json:"fill_price,string"`
+	FillQty    float64                      `json:"fill_qty,string"`
+	Timestamp  int64                        `json:"timestamp"`
+	TransID    int64                        `json:"trans_id"`
+}
+
+// WsLoginResponse ws response data
+type WsLoginResponse struct {
+	APIKey          string   `json:"api_key"`
+	Country         string   `json:"country"`
+	DepositEnabled  bool     `json:"deposit_enabled"`
+	Deposited       bool     `json:"deposited"`
+	Email           string   `json:"email"`
+	FailedTimes     int64    `json:"failed_times"`
+	KycPassed       bool     `json:"kyc_passed"`
+	Lang            string   `json:"lang"`
+	Nonce           int64    `json:"nonce"`
+	OtpEnabled      bool     `json:"otp_enabled"`
+	PhoneNumber     string   `json:"phone_number"`
+	ProductsEnabled []string `json:"products_enabled"`
+	Referred        bool     `json:"referred"`
+	Reply           string   `json:"reply"`
+	SessionID       string   `json:"session_id"`
+	Status          []string `json:"status"`
+	Timezone        string   `json:"timezone"`
+	Traded          bool     `json:"traded"`
+	UnverifiedEmail string   `json:"unverified_email"`
+	Username        string   `json:"username"`
+	WithdrawEnabled bool     `json:"withdraw_enabled"`
+}
+
+// WsNewOrderResponse returns if new_order response failes
+type WsNewOrderResponse struct {
+	Msg    string   `json:"msg"`
+	Nonce  int64    `json:"nonce"`
+	Reply  string   `json:"reply"`
+	Status []string `json:"status"`
 }

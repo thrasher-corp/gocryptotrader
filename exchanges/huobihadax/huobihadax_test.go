@@ -3,13 +3,15 @@ package huobihadax
 import (
 	"strconv"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -22,6 +24,7 @@ const (
 )
 
 var h HUOBIHADAX
+var wsSetupRan bool
 
 // getDefaultConfig returns a default hadax config
 func getDefaultConfig() config.ExchangeConfig {
@@ -89,10 +92,52 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - HuobiHadax Setup() init error")
 	}
 	hadaxConfig.API.AuthenticatedSupport = true
+	hadaxConfig.API.AuthenticatedWebsocketSupport = true
 	hadaxConfig.API.Credentials.Key = apiKey
 	hadaxConfig.API.Credentials.Secret = apiSecret
 
 	h.Setup(hadaxConfig)
+}
+
+func setupWsTests(t *testing.T) {
+	if wsSetupRan {
+		return
+	}
+	TestSetDefaults(t)
+	TestSetup(t)
+	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip(exchange.WebsocketNotEnabled)
+	}
+	var err error
+	var dialer websocket.Dialer
+	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
+	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go h.WsHandleData()
+	err = h.wsAuthenticatedDial(&dialer)
+	if err != nil {
+		t.Error(err)
+	}
+	err = h.wsLogin()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case response := <-h.Websocket.DataHandler:
+		switch respType := response.(type) {
+		case WsAuthenticatedDataResponse:
+			if respType.ErrorCode > 0 {
+				t.Error(respType)
+			}
+		case error:
+			t.Error(respType)
+		}
+	case <-timer.C:
+		t.Error("Websocket did not receive a response")
+	}
+	timer.Stop()
+	wsSetupRan = true
 }
 
 func TestGetSpotKline(t *testing.T) {
@@ -230,7 +275,7 @@ func TestSpotNewOrder(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed - Huobi SpotNewOrder: %s", err)
 	} else {
-		t.Log(log.SubSystemExchSys, newOrderID)
+		t.Log(newOrderID)
 	}
 }
 
@@ -626,4 +671,51 @@ func TestGetDepositAddress(t *testing.T) {
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 	}
+}
+
+// TestWsGetAccountsList connects to WS, logs in, gets account list
+func TestWsGetAccountsList(t *testing.T) {
+	setupWsTests(t)
+	h.wsGetAccountsList(currency.NewPairFromString("ethbtc"))
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case response := <-h.Websocket.DataHandler:
+		switch respType := response.(type) {
+		case WsAuthenticatedAccountsListResponse:
+			if respType.ErrorCode > 0 {
+				t.Error(respType)
+			}
+		case error:
+			t.Error(respType)
+		}
+	case <-timer.C:
+		t.Error("Websocket did not receive a response")
+	}
+	timer.Stop()
+}
+
+// TestWsGetOrderList connects to WS, logs in, gets order list
+func TestWsGetOrderList(t *testing.T) {
+	setupWsTests(t)
+	h.wsGetOrdersList(1, currency.NewPairFromString("ethbtc"))
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Websocket did not receive a response")
+	}
+	timer.Stop()
+}
+
+// TestWsGetOrderDetails connects to WS, logs in, gets order details
+func TestWsGetOrderDetails(t *testing.T) {
+	setupWsTests(t)
+	h.wsGetOrderDetails("123")
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case <-h.Websocket.DataHandler:
+	case <-timer.C:
+		t.Error("Websocket did not receive a response")
+	}
+	timer.Stop()
 }

@@ -735,7 +735,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		}
 	}
 
-	n := c.Requester.GetNonce(true).String()
+	n := c.Requester.GetNonce(false).String()
 	message := n + method + "/" + path + string(payload)
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(c.API.Credentials.Secret))
 	headers := make(map[string]string)

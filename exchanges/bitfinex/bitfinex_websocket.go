@@ -20,28 +20,30 @@ import (
 )
 
 const (
-	bitfinexWebsocket                   = "wss://api.bitfinex.com/ws"
-	bitfinexWebsocketVersion            = "1.1"
-	bitfinexWebsocketPositionSnapshot   = "ps"
-	bitfinexWebsocketPositionNew        = "pn"
-	bitfinexWebsocketPositionUpdate     = "pu"
-	bitfinexWebsocketPositionClose      = "pc"
-	bitfinexWebsocketWalletSnapshot     = "ws"
-	bitfinexWebsocketWalletUpdate       = "wu"
-	bitfinexWebsocketOrderSnapshot      = "os"
-	bitfinexWebsocketOrderNew           = "on"
-	bitfinexWebsocketOrderUpdate        = "ou"
-	bitfinexWebsocketOrderCancel        = "oc"
-	bitfinexWebsocketTradeExecuted      = "te"
-	bitfinexWebsocketHeartbeat          = "hb"
-	bitfinexWebsocketAlertRestarting    = "20051"
-	bitfinexWebsocketAlertRefreshing    = "20060"
-	bitfinexWebsocketAlertResume        = "20061"
-	bitfinexWebsocketUnknownEvent       = "10000"
-	bitfinexWebsocketUnknownPair        = "10001"
-	bitfinexWebsocketSubscriptionFailed = "10300"
-	bitfinexWebsocketAlreadySubscribed  = "10301"
-	bitfinexWebsocketUnknownChannel     = "10302"
+	bitfinexWebsocket                     = "wss://api.bitfinex.com/ws"
+	bitfinexWebsocketVersion              = "1.1"
+	bitfinexWebsocketPositionSnapshot     = "ps"
+	bitfinexWebsocketPositionNew          = "pn"
+	bitfinexWebsocketPositionUpdate       = "pu"
+	bitfinexWebsocketPositionClose        = "pc"
+	bitfinexWebsocketWalletSnapshot       = "ws"
+	bitfinexWebsocketWalletUpdate         = "wu"
+	bitfinexWebsocketOrderSnapshot        = "os"
+	bitfinexWebsocketOrderNew             = "on"
+	bitfinexWebsocketOrderUpdate          = "ou"
+	bitfinexWebsocketOrderCancel          = "oc"
+	bitfinexWebsocketTradeExecuted        = "te"
+	bitfinexWebsocketTradeExecutionUpdate = "tu"
+	bitfinexWebsocketTradeSnapshots       = "ts"
+	bitfinexWebsocketHeartbeat            = "hb"
+	bitfinexWebsocketAlertRestarting      = "20051"
+	bitfinexWebsocketAlertRefreshing      = "20060"
+	bitfinexWebsocketAlertResume          = "20061"
+	bitfinexWebsocketUnknownEvent         = "10000"
+	bitfinexWebsocketUnknownPair          = "10001"
+	bitfinexWebsocketSubscriptionFailed   = "10300"
+	bitfinexWebsocketAlreadySubscribed    = "10301"
+	bitfinexWebsocketUnknownChannel       = "10302"
 )
 
 // WebsocketHandshake defines the communication between the websocket API for
@@ -78,6 +80,9 @@ func (b *Bitfinex) wsSend(data interface{}) error {
 
 // WsSendAuth sends a autheticated event payload
 func (b *Bitfinex) WsSendAuth() error {
+	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", b.Name)
+	}
 	req := make(map[string]interface{})
 	payload := "AUTH" + strconv.FormatInt(time.Now().UnixNano(), 10)[:13]
 	req["event"] = "auth"
@@ -91,7 +96,12 @@ func (b *Bitfinex) WsSendAuth() error {
 
 	req["authPayload"] = payload
 
-	return b.wsSend(req)
+	err := b.wsSend(req)
+	if err != nil {
+		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return err
+	}
+	return nil
 }
 
 // WsSendUnauth sends an unauthenticated payload
@@ -151,17 +161,15 @@ func (b *Bitfinex) WsConnect() error {
 		return err
 	}
 
+	err = b.WsSendAuth()
+	if err != nil {
+		log.Errorf("%v - authentication failed: %v", b.Name, err)
+	}
+
 	b.GenerateDefaultSubscriptions()
 	if hs.Event == "info" {
 		if b.Verbose {
 			log.Debugf(log.SubSystemExchSys, "%s Connected to Websocket.\n", b.GetName())
-		}
-	}
-
-	if b.AllowAuthenticatedRequest() {
-		err = b.WsSendAuth()
-		if err != nil {
-			return err
 		}
 	}
 
@@ -226,15 +234,13 @@ func (b *Bitfinex) WsDataHandler() {
 
 					case "auth":
 						status := eventData["status"].(string)
-
 						if status == "OK" {
+							b.Websocket.DataHandler <- eventData
 							b.WsAddSubscriptionChannel(0, "account", "N/A")
 
 						} else if status == "fail" {
 							b.Websocket.DataHandler <- fmt.Errorf("bitfinex.go error - Websocket unable to AUTH. Error code: %s",
 								eventData["code"].(string))
-
-							b.API.AuthenticatedSupport = false
 						}
 					}
 
@@ -417,6 +423,19 @@ func (b *Bitfinex) WsDataHandler() {
 								OrderID:        int64(data[3].(float64)),
 								AmountExecuted: data[4].(float64),
 								PriceExecuted:  data[5].(float64)}
+
+							b.Websocket.DataHandler <- trade
+						case bitfinexWebsocketTradeSnapshots, bitfinexWebsocketTradeExecutionUpdate:
+							data := chanData[2].([]interface{})
+							trade := WebsocketTradeData{
+								TradeID:        int64(data[0].(float64)),
+								Pair:           data[1].(string),
+								Timestamp:      int64(data[2].(float64)),
+								OrderID:        int64(data[3].(float64)),
+								AmountExecuted: data[4].(float64),
+								PriceExecuted:  data[5].(float64),
+								Fee:            data[6].(float64),
+								FeeCurrency:    data[7].(string)}
 
 							b.Websocket.DataHandler <- trade
 						}
@@ -603,7 +622,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{"book", "trades", "ticker"}
-	subscriptions := []exchange.WebsocketChannelSubscription{}
+	var subscriptions []exchange.WebsocketChannelSubscription
 	for i := range channels {
 		enabledPairs := b.GetEnabledPairs(asset.Spot)
 		for j := range enabledPairs {
@@ -626,7 +645,9 @@ func (b *Bitfinex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	req := make(map[string]interface{})
 	req["event"] = "subscribe"
 	req["channel"] = channelToSubscribe.Channel
-	req["pair"] = channelToSubscribe.Currency.String()
+	if channelToSubscribe.Currency.String() != "" {
+		req["pair"] = channelToSubscribe.Currency.String()
+	}
 	if len(channelToSubscribe.Params) > 0 {
 		for k, v := range channelToSubscribe.Params {
 			req[k] = v

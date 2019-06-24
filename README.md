@@ -129,16 +129,16 @@ Binaries will be published once the codebase reaches a stable condition.
 ### A very special thank you to all who have contributed to this program:
 
 |User|Github|Contribution Amount|
-|--|--|--|
-| thrasher- | https://github.com/thrasher- | 526 |
-| shazbert | https://github.com/shazbert | 166 |
-| gloriousCode | https://github.com/gloriousCode | 146 |
+|--|--|--|| thrasher- | https://github.com/thrasher- | 540 |
+| shazbert | https://github.com/shazbert | 173 |
+| gloriousCode | https://github.com/gloriousCode | 150 |
+| xtda | https://github.com/xtda | 17 |
 | ermalguni | https://github.com/ermalguni | 14 |
-| xtda | https://github.com/xtda | 11 |
+| vadimzhukck | https://github.com/vadimzhukck | 10 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 8 |
-| vadimzhukck | https://github.com/vadimzhukck | 8 |
 | cranktakular | https://github.com/cranktakular | 5 |
+| leilaes | https://github.com/leilaes | 3 |
 | crackcomm | https://github.com/crackcomm | 3 |
 | MadCozBadd | https://github.com/MadCozBadd | 2 |
 | andreygrehov | https://github.com/andreygrehov | 2 |
@@ -159,10 +159,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | Jimexist | https://github.com/Jimexist | 1 |
 | lookfirst | https://github.com/lookfirst | 1 |
 | zeldrinn | https://github.com/zeldrinn | 1 |
-| mattkanwisher | https://github.com/mattkanwisher | 1 |
-| mKurrels | https://github.com/mKurrels | 1 |
-| m1kola | https://github.com/m1kola | 1 |
-| cavapoo2 | https://github.com/cavapoo2 | 1 |
-
 
 

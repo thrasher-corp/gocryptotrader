@@ -512,3 +512,13 @@ func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []exchange.Websock
 	c.Websocket.UnsubscribeToChannels(channels)
 	return nil
 }
+
+// GetSubscriptions returns a copied list of subscriptions
+func (c *CoinbasePro) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return c.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (c *CoinbasePro) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
+}
