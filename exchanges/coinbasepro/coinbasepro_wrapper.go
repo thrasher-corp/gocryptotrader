@@ -428,7 +428,7 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersReques
 	var orders []exchange.OrderDetail
 	for i := range respOrders {
 		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
-			c.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			c.GetPairFormat(asset.Spot, false).Delimiter)
 		orderSide := exchange.OrderSide(strings.ToUpper(respOrders[i].Side))
 		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
@@ -471,7 +471,7 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 	var orders []exchange.OrderDetail
 	for i := range respOrders {
 		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
-			c.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			c.GetPairFormat(asset.Spot, false).Delimiter)
 		orderSide := exchange.OrderSide(strings.ToUpper(respOrders[i].Side))
 		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)

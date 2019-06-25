@@ -455,7 +455,7 @@ func (z *ZB) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := currency.NewPairDelimiter(order.Currency,
-			z.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			z.GetPairFormat(asset.Spot, false).Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]
 		orders = append(orders, exchange.OrderDetail{
@@ -511,7 +511,7 @@ func (z *ZB) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := currency.NewPairDelimiter(order.Currency,
-			z.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			z.GetPairFormat(asset.Spot, false).Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]
 		orders = append(orders, exchange.OrderDetail{

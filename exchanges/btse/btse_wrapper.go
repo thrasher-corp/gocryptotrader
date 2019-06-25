@@ -355,7 +355,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		}
 
 		od.CurrencyPair = currency.NewPairDelimiter(o.ProductID,
-			b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			b.GetPairFormat(asset.Spot, false).Delimiter)
 		od.Exchange = b.Name
 		od.Amount = o.Amount
 		od.ID = o.ID
@@ -432,7 +432,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 
 		openOrder := exchange.OrderDetail{
 			CurrencyPair: currency.NewPairDelimiter(order.ProductID,
-				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				b.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange:  b.Name,
 			Amount:    order.Amount,
 			ID:        order.ID,

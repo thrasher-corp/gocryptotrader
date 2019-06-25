@@ -13,7 +13,12 @@ import (
 
 // vars related to orders
 var (
-	ErrOrderSubmissionIsNil = errors.New("order submission is nil")
+	ErrOrderSubmissionIsNil            = errors.New("order submission is nil")
+	ErrOrderPairIsEmpty                = errors.New("order pair is empty")
+	ErrOrderSideIsInvalid              = errors.New("order side is invalid")
+	ErrOrderTypeIsInvalid              = errors.New("order type is invalid")
+	ErrOrderAmountIsInvalid            = errors.New("order amount is invalid")
+	ErrOrderPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 )
 
 // OrderSubmission contains the order submission data
@@ -29,24 +34,26 @@ type OrderSubmission struct {
 // Validate checks the supplied data and returns whether or not its valid
 func (o *OrderSubmission) Validate() error {
 	if o.Pair.IsEmpty() {
-		return errors.New("order pair is empty")
+		return ErrOrderPairIsEmpty
 	}
 
-	if o.OrderSide != BuyOrderSide && o.OrderSide != SellOrderSide ||
+	o.OrderSide = OrderSide(strings.ToUpper(o.OrderSide.ToString()))
+	if o.OrderSide != BuyOrderSide && o.OrderSide != SellOrderSide &&
 		o.OrderSide != BidOrderSide && o.OrderSide != AskOrderSide {
-		return errors.New("order side is invalid")
+		return ErrOrderSideIsInvalid
 	}
 
+	o.OrderType = OrderType(strings.ToUpper(o.OrderType.ToString()))
 	if o.OrderType != MarketOrderType && o.OrderType != LimitOrderType {
-		return errors.New("order type is invalid")
+		return ErrOrderTypeIsInvalid
 	}
 
 	if o.Amount <= 0 {
-		return errors.New("order amount is invalid")
+		return ErrOrderAmountIsInvalid
 	}
 
 	if o.OrderType == LimitOrderType && o.Price <= 0 {
-		return errors.New("order price must be set if limit order type is desired")
+		return ErrOrderPriceMustBeSetIfLimitOrder
 	}
 
 	return nil

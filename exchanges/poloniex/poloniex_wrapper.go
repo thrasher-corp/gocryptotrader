@@ -446,7 +446,7 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 	var orders []exchange.OrderDetail
 	for currencyPair, openOrders := range resp.Data {
 		symbol := currency.NewPairDelimiter(currencyPair,
-			p.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			p.GetPairFormat(asset.Spot, false).Delimiter)
 
 		for _, order := range openOrders {
 			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
@@ -488,7 +488,7 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 	var orders []exchange.OrderDetail
 	for currencyPair, historicOrders := range resp.Data {
 		symbol := currency.NewPairDelimiter(currencyPair,
-			p.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			p.GetPairFormat(asset.Spot, false).Delimiter)
 
 		for _, order := range historicOrders {
 			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))

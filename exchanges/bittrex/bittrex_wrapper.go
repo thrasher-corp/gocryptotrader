@@ -429,7 +429,7 @@ func (b *Bittrex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		pair := currency.NewPairDelimiter(resp.Result[i].Exchange,
-			b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			b.GetPairFormat(asset.Spot, false).Delimiter)
 		orderType := exchange.OrderType(strings.ToUpper(resp.Result[i].Type))
 
 		orders = append(orders, exchange.OrderDetail{
@@ -473,7 +473,7 @@ func (b *Bittrex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		pair := currency.NewPairDelimiter(resp.Result[i].Exchange,
-			b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			b.GetPairFormat(asset.Spot, false).Delimiter)
 		orderType := exchange.OrderType(strings.ToUpper(resp.Result[i].Type))
 
 		orders = append(orders, exchange.OrderDetail{

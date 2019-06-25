@@ -399,7 +399,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (exchange.OrderDetail, error) 
 		OrderDetail.Status = orders[i].Status
 		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[i].Instrument,
 			orders[i].Currency,
-			b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			b.GetPairFormat(asset.Spot, false).Delimiter)
 	}
 
 	return OrderDetail, nil

@@ -302,7 +302,7 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err e
 	resp = exchange.OrderDetail{
 		Amount: order.Size,
 		CurrencyPair: currency.NewPairDelimiter(order.InstrumentID,
-			o.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+			o.GetPairFormat(asset.Spot, false).Delimiter),
 		Exchange:       o.Name,
 		OrderDate:      order.Timestamp,
 		ExecutedAmount: order.FilledSize,

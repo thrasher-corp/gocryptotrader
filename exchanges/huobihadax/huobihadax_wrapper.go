@@ -500,7 +500,7 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest
 	var orders []exchange.OrderDetail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			h.GetPairFormat(asset.Spot, false).Delimiter)
 		orderDate := time.Unix(0, allOrders[i].CreatedAt*int64(time.Millisecond))
 
 		orders = append(orders, exchange.OrderDetail{
@@ -546,7 +546,7 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 	var orders []exchange.OrderDetail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			h.GetPairFormat(asset.Spot, false).Delimiter)
 		orderDate := time.Unix(0, allOrders[i].CreatedAt*int64(time.Millisecond))
 
 		orders = append(orders, exchange.OrderDetail{
