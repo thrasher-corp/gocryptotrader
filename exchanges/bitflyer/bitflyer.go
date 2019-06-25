@@ -3,16 +3,18 @@ package bitflyer
 import (
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -79,8 +81,9 @@ func (b *Bitflyer) SetDefaults() {
 	b.Name = "Bitflyer"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+		exchange.AutoWithdrawFiat
 	b.RequestCurrencyPairFormat.Delimiter = "_"
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = "_"
@@ -96,10 +99,11 @@ func (b *Bitflyer) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.APIUrlSecondaryDefault = chainAnalysis
 	b.APIUrlSecondary = b.APIUrlSecondaryDefault
+	b.WebsocketInit()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
+func (b *Bitflyer) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -110,10 +114,11 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.HTTPDebugging = exch.HTTPDebugging
+		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -127,6 +132,10 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -243,10 +252,10 @@ func (b *Bitflyer) GetExchangeStatus() (string, error) {
 
 // GetChats returns trollbox chat log
 // Note: returns vary from instant to infinty
-func (b *Bitflyer) GetChats(FromDate string) ([]ChatLog, error) {
+func (b *Bitflyer) GetChats(fromDate string) ([]ChatLog, error) {
 	var resp []ChatLog
 	v := url.Values{}
-	v.Set("from_date", FromDate)
+	v.Set("from_date", fromDate)
 	path := fmt.Sprintf("%s%s?%s", b.APIUrl, pubGetChats, v.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
@@ -273,8 +282,8 @@ func (b *Bitflyer) GetCollateralAccounts() {
 	// Needs to be updated
 }
 
-// GetDepositAddress returns an address for cryptocurrency deposits
-func (b *Bitflyer) GetDepositAddress() {
+// GetCryptoDepositAddress returns an address for cryptocurrency deposits
+func (b *Bitflyer) GetCryptoDepositAddress() {
 	// Needs to be updated
 }
 
@@ -313,8 +322,8 @@ func (b *Bitflyer) SendOrder() {
 	// Needs to be updated
 }
 
-// CancelOrder cancels an order
-func (b *Bitflyer) CancelOrder() {
+// CancelExistingOrder cancels an order
+func (b *Bitflyer) CancelExistingOrder() {
 	// Needs to be updated
 }
 
@@ -328,8 +337,8 @@ func (b *Bitflyer) CancelParentOrder() {
 	// Needs to be updated
 }
 
-// CancelAllOrders cancels all orders on the exchange
-func (b *Bitflyer) CancelAllOrders() {
+// CancelAllExistingOrders cancels all orders on the exchange
+func (b *Bitflyer) CancelAllExistingOrders() {
 	// Needs to be updated
 }
 
@@ -370,14 +379,64 @@ func (b *Bitflyer) GetTradingCommission() {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 // Note: HTTP not done due to incorrect account privileges, please open a PR
 // if you have access and update the authenticated requests
-func (b *Bitflyer) SendAuthHTTPRequest(path string, params url.Values, result interface{}) {
-	headers := make(map[string]string)
-	headers["ACCESS-KEY"] = b.APIKey
-	headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(int64(time.Now().UnixNano()), 10)
+// TODO: Fill out this function once API access is obtained
+func (b *Bitflyer) SendAuthHTTPRequest() {
+	// headers := make(map[string]string)
+	// headers["ACCESS-KEY"] = b.APIKey
+	// headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+// TODO: Figure out the weird fee structure. Do we use Bitcoin Easy Exchange,Lightning Spot,Bitcoin Market,Lightning FX/Futures ???
+func (b *Bitflyer) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.InternationalBankDepositFee:
+		fee = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency, feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// calculateTradingFee returns fee when performing a trade
+func calculateTradingFee(price, amount float64) float64 {
+	// bitflyer has fee tiers, but does not disclose them via API, so the largest has to be assumed
+	return 0.0012 * price * amount
+}
+
+func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, c currency.Code) (fee float64) {
+	if bankTransactionType == exchange.WireTransfer {
+		if c.Item == currency.JPY.Item {
+			fee = 324
+		}
+	}
+	return fee
+}
+
+func getWithdrawalFee(bankTransactionType exchange.InternationalBankTransactionType, c currency.Code, amount float64) (fee float64) {
+	if bankTransactionType == exchange.WireTransfer {
+		if c.Item == currency.JPY.Item {
+			if amount < 30000 {
+				fee = 540
+			} else {
+				fee = 756
+			}
+		}
+	}
+	return fee
 }

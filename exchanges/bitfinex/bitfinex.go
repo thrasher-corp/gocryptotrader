@@ -3,16 +3,20 @@ package bitfinex
 import (
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
+	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -44,6 +48,7 @@ const (
 	bitfinexOrderCancelReplace = "order/cancel/replace"
 	bitfinexOrderStatus        = "order/status"
 	bitfinexOrders             = "orders"
+	bitfinexInactiveOrders     = "orders/hist"
 	bitfinexPositions          = "positions"
 	bitfinexClaimPosition      = "position/claim"
 	bitfinexHistory            = "history"
@@ -83,6 +88,7 @@ type Bitfinex struct {
 	exchange.Base
 	WebsocketConn         *websocket.Conn
 	WebsocketSubdChannels map[int]WebsocketChanInfo
+	wsRequestMtx          sync.Mutex
 }
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -90,24 +96,34 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.AutoWithdrawFiatWithAPIPermission
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	// b.ConfigCurrencyPairFormat.Delimiter = ""
-	// b.ConfigCurrencyPairFormat.Uppercase = true
-	// b.AssetTypes = []string{ticker.Spot}
-	// b.SupportsAutoPairUpdating = true
-	// b.SupportsRESTTickerBatching = true
-	authLimit := request.NewRateLimit(time.Second*60, bitfinexAuthRate)
-
-	// authLimit := request.NewRateLimit(time.Second*1, 6)
-	b.Requester = request.New(b.Name, authLimit, request.NewRateLimit(time.Second*60, bitfinexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
+	b.SupportsAutoPairUpdating = true
+	b.SupportsRESTTickerBatching = true
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Second*60, bitfinexAuthRate),
+		request.NewRateLimit(time.Second*60, bitfinexUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.APIUrlDefault = bitfinexAPIURLBase
+	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
+	b.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
+func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -116,27 +132,48 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		b.BaseAsset = exch.BaseAsset
 		b.QuoteAsset = exch.QuoteAsset
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		b.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
-		// b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		// b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		// b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		// err := b.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = b.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = b.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		b.HTTPDebugging = exch.HTTPDebugging
+		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.WebsocketSetup(b.WsConnect,
+			b.Subscribe,
+			b.Unsubscribe,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			bitfinexWebsocket,
+			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -173,7 +210,8 @@ func (b *Bitfinex) GetLatestSpotPrice(symbol string) (float64, error) {
 // GetTicker returns ticker information
 func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 	response := Ticker{}
-	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexTicker+symbol, url.Values{})
+	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexTicker+symbol,
+		url.Values{})
 
 	if err := b.SendHTTPRequest(path, &response, b.Verbose); err != nil {
 		return response, err
@@ -187,43 +225,47 @@ func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 }
 
 // GetTickerV2 returns ticker information
-func (b *Bitfinex) GetTickerV2(symbol string) (Tickerv2, error) {
+func (b *Bitfinex) GetTickerV2(symb string) (Tickerv2, error) {
 	var response []interface{}
-	var ticker Tickerv2
+	var tick Tickerv2
 
-	path := fmt.Sprintf("%s/v%s/%s/%s", b.APIUrl, bitfinexAPIVersion2, bitfinexTickerV2, symbol)
+	path := fmt.Sprintf("%s/v%s/%s/%s",
+		b.APIUrl,
+		bitfinexAPIVersion2,
+		bitfinexTickerV2,
+		symb)
 	err := b.SendHTTPRequest(path, &response, b.Verbose)
 	if err != nil {
-		return ticker, err
+		return tick, err
 	}
 
 	if len(response) > 10 {
-		ticker.FlashReturnRate = response[0].(float64)
-		ticker.Bid = response[1].(float64)
-		ticker.BidSize = response[2].(float64)
-		ticker.BidPeriod = int64(response[3].(float64))
-		ticker.Ask = response[4].(float64)
-		ticker.AskSize = response[5].(float64)
-		ticker.AskPeriod = int64(response[6].(float64))
-		ticker.DailyChange = response[7].(float64)
-		ticker.DailyChangePerc = response[8].(float64)
-		ticker.Last = response[9].(float64)
-		ticker.Volume = response[10].(float64)
-		ticker.High = response[11].(float64)
-		ticker.Low = response[12].(float64)
+		tick.FlashReturnRate = response[0].(float64)
+		tick.Bid = response[1].(float64)
+		tick.BidSize = response[2].(float64)
+		tick.BidPeriod = int64(response[3].(float64))
+		tick.Ask = response[4].(float64)
+		tick.AskSize = response[5].(float64)
+		tick.AskPeriod = int64(response[6].(float64))
+		tick.DailyChange = response[7].(float64)
+		tick.DailyChangePerc = response[8].(float64)
+		tick.Last = response[9].(float64)
+		tick.Volume = response[10].(float64)
+		tick.High = response[11].(float64)
+		tick.Low = response[12].(float64)
 	} else {
-		ticker.Bid = response[0].(float64)
-		ticker.BidSize = response[1].(float64)
-		ticker.Ask = response[2].(float64)
-		ticker.AskSize = response[3].(float64)
-		ticker.DailyChange = response[4].(float64)
-		ticker.DailyChangePerc = response[5].(float64)
-		ticker.Last = response[6].(float64)
-		ticker.Volume = response[7].(float64)
-		ticker.High = response[8].(float64)
-		ticker.Low = response[9].(float64)
+		tick.Bid = response[0].(float64)
+		tick.BidSize = response[1].(float64)
+		tick.Ask = response[2].(float64)
+		tick.AskSize = response[3].(float64)
+		tick.DailyChange = response[4].(float64)
+		tick.DailyChangePerc = response[5].(float64)
+		tick.Last = response[6].(float64)
+		tick.Volume = response[7].(float64)
+		tick.High = response[8].(float64)
+		tick.Low = response[9].(float64)
 	}
-	return ticker, nil
+	return tick, nil
 }
 
 // GetTickersV2 returns ticker information for multiple symbols
@@ -282,7 +324,7 @@ func (b *Bitfinex) GetTickersV2(symbols string) ([]Tickersv2, error) {
 
 // GetStats returns various statistics about the requested pair
 func (b *Bitfinex) GetStats(symbol string) ([]Stat, error) {
-	response := []Stat{}
+	var response []Stat
 	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexStats + symbol)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
@@ -374,7 +416,7 @@ func (b *Bitfinex) GetOrderbookV2(symbol, precision string, values url.Values) (
 // Values can contain limit amounts for the number of trades returned - Example
 // "limit_trades" = 1000
 func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStructure, error) {
-	response := []TradeStructure{}
+	var response []TradeStructure
 	path := common.EncodeURLValues(
 		b.APIUrl+bitfinexAPIVersion+bitfinexTrades+currencyPair,
 		values,
@@ -415,13 +457,13 @@ func (b *Bitfinex) GetTradesV2(currencyPair string, timestampStart, timestampEnd
 
 		if tempHistory.Amount < 0 {
 			tempHistory.Type = "SELL"
-			tempHistory.Amount = tempHistory.Amount * -1
+			tempHistory.Amount *= -1
 		}
 
 		actualHistory = append(actualHistory, tempHistory)
 	}
 
-	//re-order index
+	// re-order index
 	if reOrderResp {
 		orderedHistory := make([]TradeStructureV2, len(actualHistory))
 		for i, quickRange := range actualHistory {
@@ -441,7 +483,8 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (Lendbook, erro
 	if len(symbol) == 6 {
 		symbol = symbol[:3]
 	}
-	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexLendbook+symbol, values)
+	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexLendbook+symbol,
+		values)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
 }
@@ -451,15 +494,16 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (Lendbook, erro
 // over time
 // Symbol - example "USD"
 func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
-	response := []Lends{}
-	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexLends+symbol, values)
+	var response []Lends
+	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexLends+symbol,
+		values)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
 }
 
 // GetSymbols returns the available currency pairs on the exchange
 func (b *Bitfinex) GetSymbols() ([]string, error) {
-	products := []string{}
+	var products []string
 	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexSymbols)
 
 	return products, b.SendHTTPRequest(path, &products, b.Verbose)
@@ -467,52 +511,25 @@ func (b *Bitfinex) GetSymbols() ([]string, error) {
 
 // GetSymbolsDetails a list of valid symbol IDs and the pair details
 func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
-	response := []SymbolDetails{}
+	var response []SymbolDetails
 	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexSymbolsDetails)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
 }
 
-// GetAccountInfo returns information about your account incl. trading fees
-// 返回帐号信息，包括提现费用
-func (b *Bitfinex) GetAccountInfo() (AccountInfo, error) {
-
-	var result AccountInfo
-
-	var response []interface{}
-	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountInfo, nil, &response)
-
-	if err != nil {
-		return result, err
-	}
-
-	result = AccountInfo{}
-	result.MakerFees = response[0].(map[string]interface{})["maker_fees"].(string)
-	result.TakerFees = response[0].(map[string]interface{})["taker_fees"].(string)
-
-	feeslist := response[0].(map[string]interface{})["fees"].([]interface{})
-	for _, v := range feeslist {
-		item := v.(map[string]interface{})
-
-		result.Fees = append(result.Fees, AccountInfoFees{
-			Pairs:     item["pairs"].(string),
-			MakerFees: item["maker_fees"].(string),
-			TakerFees: item["taker_fees"].(string),
-		})
-	}
-
-	return result, nil
+// GetAccountInformation returns information about your account incl. trading
+// fees
+func (b *Bitfinex) GetAccountInformation() ([]AccountInfo, error) {
+	var responses []AccountInfo
+	return responses, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+		bitfinexAccountInfo, nil, &responses)
 }
 
-// GetAccountFees - NOT YET IMPLEMENTED
+// GetAccountFees - Gets all fee rates for all currencies
 func (b *Bitfinex) GetAccountFees() (AccountFees, error) {
 	response := AccountFees{}
-
-	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &response)
-	if err != nil {
-		return response, err
-	}
-	return response, nil
+	return response, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+		bitfinexAccountFees, nil, &response)
 }
 
 // GetAccountSummary returns a 30-day summary of your trading volume and return
@@ -522,24 +539,27 @@ func (b *Bitfinex) GetAccountSummary() (AccountSummary, error) {
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(
-			"POST", bitfinexAccountSummary, nil, &response,
+			http.MethodPost, bitfinexAccountSummary, nil, &response,
 		)
 }
 
 // NewDeposit returns a new deposit address
 // Method - Example methods accepted: “bitcoin”, “litecoin”, “ethereum”,
-//“tethers", "ethereumc", "zcash", "monero", "iota", "bcash"
+// “tethers", "ethereumc", "zcash", "monero", "iota", "bcash"
 // WalletName - accepted: “trading”, “exchange”, “deposit”
 // renew - Default is 0. If set to 1, will return a new unused deposit address
 func (b *Bitfinex) NewDeposit(method, walletName string, renew int) (DepositResponse, error) {
 	response := DepositResponse{}
-	request := make(map[string]interface{})
-	request["method"] = method
-	request["wallet_name"] = walletName
-	request["renew"] = renew
+	req := make(map[string]interface{})
+	req["method"] = method
+	req["wallet_name"] = walletName
+	req["renew"] = renew
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexDeposit, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexDeposit,
+			req,
+			&response)
 }
 
 // GetKeyPermissions checks the permissions of the key being used to generate
@@ -548,23 +568,26 @@ func (b *Bitfinex) GetKeyPermissions() (KeyPermissions, error) {
 	response := KeyPermissions{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexKeyPermissions, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexKeyPermissions, nil, &response)
 }
 
 // GetMarginInfo shows your trading wallet information for margin trading
 func (b *Bitfinex) GetMarginInfo() ([]MarginInfo, error) {
-	response := []MarginInfo{}
+	var response []MarginInfo
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginInfo, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexMarginInfo, nil, &response)
 }
 
 // GetAccountBalance returns full wallet balance information
 func (b *Bitfinex) GetAccountBalance() ([]Balance, error) {
-	response := []Balance{}
+	var response []Balance
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexBalances, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexBalances, nil, &response)
 }
 
 // WalletTransfer move available balances between your wallets
@@ -573,350 +596,637 @@ func (b *Bitfinex) GetAccountBalance() ([]Balance, error) {
 // WalletFrom - example "exchange"
 // WalletTo -  example "deposit"
 func (b *Bitfinex) WalletTransfer(amount float64, currency, walletFrom, walletTo string) ([]WalletTransfer, error) {
-	response := []WalletTransfer{}
-	request := make(map[string]interface{})
-	request["amount"] = amount
-	request["currency"] = currency
-	request["walletfrom"] = walletFrom
-	request["walletTo"] = walletTo
+	var response []WalletTransfer
+	req := make(map[string]interface{})
+	req["amount"] = amount
+	req["currency"] = currency
+	req["walletfrom"] = walletFrom
+	req["walletTo"] = walletTo
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexTransfer, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexTransfer,
+			req,
+			&response)
 }
 
-// Withdrawal requests a withdrawal from one of your wallets.
-// Major Upgrade needed on this function to include all query params
-func (b *Bitfinex) Withdrawal(withdrawType, wallet, address string, amount float64) ([]Withdrawal, error) {
-	response := []Withdrawal{}
-	request := make(map[string]interface{})
-	request["withdrawal_type"] = withdrawType
-	request["walletselected"] = wallet
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	request["address"] = address
+// WithdrawCryptocurrency requests a withdrawal from one of your wallets.
+// For FIAT, use WithdrawFIAT
+func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, paymentID string, amount float64, c currency.Code) ([]Withdrawal, error) {
+	var response []Withdrawal
+	req := make(map[string]interface{})
+	req["withdraw_type"] = withdrawType
+	req["walletselected"] = wallet
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req["address"] = address
+	if c == currency.XMR {
+		req["paymend_id"] = paymentID
+	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexWithdrawal, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexWithdrawal,
+			req,
+			&response)
+}
+
+// WithdrawFIAT Sends an authenticated request to withdraw FIAT currency
+func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *exchange.WithdrawRequest) ([]Withdrawal, error) {
+	var response []Withdrawal
+	req := make(map[string]interface{})
+
+	req["withdraw_type"] = withdrawalType
+	req["walletselected"] = walletType
+	req["amount"] = strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
+	req["account_name"] = withdrawRequest.BankAccountName
+	req["account_number"] = strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64)
+	req["bank_name"] = withdrawRequest.BankName
+	req["bank_address"] = withdrawRequest.BankAddress
+	req["bank_city"] = withdrawRequest.BankCity
+	req["bank_country"] = withdrawRequest.BankCountry
+	req["expressWire"] = withdrawRequest.IsExpressWire
+	req["swift"] = withdrawRequest.SwiftCode
+	req["detail_payment"] = withdrawRequest.Description
+	req["currency"] = withdrawRequest.WireCurrency
+	req["account_address"] = withdrawRequest.BankAddress
+
+	if withdrawRequest.RequiresIntermediaryBank {
+		req["intermediary_bank_name"] = withdrawRequest.IntermediaryBankName
+		req["intermediary_bank_address"] = withdrawRequest.IntermediaryBankAddress
+		req["intermediary_bank_city"] = withdrawRequest.IntermediaryBankCity
+		req["intermediary_bank_country"] = withdrawRequest.IntermediaryBankCountry
+		req["intermediary_bank_account"] = strconv.FormatFloat(withdrawRequest.IntermediaryBankAccountNumber, 'f', -1, 64)
+		req["intermediary_bank_swift"] = withdrawRequest.IntermediarySwiftCode
+	}
+
+	return response, b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexWithdrawal, req, &response)
 }
 
 // NewOrder submits a new order and returns a order information
 // Major Upgrade needed on this function to include all query params
-func (b *Bitfinex) NewOrder(currencyPair string, amount float64, price float64, buy bool, Type string, hidden bool) (Order, error) {
+func (b *Bitfinex) NewOrder(currencyPair string, amount, price float64, buy bool, orderType string, hidden bool) (Order, error) {
 	response := Order{}
-	request := make(map[string]interface{})
-	request["symbol"] = currencyPair
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	request["price"] = strconv.FormatFloat(price, 'f', -1, 64)
-	request["exchange"] = "bitfinex"
-	request["type"] = Type
-	request["is_hidden"] = hidden
+	req := make(map[string]interface{})
+	req["symbol"] = currencyPair
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req["exchange"] = "bitfinex"
+	req["type"] = orderType
+	req["is_hidden"] = hidden
 
 	if buy {
-		request["side"] = "buy"
+		req["side"] = "buy"
 	} else {
-		request["side"] = "sell"
+		req["side"] = "sell"
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderNew, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrderNew,
+			req,
+			&response)
 }
 
 // NewOrderMulti allows several new orders at once
 func (b *Bitfinex) NewOrderMulti(orders []PlaceOrder) (OrderMultiResponse, error) {
 	response := OrderMultiResponse{}
-	request := make(map[string]interface{})
-	request["orders"] = orders
+	req := make(map[string]interface{})
+	req["orders"] = orders
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderNewMulti, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrderNewMulti,
+			req,
+			&response)
 }
 
-// CancelOrder cancels a single order
-func (b *Bitfinex) CancelOrder(OrderID int64) (Order, error) {
+// CancelExistingOrder cancels a single order by OrderID
+func (b *Bitfinex) CancelExistingOrder(orderID int64) (Order, error) {
 	response := Order{}
-	request := make(map[string]interface{})
-	request["order_id"] = OrderID
+	req := make(map[string]interface{})
+	req["order_id"] = orderID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancel, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrderCancel,
+			req,
+			&response)
 }
 
 // CancelMultipleOrders cancels multiple orders
-func (b *Bitfinex) CancelMultipleOrders(OrderIDs []int64) (string, error) {
+func (b *Bitfinex) CancelMultipleOrders(orderIDs []int64) (string, error) {
 	response := GenericResponse{}
-	request := make(map[string]interface{})
-	request["order_ids"] = OrderIDs
+	req := make(map[string]interface{})
+	req["order_ids"] = orderIDs
 
 	return response.Result,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancelMulti, request, nil)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrderCancelMulti,
+			req,
+			nil)
 }
 
-// CancelAllOrders cancels all active and open orders
-func (b *Bitfinex) CancelAllOrders() (string, error) {
+// CancelAllExistingOrders cancels all active and open orders
+func (b *Bitfinex) CancelAllExistingOrders() (string, error) {
 	response := GenericResponse{}
 
 	return response.Result,
-		b.SendAuthenticatedHTTPRequest("GET", bitfinexOrderCancelAll, nil, nil)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrderCancelAll,
+			nil,
+			nil)
 }
 
 // ReplaceOrder replaces an older order with a new order
-func (b *Bitfinex) ReplaceOrder(OrderID int64, Symbol string, Amount float64, Price float64, Buy bool, Type string, Hidden bool) (Order, error) {
+func (b *Bitfinex) ReplaceOrder(orderID int64, symbol string, amount, price float64, buy bool, orderType string, hidden bool) (Order, error) {
 	response := Order{}
-	request := make(map[string]interface{})
-	request["order_id"] = OrderID
-	request["symbol"] = Symbol
-	request["amount"] = strconv.FormatFloat(Amount, 'f', -1, 64)
-	request["price"] = strconv.FormatFloat(Price, 'f', -1, 64)
-	request["exchange"] = "bitfinex"
-	request["type"] = Type
-	request["is_hidden"] = Hidden
+	req := make(map[string]interface{})
+	req["order_id"] = orderID
+	req["symbol"] = symbol
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req["exchange"] = "bitfinex"
+	req["type"] = orderType
+	req["is_hidden"] = hidden
 
-	if Buy {
-		request["side"] = "buy"
+	if buy {
+		req["side"] = "buy"
 	} else {
-		request["side"] = "sell"
+		req["side"] = "sell"
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancelReplace, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrderCancelReplace,
+			req,
+			&response)
 }
 
 // GetOrderStatus returns order status information
-func (b *Bitfinex) GetOrderStatus(OrderID int64) (Order, error) {
+func (b *Bitfinex) GetOrderStatus(orderID int64) (Order, error) {
 	orderStatus := Order{}
-	request := make(map[string]interface{})
-	request["order_id"] = OrderID
+	req := make(map[string]interface{})
+	req["order_id"] = orderID
 
 	return orderStatus,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderStatus, request, &orderStatus)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrderStatus,
+			req,
+			&orderStatus)
 }
 
-// GetActiveOrders returns all active orders and statuses
-func (b *Bitfinex) GetActiveOrders() ([]Order, error) {
-	response := []Order{}
+// GetInactiveOrders returns order status information
+func (b *Bitfinex) GetInactiveOrders() ([]Order, error) {
+	var response []Order
+	req := make(map[string]interface{})
+	req["limit"] = "100"
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrders, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexInactiveOrders,
+			req,
+			&response)
+}
+
+// GetOpenOrders returns all active orders and statuses
+func (b *Bitfinex) GetOpenOrders() ([]Order, error) {
+	var response []Order
+
+	return response,
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrders,
+			nil,
+			&response)
 }
 
 // GetActivePositions returns an array of active positions
 func (b *Bitfinex) GetActivePositions() ([]Position, error) {
-	response := []Position{}
+	var response []Position
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexPositions, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexPositions,
+			nil,
+			&response)
 }
 
 // ClaimPosition allows positions to be claimed
-func (b *Bitfinex) ClaimPosition(PositionID int) (Position, error) {
+func (b *Bitfinex) ClaimPosition(positionID int) (Position, error) {
 	response := Position{}
-	request := make(map[string]interface{})
-	request["position_id"] = PositionID
+	req := make(map[string]interface{})
+	req["position_id"] = positionID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexClaimPosition, nil, nil)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexClaimPosition,
+			nil,
+			nil)
 }
 
 // GetBalanceHistory returns balance history for the account
 func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince, timeUntil time.Time, limit int, wallet string) ([]BalanceHistory, error) {
-	response := []BalanceHistory{}
-	request := make(map[string]interface{})
-	request["currency"] = symbol
+	var response []BalanceHistory
+	req := make(map[string]interface{})
+	req["currency"] = symbol
 
 	if !timeSince.IsZero() {
-		request["since"] = timeSince
+		req["since"] = timeSince
 	}
 	if !timeUntil.IsZero() {
-		request["until"] = timeUntil
+		req["until"] = timeUntil
 	}
 	if limit > 0 {
-		request["limit"] = limit
+		req["limit"] = limit
 	}
 	if len(wallet) > 0 {
-		request["wallet"] = wallet
+		req["wallet"] = wallet
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexHistory, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexHistory,
+			req,
+			&response)
 }
 
 // GetMovementHistory returns an array of past deposits and withdrawals
 func (b *Bitfinex) GetMovementHistory(symbol, method string, timeSince, timeUntil time.Time, limit int) ([]MovementHistory, error) {
-	response := []MovementHistory{}
-	request := make(map[string]interface{})
-	request["currency"] = symbol
+	var response []MovementHistory
+	req := make(map[string]interface{})
+	req["currency"] = symbol
 
 	if len(method) > 0 {
-		request["method"] = method
+		req["method"] = method
 	}
 	if !timeSince.IsZero() {
-		request["since"] = timeSince
+		req["since"] = timeSince
 	}
 	if !timeUntil.IsZero() {
-		request["until"] = timeUntil
+		req["until"] = timeUntil
 	}
 	if limit > 0 {
-		request["limit"] = limit
+		req["limit"] = limit
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexHistoryMovements, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexHistoryMovements,
+			req,
+			&response)
 }
 
 // GetTradeHistory returns past executed trades
 func (b *Bitfinex) GetTradeHistory(currencyPair string, timestamp, until time.Time, limit, reverse int) ([]TradeHistory, error) {
-	response := []TradeHistory{}
-	request := make(map[string]interface{})
-	request["currency"] = currencyPair
-	request["timestamp"] = timestamp
+	var response []TradeHistory
+	req := make(map[string]interface{})
+	req["currency"] = currencyPair
+	req["timestamp"] = timestamp
 
 	if !until.IsZero() {
-		request["until"] = until
+		req["until"] = until
 	}
 	if limit > 0 {
-		request["limit"] = limit
+		req["limit"] = limit
 	}
 	if reverse > 0 {
-		request["reverse"] = reverse
+		req["reverse"] = reverse
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexTradeHistory, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexTradeHistory,
+			req,
+			&response)
 }
 
 // NewOffer submits a new offer
 func (b *Bitfinex) NewOffer(symbol string, amount, rate float64, period int64, direction string) (Offer, error) {
 	response := Offer{}
-	request := make(map[string]interface{})
-	request["currency"] = symbol
-	request["amount"] = amount
-	request["rate"] = rate
-	request["period"] = period
-	request["direction"] = direction
+	req := make(map[string]interface{})
+	req["currency"] = symbol
+	req["amount"] = amount
+	req["rate"] = rate
+	req["period"] = period
+	req["direction"] = direction
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOfferNew, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOfferNew,
+			req,
+			&response)
 }
 
 // CancelOffer cancels offer by offerID
-func (b *Bitfinex) CancelOffer(OfferID int64) (Offer, error) {
+func (b *Bitfinex) CancelOffer(offerID int64) (Offer, error) {
 	response := Offer{}
-	request := make(map[string]interface{})
-	request["offer_id"] = OfferID
+	req := make(map[string]interface{})
+	req["offer_id"] = offerID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOfferCancel, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOfferCancel,
+			req,
+			&response)
 }
 
 // GetOfferStatus checks offer status whether it has been cancelled, execute or
 // is still active
-func (b *Bitfinex) GetOfferStatus(OfferID int64) (Offer, error) {
+func (b *Bitfinex) GetOfferStatus(offerID int64) (Offer, error) {
 	response := Offer{}
-	request := make(map[string]interface{})
-	request["offer_id"] = OfferID
+	req := make(map[string]interface{})
+	req["offer_id"] = offerID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderStatus, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOrderStatus,
+			req,
+			&response)
 }
 
 // GetActiveCredits returns all available credits
 func (b *Bitfinex) GetActiveCredits() ([]Offer, error) {
-	response := []Offer{}
+	var response []Offer
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexActiveCredits, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexActiveCredits,
+			nil,
+			&response)
 }
 
 // GetActiveOffers returns all current active offers
 func (b *Bitfinex) GetActiveOffers() ([]Offer, error) {
-	response := []Offer{}
+	var response []Offer
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOffers, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexOffers,
+			nil,
+			&response)
 }
 
 // GetActiveMarginFunding returns an array of active margin funds
 func (b *Bitfinex) GetActiveMarginFunding() ([]MarginFunds, error) {
-	response := []MarginFunds{}
+	var response []MarginFunds
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginActiveFunds, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexMarginActiveFunds,
+			nil,
+			&response)
 }
 
 // GetUnusedMarginFunds returns an array of funding borrowed but not currently
 // used
 func (b *Bitfinex) GetUnusedMarginFunds() ([]MarginFunds, error) {
-	response := []MarginFunds{}
+	var response []MarginFunds
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginUnusedFunds, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexMarginUnusedFunds,
+			nil,
+			&response)
 }
 
 // GetMarginTotalTakenFunds returns an array of active funding used in a
 // position
 func (b *Bitfinex) GetMarginTotalTakenFunds() ([]MarginTotalTakenFunds, error) {
-	response := []MarginTotalTakenFunds{}
+	var response []MarginTotalTakenFunds
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginTotalFunds, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexMarginTotalFunds,
+			nil,
+			&response)
 }
 
 // CloseMarginFunding closes an unused or used taken fund
-func (b *Bitfinex) CloseMarginFunding(SwapID int64) (Offer, error) {
+func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 	response := Offer{}
-	request := make(map[string]interface{})
-	request["swap_id"] = SwapID
+	req := make(map[string]interface{})
+	req["swap_id"] = swapID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginClose, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost,
+			bitfinexMarginClose,
+			req,
+			&response)
 }
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(path string, result interface{}, verbose bool) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, verbose, b.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
 // unmarshals result to a supplied variable
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) error {
 	if !b.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			b.Name)
 	}
 
-	if b.Nonce.Get() == 0 {
-		b.Nonce.Set(time.Now().UnixNano())
-	} else {
-		b.Nonce.Inc()
+	n := b.Requester.GetNonce(true)
+
+	req := make(map[string]interface{})
+	req["request"] = fmt.Sprintf("%s%s", bitfinexAPIVersion, path)
+	req["nonce"] = n.String()
+
+	for key, value := range params {
+		req[key] = value
 	}
 
-	request := make(map[string]interface{})
-	request["request"] = fmt.Sprintf("/v%s/%s", bitfinexAPIVersion, path)
-	request["nonce"] = b.Nonce.String()
-
-	if params != nil {
-		for key, value := range params {
-			request[key] = value
-		}
-	}
-
-	PayloadJSON, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(req)
 	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+		return errors.New("sendAuthenticatedAPIRequest: unable to JSON request")
 	}
 
 	if b.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJSON)
+		log.Debugf("Request JSON: %s\n", PayloadJSON)
 	}
 
 	PayloadBase64 := common.Base64Encode(PayloadJSON)
-	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64),
+		[]byte(b.APISecret))
 	headers := make(map[string]string)
 	headers["X-BFX-APIKEY"] = b.APIKey
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	err = b.SendPayload(method, b.APIUrl+bitfinexAPIVersion+path, headers, nil, result, true, b.Verbose)
-	if err != nil {
-		return err
+	return b.SendPayload(method,
+		b.APIUrl+bitfinexAPIVersion+path,
+		headers,
+		nil,
+		result,
+		true,
+		true,
+		b.Verbose,
+		b.HTTPDebugging)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bitfinex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		accountInfos, err := b.GetAccountInformation()
+		if err != nil {
+			return 0, err
+		}
+		fee, err = b.CalculateTradingFee(accountInfos,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.Pair.Base,
+			feeBuilder.IsMaker)
+		if err != nil {
+			return 0, err
+		}
+	case exchange.CyptocurrencyDepositFee:
+		//TODO: fee is charged when < $1000USD is transferred, need to infer value in some way
+		fee = 0
+	case exchange.CryptocurrencyWithdrawalFee:
+		accountFees, err := b.GetAccountFees()
+		if err != nil {
+			return 0, err
+		}
+		fee, err = b.GetCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base,
+			accountFees)
+		if err != nil {
+			return 0, err
+		}
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.Amount)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
-	return nil
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+// does not require an API request, requires manual updating
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.001 * price * amount
+}
+
+// GetCryptocurrencyWithdrawalFee returns an estimate of fee based on type of transaction
+func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(c currency.Code, accountFees AccountFees) (fee float64, err error) {
+	switch result := accountFees.Withdraw[c.String()].(type) {
+	case string:
+		fee, err = strconv.ParseFloat(result, 64)
+		if err != nil {
+			return 0, err
+		}
+	case float64:
+		fee = result
+	}
+
+	return fee, nil
+}
+
+func getInternationalBankDepositFee(amount float64) float64 {
+	return 0.001 * amount
+}
+
+func getInternationalBankWithdrawalFee(amount float64) float64 {
+	return 0.001 * amount
+}
+
+// CalculateTradingFee returns an estimate of fee based on type of whether is maker or taker fee
+func (b *Bitfinex) CalculateTradingFee(accountInfos []AccountInfo, purchasePrice, amount float64, c currency.Code, isMaker bool) (fee float64, err error) {
+	for _, i := range accountInfos {
+		for _, j := range i.Fees {
+			if c.String() == j.Pairs {
+				if isMaker {
+					fee = j.MakerFees
+				} else {
+					fee = j.TakerFees
+				}
+				break
+			}
+		}
+		if fee > 0 {
+			break
+		}
+	}
+	return (fee / 100) * purchasePrice * amount, err
+}
+
+// ConvertSymbolToWithdrawalType You need to have specific withdrawal types to withdraw from Bitfinex
+func (b *Bitfinex) ConvertSymbolToWithdrawalType(c currency.Code) string {
+	switch c {
+	case currency.BTC:
+		return "bitcoin"
+	case currency.LTC:
+		return "litecoin"
+	case currency.ETH:
+		return "ethereum"
+	case currency.ETC:
+		return "ethereumc"
+	case currency.USDT:
+		return "tetheruso"
+	case currency.ZEC:
+		return "zcash"
+	case currency.XMR:
+		return "monero"
+	case currency.DSH:
+		return "dash"
+	case currency.XRP:
+		return "ripple"
+	case currency.SAN:
+		return "santiment"
+	case currency.OMG:
+		return "omisego"
+	case currency.BCH:
+		return "bcash"
+	case currency.ETP:
+		return "metaverse"
+	case currency.AVT:
+		return "aventus"
+	case currency.EDO:
+		return "eidoo"
+	case currency.BTG:
+		return "bgold"
+	case currency.DATA:
+		return "datacoin"
+	case currency.GNT:
+		return "golem"
+	case currency.SNT:
+		return "status"
+	default:
+		return c.Lower().String()
+	}
+}
+
+// ConvertSymbolToDepositMethod returns a converted currency deposit method
+func (b *Bitfinex) ConvertSymbolToDepositMethod(c currency.Code) (method string, err error) {
+	switch c {
+	case currency.BTC:
+		method = "bitcoin"
+	case currency.LTC:
+		method = "litecoin"
+	case currency.ETH:
+		method = "ethereum"
+	case currency.ETC:
+		method = "ethereumc"
+	case currency.USDT:
+		method = "tetheruso"
+	case currency.ZEC:
+		method = "zcash"
+	case currency.XMR:
+		method = "monero"
+	case currency.BCH:
+		method = "bcash"
+	case currency.MIOTA:
+		method = "iota"
+	default:
+		err = fmt.Errorf("currency %s not supported in method list",
+			c)
+	}
+	return
 }

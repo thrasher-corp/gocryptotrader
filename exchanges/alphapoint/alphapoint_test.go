@@ -4,13 +4,15 @@ import (
 	"testing"
 
 	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 )
 
 const (
-	onlineTest = false
-
-	testAPIKey    = ""
-	testAPISecret = ""
+	onlineTest              = false
+	apiKey                  = ""
+	apiSecret               = ""
+	canManipulateRealOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -27,13 +29,13 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func testSetAPIKey(a *Alphapoint) {
-	a.APIKey = testAPIKey
-	a.APISecret = testAPISecret
+	a.APIKey = apiKey
+	a.APISecret = apiSecret
 	a.AuthenticatedAPISupport = true
 }
 
 func testIsAPIKeysSet(a *Alphapoint) bool {
-	if testAPIKey != "" && testAPISecret != "" && a.AuthenticatedAPISupport {
+	if apiKey != "" && apiSecret != "" && a.AuthenticatedAPISupport {
 		return true
 	}
 	return false
@@ -152,7 +154,7 @@ func TestGetTradesByDate(t *testing.T) {
 	if trades.Instrument != "BTCUSD" {
 		t.Error("Test Failed - Alphapoint trades.Instrument value is incorrect")
 	}
-	if trades.IsAccepted != true {
+	if !trades.IsAccepted {
 		t.Error("Test Failed - Alphapoint trades.IsAccepted value is true")
 	}
 	if len(trades.RejectReason) > 0 {
@@ -410,13 +412,13 @@ func TestCreateOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.CreateOrder("", "", 1, 0.01, 0)
+	_, err := a.CreateOrder("", "", exchange.MarketOrderType.ToString(), 0.01, 0)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
 }
 
-func TestModifyOrder(t *testing.T) {
+func TestModifyExistingOrder(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
 	testSetAPIKey(a)
@@ -425,13 +427,13 @@ func TestModifyOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.ModifyOrder("", 1, 1)
+	_, err := a.ModifyExistingOrder("", 1, 1)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelAllExistingOrders(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
 	testSetAPIKey(a)
@@ -440,22 +442,7 @@ func TestCancelOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.CancelOrder("", 1)
-	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
-	}
-}
-
-func TestCancelAllOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
-	}
-
-	err := a.CancelAllOrders("")
+	err := a.CancelAllExistingOrders("")
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -488,5 +475,201 @@ func TestGetOrderFee(t *testing.T) {
 	_, err := a.GetOrderFee("", "", 1, 1)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestFormatWithdrawPermissions(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.NoFiatWithdrawalsText
+
+	withdrawPermissions := a.FormatWithdrawPermissions()
+
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType: exchange.AnyOrderType,
+	}
+
+	_, err := a.GetActiveOrders(&getOrdersRequest)
+	if areTestAPIKeysSet(a) && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet(a) && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType: exchange.AnyOrderType,
+	}
+
+	_, err := a.GetOrderHistory(&getOrdersRequest)
+	if areTestAPIKeysSet(a) && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet(a) && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+
+func areTestAPIKeysSet(a *Alphapoint) bool {
+	if a.APIKey != "" && a.APIKey != "Key" &&
+		a.APISecret != "" && a.APISecret != "Secret" {
+		return true
+	}
+	return false
+}
+
+func TestSubmitOrder(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	var p = currency.Pair{
+		Delimiter: "_",
+		Base:      currency.BTC,
+		Quote:     currency.USD,
+	}
+	response, err := a.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
+	if !areTestAPIKeysSet(a) && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet(a) && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
+
+		if !response.IsOrderPlaced {
+			t.Errorf("Order failed to be placed: %v", err)
+		}
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
+
+	var orderCancellation = &exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	err := a.CancelOrder(orderCancellation)
+	if !areTestAPIKeysSet(a) && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet(a) && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+}
+
+func TestCancelAllExchangeOrders(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
+
+	var orderCancellation = &exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	resp, err := a.CancelAllOrders(orderCancellation)
+
+	if !areTestAPIKeysSet(a) && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet(a) && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+
+	if len(resp.OrderStatus) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.ModifyOrder(&exchange.ModifyOrder{})
+	if err == nil {
+		t.Error("Test failed - ModifyOrder() error")
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+	var withdrawCryptoRequest = exchange.WithdrawRequest{
+		Amount:      100,
+		Currency:    currency.BTC,
+		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Description: "WITHDRAW IT ALL",
+		AddressTag:  "0123456789",
+	}
+
+	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected 'Not implemented', received %v", err)
+	}
+}
+
+func TestWithdrawFiat(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
+
+	_, err := a.WithdrawFiatFunds(&withdrawFiatRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
+	}
+}
+
+func TestWithdrawInternationalBank(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
+
+	_, err := a.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
 	}
 }

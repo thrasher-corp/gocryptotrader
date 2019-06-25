@@ -9,11 +9,11 @@ const (
 
 	PrereleaseBlurb = "This version is pre-release and is not inteded to be used as a production ready trading framework or bot - use at your own risk."
 	IsRelease       = false
-	Copyright       = "Copyright (c) 2018 The GoCryptoTrader Developers."
-	GitHub          = "GitHub: https://github.com/thrasher-/gocryptotrader"
+	Copyright       = "Copyright (c) 2019 The GoCryptoTrader Developers."
+	GitHub          = "GitHub: https://github.com/idoall/gocryptotrader"
 	Trello          = "Trello: https://trello.com/b/ZAhMhpOy/gocryptotrader"
-	Slack           = "Slack:  https://gocryptotrader.herokuapp.com"
-	Issues          = "Issues: https://github.com/thrasher-/gocryptotrader/issues"
+	Slack           = "Slack:  https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTQyYjIxNGVhMWU5MDZlOGYzMmE0NTJmM2MzYWY5NGMzMmM4MzUwNTBjZTEzNjIwODM5NDcxODQwZDljMGQyNGY"
+	Issues          = "Issues: https://github.com/idoall/gocryptotrader/issues"
 )
 
 // BuildVersion returns the version string

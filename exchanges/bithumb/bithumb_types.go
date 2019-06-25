@@ -1,5 +1,7 @@
 package bithumb
 
+import "github.com/idoall/gocryptotrader/currency"
+
 // Ticker holds ticker data
 type Ticker struct {
 	OpeningPrice float64 `json:"opening_price,string"`
@@ -77,19 +79,9 @@ type Account struct {
 
 // Balance holds balance details
 type Balance struct {
-	Status string `json:"status"`
-	Data   struct {
-		TotalBTC     float64 `json:"total_btc,string"`
-		TotalKRW     float64 `json:"total_krw"`
-		InUseBTC     float64 `json:"in_use_btc,string"`
-		InUseKRW     float64 `json:"in_use_krw"`
-		AvailableBTC float64 `json:"available_btc,string"`
-		AvailableKRW float64 `json:"available_krw"`
-		MisuKRW      float64 `json:"misu_krw"`
-		MisuBTC      float64 `json:"misu_btc,string"`
-		XcoinLast    float64 `json:"xcoin_last,string"`
-	} `json:"data"`
-	Message string `json:"message"`
+	Status  string                 `json:"status"`
+	Data    map[string]interface{} `json:"data"`
+	Message string                 `json:"message"`
 }
 
 // WalletAddressRes contains wallet address information
@@ -123,22 +115,25 @@ type LastTransactionTicker struct {
 
 // Orders contains information about your current orders
 type Orders struct {
-	Status string `json:"status"`
-	Data   []struct {
-		OrderID         string  `json:"order_id"`
-		OrderCurrency   string  `json:"order_currency"`
-		OrderDate       int64   `json:"order_date"`
-		PaymentCurrency string  `json:"payment_currency"`
-		Type            string  `json:"type"`
-		Status          string  `json:"status"`
-		Units           float64 `json:"units,string"`
-		UnitsRemaining  float64 `json:"units_remaining,string"`
-		Price           float64 `json:"price,string"`
-		Fee             float64 `json:"fee,string"`
-		Total           float64 `json:"total,string"`
-		DateCompleted   int64   `json:"date_completed"`
-	} `json:"data"`
-	Message string `json:"message"`
+	Status  string      `json:"status"`
+	Data    []OrderData `json:"data"`
+	Message string      `json:"message"`
+}
+
+// OrderData contains all individual order details
+type OrderData struct {
+	OrderID         string  `json:"order_id"`
+	OrderCurrency   string  `json:"order_currency"`
+	OrderDate       int64   `json:"order_date"`
+	PaymentCurrency string  `json:"payment_currency"`
+	Type            string  `json:"type"`
+	Status          string  `json:"status"`
+	Units           float64 `json:"units,string"`
+	UnitsRemaining  float64 `json:"units_remaining,string"`
+	Price           float64 `json:"price,string"`
+	Fee             float64 `json:"fee,string"`
+	Total           float64 `json:"total,string"`
+	DateCompleted   int64   `json:"date_completed"`
 }
 
 // UserTransactions holds users full transaction list
@@ -226,4 +221,62 @@ type MarketSell struct {
 		Fee    float64 `json:"fee,string"`
 	} `json:"data"`
 	Message string `json:"message"`
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[currency.Code]float64{
+	currency.KRW:   1000,
+	currency.BTC:   0.001,
+	currency.ETH:   0.01,
+	currency.DASH:  0.01,
+	currency.LTC:   0.01,
+	currency.ETC:   0.01,
+	currency.XRP:   1,
+	currency.BCH:   0.001,
+	currency.XMR:   0.05,
+	currency.ZEC:   0.001,
+	currency.QTUM:  0.05,
+	currency.BTG:   0.001,
+	currency.ICX:   1,
+	currency.TRX:   5,
+	currency.ELF:   5,
+	currency.MITH:  5,
+	currency.MCO:   0.5,
+	currency.OMG:   0.4,
+	currency.KNC:   3,
+	currency.GNT:   12,
+	currency.HSR:   0.2,
+	currency.ZIL:   30,
+	currency.ETHOS: 2,
+	currency.PAY:   2.4,
+	currency.WAX:   5,
+	currency.POWR:  5,
+	currency.LRC:   10,
+	currency.GTO:   15,
+	currency.STEEM: 0.01,
+	currency.STRAT: 0.2,
+	currency.PPT:   0.5,
+	currency.CTXC:  4,
+	currency.CMT:   20,
+	currency.THETA: 24,
+	currency.WTC:   0.7,
+	currency.ITC:   5,
+	currency.TRUE:  4,
+	currency.ABT:   5,
+	currency.RNT:   20,
+	currency.PLY:   20,
+	currency.WAVES: 0.01,
+	currency.LINK:  10,
+	currency.ENJ:   35,
+	currency.PST:   30,
+}
+
+// FullBalance defines a return type with full balance data
+type FullBalance struct {
+	InUse     map[string]float64
+	Misu      map[string]float64
+	Total     map[string]float64
+	Xcoin     map[string]float64
+	Available map[string]float64
 }

@@ -2,6 +2,9 @@ package base
 
 import (
 	"testing"
+
+	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
 var (
@@ -71,14 +74,150 @@ func TestGetStatus(t *testing.T) {
 	}
 }
 
+type CommunicationProvider struct {
+	ICommunicate
+
+	isEnabled       bool
+	isConnected     bool
+	ConnectCalled   bool
+	PushEventCalled bool
+}
+
+func (p *CommunicationProvider) IsEnabled() bool {
+	return p.isEnabled
+}
+
+func (p *CommunicationProvider) IsConnected() bool {
+	return p.isConnected
+}
+
+func (p *CommunicationProvider) Connect() error {
+	p.ConnectCalled = true
+	return nil
+}
+
+func (p *CommunicationProvider) PushEvent(e Event) error {
+	p.PushEventCalled = true
+	return nil
+}
+
+func (p *CommunicationProvider) GetName() string {
+	return "someTestProvider"
+}
+
 func TestSetup(t *testing.T) {
-	i.Setup()
+	var ic IComm
+	testConfigs := []struct {
+		isEnabled           bool
+		isConnected         bool
+		shouldConnectCalled bool
+		provider            ICommunicate
+	}{
+		{false, true, false, nil},
+		{false, false, false, nil},
+		{true, true, false, nil},
+		{true, false, true, nil},
+	}
+	for _, config := range testConfigs {
+		config.provider = &CommunicationProvider{
+			isEnabled:   config.isEnabled,
+			isConnected: config.isConnected}
+		ic = append(ic, config.provider)
+	}
+
+	ic.Setup()
+
+	for idx, provider := range ic {
+		exp := testConfigs[idx].shouldConnectCalled
+		act := provider.(*CommunicationProvider).ConnectCalled
+		if exp != act {
+			t.Fatalf("provider should be enabled and not be connected: exp=%v, act=%v", exp, act)
+		}
+	}
 }
 
 func TestPushEvent(t *testing.T) {
-	i.PushEvent(Event{})
+	var ic IComm
+	testConfigs := []struct {
+		Enabled         bool
+		Connected       bool
+		PushEventCalled bool
+		provider        ICommunicate
+	}{
+		{false, true, false, nil},
+		{false, false, false, nil},
+		{true, false, false, nil},
+		{true, true, true, nil},
+	}
+	for _, config := range testConfigs {
+		config.provider = &CommunicationProvider{
+			isEnabled:   config.Enabled,
+			isConnected: config.Connected}
+		ic = append(ic, config.provider)
+	}
+
+	ic.PushEvent(Event{})
+
+	for idx, provider := range ic {
+		exp := testConfigs[idx].PushEventCalled
+		act := provider.(*CommunicationProvider).PushEventCalled
+		if exp != act {
+			t.Fatalf("provider should be enabled and connected: exp=%v, act=%v", exp, act)
+		}
+	}
 }
 
-func TestGetEnabledCommunicationMediums(t *testing.T) {
-	i.GetEnabledCommunicationMediums()
+func TestStageTickerData(t *testing.T) {
+	_, ok := TickerStaged["bitstamp"]["someAsset"]["BTCUSD"]
+	if ok {
+		t.Fatalf("key should not exists")
+	}
+
+	price := ticker.Price{}
+	var i IComm
+	i.Setup()
+
+	i.StageTickerData("bitstamp", "someAsset", &price)
+
+	_, ok = TickerStaged["bitstamp"]["someAsset"][price.Pair.String()]
+	if !ok {
+		t.Fatalf("key should exists")
+	}
+}
+
+func TestOrderbookData(t *testing.T) {
+	_, ok := OrderbookStaged["bitstamp"]["someAsset"]["someOrderbook"]
+	if ok {
+		t.Fatal("key should not exists")
+	}
+
+	ob := orderbook.Base{
+		Asks: []orderbook.Item{
+			{Amount: 1, Price: 2, ID: 3},
+			{Amount: 4, Price: 5, ID: 6},
+		},
+	}
+	var i IComm
+	i.Setup()
+
+	i.StageOrderbookData("bitstamp", "someAsset", &ob)
+
+	orderbook, ok := OrderbookStaged["bitstamp"]["someAsset"][ob.Pair.String()]
+	if !ok {
+		t.Fatal("key should exists")
+	}
+
+	if ob.Pair.String() != orderbook.CurrencyPair {
+		t.Fatal("currency missmatched")
+	}
+
+	_, totalAsks := ob.TotalAsksAmount()
+	if totalAsks != orderbook.TotalAsks {
+		t.Fatal("total asks missmatched")
+	}
+
+	_, totalBids := ob.TotalBidsAmount()
+	if totalBids != orderbook.TotalBids {
+		t.Fatal("total bids missmatched")
+	}
 }

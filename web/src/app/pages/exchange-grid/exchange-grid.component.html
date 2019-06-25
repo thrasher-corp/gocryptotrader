@@ -13,9 +13,9 @@
     </div>
         <form class="form-content">
             <mat-list>
-                <mat-list-item [ngClass]="{'selected' : selectedCurrency == currency.ParsedName && selectedExchange == exchange.value }" *ngFor="let currency of exchange.key | enabledCurrencies" >
-                   <h4 matLine>{{currency.ParsedName}}</h4>
-                   <button mat-button (click)="selectCurrency(exchange.value,currency.ParsedName)">SELECT</button>
+                <mat-list-item [ngClass]="{'selected' : selectedCurrency == currency.parsedName && selectedExchange == exchange.value }" *ngFor="let currency of exchange.key | enabledCurrencies" >
+                   <h4 matLine>{{currency.parsedName}}</h4>
+                   <button mat-button (click)="selectCurrency(exchange.value,currency.parsedName)">SELECT</button>
                 </mat-list-item>
                 </mat-list>
         </form>

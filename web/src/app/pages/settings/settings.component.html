@@ -17,24 +17,24 @@
             </mat-expansion-panel-header>
             <form class="form-content">
                 <mat-form-field>
-                    <input matInput name="username" [(ngModel)]="settings.Webserver.AdminUsername" placeholder="Username">
+                    <input matInput name="username" [(ngModel)]="settings.webserver.adminUsername" placeholder="Username">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="password" type="password" [(ngModel)]="settings.Webserver.AdminPassword" placeholder="Password">
+                    <input matInput name="password" type="password" [(ngModel)]="settings.webserver.adminPassword" placeholder="Password">
                 </mat-form-field>
                 <mat-form-field>
-                    <input type="number" matInput name="connection-limit" [(ngModel)]="settings.Webserver.WebsocketConnectionLimit" placeholder="Websocket connection limit">
+                    <input type="number" matInput name="connection-limit" [(ngModel)]="settings.webserver.websocketConnectionLimit" placeholder="Websocket connection limit">
                 </mat-form-field>
-                <mat-checkbox name="allow-insecure-origin" [(ngModel)]="settings.Webserver.WebsocketAllowInsecureOrigin">Allow Insecure Websocket Origin</mat-checkbox>
+                <mat-checkbox name="allow-insecure-origin" [(ngModel)]="settings.webserver.websocketAllowInsecureOrigin">Allow Insecure Websocket Origin</mat-checkbox>
 
             </form>
         </mat-expansion-panel>
 
         <!--CURRENCY SETTINGS-->
-        <mat-expansion-panel *ngFor="let provider of settings.CurrencyConfig?.ForexProviders">
+        <mat-expansion-panel *ngFor="let provider of settings.currencyConfig?.forexProviders">
             <mat-expansion-panel-header>
                 <mat-panel-title>
-                    {{provider.Name}}
+                    {{provider.name}}
                 </mat-panel-title>
                 <mat-panel-description>
                     Forex Providers
@@ -42,21 +42,21 @@
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
-                <mat-checkbox name="fpEnabled" [(ngModel)]="provider.Enabled">Enabled</mat-checkbox>
+                <mat-checkbox name="fpEnabled" [(ngModel)]="provider.enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
-                <mat-checkbox name="fpVerbose" [(ngModel)]="provider.Verbose" [disabled]="!provider.Enabled">Verbose</mat-checkbox>
+                <mat-checkbox name="fpVerbose" [(ngModel)]="provider.verbose" [disabled]="!provider.enabled">Verbose</mat-checkbox>
                 <div mat-line></div>
                 <div mat-line></div>
                 <mat-form-field>
-                    <input matInput name="fpPollingDelay" type="number" [(ngModel)]="provider.RESTPollingDelay" [disabled]="!provider.Enabled" placeholder="Polling Delay">
+                    <input matInput name="fpPollingDelay" type="number" [(ngModel)]="provider.RESTPollingDelay" [disabled]="!provider.enabled" placeholder="Polling Delay">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="fpKey" type="password" [(ngModel)]="provider.APIKey" [disabled]="!provider.Enabled" placeholder="APIKey">
+                    <input matInput name="fpKey" type="password" [(ngModel)]="provider.APIKey" [disabled]="!provider.enabled" placeholder="APIKey">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="fpKeyLevel" [(ngModel)]="provider.APIKeyLvl" [disabled]="!provider.Enabled" placeholder="APIKey Level">
+                    <input matInput name="fpKeyLevel" [(ngModel)]="provider.APIKeyLvl" [disabled]="!provider.enabled" placeholder="APIKey Level">
                 </mat-form-field>
-                <mat-checkbox name="fpPrimary" [(ngModel)]="provider.PrimaryProvider">Primary Provider</mat-checkbox>
+                <mat-checkbox name="fpPrimary" [(ngModel)]="provider.primaryProvider">Primary Provider</mat-checkbox>
             </form>
 
         </mat-expansion-panel>
@@ -73,25 +73,25 @@
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
-                <mat-checkbox name="smsEnabled" [(ngModel)]="settings.Communications.SMSGlobal.Enabled">Enabled</mat-checkbox>
+                <mat-checkbox name="smsEnabled" [(ngModel)]="settings.communications.smsGlobal.enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
-                <mat-checkbox name="smsVerbose" [(ngModel)]="settings.Communications.SMSGlobal.Verbose" [disabled]="!settings?.Communications.SMSGlobal.Enabled">Verbose</mat-checkbox>
+                <mat-checkbox name="smsVerbose" [(ngModel)]="settings.communications.smsGlobal.verbose" [disabled]="!settings?.communications.smsGlobal.enabled">Verbose</mat-checkbox>
                 <div mat-line></div>
                 <mat-form-field>
-                    <input matInput name="smsUsername" [(ngModel)]="settings.Communications.SMSGlobal.Username" [disabled]="!settings?.Communications.SMSGlobal.Enabled" placeholder="Username">
+                    <input matInput name="smsUsername" [(ngModel)]="settings.communications.smsGlobal.username" [disabled]="!settings?.communications.smsGlobal.enabled" placeholder="Username">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="smsPassword" type="password" [(ngModel)]="settings.Communications.SMSGlobal.Password" [disabled]="!settings?.Communications.SMSGlobal.Enabled" placeholder="Password">
+                    <input matInput name="smsPassword" type="password" [(ngModel)]="settings.communications.smsGlobal.Password" [disabled]="!settings?.communications.smsGlobal.enabled" placeholder="Password">
                 </mat-form-field>
 
-                <div *ngFor="let contact of settings.Communications.SMSGlobal?.Contacts">
-                    <mat-checkbox name="contactEnabled" [disabled]="!settings?.Communications.SMSGlobal.Enabled" [(ngModel)]="contact.Enabled">Enabled</mat-checkbox>
+                <div *ngFor="let contact of settings.communications.smsGlobal?.contacts">
+                    <mat-checkbox name="contactEnabled" [disabled]="!settings?.communications.smsGlobal.enabled" [(ngModel)]="contact.enabled">Enabled</mat-checkbox>
                     <div mat-line></div>
                     <mat-form-field>
-                        <input matInput name="contactUsername" [(ngModel)]="contact.Name" [disabled]="!settings.Communications.SMSGlobal.Enabled || !contact.Enabled" placeholder="Contact Name" />
+                        <input matInput name="contactUsername" [(ngModel)]="contact.name" [disabled]="!settings.communications.smsGlobal.enabled || !contact.enabled" placeholder="Contact Name" />
                     </mat-form-field>
                     <mat-form-field>
-                        <input matInput name="contactPassword" [(ngModel)]="contact.Number" [disabled]="!settings.Communications.SMSGlobal.Enabled || !contact.Enabled" placeholder="Contact Number" />
+                        <input matInput name="contactPassword" [(ngModel)]="contact.number" [disabled]="!settings.communications.smsGlobal.enabled || !contact.enabled" placeholder="Contact Number" />
                     </mat-form-field>
                 </div>
             </form>
@@ -112,15 +112,15 @@
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
-                <mat-checkbox name="slackEnabled" [(ngModel)]="settings.Communications.Slack.Enabled">Enabled</mat-checkbox>
+                <mat-checkbox name="slackEnabled" [(ngModel)]="settings.communications.slack.enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
-                <mat-checkbox name="slackVerbose" [disabled]="!settings?.Communications.Slack.Enabled" [(ngModel)]="settings.Communications.Slack.Verbose">Verbose</mat-checkbox>
+                <mat-checkbox name="slackVerbose" [disabled]="!settings?.communications.slack.enabled" [(ngModel)]="settings.communications.slack.verbose">Verbose</mat-checkbox>
                 <div mat-line></div>
                 <mat-form-field>
-                    <input matInput name="slackTargetChannel" [(ngModel)]="settings.Communications.Slack.TargetChannel" [disabled]="!settings?.Communications.Slack.Enabled" placeholder="Target Channel">
+                    <input matInput name="slackTargetChannel" [(ngModel)]="settings.communications.slack.targetChannel" [disabled]="!settings?.communications.slack.enabled" placeholder="Target Channel">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="slackVerificationToken" type="password" [(ngModel)]="settings.Communications.Slack.VerificationToken" [disabled]="!settings?.Communications.Slack.Enabled" placeholder="Verification Token">
+                    <input matInput name="slackVerificationToken" type="password" [(ngModel)]="settings.communications.slack.verificationToken" [disabled]="!settings?.communications.slack.enabled" placeholder="Verification Token">
                 </mat-form-field>
             </form>
         </mat-expansion-panel>
@@ -137,26 +137,26 @@
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
-                <mat-checkbox name="smtpEnabled" [(ngModel)]="settings.Communications.SMTP.Enabled">Enabled</mat-checkbox>
+                <mat-checkbox name="smtpEnabled" [(ngModel)]="settings.communications.smtp.enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
-                <mat-checkbox name="smtpVerbose" [disabled]="!settings?.Communications.SMTP.Enabled" [(ngModel)]="settings.Communications.SMTP.Verbose">Verbose</mat-checkbox>
+                <mat-checkbox name="smtpVerbose" [disabled]="!settings?.communications.smtp.enabled" [(ngModel)]="settings.communications.smtp.verbose">Verbose</mat-checkbox>
                 <div mat-line></div>
                 <mat-form-field>
-                    <input matInput name="smtpHost" [(ngModel)]="settings.Communications.SMTP.Host" [disabled]="!settings?.Communications.SMTP.Enabled" placeholder="Host">
+                    <input matInput name="smtpHost" [(ngModel)]="settings.communications.smtp.name" [disabled]="!settings?.communications.smtp.enabled" placeholder="Host">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="smtpPort" type="nunber" [(ngModel)]="settings.Communications.SMTP.Port" [disabled]="!settings?.Communications.SMTP.Enabled" placeholder="Verification Token">
+                    <input matInput name="smtpPort" type="nunber" [(ngModel)]="settings.communications.smtp.port" [disabled]="!settings?.communications.smtp.enabled" placeholder="Verification Token">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="smtpAccountName" [(ngModel)]="settings.Communications.SMTP.AccountName" [disabled]="!settings?.Communications.SMTP.Enabled" placeholder="Account Name">
+                    <input matInput name="smtpAccountName" [(ngModel)]="settings.communications.smtp.accountName" [disabled]="!settings?.communications.smtp.enabled" placeholder="Account Name">
                 </mat-form-field>
 
                 <mat-form-field>
-                    <input matInput name="smtpPassword" type="password" [(ngModel)]="settings.Communications.SMTP.AccountPassword" [disabled]="!settings?.Communications.SMTP.Enabled" placeholder="Account Name">
+                    <input matInput name="smtpPassword" type="password" [(ngModel)]="settings.communications.smtp.accountPassword" [disabled]="!settings?.communications.smtp.enabled" placeholder="Account Name">
                 </mat-form-field>
 
                 <mat-form-field>
-                    <input matInput name="smtpRecipientList" [(ngModel)]="settings.Communications.SMTP.RecipientList" [disabled]="!settings?.Communications.SMTP.Enabled" placeholder="Recipient List (comma seperated)">
+                    <input matInput name="smtpRecipientList" [(ngModel)]="settings.communications.smtp.recipientList" [disabled]="!settings?.communications.smtp.enabled" placeholder="Recipient List (comma seperated)">
                 </mat-form-field>
             </form>
         </mat-expansion-panel>
@@ -173,12 +173,12 @@
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
-                <mat-checkbox name="telegramEnabled" [(ngModel)]="settings.Communications.Telegram.Enabled">Enabled</mat-checkbox>
+                <mat-checkbox name="telegramEnabled" [(ngModel)]="settings.communications.telegram.enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
-                <mat-checkbox name="telegramVerbose" [disabled]="!settings?.Communications.Telegram.Enabled" [(ngModel)]="settings.Communications.Telegram.Verbose">Verbose</mat-checkbox>
+                <mat-checkbox name="telegramVerbose" [disabled]="!settings?.communications.telegram.enabled" [(ngModel)]="settings.communications.telegram.verbose">Verbose</mat-checkbox>
                 <div mat-line></div>
                 <mat-form-field>
-                    <input matInput name="slackVerificationToken" type="password" [(ngModel)]="settings.Communications.Telegram.VerificationToken" [disabled]="!settings?.Communications.Telegram.Enabled" placeholder="Verification Token">
+                    <input matInput name="slackVerificationToken" type="password" [(ngModel)]="settings.communications.telegram.verificationToken" [disabled]="!settings?.communications.telegram.enabled" placeholder="Verification Token">
                 </mat-form-field>
             </form>
         </mat-expansion-panel>
@@ -194,15 +194,15 @@
                     <mat-icon>account_balance_wallet</mat-icon>
                 </mat-panel-description>
             </mat-expansion-panel-header>
-            <div *ngFor="let wallet of settings.PortfolioAddresses?.Addresses">
+            <div *ngFor="let wallet of settings.PortfolioAddresses?.addresses">
                 <mat-form-field class="long">
-                    <input matInput name="wallet-address" [(ngModel)]="wallet.Address" placeholder="Address" />
+                    <input matInput name="wallet-address" [(ngModel)]="wallet.address" placeholder="Address" />
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="wallet-cointype" [(ngModel)]="wallet.CoinType" placeholder="Coin Type" />
+                    <input matInput name="wallet-cointype" [(ngModel)]="wallet.coinType" placeholder="Coin Type" />
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="wallet-description" [(ngModel)]="wallet.Description" placeholder="Description" />
+                    <input matInput name="wallet-description" [(ngModel)]="wallet.description" placeholder="Description" />
                 </mat-form-field>
                 <button mat-button (click)="removeWallet(wallet)">REMOVE</button>
             </div>
@@ -212,10 +212,10 @@
         </mat-expansion-panel>
 
         <!--EXCHANGE SETTINGS-->
-        <mat-expansion-panel *ngFor="let exchange of settings?.Exchanges">
+        <mat-expansion-panel *ngFor="let exchange of settings?.exchanges">
             <mat-expansion-panel-header>
                 <mat-panel-title>
-                    {{exchange.Name}}
+                    {{exchange.name}}
                 </mat-panel-title>
                 <mat-panel-description>
                     Exchange Settings
@@ -223,23 +223,23 @@
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
-                <mat-checkbox name="exchangeEnabled" [(ngModel)]="exchange.Enabled">Enabled</mat-checkbox>
+                <mat-checkbox name="exchangeEnabled" [(ngModel)]="exchange.enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
                 <mat-form-field>
-                    <input matInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.Enabled" placeholder="API Key*">
+                    <input matInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.enabled" placeholder="API Key*">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="apiSecretKey" type="password" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.Enabled" placeholder="API Secret Key*">
+                    <input matInput name="apiSecretKey" type="password" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.enabled" placeholder="API Secret Key*">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="API ClientID">
+                    <input matInput name="apiClientId" [(ngModel)]="exchange.clientID" [disabled]="!exchange.enabled" placeholder="API ClientID">
                 </mat-form-field>
                 <div mat-line></div>
                 <h4>
                     Enabled currencies
                 </h4>
-                <p><span *ngFor="let pair of exchange.Pairs | enabledCurrencies; let isLast=last">{{pair.Name}}{{isLast ? '' : ', '}}</span> </p>
-                <button mat-button [disabled]="!exchange.Enabled" (click)="openModal(exchange.Pairs)">CHANGE</button>
+                <p><span *ngFor="let pair of exchange.pairs | enabledCurrencies; let isLast=last">{{pair.name}}{{isLast ? '' : ', '}}</span> </p>
+                <button mat-button [disabled]="!exchange.enabled" (click)="openModal(exchange.pairs)">CHANGE</button>
             </form>
         </mat-expansion-panel>
 

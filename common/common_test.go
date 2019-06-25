@@ -2,9 +2,12 @@ package common
 
 import (
 	"bytes"
-	"fmt"
 	"net/url"
+	"os"
+	"os/user"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -336,13 +339,13 @@ func TestStringDataCompareUpper(t *testing.T) {
 	anotherNeedle := "WoRldD"
 	expectedOutput := true
 	expectedOutputTwo := false
-	actualResult := StringDataCompareUpper(originalHaystack, originalNeedle)
+	actualResult := StringDataCompareInsensitive(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 
-	actualResult = StringDataCompareUpper(originalHaystack, anotherNeedle)
+	actualResult = StringDataCompareInsensitive(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
@@ -356,12 +359,12 @@ func TestStringDataContainsUpper(t *testing.T) {
 	anotherNeedle := "ning"
 	expectedOutput := true
 	expectedOutputTwo := false
-	actualResult := StringDataContainsUpper(originalHaystack, originalNeedle)
+	actualResult := StringDataContainsInsensitive(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
-	actualResult = StringDataContainsUpper(originalHaystack, anotherNeedle)
+	actualResult = StringDataContainsInsensitive(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
 		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
@@ -404,7 +407,7 @@ func TestTrimString(t *testing.T) {
 	}
 }
 
-// ReplaceString replaces a string with another
+// TestReplaceString replaces a string with another
 func TestReplaceString(t *testing.T) {
 	t.Parallel()
 	currency := "BTC-USD"
@@ -527,28 +530,28 @@ func TestSendHTTPRequest(t *testing.T) {
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	_, err := SendHTTPRequest(
-		methodGarbage, "https://query.yahooapis.com/v1/public/yql", headers,
+		methodGarbage, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err == nil {
 		t.Error("Test failed. ")
 	}
 	_, err = SendHTTPRequest(
-		methodPost, "https://query.yahooapis.com/v1/public/yql", headers,
+		methodPost, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
 		t.Errorf("Test failed. %s ", err)
 	}
 	_, err = SendHTTPRequest(
-		methodGet, "https://query.yahooapis.com/v1/public/yql", headers,
+		methodGet, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
 		t.Errorf("Test failed. %s ", err)
 	}
 	_, err = SendHTTPRequest(
-		methodDelete, "https://query.yahooapis.com/v1/public/yql", headers,
+		methodDelete, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
@@ -579,12 +582,12 @@ func TestSendHTTPGetRequest(t *testing.T) {
 			TotalOut int `json:"totalOut"`
 		} `json:"ETH"`
 	}
-	url := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`
+	ethURL := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`
 	result := test{}
 
 	var badresult int
 
-	err := SendHTTPGetRequest(url, true, true, &result)
+	err := SendHTTPGetRequest(ethURL, true, true, &result)
 	if err != nil {
 		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
 	}
@@ -592,7 +595,7 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	if err == nil {
 		t.Error("Test failed - common SendHTTPGetRequest error")
 	}
-	err = SendHTTPGetRequest(url, false, false, &result)
+	err = SendHTTPGetRequest(ethURL, false, false, &result)
 	if err != nil {
 		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
 	}
@@ -600,7 +603,7 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	if err == nil {
 		t.Error("Test failed = common SendHTTPGetRequest error: Ignored unexpected status code")
 	}
-	err = SendHTTPGetRequest(url, true, false, &badresult)
+	err = SendHTTPGetRequest(ethURL, true, false, &badresult)
 	if err == nil {
 		t.Error("Test failed - common SendHTTPGetRequest error: Unmarshalled into bad type")
 	}
@@ -663,11 +666,8 @@ func TestJSONDecode(t *testing.T) {
 
 func TestEncodeURLValues(t *testing.T) {
 	urlstring := "https://www.test.com"
-	expectedOutput := `https://www.test.com?env=TEST%2FDATABASE&format=json&q=SELECT+%2A+from+yahoo.finance.xchange+WHERE+pair+in+%28%22BTC%2CUSD%22%29`
+	expectedOutput := `https://www.test.com?env=TEST%2FDATABASE&format=json`
 	values := url.Values{}
-	values.Set("q", fmt.Sprintf(
-		"SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", "BTC,USD"),
-	)
 	values.Set("format", "json")
 	values.Set("env", "TEST/DATABASE")
 
@@ -715,11 +715,10 @@ func TestExtractPort(t *testing.T) {
 
 func TestOutputCSV(t *testing.T) {
 	path := "../testdata/dump"
-	data := [][]string{}
+	var data [][]string
 	rowOne := []string{"Appended", "to", "two", "dimensional", "array"}
 	rowTwo := []string{"Appended", "to", "two", "dimensional", "array", "two"}
-	data = append(data, rowOne)
-	data = append(data, rowTwo)
+	data = append(data, rowOne, rowTwo)
 
 	err := OutputCSV(path, data)
 	if err != nil {
@@ -953,5 +952,149 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 	_, err = TimeFromUnixTimestampFloat(testString)
 	if err == nil {
 		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
+	}
+}
+
+func TestGetDefaultDataDir(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		dir, ok := os.LookupEnv("APPDATA")
+		if !ok {
+			t.Fatal("APPDATA is not set")
+		}
+		dir = filepath.Join(dir, "GoCryptoTrader")
+		actualOutput := GetDefaultDataDir(runtime.GOOS)
+		if actualOutput != dir {
+			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
+		}
+	default:
+		var dir string
+		usr, err := user.Current()
+		if err == nil {
+			dir = usr.HomeDir
+		} else {
+			var err error
+			dir, err = os.UserHomeDir()
+			if err != nil {
+				dir = "."
+			}
+		}
+		dir = filepath.Join(dir, ".gocryptotrader")
+		actualOutput := GetDefaultDataDir(runtime.GOOS)
+		if actualOutput != dir {
+			t.Fatalf("Unexpected result. Got: %v Expected: %v", actualOutput, dir)
+		}
+	}
+}
+
+func TestCreateDir(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		// test for looking up an invalid directory
+		err := CreateDir("")
+		if err == nil {
+			t.Fatal("expected err due to invalid path, but got nil")
+		}
+
+		// test for a directory that exists
+		dir, ok := os.LookupEnv("TEMP")
+		if !ok {
+			t.Fatal("LookupEnv failed. TEMP is not set")
+		}
+		err = CreateDir(dir)
+		if err != nil {
+			t.Fatalf("CreateDir failed. Err: %v", err)
+		}
+
+		// test for creating a directory
+		dir, ok = os.LookupEnv("APPDATA")
+		if !ok {
+			t.Fatal("LookupEnv failed. APPDATA is not set")
+		}
+		dir = dir + GetOSPathSlash() + "GoCryptoTrader\\TestFileASDFG"
+		err = CreateDir(dir)
+		if err != nil {
+			t.Fatalf("CreateDir failed. Err: %v", err)
+		}
+		err = os.Remove(dir)
+		if err != nil {
+			t.Fatalf("Failed to remove file. Err: %v", err)
+		}
+	default:
+		err := CreateDir("")
+		if err == nil {
+			t.Fatal("expected err due to invalid path, but got nil")
+		}
+
+		dir := "/home"
+		err = CreateDir(dir)
+		if err != nil {
+			t.Fatalf("CreateDir failed. Err: %v", err)
+		}
+		var ok bool
+		dir, ok = os.LookupEnv("HOME")
+		if !ok {
+			t.Fatal("LookupEnv of HOME failed")
+		}
+		dir = filepath.Join(dir, ".gocryptotrader", "TestFileASFG")
+		err = CreateDir(dir)
+		if err != nil {
+			t.Errorf("CreateDir failed. Err: %s", err)
+		}
+		err = os.Remove(dir)
+		if err != nil {
+			t.Fatalf("Failed to remove file. Err: %v", err)
+		}
+	}
+}
+
+func TestChangePerm(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		err := ChangePerm("*")
+		if err == nil {
+			t.Fatal("expected an error on non-existent path")
+		}
+		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		if err != nil {
+			t.Fatalf("Mkdir failed. Err: %v", err)
+		}
+		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		if err != nil {
+			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
+		}
+		_, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("os.Stat failed. Err: %v", err)
+		}
+		err = RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("RemoveFile failed. Err: %v", err)
+		}
+	default:
+		err := ChangePerm("")
+		if err == nil {
+			t.Fatal("expected an error on non-existent path")
+		}
+		err = os.Mkdir(GetDefaultDataDir(runtime.GOOS)+GetOSPathSlash()+"TestFileASDFGHJ", 0777)
+		if err != nil {
+			t.Fatalf("Mkdir failed. Err: %v", err)
+		}
+		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		if err != nil {
+			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
+		}
+		var a os.FileInfo
+		a, err = os.Stat(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("os.Stat failed. Err: %v", err)
+		}
+		if a.Mode().Perm() != 0770 {
+			t.Fatalf("expected file permissions differ. expecting 0770 got %#o", a.Mode().Perm())
+		}
+		err = RemoveFile(GetDefaultDataDir(runtime.GOOS) + GetOSPathSlash() + "TestFileASDFGHJ")
+		if err != nil {
+			t.Fatalf("RemoveFile failed. Err: %v", err)
+		}
 	}
 }

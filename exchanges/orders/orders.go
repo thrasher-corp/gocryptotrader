@@ -18,7 +18,7 @@ type Order struct {
 }
 
 // NewOrder creates a new order and returns a an orderID
-func NewOrder(Exchange string, amount, price float64) int {
+func NewOrder(exchangeName string, amount, price float64) int {
 	order := &Order{}
 	if len(Orders) == 0 {
 		order.OrderID = 0
@@ -26,7 +26,7 @@ func NewOrder(Exchange string, amount, price float64) int {
 		order.OrderID = len(Orders)
 	}
 
-	order.Exchange = Exchange
+	order.Exchange = exchangeName
 	order.Amount = amount
 	order.Price = price
 	Orders = append(Orders, order)
@@ -46,7 +46,7 @@ func DeleteOrder(orderID int) bool {
 
 // GetOrdersByExchange returns order pointer grouped by exchange
 func GetOrdersByExchange(exchange string) []*Order {
-	orders := []*Order{}
+	var orders []*Order
 	for i := range Orders {
 		if Orders[i].Exchange == exchange {
 			orders = append(orders, Orders[i])

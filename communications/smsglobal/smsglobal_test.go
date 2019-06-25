@@ -1,7 +1,6 @@
 package smsglobal
 
 import (
-	"log"
 	"testing"
 
 	"github.com/idoall/gocryptotrader/communications/base"
@@ -13,7 +12,8 @@ var s SMSGlobal
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	s.Setup(cfg.GetCommunicationsConfig())
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
 }
 
 func TestConnect(t *testing.T) {
@@ -64,7 +64,6 @@ func TestAddContact(t *testing.T) {
 	if err != nil {
 		t.Error("test failed - SMSGlobal AddContact() error", err)
 	}
-	log.Println(s.Contacts)
 	err = s.AddContact(Contact{Name: "StyleGherkin", Number: "1231424", Enabled: true})
 	if err == nil {
 		t.Error("test failed - SMSGlobal AddContact() error")

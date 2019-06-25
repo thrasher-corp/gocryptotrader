@@ -2,17 +2,21 @@ package coinut
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -36,6 +40,8 @@ const (
 
 	coinutAuthRate   = 0
 	coinutUnauthRate = 0
+
+	coinutStatusOK = "OK"
 )
 
 // COINUT is the overarching type across the coinut package
@@ -43,6 +49,7 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
+	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets current default values
@@ -50,11 +57,12 @@ func (c *COINUT) SetDefaults() {
 	c.Name = "COINUT"
 	c.Enabled = false
 	c.Verbose = false
-	c.TakerFee = 0.1 //spot
+	c.TakerFee = 0.1 // spot
 	c.MakerFee = 0
 	c.Verbose = false
-	c.Websocket = false
 	c.RESTPollingDelay = 10
+	c.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+		exchange.WithdrawFiatViaWebsiteOnly
 	c.RequestCurrencyPairFormat.Delimiter = ""
 	c.RequestCurrencyPairFormat.Uppercase = true
 	c.ConfigCurrencyPairFormat.Delimiter = ""
@@ -68,24 +76,35 @@ func (c *COINUT) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.APIUrlDefault = coinutAPIURL
 	c.APIUrl = c.APIUrlDefault
+	c.WebsocketInit()
+	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketSubmitOrderSupported |
+		exchange.WebsocketCancelOrderSupported
 }
 
 // Setup sets the current exchange configuration
-func (c *COINUT) Setup(exch config.ExchangeConfig) {
+func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 	} else {
 		c.Enabled = true
 		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
+		c.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
+		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		c.SetHTTPClientTimeout(exch.HTTPTimeout)
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
-		c.Websocket = exch.Websocket
-		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		c.HTTPDebugging = exch.HTTPDebugging
+		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
+		c.BaseCurrencies = exch.BaseCurrencies
+		c.AvailablePairs = exch.AvailablePairs
+		c.EnabledPairs = exch.EnabledPairs
 		err := c.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -99,6 +118,21 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.WebsocketSetup(c.WsConnect,
+			c.Subscribe,
+			c.Unsubscribe,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			coinutWebsocketURL,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -156,15 +190,27 @@ func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, o
 	var result interface{}
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	params["price"] = price
-	params["qty"] = quantity
+	if price > 0 {
+		params["price"] = fmt.Sprintf("%v", price)
+	}
+	params["qty"] = fmt.Sprintf("%v", quantity)
 	params["side"] = "BUY"
 	if !buy {
 		params["side"] = "SELL"
 	}
 	params["client_ord_id"] = orderID
 
-	return result, c.SendHTTPRequest(coinutOrder, params, true, &result)
+	err := c.SendHTTPRequest(coinutOrder, params, true, &result)
+	if _, ok := result.(OrderRejectResponse); ok {
+		return result.(OrderRejectResponse), err
+	}
+	if _, ok := result.(OrderFilledResponse); ok {
+		return result.(OrderFilledResponse), err
+	}
+	if _, ok := result.(OrdersBase); ok {
+		return result.(OrdersBase), err
+	}
+	return result, err
 }
 
 // NewOrders places multiple orders on the exchange
@@ -177,20 +223,30 @@ func (c *COINUT) NewOrders(orders []Order) ([]OrdersBase, error) {
 }
 
 // GetOpenOrders returns a list of open order and relevant information
-func (c *COINUT) GetOpenOrders(instrumentID int) ([]OrdersResponse, error) {
-	var result []OrdersResponse
+func (c *COINUT) GetOpenOrders(instrumentID int) (GetOpenOrdersResponse, error) {
+	var result GetOpenOrdersResponse
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 
 	return result, c.SendHTTPRequest(coinutOrdersOpen, params, true, &result)
 }
 
-// CancelOrder cancels a specific order and returns if it was actioned
-func (c *COINUT) CancelOrder(instrumentID, orderID int) (bool, error) {
+// CancelExistingOrder cancels a specific order and returns if it was actioned
+func (c *COINUT) CancelExistingOrder(instrumentID, orderID int) (bool, error) {
 	var result GenericResponse
 	params := make(map[string]interface{})
-	params["inst_id"] = instrumentID
-	params["order_id"] = orderID
+	type Request struct {
+		InstrumentID int `json:"inst_id"`
+		OrderID      int `json:"order_id"`
+	}
+
+	var entry = Request{
+		InstrumentID: instrumentID,
+		OrderID:      orderID,
+	}
+
+	entries := []Request{entry}
+	params["entries"] = entries
 
 	err := c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
 	if err != nil {
@@ -203,7 +259,14 @@ func (c *COINUT) CancelOrder(instrumentID, orderID int) (bool, error) {
 func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, error) {
 	var result CancelOrdersResponse
 	params := make(map[string]interface{})
-	params["entries"] = orders
+	type Request struct {
+		InstrumentID int `json:"inst_id"`
+		OrderID      int `json:"order_id"`
+	}
+
+	var entries []CancelOrders
+	entries = append(entries, orders...)
+	params["entries"] = entries
 
 	return result, c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
 }
@@ -234,7 +297,7 @@ func (c *COINUT) GetIndexTicker(asset string) (IndexTicker, error) {
 
 // GetDerivativeInstruments returns a list of derivative instruments
 func (c *COINUT) GetDerivativeInstruments(secType string) (interface{}, error) {
-	var result interface{} //to-do
+	var result interface{} // to-do
 	params := make(map[string]interface{})
 	params["sec_type"] = secType
 
@@ -242,7 +305,7 @@ func (c *COINUT) GetDerivativeInstruments(secType string) (interface{}, error) {
 }
 
 // GetOptionChain returns option chain
-func (c *COINUT) GetOptionChain(asset, secType string, expiry int64) (OptionChainResponse, error) {
+func (c *COINUT) GetOptionChain(asset, secType string) (OptionChainResponse, error) {
 	var result OptionChainResponse
 	params := make(map[string]interface{})
 	params["asset"] = asset
@@ -279,7 +342,7 @@ func (c *COINUT) GetOpenPositions(instrumentID int) ([]OpenPosition, error) {
 		c.SendHTTPRequest(coinutPositionOpen, params, true, &result)
 }
 
-//to-do: user position update via websocket
+// to-do: user position update via websocket
 
 // SendHTTPRequest sends either an authenticated or unauthenticated HTTP request
 func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{}, authenticated bool, result interface{}) (err error) {
@@ -287,34 +350,153 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
 	}
 
-	if c.Nonce.Get() == 0 {
-		c.Nonce.Set(time.Now().Unix())
-	} else {
-		c.Nonce.Inc()
-	}
+	n := c.Requester.GetNonce(false)
 
 	if params == nil {
 		params = map[string]interface{}{}
 	}
-	params["nonce"] = c.Nonce.Get()
+	params["nonce"] = n
 	params["request"] = apiRequest
 
 	payload, err := common.JSONEncode(params)
 	if err != nil {
-		return errors.New("SenddHTTPRequest: Unable to JSON request")
+		return errors.New("sendHTTPRequest: Unable to JSON request")
 	}
 
 	if c.Verbose {
-		log.Printf("Request JSON: %s\n", payload)
+		log.Debugf("Request JSON: %s", payload)
 	}
 
 	headers := make(map[string]string)
 	if authenticated {
 		headers["X-USER"] = c.ClientID
-		hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APIKey))
+		hmac := common.GetHMAC(common.HashSHA256, payload, []byte(c.APIKey))
 		headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
 	}
 	headers["Content-Type"] = "application/json"
 
-	return c.SendPayload("POST", c.APIUrl, headers, bytes.NewBuffer(payload), result, authenticated, c.Verbose)
+	var rawMsg json.RawMessage
+	err = c.SendPayload(http.MethodPost,
+		c.APIUrl,
+		headers,
+		bytes.NewBuffer(payload),
+		&rawMsg,
+		authenticated,
+		true,
+		c.Verbose,
+		c.HTTPDebugging,
+	)
+	if err != nil {
+		return err
+	}
+
+	var genResp GenericResponse
+	err = common.JSONDecode(rawMsg, &genResp)
+	if err != nil {
+		return err
+	}
+
+	if genResp.Status[0] != coinutStatusOK {
+		return fmt.Errorf("%s SendHTTPRequest error: %s", c.Name,
+			genResp.Status[0])
+	}
+
+	return common.JSONDecode(rawMsg, result)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (c *COINUT) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = c.calculateTradingFee(feeBuilder.Pair.Base,
+			feeBuilder.Pair.Quote,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount)
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
+	if c.IsCryptoFiatPair() {
+		return 0.0035 * price * amount
+	}
+	return 0.002 * price * amount
+}
+
+func (c *COINUT) calculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, isMaker bool) float64 {
+	var fee float64
+
+	switch {
+	case isMaker:
+		fee = 0
+	case currency.NewPair(base, quote).IsCryptoFiatPair():
+		fee = 0.002
+	default:
+		fee = 0.001
+	}
+
+	return fee * amount * purchasePrice
+}
+
+func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 {
+	var fee float64
+
+	switch c {
+	case currency.USD:
+		if amount*0.001 < 10 {
+			fee = 10
+		} else {
+			fee = amount * 0.001
+		}
+	case currency.CAD:
+		if amount*0.005 < 10 {
+			fee = 2
+		} else {
+			fee = amount * 0.005
+		}
+	case currency.SGD:
+		if amount*0.001 < 10 {
+			fee = 10
+		} else {
+			fee = amount * 0.001
+		}
+	}
+
+	return fee
+}
+
+func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
+	var fee float64
+
+	if c == currency.USD {
+		if amount*0.001 < 10 {
+			fee = 10
+		} else {
+			fee = amount * 0.001
+		}
+	} else if c == currency.CAD {
+		if amount*0.005 < 10 {
+			fee = 2
+		} else {
+			fee = amount * 0.005
+		}
+	}
+
+	return fee
 }

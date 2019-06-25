@@ -41,18 +41,18 @@ export class CurrencyListComponent implements OnInit {
   }
 
   public getExchangeCurrencies(): void {
-    for (let i = 0; i < this.settings.Exchanges.length; i++) {
-      if (this.settings.Exchanges[i].Enabled === true) {
-        for (let j = 0; j < this.settings.Exchanges[i].Pairs.length; j++) {
-          if (this.settings.Exchanges[i].Pairs[j].Enabled) {
-          if (this.exchangeCurrencies.has(this.settings.Exchanges[i].Pairs[j].ParsedName)) {
-            const array = this.exchangeCurrencies.get(this.settings.Exchanges[i].Pairs[j].ParsedName);
-            array.push(this.settings.Exchanges[i].Name);
-            this.exchangeCurrencies.set(this.settings.Exchanges[i].Pairs[j].ParsedName, array);
+    for (let i = 0; i < this.settings.exchanges.length; i++) {
+      if (this.settings.exchanges[i].enabled === true) {
+        for (let j = 0; j < this.settings.exchanges[i].pairs.length; j++) {
+          if (this.settings.exchanges[i].pairs[j].enabled) {
+          if (this.exchangeCurrencies.has(this.settings.exchanges[i].pairs[j].parsedName)) {
+            const array = this.exchangeCurrencies.get(this.settings.exchanges[i].pairs[j].parsedName);
+            array.push(this.settings.exchanges[i].name);
+            this.exchangeCurrencies.set(this.settings.exchanges[i].pairs[j].parsedName, array);
           } else {
             const exchangeArray = new Array<string>();
-            exchangeArray.push(this.settings.Exchanges[i].Name);
-            this.exchangeCurrencies.set(this.settings.Exchanges[i].Pairs[j].ParsedName, exchangeArray);
+            exchangeArray.push(this.settings.exchanges[i].name);
+            this.exchangeCurrencies.set(this.settings.exchanges[i].pairs[j].parsedName, exchangeArray);
           }
         }
         }

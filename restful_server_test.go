@@ -21,11 +21,10 @@ func loadConfig(t *testing.T) *config.Config {
 	return cfg
 }
 
-func makeHTTPGetRequest(t *testing.T, url string, response interface{}) *http.Response {
-	req := httptest.NewRequest("GET", "http://localhost:9050/config/all", nil)
+func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 	w := httptest.NewRecorder()
 
-	err := RESTfulJSONResponse(w, req, response)
+	err := RESTfulJSONResponse(w, response)
 	if err != nil {
 		t.Error("Test failed. Failed to make response.", err)
 	}
@@ -35,11 +34,13 @@ func makeHTTPGetRequest(t *testing.T, url string, response interface{}) *http.Re
 // TestConfigAllJsonResponse test if config/all restful json response is valid
 func TestConfigAllJsonResponse(t *testing.T) {
 	cfg := loadConfig(t)
-	resp := makeHTTPGetRequest(t, "http://localhost:9050/config/all", cfg)
+	resp := makeHTTPGetRequest(t, cfg)
 	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
 		t.Error("Test failed. Body not readable", err)
 	}
+
 	var responseConfig config.Config
 	jsonErr := json.Unmarshal(body, &responseConfig)
 	if jsonErr != nil {
@@ -48,5 +49,35 @@ func TestConfigAllJsonResponse(t *testing.T) {
 
 	if reflect.DeepEqual(responseConfig, cfg) {
 		t.Error("Test failed. Json not equal to config")
+	}
+}
+
+func TestInvalidHostRequest(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = "invalidsite.com"
+
+	resp := httptest.NewRecorder()
+	NewRouter().ServeHTTP(resp, req)
+
+	if status := resp.Code; status != http.StatusNotFound {
+		t.Errorf("Test failed. Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
+	}
+}
+
+func TestValidHostRequest(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = "localhost:9050"
+
+	resp := httptest.NewRecorder()
+	NewRouter().ServeHTTP(resp, req)
+
+	if status := resp.Code; status != http.StatusOK {
+		t.Errorf("Test failed. Response returned wrong status code expected %v got %v", http.StatusOK, status)
 	}
 }

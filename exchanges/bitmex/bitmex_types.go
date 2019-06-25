@@ -1,5 +1,7 @@
 package bitmex
 
+import exchange "github.com/idoall/gocryptotrader/exchanges"
+
 // RequestError allows for a general error capture from requests
 type RequestError struct {
 	Error struct {
@@ -294,14 +296,14 @@ type Order struct {
 	MultiLegReportingType string  `json:"multiLegReportingType"`
 	OrdRejReason          string  `json:"ordRejReason"`
 	OrdStatus             string  `json:"ordStatus"` //订单状态，例如："Filled","Canceled","New":新订单
-	OrdType               string  `json:"ordType"`
+	OrdType               int64   `json:"ordType,string"`
 	OrderID               string  `json:"orderID"`
 	OrderQty              int64   `json:"orderQty"`
 	PegOffsetValue        float64 `json:"pegOffsetValue"`
 	PegPriceType          string  `json:"pegPriceType"`
 	Price                 float64 `json:"price"`
 	SettlCurrency         string  `json:"settlCurrency"`
-	Side                  string  `json:"side"`
+	Side                  int64   `json:"side,string"`
 	SimpleCumQty          float64 `json:"simpleCumQty"`
 	SimpleLeavesQty       float64 `json:"simpleLeavesQty"`
 	SimpleOrderQty        float64 `json:"simpleOrderQty"`
@@ -704,3 +706,17 @@ var (
 	TimeIntervalHour        = TimeInterval("1h")
 	TimeIntervalDay         = TimeInterval("1d")
 )
+
+// orderTypeMap holds order type info based on Bitmex data
+var orderTypeMap = map[int64]exchange.OrderType{
+	1: exchange.MarketOrderType,
+	2: exchange.LimitOrderType,
+	3: exchange.StopOrderType,
+	7: exchange.TrailingStopOrderType,
+}
+
+// orderSideMap holds order type info based on Bitmex data
+var orderSideMap = map[int64]exchange.OrderSide{
+	1: exchange.BuyOrderSide,
+	2: exchange.SellOrderSide,
+}

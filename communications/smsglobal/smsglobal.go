@@ -4,6 +4,7 @@ package smsglobal
 import (
 	"errors"
 	"flag"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -32,20 +33,20 @@ type SMSGlobal struct {
 
 // Setup takes in a SMSGlobal configuration, sets username, password and
 // and recipient list
-func (s *SMSGlobal) Setup(config config.CommunicationsConfig) {
-	s.Name = config.SMSGlobalConfig.Name
-	s.Enabled = config.SMSGlobalConfig.Enabled
-	s.Verbose = config.SMSGlobalConfig.Verbose
-	s.Username = config.SMSGlobalConfig.Username
-	s.Password = config.SMSGlobalConfig.Password
+func (s *SMSGlobal) Setup(cfg *config.CommunicationsConfig) {
+	s.Name = cfg.SMSGlobalConfig.Name
+	s.Enabled = cfg.SMSGlobalConfig.Enabled
+	s.Verbose = cfg.SMSGlobalConfig.Verbose
+	s.Username = cfg.SMSGlobalConfig.Username
+	s.Password = cfg.SMSGlobalConfig.Password
 
 	var contacts []Contact
-	for x := range config.SMSGlobalConfig.Contacts {
+	for x := range cfg.SMSGlobalConfig.Contacts {
 		contacts = append(contacts,
 			Contact{
-				Name:    config.SMSGlobalConfig.Contacts[x].Name,
-				Number:  config.SMSGlobalConfig.Contacts[x].Number,
-				Enabled: config.SMSGlobalConfig.Contacts[x].Enabled,
+				Name:    cfg.SMSGlobalConfig.Contacts[x].Name,
+				Number:  cfg.SMSGlobalConfig.Contacts[x].Number,
+				Enabled: cfg.SMSGlobalConfig.Contacts[x].Enabled,
 			},
 		)
 	}
@@ -60,7 +61,7 @@ func (s *SMSGlobal) Connect() error {
 
 // PushEvent pushes an event to a contact list via SMS
 func (s *SMSGlobal) PushEvent(base.Event) error {
-	return errors.New("not yet implemented")
+	return common.ErrNotYetImplemented
 }
 
 // GetEnabledContacts returns how many SMS contacts are enabled in the
@@ -164,7 +165,7 @@ func (s *SMSGlobal) SendMessage(to, message string) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest("POST",
+	resp, err := common.SendHTTPRequest(http.MethodPost,
 		smsGlobalAPIURL,
 		headers,
 		strings.NewReader(values.Encode()))

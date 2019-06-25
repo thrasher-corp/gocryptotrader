@@ -48,7 +48,7 @@ type AccountInfo struct {
 	Profile struct {
 		Email             string `json:"email"`
 		UID               string `json:"uid"`
-		BTCDepositAddress string `json:"btc_deposit_addres"`
+		BTCDepositAddress string `json:"btc_deposit_addres"` // nolint: misspell
 	} `json:"profile"`
 }
 
@@ -110,4 +110,5 @@ type Withdraw struct {
 	Source            string  `json:"source"`
 	ExternalAccountID int64   `json:"external_account_id,string"`
 	At                int64   `json:"at"`
+	Error             string  `json:"error"`
 }

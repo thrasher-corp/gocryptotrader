@@ -1,5 +1,7 @@
 package exmo
 
+import "github.com/idoall/gocryptotrader/currency"
+
 // Trades holds trade data
 type Trades struct {
 	TradeID  int64   `json:"trade_id"`
@@ -8,6 +10,7 @@ type Trades struct {
 	Price    float64 `json:"price,string"`
 	Amount   float64 `json:"amount,string"`
 	Date     int64   `json:"date"`
+	Pair     string  `json:"pair"`
 }
 
 // Orderbook holds the orderbook data
@@ -141,4 +144,34 @@ type WalletHistory struct {
 		Amount    float64 `json:"amount,string"`
 		Account   string  `json:"account,string"`
 	}
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[currency.Code]float64{
+	currency.BTC:   0.0005,
+	currency.LTC:   0.01,
+	currency.DOGE:  1,
+	currency.DASH:  0.01,
+	currency.ETH:   0.01,
+	currency.WAVES: 0.001,
+	currency.ZEC:   0.001,
+	currency.USDT:  5,
+	currency.XMR:   0.05,
+	currency.XRP:   0.02,
+	currency.KICK:  50,
+	currency.ETC:   0.01,
+	currency.BCH:   0.001,
+	currency.BTG:   0.001,
+	currency.HBZ:   65,
+	currency.BTCZ:  5,
+	currency.DXT:   20,
+	currency.STQ:   100,
+	currency.XLM:   0.001,
+	currency.OMG:   0.5,
+	currency.TRX:   1,
+	currency.ADA:   1,
+	currency.INK:   50,
+	currency.ZRX:   1,
+	currency.GNT:   1,
 }

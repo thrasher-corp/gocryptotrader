@@ -11,11 +11,15 @@ package openexchangerates
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
+	"github.com/idoall/gocryptotrader/exchanges/request"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // These consts contain endpoint information
@@ -32,6 +36,21 @@ const (
 	APIEndpointConvert    = "convert/%s/%s/%s"
 	APIEndpointOHLC       = "ohlc.json"
 	APIEndpointUsage      = "usage.json"
+
+	oxrSupportedCurrencies = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD," +
+		"BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTC,BTN,BWP,BYN,BYR,BZD,CAD,CDF," +
+		"CHF,CLF,CLP,CNH,CNY,COP,CRC,CUC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EEK,EGP," +
+		"ERN,ETB,EUR,FJD,FKP,GBP,GEL,GGP,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK," +
+		"HTG,HUF,IDR,ILS,IMP,INR,IQD,IRR,ISK,JEP,JMD,JOD,JPY,KES,KGS,KHR,KMF," +
+		"KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT," +
+		"MOP,MRO,MRU,MTL,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR," +
+		"PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK," +
+		"SGD,SHP,SLL,SOS,SRD,SSP,STD,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY," +
+		"TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VEF,VND,VUV,WST,XAF,XAG,XAU,XCD,XDR," +
+		"XOF,XPD,XPF,XPT,YER,ZAR,ZMK,ZMW"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // OXR is a foreign exchange rate provider at https://openexchangerates.org/
@@ -39,10 +58,16 @@ const (
 // DOCs : https://docs.openexchangerates.org/docs
 type OXR struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets values for the OXR object
-func (o *OXR) Setup(config base.Settings) {
+func (o *OXR) Setup(config base.Settings) error {
+	if config.APIKeyLvl < 0 || config.APIKeyLvl > 2 {
+		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			config.Name)
+		return errors.New("apikey set failure")
+	}
 	o.APIKey = config.APIKey
 	o.APIKeyLvl = config.APIKeyLvl
 	o.Enabled = config.Enabled
@@ -50,6 +75,11 @@ func (o *OXR) Setup(config base.Settings) {
 	o.RESTPollingDelay = config.RESTPollingDelay
 	o.Verbose = config.Verbose
 	o.PrimaryProvider = config.PrimaryProvider
+	o.Requester = request.New(o.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
 }
 
 // GetRates is a wrapper function to return rates
@@ -70,11 +100,11 @@ func (o *OXR) GetRates(baseCurrency, symbols string) (map[string]float64, error)
 
 // GetLatest returns the latest exchange rates available from the Open Exchange
 // Rates
-func (o *OXR) GetLatest(base, symbols string, prettyPrint, showAlternative bool) (map[string]float64, error) {
+func (o *OXR) GetLatest(baseCurrency, symbols string, prettyPrint, showAlternative bool) (map[string]float64, error) {
 	var resp Latest
 
 	v := url.Values{}
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", symbols)
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 	v.Set("show_alternative", strconv.FormatBool(showAlternative))
@@ -91,11 +121,11 @@ func (o *OXR) GetLatest(base, symbols string, prettyPrint, showAlternative bool)
 
 // GetHistoricalRates returns historical exchange rates for any date available
 // from the Open Exchange Rates API.
-func (o *OXR) GetHistoricalRates(date, base string, symbols []string, prettyPrint, showAlternative bool) (map[string]float64, error) {
+func (o *OXR) GetHistoricalRates(date, baseCurrency string, symbols []string, prettyPrint, showAlternative bool) (map[string]float64, error) {
 	var resp Latest
 
 	v := url.Values{}
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 	v.Set("show_alternative", strconv.FormatBool(showAlternative))
@@ -124,9 +154,14 @@ func (o *OXR) GetCurrencies(showInactive, prettyPrint, showAlternative bool) (ma
 	return resp, o.SendHTTPRequest(APIEndpointCurrencies, v, &resp)
 }
 
+// GetSupportedCurrencies returns a list of supported currencies
+func (o *OXR) GetSupportedCurrencies() ([]string, error) {
+	return common.SplitStrings(oxrSupportedCurrencies, ","), nil
+}
+
 // GetTimeSeries returns historical exchange rates for a given time period,
 // where available.
-func (o *OXR) GetTimeSeries(base, startDate, endDate string, symbols []string, prettyPrint, showAlternative bool) (map[string]interface{}, error) {
+func (o *OXR) GetTimeSeries(baseCurrency, startDate, endDate string, symbols []string, prettyPrint, showAlternative bool) (map[string]interface{}, error) {
 	if o.APIKeyLvl < APIEnterpriseAccess {
 		return nil, errors.New("upgrade account, insufficient access")
 	}
@@ -134,7 +169,7 @@ func (o *OXR) GetTimeSeries(base, startDate, endDate string, symbols []string, p
 	var resp TimeSeries
 
 	v := url.Values{}
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("start", startDate)
 	v.Set("end", endDate)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
@@ -174,7 +209,7 @@ func (o *OXR) ConvertCurrency(amount float64, from, to string) (float64, error) 
 // GetOHLC returns historical Open, High Low, Close (OHLC) and Average exchange
 // rates for a given time period, ranging from 1 month to 1 minute, where
 // available.
-func (o *OXR) GetOHLC(startTime, period, base string, symbols []string, prettyPrint bool) (map[string]interface{}, error) {
+func (o *OXR) GetOHLC(startTime, period, baseCurrency string, symbols []string, prettyPrint bool) (map[string]interface{}, error) {
 	if o.APIKeyLvl < APIUnlimitedAccess {
 		return nil, errors.New("upgrade account, insufficient access")
 	}
@@ -184,7 +219,7 @@ func (o *OXR) GetOHLC(startTime, period, base string, symbols []string, prettyPr
 	v := url.Values{}
 	v.Set("start_time", startTime)
 	v.Set("period", period)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 	v.Set("prettyprint", strconv.FormatBool(prettyPrint))
 
@@ -222,9 +257,13 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 	headers["Authorization"] = "Token " + o.APIKey
 	path := APIURL + endpoint + "?" + values.Encode()
 
-	resp, err := common.SendHTTPRequest("GET", path, headers, nil)
-	if err != nil {
-		return err
-	}
-	return common.JSONDecode([]byte(resp), result)
+	return o.Requester.SendPayload(http.MethodGet,
+		path,
+		headers,
+		nil,
+		result,
+		false,
+		false,
+		o.Verbose,
+		false)
 }

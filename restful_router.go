@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/common"
+	log "github.com/idoall/gocryptotrader/logger"
+
+	_ "net/http/pprof"
 )
 
 // RESTLogger logs the requests internally
@@ -17,7 +20,7 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 
 		inner.ServeHTTP(w, r)
 
-		log.Printf(
+		log.Debugf(
 			"%s\t%s\t%s\t%s",
 			r.Method,
 			r.RequestURI,
@@ -42,87 +45,97 @@ var routes = Routes{}
 
 // NewRouter takes in the exchange interfaces and returns a new multiplexor
 // router
-func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
+func NewRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
+	var listenAddr string
+
+	if common.ExtractPort(bot.config.Webserver.ListenAddress) == 80 {
+		listenAddr = common.ExtractHost(bot.config.Webserver.ListenAddress)
+	} else {
+		listenAddr = common.JoinStrings([]string{common.ExtractHost(bot.config.Webserver.ListenAddress),
+			strconv.Itoa(common.ExtractPort(bot.config.Webserver.ListenAddress))}, ":")
+	}
 
 	routes = Routes{
 		Route{
 			"",
-			"GET",
+			http.MethodGet,
 			"/",
 			getIndex,
 		},
 		Route{
 			"GetAllSettings",
-			"GET",
+			http.MethodGet,
 			"/config/all",
 			RESTGetAllSettings,
 		},
 		Route{
 			"SaveAllSettings",
-			"POST",
+			http.MethodPost,
 			"/config/all/save",
 			RESTSaveAllSettings,
 		},
 		Route{
 			"AllEnabledAccountInfo",
-			"GET",
+			http.MethodGet,
 			"/exchanges/enabled/accounts/all",
 			RESTGetAllEnabledAccountInfo,
 		},
 		Route{
 			"AllActiveExchangesAndCurrencies",
-			"GET",
+			http.MethodGet,
 			"/exchanges/enabled/latest/all",
 			RESTGetAllActiveTickers,
 		},
 		Route{
 			"IndividualExchangeAndCurrency",
-			"GET",
+			http.MethodGet,
 			"/exchanges/{exchangeName}/latest/{currency}",
 			RESTGetTicker,
 		},
 		Route{
 			"GetPortfolio",
-			"GET",
+			http.MethodGet,
 			"/portfolio/all",
 			RESTGetPortfolio,
 		},
 		Route{
 			"AllActiveExchangesAndOrderbooks",
-			"GET",
+			http.MethodGet,
 			"/exchanges/orderbook/latest/all",
 			RESTGetAllActiveOrderbooks,
 		},
 		Route{
 			"IndividualExchangeOrderbook",
-			"GET",
+			http.MethodGet,
 			"/exchanges/{exchangeName}/orderbook/latest/{currency}",
 			RESTGetOrderbook,
 		},
 		Route{
 			"ws",
-			"GET",
+			http.MethodGet,
 			"/ws",
 			WebsocketClientHandler,
 		},
 	}
 
 	for _, route := range routes {
-		var handler http.Handler
-		handler = route.HandlerFunc
-		handler = RESTLogger(handler, route.Name)
-
 		router.
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(handler)
+			Handler(RESTLogger(route.HandlerFunc, route.Name)).
+			Host(listenAddr)
 	}
+
+	if bot.config.Profiler.Enabled {
+		log.Debugln("Profiler enabled")
+		router.PathPrefix("/debug").Handler(http.DefaultServeMux)
+	}
+
 	return router
 }
 
-func getIndex(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/thrasher-/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>")
-	w.WriteHeader(http.StatusOK)
+func getIndex(w http.ResponseWriter, _ *http.Request) {
+	fmt.Fprint(w, "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/idoall/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>")
 }

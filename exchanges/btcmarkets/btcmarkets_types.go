@@ -1,20 +1,25 @@
 package btcmarkets
 
+import "github.com/idoall/gocryptotrader/currency"
+
 // Response is the genralized response type
 type Response struct {
+	Success         bool              `json:"success"`
+	ErrorCode       int               `json:"errorCode"`
+	ErrorMessage    string            `json:"errorMessage"`
+	ID              int               `json:"id"`
+	Responses       []ResponseDetails `json:"responses"`
+	ClientRequestID string            `json:"clientRequestId"`
+	Orders          []Order           `json:"orders"`
+	Status          string            `json:"status"`
+}
+
+// ResponseDetails holds order status details
+type ResponseDetails struct {
 	Success      bool   `json:"success"`
 	ErrorCode    int    `json:"errorCode"`
 	ErrorMessage string `json:"errorMessage"`
-	ID           int    `json:"id"`
-	Responses    []struct {
-		Success      bool   `json:"success"`
-		ErrorCode    int    `json:"errorCode"`
-		ErrorMessage string `json:"errorMessage"`
-		ID           int64  `json:"id"`
-	}
-	ClientRequestID string  `json:"clientRequestId"`
-	Orders          []Order `json:"orders"`
-	Status          string  `json:"status"`
+	ID           int64  `json:"id"`
 }
 
 // Market holds a tradable market instrument
@@ -49,6 +54,15 @@ type Trade struct {
 	Amount  float64 `json:"amount"`
 	Price   float64 `json:"price"`
 	Date    int64   `json:"date"`
+}
+
+// TradingFee 30 day trade volume
+type TradingFee struct {
+	Success        bool    `json:"success"`
+	ErrorCode      int     `json:"errorCode"`
+	ErrorMessage   string  `json:"errorMessage"`
+	TradingFeeRate float64 `json:"tradingfeerate"`
+	Volume30Day    float64 `json:"volume30day"`
 }
 
 // OrderToGo holds order information to be sent to the exchange
@@ -111,4 +125,18 @@ type WithdrawRequestAUD struct {
 	AccountNumber string `json:"accountNumber"`
 	BankName      string `json:"bankName"`
 	BSBNumber     string `json:"bsbNumber"`
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[currency.Code]float64{
+	currency.AUD:  0,
+	currency.BTC:  0.001,
+	currency.ETH:  0.001,
+	currency.ETC:  0.001,
+	currency.LTC:  0.0001,
+	currency.XRP:  0.15,
+	currency.BCH:  0.0001,
+	currency.OMG:  0.15,
+	currency.POWR: 5,
 }

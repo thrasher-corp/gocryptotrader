@@ -2,38 +2,48 @@ package alphapoint
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
+	"time"
 
-	"github.com/idoall/gocryptotrader/currency/pair"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
-// GetExchangeAccountInfo retrieves balances for all enabled currencies on the
+// GetAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = a.GetName()
-	account, err := a.GetAccountInfo()
+	response.Exchange = a.GetName()
+	account, err := a.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
+
+	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(account.Currencies); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = account.Currencies[i].Name
+		exchangeCurrency.CurrencyName = currency.NewCode(account.Currencies[i].Name)
 		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
 		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)
 
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
-	//If it all works out
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := a.GetTicker(p.Pair().String())
+	tick, err := a.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -45,12 +55,17 @@ func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker
 	tickerPrice.High = tick.High
 	tickerPrice.Volume = tick.Volume
 	tickerPrice.Last = tick.Last
-	ticker.ProcessTicker(a.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(a.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (a *Alphapoint) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
@@ -59,95 +74,125 @@ func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair, assetType string) (tick
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *Alphapoint) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := a.GetOrderbook(p.Pair().String())
+	orderbookNew, err := a.GetOrderbook(p.String())
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Quantity, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{Amount: data.Quantity, Price: data.Price})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Quantity, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{Amount: data.Quantity, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(a.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = a.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(a.Name, p, assetType)
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
-func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
+func (a *Alphapoint) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (a *Alphapoint) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+	// https://alphapoint.github.io/slate/#generatetreasuryactivityreport
+	return fundHistory, common.ErrNotYetImplemented
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order and returns a true value when
+// SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	//return a.CreateOrder(p.Pair().String(), side, orderType, amount, price)
-	return 0, errors.New("not yet implemented")
+func (a *Alphapoint) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+
+	response, err := a.CreateOrder(p.String(),
+		side.ToString(),
+		orderType.ToString(),
+		amount, price)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *Alphapoint) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	//return a.ModifyOrder(p.Pair().String(), orderID, action)
-	return 0, errors.New("not yet implemented")
+func (a *Alphapoint) ModifyOrder(_ *exchange.ModifyOrder) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (a *Alphapoint) CancelExchangeOrder(orderID int64) error {
-	//return a.CancelOrder(p.Pair().String(), orderID)
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (a *Alphapoint) CancelOrder(order *exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	_, err = a.CancelExistingOrder(orderIDInt, order.AccountID)
+
+	return err
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (a *Alphapoint) CancelAllExchangeOrders() error {
-	//return a.CancelAllOrders(p.Pair().String())
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders for a given account
+func (a *Alphapoint) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	return exchange.CancelAllOrdersResponse{},
+		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (a *Alphapoint) GetExchangeOrderInfo(orderID int64) (float64, error) {
+// GetOrderInfo returns information on a current open order
+func (a *Alphapoint) GetOrderInfo(orderID string) (float64, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
 		return 0, err
 	}
 
 	for x := range orders {
-		for y := range orders[x].Openorders {
-			if int64(orders[x].Openorders[y].Serverorderid) == orderID {
-				return float64(orders[x].Openorders[y].QtyRemaining), nil
+		for y := range orders[x].OpenOrders {
+			if strconv.Itoa(orders[x].OpenOrders[y].ServerOrderID) == orderID {
+				return orders[x].OpenOrders[y].QtyRemaining, nil
 			}
 		}
 	}
 	return 0, errors.New("order not found")
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (a *Alphapoint) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+// GetDepositAddress returns a deposit address for a specified currency
+func (a *Alphapoint) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	addreses, err := a.GetDepositAddresses()
 	if err != nil {
 		return "", err
@@ -161,13 +206,136 @@ func (a *Alphapoint) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem)
 	return "", errors.New("associated currency address not found")
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *Alphapoint) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (a *Alphapoint) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (a *Alphapoint) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
+func (a *Alphapoint) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrNotYetImplemented
+}
+
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
+// submitted
+func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrNotYetImplemented
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (a *Alphapoint) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (a *Alphapoint) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	return 0, common.ErrFunctionNotSupported
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+// This function is not concurrency safe due to orderSide/orderType maps
+func (a *Alphapoint) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for x := range resp {
+		for _, order := range resp[x].OpenOrders {
+			if order.State != 1 {
+				continue
+			}
+
+			orderDetail := exchange.OrderDetail{
+				Amount:          order.QtyTotal,
+				Exchange:        a.Name,
+				AccountID:       fmt.Sprintf("%v", order.AccountID),
+				ID:              fmt.Sprintf("%v", order.ServerOrderID),
+				Price:           order.Price,
+				RemainingAmount: order.QtyRemaining,
+			}
+
+			orderDetail.OrderSide = orderSideMap[order.Side]
+			orderDetail.OrderDate = time.Unix(order.ReceiveTime, 0)
+			orderDetail.OrderType = orderTypeMap[order.OrderType]
+			if orderDetail.OrderType == "" {
+				orderDetail.OrderType = exchange.UnknownOrderType
+			}
+
+			orders = append(orders, orderDetail)
+		}
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+// This function is not concurrency safe due to orderSide/orderType maps
+func (a *Alphapoint) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for x := range resp {
+		for _, order := range resp[x].OpenOrders {
+			if order.State == 1 {
+				continue
+			}
+
+			orderDetail := exchange.OrderDetail{
+				Amount:          order.QtyTotal,
+				AccountID:       fmt.Sprintf("%v", order.AccountID),
+				Exchange:        a.Name,
+				ID:              fmt.Sprintf("%v", order.ServerOrderID),
+				Price:           order.Price,
+				RemainingAmount: order.QtyRemaining,
+			}
+
+			orderDetail.OrderSide = orderSideMap[order.Side]
+			orderDetail.OrderDate = time.Unix(order.ReceiveTime, 0)
+			orderDetail.OrderType = orderTypeMap[order.OrderType]
+			if orderDetail.OrderType == "" {
+				orderDetail.OrderType = exchange.UnknownOrderType
+			}
+
+			orders = append(orders, orderDetail)
+		}
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (a *Alphapoint) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (a *Alphapoint) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (a *Alphapoint) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (a *Alphapoint) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
 }

@@ -3,17 +3,19 @@ package gemini
 import (
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -40,6 +42,7 @@ const (
 	geminiNewAddress         = "newAddress"
 	geminiWithdraw           = "withdraw/"
 	geminiHeartbeat          = "heartbeat"
+	geminiVolume             = "notionalvolume"
 
 	// gemini limit rates
 	geminiAuthRate   = 600
@@ -64,6 +67,7 @@ var (
 // AddSession, if sandbox test is needed append a new session with with the same
 // API keys and change the IsSandbox variable to true.
 type Gemini struct {
+	WebsocketConn *websocket.Conn
 	exchange.Base
 	Role              string
 	RequiresHeartBeat bool
@@ -100,8 +104,10 @@ func (g *Gemini) SetDefaults() {
 	g.Name = "Gemini"
 	g.Enabled = false
 	g.Verbose = false
-	g.Websocket = false
 	g.RESTPollingDelay = 10
+	g.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.AutoWithdrawCryptoWithSetup |
+		exchange.WithdrawFiatViaWebsiteOnly
 	g.RequestCurrencyPairFormat.Delimiter = ""
 	g.RequestCurrencyPairFormat.Uppercase = true
 	g.ConfigCurrencyPairFormat.Delimiter = ""
@@ -115,25 +121,30 @@ func (g *Gemini) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	g.APIUrlDefault = geminiAPIURL
 	g.APIUrl = g.APIUrlDefault
+	g.WebsocketInit()
+	g.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported
 }
 
 // Setup sets exchange configuration parameters
-func (g *Gemini) Setup(exch config.ExchangeConfig) {
+func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
 		g.Enabled = true
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		g.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		g.SetHTTPClientTimeout(exch.HTTPTimeout)
 		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
-		g.Websocket = exch.Websocket
-		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-
+		g.HTTPDebugging = exch.HTTPDebugging
+		g.BaseCurrencies = exch.BaseCurrencies
+		g.AvailablePairs = exch.AvailablePairs
+		g.EnabledPairs = exch.EnabledPairs
+		g.WebsocketURL = geminiWebsocketEndpoint
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -152,13 +163,29 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		}
 		if exch.UseSandbox {
 			g.APIUrl = geminiSandboxAPIURL
+			g.WebsocketURL = geminiWebsocketSandboxEndpoint
+		}
+		err = g.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.WebsocketSetup(g.WsConnect,
+			nil,
+			nil,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			g.WebsocketURL,
+			g.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
 }
 
 // GetSymbols returns all available symbols for trading
 func (g *Gemini) GetSymbols() ([]string, error) {
-	symbols := []string{}
+	var symbols []string
 	path := fmt.Sprintf("%s/v%s/%s", g.APIUrl, geminiAPIVersion, geminiSymbols)
 
 	return symbols, g.SendHTTPRequest(path, &symbols)
@@ -235,7 +262,7 @@ func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook
 // default. Can be '1' or 'true' to activate
 func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiTrades, currencyPair), params)
-	trades := []Trade{}
+	var trades []Trade
 
 	return trades, g.SendHTTPRequest(path, &trades)
 }
@@ -261,13 +288,13 @@ func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 // indicative prices and quantities.
 func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]AuctionHistory, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
-	auctionHist := []AuctionHistory{}
+	var auctionHist []AuctionHistory
 
 	return auctionHist, g.SendHTTPRequest(path, &auctionHist)
 }
 
-func (g *Gemini) isCorrectSession(role string) error {
-	if g.Role != role {
+func (g *Gemini) isCorrectSession() error {
+	if g.Role != geminiRoleTrader {
 		return errors.New("incorrect role for APIKEY cannot use this function")
 	}
 	return nil
@@ -276,33 +303,33 @@ func (g *Gemini) isCorrectSession(role string) error {
 // NewOrder Only limit orders are supported through the API at present.
 // returns order ID if successful
 func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType string) (int64, error) {
-	if err := g.isCorrectSession(geminiRoleTrader); err != nil {
+	if err := g.isCorrectSession(); err != nil {
 		return 0, err
 	}
 
-	request := make(map[string]interface{})
-	request["symbol"] = symbol
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	request["price"] = strconv.FormatFloat(price, 'f', -1, 64)
-	request["side"] = side
-	request["type"] = orderType
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req["side"] = side
+	req["type"] = orderType
 
 	response := Order{}
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrderNew, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderNew, req, &response)
 	if err != nil {
 		return 0, err
 	}
 	return response.OrderID, nil
 }
 
-// CancelOrder will cancel an order. If the order is already canceled, the
+// CancelExistingOrder will cancel an order. If the order is already canceled, the
 // message will succeed but have no effect.
-func (g *Gemini) CancelOrder(OrderID int64) (Order, error) {
-	request := make(map[string]interface{})
-	request["order_id"] = OrderID
+func (g *Gemini) CancelExistingOrder(orderID int64) (Order, error) {
+	req := make(map[string]interface{})
+	req["order_id"] = orderID
 
 	response := Order{}
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrderCancel, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderCancel, req, &response)
 	if err != nil {
 		return Order{}, err
 	}
@@ -313,18 +340,18 @@ func (g *Gemini) CancelOrder(OrderID int64) (Order, error) {
 	return response, nil
 }
 
-// CancelOrders will cancel all outstanding orders created by all sessions owned
-// by this account, including interactive orders placed through the UI. If
-// sessions = true will only cancel the order that is called on this session
-// asssociated with the APIKEY
-func (g *Gemini) CancelOrders(CancelBySession bool) (OrderResult, error) {
-	response := OrderResult{}
+// CancelExistingOrders will cancel all outstanding orders created by all
+// sessions owned by this account, including interactive orders placed through
+// the UI. If sessions = true will only cancel the order that is called on this
+// session asssociated with the APIKEY
+func (g *Gemini) CancelExistingOrders(cancelBySession bool) (OrderResult, error) {
 	path := geminiOrderCancelAll
-	if CancelBySession {
+	if cancelBySession {
 		path = geminiOrderCancelSession
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", path, nil, &response)
+	var response OrderResult
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, path, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -336,12 +363,12 @@ func (g *Gemini) CancelOrders(CancelBySession bool) (OrderResult, error) {
 
 // GetOrderStatus returns the status for an order
 func (g *Gemini) GetOrderStatus(orderID int64) (Order, error) {
-	request := make(map[string]interface{})
-	request["order_id"] = orderID
+	req := make(map[string]interface{})
+	req["order_id"] = orderID
 
 	response := Order{}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrderStatus, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderStatus, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -354,19 +381,22 @@ func (g *Gemini) GetOrderStatus(orderID int64) (Order, error) {
 
 // GetOrders returns active orders in the market
 func (g *Gemini) GetOrders() ([]Order, error) {
-	var response struct {
-		orders  []Order
-		Message string `json:"message"`
+	var response interface{}
+
+	type orders struct {
+		orders []Order
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrders, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrders, nil, &response)
 	if err != nil {
-		return response.orders, err
+		return nil, err
 	}
-	if response.Message != "" {
-		return response.orders, errors.New(response.Message)
+	switch r := response.(type) {
+	case orders:
+		return r.orders, nil
+	default:
+		return []Order{}, nil
 	}
-	return response.orders, nil
 }
 
 // GetTradeHistory returns an array of trades that have been on the exchange
@@ -374,39 +404,52 @@ func (g *Gemini) GetOrders() ([]Order, error) {
 // currencyPair - example "btcusd"
 // timestamp - [optional] Only return trades on or after this timestamp.
 func (g *Gemini) GetTradeHistory(currencyPair string, timestamp int64) ([]TradeHistory, error) {
-	response := []TradeHistory{}
-	request := make(map[string]interface{})
-	request["symbol"] = currencyPair
+	var response []TradeHistory
+	req := make(map[string]interface{})
+	req["symbol"] = currencyPair
 
 	if timestamp != 0 {
-		request["timestamp"] = timestamp
+		req["timestamp"] = timestamp
 	}
 
 	return response,
-		g.SendAuthenticatedHTTPRequest("POST", geminiMyTrades, request, &response)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiMyTrades, req, &response)
+}
+
+// GetNotionalVolume returns  the volume in price currency that has been traded across all pairs over a period of 30 days
+func (g *Gemini) GetNotionalVolume() (NotionalVolume, error) {
+	response := NotionalVolume{}
+
+	return response,
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiVolume, nil, &response)
 }
 
 // GetTradeVolume returns a multi-arrayed volume response
 func (g *Gemini) GetTradeVolume() ([][]TradeVolume, error) {
-	response := [][]TradeVolume{}
+	var response [][]TradeVolume
 
 	return response,
-		g.SendAuthenticatedHTTPRequest("POST", geminiTradeVolume, nil, &response)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiTradeVolume, nil, &response)
 }
 
 // GetBalances returns available balances in the supported currencies
 func (g *Gemini) GetBalances() ([]Balance, error) {
-	response := []Balance{}
+	var response []Balance
 
 	return response,
-		g.SendAuthenticatedHTTPRequest("POST", geminiBalances, nil, &response)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiBalances, nil, &response)
 }
 
-// GetDepositAddress returns a deposit address
-func (g *Gemini) GetDepositAddress(depositAddlabel, currency string) (DepositAddress, error) {
+// GetCryptoDepositAddress returns a deposit address
+func (g *Gemini) GetCryptoDepositAddress(depositAddlabel, currency string) (DepositAddress, error) {
 	response := DepositAddress{}
+	req := make(map[string]interface{})
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiDeposit+"/"+currency+"/"+geminiNewAddress, nil, &response)
+	if len(depositAddlabel) > 0 {
+		req["label"] = depositAddlabel
+	}
+
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiDeposit+"/"+currency+"/"+geminiNewAddress, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -419,11 +462,11 @@ func (g *Gemini) GetDepositAddress(depositAddlabel, currency string) (DepositAdd
 // WithdrawCrypto withdraws crypto currency to a whitelisted address
 func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (WithdrawalAddress, error) {
 	response := WithdrawalAddress{}
-	request := make(map[string]interface{})
-	request["address"] = address
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	req := make(map[string]interface{})
+	req["address"] = address
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiWithdraw+currency, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiWithdraw+common.StringToLower(currency), req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -442,7 +485,7 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 	}
 	response := Response{}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiHeartbeat, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiHeartbeat, nil, &response)
 	if err != nil {
 		return response.Result, err
 	}
@@ -454,7 +497,7 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload("GET", path, nil, nil, result, false, g.Verbose)
+	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose, g.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
@@ -465,31 +508,73 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	}
 
 	headers := make(map[string]string)
-	request := make(map[string]interface{})
-	request["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-	request["nonce"] = g.Nonce.GetValue(g.Name, false)
+	req := make(map[string]interface{})
+	req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
+	req["nonce"] = g.Requester.GetNonce(true).String()
 
-	if params != nil {
-		for key, value := range params {
-			request[key] = value
-		}
+	for key, value := range params {
+		req[key] = value
 	}
 
-	PayloadJSON, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(req)
 	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+		return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	if g.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJSON)
+		log.Debugf("Request JSON: %s", PayloadJSON)
 	}
 
 	PayloadBase64 := common.Base64Encode(PayloadJSON)
 	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
 
+	headers["Content-Length"] = "0"
+	headers["Content-Type"] = "text/plain"
 	headers["X-GEMINI-APIKEY"] = g.APIKey
 	headers["X-GEMINI-PAYLOAD"] = PayloadBase64
 	headers["X-GEMINI-SIGNATURE"] = common.HexEncodeToString(hmac)
+	headers["Cache-Control"] = "no-cache"
 
-	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, g.Verbose)
+	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, false, g.Verbose, g.HTTPDebugging)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (g *Gemini) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		notionVolume, err := g.GetNotionalVolume()
+		if err != nil {
+			return 0, err
+		}
+		fee = calculateTradingFee(&notionVolume, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		// TODO: no free transactions after 10; Need database to know how many trades have been done
+		// Could do via trade history, but would require analysis of response and dates to determine level of fee
+	case exchange.InternationalBankWithdrawalFee:
+		fee = 0
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.01 * price * amount
+}
+
+func calculateTradingFee(notionVolume *NotionalVolume, purchasePrice, amount float64, isMaker bool) float64 {
+	var volumeFee float64
+	if isMaker {
+		volumeFee = (float64(notionVolume.MakerFee) / 100)
+	} else {
+		volumeFee = (float64(notionVolume.TakerFee) / 100)
+	}
+
+	return volumeFee * amount * purchasePrice
 }

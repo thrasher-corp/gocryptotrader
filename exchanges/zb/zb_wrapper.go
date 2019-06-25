@@ -2,14 +2,17 @@ package zb
 
 import (
 	"errors"
-	"log"
+	"fmt"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/currency/pair"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // Start starts the OKEX go routine
@@ -24,29 +27,35 @@ func (z *ZB) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (z *ZB) Run() {
 	if z.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", z.GetName(), common.IsEnabled(z.Websocket), z.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", z.GetName(), z.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", z.GetName(), len(z.EnabledPairs), z.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", z.GetName(), common.IsEnabled(z.Websocket.IsEnabled()), z.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", z.GetName(), z.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", z.GetName(), len(z.EnabledPairs), z.EnabledPairs)
 	}
 
 	markets, err := z.GetMarkets()
 	if err != nil {
-		log.Printf("%s Unable to fetch symbols.\n", z.GetName())
+		log.Errorf("%s Unable to fetch symbols.\n", z.GetName())
 	} else {
 		var currencies []string
 		for x := range markets {
 			currencies = append(currencies, x)
 		}
 
-		err = z.UpdateCurrencies(currencies, false, false)
+		var newCurrencies currency.Pairs
+		for _, p := range currencies {
+			newCurrencies = append(newCurrencies,
+				currency.NewPairFromString(p))
+		}
+
+		err = z.UpdateCurrencies(newCurrencies, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", z.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", z.GetName())
 		}
 	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (z *ZB) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (z *ZB) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	result, err := z.GetTickers()
@@ -66,14 +75,18 @@ func (z *ZB) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, 
 		tp.Last = result[currency].Last
 		tp.Low = result[currency].Low
 		tp.Volume = result[currency].Vol
-		ticker.ProcessTicker(z.Name, x, tp, assetType)
+
+		err = ticker.ProcessTicker(z.Name, &tp, assetType)
+		if err != nil {
+			return tickerPrice, err
+		}
 	}
 
 	return ticker.GetTicker(z.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (z *ZB) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (z *ZB) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(z.GetName(), p, assetType)
 	if err != nil {
 		return z.UpdateTicker(p, assetType)
@@ -82,8 +95,8 @@ func (z *ZB) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (z *ZB) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(z.GetName(), currency, assetType)
+func (z *ZB) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(z.GetName(), currency, assetType)
 	if err != nil {
 		return z.UpdateOrderbook(currency, assetType)
 	}
@@ -91,7 +104,7 @@ func (z *ZB) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (order
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (z *ZB) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (z *ZB) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	currency := exchange.FormatExchangeCurrency(z.Name, p).String()
 
@@ -110,77 +123,314 @@ func (z *ZB) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.B
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	orderbook.ProcessOrderbook(z.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(z.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.AssetType = assetType
+	orderBook.ExchangeName = z.GetName()
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(z.Name, p, assetType)
 }
 
-// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// GetAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (z *ZB) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, errors.New("not implemented")
+func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
+	var info exchange.AccountInfo
+	bal, err := z.GetAccountInformation()
+	if err != nil {
+		return info, err
+	}
+
+	var balances []exchange.AccountCurrencyInfo
+	for _, data := range bal.Result.Coins {
+		hold, err := strconv.ParseFloat(data.Freez, 64)
+		if err != nil {
+			return info, err
+		}
+
+		avail, err := strconv.ParseFloat(data.Available, 64)
+		if err != nil {
+			return info, err
+		}
+
+		balances = append(balances, exchange.AccountCurrencyInfo{
+			CurrencyName: currency.NewCode(data.EnName),
+			TotalValue:   hold + avail,
+			Hold:         hold,
+		})
+	}
+
+	info.Exchange = z.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		Currencies: balances,
+	})
+
+	return info, nil
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (z *ZB) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (z *ZB) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (z *ZB) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order
-func (z *ZB) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+// SubmitOrder submits a new order
+func (z *ZB) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var oT SpotNewOrderRequestParamsType
+
+	if side == exchange.BuyOrderSide {
+		oT = SpotNewOrderRequestParamsTypeBuy
+	} else {
+		oT = SpotNewOrderRequestParamsTypeSell
+	}
+
+	var params = SpotNewOrderRequestParams{
+		Amount: amount,
+		Price:  price,
+		Symbol: common.StringToLower(p.String()),
+		Type:   oT,
+	}
+	response, err := z.SpotNewOrder(params)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (z *ZB) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (z *ZB) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (z *ZB) CancelExchangeOrder(orderID int64) error {
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (z *ZB) CancelOrder(order *exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return err
+	}
+
+	return z.CancelExistingOrder(orderIDInt, exchange.FormatExchangeCurrency(z.Name, order.CurrencyPair).String())
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (z *ZB) CancelAllExchangeOrders() error {
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders associated with a currency pair
+func (z *ZB) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	var allOpenOrders []Order
+	for _, currency := range z.GetEnabledCurrencies() {
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
+			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), 1, 10)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			if len(openOrders) == 0 {
+				break
+			}
+
+			allOpenOrders = append(allOpenOrders, openOrders...)
+		}
+	}
+
+	for _, openOrder := range allOpenOrders {
+		err := z.CancelExistingOrder(openOrder.ID, openOrder.Currency)
+		if err != nil {
+			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrder.ID, 10)] = err.Error()
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (z *ZB) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+// GetOrderInfo returns information on a current open order
+func (z *ZB) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, errors.New("not yet implemented")
+	return orderDetail, common.ErrNotYetImplemented
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (z *ZB) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", errors.New("not yet implemented")
+// GetDepositAddress returns a deposit address for a specified currency
+func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
+	address, err := z.GetCryptoAddress(cryptocurrency)
+	if err != nil {
+		return "", err
+	}
+
+	return address.Message.Data.Key, nil
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (z *ZB) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return z.Withdraw(withdrawRequest.Currency.Lower().String(), withdrawRequest.Address, withdrawRequest.TradePassword, withdrawRequest.Amount, withdrawRequest.FeeAmount, false)
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (z *ZB) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
-// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (z *ZB) GetWebsocket() (*exchange.Websocket, error) {
+	return z.Websocket, nil
+}
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (z.APIKey == "" || z.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	return z.GetFee(feeBuilder)
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+// This function is not concurrency safe due to orderSide/orderType maps
+func (z *ZB) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var allOrders []Order
+	for _, currency := range getOrdersRequest.Currencies {
+		var pageNumber int64
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
+			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), pageNumber, 10)
+			if err != nil {
+				return nil, err
+			}
+			if len(resp) == 0 {
+				break
+			}
+
+			allOrders = append(allOrders, resp...)
+			pageNumber++
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := currency.NewPairDelimiter(order.Currency,
+			z.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.TradeDate), 0)
+		orderSide := orderSideMap[order.Type]
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.ID),
+			Amount:       order.TotalAmount,
+			Exchange:     z.Name,
+			OrderDate:    orderDate,
+			Price:        order.Price,
+			OrderSide:    orderSide,
+			CurrencyPair: symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+// This function is not concurrency safe due to orderSide/orderType maps
+func (z *ZB) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
+		return nil, errors.New("specific order side is required")
+	}
+
+	var allOrders []Order
+
+	var side int64
+	if getOrdersRequest.OrderSide == exchange.BuyOrderSide {
+		side = 1
+	}
+
+	for _, currency := range getOrdersRequest.Currencies {
+		var pageNumber int64
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
+			resp, err := z.GetOrders(exchange.FormatExchangeCurrency(z.Name, currency).String(), pageNumber, side)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(resp) == 0 {
+				break
+			}
+
+			allOrders = append(allOrders, resp...)
+			pageNumber++
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := currency.NewPairDelimiter(order.Currency,
+			z.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.TradeDate), 0)
+		orderSide := orderSideMap[order.Type]
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.ID),
+			Amount:       order.TotalAmount,
+			Exchange:     z.Name,
+			OrderDate:    orderDate,
+			Price:        order.Price,
+			OrderSide:    orderSide,
+			CurrencyPair: symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (z *ZB) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	z.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (z *ZB) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (z *ZB) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return z.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (z *ZB) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
 }

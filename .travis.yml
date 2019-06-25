@@ -1,6 +1,7 @@
 matrix:
   include:
     - language: node_js
+      name: 'GoCryptoTrader [front-end]'
       node_js:
         - '10'
         - '8'
@@ -14,18 +15,35 @@ matrix:
         - npm run build
 
     - language: go
+      dist: xenial
+      name: 'GoCryptoTrader [back-end] [linux]'
       go:
-        - 1.10.x
-      before_install:
-        - go get -t -v ./...
+        - 1.12.x
+      env:
+        - GO111MODULE=on
+      install: true
+      cache:
+        directories:
+          - $GOPATH/pkg/mod
+
       script:
-        - ./testdata/test.sh
-      install:
-        - go get github.com/gorilla/websocket
-        - go get github.com/toorop/go-pusher
-        - go get github.com/thrasher-/socketio
-        - go get github.com/beatgammit/turnpike
-        - go get github.com/gorilla/mux
-        - go get golang.org/x/crypto/scrypt
+        - make check
+      after_success:
+        - bash <(curl -s https://codecov.io/bash)
+
+    - language: go
+      os: osx
+      name: 'GoCryptoTrader [back-end] [darwin]'
+      go:
+        - 1.12.x
+      env:
+        - GO111MODULE=on
+      install: true
+      cache:
+        directories:
+          - $GOPATH/pkg/mod
+      
+      script:
+        - make check
       after_success:
         - bash <(curl -s https://codecov.io/bash)

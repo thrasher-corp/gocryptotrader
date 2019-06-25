@@ -150,7 +150,7 @@ type DepositAddress struct {
 type UUID struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
-	Result  []struct {
+	Result  struct {
 		ID string `json:"uuid"`
 	} `json:"result"`
 }
@@ -183,6 +183,9 @@ type Order struct {
 		IsConditional              bool    `json:"IsConditional"`
 		Condition                  string  `json:"Condition"`
 		ConditionTarget            string  `json:"ConditionTarget"`
+		// Below Used in OrderHistory
+		TimeStamp  string  `json:"TimeStamp"`
+		Commission float64 `json:"Commission"`
 	} `json:"result"`
 }
 

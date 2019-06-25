@@ -2,9 +2,10 @@ package binance
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -12,8 +13,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // Binance is the overarching type across the Bithumb package
@@ -21,7 +24,7 @@ type Binance struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 
-	// valid string list that a required by the exchange
+	// Valid string list that is required by the exchange
 	validLimits    []int
 	validIntervals []TimeInterval
 }
@@ -36,6 +39,7 @@ const (
 	historicalTrades = "/api/v1/historicalTrades"
 	aggregatedTrades = "/api/v1/aggTrades"
 	candleStick      = "/api/v1/klines"
+	averagePrice     = "/api/v3/avgPrice"
 	priceChange      = "/api/v1/ticker/24hr"
 	symbolPrice      = "/api/v3/ticker/price"
 	bestPrice        = "/api/v3/ticker/bookTicker"
@@ -50,6 +54,17 @@ const (
 	openOrders   = "/api/v3/openOrders"
 	allOrders    = "/api/v3/allOrders"
 
+	// Withdraw API endpoints
+	withdraw          = "/wapi/v3/withdraw.html"
+	depositHistory    = "/wapi/v3/depositHistory.html"
+	withdrawalHistory = "/wapi/v3/withdrawHistory.html"
+	depositAddress    = "/wapi/v3/depositAddress.html"
+	accountStatus     = "/wapi/v3/accountStatus.html"
+	systemStatus      = "/wapi/v3/systemStatus.html"
+	dustLog           = "/wapi/v3/userAssetDribbletLog.html"
+	tradeFee          = "/wapi/v3/tradeFee.html"
+	assetDetail       = "/wapi/v3/assetDetail.html"
+
 	// binance authenticated and unauthenticated limit rates
 	// to-do
 	binanceAuthRate   = 0
@@ -61,7 +76,6 @@ func (b *Binance) SetDefaults() {
 	b.Name = "Binance"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
@@ -70,6 +84,8 @@ func (b *Binance) SetDefaults() {
 	// b.AssetTypes = []string{ticker.Spot}
 	// b.SupportsAutoPairUpdating = true
 	// b.SupportsRESTTickerBatching = true
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.NoFiatWithdrawals
 	// b.SetValues()
 	b.Requester = request.New(b.Name,
 		request.NewRateLimit(time.Second, binanceAuthRate),
@@ -77,10 +93,16 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
+	b.WebsocketURL = binanceDefaultWebsocketURL
+	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketTickerSupported |
+		exchange.WebsocketKlineSupported |
+		exchange.WebsocketOrderbookSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Binance) Setup(exch config.ExchangeConfig) {
+func (b *Binance) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -93,10 +115,12 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
-		// b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		// b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		// b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.HTTPDebugging = exch.HTTPDebugging
+		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
+		// b.BaseCurrencies = exch.BaseCurrencies
+		// b.AvailablePairs = exch.AvailablePairs
+		// b.EnabledPairs = exch.EnabledPairs
+		var err error
 		// err := b.SetCurrencyPairFormat()
 		// if err != nil {
 		// 	log.Fatal(err)
@@ -109,8 +133,25 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		// if err != nil {
 		// 	log.Fatal(err)
 		// }
-
-		b.WebsocketURL = binanceDefaultWebsocketURL
+		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.WebsocketSetup(b.WSConnect,
+			nil,
+			nil,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			binanceDefaultWebsocketURL,
+			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -124,9 +165,9 @@ func (b *Binance) GetExchangeValidCurrencyPairs() ([]string, error) {
 		return nil, err
 	}
 
-	for _, symbol := range info.Symbols {
-		if symbol.Status == "TRADING" {
-			validCurrencyPairs = append(validCurrencyPairs, symbol.BaseAsset+"-"+symbol.QuoteAsset)
+	for i := range info.Symbols {
+		if info.Symbols[i].Status == "TRADING" {
+			validCurrencyPairs = append(validCurrencyPairs, info.Symbols[i].BaseAsset+"-"+info.Symbols[i].QuoteAsset)
 		}
 	}
 	return validCurrencyPairs, nil
@@ -179,7 +220,6 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 			case 1:
 				ASK.Quantity, _ = strconv.ParseFloat(ask.(string), 64)
 				orderbook.Asks = append(orderbook.Asks, ASK)
-				break
 			}
 		}
 	}
@@ -196,17 +236,18 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 			case 1:
 				BID.Quantity, _ = strconv.ParseFloat(bid.(string), 64)
 				orderbook.Bids = append(orderbook.Bids, BID)
-				break
 			}
 		}
 	}
+
+	orderbook.LastUpdateID = resp.LastUpdateID
 	return orderbook, nil
 }
 
 // GetRecentTrades returns recent trade activity
 // 获取最近的交易，最大500
 func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
-	resp := []RecentTrade{}
+	var resp []RecentTrade
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(rtr.Symbol))
@@ -223,7 +264,7 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 // limit: Optional. Default 500; max 1000.
 // fromID:
 func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
-	resp := []HistoricalTrade{}
+	var resp []HistoricalTrade
 
 	if err := b.CheckLimit(limit); err != nil {
 		return resp, err
@@ -244,7 +285,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 // symbol: string of currency pair
 // limit: Optional. Default 500; max 1000.
 func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTrade, error) {
-	resp := []AggregatedTrade{}
+	var resp []AggregatedTrade
 
 	if err := b.CheckLimit(limit); err != nil {
 		return resp, err
@@ -323,6 +364,24 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	return kline, nil
 }
 
+// GetAveragePrice returns current average price for a symbol.
+//
+// symbol: string of currency pair
+func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
+	resp := AveragePrice{}
+
+	if err := b.CheckSymbol(symbol); err != nil {
+		return resp, err
+	}
+
+	params := url.Values{}
+	params.Set("symbol", common.StringToUpper(symbol))
+
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, averagePrice, params.Encode())
+
+	return resp, b.SendHTTPRequest(path, &resp)
+}
+
 // GetPriceChangeStats returns price change statistics for the last 24 hours
 //
 // symbol: string of currency pair
@@ -385,23 +444,8 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
-// NewOrderTest sends a new order
-func (b *Binance) NewOrderTest() (interface{}, error) {
-	var resp interface{}
-
-	path := fmt.Sprintf("%s%s", b.APIUrl, newOrderTest)
-
-	params := url.Values{}
-	params.Set("symbol", "BTCUSDT")
-	params.Set("side", "BUY")
-	params.Set("type", "MARKET")
-	params.Set("quantity", "0.1")
-
-	return resp, b.SendAuthHTTPRequest("POST", path, params, &resp)
-}
-
 // NewOrder sends a new order to Binance
-func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
+func (b *Binance) NewOrder(o *NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
 
 	path := fmt.Sprintf("%s%s", b.APIUrl, newOrder)
@@ -411,9 +455,12 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	params.Set("side", string(o.Side))
 	params.Set("type", string(o.TradeType))
 	params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
-	params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
-	params.Set("timeInForce", string(o.TimeInForce))
-	// params.Set("timestamp", strconv.FormatInt(common.UnixMillis(time.Now()), 10))
+	if o.TradeType == "LIMIT" {
+		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
+	}
+	if o.TimeInForce != "" {
+		params.Set("timeInForce", string(o.TimeInForce))
+	}
 
 	if o.NewClientOrderID != "" {
 		params.Set("newClientOrderID", o.NewClientOrderID)
@@ -431,7 +478,7 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
 
-	if err := b.SendAuthHTTPRequest("POST", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, &resp); err != nil {
 		return resp, err
 	}
 
@@ -441,10 +488,9 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	return resp, nil
 }
 
-// CancelOrder sends a cancel order to Binance
+// CancelExistingOrder sends a cancel order to Binance
 // 取消订单
-func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
-
+func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
 	var resp CancelOrderResponse
 
 	path := fmt.Sprintf("%s%s", b.APIUrl, cancelOrder)
@@ -460,24 +506,22 @@ func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID st
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 
-	if err := b.SendAuthHTTPRequest("DELETE", path, params, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, path, params, &resp)
 }
 
-// OpenOrders Current open orders
-// Get all open orders on a symbol. Careful when accessing this with no symbol.
+// OpenOrders Current open orders. Get all open orders on a symbol.
+// Careful when accessing this with no symbol: The number of requests counted against the rate limiter
+// is equal to the number of symbols currently trading on the exchange.
 func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
-
 	path := fmt.Sprintf("%s%s", b.APIUrl, openOrders)
-
 	params := url.Values{}
+
 	if symbol != "" {
 		params.Set("symbol", common.StringToUpper(symbol))
 	}
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
 		return resp, err
 	}
 
@@ -500,7 +544,7 @@ func (b *Binance) AllOrders(symbol, orderId, limit string) ([]QueryOrderData, er
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
 		return resp, err
 	}
 
@@ -522,7 +566,7 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
 		return resp, err
 	}
 
@@ -534,35 +578,35 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 
 // StartUserDataStream Create a listenKey
 // Start a new user data stream. The stream will close after 60 minutes unless a keepalive is sent.
-func (b *Binance) StartUserDataStream() (*Stream, error) {
+// func (b *Binance) StartUserDataStream() (*Stream, error) {
 
-	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
-	var resp *Stream
+// 	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
+// 	var resp *Stream
 
-	err := b.SendUserDataStreamAuthHTTPRequest("POST", path, url.Values{}, &resp)
+// 	err := b.SendUserDataStreamAuthHTTPRequest("POST", path, url.Values{}, &resp)
 
-	return resp, err
-}
+// 	return resp, err
+// }
 
-func (b *Binance) KeepAliveUserDataStream(s *Stream) error {
-	urlparams := url.Values{}
-	urlparams.Add("listenKey", s.ListenKey)
+// func (b *Binance) KeepAliveUserDataStream(s *Stream) error {
+// 	urlparams := url.Values{}
+// 	urlparams.Add("listenKey", s.ListenKey)
 
-	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
-	var resp struct{}
+// 	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
+// 	var resp struct{}
 
-	return b.SendUserDataStreamAuthHTTPRequest("PUT", path, urlparams, &resp)
-}
+// 	return b.SendUserDataStreamAuthHTTPRequest("PUT", path, urlparams, &resp)
+// }
 
-func (b *Binance) CloseUserDataStream(s *Stream) error {
-	urlparams := url.Values{}
-	urlparams.Add("listenKey", s.ListenKey)
+// func (b *Binance) CloseUserDataStream(s *Stream) error {
+// 	urlparams := url.Values{}
+// 	urlparams.Add("listenKey", s.ListenKey)
 
-	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
-	var resp struct{}
+// 	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
+// 	var resp struct{}
 
-	return b.SendUserDataStreamAuthHTTPRequest("DELETE", path, urlparams, &resp)
-}
+// 	return b.SendUserDataStreamAuthHTTPRequest("DELETE", path, urlparams, &resp)
+// }
 
 // GetAccount returns binance user accounts
 func (b *Binance) GetAccount() (*Account, error) {
@@ -576,7 +620,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 	path := fmt.Sprintf("%s%s", b.APIUrl, accountInfo)
 	params := url.Values{}
 
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
 		return &resp.Account, err
 	}
 
@@ -589,38 +633,38 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendUserDataStreamAuthHTTPRequest sends an authenticated HTTP request
-func (b *Binance) SendUserDataStreamAuthHTTPRequest(method, path string, params url.Values, result interface{}) error {
-	if !b.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
-	}
+// func (b *Binance) SendUserDataStreamAuthHTTPRequest(method, path string, params url.Values, result interface{}) error {
+// 	if !b.AuthenticatedAPISupport {
+// 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+// 	}
 
-	if params == nil {
-		params = url.Values{}
-	}
+// 	if params == nil {
+// 		params = url.Values{}
+// 	}
 
-	// signature := params.Encode()
-	// hmacSigned := common.GetHMAC(common.HashSHA256, []byte(signature), []byte(b.APISecret))
-	// hmacSignedStr := common.HexEncodeToString(hmacSigned)
-	// params.Set("signature", hmacSignedStr)
+// 	// signature := params.Encode()
+// 	// hmacSigned := common.GetHMAC(common.HashSHA256, []byte(signature), []byte(b.APISecret))
+// 	// hmacSignedStr := common.HexEncodeToString(hmacSigned)
+// 	// params.Set("signature", hmacSignedStr)
 
-	headers := make(map[string]string)
-	headers["X-MBX-APIKEY"] = b.APIKey
-	// headers["Content-Type"] = "application/x-www-form-urlencoded"
-	// c, _ := json.Marshal(headers)
-	// fmt.Println("headers", string(c))
-	// c, _ = json.Marshal(params)
-	// fmt.Println("params", string(c))
-	if b.Verbose {
-		log.Printf("sent path: \n%s\n", path)
-	}
-	path = common.EncodeURLValues(path, params)
+// 	headers := make(map[string]string)
+// 	headers["X-MBX-APIKEY"] = b.APIKey
+// 	// headers["Content-Type"] = "application/x-www-form-urlencoded"
+// 	// c, _ := json.Marshal(headers)
+// 	// fmt.Println("headers", string(c))
+// 	// c, _ = json.Marshal(params)
+// 	// fmt.Println("params", string(c))
+// 	if b.Verbose {
+// 		log.Printf("sent path: \n%s\n", path)
+// 	}
+// 	path = common.EncodeURLValues(path, params)
 
-	return b.SendPayload(method, path, headers, bytes.NewBufferString(""), result, true, b.Verbose)
-}
+// 	return b.SendPayload(method, path, headers, bytes.NewBufferString(""), result, true, b.Verbose)
+// }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, result interface{}) error {
@@ -637,17 +681,36 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	signature := params.Encode()
 	hmacSigned := common.GetHMAC(common.HashSHA256, []byte(signature), []byte(b.APISecret))
 	hmacSignedStr := common.HexEncodeToString(hmacSigned)
-	params.Set("signature", hmacSignedStr)
 
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.APIKey
 
 	if b.Verbose {
-		log.Printf("sent path: \n%s\n", path)
+		log.Debugf("sent path: %s", path)
 	}
-	path = common.EncodeURLValues(path, params)
 
-	return b.SendPayload(method, path, headers, bytes.NewBufferString(""), result, true, b.Verbose)
+	path = common.EncodeURLValues(path, params)
+	path += fmt.Sprintf("&signature=%s", hmacSignedStr)
+
+	interim := json.RawMessage{}
+
+	errCap := struct {
+		Success bool   `json:"success"`
+		Message string `json:"msg"`
+	}{}
+
+	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, false, b.Verbose, b.HTTPDebugging)
+	if err != nil {
+		return err
+	}
+
+	if err := common.JSONDecode(interim, &errCap); err == nil {
+		if !errCap.Success && errCap.Message != "" {
+			return errors.New(errCap.Message)
+		}
+	}
+
+	return common.JSONDecode(interim, result)
 }
 
 // CheckLimit checks value against a variable list
@@ -657,7 +720,7 @@ func (b *Binance) CheckLimit(limit int) error {
 			return nil
 		}
 	}
-	return errors.New("Incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
+	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 }
 
 // CheckSymbol checks value against a variable list
@@ -668,16 +731,18 @@ func (b *Binance) CheckSymbol(symbol string) error {
 			return nil
 		}
 	}
-	return errors.New("Incorrect symbol values - please check available pairs in configuration")
+	return errors.New("incorrect symbol values - please check available pairs in configuration")
 }
 
 // CheckIntervals checks value against a variable list
-// func (b *Binance) CheckIntervals(interval string) error {
-// 	if !common.StringDataCompare(b.validIntervals, interval) {
-// 		return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
-// 	}
-// 	return nil
-// }
+func (b *Binance) CheckIntervals(interval string) error {
+	for x := range b.validIntervals {
+		if TimeInterval(interval) == b.validIntervals[x] {
+			return nil
+		}
+	}
+	return errors.New(`incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
+}
 
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
@@ -699,4 +764,101 @@ func (b *Binance) SetValues() {
 		TimeIntervalWeek,
 		TimeIntervalMonth,
 	}
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Binance) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		multiplier, err := b.getMultiplier(feeBuilder.IsMaker)
+		if err != nil {
+			return 0, err
+		}
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
+}
+
+// getMultiplier retrieves account based taker/maker fees
+func (b *Binance) getMultiplier(isMaker bool) (float64, error) {
+	var multiplier float64
+	account, err := b.GetAccount()
+	if err != nil {
+		return 0, err
+	}
+	if isMaker {
+		multiplier = float64(account.MakerCommission)
+	} else {
+		multiplier = float64(account.TakerCommission)
+	}
+	return multiplier, nil
+}
+
+// calculateTradingFee returns the fee for trading any currency on Bittrex
+func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
+	return (multiplier / 100) * purchasePrice * amount
+}
+
+// getCryptocurrencyWithdrawalFee returns the fee for withdrawing from the exchange
+func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
+}
+
+// WithdrawCrypto sends cryptocurrency to the address of your choosing
+func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string) (int64, error) {
+	var resp WithdrawResponse
+	path := fmt.Sprintf("%s%s", b.APIUrl, withdraw)
+
+	params := url.Values{}
+	params.Set("asset", asset)
+	params.Set("address", address)
+	params.Set("amount", amount)
+	if len(name) > 0 {
+		params.Set("name", name)
+	}
+	if len(addressTag) > 0 {
+		params.Set("addressTag", addressTag)
+	}
+
+	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, &resp); err != nil {
+		return -1, err
+	}
+
+	if !resp.Success {
+		return resp.ID, errors.New(resp.Msg)
+	}
+
+	return resp.ID, nil
+}
+
+// GetDepositAddressForCurrency retrieves the wallet address for a given currency
+func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) {
+	path := fmt.Sprintf("%s%s", b.APIUrl, depositAddress)
+
+	resp := struct {
+		Address    string `json:"address"`
+		Success    bool   `json:"success"`
+		AddressTag string `json:"addressTag"`
+	}{}
+
+	params := url.Values{}
+	params.Set("asset", currency)
+	params.Set("status", "true")
+
+	return resp.Address,
+		b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp)
 }

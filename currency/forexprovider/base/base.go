@@ -4,6 +4,9 @@ import (
 	"time"
 )
 
+// DefaultTimeOut is the default timeout for foreign exchange providers
+const DefaultTimeOut = time.Second * 15
+
 // Settings enforces standard variables across the provider packages
 type Settings struct {
 	Name             string        `json:"name"`

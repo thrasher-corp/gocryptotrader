@@ -3,16 +3,18 @@ package bittrex
 import (
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -67,8 +69,9 @@ func (b *Bittrex) SetDefaults() {
 	b.Name = "Bittrex"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.NoFiatWithdrawals
 	b.RequestCurrencyPairFormat.Delimiter = "-"
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = "-"
@@ -82,10 +85,11 @@ func (b *Bittrex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bittrexAPIURL
 	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
 }
 
 // Setup method sets current configuration details if enabled
-func (b *Bittrex) Setup(exch config.ExchangeConfig) {
+func (b *Bittrex) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -96,10 +100,10 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.HTTPDebugging = exch.HTTPDebugging
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -113,6 +117,10 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -153,19 +161,19 @@ func (b *Bittrex) GetCurrencies() (Currency, error) {
 // GetTicker sends a public get request and returns current ticker information
 // on the supplied currency. Example currency input param "btc-ltc".
 func (b *Bittrex) GetTicker(currencyPair string) (Ticker, error) {
-	ticker := Ticker{}
+	tick := Ticker{}
 	path := fmt.Sprintf("%s/%s?market=%s", b.APIUrl, bittrexAPIGetTicker,
 		common.StringToUpper(currencyPair),
 	)
 
-	if err := b.SendHTTPRequest(path, &ticker); err != nil {
-		return ticker, err
+	if err := b.SendHTTPRequest(path, &tick); err != nil {
+		return tick, err
 	}
 
-	if !ticker.Success {
-		return ticker, errors.New(ticker.Message)
+	if !tick.Success {
+		return tick, errors.New(tick.Message)
 	}
-	return ticker, nil
+	return tick, nil
 }
 
 // GetMarketSummaries is used to get the last 24 hour summary of all active
@@ -311,8 +319,8 @@ func (b *Bittrex) GetOpenOrders(currencyPair string) (Order, error) {
 	return orders, nil
 }
 
-// CancelOrder is used to cancel a buy or sell order.
-func (b *Bittrex) CancelOrder(uuid string) (Balances, error) {
+// CancelExistingOrder is used to cancel a buy or sell order.
+func (b *Bittrex) CancelExistingOrder(uuid string) (Balances, error) {
 	var balances Balances
 	values := url.Values{}
 	values.Set("uuid", uuid)
@@ -361,10 +369,10 @@ func (b *Bittrex) GetAccountBalanceByCurrency(currency string) (Balance, error) 
 	return balance, nil
 }
 
-// GetDepositAddress is used to retrieve or generate an address for a specific
+// GetCryptoDepositAddress is used to retrieve or generate an address for a specific
 // currency. If one does not exist, the call will fail and return
 // ADDRESS_GENERATING until one is available.
-func (b *Bittrex) GetDepositAddress(currency string) (DepositAddress, error) {
+func (b *Bittrex) GetCryptoDepositAddress(currency string) (DepositAddress, error) {
 	var address DepositAddress
 	values := url.Values{}
 	values.Set("currency", currency)
@@ -386,8 +394,12 @@ func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity float64
 	var id UUID
 	values := url.Values{}
 	values.Set("currency", currency)
-	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
+	values.Set("quantity", fmt.Sprintf("%v", quantity))
 	values.Set("address", address)
+	if len(paymentID) > 0 {
+		values.Set("paymentid", paymentID)
+	}
+
 	path := fmt.Sprintf("%s/%s", b.APIUrl, bittrexAPIWithdraw)
 
 	if err := b.SendAuthenticatedHTTPRequest(path, values, &id); err != nil {
@@ -417,9 +429,9 @@ func (b *Bittrex) GetOrder(uuid string) (Order, error) {
 	return order, nil
 }
 
-// GetOrderHistory is used to retrieve your order history. If currencyPair
+// GetOrderHistoryForCurrency is used to retrieve your order history. If currencyPair
 // omitted it will return the entire order History.
-func (b *Bittrex) GetOrderHistory(currencyPair string) (Order, error) {
+func (b *Bittrex) GetOrderHistoryForCurrency(currencyPair string) (Order, error) {
 	var orders Order
 	values := url.Values{}
 
@@ -482,7 +494,7 @@ func (b *Bittrex) GetDepositHistory(currency string) (WithdrawalHistory, error) 
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bittrex) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -492,13 +504,10 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	if b.Nonce.Get() == 0 {
-		b.Nonce.Set(time.Now().UnixNano())
-	} else {
-		b.Nonce.Inc()
-	}
+	n := b.Requester.GetNonce(true).String()
+
 	values.Set("apikey", b.APIKey)
-	values.Set("nonce", b.Nonce.String())
+	values.Set("nonce", n)
 	rawQuery := path + "?" + values.Encode()
 	hmac := common.GetHMAC(
 		common.HashSHA512, []byte(rawQuery), []byte(b.APISecret),
@@ -506,5 +515,46 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	headers := make(map[string]string)
 	headers["apisign"] = common.HexEncodeToString(hmac)
 
-	return b.SendPayload("GET", rawQuery, headers, nil, result, true, b.Verbose)
+	return b.SendPayload(http.MethodGet, rawQuery, headers, nil, result, true, true, b.Verbose, b.HTTPDebugging)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bittrex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	var err error
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee, err = b.GetWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.OfflineTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, err
+}
+
+// GetWithdrawalFee returns the fee for withdrawing from the exchange
+func (b *Bittrex) GetWithdrawalFee(c currency.Code) (float64, error) {
+	var fee float64
+
+	currencies, err := b.GetCurrencies()
+	if err != nil {
+		return 0, err
+	}
+	for _, result := range currencies.Result {
+		if result.Currency == c.String() {
+			fee = result.TxFee
+		}
+	}
+	return fee, nil
+}
+
+// calculateTradingFee returns the fee for trading any currency on Bittrex
+func calculateTradingFee(price, amount float64) float64 {
+	return 0.0025 * price * amount
+
 }

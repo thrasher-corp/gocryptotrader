@@ -1,16 +1,18 @@
 package anx
 
 import (
-	"errors"
-	"log"
+	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/currency/pair"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // Start starts the ANX go routine
@@ -25,31 +27,46 @@ func (a *ANX) Start(wg *sync.WaitGroup) {
 // Run implements the ANX wrapper
 func (a *ANX) Run() {
 	if a.Verbose {
-		log.Printf("%s polling delay: %ds.\n", a.GetName(), a.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", a.GetName(), len(a.EnabledPairs), a.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", a.GetName(), a.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", a.GetName(), len(a.EnabledPairs), a.EnabledPairs)
 	}
 
-	exchangeProducts, err := a.GetTradablePairs()
+	tradablePairs, err := a.GetTradablePairs()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", a.GetName())
+		log.Debugf("%s Failed to get available symbols.\n", a.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(a.EnabledPairs, "_") || !common.StringDataContains(a.AvailablePairs, "_") {
+		if !common.StringDataContains(a.EnabledPairs.Strings(), "_") ||
+			!common.StringDataContains(a.AvailablePairs.Strings(), "_") {
 			forceUpgrade = true
 		}
 
 		if forceUpgrade {
-			enabledPairs := []string{"BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,DOG_EBTC,STR_BTC,XRP_BTC"}
-			log.Println("WARNING: Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
+			newPairs := []string{"BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,DOG_EBTC,STR_BTC,XRP_BTC"}
+
+			var enabledPairs currency.Pairs
+			for _, p := range newPairs {
+				enabledPairs = append(enabledPairs,
+					currency.NewPairDelimiter(p, "_"))
+			}
+
+			log.Warn("Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
 
 			err = a.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s Failed to get config.\n", a.GetName())
+				log.Errorf("%s Failed to get config.\n", a.GetName())
 			}
 		}
+
+		var exchangeProducts currency.Pairs
+		for _, p := range tradablePairs {
+			exchangeProducts = append(exchangeProducts,
+				currency.NewPairDelimiter(p, "_"))
+		}
+
 		err = a.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", a.GetName())
+			log.Errorf("%s Failed to get config.\n", a.GetName())
 		}
 	}
 }
@@ -70,7 +87,7 @@ func (a *ANX) GetTradablePairs() ([]string, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (a *ANX) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := a.GetTicker(exchange.FormatExchangeCurrency(a.GetName(), p).String())
 	if err != nil {
@@ -132,12 +149,17 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	} else {
 		tickerPrice.High = 0
 	}
-	ticker.ProcessTicker(a.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(a.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (a *ANX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (a *ANX) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
@@ -146,8 +168,8 @@ func (a *ANX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pric
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
-func (a *ANX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
+func (a *ANX) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
 	}
@@ -155,7 +177,7 @@ func (a *ANX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.B
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *ANX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (a *ANX) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := a.GetDepth(exchange.FormatExchangeCurrency(a.GetName(), p).String())
 	if err != nil {
@@ -163,84 +185,285 @@ func (a *ANX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.
 	}
 
 	for x := range orderbookNew.Data.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: orderbookNew.Data.Asks[x].Price, Amount: orderbookNew.Data.Asks[x].Amount})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{
+				Price:  orderbookNew.Data.Asks[x].Price,
+				Amount: orderbookNew.Data.Asks[x].Amount})
 	}
 
 	for x := range orderbookNew.Data.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Data.Bids[x].Price, Amount: orderbookNew.Data.Bids[x].Amount})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{
+				Price:  orderbookNew.Data.Bids[x].Price,
+				Amount: orderbookNew.Data.Bids[x].Amount})
 	}
 
-	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(a.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = a.GetName()
+	orderBook.AssetType = assetType
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(a.Name, p, assetType)
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ANX exchange
-func (a *ANX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	response.ExchangeName = a.GetName()
-	return response, nil
+// GetAccountInfo retrieves balances for all enabled currencies on the
+// exchange
+func (a *ANX) GetAccountInfo() (exchange.AccountInfo, error) {
+	var info exchange.AccountInfo
+
+	raw, err := a.GetAccountInformation()
+	if err != nil {
+		return info, err
+	}
+
+	var balance []exchange.AccountCurrencyInfo
+	for c := range raw.Wallets {
+		balance = append(balance, exchange.AccountCurrencyInfo{
+			CurrencyName: currency.NewCode(c),
+			TotalValue:   raw.Wallets[c].AvailableBalance.Value,
+			Hold:         raw.Wallets[c].Balance.Value,
+		})
+	}
+
+	info.Exchange = a.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		Currencies: balance,
+	})
+
+	return info, nil
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (a *ANX) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (a *ANX) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (a *ANX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (a *ANX) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order
-func (a *ANX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+// SubmitOrder submits a new order
+func (a *ANX) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+
+	var isBuying bool
+	var limitPriceInSettlementCurrency float64
+
+	if side == exchange.BuyOrderSide {
+		isBuying = true
+	}
+
+	if orderType == exchange.LimitOrderType {
+		limitPriceInSettlementCurrency = price
+	}
+
+	response, err := a.NewOrder(orderType.ToString(),
+		isBuying,
+		p.Base.String(),
+		amount,
+		p.Quote.String(),
+		amount,
+		limitPriceInSettlementCurrency,
+		false,
+		"",
+		false)
+
+	if response != "" {
+		submitOrderResponse.OrderID = response
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *ANX) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (a *ANX) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (a *ANX) CancelExchangeOrder(orderID int64) error {
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (a *ANX) CancelOrder(order *exchange.OrderCancellation) error {
+	orderIDs := []string{order.OrderID}
+	_, err := a.CancelOrderByIDs(orderIDs)
+	return err
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (a *ANX) CancelAllExchangeOrders() error {
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders associated with a currency pair
+func (a *ANX) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	placedOrders, err := a.GetOrderList(true)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	var orderIDs []string
+	for i := range placedOrders {
+		orderIDs = append(orderIDs, placedOrders[i].OrderID)
+	}
+
+	resp, err := a.CancelOrderByIDs(orderIDs)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	for _, order := range resp.OrderCancellationResponses {
+		if order.Error != CancelRequestSubmitted {
+			cancelAllOrdersResponse.OrderStatus[order.UUID] = order.Error
+		}
+	}
+
+	return cancelAllOrdersResponse, err
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (a *ANX) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+// GetOrderInfo returns information on a current open order
+func (a *ANX) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, errors.New("not yet implemented")
+	return orderDetail, common.ErrNotYetImplemented
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (a *ANX) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", errors.New("not yet implemented")
+// GetDepositAddress returns a deposit address for a specified currency
+func (a *ANX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
+	return a.GetDepositAddressByCurrency(cryptocurrency.String(), "", false)
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.Address, "", fmt.Sprintf("%v", withdrawRequest.Amount))
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (a *ANX) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	// Fiat withdrawals available via website
+	return "", common.ErrFunctionNotSupported
 }
 
-// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a withdrawal is
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (a *ANX) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	// Fiat withdrawals available via website
+	return "", common.ErrFunctionNotSupported
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (a *ANX) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (a.APIKey == "" || a.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	return a.GetFee(feeBuilder)
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (a *ANX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrderList(true)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for i := range resp {
+		orderDate := time.Unix(resp[i].Timestamp, 0)
+		orderType := exchange.OrderType(strings.ToUpper(resp[i].OrderType))
+
+		orderDetail := exchange.OrderDetail{
+			Amount: resp[i].TradedCurrencyAmount,
+			CurrencyPair: currency.NewPairWithDelimiter(resp[i].TradedCurrency,
+				resp[i].SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),
+			OrderDate: orderDate,
+			Exchange:  a.Name,
+			ID:        resp[i].OrderID,
+			OrderType: orderType,
+			Price:     resp[i].SettlementCurrencyAmount,
+			Status:    resp[i].OrderStatus,
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (a *ANX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrderList(false)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for i := range resp {
+		orderDate := time.Unix(resp[i].Timestamp, 0)
+		orderType := exchange.OrderType(strings.ToUpper(resp[i].OrderType))
+
+		orderDetail := exchange.OrderDetail{
+			Amount:    resp[i].TradedCurrencyAmount,
+			OrderDate: orderDate,
+			Exchange:  a.Name,
+			ID:        resp[i].OrderID,
+			OrderType: orderType,
+			Price:     resp[i].SettlementCurrencyAmount,
+			Status:    resp[i].OrderStatus,
+			CurrencyPair: currency.NewPairWithDelimiter(resp[i].TradedCurrency,
+				resp[i].SettlementCurrency,
+				a.ConfigCurrencyPairFormat.Delimiter),
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (a *ANX) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (a *ANX) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (a *ANX) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (a *ANX) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
 }

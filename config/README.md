@@ -1,13 +1,13 @@
 # GoCryptoTrader package Config
 
-<img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
-[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/config)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/idoall/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader/config)
 [![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
+[![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
 
 
 This config package is part of the GoCryptoTrader codebase.
@@ -16,7 +16,7 @@ This config package is part of the GoCryptoTrader codebase.
 
 You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
-Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTQyYjIxNGVhMWU5MDZlOGYzMmE0NTJmM2MzYWY5NGMzMmM4MzUwNTBjZTEzNjIwODM5NDcxODQwZDljMGQyNGY)
 
 ## Current Features for config
 
@@ -46,7 +46,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + Linux example for quickly creating and testing configuration file
 ```sh
-cd ~/go/src/github.com/thrasher-/gocryptotrader
+cd ~/go/src/github.com/idoall/gocryptotrader
 cp config_example.json config.json
 # Test config
 go build
@@ -56,7 +56,7 @@ go build
 + or custom config, can also pass in absolute path to "configuration".json file.
 
 ```sh
-cd ~/go/src/github.com/thrasher-/gocryptotrader
+cd ~/go/src/github.com/idoall/gocryptotrader
 cp config_example.json custom.json
 # Test config
 go build
@@ -211,6 +211,23 @@ comm method and add in your contact list if available.
 },
 ```
 
+
+## Configure Network Time Server 
+
++ To configure and enable a NTP server you need to set the "enabled" field to one of 3 values -1 is disabled 0 is enabled and alert at start up 1 is enabled and warn at start up
+servers are configured by the pool array and attempted first to last allowedDifference and allowedNegativeDifference are how far ahead and behind is acceptable for the time to be out in nanoseconds
+
+```js
+ "ntpclient": {
+  "enabled": 0,
+  "pool": [
+   "pool.ntp.org:123"
+  ],
+  "allowedDifference": 0,
+  "allowedNegativeDifference": 0
+ },
+ ```
+
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
 ## Contribution
@@ -221,12 +238,12 @@ When submitting a PR, please abide by our coding guidelines:
 
 + Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
 + Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-+ Code must adhere to our [coding style](https://github.com/thrasher-/gocryptotrader/blob/master/doc/coding_style.md).
++ Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/doc/coding_style.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
 ## Donations
 
-<img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

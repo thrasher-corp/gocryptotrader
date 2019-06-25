@@ -1,0 +1,186 @@
+package connchecker
+
+import (
+	"net"
+	"strings"
+	"sync"
+	"time"
+
+	log "github.com/idoall/gocryptotrader/logger"
+)
+
+// DefaultCheckInterval is a const that defines the amount of time between
+// checking if the connection is lost
+const (
+	DefaultCheckInterval = time.Second
+
+	ConnRe       = "Internet connectivity re-established"
+	ConnLost     = "Internet connectivity lost"
+	ConnFound    = "Internet connectivity found"
+	ConnNotFound = "No internet connectivity"
+)
+
+// Default check lists
+var (
+	DefaultDNSList    = []string{"8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"}
+	DefaultDomainList = []string{"www.google.com", "www.cloudflare.com", "www.facebook.com"}
+)
+
+// New returns a new connection checker, if no values set it will default it out
+func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, error) {
+	c := new(Checker)
+	if len(dnsList) == 0 {
+		c.DNSList = DefaultDNSList
+	} else {
+		c.DNSList = dnsList
+	}
+
+	if len(domainList) == 0 {
+		c.DomainList = DefaultDomainList
+	} else {
+		c.DomainList = domainList
+	}
+
+	if checkInterval == 0 {
+		c.CheckInterval = DefaultCheckInterval
+	} else {
+		c.CheckInterval = checkInterval
+	}
+
+	err := c.initialCheck()
+	if err != nil {
+		return nil, err
+	}
+
+	if c.connected {
+		log.Debug(ConnFound)
+	} else {
+		log.Warnf(ConnNotFound)
+	}
+
+	c.shutdown = make(chan struct{}, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go c.Monitor(&wg)
+	wg.Wait()
+	return c, nil
+}
+
+// Checker defines a struct to determine connectivity to the interwebs
+type Checker struct {
+	DNSList       []string
+	DomainList    []string
+	CheckInterval time.Duration
+	shutdown      chan struct{}
+	wg            sync.WaitGroup
+	connected     bool
+	sync.Mutex
+}
+
+// Shutdown cleanly shutsdown monitor routine
+func (c *Checker) Shutdown() {
+	close(c.shutdown)
+	c.wg.Wait()
+}
+
+// Monitor determines internet connectivity via a DNS lookup
+func (c *Checker) Monitor(wg *sync.WaitGroup) {
+	c.wg.Add(1)
+	tick := time.NewTicker(time.Second)
+	defer func() { tick.Stop(); c.wg.Done() }()
+	wg.Done()
+	for {
+		select {
+		case <-tick.C:
+			c.connectionTest()
+		case <-c.shutdown:
+			return
+		}
+	}
+}
+
+// initialCheck starts an initial connection check
+func (c *Checker) initialCheck() error {
+	var connected bool
+	for i := range c.DNSList {
+		err := c.CheckDNS(c.DNSList[i])
+		if err != nil {
+			if strings.Contains(err.Error(), "unrecognized address") ||
+				strings.Contains(err.Error(), "invalid address") {
+				return err
+			}
+			continue
+		}
+		if !connected {
+			connected = true
+		}
+	}
+
+	for i := range c.DomainList {
+		err := c.CheckHost(c.DomainList[i])
+		if err != nil {
+			continue
+		}
+		if !connected {
+			connected = true
+		}
+	}
+	c.connected = connected
+	return nil
+}
+
+// ConnectionTest determines if a connection to the internet is available by
+// iterating over a set list of dns ip and popular domains
+func (c *Checker) connectionTest() {
+	for i := range c.DNSList {
+		err := c.CheckDNS(c.DNSList[i])
+		if err == nil {
+			c.Lock()
+			if !c.connected {
+				log.Debug(ConnRe)
+				c.connected = true
+			}
+			c.Unlock()
+			return
+		}
+	}
+
+	for i := range c.DomainList {
+		err := c.CheckHost(c.DomainList[i])
+		if err == nil {
+			c.Lock()
+			if !c.connected {
+				log.Debug(ConnRe)
+				c.connected = true
+			}
+			c.Unlock()
+			return
+		}
+	}
+
+	c.Lock()
+	if c.connected {
+		log.Warn(ConnLost)
+		c.connected = false
+	}
+	c.Unlock()
+}
+
+// CheckDNS checks current dns for connectivity
+func (c *Checker) CheckDNS(dns string) error {
+	_, err := net.LookupAddr(dns)
+	return err
+}
+
+// CheckHost checks current host name for connectivity
+func (c *Checker) CheckHost(host string) error {
+	_, err := net.LookupHost(host)
+	return err
+}
+
+// IsConnected returns if there is internet connectivity
+func (c *Checker) IsConnected() bool {
+	c.Lock()
+	defer c.Unlock()
+	return c.connected
+}

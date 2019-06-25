@@ -5,14 +5,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/idoall/gocryptotrader/currency/pair"
+	"github.com/idoall/gocryptotrader/currency"
 )
 
-// Const values for orderbook package
+// const values for orderbook package
 const (
-	ErrOrderbookForExchangeNotFound = "Ticker for exchange does not exist."
-	ErrPrimaryCurrencyNotFound      = "Error primary currency for orderbook not found."
-	ErrSecondaryCurrencyNotFound    = "Error secondary currency for orderbook not found."
+	errExchangeOrderbookNotFound = "orderbook for exchange does not exist"
+	errPairNotSet                = "orderbook currency pair not set"
+	errAssetTypeNotSet           = "orderbook asset type not set"
+	errBaseCurrencyNotFound      = "orderbook base currency not found"
+	errQuoteCurrencyNotFound     = "orderbook quote currency not found"
 
 	Spot = "SPOT"
 )
@@ -27,28 +29,28 @@ var (
 type Item struct {
 	Amount float64
 	Price  float64
+	ID     int64
 }
 
 // Base holds the fields for the orderbook base
 type Base struct {
-	Pair         pair.CurrencyPair `json:"pair"`
-	CurrencyPair string            `json:"CurrencyPair"`
-	Bids         []Item            `json:"bids"`
-	Asks         []Item            `json:"asks"`
-	LastUpdated  time.Time         `json:"last_updated"`
+	Pair         currency.Pair `json:"pair"`
+	Bids         []Item        `json:"bids"`
+	Asks         []Item        `json:"asks"`
+	LastUpdated  time.Time     `json:"lastUpdated"`
+	AssetType    string        `json:"assetType"`
+	ExchangeName string        `json:"exchangeName"`
 }
 
 // Orderbook holds the orderbook information for a currency pair and type
 type Orderbook struct {
-	Orderbook    map[pair.CurrencyItem]map[pair.CurrencyItem]map[string]Base
+	Orderbook    map[*currency.Item]map[*currency.Item]map[string]Base
 	ExchangeName string
 }
 
-// CalculateTotalBids returns the total amount of bids and the total orderbook
+// TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
-func (o *Base) CalculateTotalBids() (float64, float64) {
-	amountCollated := float64(0)
-	total := float64(0)
+func (o *Base) TotalBidsAmount() (amountCollated, total float64) {
 	for _, x := range o.Bids {
 		amountCollated += x.Amount
 		total += x.Amount * x.Price
@@ -56,11 +58,9 @@ func (o *Base) CalculateTotalBids() (float64, float64) {
 	return amountCollated, total
 }
 
-// CalculateTotalAsks returns the total amount of asks and the total orderbook
+// TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
-func (o *Base) CalculateTotalAsks() (float64, float64) {
-	amountCollated := float64(0)
-	total := float64(0)
+func (o *Base) TotalAsksAmount() (amountCollated, total float64) {
 	for _, x := range o.Asks {
 		amountCollated += x.Amount
 		total += x.Amount * x.Price
@@ -69,51 +69,51 @@ func (o *Base) CalculateTotalAsks() (float64, float64) {
 }
 
 // Update updates the bids and asks
-func (o *Base) Update(Bids, Asks []Item) {
-	o.Bids = Bids
-	o.Asks = Asks
+func (o *Base) Update(bids, asks []Item) {
+	o.Bids = bids
+	o.Asks = asks
 	o.LastUpdated = time.Now()
 }
 
-// GetOrderbook checks and returns the orderbook given an exchange name and
-// currency pair if it exists
-func GetOrderbook(exchange string, p pair.CurrencyPair, orderbookType string) (Base, error) {
-	orderbook, err := GetOrderbookByExchange(exchange)
+// Get checks and returns the orderbook given an exchange name and currency pair
+// if it exists
+func Get(exchange string, p currency.Pair, orderbookType string) (Base, error) {
+	orderbook, err := GetByExchange(exchange)
 	if err != nil {
 		return Base{}, err
 	}
 
-	if !FirstCurrencyExists(exchange, p.FirstCurrency) {
-		return Base{}, errors.New(ErrPrimaryCurrencyNotFound)
+	if !BaseCurrencyExists(exchange, p.Base) {
+		return Base{}, errors.New(errBaseCurrencyNotFound)
 	}
 
-	if !SecondCurrencyExists(exchange, p) {
-		return Base{}, errors.New(ErrSecondaryCurrencyNotFound)
+	if !QuoteCurrencyExists(exchange, p) {
+		return Base{}, errors.New(errQuoteCurrencyNotFound)
 	}
 
-	return orderbook.Orderbook[p.FirstCurrency][p.SecondCurrency][orderbookType], nil
+	return orderbook.Orderbook[p.Base.Item][p.Quote.Item][orderbookType], nil
 }
 
-// GetOrderbookByExchange returns an exchange orderbook
-func GetOrderbookByExchange(exchange string) (*Orderbook, error) {
+// GetByExchange returns an exchange orderbook
+func GetByExchange(exchange string) (*Orderbook, error) {
 	m.Lock()
 	defer m.Unlock()
-	for _, y := range Orderbooks {
-		if y.ExchangeName == exchange {
-			return &y, nil
+	for x := range Orderbooks {
+		if Orderbooks[x].ExchangeName == exchange {
+			return &Orderbooks[x], nil
 		}
 	}
-	return nil, errors.New(ErrOrderbookForExchangeNotFound)
+	return nil, errors.New(errExchangeOrderbookNotFound)
 }
 
-// FirstCurrencyExists checks to see if the first currency of the orderbook map
+// BaseCurrencyExists checks to see if the base currency of the orderbook map
 // exists
-func FirstCurrencyExists(exchange string, currency pair.CurrencyItem) bool {
+func BaseCurrencyExists(exchange string, currency currency.Code) bool {
 	m.Lock()
 	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[currency]; ok {
+			if _, ok := y.Orderbook[currency.Item]; ok {
 				return true
 			}
 		}
@@ -121,15 +121,15 @@ func FirstCurrencyExists(exchange string, currency pair.CurrencyItem) bool {
 	return false
 }
 
-// SecondCurrencyExists checks to see if the second currency of the orderbook
+// QuoteCurrencyExists checks to see if the quote currency of the orderbook
 // map exists
-func SecondCurrencyExists(exchange string, p pair.CurrencyPair) bool {
+func QuoteCurrencyExists(exchange string, p currency.Pair) bool {
 	m.Lock()
 	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[p.FirstCurrency]; ok {
-				if _, ok := y.Orderbook[p.FirstCurrency][p.SecondCurrency]; ok {
+			if _, ok := y.Orderbook[p.Base.Item]; ok {
+				if _, ok := y.Orderbook[p.Base.Item][p.Quote.Item]; ok {
 					return true
 				}
 			}
@@ -139,60 +139,57 @@ func SecondCurrencyExists(exchange string, p pair.CurrencyPair) bool {
 }
 
 // CreateNewOrderbook creates a new orderbook
-func CreateNewOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Base, orderbookType string) Orderbook {
+func CreateNewOrderbook(exchangeName string, orderbookNew *Base, orderbookType string) *Orderbook {
 	m.Lock()
 	defer m.Unlock()
 	orderbook := Orderbook{}
 	orderbook.ExchangeName = exchangeName
-	orderbook.Orderbook = make(map[pair.CurrencyItem]map[pair.CurrencyItem]map[string]Base)
-	a := make(map[pair.CurrencyItem]map[string]Base)
+	orderbook.Orderbook = make(map[*currency.Item]map[*currency.Item]map[string]Base)
+	a := make(map[*currency.Item]map[string]Base)
 	b := make(map[string]Base)
-	b[orderbookType] = orderbookNew
-	a[p.SecondCurrency] = b
-	orderbook.Orderbook[p.FirstCurrency] = a
+	b[orderbookType] = *orderbookNew
+	a[orderbookNew.Pair.Quote.Item] = b
+	orderbook.Orderbook[orderbookNew.Pair.Base.Item] = a
 	Orderbooks = append(Orderbooks, orderbook)
-	return orderbook
+	return &orderbook
 }
 
-// ProcessOrderbook processes incoming orderbooks, creating or updating the
-// Orderbook list
-func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Base, orderbookType string) {
-	if orderbookNew.Pair.Pair() == "" {
-		// set Pair if not set
-		orderbookNew.Pair = p
-	}
-	orderbookNew.CurrencyPair = p.Pair().String()
-	orderbookNew.LastUpdated = time.Now()
-
-	if len(Orderbooks) == 0 {
-		CreateNewOrderbook(exchangeName, p, orderbookNew, orderbookType)
-		return
+// Process processes incoming orderbooks, creating or updating the orderbook
+// list
+func (o *Base) Process() error {
+	if o.Pair.IsEmpty() {
+		return errors.New(errPairNotSet)
 	}
 
-	orderbook, err := GetOrderbookByExchange(exchangeName)
+	if o.AssetType == "" {
+		return errors.New(errAssetTypeNotSet)
+	}
+
+	if o.LastUpdated.IsZero() {
+		o.LastUpdated = time.Now()
+	}
+
+	orderbook, err := GetByExchange(o.ExchangeName)
 	if err != nil {
-		CreateNewOrderbook(exchangeName, p, orderbookNew, orderbookType)
-		return
+		CreateNewOrderbook(o.ExchangeName, o, o.AssetType)
+		return nil
 	}
 
-	if FirstCurrencyExists(exchangeName, p.FirstCurrency) {
-		if !SecondCurrencyExists(exchangeName, p) {
-			m.Lock()
-			a := orderbook.Orderbook[p.FirstCurrency]
-			b := make(map[string]Base)
-			b[orderbookType] = orderbookNew
-			a[p.SecondCurrency] = b
-			orderbook.Orderbook[p.FirstCurrency] = a
-			m.Unlock()
-			return
-		}
+	if BaseCurrencyExists(o.ExchangeName, o.Pair.Base) {
+		m.Lock()
+		a := make(map[string]Base)
+		a[o.AssetType] = *o
+		orderbook.Orderbook[o.Pair.Base.Item][o.Pair.Quote.Item] = a
+		m.Unlock()
+		return nil
 	}
 
 	m.Lock()
-	a := make(map[pair.CurrencyItem]map[string]Base)
+	a := make(map[*currency.Item]map[string]Base)
 	b := make(map[string]Base)
-	b[orderbookType] = orderbookNew
-	a[p.SecondCurrency] = b
-	orderbook.Orderbook[p.FirstCurrency] = a
+	b[o.AssetType] = *o
+	a[o.Pair.Quote.Item] = b
+	orderbook.Orderbook[o.Pair.Base.Item] = a
 	m.Unlock()
+	return nil
 }

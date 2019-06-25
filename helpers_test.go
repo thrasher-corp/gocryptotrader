@@ -1,13 +1,11 @@
 package main
 
 import (
-	"log"
 	"testing"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
-	"github.com/idoall/gocryptotrader/currency/pair"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/stats"
@@ -44,22 +42,22 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 	SetupTestHelpers(t)
 	result := GetSpecificAvailablePairs(true, true, true, false)
 
-	if !pair.Contains(result, pair.NewCurrencyPair("BTC", "USD"), true) {
+	if !result.Contains(currency.NewPairFromStrings("BTC", "USD"), true) {
 		t.Fatal("Unexpected result")
 	}
 
-	if !pair.Contains(result, pair.NewCurrencyPair("BTC", "USDT"), false) {
+	if !result.Contains(currency.NewPairFromStrings("BTC", "USDT"), false) {
 		t.Fatal("Unexpected result")
 	}
 
 	result = GetSpecificAvailablePairs(true, true, false, false)
 
-	if pair.Contains(result, pair.NewCurrencyPair("BTC", "USDT"), false) {
+	if result.Contains(currency.NewPairFromStrings("BTC", "USDT"), false) {
 		t.Fatal("Unexpected result")
 	}
 
 	result = GetSpecificAvailablePairs(true, false, false, true)
-	if !pair.Contains(result, pair.NewCurrencyPair("LTC", "BTC"), false) {
+	if !result.Contains(currency.NewPairFromStrings("LTC", "BTC"), false) {
 		t.Fatal("Unexpected result")
 	}
 }
@@ -68,132 +66,168 @@ func TestIsRelatablePairs(t *testing.T) {
 	SetupTestHelpers(t)
 
 	// Test relational pairs with similar names
-	result := IsRelatablePairs(pair.NewCurrencyPair("XBT", "USD"), pair.NewCurrencyPair("BTC", "USD"), false)
+	result := IsRelatablePairs(currency.NewPairFromStrings("XBT", "USD"),
+		currency.NewPairFromStrings("BTC", "USD"), false)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
 	// Test relational pairs with similar names reversed
-	result = IsRelatablePairs(pair.NewCurrencyPair("BTC", "USD"), pair.NewCurrencyPair("XBT", "USD"), false)
+	result = IsRelatablePairs(currency.NewPairFromStrings("BTC", "USD"),
+		currency.NewPairFromStrings("XBT", "USD"), false)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
 	// Test relational pairs with similar names but with Tether support disabled
-	result = IsRelatablePairs(pair.NewCurrencyPair("XBT", "USD"), pair.NewCurrencyPair("BTC", "USDT"), false)
+	result = IsRelatablePairs(currency.NewPairFromStrings("XBT", "USD"),
+		currency.NewPairFromStrings("BTC", "USDT"), false)
 	if result {
 		t.Fatal("Unexpected result")
 	}
 
 	// Test relational pairs with similar names but with Tether support enabled
-	result = IsRelatablePairs(pair.NewCurrencyPair("XBT", "USDT"), pair.NewCurrencyPair("BTC", "USD"), true)
+	result = IsRelatablePairs(currency.NewPairFromStrings("XBT", "USDT"),
+		currency.NewPairFromStrings("BTC", "USD"), true)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
-	// Test relational pairs with different ordering, a delimiter and with Tether support enabled
-	result = IsRelatablePairs(pair.NewCurrencyPair("AE", "USDT"), pair.NewCurrencyPairDelimiter("USDT-AE", "-"), true)
+	// Test relational pairs with different ordering, a delimiter and with
+	// Tether support enabled
+	result = IsRelatablePairs(currency.NewPairFromStrings("AE", "USDT"),
+		currency.NewPairDelimiter("USDT-AE", "-"), true)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
-	// Test relational pairs with different ordering, a delimiter and with Tether support disabled
-	result = IsRelatablePairs(pair.NewCurrencyPair("AE", "USDT"), pair.NewCurrencyPairDelimiter("USDT-AE", "-"), false)
+	// Test relational pairs with different ordering, a delimiter and with
+	// Tether support disabled
+	result = IsRelatablePairs(currency.NewPairFromStrings("AE", "USDT"),
+		currency.NewPairDelimiter("USDT-AE", "-"), false)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
 	// Test relationl pairs with similar names and different fiat currencies
-	result = IsRelatablePairs(pair.NewCurrencyPair("XBT", "EUR"), pair.NewCurrencyPair("BTC", "AUD"), false)
+	result = IsRelatablePairs(currency.NewPairFromStrings("XBT", "EUR"),
+		currency.NewPairFromStrings("BTC", "AUD"), false)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
-	// Test relationl pairs with similar names, different fiat currencies and with different ordering
-	result = IsRelatablePairs(pair.NewCurrencyPair("USD", "BTC"), pair.NewCurrencyPair("BTC", "EUR"), false)
-	if !result {
+	// Test relationl pairs with similar names, different fiat currencies and
+	// with different ordering
+	result = IsRelatablePairs(currency.NewPairFromStrings("USD", "BTC"),
+		currency.NewPairFromStrings("BTC", "EUR"), false)
+	if !result { // Is this really expected result???
 		t.Fatal("Unexpected result")
 	}
 
-	// Test relationl pairs with similar names, different fiat currencies and with Tether enabled
-	result = IsRelatablePairs(pair.NewCurrencyPair("USD", "BTC"), pair.NewCurrencyPair("BTC", "USDT"), true)
+	// Test relationl pairs with similar names, different fiat currencies and
+	// with Tether enabled
+	result = IsRelatablePairs(currency.NewPairFromStrings("USD", "BTC"),
+		currency.NewPairFromStrings("BTC", "USDT"), true)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
 	// Test relationl crypto pairs with similar names
-	result = IsRelatablePairs(pair.NewCurrencyPair("LTC", "BTC"), pair.NewCurrencyPair("BTC", "LTC"), false)
+	result = IsRelatablePairs(currency.NewPairFromStrings("LTC", "BTC"),
+		currency.NewPairFromStrings("BTC", "LTC"), false)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
 	// Test relationl crypto pairs with similar different pairs
-	result = IsRelatablePairs(pair.NewCurrencyPair("LTC", "ETH"), pair.NewCurrencyPair("BTC", "ETH"), false)
+	result = IsRelatablePairs(currency.NewPairFromStrings("LTC", "ETH"),
+		currency.NewPairFromStrings("BTC", "ETH"), false)
 	if result {
 		t.Fatal("Unexpected result")
 	}
 
-	// Test relationl crypto pairs with similar different pairs and with USDT enabled
-	result = IsRelatablePairs(pair.NewCurrencyPair("USDT", "USD"), pair.NewCurrencyPair("BTC", "USD"), true)
+	// Test relationl crypto pairs with similar different pairs and with USDT
+	// enabled
+	result = IsRelatablePairs(currency.NewPairFromStrings("USDT", "USD"),
+		currency.NewPairFromStrings("BTC", "USD"), true)
 	if result {
 		t.Fatal("Unexpected result")
 	}
 
 	// Test relationl crypto pairs with with similar names
-	result = IsRelatablePairs(pair.NewCurrencyPair("XBT", "LTC"), pair.NewCurrencyPair("BTC", "LTC"), false)
+	result = IsRelatablePairs(currency.NewPairFromStrings("XBT", "LTC"),
+		currency.NewPairFromStrings("BTC", "LTC"), false)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
 
 	// Test relationl crypto pairs with different ordering and similar names
-	result = IsRelatablePairs(pair.NewCurrencyPair("LTC", "XBT"), pair.NewCurrencyPair("BTC", "LTC"), false)
+	result = IsRelatablePairs(currency.NewPairFromStrings("LTC", "XBT"),
+		currency.NewPairFromStrings("BTC", "LTC"), false)
 	if !result {
+		t.Fatal("Unexpected result")
+	}
+
+	// Test edge case between two pairs when currency translations were causing
+	// non-relational pairs to be relatable
+	result = IsRelatablePairs(currency.NewPairFromStrings("EUR", "USD"),
+		currency.NewPairFromStrings("BTC", "USD"), false)
+	if result {
 		t.Fatal("Unexpected result")
 	}
 }
 
 func TestGetRelatableCryptocurrencies(t *testing.T) {
 	SetupTestHelpers(t)
-	p := GetRelatableCryptocurrencies(pair.NewCurrencyPair("BTC", "LTC"))
-	if !pair.Contains(p, pair.NewCurrencyPair("BTC", "ETH"), true) {
+	p := GetRelatableCryptocurrencies(currency.NewPairFromStrings("BTC", "LTC"))
+	if p.Contains(currency.NewPairFromStrings("BTC", "LTC"), true) {
+		t.Fatal("Unexpected result")
+	}
+	if p.Contains(currency.NewPairFromStrings("BTC", "BTC"), true) {
+		t.Fatal("Unexpected result")
+	}
+	if p.Contains(currency.NewPairFromStrings("LTC", "LTC"), true) {
+		t.Fatal("Unexpected result")
+	}
+	if !p.Contains(currency.NewPairFromStrings("BTC", "ETH"), true) {
 		t.Fatal("Unexpected result")
 	}
 
-	backup := currency.CryptoCurrencies
-	currency.CryptoCurrencies = append(currency.CryptoCurrencies, "BTC")
-
-	p = GetRelatableCryptocurrencies(pair.NewCurrencyPair("BTC", "LTC"))
-	if !pair.Contains(p, pair.NewCurrencyPair("BTC", "ETH"), true) {
+	p = GetRelatableCryptocurrencies(currency.NewPairFromStrings("BTC", "LTC"))
+	if p.Contains(currency.NewPairFromStrings("BTC", "LTC"), true) {
 		t.Fatal("Unexpected result")
 	}
-
-	currency.CryptoCurrencies = backup
+	if p.Contains(currency.NewPairFromStrings("BTC", "BTC"), true) {
+		t.Fatal("Unexpected result")
+	}
+	if p.Contains(currency.NewPairFromStrings("LTC", "LTC"), true) {
+		t.Fatal("Unexpected result")
+	}
+	if !p.Contains(currency.NewPairFromStrings("BTC", "ETH"), true) {
+		t.Fatal("Unexpected result")
+	}
 }
 
 func TestGetRelatableFiatCurrencies(t *testing.T) {
 	SetupTestHelpers(t)
-	p := GetRelatableFiatCurrencies(pair.NewCurrencyPair("BTC", "USD"))
-	if !pair.Contains(p, pair.NewCurrencyPair("BTC", "EUR"), true) {
+	p := GetRelatableFiatCurrencies(currency.NewPairFromStrings("BTC", "USD"))
+	if !p.Contains(currency.NewPairFromStrings("BTC", "EUR"), true) {
 		t.Fatal("Unexpected result")
 	}
 
-	backup := currency.FiatCurrencies
-	currency.FiatCurrencies = append(currency.FiatCurrencies, "USD")
-
-	p = GetRelatableFiatCurrencies(pair.NewCurrencyPair("BTC", "USD"))
-	if !pair.Contains(p, pair.NewCurrencyPair("BTC", "ZAR"), true) {
+	p = GetRelatableFiatCurrencies(currency.NewPairFromStrings("BTC", "USD"))
+	if !p.Contains(currency.NewPairFromStrings("BTC", "ZAR"), true) {
 		t.Fatal("Unexpected result")
 	}
-
-	currency.FiatCurrencies = backup
 }
 
 func TestMapCurrenciesByExchange(t *testing.T) {
 	SetupTestHelpers(t)
 
-	var pairs []pair.CurrencyPair
-	pairs = append(pairs, pair.NewCurrencyPair("BTC", "USD"))
-	pairs = append(pairs, pair.NewCurrencyPair("BTC", "EUR"))
+	var pairs = []currency.Pair{
+		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.BTC, currency.EUR),
+	}
 
 	result := MapCurrenciesByExchange(pairs, true)
 	pairs, ok := result["Bitstamp"]
@@ -201,7 +235,6 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	log.Println(pairs)
 	if len(pairs) != 2 {
 		t.Fatal("Unexpected result")
 	}
@@ -210,17 +243,17 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 func TestGetExchangeNamesByCurrency(t *testing.T) {
 	SetupTestHelpers(t)
 
-	result := GetExchangeNamesByCurrency(pair.NewCurrencyPair("BTC", "USD"), true)
+	result := GetExchangeNamesByCurrency(currency.NewPairFromStrings("BTC", "USD"), true)
 	if !common.StringDataCompare(result, "Bitstamp") {
 		t.Fatal("Unexpected result")
 	}
 
-	result = GetExchangeNamesByCurrency(pair.NewCurrencyPair("BTC", "JPY"), true)
+	result = GetExchangeNamesByCurrency(currency.NewPairFromStrings("BTC", "JPY"), true)
 	if !common.StringDataCompare(result, "Bitflyer") {
 		t.Fatal("Unexpected result")
 	}
 
-	result = GetExchangeNamesByCurrency(pair.NewCurrencyPair("blah", "JPY"), true)
+	result = GetExchangeNamesByCurrency(currency.NewPairFromStrings("blah", "JPY"), true)
 	if len(result) > 0 {
 		t.Fatal("Unexpected result")
 	}
@@ -230,11 +263,22 @@ func TestGetSpecificOrderbook(t *testing.T) {
 	SetupTestHelpers(t)
 
 	LoadExchange("Bitstamp", false, nil)
-	p := pair.NewCurrencyPair("BTC", "USD")
-	bids := []orderbook.Item{}
+
+	var bids []orderbook.Item
 	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
 
-	orderbook.ProcessOrderbook("Bitstamp", p, orderbook.Base{Pair: p, Bids: bids}, ticker.Spot)
+	base := orderbook.Base{
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Bids:         bids,
+		ExchangeName: "Bitstamp",
+		AssetType:    orderbook.Spot,
+	}
+
+	err := base.Process()
+	if err != nil {
+		t.Fatal("Unexpected result", err)
+	}
+
 	ob, err := GetSpecificOrderbook("BTCUSD", "Bitstamp", ticker.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -256,8 +300,14 @@ func TestGetSpecificTicker(t *testing.T) {
 	SetupTestHelpers(t)
 
 	LoadExchange("Bitstamp", false, nil)
-	p := pair.NewCurrencyPair("BTC", "USD")
-	ticker.ProcessTicker("Bitstamp", p, ticker.Price{Last: 1000}, ticker.Spot)
+	p := currency.NewPairFromStrings("BTC", "USD")
+
+	err := ticker.ProcessTicker("Bitstamp",
+		&ticker.Price{Pair: p, Last: 1000},
+		ticker.Spot)
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
 
 	tick, err := GetSpecificTicker("BTCUSD", "Bitstamp", ticker.Spot)
 	if err != nil {
@@ -279,16 +329,35 @@ func TestGetSpecificTicker(t *testing.T) {
 func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	SetupTestHelpers(t)
 
-	exchangeInfo := []exchange.AccountInfo{}
+	var exchangeInfo []exchange.AccountInfo
 	var info exchange.AccountInfo
 
-	info.ExchangeName = "Bitfinex"
-	info.Currencies = append(info.Currencies,
-		exchange.AccountCurrencyInfo{CurrencyName: "BTC", TotalValue: 100, Hold: 0})
+	info.Exchange = "Bitfinex"
+	info.Accounts = append(info.Accounts,
+		exchange.Account{
+			Currencies: []exchange.AccountCurrencyInfo{
+				{
+					CurrencyName: currency.BTC,
+					TotalValue:   100,
+					Hold:         0,
+				},
+			},
+		})
+
 	exchangeInfo = append(exchangeInfo, info)
 
-	info.ExchangeName = "Bitstamp"
-	info.Currencies = append(info.Currencies, exchange.AccountCurrencyInfo{CurrencyName: "LTC", TotalValue: 100, Hold: 0})
+	info.Exchange = "Bitstamp"
+	info.Accounts = append(info.Accounts,
+		exchange.Account{
+			Currencies: []exchange.AccountCurrencyInfo{
+				{
+					CurrencyName: currency.LTC,
+					TotalValue:   100,
+					Hold:         0,
+				},
+			},
+		})
+
 	exchangeInfo = append(exchangeInfo, info)
 
 	result := GetCollatedExchangeAccountInfoByCoin(exchangeInfo)
@@ -296,7 +365,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	amount, ok := result["BTC"]
+	amount, ok := result[currency.BTC]
 	if !ok {
 		t.Fatal("Expected currency was not found in result map")
 	}
@@ -305,7 +374,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	_, ok = result["ETH"]
+	_, ok = result[currency.ETH]
 	if ok {
 		t.Fatal("Unexpected result")
 	}
@@ -314,11 +383,20 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 	SetupTestHelpers(t)
 
-	exchangeInfo := []exchange.AccountInfo{}
+	var exchangeInfo []exchange.AccountInfo
 	var info exchange.AccountInfo
-	info.ExchangeName = "Bitfinex"
-	info.Currencies = append(info.Currencies,
-		exchange.AccountCurrencyInfo{CurrencyName: "BTC", TotalValue: 100, Hold: 0})
+	info.Exchange = "Bitfinex"
+	info.Accounts = append(info.Accounts,
+		exchange.Account{
+			Currencies: []exchange.AccountCurrencyInfo{
+				{
+					CurrencyName: currency.BTC,
+					TotalValue:   100,
+					Hold:         0,
+				},
+			},
+		})
+
 	exchangeInfo = append(exchangeInfo, info)
 
 	result, err := GetAccountCurrencyInfoByExchangeName(exchangeInfo, "Bitfinex")
@@ -326,7 +404,7 @@ func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if result.ExchangeName != "Bitfinex" {
+	if result.Exchange != "Bitfinex" {
 		t.Fatal("Unexepcted result")
 	}
 
@@ -339,41 +417,41 @@ func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 	SetupTestHelpers(t)
 
-	p := pair.NewCurrencyPair("BTC", "USD")
+	p := currency.NewPairFromStrings("BTC", "USD")
 	stats.Add("Bitfinex", p, ticker.Spot, 1000, 10000)
 	stats.Add("Bitstamp", p, ticker.Spot, 1337, 10000)
-	exchange, err := GetExchangeHighestPriceByCurrencyPair(p, ticker.Spot)
+	exchangeName, err := GetExchangeHighestPriceByCurrencyPair(p, ticker.Spot)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
-	if exchange != "Bitstamp" {
-		log.Fatal("Unexpected result")
+	if exchangeName != "Bitstamp" {
+		t.Error("Unexpected result")
 	}
 
-	_, err = GetExchangeHighestPriceByCurrencyPair(pair.NewCurrencyPair("BTC", "AUD"), ticker.Spot)
+	_, err = GetExchangeHighestPriceByCurrencyPair(currency.NewPairFromStrings("BTC", "AUD"), ticker.Spot)
 	if err == nil {
-		log.Fatal("Unexpected reuslt")
+		t.Error("Unexpected result")
 	}
 }
 
 func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 	SetupTestHelpers(t)
 
-	p := pair.NewCurrencyPair("BTC", "USD")
+	p := currency.NewPairFromStrings("BTC", "USD")
 	stats.Add("Bitfinex", p, ticker.Spot, 1000, 10000)
 	stats.Add("Bitstamp", p, ticker.Spot, 1337, 10000)
-	exchange, err := GetExchangeLowestPriceByCurrencyPair(p, ticker.Spot)
+	exchangeName, err := GetExchangeLowestPriceByCurrencyPair(p, ticker.Spot)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
-	if exchange != "Bitfinex" {
-		log.Fatal("Unexpected result")
+	if exchangeName != "Bitfinex" {
+		t.Error("Unexpected result")
 	}
 
-	_, err = GetExchangeLowestPriceByCurrencyPair(pair.NewCurrencyPair("BTC", "AUD"), ticker.Spot)
+	_, err = GetExchangeLowestPriceByCurrencyPair(currency.NewPairFromStrings("BTC", "AUD"), ticker.Spot)
 	if err == nil {
-		log.Fatal("Unexpected reuslt")
+		t.Error("Unexpected reuslt")
 	}
 }

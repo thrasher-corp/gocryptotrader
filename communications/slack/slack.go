@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -17,6 +15,7 @@ import (
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/communications/base"
 	"github.com/idoall/gocryptotrader/config"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // const declares main slack url and commands that will be supported on client
@@ -60,26 +59,22 @@ type Slack struct {
 
 // Setup takes in a slack configuration, sets bots target channel and
 // sets verification token to access workspace
-func (s *Slack) Setup(config config.CommunicationsConfig) {
-	s.Name = config.SlackConfig.Name
-	s.Enabled = config.SlackConfig.Enabled
-	s.Verbose = config.SlackConfig.Verbose
-	s.TargetChannel = config.SlackConfig.TargetChannel
-	s.VerificationToken = config.SlackConfig.VerificationToken
+func (s *Slack) Setup(cfg *config.CommunicationsConfig) {
+	s.Name = cfg.SlackConfig.Name
+	s.Enabled = cfg.SlackConfig.Enabled
+	s.Verbose = cfg.SlackConfig.Verbose
+	s.TargetChannel = cfg.SlackConfig.TargetChannel
+	s.VerificationToken = cfg.SlackConfig.VerificationToken
 }
 
 // Connect connects to the service
 func (s *Slack) Connect() error {
-	if err := s.NewConnection(); err != nil {
-		return err
-	}
-	s.Connected = true
-	return nil
+	return s.NewConnection()
 }
 
 // PushEvent pushes an event to either a slack channel or specific client
 func (s *Slack) PushEvent(base.Event) error {
-	return errors.New("not yet implemented")
+	return common.ErrNotYetImplemented
 }
 
 // BuildURL returns an appended token string with the SlackURL
@@ -97,9 +92,9 @@ func (s *Slack) GetChannelsString() []string {
 }
 
 // GetUsernameByID returns a users name by ID
-func (s *Slack) GetUsernameByID(ID string) string {
+func (s *Slack) GetUsernameByID(id string) string {
 	for i := range s.Details.Users {
-		if s.Details.Users[i].ID == ID {
+		if s.Details.Users[i].ID == id {
 			return s.Details.Users[i].Name
 		}
 	}
@@ -122,7 +117,7 @@ func (s *Slack) GetGroupIDByName(group string) (string, error) {
 			return s.Details.Groups[i].ID, nil
 		}
 	}
-	return "", errors.New("Channel not found")
+	return "", errors.New("channel not found")
 }
 
 // GetChannelIDByName returns a channel ID by its corresponding name
@@ -132,7 +127,7 @@ func (s *Slack) GetChannelIDByName(channel string) (string, error) {
 			return s.Details.Channels[i].ID, nil
 		}
 	}
-	return "", errors.New("Channel not found")
+	return "", errors.New("channel not found")
 }
 
 // GetUsersInGroup returns a list of users currently in a group
@@ -148,30 +143,33 @@ func (s *Slack) GetUsersInGroup(group string) []string {
 // NewConnection connects the bot to a slack workgroup using a verification
 // token and a channel
 func (s *Slack) NewConnection() error {
-	err := s.SendHTTPGetRequestSlack(s.BuildURL(s.VerificationToken), true, &s.Details)
-	if err != nil {
-		return err
-	}
+	if !s.Connected {
+		err := common.SendHTTPGetRequest(s.BuildURL(s.VerificationToken), true, s.Verbose, &s.Details)
+		if err != nil {
+			return err
+		}
 
-	if !s.Details.Ok {
-		return errors.New(s.Details.Error)
-	}
+		if !s.Details.Ok {
+			return errors.New(s.Details.Error)
+		}
 
-	if s.Verbose {
-		log.Printf("%s [%s] connected to %s [%s] \nWebsocket URL: %s.\n",
-			s.Details.Self.Name,
-			s.Details.Self.ID,
-			s.Details.Team.Domain,
-			s.Details.Team.ID,
-			s.Details.URL)
-		log.Printf("Slack channels: %s", s.GetChannelsString())
-	}
+		if s.Verbose {
+			log.Debugf("%s [%s] connected to %s [%s] \nWebsocket URL: %s.\n",
+				s.Details.Self.Name,
+				s.Details.Self.ID,
+				s.Details.Team.Domain,
+				s.Details.Team.ID,
+				s.Details.URL)
+			log.Debugf("Slack channels: %s", s.GetChannelsString())
+		}
 
-	s.TargetChannelID, err = s.GetIDByName(s.TargetChannel)
-	if err != nil {
-		return err
+		s.TargetChannelID, err = s.GetIDByName(s.TargetChannel)
+		if err != nil {
+			return err
+		}
+		return s.WebsocketConnect()
 	}
-	return s.WebsocketConnect()
+	return errors.New("slack.go NewConnection() Already Connected")
 }
 
 // WebsocketConnect creates a websocket dialer amd initiates a websocket
@@ -199,24 +197,27 @@ func (s *Slack) WebsocketReader() {
 	for {
 		_, resp, err := s.WebsocketConn.ReadMessage()
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 
 		var data WebsocketResponse
 
 		err = common.JSONDecode(resp, &data)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 
 		switch data.Type {
 
 		case "error":
-			s.handleErrorResponse(data)
+			err = s.handleErrorResponse(data)
+			if err != nil {
+				continue
+			}
 
 		case "hello":
-			s.handleHelloResponse(data)
+			s.handleHelloResponse()
 
 		case "reconnect_url":
 			err = s.handleReconnectResponse(resp)
@@ -238,10 +239,10 @@ func (s *Slack) WebsocketReader() {
 
 		case "pong":
 			if s.Verbose {
-				log.Println("Pong received from server")
+				log.Debugf("Pong received from server")
 			}
 		default:
-			log.Println(string(resp))
+			log.Debugf(string(resp))
 		}
 	}
 }
@@ -253,7 +254,7 @@ func (s *Slack) handlePresenceChange(resp []byte) error {
 		return err
 	}
 	if s.Verbose {
-		log.Printf("Presence change. User %s [%s] changed status to %s\n",
+		log.Debugf("Presence change. User %s [%s] changed status to %s\n",
 			s.GetUsernameByID(pres.User),
 			pres.User, pres.Presence)
 	}
@@ -262,7 +263,7 @@ func (s *Slack) handlePresenceChange(resp []byte) error {
 
 func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error {
 	if data.ReplyTo != 0 {
-		return fmt.Errorf("ReplyTo != 0")
+		return errors.New("reply to is != 0")
 	}
 	var msg Message
 	err := common.JSONDecode(resp, &msg)
@@ -270,35 +271,39 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 		return err
 	}
 	if s.Verbose {
-		log.Printf("Msg received by %s [%s] with text: %s\n",
+		log.Debugf("Msg received by %s [%s] with text: %s\n",
 			s.GetUsernameByID(msg.User),
 			msg.User, msg.Text)
 	}
 	if string(msg.Text[0]) == "!" {
-		s.HandleMessage(msg)
+		return s.HandleMessage(&msg)
 	}
 	return nil
 }
-func (s *Slack) handleErrorResponse(data WebsocketResponse) {
+func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 	if data.Error.Msg == "Socket URL has expired" {
 		if s.Verbose {
-			log.Println("Slack websocket URL has expired.. Reconnecting")
+			log.Debugf("Slack websocket URL has expired.. Reconnecting")
 		}
+
+		if s.WebsocketConn == nil {
+			return errors.New("websocket connection is nil")
+		}
+
 		if err := s.WebsocketConn.Close(); err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
+
 		s.ReconnectURL = ""
 		s.Connected = false
-		if err := s.NewConnection(); err != nil {
-			log.Fatal(err)
-		}
-		return
+		return s.NewConnection()
 	}
+	return fmt.Errorf("unknown error '%s'", data.Error.Msg)
 }
 
-func (s *Slack) handleHelloResponse(data WebsocketResponse) {
+func (s *Slack) handleHelloResponse() {
 	if s.Verbose {
-		log.Println("Websocket connected successfully.")
+		log.Debugln("Websocket connected successfully.")
 	}
 	s.Connected = true
 	go s.WebsocketKeepAlive()
@@ -315,7 +320,7 @@ func (s *Slack) handleReconnectResponse(resp []byte) error {
 	}
 	s.ReconnectURL = recURL.URL
 	if s.Verbose {
-		log.Printf("Reconnect URL set to %s\n", s.ReconnectURL)
+		log.Debugf("Reconnect URL set to %s\n", s.ReconnectURL)
 	}
 	return nil
 }
@@ -323,11 +328,12 @@ func (s *Slack) handleReconnectResponse(resp []byte) error {
 // WebsocketKeepAlive sends a ping every 5 minutes to keep connection alive
 func (s *Slack) WebsocketKeepAlive() {
 	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
 
 	for {
 		<-ticker.C
 		if err := s.WebsocketSend("ping", ""); err != nil {
-			log.Println("slack WebsocketKeepAlive() error", err)
+			log.Debugf("slack WebsocketKeepAlive() error %s", err)
 		}
 	}
 }
@@ -346,59 +352,39 @@ func (s *Slack) WebsocketSend(eventType, text string) error {
 	if err != nil {
 		return err
 	}
+	if s.WebsocketConn == nil {
+		return errors.New("websocket not connected")
+	}
 	return s.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
 
 // HandleMessage handles incoming messages and/or commands from slack
-func (s *Slack) HandleMessage(msg Message) {
+func (s *Slack) HandleMessage(msg *Message) error {
+	if msg == nil {
+		return errors.New("msg is nil")
+	}
+
+	msg.Text = common.StringToLower(msg.Text)
 	switch {
 	case common.StringContains(msg.Text, cmdStatus):
-		s.WebsocketSend("message", s.GetStatus())
+		return s.WebsocketSend("message", s.GetStatus())
 
 	case common.StringContains(msg.Text, cmdHelp):
-		s.WebsocketSend("message", getHelp)
+		return s.WebsocketSend("message", getHelp)
 
 	case common.StringContains(msg.Text, cmdTicker):
-		s.WebsocketSend("message", s.GetTicker("ANX"))
+		return s.WebsocketSend("message", s.GetTicker("ANX"))
 
 	case common.StringContains(msg.Text, cmdOrderbook):
-		s.WebsocketSend("message", s.GetOrderbook("ANX"))
+		return s.WebsocketSend("message", s.GetOrderbook("ANX"))
 
 	case common.StringContains(msg.Text, cmdSettings):
-		s.WebsocketSend("message", s.GetSettings())
+		return s.WebsocketSend("message", s.GetSettings())
 
 	case common.StringContains(msg.Text, cmdPortfolio):
-		s.WebsocketSend("message", s.GetPortfolio())
+		return s.WebsocketSend("message", s.GetPortfolio())
 
 	default:
-		s.WebsocketSend("message", "GoCryptoTrader SlackBot - Command Unknown!")
+		return s.WebsocketSend("message", "GoCryptoTrader SlackBot - Command Unknown!")
 	}
-}
-
-// SendHTTPGetRequestSlack sends a HTTP request
-func (s *Slack) SendHTTPGetRequestSlack(url string, jsonDecode bool, result interface{}) error {
-	res, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-
-	httpCode := res.StatusCode
-	if httpCode != 200 && httpCode != 400 {
-		log.Printf("HTTP status code: %d\n", httpCode)
-		return errors.New("status code was not 200")
-	}
-
-	contents, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	defer res.Body.Close()
-
-	if jsonDecode {
-		return common.JSONDecode(contents, &result)
-	}
-
-	result = string(contents)
-	return nil
 }

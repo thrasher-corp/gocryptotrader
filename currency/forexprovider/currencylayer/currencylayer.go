@@ -14,11 +14,15 @@ package currencylayer
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
+	"github.com/idoall/gocryptotrader/exchanges/request"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // const declarations consist of endpoints and APIKey privileges
@@ -36,6 +40,9 @@ const (
 	APIEndpointConversion = "convert"
 	APIEndpointTimeframe  = "timeframe"
 	APIEndpointChange     = "change"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // CurrencyLayer is a foreign exchange rate provider at
@@ -43,10 +50,17 @@ const (
 // account. Has automatic upgrade to a SSL connection.
 type CurrencyLayer struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets appropriate values for CurrencyLayer
-func (c *CurrencyLayer) Setup(config base.Settings) {
+func (c *CurrencyLayer) Setup(config base.Settings) error {
+	if config.APIKeyLvl < 0 || config.APIKeyLvl > 3 {
+		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			config.Name)
+		return errors.New("apikey set failure")
+	}
+
 	c.Name = config.Name
 	c.APIKey = config.APIKey
 	c.APIKeyLvl = config.APIKeyLvl
@@ -54,6 +68,12 @@ func (c *CurrencyLayer) Setup(config base.Settings) {
 	c.RESTPollingDelay = config.RESTPollingDelay
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
+	c.Requester = request.New(c.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+
+	return nil
 }
 
 // GetRates is a wrapper function to return rates for GoCryptoTrader
@@ -62,7 +82,7 @@ func (c *CurrencyLayer) GetRates(baseCurrency, symbols string) (map[string]float
 }
 
 // GetSupportedCurrencies returns supported currencies
-func (c *CurrencyLayer) GetSupportedCurrencies() (map[string]string, error) {
+func (c *CurrencyLayer) GetSupportedCurrencies() ([]string, error) {
 	var resp SupportedCurrencies
 
 	if err := c.SendHTTPRequest(APIEndpointList, url.Values{}, &resp); err != nil {
@@ -72,7 +92,13 @@ func (c *CurrencyLayer) GetSupportedCurrencies() (map[string]string, error) {
 	if !resp.Success {
 		return nil, errors.New(resp.Error.Info)
 	}
-	return resp.Currencies, nil
+
+	var currencies []string
+	for key := range resp.Currencies {
+		currencies = append(currencies, key)
+	}
+
+	return currencies, nil
 }
 
 // GetliveData returns live quotes for foreign exchange currencies
@@ -142,7 +168,7 @@ func (c *CurrencyLayer) Convert(from, to, date string, amount float64) (float64,
 
 // QueryTimeFrame returns historical exchange rates for a time-period.
 // (maximum range: 365 days)
-func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, base string, currencies []string) (map[string]interface{}, error) {
+func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, baseCurrency string, currencies []string) (map[string]interface{}, error) {
 	if c.APIKeyLvl >= AccountPro {
 		return nil, errors.New("insufficient API privileges, upgrade to basic to use this function")
 	}
@@ -152,7 +178,7 @@ func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, base string, currenci
 	v := url.Values{}
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("currencies", common.JoinStrings(currencies, ","))
 
 	err := c.SendHTTPRequest(APIEndpointTimeframe, v, &resp)
@@ -169,7 +195,7 @@ func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, base string, currenci
 // QueryCurrencyChange returns the change (both margin and percentage) of one or
 // more currencies, relative to a Source Currency, within a specific
 // time-frame (optional).
-func (c *CurrencyLayer) QueryCurrencyChange(startDate, endDate, base string, currencies []string) (map[string]Changes, error) {
+func (c *CurrencyLayer) QueryCurrencyChange(startDate, endDate, baseCurrency string, currencies []string) (map[string]Changes, error) {
 	if c.APIKeyLvl != AccountEnterprise {
 		return nil, errors.New("insufficient API privileges, upgrade to basic to use this function")
 	}
@@ -178,7 +204,7 @@ func (c *CurrencyLayer) QueryCurrencyChange(startDate, endDate, base string, cur
 	v := url.Values{}
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("currencies", common.JoinStrings(currencies, ","))
 
 	err := c.SendHTTPRequest(APIEndpointChange, v, &resp)
@@ -198,12 +224,22 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 	var path string
 	values.Set("access_key", c.APIKey)
 
+	var auth bool
 	if c.APIKeyLvl == AccountFree {
 		path = fmt.Sprintf("%s%s%s", APIEndpointURL, endPoint, "?")
 	} else {
+		auth = true
 		path = fmt.Sprintf("%s%s%s", APIEndpointURLSSL, endPoint, "?")
 	}
-	path = path + values.Encode()
+	path += values.Encode()
 
-	return common.SendHTTPGetRequest(path, true, c.Verbose, result)
+	return c.Requester.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		&result,
+		auth,
+		false,
+		c.Verbose,
+		false)
 }

@@ -1,5 +1,7 @@
 package portfolio
 
+import "github.com/idoall/gocryptotrader/currency"
+
 // Base holds the portfolio base addresses
 type Base struct {
 	Addresses []Address
@@ -8,7 +10,7 @@ type Base struct {
 // Address sub type holding address information for portfolio
 type Address struct {
 	Address     string
-	CoinType    string
+	CoinType    currency.Code
 	Balance     float64
 	Description string
 }
@@ -86,10 +88,10 @@ type ExchangeAccountCurrencyInfo struct {
 // Coin stores a coin type, balance, address and percentage relative to the total
 // amount.
 type Coin struct {
-	Coin       string  `json:"coin"`
-	Balance    float64 `json:"balance"`
-	Address    string  `json:"address,omitempty"`
-	Percentage float64 `json:"percentage,omitempty"`
+	Coin       currency.Code `json:"coin"`
+	Balance    float64       `json:"balance"`
+	Address    string        `json:"address,omitempty"`
+	Percentage float64       `json:"percentage,omitempty"`
 }
 
 // OfflineCoinSummary stores a coin types address, balance and percentage
@@ -109,9 +111,9 @@ type OnlineCoinSummary struct {
 
 // Summary Stores the entire portfolio summary
 type Summary struct {
-	Totals         []Coin                                  `json:"coin_totals"`
-	Offline        []Coin                                  `json:"coins_offline"`
-	OfflineSummary map[string][]OfflineCoinSummary         `json:"offline_summary"`
-	Online         []Coin                                  `json:"coins_online"`
-	OnlineSummary  map[string]map[string]OnlineCoinSummary `json:"online_summary"`
+	Totals         []Coin                                         `json:"coin_totals"`
+	Offline        []Coin                                         `json:"coins_offline"`
+	OfflineSummary map[currency.Code][]OfflineCoinSummary         `json:"offline_summary"`
+	Online         []Coin                                         `json:"coins_online"`
+	OnlineSummary  map[string]map[currency.Code]OnlineCoinSummary `json:"online_summary"`
 }

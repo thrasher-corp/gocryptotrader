@@ -27,15 +27,15 @@ type SMTPservice struct {
 
 // Setup takes in a SMTP configuration and sets SMTP server details and
 // recipient list
-func (s *SMTPservice) Setup(config config.CommunicationsConfig) {
-	s.Name = config.SMTPConfig.Name
-	s.Enabled = config.SMTPConfig.Enabled
-	s.Verbose = config.SMTPConfig.Verbose
-	s.Host = config.SMTPConfig.Host
-	s.Port = config.SMTPConfig.Port
-	s.AccountName = config.SMTPConfig.AccountName
-	s.AccountPassword = config.SMTPConfig.AccountPassword
-	s.RecipientList = config.SMTPConfig.RecipientList
+func (s *SMTPservice) Setup(cfg *config.CommunicationsConfig) {
+	s.Name = cfg.SMTPConfig.Name
+	s.Enabled = cfg.SMTPConfig.Enabled
+	s.Verbose = cfg.SMTPConfig.Verbose
+	s.Host = cfg.SMTPConfig.Host
+	s.Port = cfg.SMTPConfig.Port
+	s.AccountName = cfg.SMTPConfig.AccountName
+	s.AccountPassword = cfg.SMTPConfig.AccountPassword
+	s.RecipientList = cfg.SMTPConfig.RecipientList
 }
 
 // Connect connects to service
@@ -46,7 +46,7 @@ func (s *SMTPservice) Connect() error {
 
 // PushEvent sends an event to supplied recipient list via SMTP
 func (s *SMTPservice) PushEvent(base.Event) error {
-	return errors.New("not yet implemented")
+	return common.ErrNotYetImplemented
 }
 
 // Send sends an email template to the recipient list via your SMTP host when

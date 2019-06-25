@@ -2,14 +2,18 @@ package bithumb
 
 import (
 	"errors"
-	"log"
+	"fmt"
+	"math"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/currency/pair"
+	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // Start starts the OKEX go routine
@@ -24,18 +28,24 @@ func (b *Bithumb) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (b *Bithumb) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket), b.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	exchangeProducts, err := b.GetTradingPairs()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
-		err = b.UpdateCurrencies(exchangeProducts, false, false)
+		var newExchangeProducts currency.Pairs
+		for _, p := range exchangeProducts {
+			newExchangeProducts = append(newExchangeProducts,
+				currency.NewPairFromString(p))
+		}
+
+		err = b.UpdateCurrencies(newExchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available symbols.\n", b.GetName())
+			log.Errorf("%s Failed to update available symbols.\n", b.GetName())
 		}
 	}
 }
@@ -48,14 +58,14 @@ func (b *Bithumb) GetTradingPairs() ([]string, error) {
 	}
 
 	for x := range currencies {
-		currencies[x] = currencies[x] + "KRW"
+		currencies[x] += "KRW"
 	}
 
 	return currencies, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bithumb) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *Bithumb) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	tickers, err := b.GetAllTickers()
@@ -64,7 +74,7 @@ func (b *Bithumb) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pr
 	}
 
 	for _, x := range b.GetEnabledCurrencies() {
-		currency := x.FirstCurrency.String()
+		currency := x.Base.String()
 		var tp ticker.Price
 		tp.Pair = x
 		tp.Ask = tickers[currency].SellPrice
@@ -73,13 +83,17 @@ func (b *Bithumb) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pr
 		tp.Last = tickers[currency].ClosingPrice
 		tp.Volume = tickers[currency].Volume1Day
 		tp.High = tickers[currency].MaxPrice
-		ticker.ProcessTicker(b.Name, x, tp, assetType)
+
+		err = ticker.ProcessTicker(b.Name, &tp, assetType)
+		if err != nil {
+			return tickerPrice, err
+		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (b *Bithumb) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *Bithumb) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -88,8 +102,8 @@ func (b *Bithumb) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (b *Bithumb) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), currency, assetType)
+func (b *Bithumb) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(b.GetName(), currency, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(currency, assetType)
 	}
@@ -97,9 +111,9 @@ func (b *Bithumb) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bithumb) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	currency := p.FirstCurrency.String()
+	currency := p.Base.String()
 
 	orderbookNew, err := b.GetOrderBook(currency)
 	if err != nil {
@@ -114,77 +128,317 @@ func (b *Bithumb) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
 	}
 
-	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(b.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// GetAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, errors.New("not implemented")
+func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
+	var info exchange.AccountInfo
+	bal, err := b.GetAccountBalance("ALL")
+	if err != nil {
+		return info, err
+	}
+
+	var exchangeBalances []exchange.AccountCurrencyInfo
+	for key, totalAmount := range bal.Total {
+		hold, ok := bal.InUse[key]
+		if !ok {
+			return info, fmt.Errorf("getAccountInfo error - in use item not found for currency %s",
+				key)
+		}
+
+		exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
+			CurrencyName: currency.NewCode(key),
+			TotalValue:   totalAmount,
+			Hold:         hold,
+		})
+	}
+
+	info.Accounts = append(info.Accounts, exchange.Account{
+		Currencies: exchangeBalances,
+	})
+
+	info.Exchange = b.GetName()
+	return info, nil
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bithumb) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bithumb) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order
-func (b *Bithumb) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+// SubmitOrder submits a new order
+// TODO: Fill this out to support limit orders
+func (b *Bithumb) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, _ float64, _ string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var err error
+	var orderID string
+	if side == exchange.BuyOrderSide {
+		var result MarketBuy
+		result, err = b.MarketBuyOrder(p.Base.String(), amount)
+		orderID = result.OrderID
+	} else if side == exchange.SellOrderSide {
+		var result MarketSell
+		result, err = b.MarketSellOrder(p.Base.String(), amount)
+		orderID = result.OrderID
+	}
+
+	if orderID != "" {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderID)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bithumb) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (b *Bithumb) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+	order, err := b.ModifyTrade(action.OrderID,
+		action.CurrencyPair.Base.String(),
+		common.StringToLower(action.OrderSide.ToString()),
+		action.Amount,
+		int64(action.Price))
+
+	if err != nil {
+		return "", err
+	}
+
+	return order.Data[0].ContID, nil
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (b *Bithumb) CancelExchangeOrder(orderID int64) error {
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (b *Bithumb) CancelOrder(order *exchange.OrderCancellation) error {
+	_, err := b.CancelTrade(order.Side.ToString(),
+		order.OrderID,
+		order.CurrencyPair.Base.String())
+	return err
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (b *Bithumb) CancelAllExchangeOrders() error {
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders associated with a currency pair
+func (b *Bithumb) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+
+	var allOrders []OrderData
+	for _, currency := range b.GetEnabledCurrencies() {
+		orders, err := b.GetOrders("",
+			orderCancellation.Side.ToString(),
+			"100",
+			"",
+			currency.Base.String())
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+		allOrders = append(allOrders, orders.Data...)
+	}
+
+	for i := range allOrders {
+		_, err := b.CancelTrade(orderCancellation.Side.ToString(),
+			allOrders[i].OrderID,
+			orderCancellation.CurrencyPair.Base.String())
+		if err != nil {
+			cancelAllOrdersResponse.OrderStatus[allOrders[i].OrderID] = err.Error()
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (b *Bithumb) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+// GetOrderInfo returns information on a current open order
+func (b *Bithumb) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, errors.New("not yet implemented")
+	return orderDetail, common.ErrNotYetImplemented
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (b *Bithumb) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", errors.New("not yet implemented")
+// GetDepositAddress returns a deposit address for a specified currency
+func (b *Bithumb) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
+	addr, err := b.GetWalletAddress(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+
+	return addr.Data.WalletAddress, nil
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bithumb) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	_, err := b.WithdrawCrypto(withdrawRequest.Address, withdrawRequest.AddressTag, withdrawRequest.Currency.String(), withdrawRequest.Amount)
+	return "", err
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bithumb) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	if math.Mod(withdrawRequest.Amount, 1) != 0 {
+		return "", errors.New("currency KRW does not support decimal places")
+	}
+	if withdrawRequest.Currency != currency.KRW {
+		return "", errors.New("only KRW is supported")
+	}
+	bankDetails := fmt.Sprintf("%v_%v", withdrawRequest.BankCode, withdrawRequest.BankName)
+	bankAccountNumber := strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64)
+	withdrawAmountInt := int64(withdrawRequest.Amount)
+	resp, err := b.RequestKRWWithdraw(bankDetails, bankAccountNumber, withdrawAmountInt)
+	if err != nil {
+		return "", err
+	}
+	if resp.Status != "0000" {
+		return "", errors.New(resp.Message)
+	}
+
+	return resp.Message, nil
 }
 
-// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
-// withdrawal is submitted
-func (b *Bithumb) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+// WithdrawFiatFundsToInternationalBank is not supported as Bithumb only withdraws KRW to South Korean banks
+func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	return b.GetFee(feeBuilder)
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	resp, err := b.GetOrders("", "", "1000", "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range resp.Data {
+		if resp.Data[i].Status != "placed" {
+			continue
+		}
+
+		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
+		orderDetail := exchange.OrderDetail{
+			Amount:          resp.Data[i].Units,
+			Exchange:        b.Name,
+			ID:              resp.Data[i].OrderID,
+			OrderDate:       orderDate,
+			Price:           resp.Data[i].Price,
+			RemainingAmount: resp.Data[i].UnitsRemaining,
+			Status:          string(exchange.ActiveOrderStatus),
+			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+				resp.Data[i].PaymentCurrency,
+				b.ConfigCurrencyPairFormat.Delimiter),
+		}
+
+		if resp.Data[i].Type == "bid" {
+			orderDetail.OrderSide = exchange.BuyOrderSide
+		} else if resp.Data[i].Type == "ask" {
+			orderDetail.OrderSide = exchange.SellOrderSide
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	resp, err := b.GetOrders("", "", "1000", "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range resp.Data {
+		if resp.Data[i].Status == "placed" {
+			continue
+		}
+
+		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
+		orderDetail := exchange.OrderDetail{
+			Amount:          resp.Data[i].Units,
+			Exchange:        b.Name,
+			ID:              resp.Data[i].OrderID,
+			OrderDate:       orderDate,
+			Price:           resp.Data[i].Price,
+			RemainingAmount: resp.Data[i].UnitsRemaining,
+			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+				resp.Data[i].PaymentCurrency,
+				b.ConfigCurrencyPairFormat.Delimiter),
+		}
+
+		if resp.Data[i].Type == "bid" {
+			orderDetail.OrderSide = exchange.BuyOrderSide
+		} else if resp.Data[i].Type == "ask" {
+			orderDetail.OrderSide = exchange.SellOrderSide
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (b *Bithumb) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (b *Bithumb) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (b *Bithumb) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (b *Bithumb) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
 }

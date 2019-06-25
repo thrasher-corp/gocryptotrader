@@ -2,18 +2,21 @@ package itbit
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -46,8 +49,9 @@ func (i *ItBit) SetDefaults() {
 	i.MakerFee = -0.10
 	i.TakerFee = 0.50
 	i.Verbose = false
-	i.Websocket = false
 	i.RESTPollingDelay = 10
+	i.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+		exchange.WithdrawFiatViaWebsiteOnly
 	i.RequestCurrencyPairFormat.Delimiter = ""
 	i.RequestCurrencyPairFormat.Uppercase = true
 	i.ConfigCurrencyPairFormat.Delimiter = ""
@@ -61,10 +65,11 @@ func (i *ItBit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	i.APIUrlDefault = itbitAPIURL
 	i.APIUrl = i.APIUrlDefault
+	i.WebsocketInit()
 }
 
 // Setup sets the exchange parameters from exchange config
-func (i *ItBit) Setup(exch config.ExchangeConfig) {
+func (i *ItBit) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		i.SetEnabled(false)
 	} else {
@@ -75,10 +80,10 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		i.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
-		i.Websocket = exch.Websocket
-		i.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		i.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		i.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		i.HTTPDebugging = exch.HTTPDebugging
+		i.BaseCurrencies = exch.BaseCurrencies
+		i.AvailablePairs = exch.AvailablePairs
+		i.EnabledPairs = exch.EnabledPairs
 		err := i.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -95,15 +100,11 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = i.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-}
-
-// GetFee returns the maker or taker fee
-func (i *ItBit) GetFee(maker bool) float64 {
-	if maker {
-		return i.MakerFee
-	}
-	return i.TakerFee
 }
 
 // GetTicker returns ticker info for a specified market.
@@ -142,11 +143,11 @@ func (i *ItBit) GetTradeHistory(currencyPair, timestamp string) (Trades, error) 
 // 					page - [optional] page to return example 1. default 1
 //					perPage - [optional] items per page example 50, default 50 max 50
 func (i *ItBit) GetWallets(params url.Values) ([]Wallet, error) {
-	resp := []Wallet{}
+	var resp []Wallet
 	params.Set("userId", i.ClientID)
 	path := fmt.Sprintf("/%s?%s", itbitWallets, params.Encode())
 
-	return resp, i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 }
 
 // CreateWallet creates a new wallet with a specified name.
@@ -156,7 +157,7 @@ func (i *ItBit) CreateWallet(walletName string) (Wallet, error) {
 	params["userId"] = i.ClientID
 	params["name"] = walletName
 
-	err := i.SendAuthenticatedHTTPRequest("POST", "/"+itbitWallets, params, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodPost, "/"+itbitWallets, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -171,7 +172,7 @@ func (i *ItBit) GetWallet(walletID string) (Wallet, error) {
 	resp := Wallet{}
 	path := fmt.Sprintf("/%s/%s", itbitWallets, walletID)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -187,7 +188,7 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) (Balance, error) {
 	resp := Balance{}
 	path := fmt.Sprintf("/%s/%s/%s/%s", itbitWallets, walletID, itbitBalances, currency)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -195,15 +196,38 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) (Balance, error) {
 		return resp, errors.New(resp.Description)
 	}
 	return resp, nil
+}
+
+// GetOrders returns active orders for itBit
+// perPage defaults to & has a limit of 50
+func (i *ItBit) GetOrders(walletID, symbol, status string, page, perPage int64) ([]Order, error) {
+	var resp []Order
+	params := make(map[string]interface{})
+	params["walletID"] = walletID
+
+	if symbol != "" {
+		params["instrument"] = symbol
+	}
+	if status != "" {
+		params["status"] = status
+	}
+	if page > 0 {
+		params["page"] = strconv.FormatInt(page, 10)
+	}
+	if perPage > 0 {
+		params["perPage"] = strconv.FormatInt(perPage, 10)
+	}
+
+	return resp, i.SendAuthenticatedHTTPRequest(http.MethodGet, itbitOrders, params, &resp)
 }
 
 // GetWalletTrades returns all trades for a specified wallet.
 func (i *ItBit) GetWalletTrades(walletID string, params url.Values) (Records, error) {
 	resp := Records{}
-	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitTrades)
-	path := common.EncodeURLValues(url, params)
+	urlPath := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitTrades)
+	path := common.EncodeURLValues(urlPath, params)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -213,13 +237,13 @@ func (i *ItBit) GetWalletTrades(walletID string, params url.Values) (Records, er
 	return resp, nil
 }
 
-// GetFundingHistory returns all funding history for a specified wallet.
-func (i *ItBit) GetFundingHistory(walletID string, params url.Values) (FundingRecords, error) {
+// GetFundingHistoryForWallet returns all funding history for a specified wallet.
+func (i *ItBit) GetFundingHistoryForWallet(walletID string, params url.Values) (FundingRecords, error) {
 	resp := FundingRecords{}
-	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitFundingHistory)
-	path := common.EncodeURLValues(url, params)
+	urlPath := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitFundingHistory)
+	path := common.EncodeURLValues(urlPath, params)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -246,7 +270,7 @@ func (i *ItBit) PlaceOrder(walletID, side, orderType, currency string, amount, p
 		params["clientOrderIdentifier"] = clientRef
 	}
 
-	err := i.SendAuthenticatedHTTPRequest("POST", path, params, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -259,10 +283,10 @@ func (i *ItBit) PlaceOrder(walletID, side, orderType, currency string, amount, p
 // GetOrder returns an order by id.
 func (i *ItBit) GetOrder(walletID string, params url.Values) (Order, error) {
 	resp := Order{}
-	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitOrders)
-	path := common.EncodeURLValues(url, params)
+	urlPath := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitOrders)
+	path := common.EncodeURLValues(urlPath, params)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -272,22 +296,22 @@ func (i *ItBit) GetOrder(walletID string, params url.Values) (Order, error) {
 	return resp, nil
 }
 
-// CancelOrder cancels and open order. *This is not a guarantee that the order
-// has been cancelled!*
-func (i *ItBit) CancelOrder(walletID, orderID string) error {
+// CancelExistingOrder cancels and open order. *This is not a guarantee that the
+// order has been cancelled!*
+func (i *ItBit) CancelExistingOrder(walletID, orderID string) error {
 	path := fmt.Sprintf("/%s/%s/%s/%s", itbitWallets, walletID, itbitOrders, orderID)
 
-	return i.SendAuthenticatedHTTPRequest("DELETE", path, nil, nil)
+	return i.SendAuthenticatedHTTPRequest(http.MethodDelete, path, nil, nil)
 }
 
-// GetDepositAddress returns a deposit address to send cryptocurrency to.
-func (i *ItBit) GetDepositAddress(walletID, currency string) (CryptoCurrencyDeposit, error) {
+// GetCryptoDepositAddress returns a deposit address to send cryptocurrency to.
+func (i *ItBit) GetCryptoDepositAddress(walletID, currency string) (CryptoCurrencyDeposit, error) {
 	resp := CryptoCurrencyDeposit{}
 	path := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitCryptoDeposits)
 	params := make(map[string]interface{})
 	params["currency"] = currency
 
-	err := i.SendAuthenticatedHTTPRequest("POST", path, params, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -308,7 +332,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	params["currencyCode"] = currency
 
-	err := i.SendAuthenticatedHTTPRequest("POST", path, params, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -320,56 +344,127 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
-	return i.SendPayload("GET", path, nil, nil, result, false, i.Verbose)
+	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose, i.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
-func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params map[string]interface{}, result interface{}) error {
+func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) error {
 	if !i.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, i.Name)
 	}
 
-	request := make(map[string]interface{})
-	url := i.APIUrl + path
+	if i.ClientID == "" {
+		return errors.New("client ID not set")
+	}
 
-	if params != nil {
-		for key, value := range params {
-			request[key] = value
-		}
+	req := make(map[string]interface{})
+	urlPath := i.APIUrl + path
+
+	for key, value := range params {
+		req[key] = value
 	}
 
 	PayloadJSON := []byte("")
 	var err error
 
 	if params != nil {
-
-		PayloadJSON, err = common.JSONEncode(request)
+		PayloadJSON, err = common.JSONEncode(req)
 		if err != nil {
 			return err
 		}
 
 		if i.Verbose {
-			log.Printf("Request JSON: %s\n", PayloadJSON)
+			log.Debugf("Request JSON: %s\n", PayloadJSON)
 		}
 	}
 
-	nonce := i.Nonce.GetValue(i.Name, false).String()
+	n := i.Requester.GetNonce(true).String()
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 
-	message, err := common.JSONEncode([]string{method, url, string(PayloadJSON), nonce, timestamp})
+	message, err := common.JSONEncode([]string{method, urlPath, string(PayloadJSON), n, timestamp})
 	if err != nil {
 		return err
 	}
 
-	hash := common.GetSHA256([]byte(nonce + string(message)))
-	hmac := common.GetHMAC(common.HashSHA512, []byte(url+string(hash)), []byte(i.APISecret))
+	hash := common.GetSHA256([]byte(n + string(message)))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(urlPath+string(hash)), []byte(i.APISecret))
 	signature := common.Base64Encode(hmac)
 
 	headers := make(map[string]string)
 	headers["Authorization"] = i.ClientID + ":" + signature
 	headers["X-Auth-Timestamp"] = timestamp
-	headers["X-Auth-Nonce"] = nonce
+	headers["X-Auth-Nonce"] = n
 	headers["Content-Type"] = "application/json"
 
-	return i.SendPayload(method, url, headers, bytes.NewBuffer([]byte(PayloadJSON)), result, true, i.Verbose)
+	var intermediary json.RawMessage
+
+	errCheck := struct {
+		Code        int    `json:"code"`
+		Description string `json:"description"`
+		RequestID   string `json:"requestId"`
+	}{}
+
+	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, true, i.Verbose, i.HTTPDebugging)
+	if err != nil {
+		return err
+	}
+
+	err = common.JSONDecode(intermediary, &errCheck)
+	if err == nil {
+		if errCheck.Code != 0 || errCheck.Description != "" {
+			return fmt.Errorf("itbit.go SendAuthRequest error code: %d description: %s",
+				errCheck.Code,
+				errCheck.Description)
+		}
+	}
+
+	return common.JSONDecode(intermediary, result)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (i *ItBit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.BankTransactionType)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0035 * price * amount
+}
+
+func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
+	// TODO: Itbit has volume discounts, but not API endpoint to get the exact volume numbers
+	// When support is added, this needs to be updated to calculate the accurate volume fee
+	feePercent := 0.0035
+	if isMaker {
+		feePercent = -0.0003
+	}
+	return feePercent * purchasePrice * amount
+}
+
+func getInternationalBankWithdrawalFee(c currency.Code, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+	var fee float64
+	if (bankTransactionType == exchange.Swift ||
+		bankTransactionType == exchange.WireTransfer) &&
+		c == currency.USD {
+		fee = 40
+	} else if (bankTransactionType == exchange.SEPA ||
+		bankTransactionType == exchange.WireTransfer) &&
+		c == currency.EUR {
+		fee = 1
+	}
+	return fee
 }

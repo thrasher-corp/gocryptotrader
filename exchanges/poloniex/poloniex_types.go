@@ -1,5 +1,11 @@
 package poloniex
 
+import (
+	"time"
+
+	"github.com/idoall/gocryptotrader/currency"
+)
+
 // Ticker holds ticker data
 type Ticker struct {
 	Last          float64 `json:"last,string"`
@@ -74,6 +80,7 @@ type ChartData struct {
 
 // Currencies contains currency information
 type Currencies struct {
+	ID                 int         `json:"id"`
 	Name               string      `json:"name"`
 	MaxDailyWithdrawal string      `json:"maxDailyWithdrawal"`
 	TxFee              float64     `json:"txFee,string"`
@@ -160,8 +167,8 @@ type OpenOrdersResponse struct {
 	Data []Order
 }
 
-// AuthentictedTradeHistory holds client trade history information
-type AuthentictedTradeHistory struct {
+// AuthenticatedTradeHistory holds client trade history information
+type AuthenticatedTradeHistory struct {
 	GlobalTradeID int64   `json:"globalTradeID"`
 	TradeID       int64   `json:"tradeID,string"`
 	Date          string  `json:"date"`
@@ -176,12 +183,12 @@ type AuthentictedTradeHistory struct {
 
 // AuthenticatedTradeHistoryAll holds the full client trade history
 type AuthenticatedTradeHistoryAll struct {
-	Data map[string][]AuthentictedTradeHistory
+	Data map[string][]AuthenticatedTradeHistory
 }
 
 // AuthenticatedTradeHistoryResponse is a response type for trade history
 type AuthenticatedTradeHistoryResponse struct {
-	Data []AuthentictedTradeHistory
+	Data []AuthenticatedTradeHistory
 }
 
 // ResultingTrades holds resultant trade information
@@ -225,7 +232,6 @@ type Fee struct {
 	MakerFee        float64 `json:"makerFee,string"`
 	TakerFee        float64 `json:"takerFee,string"`
 	ThirtyDayVolume float64 `json:"thirtyDayVolume,string"`
-	NextTier        float64 `json:"nextTier,string"`
 }
 
 // Margin holds margin information
@@ -300,4 +306,146 @@ type WebsocketTrollboxMessage struct {
 	Username      string
 	Message       string
 	Reputation    float64
+}
+
+// WsCommand defines the request params after a websocket connection has been
+// established
+type WsCommand struct {
+	Command string      `json:"command"`
+	Channel interface{} `json:"channel"`
+	APIKey  string      `json:"key,omitempty"`
+	Payload string      `json:"payload,omitempty"`
+	Sign    string      `json:"sign,omitempty"`
+}
+
+// WsTicker defines the websocket ticker response
+type WsTicker struct {
+	LastPrice              float64
+	LowestAsk              float64
+	HighestBid             float64
+	PercentageChange       float64
+	BaseCurrencyVolume24H  float64
+	QuoteCurrencyVolume24H float64
+	IsFrozen               bool
+	HighestTradeIn24H      float64
+	LowestTradePrice24H    float64
+}
+
+// WsTrade defines the websocket trade response
+type WsTrade struct {
+	Symbol    string
+	TradeID   int64
+	Side      string
+	Volume    float64
+	Price     float64
+	Timestamp int64
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change, using highest value
+var WithdrawalFees = map[currency.Code]float64{
+	currency.ZRX:   5,
+	currency.ARDR:  2,
+	currency.REP:   0.1,
+	currency.BTC:   0.0005,
+	currency.BCH:   0.0001,
+	currency.XBC:   0.0001,
+	currency.BTCD:  0.01,
+	currency.BTM:   0.01,
+	currency.BTS:   5,
+	currency.BURST: 1,
+	currency.BCN:   1,
+	currency.CVC:   1,
+	currency.CLAM:  0.001,
+	currency.XCP:   1,
+	currency.DASH:  0.01,
+	currency.DCR:   0.1,
+	currency.DGB:   0.1,
+	currency.DOGE:  5,
+	currency.EMC2:  0.01,
+	currency.EOS:   0,
+	currency.ETH:   0.01,
+	currency.ETC:   0.01,
+	currency.EXP:   0.01,
+	currency.FCT:   0.01,
+	currency.GAME:  0.01,
+	currency.GAS:   0,
+	currency.GNO:   0.015,
+	currency.GNT:   1,
+	currency.GRC:   0.01,
+	currency.HUC:   0.01,
+	currency.LBC:   0.05,
+	currency.LSK:   0.1,
+	currency.LTC:   0.001,
+	currency.MAID:  10,
+	currency.XMR:   0.015,
+	currency.NMC:   0.01,
+	currency.NAV:   0.01,
+	currency.XEM:   15,
+	currency.NEOS:  0.0001,
+	currency.NXT:   1,
+	currency.OMG:   0.3,
+	currency.OMNI:  0.1,
+	currency.PASC:  0.01,
+	currency.PPC:   0.01,
+	currency.POT:   0.01,
+	currency.XPM:   0.01,
+	currency.XRP:   0.15,
+	currency.SC:    10,
+	currency.STEEM: 0.01,
+	currency.SBD:   0.01,
+	currency.XLM:   0.00001,
+	currency.STORJ: 1,
+	currency.STRAT: 0.01,
+	currency.AMP:   5,
+	currency.SYS:   0.01,
+	currency.USDT:  10,
+	currency.VRC:   0.01,
+	currency.VTC:   0.001,
+	currency.VIA:   0.01,
+	currency.ZEC:   0.001,
+}
+
+// WsAccountBalanceUpdateResponse Authenticated Ws Account data
+type WsAccountBalanceUpdateResponse struct {
+	currencyID float64
+	wallet     string
+	amount     float64
+}
+
+// WsNewLimitOrderResponse Authenticated Ws Account data
+type WsNewLimitOrderResponse struct {
+	currencyID  float64
+	orderNumber float64
+	orderType   float64
+	rate        float64
+	amount      float64
+	date        time.Time
+}
+
+// WsOrderUpdateResponse Authenticated Ws Account data
+type WsOrderUpdateResponse struct {
+	OrderNumber float64
+	NewAmount   string
+}
+
+// WsTradeNotificationResponse Authenticated Ws Account data
+type WsTradeNotificationResponse struct {
+	TradeID       float64
+	Rate          float64
+	Amount        float64
+	FeeMultiplier float64
+	FundingType   float64
+	OrderNumber   float64
+	TotalFee      float64
+	Date          time.Time
+}
+
+// WsAuthorisationRequest Authenticated Ws Account data request
+type WsAuthorisationRequest struct {
+	Command string `json:"command"`
+	Channel int64  `json:"channel"`
+	Sign    string `json:"sign"`
+	Key     string `json:"key"`
+	Payload string `json:"payload"`
 }

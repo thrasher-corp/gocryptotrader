@@ -1,0 +1,63 @@
+tenets:
+  # Import effective Go bundle manually
+  - import: codelingo/effective-go/avoid-annotations-in-comments
+  - import: codelingo/effective-go/comment-first-word-as-subject
+  - import: codelingo/effective-go/good-package-name
+  - import: codelingo/effective-go/single-method-interface-name
+  - import: codelingo/effective-go/underscores-in-name
+  - import: codelingo/effective-go/unnecessary-else
+  - import: codelingo/code-review-comments/declare-empty-slice 
+  - import: codelingo/effective-go/defer-close-file
+  # Overwrite one tenet with custom logic
+  # - import: codelingo/effective-go/comment-first-word-when-empty
+  - name: comment-first-word-when-empty
+    flows:
+      codelingo/review:
+        comment: |
+          Every exported function in a program should have a doc comment. The first sentence should be a summary that starts with the name ({{funcName}}) being declared.
+          From [effective go](https://golang.org/doc/effective_go.html#commentary).
+      codelingo/rewrite:
+        place: holder
+    query: |
+      import codelingo/ast/go
+      @review comment
+      @rewrite --prepend --line "// {{funcName}} is a function."
+      go.func_decl(depth = any):
+        # Customisation to exclude test packages
+        exclude:
+          go.ident:
+            name as funcname
+            regex(/_test/, funcname)
+        exclude:
+          go.comment_group
+        go.ident:
+          name as funcName
+          public == "true"
+  - name:  missing-stop-ticker
+    flows:
+      codelingo/review:
+        comment: Add `defer {{varName}}.Stop()` to stop the ticker and release associated resources.
+    query: |
+      import codelingo/ast/go
+
+      go.func_decl(depth = any):
+        @review comment
+        go.assign_stmt(depth = any):
+          go.lhs:
+            go.ident:
+              sibling_order == 0
+              name as varName
+          go.rhs:
+            go.call_expr:
+              go.selector_expr:
+                go.ident:
+                  name == "time"
+                go.ident:
+                  name == "NewTicker"
+        exclude:
+          go.call_expr(depth = any):
+            go.selector_expr:
+              go.ident:
+                name ==  varName
+              go.ident:
+                name == "Stop"

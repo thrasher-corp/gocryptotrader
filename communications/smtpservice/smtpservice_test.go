@@ -12,7 +12,8 @@ var s SMTPservice
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	s.Setup(cfg.GetCommunicationsConfig())
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
 }
 
 func TestConnect(t *testing.T) {

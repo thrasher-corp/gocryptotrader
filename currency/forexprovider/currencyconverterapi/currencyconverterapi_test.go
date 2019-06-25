@@ -6,7 +6,15 @@ import (
 
 var c CurrencyConverter
 
+func IsAPIKeysSet() bool {
+	return c.APIKey != "" && c.APIKey != "Key"
+}
+
 func TestGetRates(t *testing.T) {
+	if !IsAPIKeysSet() {
+		t.Skip()
+	}
+
 	result, err := c.GetRates("USD", "AUD")
 	if err != nil {
 		t.Error("Test Error. CurrencyConverter GetRates() error", err)
@@ -44,6 +52,10 @@ func TestGetRates(t *testing.T) {
 	}
 }
 func TestConvertMany(t *testing.T) {
+	if !IsAPIKeysSet() {
+		t.Skip()
+	}
+
 	currencies := []string{"USD_AUD", "USD_EUR"}
 	_, err := c.ConvertMany(currencies)
 	if err != nil {
@@ -58,20 +70,32 @@ func TestConvertMany(t *testing.T) {
 }
 
 func TestConvert(t *testing.T) {
+	if !IsAPIKeysSet() {
+		t.Skip()
+	}
+
 	_, err := c.Convert("AUD", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestGetCurrencies(t *testing.T) {
-	_, err := c.GetCurrencies()
+func TestGetSupportedCurrencies(t *testing.T) {
+	if !IsAPIKeysSet() {
+		t.Skip()
+	}
+
+	_, err := c.GetSupportedCurrencies()
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetCountries(t *testing.T) {
+	if !IsAPIKeysSet() {
+		t.Skip()
+	}
+
 	_, err := c.GetCountries()
 	if err != nil {
 		t.Fatal(err)

@@ -1,12 +1,12 @@
 package base
 
 import (
-	"log"
 	"time"
 
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // IComm is the main interface array across the communication packages
@@ -14,7 +14,7 @@ type IComm []ICommunicate
 
 // ICommunicate enforces standard functions across communication packages
 type ICommunicate interface {
-	Setup(config config.CommunicationsConfig)
+	Setup(config *config.CommunicationsConfig)
 	Connect() error
 	PushEvent(Event) error
 	IsEnabled() bool
@@ -33,7 +33,7 @@ func (c IComm) Setup() {
 		if c[i].IsEnabled() && !c[i].IsConnected() {
 			err := c[i].Connect()
 			if err != nil {
-				log.Printf("Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
+				log.Errorf("Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
 			}
 		}
 	}
@@ -45,7 +45,7 @@ func (c IComm) PushEvent(event Event) {
 		if c[i].IsEnabled() && c[i].IsConnected() {
 			err := c[i].PushEvent(event)
 			if err != nil {
-				log.Printf("Communications error - PushEvent() in package %s with %v",
+				log.Errorf("Communications error - PushEvent() in package %s with %v",
 					c[i].GetName(), event)
 			}
 		}
@@ -54,21 +54,22 @@ func (c IComm) PushEvent(event Event) {
 
 // GetEnabledCommunicationMediums prints out enabled and connected communication
 // packages
+// (#debug output only)
 func (c IComm) GetEnabledCommunicationMediums() {
 	var count int
 	for i := range c {
 		if c[i].IsEnabled() && c[i].IsConnected() {
-			log.Printf("Communications: Medium %s is enabled.", c[i].GetName())
+			log.Debugf("Communications: Medium %s is enabled.", c[i].GetName())
 			count++
 		}
 	}
 	if count == 0 {
-		log.Println("Communications: No communication mediums are enabled.")
+		log.Warnf("Communications: No communication mediums are enabled.")
 	}
 }
 
 // StageTickerData stages updated ticker data for the communications package
-func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice ticker.Price) {
+func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice *ticker.Price) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -80,12 +81,12 @@ func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice ticke
 		TickerStaged[exchangeName][assetType] = make(map[string]ticker.Price)
 	}
 
-	TickerStaged[exchangeName][assetType][tickerPrice.CurrencyPair] = tickerPrice
+	TickerStaged[exchangeName][assetType][tickerPrice.Pair.String()] = *tickerPrice
 }
 
 // StageOrderbookData stages updated orderbook data for the communications
 // package
-func (c IComm) StageOrderbookData(exchangeName, assetType string, orderbook orderbook.Base) {
+func (c IComm) StageOrderbookData(exchangeName, assetType string, ob *orderbook.Base) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -97,12 +98,11 @@ func (c IComm) StageOrderbookData(exchangeName, assetType string, orderbook orde
 		OrderbookStaged[exchangeName][assetType] = make(map[string]Orderbook)
 	}
 
-	_, totalAsks := orderbook.CalculateTotalAsks()
-	_, totalBids := orderbook.CalculateTotalBids()
+	_, totalAsks := ob.TotalAsksAmount()
+	_, totalBids := ob.TotalBidsAmount()
 
-	OrderbookStaged[exchangeName][assetType][orderbook.CurrencyPair] = Orderbook{
-		CurrencyPair: orderbook.CurrencyPair,
+	OrderbookStaged[exchangeName][assetType][ob.Pair.String()] = Orderbook{
+		CurrencyPair: ob.Pair.String(),
 		TotalAsks:    totalAsks,
-		TotalBids:    totalBids,
-		LastUpdated:  orderbook.LastUpdated.String()}
+		TotalBids:    totalBids}
 }

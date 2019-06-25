@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/idoall/gocryptotrader/common"
+	log "github.com/idoall/gocryptotrader/logger"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -23,7 +23,7 @@ const (
 	// SaltRandomLength is the number of random bytes to append after the prefix string
 	SaltRandomLength = 12
 
-	errAESBlockSize = "The config file data is too small for the AES required block size"
+	errAESBlockSize = "config file data is too small for the AES required block size"
 )
 
 var (
@@ -57,11 +57,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 		log.Println("Please enter in your password: ")
 		pwPrompt := func(i *[]byte) error {
 			_, err := fmt.Scanln(i)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		}
 
 		var p1 []byte
@@ -85,10 +81,8 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 		if bytes.Equal(p1, p2) {
 			cryptoKey = p1
 			break
-		} else {
-			log.Printf("Passwords did not match, please try again.")
-			continue
 		}
+		log.Printf("Passwords did not match, please try again.")
 	}
 	return cryptoKey, nil
 }

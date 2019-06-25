@@ -42,9 +42,9 @@ export class ExchangeGridComponent implements OnInit {
   }
 
   public getExchangeCurrencies(): void {
-    for (let i = 0; i < this.settings.Exchanges.length; i++) {
-      if (this.settings.Exchanges[i].Enabled === true) {
-        this.exchangeCurrencies.set(this.settings.Exchanges[i].Name, this.settings.Exchanges[i].Pairs);
+    for (let i = 0; i < this.settings.exchanges.length; i++) {
+      if (this.settings.exchanges[i].enabled === true) {
+        this.exchangeCurrencies.set(this.settings.exchanges[i].name, this.settings.exchanges[i].pairs);
       }
     }
     this.exchangeCurrencies.forEach((value: CurrencyPairRedux[], key: string) => {});

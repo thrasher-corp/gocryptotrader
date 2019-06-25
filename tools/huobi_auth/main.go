@@ -42,32 +42,14 @@ func encodePEM(privKey *ecdsa.PrivateKey, pubKey bool) ([]byte, error) {
 	), nil
 }
 
-func decodePEM(PEMPrivKey, PEMPubKey []byte) (*ecdsa.PrivateKey, *ecdsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(PEMPrivKey))
+func decodePEM(pemPrivKey []byte) (*ecdsa.PrivateKey, error) {
+	block, _ := pem.Decode(pemPrivKey)
 	if block == nil {
-		return nil, nil, errors.New("priv block data is nil")
+		return nil, errors.New("priv block data is nil")
 	}
 
 	x509Enc := block.Bytes
-	privateKey, err := x509.ParseECPrivateKey(x509Enc)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	blockPub, _ := pem.Decode([]byte(PEMPubKey))
-	if block == nil {
-		return nil, nil, errors.New("pub block data is nil")
-	}
-
-	x509EncPub := blockPub.Bytes
-	genPubkey, err := x509.ParsePKIXPublicKey(x509EncPub)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	publicKey := genPubkey.(*ecdsa.PublicKey)
-
-	return privateKey, publicKey, nil
+	return x509.ParseECPrivateKey(x509Enc)
 }
 
 func writeFile(file string, data []byte) error {
@@ -97,7 +79,8 @@ func main() {
 	}
 
 	if genKeys {
-		pKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		var pKey *ecdsa.PrivateKey
+		pKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -115,13 +98,15 @@ func main() {
 		}
 
 	} else {
-		pubKeyData, err := common.ReadFile("publickey.pem")
+		var pubKeyData []byte
+		pubKeyData, err = common.ReadFile("publickey.pem")
 		if err != nil {
 			log.Fatal(err)
 		}
 		log.Println("Successfully read PEM files.")
 
-		priv, _, err := decodePEM(privKeyData, pubKeyData)
+		var priv *ecdsa.PrivateKey
+		priv, err = decodePEM(privKeyData)
 		if err != nil {
 			log.Fatal(err)
 		}

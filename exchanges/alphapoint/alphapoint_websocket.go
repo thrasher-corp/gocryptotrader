@@ -1,11 +1,11 @@
 package alphapoint
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -14,36 +14,35 @@ const (
 
 // WebsocketClient starts a new webstocket connection
 func (a *Alphapoint) WebsocketClient() {
-	for a.Enabled && a.Websocket {
+	for a.Enabled {
 		var Dialer websocket.Dialer
 		var err error
 		a.WebsocketConn, _, err = Dialer.Dial(a.WebsocketURL, http.Header{})
 
 		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
+			log.Errorf("%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
 			continue
 		}
 
 		if a.Verbose {
-			log.Printf("%s Connected to Websocket.\n", a.Name)
+			log.Debugf("%s Connected to Websocket.\n", a.Name)
 		}
 
 		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
 
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			return
 		}
 
-		for a.Enabled && a.Websocket {
+		for a.Enabled {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 				break
 			}
 
-			switch msgType {
-			case websocket.TextMessage:
+			if msgType == websocket.TextMessage {
 				type MsgType struct {
 					MessageType string `json:"messageType"`
 				}
@@ -51,22 +50,21 @@ func (a *Alphapoint) WebsocketClient() {
 				msgType := MsgType{}
 				err := common.JSONDecode(resp, &msgType)
 				if err != nil {
-					log.Println(err)
+					log.Error(err)
 					continue
 				}
 
-				switch msgType.MessageType {
-				case "Ticker":
+				if msgType.MessageType == "Ticker" {
 					ticker := WebsocketTicker{}
 					err = common.JSONDecode(resp, &ticker)
 					if err != nil {
-						log.Println(err)
+						log.Error(err)
 						continue
 					}
 				}
 			}
 		}
 		a.WebsocketConn.Close()
-		log.Printf("%s Websocket client disconnected.", a.Name)
+		log.Debugf("%s Websocket client disconnected.", a.Name)
 	}
 }

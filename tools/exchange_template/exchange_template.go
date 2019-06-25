@@ -106,11 +106,11 @@ func main() {
 
 	var configTestExchanges []string
 
-	for _, exch := range configTestFile.Exchanges {
-		configTestExchanges = append(configTestExchanges, exch.Name)
+	for x := range configTestFile.Exchanges {
+		configTestExchanges = append(configTestExchanges, configTestFile.Exchanges[x].Name)
 	}
 
-	if common.StringDataContainsUpper(configTestExchanges, capName) {
+	if common.StringDataContainsInsensitive(configTestExchanges, capName) {
 		log.Fatal("GoCryptoTrader: Exchange templating configuration error - exchange already exists")
 	}
 
@@ -158,6 +158,7 @@ func main() {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
 	tReadme.Execute(r1, exch)
+	r1.Close()
 
 	tMain, err := template.New("main").ParseFiles("main_file.tmpl")
 	if err != nil {
@@ -169,6 +170,7 @@ func main() {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
 	tMain.Execute(m1, exch)
+	m1.Close()
 
 	tTest, err := template.New("test").ParseFiles("test_file.tmpl")
 	if err != nil {
@@ -180,6 +182,7 @@ func main() {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
 	tTest.Execute(t1, exch)
+	t1.Close()
 
 	tType, err := template.New("type").ParseFiles("type_file.tmpl")
 	if err != nil {
@@ -191,6 +194,7 @@ func main() {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
 	tType.Execute(ty1, exch)
+	ty1.Close()
 
 	tWrapper, err := template.New("wrapper").ParseFiles("wrapper_file.tmpl")
 	if err != nil {
@@ -202,6 +206,7 @@ func main() {
 		log.Fatal("GoCryptoTrader: Exchange templating tool cannot open file ", err)
 	}
 	tWrapper.Execute(w1, exch)
+	w1.Close()
 
 	err = exec.Command("go", "fmt", exchangeDirectory).Run()
 	if err != nil {
@@ -219,7 +224,7 @@ func main() {
 	fmt.Println("Update the config_test.go file")
 	fmt.Println("Test config.go")
 	fmt.Println("Open a pull request")
-	fmt.Println("If help is needed please post a message on the slack.")
+	fmt.Println("If help is needed please post a message on Slack.")
 }
 
 func newFile(path string) {
@@ -227,9 +232,9 @@ func newFile(path string) {
 
 	if os.IsNotExist(err) {
 		var file, err = os.Create(path)
-		defer file.Close()
 		if err != nil {
 			log.Fatal("GoCryptoTrader: Exchange templating tool file creation error ", err)
 		}
+		file.Close()
 	}
 }

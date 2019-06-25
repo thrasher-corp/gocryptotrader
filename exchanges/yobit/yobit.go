@@ -3,7 +3,7 @@ package yobit
 import (
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -11,9 +11,11 @@ import (
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -51,10 +53,11 @@ func (y *Yobit) SetDefaults() {
 	y.Enabled = true
 	y.Fee = 0.2
 	y.Verbose = false
-	y.Websocket = false
 	y.RESTPollingDelay = 10
 	y.AuthenticatedAPISupport = true
 	y.Ticker = make(map[string]Ticker)
+	y.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.WithdrawFiatViaWebsiteOnly
 	y.RequestCurrencyPairFormat.Delimiter = "_"
 	y.RequestCurrencyPairFormat.Uppercase = false
 	y.RequestCurrencyPairFormat.Separator = "-"
@@ -71,10 +74,11 @@ func (y *Yobit) SetDefaults() {
 	y.APIUrl = y.APIUrlDefault
 	y.APIUrlSecondaryDefault = apiPrivateURL
 	y.APIUrlSecondary = y.APIUrlSecondaryDefault
+	y.WebsocketInit()
 }
 
 // Setup sets exchange configuration parameters for Yobit
-func (y *Yobit) Setup(exch config.ExchangeConfig) {
+func (y *Yobit) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		y.SetEnabled(false)
 	} else {
@@ -83,10 +87,11 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		y.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		y.RESTPollingDelay = exch.RESTPollingDelay
 		y.Verbose = exch.Verbose
-		y.Websocket = exch.Websocket
-		y.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		y.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		y.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		y.HTTPDebugging = exch.HTTPDebugging
+		y.Websocket.SetWsStatusAndConnection(exch.Websocket)
+		y.BaseCurrencies = exch.BaseCurrencies
+		y.AvailablePairs = exch.AvailablePairs
+		y.EnabledPairs = exch.EnabledPairs
 		y.SetHTTPClientTimeout(exch.HTTPTimeout)
 		y.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		err := y.SetCurrencyPairFormat()
@@ -105,12 +110,11 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = y.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-}
-
-// GetFee returns the exchange fee
-func (y *Yobit) GetFee() float64 {
-	return y.Fee
 }
 
 // GetInfo returns the Yobit info
@@ -158,8 +162,8 @@ func (y *Yobit) GetTrades(symbol string) ([]Trades, error) {
 	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
 }
 
-// GetAccountInfo returns a users account info
-func (y *Yobit) GetAccountInfo() (AccountInfo, error) {
+// GetAccountInformation returns a users account info
+func (y *Yobit) GetAccountInformation() (AccountInfo, error) {
 	result := AccountInfo{}
 
 	err := y.SendAuthenticatedHTTPRequest(privateAccountInfo, url.Values{}, &result)
@@ -192,8 +196,8 @@ func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, err
 	return int64(result.OrderID), nil
 }
 
-// GetActiveOrders returns the active orders for a specific currency
-func (y *Yobit) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
+// GetOpenOrders returns the active orders for a specific currency
+func (y *Yobit) GetOpenOrders(pair string) (map[string]ActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 
@@ -202,20 +206,20 @@ func (y *Yobit) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
 	return result, y.SendAuthenticatedHTTPRequest(privateActiveOrders, req, &result)
 }
 
-// GetOrderInfo returns the order info for a specific order ID
-func (y *Yobit) GetOrderInfo(OrderID int64) (map[string]OrderInfo, error) {
+// GetOrderInformation returns the order info for a specific order ID
+func (y *Yobit) GetOrderInformation(orderID int64) (map[string]OrderInfo, error) {
 	req := url.Values{}
-	req.Add("order_id", strconv.FormatInt(OrderID, 10))
+	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
 	result := map[string]OrderInfo{}
 
 	return result, y.SendAuthenticatedHTTPRequest(privateOrderInfo, req, &result)
 }
 
-// CancelOrder cancels an order for a specific order ID
-func (y *Yobit) CancelOrder(OrderID int64) (bool, error) {
+// CancelExistingOrder cancels an order for a specific order ID
+func (y *Yobit) CancelExistingOrder(orderID int64) (bool, error) {
 	req := url.Values{}
-	req.Add("order_id", strconv.FormatInt(OrderID, 10))
+	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
 	result := CancelOrder{}
 
@@ -230,24 +234,32 @@ func (y *Yobit) CancelOrder(OrderID int64) (bool, error) {
 }
 
 // GetTradeHistory returns the trade history
-func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, pair string) (map[string]TradeHistory, error) {
+func (y *Yobit) GetTradeHistory(tidFrom, count, tidEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
 	req := url.Values{}
-	req.Add("from", strconv.FormatInt(TIDFrom, 10))
-	req.Add("count", strconv.FormatInt(Count, 10))
-	req.Add("from_id", strconv.FormatInt(TIDFrom, 10))
-	req.Add("end_id", strconv.FormatInt(TIDEnd, 10))
+	req.Add("from", strconv.FormatInt(tidFrom, 10))
+	req.Add("count", strconv.FormatInt(count, 10))
+	req.Add("from_id", strconv.FormatInt(tidFrom, 10))
+	req.Add("end_id", strconv.FormatInt(tidEnd, 10))
 	req.Add("order", order)
-	req.Add("since", since)
-	req.Add("end", end)
+	req.Add("since", strconv.FormatInt(since, 10))
+	req.Add("end", strconv.FormatInt(end, 10))
 	req.Add("pair", pair)
 
-	result := map[string]TradeHistory{}
+	result := TradeHistoryResponse{}
 
-	return result, y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
+	if err != nil {
+		return nil, err
+	}
+	if result.Success == 0 {
+		return nil, errors.New(result.Error)
+	}
+
+	return result.Data, nil
 }
 
-// GetDepositAddress returns the deposit address for a specific currency
-func (y *Yobit) GetDepositAddress(coin string) (DepositAddress, error) {
+// GetCryptoDepositAddress returns the deposit address for a specific currency
+func (y *Yobit) GetCryptoDepositAddress(coin string) (DepositAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
 
@@ -257,8 +269,8 @@ func (y *Yobit) GetDepositAddress(coin string) (DepositAddress, error) {
 	if err != nil {
 		return result, err
 	}
-	if result.Error != "" {
-		return result, errors.New(result.Error)
+	if result.Success != 1 {
+		return result, fmt.Errorf("%s", result.Error)
 	}
 	return result, nil
 }
@@ -319,32 +331,43 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
-	return y.SendPayload("GET", path, nil, nil, result, false, y.Verbose)
+	return y.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		y.Verbose,
+		y.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
 func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, result interface{}) (err error) {
 	if !y.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, y.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			y.Name)
 	}
 
 	if params == nil {
 		params = url.Values{}
 	}
 
-	if y.Nonce.Get() == 0 {
-		y.Nonce.Set(time.Now().Unix())
-	} else {
-		y.Nonce.Inc()
-	}
-	params.Set("nonce", y.Nonce.String())
+	n := y.Requester.GetNonce(false).String()
+
+	params.Set("nonce", n)
 	params.Set("method", path)
 
 	encoded := params.Encode()
-	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(y.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512,
+		[]byte(encoded),
+		[]byte(y.APISecret))
 
 	if y.Verbose {
-		log.Printf("Sending POST request to %s calling path %s with params %s\n", apiPrivateURL, path, encoded)
+		log.Debugf("Sending POST request to %s calling path %s with params %s\n",
+			apiPrivateURL,
+			path,
+			encoded)
 	}
 
 	headers := make(map[string]string)
@@ -352,5 +375,119 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return y.SendPayload("POST", apiPrivateURL, headers, strings.NewReader(encoded), result, true, y.Verbose)
+	return y.SendPayload(http.MethodPost,
+		apiPrivateURL,
+		headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		true,
+		y.Verbose,
+		y.HTTPDebugging)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (y *Yobit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
+			feeBuilder.BankTransactionType)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
+			feeBuilder.Amount,
+			feeBuilder.BankTransactionType)
+	case exchange.OfflineTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(price, amount float64) (fee float64) {
+	return 0.002 * price * amount
+}
+
+func getWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
+}
+
+func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+	var fee float64
+
+	switch bankTransactionType {
+	case exchange.PerfectMoney:
+		if c == currency.USD {
+			fee = 0.02 * amount
+		}
+	case exchange.Payeer:
+		switch c {
+		case currency.USD:
+			fee = 0.03 * amount
+		case currency.RUR:
+			fee = 0.006 * amount
+		}
+	case exchange.AdvCash:
+		switch c {
+		case currency.USD:
+			fee = 0.04 * amount
+		case currency.RUR:
+			fee = 0.03 * amount
+		}
+	case exchange.Qiwi:
+		if c == currency.RUR {
+			fee = 0.04 * amount
+		}
+	case exchange.Capitalist:
+		if c == currency.USD {
+			fee = 0.06 * amount
+		}
+	}
+
+	return fee
+}
+
+// getInternationalBankDepositFee; No real fees for yobit deposits, but want to be explicit on what each payment type supports
+func getInternationalBankDepositFee(c currency.Code, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+	var fee float64
+	switch bankTransactionType {
+	case exchange.PerfectMoney:
+		if c == currency.USD {
+			fee = 0
+		}
+	case exchange.Payeer:
+		switch c {
+		case currency.USD:
+			fee = 0
+		case currency.RUR:
+			fee = 0
+		}
+	case exchange.AdvCash:
+		switch c {
+		case currency.USD:
+			fee = 0
+		case currency.RUR:
+			fee = 0
+		}
+	case exchange.Qiwi:
+		if c == currency.RUR {
+			fee = 0
+		}
+	case exchange.Capitalist:
+		switch c {
+		case currency.USD:
+			fee = 0
+		case currency.RUR:
+			fee = 0
+		}
+	}
+
+	return fee
 }

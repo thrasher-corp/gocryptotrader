@@ -9,7 +9,7 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
-//global vars contain staged update data that will be sent to the communication
+// global vars contain staged update data that will be sent to the communication
 // mediums
 var (
 	TickerStaged    map[string]map[string]map[string]ticker.Price
@@ -92,9 +92,9 @@ func (b *Base) GetTicker(exchangeName string) string {
 	}
 
 	var tickerPrices []ticker.Price
-	for _, x := range tickerPrice {
-		for _, y := range x {
-			tickerPrices = append(tickerPrices, y)
+	for x := range tickerPrice {
+		for y := range tickerPrice[x] {
+			tickerPrices = append(tickerPrices, tickerPrice[x][y])
 		}
 	}
 
@@ -102,7 +102,7 @@ func (b *Base) GetTicker(exchangeName string) string {
 	for i := range tickerPrices {
 		packagedTickers = append(packagedTickers, fmt.Sprintf(
 			"Currency Pair: %s Ask: %f, Bid: %f High: %f Last: %f Low: %f ATH: %f Volume: %f",
-			tickerPrices[i].CurrencyPair,
+			tickerPrices[i].Pair,
 			tickerPrices[i].Ask,
 			tickerPrices[i].Bid,
 			tickerPrices[i].High,

@@ -1,237 +1,546 @@
 package huobi
 
 import (
-	"log"
+	"bytes"
+	"compress/gzip"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/thrasher-/socketio"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
-	huobiSocketIOAddress = "https://hq.huobi.com:443"
+	baseWSURL = "wss://api.huobi.pro"
 
-	//Service API
-	huobiSocketReqSymbolList   = "reqSymbolList"
-	huobiSocketReqSymbolDetail = "reqSymbolDetail"
-	huobiSocketReqSubscribe    = "reqMsgSubscribe"
-	huobiSocketReqUnsubscribe  = "reqMsgUnsubscribe"
+	wsMarketURL   = baseWSURL + "/ws"
+	wsMarketKline = "market.%s.kline.1min"
+	wsMarketDepth = "market.%s.depth.step0"
+	wsMarketTrade = "market.%s.trade.detail"
 
-	// Market data API
-	huobiSocketMarketDetail        = "marketDetail"
-	huobiSocketTradeDetail         = "tradeDetail"
-	huobiSocketMarketDepthTop      = "marketDepthTop"
-	huobiSocketMarketDepthTopShort = "marketDepthTopShort"
-	huobiSocketMarketDepth         = "marketDepth"
-	huobiSocketMarketDepthTopDiff  = "marketDepthTopDiff"
-	huobiSocketMarketDepthDiff     = "marketDepthDiff"
-	huobiSocketMarketLastKline     = "lastKLine"
-	huobiSocketMarketLastTimeline  = "lastTimeLine"
-	huobiSocketMarketOverview      = "marketOverview"
-	huobiSocketMarketStatic        = "marketStatic"
+	wsAccountsOrdersEndPoint = "/ws/v1"
+	wsAccountsList           = "accounts.list"
+	wsOrdersList             = "orders.list"
+	wsOrdersDetail           = "orders.detail"
+	wsAccountsOrdersURL      = baseWSURL + wsAccountsOrdersEndPoint
+	wsAccountListEndpoint    = wsAccountsOrdersEndPoint + "/" + wsAccountsList
+	wsOrdersListEndpoint     = wsAccountsOrdersEndPoint + "/" + wsOrdersList
+	wsOrdersDetailEndpoint   = wsAccountsOrdersEndPoint + "/" + wsOrdersDetail
 
-	// History data API
-	huobiSocketReqTimeline       = "reqTimeLine"
-	huobiSocketReqKline          = "reqKLine"
-	huobiSocketReqDepthTop       = "reqMarketDepthTop"
-	huobiSocketReqDepth          = "reqMarketDepth"
-	huobiSocketReqTradeDetailTop = "reqTradeDetailTop"
-	huobiSocketReqMarketDetail   = "reqMarketDetail"
+	wsDateTimeFormatting = "2006-01-02T15:04:05"
+
+	signatureMethod  = "HmacSHA256"
+	signatureVersion = "2"
+	requestOp        = "req"
+	authOp           = "auth"
 )
 
-// HuobiSocket is a pointer to a IO Socket
-var HuobiSocket *socketio.SocketIO
+// Instantiates a communications channel between websocket connections
+var comms = make(chan WsMessage, 1)
 
-// Depth holds depth information
-type Depth struct {
-	SymbolID  string    `json:"symbolId"`
-	Time      float64   `json:"time"`
-	Version   float64   `json:"version"`
-	BidName   string    `json:"bidName"`
-	BidPrice  []float64 `json:"bidPrice"`
-	BidTotal  []float64 `json:"bidTotal"`
-	BidAmount []float64 `json:"bidAmount"`
-	AskName   string    `json:"askName"`
-	AskPrice  []float64 `json:"askPrice"`
-	AskTotal  []float64 `json:"askTotal"`
-	AskAmount []float64 `json:"askAmount"`
-}
-
-// WebsocketTrade holds full trade data
-type WebsocketTrade struct {
-	Price      []float64 `json:"price"`
-	Level      []float64 `json:"level"`
-	Amount     []float64 `json:"amount"`
-	AccuAmount []float64 `json:"accuAmount"`
-}
-
-// WebsocketTradeDetail holds specific trade details
-type WebsocketTradeDetail struct {
-	SymbolID string           `json:"symbolId"`
-	TradeID  []int64          `json:"tradeId"`
-	Price    []float64        `json:"price"`
-	Time     []int64          `json:"time"`
-	Amount   []float64        `json:"amount"`
-	TopBids  []WebsocketTrade `json:"topBids"`
-	TopAsks  []WebsocketTrade `json:"topAsks"`
-}
-
-// WebsocketMarketOverview holds market overview data
-type WebsocketMarketOverview struct {
-	SymbolID    string  `json:"symbolId"`
-	Last        float64 `json:"priceNew"`
-	Open        float64 `json:"priceOpen"`
-	High        float64 `json:"priceHigh"`
-	Low         float64 `json:"priceLow"`
-	Ask         float64 `json:"priceAsk"`
-	Bid         float64 `json:"priceBid"`
-	Volume      float64 `json:"totalVolume"`
-	TotalAmount float64 `json:"totalAmount"`
-}
-
-// WebsocketLastTimeline holds timeline data
-type WebsocketLastTimeline struct {
-	ID        int64   `json:"_id"`
-	SymbolID  string  `json:"symbolId"`
-	Time      int64   `json:"time"`
-	LastPrice float64 `json:"priceLast"`
-	Amount    float64 `json:"amount"`
-	Volume    float64 `json:"volume"`
-	Count     int64   `json:"count"`
-}
-
-// WebsocketResponse is a general response type for websocket
-type WebsocketResponse struct {
-	Version      int                    `json:"version"`
-	MsgType      string                 `json:"msgType"`
-	RequestIndex int64                  `json:"requestIndex"`
-	RetCode      int64                  `json:"retCode"`
-	RetMessage   string                 `json:"retMsg"`
-	Payload      map[string]interface{} `json:"payload"`
-}
-
-// BuildHuobiWebsocketRequest packages a new request
-func (h *HUOBI) BuildHuobiWebsocketRequest(msgType string, requestIndex int64, symbolRequest []string) map[string]interface{} {
-	request := map[string]interface{}{}
-	request["version"] = 1
-	request["msgType"] = msgType
-
-	if requestIndex != 0 {
-		request["requestIndex"] = requestIndex
+// WsConnect initiates a new websocket connection
+func (h *HUOBI) WsConnect() error {
+	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
+		return errors.New(exchange.WebsocketNotEnabled)
 	}
 
-	if len(symbolRequest) != 0 {
-		request["symbolIdList"] = symbolRequest
-	}
+	var dialer websocket.Dialer
 
-	return request
-}
-
-// BuildHuobiWebsocketRequestExtra packages an extra request
-func (h *HUOBI) BuildHuobiWebsocketRequestExtra(msgType string, requestIndex int64, symbolIDList interface{}) interface{} {
-	request := map[string]interface{}{}
-	request["version"] = 1
-	request["msgType"] = msgType
-
-	if requestIndex != 0 {
-		request["requestIndex"] = requestIndex
-	}
-
-	request["symbolList"] = symbolIDList
-	return request
-}
-
-// BuildHuobiWebsocketParamsList packages a parameter list
-func (h *HUOBI) BuildHuobiWebsocketParamsList(objectName, currency, pushType, period, count, from, to, percentage string) interface{} {
-	list := map[string]interface{}{}
-	list["symbolId"] = currency
-	list["pushType"] = pushType
-
-	if period != "" {
-		list["period"] = period
-	}
-	if percentage != "" {
-		list["percent"] = percentage
-	}
-	if count != "" {
-		list["count"] = count
-	}
-	if from != "" {
-		list["from"] = from
-	}
-	if to != "" {
-		list["to"] = to
-	}
-
-	listArray := []map[string]interface{}{}
-	listArray = append(listArray, list)
-
-	listCompleted := make(map[string][]map[string]interface{})
-	listCompleted[objectName] = listArray
-	return listCompleted
-}
-
-// OnConnect handles connection establishment
-func (h *HUOBI) OnConnect(output chan socketio.Message) {
-	if h.Verbose {
-		log.Printf("%s Connected to Websocket.", h.GetName())
-	}
-
-	for _, x := range h.EnabledPairs {
-		currency := common.StringToLower(x)
-		msg := h.BuildHuobiWebsocketRequestExtra(huobiSocketReqSubscribe, 100, h.BuildHuobiWebsocketParamsList(huobiSocketMarketOverview, currency, "pushLong", "", "", "", "", ""))
-		result, err := common.JSONEncode(msg)
+	if h.Websocket.GetProxyAddress() != "" {
+		proxy, err := url.Parse(h.Websocket.GetProxyAddress())
 		if err != nil {
-			log.Println(err)
+			return err
 		}
-		output <- socketio.CreateMessageEvent("request", string(result), nil, HuobiSocket.Version)
+
+		dialer.Proxy = http.ProxyURL(proxy)
 	}
-}
 
-// OnDisconnect handles disconnection
-func (h *HUOBI) OnDisconnect(output chan socketio.Message) {
-	log.Printf("%s Disconnected from websocket server.. Reconnecting.\n", h.GetName())
-	h.WebsocketClient()
-}
-
-// OnError handles error issues
-func (h *HUOBI) OnError() {
-	log.Printf("%s Error with Websocket connection.. Reconnecting.\n", h.GetName())
-	h.WebsocketClient()
-}
-
-// OnMessage handles messages from the exchange
-func (h *HUOBI) OnMessage(message []byte, output chan socketio.Message) {
-}
-
-// OnRequest handles requests
-func (h *HUOBI) OnRequest(message []byte, output chan socketio.Message) {
-	response := WebsocketResponse{}
-	err := common.JSONDecode(message, &response)
+	err := h.wsDial(&dialer)
 	if err != nil {
-		log.Println(err)
+		return err
+	}
+	err = h.wsAuthenticatedDial(&dialer)
+	if err != nil {
+		log.Errorf("%v - authenticated dial failed: %v", h.Name, err)
+	}
+	err = h.wsLogin()
+	if err != nil {
+		log.Errorf("%v - authentication failed: %v", h.Name, err)
+	}
+
+	go h.WsHandleData()
+	h.GenerateDefaultSubscriptions()
+
+	return nil
+}
+
+func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
+	var err error
+	var conStatus *http.Response
+	h.WebsocketConn, conStatus, err = dialer.Dial(wsMarketURL, http.Header{})
+	if err != nil {
+		return fmt.Errorf("%v %v %v Error: %v", wsMarketURL, conStatus, conStatus.StatusCode, err)
+	}
+	go h.wsMultiConnectionFunnel(h.WebsocketConn, wsMarketURL)
+	return nil
+}
+
+func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
+	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
+	}
+	var err error
+	var conStatus *http.Response
+	h.AuthenticatedWebsocketConn, conStatus, err = dialer.Dial(wsAccountsOrdersURL, http.Header{})
+	if err != nil {
+		return fmt.Errorf("%v %v %v Error: %v", wsAccountsOrdersURL, conStatus, conStatus.StatusCode, err)
+	}
+	go h.wsMultiConnectionFunnel(h.AuthenticatedWebsocketConn, wsAccountsOrdersURL)
+	return nil
+}
+
+// wsMultiConnectionFunnel manages data from multiple endpoints and passes it to a channel
+func (h *HUOBI) wsMultiConnectionFunnel(ws *websocket.Conn, url string) {
+	h.Websocket.Wg.Add(1)
+	defer h.Websocket.Wg.Done()
+	for {
+		select {
+		case <-h.Websocket.ShutdownC:
+			return
+		default:
+			_, resp, err := ws.ReadMessage()
+			if err != nil {
+				h.Websocket.DataHandler <- err
+				return
+			}
+			h.Websocket.TrafficAlert <- struct{}{}
+			b := bytes.NewReader(resp)
+			gReader, err := gzip.NewReader(b)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+				return
+			}
+			unzipped, err := ioutil.ReadAll(gReader)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+				return
+			}
+			err = gReader.Close()
+			if err != nil {
+				h.Websocket.DataHandler <- err
+				return
+			}
+			comms <- WsMessage{Raw: unzipped, URL: url}
+		}
 	}
 }
 
-// WebsocketClient creates a new websocket client
-func (h *HUOBI) WebsocketClient() {
-	events := make(map[string]func(message []byte, output chan socketio.Message))
-	events["request"] = h.OnRequest
-	events["message"] = h.OnMessage
-
-	HuobiSocket = &socketio.SocketIO{
-		Version:      0.9,
-		OnConnect:    h.OnConnect,
-		OnEvent:      events,
-		OnError:      h.OnError,
-		OnDisconnect: h.OnDisconnect,
-	}
-
-	for h.Enabled && h.Websocket {
-		err := socketio.ConnectToSocket(huobiSocketIOAddress, HuobiSocket)
-		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Err: %s\n", h.GetName(), err)
-			continue
+// WsHandleData handles data read from the websocket connection
+func (h *HUOBI) WsHandleData() {
+	h.Websocket.Wg.Add(1)
+	defer h.Websocket.Wg.Done()
+	for {
+		select {
+		case <-h.Websocket.ShutdownC:
+			return
+		case resp := <-comms:
+			if h.Verbose {
+				log.Debugf("%v: %v: %v", h.Name, resp.URL, string(resp.Raw))
+			}
+			switch resp.URL {
+			case wsMarketURL:
+				h.wsHandleMarketData(resp)
+			case wsAccountsOrdersURL:
+				h.wsHandleAuthenticatedData(resp)
+			}
 		}
-		log.Printf("%s Disconnected from Websocket.\n", h.GetName())
 	}
+}
+
+func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
+	var init WsAuthenticatedDataResponse
+	err := common.JSONDecode(resp.Raw, &init)
+	if err != nil {
+		h.Websocket.DataHandler <- err
+		return
+	}
+	if init.ErrorCode > 0 {
+		if init.ErrorMessage == "api-signature-not-valid" {
+			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+		h.Websocket.DataHandler <- fmt.Errorf("%v %v Websocket error %v %s",
+			h.Name,
+			resp.URL,
+			init.ErrorCode,
+			init.ErrorMessage)
+		return
+	}
+	if init.Ping != 0 {
+		err = h.WebsocketConn.WriteJSON(`{"pong":1337}`)
+		if err != nil {
+			log.Error(err)
+		}
+		return
+	}
+
+	if init.Op == "sub" {
+		if h.Verbose {
+			log.Debugf("%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
+		}
+		return
+	}
+
+	switch {
+	case strings.EqualFold(init.Op, authOp):
+		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		var response WsAuthenticatedDataResponse
+		err := common.JSONDecode(resp.Raw, &response)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- response
+	case strings.EqualFold(init.Topic, "accounts"):
+		var response WsAuthenticatedAccountsResponse
+		err := common.JSONDecode(resp.Raw, &response)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- response
+	case common.StringContains(init.Topic, "orders") &&
+		common.StringContains(init.Topic, "update"):
+		var response WsAuthenticatedOrdersUpdateResponse
+		err := common.JSONDecode(resp.Raw, &response)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- response
+	case common.StringContains(init.Topic, "orders"):
+		var response WsAuthenticatedOrdersResponse
+		err := common.JSONDecode(resp.Raw, &response)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- response
+	case strings.EqualFold(init.Topic, wsAccountsList):
+		var response WsAuthenticatedAccountsListResponse
+		err := common.JSONDecode(resp.Raw, &response)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- response
+	case strings.EqualFold(init.Topic, wsOrdersList):
+		var response WsAuthenticatedOrdersListResponse
+		err := common.JSONDecode(resp.Raw, &response)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- response
+	case strings.EqualFold(init.Topic, wsOrdersDetail):
+		var response WsAuthenticatedOrderDetailResponse
+		err := common.JSONDecode(resp.Raw, &response)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+		}
+		h.Websocket.DataHandler <- response
+	}
+}
+
+func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
+	var init WsResponse
+	err := common.JSONDecode(resp.Raw, &init)
+	if err != nil {
+		h.Websocket.DataHandler <- err
+		return
+	}
+	if init.Status == "error" {
+		h.Websocket.DataHandler <- fmt.Errorf("%v %v Websocket error %s %s",
+			h.Name,
+			resp.URL,
+			init.ErrorCode,
+			init.ErrorMessage)
+		return
+	}
+	if init.Subscribed != "" {
+		return
+	}
+	if init.Ping != 0 {
+		err = h.WebsocketConn.WriteJSON(`{"pong":1337}`)
+		if err != nil {
+			log.Error(err)
+		}
+		return
+	}
+
+	switch {
+	case common.StringContains(init.Channel, "depth"):
+		var depth WsDepth
+		err := common.JSONDecode(resp.Raw, &depth)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+		data := common.SplitStrings(depth.Channel, ".")
+		h.WsProcessOrderbook(&depth, data[1])
+	case common.StringContains(init.Channel, "kline"):
+		var kline WsKline
+		err := common.JSONDecode(resp.Raw, &kline)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+		data := common.SplitStrings(kline.Channel, ".")
+		h.Websocket.DataHandler <- exchange.KlineData{
+			Timestamp:  time.Unix(0, kline.Timestamp),
+			Exchange:   h.GetName(),
+			AssetType:  "SPOT",
+			Pair:       currency.NewPairFromString(data[1]),
+			OpenPrice:  kline.Tick.Open,
+			ClosePrice: kline.Tick.Close,
+			HighPrice:  kline.Tick.High,
+			LowPrice:   kline.Tick.Low,
+			Volume:     kline.Tick.Volume,
+		}
+	case common.StringContains(init.Channel, "trade"):
+		var trade WsTrade
+		err := common.JSONDecode(resp.Raw, &trade)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+		data := common.SplitStrings(trade.Channel, ".")
+		h.Websocket.DataHandler <- exchange.TradeData{
+			Exchange:     h.GetName(),
+			AssetType:    "SPOT",
+			CurrencyPair: currency.NewPairFromString(data[1]),
+			Timestamp:    time.Unix(0, trade.Tick.Timestamp),
+		}
+	}
+}
+
+// WsProcessOrderbook processes new orderbook data
+func (h *HUOBI) WsProcessOrderbook(ob *WsDepth, symbol string) error {
+	var bids []orderbook.Item
+	for _, data := range ob.Tick.Bids {
+		bidLevel := data.([]interface{})
+		bids = append(bids, orderbook.Item{Price: bidLevel[0].(float64),
+			Amount: bidLevel[0].(float64)})
+	}
+
+	var asks []orderbook.Item
+	for _, data := range ob.Tick.Asks {
+		askLevel := data.([]interface{})
+		asks = append(asks, orderbook.Item{Price: askLevel[0].(float64),
+			Amount: askLevel[0].(float64)})
+	}
+
+	p := currency.NewPairFromString(symbol)
+
+	var newOrderBook orderbook.Base
+	newOrderBook.Asks = asks
+	newOrderBook.Bids = bids
+	newOrderBook.Pair = p
+
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, h.GetName(), false)
+	if err != nil {
+		return err
+	}
+
+	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		Pair:     p,
+		Exchange: h.GetName(),
+		Asset:    "SPOT",
+	}
+
+	return nil
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (h *HUOBI) GenerateDefaultSubscriptions() {
+	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
+	var subscriptions []exchange.WebsocketChannelSubscription
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
+		channels = append(channels, "orders.%v", "orders.%v.update")
+		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			Channel: "accounts",
+		})
+	}
+	enabledCurrencies := h.GetEnabledCurrencies()
+	for i := range channels {
+		for j := range enabledCurrencies {
+			enabledCurrencies[j].Delimiter = ""
+			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String())
+			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+				Channel:  channel,
+				Currency: enabledCurrencies[j],
+			})
+		}
+	}
+	h.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (h *HUOBI) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
+		common.StringContains(channelToSubscribe.Channel, "accounts") {
+		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
+	}
+	subscription, err := common.JSONEncode(WsRequest{Subscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (h *HUOBI) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
+		common.StringContains(channelToSubscribe.Channel, "accounts") {
+		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
+	}
+	subscription, err := common.JSONEncode(WsRequest{Unsubscribe: channelToSubscribe.Channel})
+	if err != nil {
+		return err
+	}
+	return h.wsSend(subscription)
+}
+
+// WsSend sends data to the websocket server
+func (h *HUOBI) wsSend(data []byte) error {
+	h.wsRequestMtx.Lock()
+	defer h.wsRequestMtx.Unlock()
+	if h.Verbose {
+		log.Debugf("%v sending message to websocket %s", h.Name, string(data))
+	}
+	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+}
+
+func (h *HUOBI) wsLogin() error {
+	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
+	}
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
+	request := WsAuthenticationRequest{
+		Op:               authOp,
+		AccessKeyID:      h.APIKey,
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
+		Timestamp:        timestamp,
+	}
+	hmac := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
+	request.Signature = common.Base64Encode(hmac)
+	err := h.wsAuthenticatedSend(request)
+	if err != nil {
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return err
+	}
+	return nil
+}
+
+func (h *HUOBI) wsAuthenticatedSend(request interface{}) error {
+	h.wsRequestMtx.Lock()
+	defer h.wsRequestMtx.Unlock()
+	encodedRequest, err := common.JSONEncode(request)
+	if err != nil {
+		return err
+	}
+	if h.Verbose {
+		log.Debugf("%v sending Authenticated message to websocket %s", h.Name, string(encodedRequest))
+	}
+	return h.AuthenticatedWebsocketConn.WriteMessage(websocket.TextMessage, encodedRequest)
+}
+
+func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) []byte {
+	values := url.Values{}
+	values.Set("AccessKeyId", h.APIKey)
+	values.Set("SignatureMethod", signatureMethod)
+	values.Set("SignatureVersion", signatureVersion)
+	values.Set("Timestamp", timestamp)
+	host := "api.huobi.pro"
+	payload := fmt.Sprintf("%s\n%s\n%s\n%s",
+		"GET", host, endpoint, values.Encode())
+	return common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
+}
+
+func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) error {
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
+	request := WsAuthenticatedSubscriptionRequest{
+		Op:               operation,
+		AccessKeyID:      h.APIKey,
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
+		Timestamp:        timestamp,
+		Topic:            topic,
+	}
+	hmac := h.wsGenerateSignature(timestamp, endpoint)
+	request.Signature = common.Base64Encode(hmac)
+	return h.wsAuthenticatedSend(request)
+}
+
+func (h *HUOBI) wsGetAccountsList(pair currency.Pair) error {
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
+	}
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
+	request := WsAuthenticatedAccountsListRequest{
+		Op:               requestOp,
+		AccessKeyID:      h.APIKey,
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
+		Timestamp:        timestamp,
+		Topic:            wsAccountsList,
+		Symbol:           pair,
+	}
+	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
+	request.Signature = common.Base64Encode(hmac)
+	return h.wsAuthenticatedSend(request)
+}
+
+func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) error {
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
+	}
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
+	request := WsAuthenticatedOrdersListRequest{
+		Op:               requestOp,
+		AccessKeyID:      h.APIKey,
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
+		Timestamp:        timestamp,
+		Topic:            wsOrdersList,
+		AccountID:        accountID,
+		Symbol:           pair.Lower(),
+		States:           "submitted,partial-filled",
+	}
+	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
+	request.Signature = common.Base64Encode(hmac)
+	return h.wsAuthenticatedSend(request)
+}
+
+func (h *HUOBI) wsGetOrderDetails(orderID string) error {
+	if !h.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v not authenticated cannot get order details", h.Name)
+	}
+	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
+	request := WsAuthenticatedOrderDetailsRequest{
+		Op:               requestOp,
+		AccessKeyID:      h.APIKey,
+		SignatureMethod:  signatureMethod,
+		SignatureVersion: signatureVersion,
+		Timestamp:        timestamp,
+		Topic:            wsOrdersDetail,
+		OrderID:          orderID,
+	}
+	hmac := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
+	request.Signature = common.Base64Encode(hmac)
+	return h.wsAuthenticatedSend(request)
 }

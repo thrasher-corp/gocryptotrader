@@ -14,44 +14,51 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
+	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
 	huobiAPIURL     = "https://api.huobi.pro"
 	huobiAPIVersion = "1"
 
-	huobiMarketHistoryKline   = "market/history/kline"
-	huobiMarketDetail         = "market/detail"
-	huobiMarketDetailMerged   = "market/detail/merged"
-	huobiMarketDepth          = "market/depth"
-	huobiMarketTrade          = "market/trade"
-	huobiMarketTradeHistory   = "market/history/trade"
-	huobiSymbols              = "common/symbols"
-	huobiCurrencies           = "common/currencys"
-	huobiTimestamp            = "common/timestamp"
-	huobiAccounts             = "account/accounts"
-	huobiAccountBalance       = "account/accounts/%s/balance"
-	huobiOrderPlace           = "order/orders/place"
-	huobiOrderCancel          = "order/orders/%s/submitcancel"
-	huobiOrderCancelBatch     = "order/orders/batchcancel"
-	huobiGetOrder             = "order/orders/%s"
-	huobiGetOrderMatch        = "order/orders/%s/matchresults"
-	huobiGetOrders            = "order/orders"
-	huobiGetOrdersMatch       = "orders/matchresults"
-	huobiMarginTransferIn     = "dw/transfer-in/margin"
-	huobiMarginTransferOut    = "dw/transfer-out/margin"
-	huobiMarginOrders         = "margin/orders"
-	huobiMarginRepay          = "margin/orders/%s/repay"
-	huobiMarginLoanOrders     = "margin/loan-orders"
-	huobiMarginAccountBalance = "margin/accounts/balance"
-	huobiWithdrawCreate       = "dw/withdraw/api/create"
-	huobiWithdrawCancel       = "dw/withdraw-virtual/%s/cancel"
+	huobiMarketHistoryKline    = "market/history/kline"
+	huobiMarketDetail          = "market/detail"
+	huobiMarketDetailMerged    = "market/detail/merged"
+	huobiMarketDepth           = "market/depth"
+	huobiMarketTrade           = "market/trade"
+	huobiMarketTradeHistory    = "market/history/trade"
+	huobiSymbols               = "common/symbols"
+	huobiCurrencies            = "common/currencys"
+	huobiTimestamp             = "common/timestamp"
+	huobiAccounts              = "account/accounts"
+	huobiAccountBalance        = "account/accounts/%s/balance"
+	huobiOrderPlace            = "order/orders/place"
+	huobiOrderCancel           = "order/orders/%s/submitcancel"
+	huobiOrderCancelBatch      = "order/orders/batchcancel"
+	huobiBatchCancelOpenOrders = "order/orders/batchCancelOpenOrders"
+	huobiGetOrder              = "order/orders/%s"
+	huobiGetOrderMatch         = "order/orders/%s/matchresults"
+	huobiGetOrders             = "order/orders"
+	huobiGetOpenOrders         = "order/openOrders"
+	huobiGetOrdersMatch        = "orders/matchresults"
+	huobiMarginTransferIn      = "dw/transfer-in/margin"
+	huobiMarginTransferOut     = "dw/transfer-out/margin"
+	huobiMarginOrders          = "margin/orders"
+	huobiMarginRepay           = "margin/orders/%s/repay"
+	huobiMarginLoanOrders      = "margin/loan-orders"
+	huobiMarginAccountBalance  = "margin/accounts/balance"
+	huobiWithdrawCreate        = "dw/withdraw/api/create"
+	huobiWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
 
 	huobiAuthRate   = 100
 	huobiUnauthRate = 100
@@ -60,6 +67,10 @@ const (
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
+	AccountID                  string
+	WebsocketConn              *websocket.Conn
+	AuthenticatedWebsocketConn *websocket.Conn
+	wsRequestMtx               sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -68,9 +79,15 @@ func (h *HUOBI) SetDefaults() {
 	h.Enabled = false
 	h.Fee = 0
 	h.Verbose = false
-	h.Websocket = false
 	h.RESTPollingDelay = 10
-	h.RequestCurrencyPairFormat.Uppercase = true
+	h.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup |
+		exchange.NoFiatWithdrawals
+	h.RequestCurrencyPairFormat.Delimiter = ""
+	h.RequestCurrencyPairFormat.Uppercase = false
+	h.ConfigCurrencyPairFormat.Delimiter = "-"
+	h.ConfigCurrencyPairFormat.Uppercase = true
+	h.AssetTypes = []string{ticker.Spot}
+	h.SupportsAutoPairUpdating = true
 	h.SupportsRESTTickerBatching = false
 	h.Requester = request.New(h.Name,
 		request.NewRateLimit(time.Second*10, huobiAuthRate),
@@ -78,10 +95,18 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobiAPIURL
 	h.APIUrl = h.APIUrlDefault
+	h.WebsocketInit()
+	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported |
+		exchange.WebsocketAuthenticatedEndpointsSupported |
+		exchange.WebsocketAccountDataSupported
 }
 
 // Setup sets user configuration
-func (h *HUOBI) Setup(exch config.ExchangeConfig) {
+func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 	} else {
@@ -89,6 +114,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.BaseAsset = exch.BaseAsset
 		h.QuoteAsset = exch.QuoteAsset
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.APIAuthPEMKeySupport = exch.APIAuthPEMKeySupport
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
@@ -96,33 +122,43 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
-		h.Websocket = exch.Websocket
-		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		h.RequestCurrencyPairFormat.Uppercase = false
-		// err := h.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		h.AssetTypes = strings.Split(exch.AssetTypes, ",")
-		// err = h.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		h.SupportsAutoPairUpdating = false
-		// err = h.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		h.HTTPDebugging = exch.HTTPDebugging
+		h.Websocket.SetWsStatusAndConnection(exch.Websocket)
+		h.BaseCurrencies = exch.BaseCurrencies
+		h.AvailablePairs = exch.AvailablePairs
+		h.EnabledPairs = exch.EnabledPairs
+		err := h.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.WebsocketSetup(h.WsConnect,
+			h.Subscribe,
+			h.Unsubscribe,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			wsMarketURL,
+			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-}
-
-// GetFee returns Huobi fee
-func (h *HUOBI) GetFee() float64 {
-	return h.Fee
 }
 
 // GetSpotKline returns kline data
@@ -142,9 +178,9 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketHistoryKline)
+	urlPath := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketHistoryKline)
 
-	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
+	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -162,9 +198,9 @@ func (h *HUOBI) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDetailMerged)
+	urlPath := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDetailMerged)
 
-	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
+	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
@@ -186,9 +222,9 @@ func (h *HUOBI) GetDepth(obd OrderBookDataRequestParams) (Orderbook, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDepth)
+	urlPath := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDepth)
 
-	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
+	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Depth, errors.New(result.ErrorMessage)
 	}
@@ -208,9 +244,9 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketTrade)
+	urlPath := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketTrade)
 
-	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
+	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -228,7 +264,7 @@ func (h *HUOBI) GetLatestSpotPrice(symbol string) (float64, error) {
 		return 0, err
 	}
 	if len(list) == 0 {
-		return 0, errors.New("The length of the list is 0")
+		return 0, errors.New("the length of the list is 0")
 	}
 
 	return list[0].Trades[0].Price, nil
@@ -249,9 +285,9 @@ func (h *HUOBI) GetTradeHistory(symbol, size string) ([]TradeHistory, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketTradeHistory)
+	urlPath := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketTradeHistory)
 
-	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
+	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -269,9 +305,9 @@ func (h *HUOBI) GetMarketDetail(symbol string) (Detail, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDetail)
+	urlPath := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDetail)
 
-	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
+	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
@@ -286,9 +322,9 @@ func (h *HUOBI) GetSymbols() ([]Symbol, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiSymbols)
+	urlPath := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiSymbols)
 
-	err := h.SendHTTPRequest(url, &result)
+	err := h.SendHTTPRequest(urlPath, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -303,9 +339,9 @@ func (h *HUOBI) GetCurrencies() ([]string, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiCurrencies)
+	urlPath := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiCurrencies)
 
-	err := h.SendHTTPRequest(url, &result)
+	err := h.SendHTTPRequest(urlPath, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -320,9 +356,9 @@ func (h *HUOBI) GetTimestamp() (int64, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiTimestamp)
+	urlPath := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiTimestamp)
 
-	err := h.SendHTTPRequest(url, &result)
+	err := h.SendHTTPRequest(urlPath, &result)
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
 	}
@@ -337,7 +373,7 @@ func (h *HUOBI) GetAccounts() ([]Account, error) {
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiAccounts, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiAccounts, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -354,7 +390,11 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 
 	var result response
 	endpoint := fmt.Sprintf(huobiAccountBalance, accountID)
-	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, nil, &result)
+
+	v := url.Values{}
+	v.Set("account-id", accountID)
+
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, endpoint, v, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -401,7 +441,7 @@ func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	// }
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiOrderPlace, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiOrderPlace, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -409,8 +449,8 @@ func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	return result.OrderID, err
 }
 
-// CancelOrder cancels an order on Huobi
-func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
+// CancelExistingOrder cancels an order on Huobi
+func (h *HUOBI) CancelExistingOrder(orderID int64) (int64, error) {
 	type response struct {
 		Response
 		OrderID int64 `json:"data,string"`
@@ -418,7 +458,7 @@ func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiOrderCancel, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, endpoint, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -427,19 +467,42 @@ func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
 }
 
 // CancelOrderBatch cancels a batch of orders -- to-do
-func (h *HUOBI) CancelOrderBatch(orderIDs []int64) ([]CancelOrderBatch, error) {
+func (h *HUOBI) CancelOrderBatch(_ []int64) ([]CancelOrderBatch, error) {
 	type response struct {
 		Response
 		Data []CancelOrderBatch `json:"data"`
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiOrderCancelBatch, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiOrderCancelBatch, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Data, err
+}
+
+// CancelOpenOrdersBatch cancels a batch of orders -- to-do
+func (h *HUOBI) CancelOpenOrdersBatch(accountID, symbol string) (CancelOpenOrdersBatch, error) {
+	params := url.Values{}
+
+	params.Set("account-id", accountID)
+	var result CancelOpenOrdersBatch
+
+	data := struct {
+		AccountID string `json:"account-id"`
+		Symbol    string `json:"symbol"`
+	}{
+		AccountID: accountID,
+		Symbol:    symbol,
+	}
+
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiBatchCancelOpenOrders, url.Values{}, data, &result)
+	if result.Data.FailedCount > 0 {
+		return result, fmt.Errorf("there were %v failed order cancellations", result.Data.FailedCount)
+	}
+
+	return result, err
 }
 
 // GetOrder returns order information for the specified order
@@ -451,7 +514,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiGetOrder, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, endpoint, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return result.Order, errors.New(result.ErrorMessage)
@@ -468,7 +531,7 @@ func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiGetOrderMatch, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, endpoint, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -512,11 +575,36 @@ func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size 
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOrders, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOrders, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
+	return result.Orders, err
+}
+
+// GetOpenOrders returns a list of orders
+func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]OrderInfo, error) {
+	type response struct {
+		Response
+		Orders []OrderInfo `json:"data"`
+	}
+
+	vals := url.Values{}
+	vals.Set("symbol", symbol)
+	vals.Set("accountID", accountID)
+	if len(side) > 0 {
+		vals.Set("side", side)
+	}
+	vals.Set("size", fmt.Sprintf("%v", size))
+
+	var result response
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOpenOrders, vals, nil, &result)
+
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+
 	return result.Orders, err
 }
 
@@ -555,7 +643,7 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOrdersMatch, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOrdersMatch, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -586,7 +674,7 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", path, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, path, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -612,7 +700,7 @@ func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, err
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiMarginOrders, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiMarginOrders, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -635,7 +723,7 @@ func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiMarginRepay, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, endpoint, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -679,7 +767,7 @@ func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, 
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiMarginLoanOrders, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiMarginLoanOrders, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -700,7 +788,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiMarginAccountBalance, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiMarginAccountBalance, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -709,7 +797,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 }
 
 // Withdraw withdraws the desired amount and currency
-func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
+func (h *HUOBI) Withdraw(c currency.Code, address, addrTag string, amount, fee float64) (int64, error) {
 	type response struct {
 		Response
 		WithdrawID int64 `json:"data"`
@@ -719,24 +807,24 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 		Address  string `json:"address"`
 		Amount   string `json:"amount"`
 		Currency string `json:"currency"`
-		Fee      string `json:"fee"`
-		AddrTag  string `json:"addr-tag"`
+		Fee      string `json:"fee,omitempty"`
+		AddrTag  string `json:"addr-tag,omitempty"`
 	}{
 		Address:  address,
-		Currency: currency,
+		Currency: c.Lower().String(),
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
-	if fee != 0 {
+	if fee > 0 {
 		data.Fee = strconv.FormatFloat(fee, 'f', -1, 64)
 	}
 
-	if currency == "XRP" {
+	if c == currency.XRP {
 		data.AddrTag = addrTag
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiWithdrawCreate, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiWithdrawCreate, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -756,7 +844,7 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiWithdrawCancel, strconv.FormatInt(withdrawID, 10))
-	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, endpoint, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -766,43 +854,43 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload("GET", path, nil, nil, result, false, h.Verbose)
+	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose, h.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPPostRequest sends authenticated requests to the HUOBI API
 // 原有的Post方法和Get传参不一样，进行重写
-func (h *HUOBI) SendAuthenticatedHTTPPostRequest(method, endpoint, postBodyValues string, result interface{}) error {
-	if !h.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
-	}
+// func (h *HUOBI) SendAuthenticatedHTTPPostRequest(method, endpoint, postBodyValues string, result interface{}) error {
+// 	if !h.AuthenticatedAPISupport {
+// 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
+// 	}
 
-	signatureParams := url.Values{}
-	signatureParams.Set("AccessKeyId", h.APIKey)
-	signatureParams.Set("SignatureMethod", "HmacSHA256")
-	signatureParams.Set("SignatureVersion", "2")
-	signatureParams.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
+// 	signatureParams := url.Values{}
+// 	signatureParams.Set("AccessKeyId", h.APIKey)
+// 	signatureParams.Set("SignatureMethod", "HmacSHA256")
+// 	signatureParams.Set("SignatureVersion", "2")
+// 	signatureParams.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
 
-	endpoint = fmt.Sprintf("/v%s/%s", huobiAPIVersion, endpoint)
-	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
-		method, endpoint, signatureParams.Encode())
+// 	endpoint = fmt.Sprintf("/v%s/%s", huobiAPIVersion, endpoint)
+// 	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
+// 		method, endpoint, signatureParams.Encode())
 
-	headers := make(map[string]string)
-	headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36"
-	headers["Content-Type"] = "application/json"
-	headers["Accept-Language"] = "zh-cn"
+// 	headers := make(map[string]string)
+// 	headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36"
+// 	headers["Content-Type"] = "application/json"
+// 	headers["Accept-Language"] = "zh-cn"
 
-	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
-	signatureParams.Set("Signature", common.Base64Encode(hmac))
+// 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
+// 	signatureParams.Set("Signature", common.Base64Encode(hmac))
 
-	// fmt.Println("signatureParams", signatureParams)
-	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
-	url = common.EncodeURLValues(url, signatureParams)
+// 	// fmt.Println("signatureParams", signatureParams)
+// 	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
+// 	url = common.EncodeURLValues(url, signatureParams)
 
-	return h.SendPayload(method, url, headers, bytes.NewBufferString(postBodyValues), result, true, h.Verbose)
-}
+// 	return h.SendPayload(method, url, headers, bytes.NewBufferString(postBodyValues), result, true, h.Verbose)
+// }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
-func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, data interface{}, result interface{}) error {
+func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, data, result interface{}) error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
@@ -832,27 +920,27 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	signature := common.Base64Encode(hmac)
 	values.Set("Signature", signature)
 
-	if h.APIAuthPEMKeySupport == true {
+	if h.APIAuthPEMKeySupport {
 		pemKey := strings.NewReader(h.APIAuthPEMKey)
 		pemBytes, err := ioutil.ReadAll(pemKey)
 		if err != nil {
-			return fmt.Errorf("Huobi unable to ioutil.ReadAll PEM key: %s", err)
+			return fmt.Errorf("%s unable to ioutil.ReadAll PEM key: %s", h.Name, err)
 		}
 
 		block, _ := pem.Decode(pemBytes)
 		if block == nil {
-			return fmt.Errorf("Huobi block is nil")
+			return fmt.Errorf("%s PEM block is nil", h.Name)
 		}
 
 		x509Encoded := block.Bytes
 		privKey, err := x509.ParseECPrivateKey(x509Encoded)
 		if err != nil {
-			return fmt.Errorf("Huobi unable to ParseECPrivKey: %s", err)
+			return fmt.Errorf("%s unable to ParseECPrivKey: %s", h.Name, err)
 		}
 
 		r, s, err := ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte(signature)))
 		if err != nil {
-			return fmt.Errorf("Huobi unable to sign: %s", err)
+			return fmt.Errorf("%s unable to sign: %s", h.Name, err)
 		}
 
 		privSig := r.Bytes()
@@ -860,19 +948,40 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		values.Set("PrivateSignature", common.Base64Encode(privSig))
 	}
 
-	url := fmt.Sprintf("%s%s", h.APIUrl, endpoint)
-	url = common.EncodeURLValues(url, values)
+	urlPath := common.EncodeURLValues(
+		fmt.Sprintf("%s%s", h.APIUrl, endpoint), values,
+	)
 
 	var body []byte
 
 	if data != nil {
 		encoded, err := json.Marshal(data)
 		if err != nil {
-			return fmt.Errorf("Huobi unable to marshal data: %s", err)
+			return fmt.Errorf("%s unable to marshal data: %s", h.Name, err)
 		}
 
 		body = encoded
 	}
 
-	return h.SendPayload(method, url, headers, bytes.NewReader(body), result, true, h.Verbose)
+	return h.SendPayload(method, urlPath, headers, bytes.NewReader(body), result, true, false, h.Verbose, h.HTTPDebugging)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (h *HUOBI) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	if feeBuilder.FeeType == exchange.OfflineTradeFee || feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		fee = calculateTradingFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(c currency.Pair, price, amount float64) float64 {
+	if c.IsCryptoFiatPair() {
+		return 0.001 * price * amount
+	}
+	return 0.002 * price * amount
 }

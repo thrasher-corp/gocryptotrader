@@ -7,11 +7,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/communications/base"
 	"github.com/idoall/gocryptotrader/config"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -51,11 +52,11 @@ type Telegram struct {
 }
 
 // Setup takes in a Telegram configuration and sets verification token
-func (t *Telegram) Setup(config config.CommunicationsConfig) {
-	t.Name = config.TelegramConfig.Name
-	t.Enabled = config.TelegramConfig.Enabled
-	t.Token = config.TelegramConfig.VerificationToken
-	t.Verbose = config.TelegramConfig.Verbose
+func (t *Telegram) Setup(cfg *config.CommunicationsConfig) {
+	t.Name = cfg.TelegramConfig.Name
+	t.Enabled = cfg.TelegramConfig.Enabled
+	t.Token = cfg.TelegramConfig.VerificationToken
+	t.Verbose = cfg.TelegramConfig.Verbose
 }
 
 // Connect starts an initial connection
@@ -87,7 +88,7 @@ func (t *Telegram) PollerStart() {
 	for {
 		resp, err := t.GetUpdates()
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 
 		for i := range resp.Result {
@@ -95,7 +96,7 @@ func (t *Telegram) PollerStart() {
 				if string(resp.Result[i].Message.Text[0]) == "/" {
 					err = t.HandleMessages(resp.Result[i].Message.Text, resp.Result[i].Message.From.ID)
 					if err != nil {
-						log.Fatal(err)
+						log.Error(err)
 					}
 				}
 				t.Offset = resp.Result[i].UpdateID
@@ -221,7 +222,7 @@ func (t *Telegram) SendHTTPRequest(path string, json []byte, result interface{})
 	headers := make(map[string]string)
 	headers["content-type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest("POST", path, headers, bytes.NewBuffer(json))
+	resp, err := common.SendHTTPRequest(http.MethodPost, path, headers, bytes.NewBuffer(json))
 	if err != nil {
 		return err
 	}

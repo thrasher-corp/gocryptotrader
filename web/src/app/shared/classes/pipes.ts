@@ -39,7 +39,7 @@ import { CurrencyPairRedux } from './../../shared/classes/config';
       if (!items) {
         return items;
       }
-      return items.filter(item => item.Enabled === true);
+      return items.filter(item => item.enabled === true);
     }
   }
 

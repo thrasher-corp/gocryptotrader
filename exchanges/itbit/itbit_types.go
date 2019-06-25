@@ -39,7 +39,7 @@ type OrderbookResponse struct {
 type Trades struct {
 	RecentTrades []struct {
 		Timestamp   string  `json:"timestamp"`
-		MatchNumber int64   `json:"matchNumber"`
+		MatchNumber string  `json:"matchNumber"`
 		Price       float64 `json:"price,string"`
 		Amount      float64 `json:"amount,string"`
 	} `json:"recentTrades"`

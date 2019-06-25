@@ -4,7 +4,8 @@ package binance
 
 import (
 	"encoding/json"
-	"time"
+
+	"github.com/idoall/gocryptotrader/currency"
 )
 
 // Response holds basic binance api response data
@@ -35,14 +36,21 @@ type ExchangeInfo struct {
 		OrderTypes         []string `json:"orderTypes"`
 		IcebergAllowed     bool     `json:"icebergAllowed"`
 		Filters            []struct {
-			FilterType  string  `json:"filterType"`
-			MinPrice    float64 `json:"minPrice,string"`
-			MaxPrice    float64 `json:"maxPrice,string"`
-			TickSize    float64 `json:"tickSize,string"`
-			MinQty      float64 `json:"minQty,string"`
-			MaxQty      float64 `json:"maxQty,string"`
-			StepSize    float64 `json:"stepSize,string"`
-			MinNotional float64 `json:"minNotional,string"`
+			FilterType          string  `json:"filterType"`
+			MinPrice            float64 `json:"minPrice,string"`
+			MaxPrice            float64 `json:"maxPrice,string"`
+			TickSize            float64 `json:"tickSize,string"`
+			MultiplierUp        float64 `json:"multiplierUp,string"`
+			MultiplierDown      float64 `json:"multiplierDown,string"`
+			AvgPriceMins        int64   `json:"avgPriceMins"`
+			MinQty              float64 `json:"minQty,string"`
+			MaxQty              float64 `json:"maxQty,string"`
+			StepSize            float64 `json:"stepSize,string"`
+			MinNotional         float64 `json:"minNotional,string"`
+			ApplyToMarket       bool    `json:"applyToMarket"`
+			Limit               int64   `json:"limit"`
+			MaxNumAlgoOrders    int64   `json:"maxNumAlgoOrders"`
+			MaxNumIcebergOrders int64   `json:"maxNumIcebergOrders"`
 		} `json:"filters"`
 	} `json:"symbols"`
 }
@@ -66,9 +74,10 @@ type OrderBookData struct {
 
 // OrderBook actual structured data that can be used for orderbook
 type OrderBook struct {
-	Code int
-	Msg  string
-	Bids []struct { //买方
+	LastUpdateID int64
+	Code         int
+	Msg          string
+	Bids         []struct { //买方
 		Price    float64 //价格
 		Quantity float64 // 数量
 	}
@@ -76,6 +85,24 @@ type OrderBook struct {
 		Price    float64
 		Quantity float64
 	}
+}
+
+// DepthUpdateParams is used as an embedded type for WebsocketDepthStream
+type DepthUpdateParams []struct {
+	PriceLevel float64
+	Quantity   float64
+	ingnore    []interface{}
+}
+
+// WebsocketDepthStream is the difference for the update depth stream
+type WebsocketDepthStream struct {
+	Event         string        `json:"e"`
+	Timestamp     int64         `json:"E"`
+	Pair          string        `json:"s"`
+	FirstUpdateID int64         `json:"U"`
+	LastUpdateID  int64         `json:"u"`
+	UpdateBids    []interface{} `json:"b"`
+	UpdateAsks    []interface{} `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -208,6 +235,12 @@ type CandleStick struct {
 	TakerBuyQuoteAssetVolume float64
 }
 
+// AveragePrice holds current average symbol price
+type AveragePrice struct {
+	Mins  int64   `json:"mins"`
+	Price float64 `json:"price,string"`
+}
+
 // PriceChangeStats contains statistics for the last 24 hours trade
 type PriceChangeStats struct {
 	Symbol             string  `json:"symbol"`
@@ -260,8 +293,8 @@ type NewOrderRequest struct {
 	Quantity         float64
 	Price            float64
 	NewClientOrderID string
-	StopPrice        float64 //Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
-	IcebergQty       float64 //Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
+	StopPrice        float64 // Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
+	IcebergQty       float64 // Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
 	NewOrderRespType string
 }
 
@@ -422,24 +455,178 @@ var (
 	TimeIntervalMonth          = TimeInterval("1M")
 )
 
-// Stream represents stream information.
-//
-// Read web docs to get more information about using streams.
-type Stream struct {
-	ListenKey string
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[currency.Code]float64{
+	currency.BNB:     0.13,
+	currency.BTC:     0.0005,
+	currency.NEO:     0,
+	currency.ETH:     0.01,
+	currency.LTC:     0.001,
+	currency.QTUM:    0.01,
+	currency.EOS:     0.1,
+	currency.SNT:     35,
+	currency.BNT:     1,
+	currency.GAS:     0,
+	currency.BCC:     0.001,
+	currency.BTM:     5,
+	currency.USDT:    3.4,
+	currency.HCC:     0.0005,
+	currency.OAX:     6.5,
+	currency.DNT:     54,
+	currency.MCO:     0.31,
+	currency.ICN:     3.5,
+	currency.ZRX:     1.9,
+	currency.OMG:     0.4,
+	currency.WTC:     0.5,
+	currency.LRC:     12.3,
+	currency.LLT:     67.8,
+	currency.YOYO:    1,
+	currency.TRX:     1,
+	currency.STRAT:   0.1,
+	currency.SNGLS:   54,
+	currency.BQX:     3.9,
+	currency.KNC:     3.5,
+	currency.SNM:     25,
+	currency.FUN:     86,
+	currency.LINK:    4,
+	currency.XVG:     0.1,
+	currency.CTR:     35,
+	currency.SALT:    2.3,
+	currency.MDA:     2.3,
+	currency.IOTA:    0.5,
+	currency.SUB:     11.4,
+	currency.ETC:     0.01,
+	currency.MTL:     2,
+	currency.MTH:     45,
+	currency.ENG:     2.2,
+	currency.AST:     14.4,
+	currency.DASH:    0.002,
+	currency.BTG:     0.001,
+	currency.EVX:     2.8,
+	currency.REQ:     29.9,
+	currency.VIB:     30,
+	currency.POWR:    8.2,
+	currency.ARK:     0.2,
+	currency.XRP:     0.25,
+	currency.MOD:     2,
+	currency.ENJ:     26,
+	currency.STORJ:   5.1,
+	currency.KMD:     0.002,
+	currency.RCN:     47,
+	currency.NULS:    0.01,
+	currency.RDN:     2.5,
+	currency.XMR:     0.04,
+	currency.DLT:     19.8,
+	currency.AMB:     8.9,
+	currency.BAT:     8,
+	currency.ZEC:     0.005,
+	currency.BCPT:    14.5,
+	currency.ARN:     3,
+	currency.GVT:     0.13,
+	currency.CDT:     81,
+	currency.GXS:     0.3,
+	currency.POE:     134,
+	currency.QSP:     36,
+	currency.BTS:     1,
+	currency.XZC:     0.02,
+	currency.LSK:     0.1,
+	currency.TNT:     47,
+	currency.FUEL:    79,
+	currency.MANA:    18,
+	currency.BCD:     0.01,
+	currency.DGD:     0.04,
+	currency.ADX:     6.3,
+	currency.ADA:     1,
+	currency.PPT:     0.41,
+	currency.CMT:     12,
+	currency.XLM:     0.01,
+	currency.CND:     58,
+	currency.LEND:    84,
+	currency.WABI:    6.6,
+	currency.SBTC:    0.0005,
+	currency.BCX:     0.5,
+	currency.WAVES:   0.002,
+	currency.TNB:     139,
+	currency.GTO:     20,
+	currency.ICX:     0.02,
+	currency.OST:     32,
+	currency.ELF:     3.9,
+	currency.AION:    3.2,
+	currency.CVC:     10.9,
+	currency.REP:     0.2,
+	currency.GNT:     8.9,
+	currency.DATA:    37,
+	currency.ETF:     1,
+	currency.BRD:     3.8,
+	currency.NEBL:    0.01,
+	currency.VIBE:    17.3,
+	currency.LUN:     0.36,
+	currency.CHAT:    60.7,
+	currency.RLC:     3.4,
+	currency.INS:     3.5,
+	currency.IOST:    105.6,
+	currency.STEEM:   0.01,
+	currency.NANO:    0.01,
+	currency.AE:      1.3,
+	currency.VIA:     0.01,
+	currency.BLZ:     10.3,
+	currency.SYS:     1,
+	currency.NCASH:   247.6,
+	currency.POA:     0.01,
+	currency.ONT:     1,
+	currency.ZIL:     37.2,
+	currency.STORM:   152,
+	currency.XEM:     4,
+	currency.WAN:     0.1,
+	currency.WPR:     43.4,
+	currency.QLC:     1,
+	currency.GRS:     0.2,
+	currency.CLOAK:   0.02,
+	currency.LOOM:    11.9,
+	currency.BCN:     1,
+	currency.TUSD:    1.35,
+	currency.ZEN:     0.002,
+	currency.SKY:     0.01,
+	currency.THETA:   24,
+	currency.IOTX:    90.5,
+	currency.QKC:     24.6,
+	currency.AGI:     29.81,
+	currency.NXS:     0.02,
+	currency.SC:      0.1,
+	currency.EON:     10,
+	currency.NPXS:    897,
+	currency.KEY:     223,
+	currency.NAS:     0.1,
+	currency.ADD:     100,
+	currency.MEETONE: 300,
+	currency.ATD:     100,
+	currency.MFT:     175,
+	currency.EOP:     5,
+	currency.DENT:    596,
+	currency.IQ:      50,
+	currency.ARDR:    2,
+	currency.HOT:     1210,
+	currency.VET:     100,
+	currency.DOCK:    68,
+	currency.POLY:    7,
+	currency.VTHO:    21,
+	currency.ONG:     0.1,
+	currency.PHX:     1,
+	currency.HC:      0.005,
+	currency.GO:      0.01,
+	currency.PAX:     1.4,
+	currency.EDO:     1.3,
+	currency.WINGS:   8.9,
+	currency.NAV:     0.2,
+	currency.TRIG:    49.1,
+	currency.APPC:    12.4,
+	currency.PIVX:    0.02,
 }
 
-type UserDataWebsocketRequest struct {
-	ListenKey string
-}
-
-type WSEvent struct {
-	Type   string
-	Time   time.Time
-	Symbol string
-}
-
-type AccountEvent struct {
-	WSEvent
-	Account
+// WithdrawResponse contains status of withdrawal request
+type WithdrawResponse struct {
+	Success bool   `json:"success"`
+	Msg     string `json:"msg"`
+	ID      int64  `json:"id"`
 }

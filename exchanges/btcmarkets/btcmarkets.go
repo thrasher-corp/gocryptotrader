@@ -4,21 +4,24 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
 	btcMarketsAPIURL            = "https://api.btcmarkets.net"
 	btcMarketsAPIVersion        = "0"
 	btcMarketsAccountBalance    = "/account/balance"
+	btcMarketsTradingFee        = "/account/%s/%s/tradingfee"
 	btcMarketsOrderCreate       = "/order/create"
 	btcMarketsOrderCancel       = "/order/cancel"
 	btcMarketsOrderHistory      = "/order/history"
@@ -54,9 +57,10 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Enabled = false
 	b.Fee = 0.85
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.Ticker = make(map[string]Ticker)
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.AutoWithdrawFiat
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = "-"
@@ -70,10 +74,11 @@ func (b *BTCMarkets) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = btcMarketsAPIURL
 	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
 }
 
 // Setup takes in an exchange configuration and sets all parameters
-func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
+func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -84,10 +89,10 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.HTTPDebugging = exch.HTTPDebugging
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -104,12 +109,11 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-}
-
-// GetFee returns the BTCMarkets fee on transactions
-func (b *BTCMarkets) GetFee() float64 {
-	return b.Fee
 }
 
 // GetMarkets returns the BTCMarkets instruments
@@ -137,13 +141,13 @@ func (b *BTCMarkets) GetMarkets() ([]Market, error) {
 // GetTicker returns a ticker
 // symbol - example "btc" or "ltc"
 func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
-	ticker := Ticker{}
+	tick := Ticker{}
 	path := fmt.Sprintf("%s/market/%s/%s/tick",
 		b.APIUrl,
 		common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair))
 
-	return ticker, b.SendHTTPRequest(path, &ticker)
+	return tick, b.SendHTTPRequest(path, &tick)
 }
 
 // GetOrderbook returns current orderbook
@@ -162,7 +166,7 @@ func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, erro
 // symbol - example "btc" or "ltc"
 // values - optional paramater "since" example values.Set(since, "59868345231")
 func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) ([]Trade, error) {
-	trades := []Trade{}
+	var trades []Trade
 	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/%s/trades",
 		b.APIUrl, common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair)), values)
@@ -194,7 +198,7 @@ func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64
 
 	resp := Response{}
 
-	err := b.SendAuthenticatedRequest("POST", btcMarketsOrderCreate, order, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsOrderCreate, order, &resp)
 	if err != nil {
 		return 0, err
 	}
@@ -205,9 +209,9 @@ func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64
 	return int64(resp.ID), nil
 }
 
-// CancelOrder cancels an order by its ID
+// CancelExistingOrder cancels an order by its ID
 // orderID - id for order example "1337"
-func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
+func (b *BTCMarkets) CancelExistingOrder(orderID []int64) ([]ResponseDetails, error) {
 	resp := Response{}
 	type CancelOrder struct {
 		OrderIDs []int64 `json:"orderIds"`
@@ -215,30 +219,16 @@ func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
 	orders := CancelOrder{}
 	orders.OrderIDs = append(orders.OrderIDs, orderID...)
 
-	err := b.SendAuthenticatedRequest("POST", btcMarketsOrderCancel, orders, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsOrderCancel, orders, &resp)
 	if err != nil {
-		return false, err
+		return resp.Responses, err
 	}
 
 	if !resp.Success {
-		return false, fmt.Errorf("%s Unable to cancel order. Error message: %s", b.GetName(), resp.ErrorMessage)
+		return resp.Responses, fmt.Errorf("%s Unable to cancel order. Error message: %s", b.GetName(), resp.ErrorMessage)
 	}
 
-	ordersToBeCancelled := len(orderID)
-	ordersCancelled := 0
-	for _, y := range resp.Responses {
-		if y.Success {
-			ordersCancelled++
-			log.Printf("%s Cancelled order %d.\n", b.GetName(), y.ID)
-		} else {
-			log.Printf("%s Unable to cancel order %d. Error message: %s", b.GetName(), y.ID, y.ErrorMessage)
-		}
-	}
-
-	if ordersCancelled == ordersToBeCancelled {
-		return true, nil
-	}
-	return false, fmt.Errorf("%s Unable to cancel order(s)", b.GetName())
+	return resp.Responses, nil
 }
 
 // GetOrders returns current order information on the exchange
@@ -248,19 +238,19 @@ func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
 // since - since a time example "33434568724"
 // historic - if false just normal Orders open
 func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, historic bool) ([]Order, error) {
-	request := make(map[string]interface{})
+	req := make(map[string]interface{})
 
 	if currency != "" {
-		request["currency"] = common.StringToUpper(currency)
+		req["currency"] = common.StringToUpper(currency)
 	}
 	if instrument != "" {
-		request["instrument"] = common.StringToUpper(instrument)
+		req["instrument"] = common.StringToUpper(instrument)
 	}
 	if limit != 0 {
-		request["limit"] = limit
+		req["limit"] = limit
 	}
 	if since != 0 {
-		request["since"] = since
+		req["since"] = since
 	}
 
 	path := btcMarketsOrderOpen
@@ -270,7 +260,7 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 
 	resp := Response{}
 
-	err := b.SendAuthenticatedRequest("POST", path, request, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, path, req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -280,16 +270,50 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price / common.SatoshisPerBTC
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SatoshisPerBTC
-		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SatoshisPerBTC
+		resp.Orders[i].Price /= common.SatoshisPerBTC
+		resp.Orders[i].OpenVolume /= common.SatoshisPerBTC
+		resp.Orders[i].Volume /= common.SatoshisPerBTC
 
-		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SatoshisPerBTC
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SatoshisPerBTC
-			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SatoshisPerBTC
+		for j := range resp.Orders[i].Trades {
+			resp.Orders[i].Trades[j].Fee /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[j].Price /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[j].Volume /= common.SatoshisPerBTC
 		}
 	}
+
+	return resp.Orders, nil
+}
+
+// GetOpenOrders returns all open orders
+func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
+	type marketsResp struct {
+		Response
+	}
+	req := make(map[string]interface{})
+	var resp marketsResp
+	path := fmt.Sprintf("/v2/order/open")
+
+	err := b.SendAuthenticatedRequest(http.MethodGet, path, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, errors.New(resp.ErrorMessage)
+	}
+
+	for i := range resp.Orders {
+		resp.Orders[i].Price /= common.SatoshisPerBTC
+		resp.Orders[i].OpenVolume /= common.SatoshisPerBTC
+		resp.Orders[i].Volume /= common.SatoshisPerBTC
+
+		for j := range resp.Orders[i].Trades {
+			resp.Orders[i].Trades[j].Fee /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[j].Price /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[j].Volume /= common.SatoshisPerBTC
+		}
+	}
+
 	return resp.Orders, nil
 }
 
@@ -304,7 +328,7 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {
 
 	resp := Response{}
 
-	err := b.SendAuthenticatedRequest("POST", btcMarketsOrderDetail, orders, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsOrderDetail, orders, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -314,14 +338,14 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price / common.SatoshisPerBTC
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SatoshisPerBTC
-		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SatoshisPerBTC
+		resp.Orders[i].Price /= common.SatoshisPerBTC
+		resp.Orders[i].OpenVolume /= common.SatoshisPerBTC
+		resp.Orders[i].Volume /= common.SatoshisPerBTC
 
 		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SatoshisPerBTC
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SatoshisPerBTC
-			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Fee /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Price /= common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Volume /= common.SatoshisPerBTC
 		}
 	}
 	return resp.Orders, nil
@@ -329,19 +353,26 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {
 
 // GetAccountBalance returns the full account balance
 func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
-	balance := []AccountBalance{}
+	var balance []AccountBalance
 
-	err := b.SendAuthenticatedRequest("GET", btcMarketsAccountBalance, nil, &balance)
+	err := b.SendAuthenticatedRequest(http.MethodGet, btcMarketsAccountBalance, nil, &balance)
 	if err != nil {
 		return nil, err
 	}
 
 	// All values are returned in Satoshis, even for fiat currencies.
 	for i := range balance {
-		balance[i].Balance = balance[i].Balance / common.SatoshisPerBTC
-		balance[i].PendingFunds = balance[i].PendingFunds / common.SatoshisPerBTC
+		balance[i].Balance /= common.SatoshisPerBTC
+		balance[i].PendingFunds /= common.SatoshisPerBTC
 	}
 	return balance, nil
+}
+
+// GetTradingFee returns the account's trading fee for a currency pair
+func (b *BTCMarkets) GetTradingFee(base, quote currency.Code) (TradingFee, error) {
+	var tradingFee TradingFee
+	path := fmt.Sprintf(btcMarketsTradingFee, base, quote)
+	return tradingFee, b.SendAuthenticatedRequest(http.MethodGet, path, nil, &tradingFee)
 }
 
 // WithdrawCrypto withdraws cryptocurrency into a designated address
@@ -355,7 +386,10 @@ func (b *BTCMarkets) WithdrawCrypto(amount float64, currency, address string) (s
 	}
 
 	resp := Response{}
-	err := b.SendAuthenticatedRequest("POST", btcMarketsWithdrawCrypto, req, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost,
+		btcMarketsWithdrawCrypto,
+		req,
+		&resp)
 	if err != nil {
 		return "", err
 	}
@@ -382,7 +416,9 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 	}
 
 	resp := Response{}
-	err := b.SendAuthenticatedRequest("POST", btcMarketsWithdrawAud, req, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsWithdrawAud,
+		req,
+		&resp)
 	if err != nil {
 		return "", err
 	}
@@ -396,21 +432,19 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
-func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interface{}, result interface{}) (err error) {
+func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result interface{}) (err error) {
 	if !b.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			b.Name)
 	}
 
-	if b.Nonce.Get() == 0 {
-		b.Nonce.Set(time.Now().UnixNano())
-	} else {
-		b.Nonce.Inc()
-	}
-	var request string
+	n := b.Requester.GetNonce(true).String()[0:13]
+
+	var req string
 	payload := []byte("")
 
 	if data != nil {
@@ -418,15 +452,19 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 		if err != nil {
 			return err
 		}
-		request = path + "\n" + b.Nonce.String()[0:13] + "\n" + string(payload)
+		req = path + "\n" + n + "\n" + string(payload)
 	} else {
-		request = path + "\n" + b.Nonce.String()[0:13] + "\n"
+		req = path + "\n" + n + "\n"
 	}
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(request), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512,
+		[]byte(req), []byte(b.APISecret))
 
 	if b.Verbose {
-		log.Printf("Sending %s request to URL %s with params %s\n", reqType, b.APIUrl+path, request)
+		log.Debugf("Sending %s request to URL %s with params %s\n",
+			reqType,
+			b.APIUrl+path,
+			req)
 	}
 
 	headers := make(map[string]string)
@@ -434,8 +472,68 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	headers["Accept-Charset"] = "UTF-8"
 	headers["Content-Type"] = "application/json"
 	headers["apikey"] = b.APIKey
-	headers["timestamp"] = b.Nonce.String()[0:13]
+	headers["timestamp"] = n
 	headers["signature"] = common.Base64Encode(hmac)
 
-	return b.SendPayload(reqType, b.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, b.Verbose)
+	return b.SendPayload(reqType,
+		b.APIUrl+path,
+		headers,
+		bytes.NewBuffer(payload),
+		result,
+		true,
+		true,
+		b.Verbose,
+		b.HTTPDebugging)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		tradingFee, err := b.GetTradingFee(feeBuilder.Pair.Base,
+			feeBuilder.Pair.Quote)
+		if err != nil {
+			return 0, err
+		}
+
+		fee = calculateTradingFee(tradingFee,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount)
+
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0085 * price * amount
+}
+
+func calculateTradingFee(tradingFee TradingFee, purchasePrice, amount float64) (fee float64) {
+	fee = tradingFee.TradingFeeRate / 100000000
+	return fee * amount * purchasePrice
+}
+
+func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
+}
+
+func getInternationalBankWithdrawalFee(c currency.Code) float64 {
+	var fee float64
+
+	if c == currency.AUD {
+		fee = 0
+	}
+	return fee
 }

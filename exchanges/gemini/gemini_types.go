@@ -1,5 +1,7 @@
 package gemini
 
+import "github.com/idoall/gocryptotrader/currency"
+
 // Ticker holds returned ticker data from the exchange
 type Ticker struct {
 	Ask    float64 `json:"ask,string"`
@@ -115,6 +117,9 @@ type TradeHistory struct {
 	Exchange        string  `json:"exchange"`
 	IsAuctionFilled bool    `json:"is_auction_fill"`
 	ClientOrderID   string  `json:"client_order_id"`
+	// Used to store values
+	BaseCurrency  string
+	QuoteCurrency string
 }
 
 // TradeVolume holds Volume information
@@ -140,6 +145,24 @@ type TradeVolume struct {
 	SellTakerCount    float64 `json:"sell_taker_count"`
 }
 
+// NotionalVolume api call for fees
+type NotionalVolume struct {
+	MakerFee              int64                  `json:"maker_fee_bps"`
+	TakerFee              int64                  `json:"taker_fee_bps"`
+	AuctionFee            int64                  `json:"auction_fee_bps"`
+	ThirtyDayVolume       float64                `json:"notional_30d_volume"`
+	LastedUpdated         int64                  `json:"last_updated_ms"`
+	AccountID             int64                  `json:"account_id"`
+	Date                  string                 `json:"date"`
+	OneDayNotionalVolumes []OneDayNotionalVolume `json:"notional_1d_volume"`
+}
+
+// OneDayNotionalVolume Contains the notioanl volume for a single day
+type OneDayNotionalVolume struct {
+	Date             string  `json:"date"`
+	NotationalVolume float64 `json:"notional_volume"`
+}
+
 // Balance is a simple balance type
 type Balance struct {
 	Currency  string  `json:"currency"`
@@ -161,6 +184,8 @@ type WithdrawalAddress struct {
 	Amount  float64 `json:"amount"`
 	TXHash  string  `json:"txHash"`
 	Message string  `json:"message"`
+	Result  string  `json:"result"`
+	Reason  string  `json:"reason"`
 }
 
 // ErrorCapture is a generlized error response from the server
@@ -168,4 +193,225 @@ type ErrorCapture struct {
 	Result  string `json:"result"`
 	Reason  string `json:"reason"`
 	Message string `json:"message"`
+}
+
+// WsResponse generic response
+type WsResponse struct {
+	Type string `json:"type"`
+}
+
+// WsMarketUpdateResponse defines the main response type
+type WsMarketUpdateResponse struct {
+	Type           string  `json:"type"`
+	EventID        int64   `json:"eventId"`
+	Timestamp      int64   `json:"timestamp"`
+	TimestampMS    int64   `json:"timestampms"`
+	SocketSequence int64   `json:"socket_sequence"`
+	Events         []Event `json:"events"`
+}
+
+// Event defines orderbook and trade data
+type Event struct {
+	Type      string  `json:"change"`
+	Reason    string  `json:"reason"`
+	Price     float64 `json:"price,string"`
+	Delta     float64 `json:"delta,string"`
+	Remaining float64 `json:"remaining,string"`
+	Side      string  `json:"side"`
+	MakerSide string  `json:"makerSide"`
+	Amount    float64 `json:"amount,string"`
+}
+
+// ReadData defines read data from the websocket connection
+type ReadData struct {
+	Raw      []byte
+	Currency currency.Pair
+}
+
+// WsRequestPayload Request info to subscribe to a WS enpoint
+type WsRequestPayload struct {
+	Request string `json:"request"`
+	Nonce   int64  `json:"nonce"`
+}
+
+// WsSubscriptionAcknowledgementResponse The first message you receive acknowledges your subscription
+type WsSubscriptionAcknowledgementResponse struct {
+	Type             string   `json:"type"`
+	AccountID        int64    `json:"accountId"`
+	SubscriptionID   string   `json:"subscriptionId"`
+	SymbolFilter     []string `json:"symbolFilter"`
+	APISessionFilter []string `json:"apiSessionFilter"`
+	EventTypeFilter  []string `json:"eventTypeFilter"`
+}
+
+// WsHeartbeatResponse Gemini will send a heartbeat every five seconds so you'll know your WebSocket connection is active.
+type WsHeartbeatResponse struct {
+	Type           string `json:"type"`
+	Timestampms    int64  `json:"timestampms"`
+	Sequence       int64  `json:"sequence"`
+	TraceID        string `json:"trace_id"`
+	SocketSequence int64  `json:"socket_sequence"`
+}
+
+// WsActiveOrdersResponse contains active orders
+type WsActiveOrdersResponse struct {
+	Type              string        `json:"type"`
+	OrderID           string        `json:"order_id"`
+	APISession        string        `json:"api_session"`
+	Symbol            currency.Pair `json:"symbol"`
+	Side              string        `json:"side"`
+	OrderType         string        `json:"order_type"`
+	Timestamp         string        `json:"timestamp"`
+	Timestampms       int64         `json:"timestampms"`
+	IsLive            bool          `json:"is_live"`
+	IsCancelled       bool          `json:"is_cancelled"`
+	IsHidden          bool          `json:"is_hidden"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
+	SocketSequence    int64         `json:"socket_sequence"`
+}
+
+// WsOrderRejectedResponse ws response
+type WsOrderRejectedResponse struct {
+	Type           string        `json:"type"`
+	OrderID        string        `json:"order_id"`
+	EventID        string        `json:"event_id"`
+	Reason         string        `json:"reason"`
+	APISession     string        `json:"api_session"`
+	Symbol         currency.Pair `json:"symbol"`
+	Side           string        `json:"side"`
+	OrderType      string        `json:"order_type"`
+	Timestamp      string        `json:"timestamp"`
+	Timestampms    int64         `json:"timestampms"`
+	IsLive         bool          `json:"is_live"`
+	OriginalAmount float64       `json:"original_amount,string"`
+	Price          float64       `json:"price,string"`
+	SocketSequence int64         `json:"socket_sequence"`
+}
+
+// WsOrderBookedResponse ws response
+type WsOrderBookedResponse struct {
+	Type              string        `json:"type"`
+	OrderID           string        `json:"order_id"`
+	EventID           string        `json:"event_id"`
+	APISession        string        `json:"api_session"`
+	Symbol            currency.Pair `json:"symbol"`
+	Side              string        `json:"side"`
+	OrderType         string        `json:"order_type"`
+	Timestamp         string        `json:"timestamp"`
+	Timestampms       int64         `json:"timestampms"`
+	IsLive            bool          `json:"is_live"`
+	IsCancelled       bool          `json:"is_cancelled"`
+	IsHidden          bool          `json:"is_hidden"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
+	SocketSequence    int64         `json:"socket_sequence"`
+}
+
+// WsOrderFilledResponse ws response
+type WsOrderFilledResponse struct {
+	Type              string            `json:"type"`
+	OrderID           string            `json:"order_id"`
+	APISession        string            `json:"api_session"`
+	Symbol            currency.Pair     `json:"symbol"`
+	Side              string            `json:"side"`
+	OrderType         string            `json:"order_type"`
+	Timestamp         string            `json:"timestamp"`
+	Timestampms       int64             `json:"timestampms"`
+	IsLive            bool              `json:"is_live"`
+	IsCancelled       bool              `json:"is_cancelled"`
+	IsHidden          bool              `json:"is_hidden"`
+	AvgExecutionPrice float64           `json:"avg_execution_price,string"`
+	ExecutedAmount    float64           `json:"executed_amount,string"`
+	RemainingAmount   float64           `json:"remaining_amount,string"`
+	OriginalAmount    float64           `json:"original_amount,string"`
+	Price             float64           `json:"price,string"`
+	Fill              WsOrderFilledData `json:"fill"`
+	SocketSequence    int64             `json:"socket_sequence"`
+}
+
+// WsOrderFilledData ws response data
+type WsOrderFilledData struct {
+	TradeID     string  `json:"trade_id"`
+	Liquidity   string  `json:"liquidity"`
+	Price       float64 `json:"price,string"`
+	Amount      float64 `json:"amount,string"`
+	Fee         float64 `json:"fee,string"`
+	FeeCurrency string  `json:"fee_currency"`
+}
+
+// WsOrderCancelledResponse ws response
+type WsOrderCancelledResponse struct {
+	Type              string        `json:"type"`
+	OrderID           string        `json:"order_id"`
+	EventID           string        `json:"event_id"`
+	CancelCommandID   string        `json:"cancel_command_id,omitempty"`
+	Reason            string        `json:"reason"`
+	APISession        string        `json:"api_session"`
+	Symbol            currency.Pair `json:"symbol"`
+	Side              string        `json:"side"`
+	OrderType         string        `json:"order_type"`
+	Timestamp         string        `json:"timestamp"`
+	Timestampms       int64         `json:"timestampms"`
+	IsLive            bool          `json:"is_live"`
+	IsCancelled       bool          `json:"is_cancelled"`
+	IsHidden          bool          `json:"is_hidden"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
+	SocketSequence    int64         `json:"socket_sequence"`
+}
+
+// WsOrderCancellationRejectedResponse ws response
+type WsOrderCancellationRejectedResponse struct {
+	Type              string        `json:"type"`
+	OrderID           string        `json:"order_id"`
+	EventID           string        `json:"event_id"`
+	CancelCommandID   string        `json:"cancel_command_id"`
+	Reason            string        `json:"reason"`
+	APISession        string        `json:"api_session"`
+	Symbol            currency.Pair `json:"symbol"`
+	Side              string        `json:"side"`
+	OrderType         string        `json:"order_type"`
+	Timestamp         string        `json:"timestamp"`
+	Timestampms       int64         `json:"timestampms"`
+	IsLive            bool          `json:"is_live"`
+	IsCancelled       bool          `json:"is_cancelled"`
+	IsHidden          bool          `json:"is_hidden"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
+	SocketSequence    int64         `json:"socket_sequence"`
+}
+
+// WsOrderClosedResponse ws response
+type WsOrderClosedResponse struct {
+	Type              string        `json:"type"`
+	OrderID           string        `json:"order_id"`
+	EventID           string        `json:"event_id"`
+	APISession        string        `json:"api_session"`
+	Symbol            currency.Pair `json:"symbol"`
+	Side              string        `json:"side"`
+	OrderType         string        `json:"order_type"`
+	Timestamp         string        `json:"timestamp"`
+	Timestampms       int64         `json:"timestampms"`
+	IsLive            bool          `json:"is_live"`
+	IsCancelled       bool          `json:"is_cancelled"`
+	IsHidden          bool          `json:"is_hidden"`
+	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
+	ExecutedAmount    float64       `json:"executed_amount,string"`
+	RemainingAmount   float64       `json:"remaining_amount,string"`
+	OriginalAmount    float64       `json:"original_amount,string"`
+	Price             float64       `json:"price,string"`
+	SocketSequence    int64         `json:"socket_sequence"`
 }

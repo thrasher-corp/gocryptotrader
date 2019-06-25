@@ -3,40 +3,54 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	"github.com/idoall/gocryptotrader/currency/symbol"
 	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
 	"github.com/idoall/gocryptotrader/portfolio"
+=======
+	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
+	log "github.com/idoall/gocryptotrader/logger"
+	"github.com/idoall/gocryptotrader/portfolio"
+>>>>>>> upstrem/master
 )
 
 var (
-	priceMap        map[string]float64
-	displayCurrency string
+	priceMap        map[currency.Code]float64
+	displayCurrency currency.Code
 )
 
 func printSummary(msg string, amount float64) {
 	log.Println()
 	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
 
-	if displayCurrency != "USD" {
-		conv, err := currency.ConvertCurrency(amount, "USD", displayCurrency)
+	if displayCurrency != currency.USD {
+		conv, err := currency.ConvertCurrency(amount,
+			currency.USD,
+			displayCurrency)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 		} else {
-			symb, err := symbol.GetSymbolByCurrencyName(displayCurrency)
+			symb, err := currency.GetSymbolByCurrencyName(displayCurrency)
 			if err != nil {
-				log.Println(fmt.Sprintf("%s in %s: %.2f", msg, displayCurrency, conv))
+				log.Println(fmt.Sprintf("%s in %s: %.2f",
+					msg,
+					displayCurrency,
+					conv))
 			} else {
-				log.Println(fmt.Sprintf("%s in %s: %s%.2f", msg, displayCurrency, symb, conv))
+				log.Println(fmt.Sprintf("%s in %s: %s%.2f",
+					msg,
+					displayCurrency,
+					symb,
+					conv))
 			}
-
 		}
 	}
-	log.Println()
 }
 
 func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
@@ -88,34 +102,34 @@ func main() {
 	}
 
 	cfg.RetrieveConfigCurrencyPairs(true)
-	portfolioMap := make(map[string]PortfolioTemp)
+	portfolioMap := make(map[currency.Code]PortfolioTemp)
 	total := float64(0)
 
 	log.Println("Fetching currency data..")
-	var fiatCurrencies []string
+	var fiatCurrencies []currency.Code
 	for _, y := range result.Totals {
-		if currency.IsFiatCurrency(y.Coin) {
+		if y.Coin.IsFiatCurrency() {
 			fiatCurrencies = append(fiatCurrencies, y.Coin)
 		}
 	}
-	err = currency.SeedCurrencyData(common.JoinStrings(fiatCurrencies, ","))
+	err = currency.SeedForeignExchangeData(fiatCurrencies)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	log.Println("Fetched currency data.")
 	log.Println("Fetching ticker data and calculating totals..")
-	priceMap = make(map[string]float64)
-	priceMap["USD"] = 1
+	priceMap = make(map[currency.Code]float64)
+	priceMap[currency.USD] = 1
 
 	for _, y := range result.Totals {
 		pf := PortfolioTemp{}
 		pf.Balance = y.Balance
 		pf.Subtotal = 0
 
-		if currency.IsDefaultCurrency(y.Coin) {
-			if y.Coin != "USD" {
-				conv, err := currency.ConvertCurrency(y.Balance, y.Coin, "USD")
+		if y.Coin.IsDefaultFiatCurrency() {
+			if y.Coin != currency.USD {
+				conv, err := currency.ConvertCurrency(y.Balance, y.Coin, currency.USD)
 				if err != nil {
 					log.Println(err)
 				} else {
@@ -127,7 +141,7 @@ func main() {
 			}
 		} else {
 			bf := bitfinex.Bitfinex{}
-			ticker, errf := bf.GetTicker(y.Coin + "USD")
+			ticker, errf := bf.GetTicker(y.Coin.String() + currency.USD.String())
 			if errf != nil {
 				log.Println(errf)
 			} else {

@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"log"
+	"strings"
 	"sync"
 
 	"github.com/idoall/gocryptotrader/common"
@@ -15,8 +15,8 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/bitmex"
 	"github.com/idoall/gocryptotrader/exchanges/bitstamp"
 	"github.com/idoall/gocryptotrader/exchanges/bittrex"
-	"github.com/idoall/gocryptotrader/exchanges/btcc"
 	"github.com/idoall/gocryptotrader/exchanges/btcmarkets"
+	"github.com/idoall/gocryptotrader/exchanges/btse"
 	"github.com/idoall/gocryptotrader/exchanges/coinbasepro"
 	"github.com/idoall/gocryptotrader/exchanges/coinut"
 	"github.com/idoall/gocryptotrader/exchanges/exmo"
@@ -28,14 +28,13 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/itbit"
 	"github.com/idoall/gocryptotrader/exchanges/kraken"
 	"github.com/idoall/gocryptotrader/exchanges/lakebtc"
-	"github.com/idoall/gocryptotrader/exchanges/liqui"
 	"github.com/idoall/gocryptotrader/exchanges/localbitcoins"
 	"github.com/idoall/gocryptotrader/exchanges/okcoin"
 	"github.com/idoall/gocryptotrader/exchanges/okex"
 	"github.com/idoall/gocryptotrader/exchanges/poloniex"
-	"github.com/idoall/gocryptotrader/exchanges/wex"
 	"github.com/idoall/gocryptotrader/exchanges/yobit"
 	"github.com/idoall/gocryptotrader/exchanges/zb"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // vars related to exchange functions
@@ -50,7 +49,7 @@ var (
 // been loaded
 func CheckExchangeExists(exchName string) bool {
 	for x := range bot.exchanges {
-		if common.StringToLower(bot.exchanges[x].GetName()) == common.StringToLower(exchName) {
+		if strings.EqualFold(bot.exchanges[x].GetName(), exchName) {
 			return true
 		}
 	}
@@ -60,7 +59,7 @@ func CheckExchangeExists(exchName string) bool {
 // GetExchangeByName returns an exchange given an exchange name
 func GetExchangeByName(exchName string) exchange.IBotExchange {
 	for x := range bot.exchanges {
-		if common.StringToLower(bot.exchanges[x].GetName()) == common.StringToLower(exchName) {
+		if strings.EqualFold(bot.exchanges[x].GetName(), exchName) {
 			return bot.exchanges[x]
 		}
 	}
@@ -69,13 +68,11 @@ func GetExchangeByName(exchName string) exchange.IBotExchange {
 
 // ReloadExchange loads an exchange config by name
 func ReloadExchange(name string) error {
-	nameLower := common.StringToLower(name)
-
 	if len(bot.exchanges) == 0 {
 		return ErrNoExchangesLoaded
 	}
 
-	if !CheckExchangeExists(nameLower) {
+	if !CheckExchangeExists(name) {
 		return ErrExchangeNotFound
 	}
 
@@ -84,21 +81,19 @@ func ReloadExchange(name string) error {
 		return err
 	}
 
-	e := GetExchangeByName(nameLower)
-	e.Setup(exchCfg)
-	log.Printf("%s exchange reloaded successfully.\n", name)
+	e := GetExchangeByName(name)
+	e.Setup(&exchCfg)
+	log.Debugf("%s exchange reloaded successfully.\n", name)
 	return nil
 }
 
 // UnloadExchange unloads an exchange by name
 func UnloadExchange(name string) error {
-	nameLower := common.StringToLower(name)
-
 	if len(bot.exchanges) == 0 {
 		return ErrNoExchangesLoaded
 	}
 
-	if !CheckExchangeExists(nameLower) {
+	if !CheckExchangeExists(name) {
 		return ErrExchangeNotFound
 	}
 
@@ -108,13 +103,13 @@ func UnloadExchange(name string) error {
 	}
 
 	exchCfg.Enabled = false
-	err = bot.config.UpdateExchangeConfig(exchCfg)
+	err = bot.config.UpdateExchangeConfig(&exchCfg)
 	if err != nil {
 		return err
 	}
 
 	for x := range bot.exchanges {
-		if bot.exchanges[x].GetName() == name {
+		if strings.EqualFold(bot.exchanges[x].GetName(), name) {
 			bot.exchanges[x].SetEnabled(false)
 			bot.exchanges = append(bot.exchanges[:x], bot.exchanges[x+1:]...)
 			return nil
@@ -130,7 +125,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	var exch exchange.IBotExchange
 
 	if len(bot.exchanges) > 0 {
-		if CheckExchangeExists(nameLower) {
+		if CheckExchangeExists(name) {
 			return ErrExchangeAlreadyLoaded
 		}
 	}
@@ -152,10 +147,10 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(bitstamp.Bitstamp)
 	case "bittrex":
 		exch = new(bittrex.Bittrex)
-	case "btcc":
-		exch = new(btcc.BTCC)
 	case "btc markets":
 		exch = new(btcmarkets.BTCMarkets)
+	case "btse":
+		exch = new(btse.BTSE)
 	case "coinut":
 		exch = new(coinut.COINUT)
 	case "exmo":
@@ -178,20 +173,14 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(kraken.Kraken)
 	case "lakebtc":
 		exch = new(lakebtc.LakeBTC)
-	case "liqui":
-		exch = new(liqui.Liqui)
 	case "localbitcoins":
 		exch = new(localbitcoins.LocalBitcoins)
-	case "okcoin china":
-		exch = new(okcoin.OKCoin)
 	case "okcoin international":
 		exch = new(okcoin.OKCoin)
 	case "okex":
 		exch = new(okex.OKEX)
 	case "poloniex":
 		exch = new(poloniex.Poloniex)
-	case "wex":
-		exch = new(wex.WEX)
 	case "yobit":
 		exch = new(yobit.Yobit)
 	case "zb":
@@ -212,7 +201,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	}
 
 	exchCfg.Enabled = true
-	exch.Setup(exchCfg)
+	exch.Setup(&exchCfg)
 
 	if useWG {
 		exch.Start(wg)
@@ -227,17 +216,18 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 // SetupExchanges sets up the exchanges used by the bot
 func SetupExchanges() {
 	var wg sync.WaitGroup
-	for _, exch := range bot.config.Exchanges {
+	for x := range bot.config.Exchanges {
+		exch := &bot.config.Exchanges[x]
 		if CheckExchangeExists(exch.Name) {
 			e := GetExchangeByName(exch.Name)
 			if e == nil {
-				log.Println(ErrExchangeNotFound)
+				log.Errorf("%s", ErrExchangeNotFound)
 				continue
 			}
 
 			err := ReloadExchange(exch.Name)
 			if err != nil {
-				log.Printf("ReloadExchange %s failed: %s", exch.Name, err)
+				log.Errorf("ReloadExchange %s failed: %s", exch.Name, err)
 				continue
 			}
 
@@ -249,16 +239,15 @@ func SetupExchanges() {
 
 		}
 		if !exch.Enabled {
-			log.Printf("%s: Exchange support: Disabled", exch.Name)
+			log.Debugf("%s: Exchange support: Disabled", exch.Name)
 			continue
-		} else {
-			err := LoadExchange(exch.Name, true, &wg)
-			if err != nil {
-				log.Printf("LoadExchange %s failed: %s", exch.Name, err)
-				continue
-			}
 		}
-		log.Printf(
+		err := LoadExchange(exch.Name, true, &wg)
+		if err != nil {
+			log.Errorf("LoadExchange %s failed: %s", exch.Name, err)
+			continue
+		}
+		log.Debugf(
 			"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
 			exch.Name,
 			common.IsEnabled(exch.AuthenticatedAPISupport),

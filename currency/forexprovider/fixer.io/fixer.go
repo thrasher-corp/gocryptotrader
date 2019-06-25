@@ -10,11 +10,15 @@ package fixer
 
 import (
 	"errors"
+	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
+	"github.com/idoall/gocryptotrader/exchanges/request"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -24,22 +28,32 @@ const (
 	fixerAPIProfessionalPlus
 	fixerAPIEnterprise
 
-	fixerAPI            = "http://data.fixer.io/api/"
-	fixerAPISSL         = "https://data.fixer.io/api/"
-	fixerAPILatest      = "latest"
-	fixerAPIConvert     = "convert"
-	fixerAPITimeSeries  = "timeseries"
-	fixerAPIFluctuation = "fluctuation"
+	fixerAPI                 = "http://data.fixer.io/api/"
+	fixerAPISSL              = "https://data.fixer.io/api/"
+	fixerAPILatest           = "latest"
+	fixerAPIConvert          = "convert"
+	fixerAPITimeSeries       = "timeseries"
+	fixerAPIFluctuation      = "fluctuation"
+	fixerSupportedCurrencies = "symbols"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // Fixer is a foreign exchange rate provider at https://fixer.io/
 // NOTE DEFAULT BASE CURRENCY IS EUR upgrade to basic to change
 type Fixer struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets appropriate values for fixer object
-func (f *Fixer) Setup(config base.Settings) {
+func (f *Fixer) Setup(config base.Settings) error {
+	if config.APIKeyLvl < 0 || config.APIKeyLvl > 4 {
+		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+			config.Name)
+		return errors.New("apikey set failure")
+	}
 	f.APIKey = config.APIKey
 	f.APIKeyLvl = config.APIKeyLvl
 	f.Enabled = config.Enabled
@@ -47,6 +61,32 @@ func (f *Fixer) Setup(config base.Settings) {
 	f.RESTPollingDelay = config.RESTPollingDelay
 	f.Verbose = config.Verbose
 	f.PrimaryProvider = config.PrimaryProvider
+	f.Requester = request.New(f.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
+}
+
+// GetSupportedCurrencies returns supported currencies
+func (f *Fixer) GetSupportedCurrencies() ([]string, error) {
+	var resp Symbols
+
+	err := f.SendOpenHTTPRequest(fixerSupportedCurrencies, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, errors.New(resp.Error.Type + resp.Error.Info)
+	}
+
+	var currencies []string
+	for key := range resp.Map {
+		currencies = append(currencies, key)
+	}
+
+	return currencies, nil
 }
 
 // GetRates is a wrapper function to return rates
@@ -71,13 +111,13 @@ func (f *Fixer) GetRates(baseCurrency, symbols string) (map[string]float64, erro
 
 // GetLatestRates returns real-time exchange rate data for all available or a
 // specific set of currencies. NOTE DEFAULT BASE CURRENCY IS EUR
-func (f *Fixer) GetLatestRates(base, symbols string) (map[string]float64, error) {
+func (f *Fixer) GetLatestRates(baseCurrency, symbols string) (map[string]float64, error) {
 	var resp Rates
 
 	v := url.Values{}
 
 	if f.APIKeyLvl > fixerAPIFree {
-		v.Add("base", base)
+		v.Add("base", baseCurrency)
 	}
 	v.Add("symbols", symbols)
 
@@ -96,11 +136,17 @@ func (f *Fixer) GetLatestRates(base, symbols string) (map[string]float64, error)
 // GetHistoricalRates returns historical exchange rate data for all available or
 // a specific set of currencies.
 // date - YYYY-MM-DD	[required] A date in the past
-func (f *Fixer) GetHistoricalRates(date, base string, symbols []string) (map[string]float64, error) {
+// base - USD 			[optional]
+// symbols - the desired symbols
+func (f *Fixer) GetHistoricalRates(date, baseCurrency string, symbols []string) (map[string]float64, error) {
 	var resp Rates
 
 	v := url.Values{}
 	v.Set("symbols", common.JoinStrings(symbols, ","))
+
+	if baseCurrency != "" {
+		v.Set("base", baseCurrency)
+	}
 
 	err := f.SendOpenHTTPRequest(date, v, &resp)
 	if err != nil {
@@ -148,7 +194,7 @@ func (f *Fixer) ConvertCurrency(from, to, date string, amount float64) (float64,
 
 // GetTimeSeriesData returns daily historical exchange rate data between two
 // specified dates for all available or a specific set of currencies.
-func (f *Fixer) GetTimeSeriesData(startDate, endDate, base string, symbols []string) (map[string]interface{}, error) {
+func (f *Fixer) GetTimeSeriesData(startDate, endDate, baseCurrency string, symbols []string) (map[string]interface{}, error) {
 	if f.APIKeyLvl < fixerAPIProfessional {
 		return nil, errors.New("insufficient API privileges, upgrade to professional to use this function")
 	}
@@ -158,7 +204,7 @@ func (f *Fixer) GetTimeSeriesData(startDate, endDate, base string, symbols []str
 	v := url.Values{}
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 
 	err := f.SendOpenHTTPRequest(fixerAPITimeSeries, v, &resp)
@@ -174,7 +220,7 @@ func (f *Fixer) GetTimeSeriesData(startDate, endDate, base string, symbols []str
 
 // GetFluctuationData returns fluctuation data between two specified dates for
 // all available or a specific set of currencies.
-func (f *Fixer) GetFluctuationData(startDate, endDate, base string, symbols []string) (map[string]Flux, error) {
+func (f *Fixer) GetFluctuationData(startDate, endDate, baseCurrency string, symbols []string) (map[string]Flux, error) {
 	if f.APIKeyLvl < fixerAPIProfessionalPlus {
 		return nil, errors.New("insufficient API privileges, upgrade to professional plus or enterprise to use this function")
 	}
@@ -184,7 +230,7 @@ func (f *Fixer) GetFluctuationData(startDate, endDate, base string, symbols []st
 	v := url.Values{}
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
-	v.Set("base", base)
+	v.Set("base", baseCurrency)
 	v.Set("symbols", common.JoinStrings(symbols, ","))
 
 	err := f.SendOpenHTTPRequest(fixerAPIFluctuation, v, &resp)
@@ -203,10 +249,21 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 	var path string
 	v.Set("access_key", f.APIKey)
 
+	var auth bool
 	if f.APIKeyLvl == fixerAPIFree {
 		path = fixerAPI + endpoint + "?" + v.Encode()
 	} else {
 		path = fixerAPISSL + endpoint + "?" + v.Encode()
+		auth = true
 	}
-	return common.SendHTTPGetRequest(path, true, f.Verbose, result)
+
+	return f.Requester.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		auth,
+		false,
+		f.Verbose,
+		false)
 }

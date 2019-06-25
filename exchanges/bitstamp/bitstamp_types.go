@@ -77,7 +77,7 @@ type Balances struct {
 
 // UserTransactions holds user transaction information
 type UserTransactions struct {
-	Date    string  `json:"datetime"`
+	Date    int64   `json:"datetime"`
 	TransID int64   `json:"id"`
 	Type    int     `json:"type,string"`
 	USD     float64 `json:"usd"`
@@ -91,11 +91,12 @@ type UserTransactions struct {
 
 // Order holds current open order data
 type Order struct {
-	ID     int64   `json:"id"`
-	Date   string  `json:"datetime"`
-	Type   int     `json:"type"`
-	Price  float64 `json:"price"`
-	Amount float64 `json:"amount"`
+	ID       int64   `json:"id"`
+	Date     int64   `json:"datetime"`
+	Type     int     `json:"type"`
+	Price    float64 `json:"price"`
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency_pair"`
 }
 
 // OrderStatus holds order status information
@@ -122,6 +123,19 @@ type WithdrawalRequests struct {
 	TransactionID string `json:"transaction_id"` // Bitcoin withdrawals only
 }
 
+// CryptoWithdrawalResponse response from a crypto withdrawal request
+type CryptoWithdrawalResponse struct {
+	ID    string `json:"id"`
+	Error string `json:"error"`
+}
+
+// FIATWithdrawalResponse response from a fiat withdrawal request
+type FIATWithdrawalResponse struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Reason string `json:"reason"`
+}
+
 // UnconfirmedBTCTransactions holds address information about unconfirmed
 // transactions
 type UnconfirmedBTCTransactions struct {
@@ -136,4 +150,54 @@ type CaptureError struct {
 	Reason interface{} `json:"reason"`
 	Code   interface{} `json:"code"`
 	Error  interface{} `json:"error"`
+}
+
+const (
+	sepaWithdrawal          string = "sepa"
+	internationalWithdrawal string = "international"
+	errStr                  string = "error"
+)
+
+type websocketEventRequest struct {
+	Event string        `json:"event"`
+	Data  websocketData `json:"data"`
+}
+
+type websocketData struct {
+	Channel string `json:"channel"`
+}
+
+type websocketResponse struct {
+	Event   string `json:"event"`
+	Channel string `json:"channel"`
+}
+
+type websocketTradeResponse struct {
+	websocketResponse
+	Data websocketTradeData `json:"data"`
+}
+
+type websocketTradeData struct {
+	Microtimestamp string  `json:"microtimestamp"`
+	Amount         float64 `json:"amount"`
+	BuyOrderID     int64   `json:"buy_order_id"`
+	SellOrderID    int64   `json:"sell_order_id"`
+	AmountStr      string  `json:"amount_str"`
+	PriceStr       string  `json:"price_str"`
+	Timestamp      string  `json:"timestamp"`
+	Price          float64 `json:"price"`
+	Type           int     `json:"type"`
+	ID             int     `json:"id"`
+}
+
+type websocketOrderBookResponse struct {
+	websocketResponse
+	Data websocketOrderBook `json:"data"`
+}
+
+type websocketOrderBook struct {
+	Asks           [][]string `json:"asks"`
+	Bids           [][]string `json:"bids"`
+	Timestamp      int64      `json:"timestamp,string"`
+	Microtimestamp string     `json:"microtimestamp"`
 }

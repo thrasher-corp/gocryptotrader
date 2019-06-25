@@ -1,5 +1,7 @@
 package kraken
 
+import "github.com/idoall/gocryptotrader/currency"
+
 // TimeResponse type
 type TimeResponse struct {
 	Unixtime int64  `json:"unixtime"`
@@ -46,6 +48,9 @@ type Ticker struct {
 	High   float64
 	Open   float64
 }
+
+// Tickers stores a map of tickers
+type Tickers map[string]Ticker
 
 // TickerResponse holds ticker information before its put into the Ticker struct
 type TickerResponse struct {
@@ -285,6 +290,21 @@ type AddOrderResponse struct {
 	TransactionIds []string         `json:"txid"`
 }
 
+// WithdrawInformation Used to check withdrawal fees
+type WithdrawInformation struct {
+	Method string  `json:"method"`
+	Limit  float64 `json:"limit,string"`
+	Fee    float64 `json:"fee,string"`
+}
+
+// DepositMethods Used to check deposit fees
+type DepositMethods struct {
+	Method          string      `json:"method"`
+	Limit           interface{} `json:"limit"` // If no limit amount, this comes back as boolean
+	Fee             float64     `json:"fee,string"`
+	AddressSetupFee float64     `json:"address-setup-fee,string"`
+}
+
 // OrderDescription represents an orders description
 type OrderDescription struct {
 	Close string `json:"close"`
@@ -307,4 +327,129 @@ type AddOrderOptions struct {
 type CancelOrderResponse struct {
 	Count   int64       `json:"count"`
 	Pending interface{} `json:"pending"`
+}
+
+// DepositFees the large list of predefined deposit fees
+// Prone to change
+var DepositFees = map[currency.Code]float64{
+	currency.XTZ: 0.05,
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[currency.Code]float64{
+	currency.ZUSD: 5,
+	currency.ZEUR: 5,
+	currency.USD:  5,
+	currency.EUR:  5,
+	currency.REP:  0.01,
+	currency.XXBT: 0.0005,
+	currency.BTC:  0.0005,
+	currency.XBT:  0.0005,
+	currency.BCH:  0.0001,
+	currency.ADA:  0.3,
+	currency.DASH: 0.005,
+	currency.XDG:  2,
+	currency.EOS:  0.05,
+	currency.ETH:  0.005,
+	currency.ETC:  0.005,
+	currency.GNO:  0.005,
+	currency.ICN:  0.2,
+	currency.LTC:  0.001,
+	currency.MLN:  0.003,
+	currency.XMR:  0.05,
+	currency.QTUM: 0.01,
+	currency.XRP:  0.02,
+	currency.XLM:  0.00002,
+	currency.USDT: 5,
+	currency.XTZ:  0.05,
+	currency.ZEC:  0.0001,
+}
+
+// DepositAddress defines a deposit address
+type DepositAddress struct {
+	Address    string `json:"address"`
+	ExpireTime int64  `json:"expiretm,string"`
+	New        bool   `json:"new"`
+}
+
+// WithdrawStatusResponse defines a withdrawal status response
+type WithdrawStatusResponse struct {
+	Method string  `json:"method"`
+	Aclass string  `json:"aclass"`
+	Asset  string  `json:"asset"`
+	Refid  string  `json:"refid"`
+	TxID   string  `json:"txid"`
+	Info   string  `json:"info"`
+	Amount float64 `json:"amount,string"`
+	Fee    float64 `json:"fee,string"`
+	Time   float64 `json:"time"`
+	Status string  `json:"status"`
+}
+
+// WebsocketSubscriptionEventRequest handles WS subscription events
+type WebsocketSubscriptionEventRequest struct {
+	Event        string                    `json:"event"`           // subscribe
+	RequestID    int64                     `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	Pairs        []string                  `json:"pair"`            // Array of currency pairs (pair1,pair2,pair3).
+	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
+}
+
+// WebsocketUnsubscribeByChannelIDEventRequest  handles WS unsubscribe events
+type WebsocketUnsubscribeByChannelIDEventRequest struct {
+	Event     string   `json:"event"`           // unsubscribe
+	RequestID int64    `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	Pairs     []string `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
+	ChannelID int64    `json:"channelID,omitempty"`
+}
+
+// WebsocketSubscriptionData contains details on WS channel
+type WebsocketSubscriptionData struct {
+	Name     string `json:"name,omitempty"`     // ticker|ohlc|trade|book|spread|*, * for all (ohlc interval value is 1 if all channels subscribed)
+	Interval int64  `json:"interval,omitempty"` // Optional - Time interval associated with ohlc subscription in minutes. Default 1. Valid Interval values: 1|5|15|30|60|240|1440|10080|21600
+	Depth    int64  `json:"depth,omitempty"`    // Optional - depth associated with book subscription in number of levels each side, default 10. Valid Options are: 10, 25, 100, 500, 1000
+}
+
+// WebsocketEventResponse holds all data response types
+type WebsocketEventResponse struct {
+	Event        string                            `json:"event"`
+	Status       string                            `json:"status"`
+	Pair         currency.Pair                     `json:"pair,omitempty"`
+	RequestID    int64                             `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	Subscription WebsocketSubscriptionResponseData `json:"subscription,omitempty"`
+	WebsocketSubscriptionEventResponse
+	WebsocketStatusResponse
+	WebsocketErrorResponse
+}
+
+// WebsocketSubscriptionEventResponse defines a websocket socket event response
+type WebsocketSubscriptionEventResponse struct {
+	ChannelID int64 `json:"channelID"`
+}
+
+// WebsocketSubscriptionResponseData defines a websocket subscription response
+type WebsocketSubscriptionResponseData struct {
+	Name string `json:"name"`
+}
+
+// WebsocketStatusResponse defines a websocket status response
+type WebsocketStatusResponse struct {
+	ConnectionID float64 `json:"connectionID"`
+	Version      string  `json:"version"`
+}
+
+// WebsocketDataResponse defines a websocket data type
+type WebsocketDataResponse []interface{}
+
+// WebsocketErrorResponse defines a websocket error response
+type WebsocketErrorResponse struct {
+	ErrorMessage string `json:"errorMessage"`
+}
+
+// WebsocketChannelData Holds relevant data for channels to identify what we're
+// doing
+type WebsocketChannelData struct {
+	Subscription string
+	Pair         currency.Pair
+	ChannelID    int64
 }

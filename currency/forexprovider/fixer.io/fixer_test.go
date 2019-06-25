@@ -2,6 +2,8 @@ package fixer
 
 import (
 	"testing"
+
+	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
 )
 
 // Please set API key and apikey subscription level for correct due diligence
@@ -14,7 +16,20 @@ const (
 
 var f Fixer
 
+var isSetup bool
+
+func setup(t *testing.T) {
+	if !isSetup {
+		err := f.Setup(base.Settings{})
+		if err != nil {
+			t.Fatal("Test Failed - Setup error", err)
+		}
+		isSetup = true
+	}
+}
+
 func TestGetRates(t *testing.T) {
+	setup(t)
 	_, err := f.GetRates("EUR", "AUD")
 	if err == nil {
 		t.Error("test failed - fixer GetRates() error", err)
@@ -22,6 +37,7 @@ func TestGetRates(t *testing.T) {
 }
 
 func TestGetLatestRates(t *testing.T) {
+	setup(t)
 	_, err := f.GetLatestRates("EUR", "AUD")
 	if err == nil {
 		t.Error("test failed - fixer GetLatestRates() error", err)
@@ -29,6 +45,7 @@ func TestGetLatestRates(t *testing.T) {
 }
 
 func TestGetHistoricalRates(t *testing.T) {
+	setup(t)
 	_, err := f.GetHistoricalRates("2013-12-24", "EUR", []string{"AUD,KRW"})
 	if err == nil {
 		t.Error("test failed - fixer GetHistoricalRates() error", err)
@@ -36,6 +53,7 @@ func TestGetHistoricalRates(t *testing.T) {
 }
 
 func TestConvertCurrency(t *testing.T) {
+	setup(t)
 	_, err := f.ConvertCurrency("AUD", "EUR", "", 1337)
 	if err == nil {
 		t.Error("test failed - fixer ConvertCurrency() error", err)
@@ -43,6 +61,7 @@ func TestConvertCurrency(t *testing.T) {
 }
 
 func TestGetTimeSeriesData(t *testing.T) {
+	setup(t)
 	_, err := f.GetTimeSeriesData("2013-12-24", "2013-12-25", "EUR", []string{"AUD,KRW"})
 	if err == nil {
 		t.Error("test failed - fixer GetTimeSeriesData() error", err)
@@ -50,6 +69,7 @@ func TestGetTimeSeriesData(t *testing.T) {
 }
 
 func TestGetFluctuationData(t *testing.T) {
+	setup(t)
 	_, err := f.GetFluctuationData("2013-12-24", "2013-12-25", "EUR", []string{"AUD,KRW"})
 	if err == nil {
 		t.Error("test failed - fixer GetFluctuationData() error", err)

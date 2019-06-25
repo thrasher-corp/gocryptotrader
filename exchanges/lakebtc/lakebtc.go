@@ -3,16 +3,18 @@ package lakebtc
 import (
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
@@ -26,7 +28,7 @@ const (
 	lakeBTCSellOrder           = "sellOrder"
 	lakeBTCOpenOrders          = "openOrders"
 	lakeBTCGetOrders           = "getOrders"
-	lakeBTCCancelOrder         = "cancelOrder"
+	lakeBTCCancelOrder         = "cancelOrders"
 	lakeBTCGetTrades           = "getTrades"
 	lakeBTCGetExternalAccounts = "getExternalAccounts"
 	lakeBTCCreateWithdraw      = "createWithdraw"
@@ -47,8 +49,9 @@ func (l *LakeBTC) SetDefaults() {
 	l.TakerFee = 0.2
 	l.MakerFee = 0.15
 	l.Verbose = false
-	l.Websocket = false
 	l.RESTPollingDelay = 10
+	l.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.WithdrawFiatViaWebsiteOnly
 	l.RequestCurrencyPairFormat.Delimiter = ""
 	l.RequestCurrencyPairFormat.Uppercase = true
 	l.ConfigCurrencyPairFormat.Delimiter = ""
@@ -62,10 +65,11 @@ func (l *LakeBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = lakeBTCAPIURL
 	l.APIUrl = l.APIUrlDefault
+	l.WebsocketInit()
 }
 
 // Setup sets exchange configuration profile
-func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
+func (l *LakeBTC) Setup(exch *config.ExchangeConfig) {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 	} else {
@@ -76,10 +80,10 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
-		l.Websocket = exch.Websocket
-		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		l.HTTPDebugging = exch.HTTPDebugging
+		l.BaseCurrencies = exch.BaseCurrencies
+		l.AvailablePairs = exch.AvailablePairs
+		l.EnabledPairs = exch.EnabledPairs
 		err := l.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -93,6 +97,10 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = l.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -114,14 +122,6 @@ func (l *LakeBTC) GetTradablePairs() ([]string, error) {
 	return currencies, nil
 }
 
-// GetFee returns maker or taker fee
-func (l *LakeBTC) GetFee(maker bool) float64 {
-	if maker {
-		return l.MakerFee
-	}
-	return l.TakerFee
-}
-
 // GetTicker returns the current ticker from lakeBTC
 func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 	response := make(map[string]TickerResponse)
@@ -133,30 +133,28 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 
 	result := make(map[string]Ticker)
 
-	var addresses []string
 	for k, v := range response {
-		var ticker Ticker
+		var tick Ticker
 		key := common.StringToUpper(k)
 		if v.Ask != nil {
-			ticker.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
+			tick.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
 		}
 		if v.Bid != nil {
-			ticker.Bid, _ = strconv.ParseFloat(v.Bid.(string), 64)
+			tick.Bid, _ = strconv.ParseFloat(v.Bid.(string), 64)
 		}
 		if v.High != nil {
-			ticker.High, _ = strconv.ParseFloat(v.High.(string), 64)
+			tick.High, _ = strconv.ParseFloat(v.High.(string), 64)
 		}
 		if v.Last != nil {
-			ticker.Last, _ = strconv.ParseFloat(v.Last.(string), 64)
+			tick.Last, _ = strconv.ParseFloat(v.Last.(string), 64)
 		}
 		if v.Low != nil {
-			ticker.Low, _ = strconv.ParseFloat(v.Low.(string), 64)
+			tick.Low, _ = strconv.ParseFloat(v.Low.(string), 64)
 		}
 		if v.Volume != nil {
-			ticker.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
+			tick.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
 		}
-		result[key] = ticker
-		addresses = append(addresses, key)
+		result[key] = tick
 	}
 	return result, nil
 }
@@ -178,12 +176,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, OrderbookStructure{price, amount})
@@ -192,12 +190,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, OrderbookStructure{price, amount})
@@ -208,13 +206,13 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 // GetTradeHistory returns the trade history for a given currency pair
 func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
 	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCTrades, common.StringToLower(currency))
-	resp := []TradeHistory{}
+	var resp []TradeHistory
 
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
-// GetAccountInfo returns your current account information
-func (l *LakeBTC) GetAccountInfo() (AccountInfo, error) {
+// GetAccountInformation returns your current account information
+func (l *LakeBTC) GetAccountInformation() (AccountInfo, error) {
 	resp := AccountInfo{}
 
 	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetAccountInfo, "", &resp)
@@ -222,11 +220,11 @@ func (l *LakeBTC) GetAccountInfo() (AccountInfo, error) {
 
 // Trade executes an order on the exchange and returns trade inforamtion or an
 // error
-func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) (Trade, error) {
+func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string) (Trade, error) {
 	resp := Trade{}
 	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
 
-	if orderType == 1 {
+	if isBuyOrder {
 		if err := l.SendAuthenticatedHTTPRequest(lakeBTCBuyOrder, params, &resp); err != nil {
 			return resp, err
 		}
@@ -237,7 +235,7 @@ func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) (
 	}
 
 	if resp.Result != "order received" {
-		return resp, fmt.Errorf("Unexpected result: %s", resp.Result)
+		return resp, fmt.Errorf("unexpected result: %s", resp.Result)
 	}
 
 	return resp, nil
@@ -245,7 +243,7 @@ func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) (
 
 // GetOpenOrders returns all open orders associated with your account
 func (l *LakeBTC) GetOpenOrders() ([]OpenOrders, error) {
-	orders := []OpenOrders{}
+	var orders []OpenOrders
 
 	return orders, l.SendAuthenticatedHTTPRequest(lakeBTCOpenOrders, "", &orders)
 }
@@ -257,13 +255,13 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]Orders, error) {
 		ordersStr = append(ordersStr, strconv.FormatInt(x, 10))
 	}
 
-	resp := []Orders{}
+	var resp []Orders
 	return resp,
 		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, common.JoinStrings(ordersStr, ","), &resp)
 }
 
-// CancelOrder cancels an order by ID number and returns an error
-func (l *LakeBTC) CancelOrder(orderID int64) error {
+// CancelExistingOrder cancels an order by ID number and returns an error
+func (l *LakeBTC) CancelExistingOrder(orderID int64) error {
 	type Response struct {
 		Result bool `json:"Result"`
 	}
@@ -275,8 +273,27 @@ func (l *LakeBTC) CancelOrder(orderID int64) error {
 		return err
 	}
 
-	if resp.Result != true {
+	if !resp.Result {
 		return errors.New("unable to cancel order")
+	}
+	return nil
+}
+
+// CancelExistingOrders cancels an order by ID number and returns an error
+func (l *LakeBTC) CancelExistingOrders(orderIDs []string) error {
+	type Response struct {
+		Result bool `json:"Result"`
+	}
+
+	resp := Response{}
+	params := common.JoinStrings(orderIDs, ",")
+	err := l.SendAuthenticatedHTTPRequest(lakeBTCCancelOrder, params, &resp)
+	if err != nil {
+		return err
+	}
+
+	if !resp.Result {
+		return fmt.Errorf("unable to cancel order(s): %v", orderIDs)
 	}
 	return nil
 }
@@ -288,29 +305,37 @@ func (l *LakeBTC) GetTrades(timestamp int64) ([]AuthenticatedTradeHistory, error
 		params = strconv.FormatInt(timestamp, 10)
 	}
 
-	trades := []AuthenticatedTradeHistory{}
+	var trades []AuthenticatedTradeHistory
 	return trades, l.SendAuthenticatedHTTPRequest(lakeBTCGetTrades, params, &trades)
 }
 
 // GetExternalAccounts returns your external accounts WARNING: Only for BTC!
 func (l *LakeBTC) GetExternalAccounts() ([]ExternalAccounts, error) {
-	resp := []ExternalAccounts{}
+	var resp []ExternalAccounts
 
 	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetExternalAccounts, "", &resp)
 }
 
 // CreateWithdraw allows your to withdraw to external account WARNING: Only for
 // BTC!
-func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (Withdraw, error) {
+func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, error) {
 	resp := Withdraw{}
-	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc," + strconv.FormatInt(accountID, 10)
+	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc," + accountID
 
-	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCCreateWithdraw, params, &resp)
+	err := l.SendAuthenticatedHTTPRequest(lakeBTCCreateWithdraw, params, &resp)
+	if err != nil {
+		return Withdraw{}, err
+	}
+	if len(resp.Error) > 0 {
+		return resp, errors.New(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // SendHTTPRequest sends an unauthenticated http request
 func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload("GET", path, nil, nil, result, false, l.Verbose)
+	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, false, l.Verbose, l.HTTPDebugging)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated HTTP request to a LakeBTC
@@ -319,17 +344,13 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
 
-	if l.Nonce.Get() == 0 {
-		l.Nonce.Set(time.Now().UnixNano())
-	} else {
-		l.Nonce.Inc()
-	}
+	n := l.Requester.GetNonce(true).String()
 
-	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", l.Nonce.String(), l.APIKey, method, params)
+	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", n, l.APIKey, method, params)
 	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))
 
 	if l.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", l.APIUrl, method, req)
+		log.Debugf("Sending POST request to %s calling method %s with params %s\n", l.APIUrl, method, req)
 	}
 
 	postData := make(map[string]interface{})
@@ -347,5 +368,53 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
-	return l.SendPayload("POST", l.APIUrl, headers, strings.NewReader(string(data)), result, true, l.Verbose)
+	return l.SendPayload(http.MethodPost, l.APIUrl, headers, strings.NewReader(string(data)), result, true, true, l.Verbose, l.HTTPDebugging)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (l *LakeBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
+	case exchange.CyptocurrencyDepositFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.InternationalBankWithdrawalFee:
+		// fees for withdrawals are dynamic. They cannot be calculated in
+		// advance as they are manually performed via the website, it can only
+		// be determined when submitting the request
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
+}
+
+func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
+	if isMaker {
+		// TODO: Volume based fee calculation
+		fee = 0.0015
+	} else {
+		fee = 0.002
+	}
+
+	return fee * amount * purchasePrice
+}
+
+func getCryptocurrencyWithdrawalFee(c currency.Code) (fee float64) {
+	if c == currency.BTC {
+		fee = 0.001
+	}
+	return fee
 }

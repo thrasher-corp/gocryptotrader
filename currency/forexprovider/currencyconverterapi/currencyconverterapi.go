@@ -3,11 +3,14 @@ package currencyconverter
 import (
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
+	"github.com/idoall/gocryptotrader/exchanges/request"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // const declarations consist of endpoints
@@ -20,15 +23,21 @@ const (
 	APIEndpointCurrencies = "currencies"
 	APIEndpointCountries  = "countries"
 	APIEndpointUsage      = "usage"
+
+	defaultAPIKey = "Key"
+
+	authRate   = 0
+	unAuthRate = 0
 )
 
 // CurrencyConverter stores the struct for the CurrencyConverter API
 type CurrencyConverter struct {
 	base.Base
+	Requester *request.Requester
 }
 
 // Setup sets appropriate values for CurrencyLayer
-func (c *CurrencyConverter) Setup(config base.Settings) {
+func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.Name = config.Name
 	c.APIKey = config.APIKey
 	c.APIKeyLvl = config.APIKeyLvl
@@ -36,6 +45,11 @@ func (c *CurrencyConverter) Setup(config base.Settings) {
 	c.RESTPollingDelay = config.RESTPollingDelay
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
+	c.Requester = request.New(c.Name,
+		request.NewRateLimit(time.Second*10, authRate),
+		request.NewRateLimit(time.Second*10, unAuthRate),
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	return nil
 }
 
 // GetRates is a wrapper function to return rates
@@ -61,7 +75,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 			batch := completedStrings[i : i+2]
 			result, err := c.ConvertMany(batch)
 			if err != nil {
-				log.Printf("Failed to get batch err: %s", err)
+				log.Errorf("Failed to get batch err: %s", err)
 				continue
 			}
 			for k, v := range result {
@@ -93,7 +107,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 // ConvertMany takes 2 or more currencies depending on if using the free
 // or paid API
 func (c *CurrencyConverter) ConvertMany(currencies []string) (map[string]float64, error) {
-	if len(currencies) > 2 && (c.APIKey == "" || c.APIKey == "Key") {
+	if len(currencies) > 2 && (c.APIKey == "" || c.APIKey == defaultAPIKey) {
 		return nil, errors.New("currency fetching is limited to two currencies per request")
 	}
 
@@ -126,8 +140,8 @@ func (c *CurrencyConverter) Convert(from, to string) (map[string]float64, error)
 	return result, nil
 }
 
-// GetCurrencies returns a list of the supported currencies
-func (c *CurrencyConverter) GetCurrencies() (map[string]CurrencyItem, error) {
+// GetSupportedCurrencies returns a list of the supported currencies
+func (c *CurrencyConverter) GetSupportedCurrencies() ([]string, error) {
 	var result Currencies
 
 	err := c.SendHTTPRequest(APIEndpointCurrencies, url.Values{}, &result)
@@ -135,7 +149,12 @@ func (c *CurrencyConverter) GetCurrencies() (map[string]CurrencyItem, error) {
 		return nil, err
 	}
 
-	return result.Results, nil
+	var currencies []string
+	for key := range result.Results {
+		currencies = append(currencies, key)
+	}
+
+	return currencies, nil
 }
 
 // GetCountries returns a list of the supported countries and
@@ -155,14 +174,29 @@ func (c *CurrencyConverter) GetCountries() (map[string]CountryItem, error) {
 // upgrades request to SSL.
 func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
 	var path string
-
-	if c.APIKey == "" || c.APIKey == "Key" {
+	var auth bool
+	if c.APIKey == "" || c.APIKey == defaultAPIKey {
 		path = fmt.Sprintf("%s%s/%s?", APIEndpointFreeURL, APIEndpointVersion, endPoint)
+		auth = true
 	} else {
 		path = fmt.Sprintf("%s%s%s?", APIEndpointURL, APIEndpointVersion, endPoint)
 		values.Set("apiKey", c.APIKey)
 	}
-	path = path + values.Encode()
+	path += values.Encode()
 
-	return common.SendHTTPGetRequest(path, true, c.Verbose, &result)
+	err := c.Requester.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		&result,
+		auth,
+		false,
+		c.Verbose,
+		false)
+	if err != nil {
+		return fmt.Errorf("currency converter API SendHTTPRequest error %s with path %s",
+			err,
+			path)
+	}
+	return nil
 }

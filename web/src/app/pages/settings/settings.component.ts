@@ -8,7 +8,7 @@ import { WalletComponent } from '../wallet/wallet.component';
 @Component({
   selector: 'app-dialog-overview-example-dialog',
   template: '<h4>Enabled Currencies</h4><div *ngFor="let currency of data.pairs">'
-  + '<mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled">{{currency.Name}}</mat-checkbox>'
+  + '<mat-checkbox name="{{currency.name}}2" [(ngModel)]="currency.enabled">{{currency.name}}</mat-checkbox>'
   + '</div><button mat-raised-button color="primary" (click)="close()">DONE</button>',
 })
 export class EnabledCurrenciesDialogueComponent {
@@ -71,11 +71,11 @@ export class SettingsComponent implements OnInit {
   }
 
   public addWallet(): void {
-    this.settings.PortfolioAddresses.Addresses.push(<Wallet>{});
+    this.settings.portfolioAddresses.Addresses.push(<Wallet>{});
   }
 
   public removeWallet(wallet: any) {
-    this.settings.PortfolioAddresses.Addresses.splice(this.settings.PortfolioAddresses.Addresses.indexOf(wallet), 1);
+    this.settings.portfolioAddresses.Addresses.splice(this.settings.portfolioAddresses.Addresses.indexOf(wallet), 1);
   }
 
 

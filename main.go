@@ -1,27 +1,42 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"runtime"
+	"strconv"
+	"sync"
+	"syscall"
 	"time"
 
-	"github.com/idoall/TokenExchangeCommon/commonutils"
+	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/connchecker"
+	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency/coinmarketcap"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/bitmex"
+	log "github.com/idoall/gocryptotrader/logger"
+	"github.com/idoall/gocryptotrader/ntpclient"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
 // Bot contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
 type Bot struct {
-	config     *config.Config
-	portfolio  *portfolio.Base
-	exchanges  []exchange.IBotExchange
-	comms      *communications.Communications
-	shutdown   chan bool
-	dryRun     bool
-	configFile string
+	config       *config.Config
+	portfolio    *portfolio.Base
+	exchanges    []exchange.IBotExchange
+	comms        *communications.Communications
+	shutdown     chan bool
+	dryRun       bool
+	configFile   string
+	dataDir      string
+	connectivity *connchecker.Checker
+	sync.Mutex
 }
 
 const banner = `
@@ -35,343 +50,235 @@ const banner = `
 
 var bot Bot
 
-// getDefaultConfig 获取默认配置
-func getDefaultConfig() config.ExchangeConfig {
-	return config.ExchangeConfig{
-		Name:                    "Bitmex",
-		Enabled:                 true,
-		Verbose:                 true,
-		Websocket:               true,
-		BaseAsset:               "btc",
-		QuoteAsset:              "usdt",
-		RESTPollingDelay:        10,
-		HTTPTimeout:             3 * time.Second,
-		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
-	}
-}
-
 func main() {
-	// new(binance.Binance).WebsocketClient()
-	// exchange := gateio.Gateio{}
-	// exchange := bitfinex.Bitfinex{}
-	// exchange := okex.OKEX{}
-	// exchange := huobi.HUOBI{}
-	// exchange := zb.ZB{}
-	// exchange := binance.Binance{}
+	bot.shutdown = make(chan bool)
+	HandleInterrupt()
 
-	exchange := bitmex.Bitmex{}
-	defaultConfig := getDefaultConfig()
-	exchange.SetDefaults()
-	fmt.Println("----------setup-------")
-	exchange.Setup(defaultConfig)
-	//bitmex.GenericRequestParams{}
-
-	//-----------获取合约费率等信息
-	// instrumentsList, err := exchange.GetActiveInstruments(bitmex.GenericRequestParams{
-	// 	Symbol: exchange.GetSymbol(),
-	// })
-	// if err != nil {
-	// 	panic(err)
-	// } else {
-	// 	for _, v := range instrumentsList {
-	// 		if v.Symbol == "XBTUSD" {
-	// 			t, _ := time.ParseInLocation("2006-01-02T15:04:05.000Z", v.Front, time.Local)
-	// 			t = t.Add(time.Duration(8) * time.Hour)
-	// 			fmt.Printf("资金费率：%.4f%% %d个小时内\n", v.FundingRate, (t.Hour() - time.Now().Hour()))
-
-	// 			heli := (v.FundingRate * float64((t.Hour()-time.Now().Hour())/3))
-	// 			fmt.Printf("资金费用基差率:%f\n", heli)
-	// 			fmt.Printf("标记价格:%f\n", 6441*(1+heli))
-	// 			b, _ := commonutils.JSONEncode(v)
-	// 			fmt.Printf("%s:%s\n", v.Symbol, b)
-	// 		}
-	// 	}
-	// }
-
-	//利率计算方法
-	//溢价指数 ：https://www.bitmex.com/api/v1/trade?symbol=.XBTUSDPI8H&count=200&columns=price&reverse=true
-	// 计价利率指数：0.0600%
-	// 基础利率指数：0.0300%
-	// 其中
-	//   基础利率指数 = 基础货币的借贷利率	https://www.bitmex.com/api/v1/trade?symbol=.XBTBON8H&count=200&columns=price&reverse=true
-	//   计价利率指数 = 计价货币的借贷利率	https://www.bitmex.com/api/v1/trade?symbol=.USDBON8H&count=200&columns=price&reverse=true
-	//   资金费率间隔 = 3 (因为资金每 8 小时产生)
-
-	//   利率：(0.0006-0.0003)/3=0.0001
-
-	///--------------获取个人中心、交易历史
-	list, err := exchange.GetAccountExecutionTradeHistory(bitmex.GenericRequestParams{
-		Symbol: exchange.GetSymbol(),
-	})
+	defaultPath, err := config.GetFilePath("")
 	if err != nil {
-		panic(err)
-	} else {
-		for _, v := range list {
-			// 			资金费用基差率 = 资金费率 *  (至下一个缴付资金费用的时间 / 资金费用时间间隔)
-			// 合理价格       = 指数价格 * (1 + 资金费用基差率)
-			// a :=
-			cumQty := v.CumQty
-			if v.Side == "Sell" {
-				cumQty = -cumQty
+		log.Fatal(err)
+	}
+
+	// Handle flags
+	flag.StringVar(&bot.configFile, "config", defaultPath, "config file to load")
+	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
+	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
+	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
+	verbosity := flag.Bool("verbose", false, "increases logging verbosity for GoCryptoTrader")
+
+	Coinmarketcap := flag.Bool("c", false, "overrides config and runs currency analaysis")
+	FxCurrencyConverter := flag.Bool("fxa", false, "overrides config and sets up foreign exchange Currency Converter")
+	FxCurrencyLayer := flag.Bool("fxb", false, "overrides config and sets up foreign exchange Currency Layer")
+	FxFixer := flag.Bool("fxc", false, "overrides config and sets up foreign exchange Fixer.io")
+	FxOpenExchangeRates := flag.Bool("fxd", false, "overrides config and sets up foreign exchange Open Exchange Rates")
+
+	flag.Parse()
+
+	if *version {
+		fmt.Print(BuildVersion(true))
+		os.Exit(0)
+	}
+
+	if *dryrun {
+		bot.dryRun = true
+	}
+
+	fmt.Println(banner)
+	fmt.Println(BuildVersion(false))
+
+	bot.config = &config.Cfg
+	log.Debugf("Loading config file %s..\n", bot.configFile)
+	err = bot.config.LoadConfig(bot.configFile)
+	if err != nil {
+		log.Fatalf("Failed to load config. Err: %s", err)
+	}
+
+	err = common.CreateDir(bot.dataDir)
+	if err != nil {
+		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
+	}
+	log.Debugf("Using data directory: %s.\n", bot.dataDir)
+
+	err = bot.config.CheckLoggerConfig()
+	if err != nil {
+		log.Errorf("Failed to configure logger reason: %s", err)
+	}
+
+	err = log.SetupLogger()
+	if err != nil {
+		log.Errorf("Failed to setup logger reason: %s", err)
+	}
+
+	if bot.config.NTPClient.Level != -1 {
+		bot.config.CheckNTPConfig()
+		NTPTime, errNTP := ntpclient.NTPClient(bot.config.NTPClient.Pool)
+		currentTime := time.Now()
+		if errNTP != nil {
+			log.Warnf("NTPClient failed to create: %v", errNTP)
+		} else {
+			NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
+			configNTPTime := *bot.config.NTPClient.AllowedDifference
+			configNTPNegativeTime := (*bot.config.NTPClient.AllowedNegativeDifference - (*bot.config.NTPClient.AllowedNegativeDifference * 2))
+			if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
+				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
+				if bot.config.NTPClient.Level == 0 {
+					disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
+					if errNTP != nil {
+						log.Errorf("failed to disable ntp time check reason: %v", errNTP)
+					} else {
+						log.Info(disable)
+					}
+				}
 			}
-			fmt.Printf("仓位：%d 价值:%.4f 开仓价格：%.2f 标记价格：\n", cumQty, v.SimpleCumQty, v.AvgPx)
-			// f, _ := commonutils.FloatFromString(v.ExecCost)
-			// fmt.Println(f)
-			// fmt.Println(v.ExecCost)
-			b, _ := commonutils.JSONEncode(v)
-			fmt.Printf("%s\n", b)
 		}
 	}
 
-	///--------------获取所有订单
-	// list, err := exchange.GetOrders(bitmex.GenericRequestParams{
-	// 	Symbol:  exchange.GetSymbol(),
-	// 	Reverse: true,
-	// })
-	// if err != nil {
-	// 	panic(err)
-	// } else {
-	// 	for _, v := range list {
-	// 		b, _ := commonutils.JSONEncode(v)
-	// 		fmt.Printf("%s\n", b)
-	// 	}
-	// }
+	// Sets up internet connectivity monitor
+	bot.connectivity, err = connchecker.New(bot.config.ConnectionMonitor.DNSList,
+		bot.config.ConnectionMonitor.PublicDomainList,
+		bot.config.ConnectionMonitor.CheckInterval)
+	if err != nil {
+		log.Fatalf("Connectivity checker failure: %s", err)
+	}
 
-	//--------------WebSocket 获取最新报价
-	// chLen := 10
-	// ch := make(chan *bitmex.WSInstrumentData, chLen)
-	// done := make(chan struct{})
+	AdjustGoMaxProcs()
+	log.Debugf("Bot '%s' started.\n", bot.config.Name)
+	log.Debugf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
 
-	// symbolList := []string{"xbtusd"}
+	log.Debugf("Available Exchanges: %d. Enabled Exchanges: %d.\n",
+		len(bot.config.Exchanges),
+		bot.config.CountEnabledExchanges())
 
-	// go exchange.WebsocketLastPrice(ch, symbolList, done)
+	common.HTTPClient = common.NewHTTPClientWithTimeout(bot.config.GlobalHTTPTimeout)
+	log.Debugf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
 
-	// for {
-	// 	select {
-	// 	case <-done:
-	// 		return
-	// 	case kline := <-ch:
-	// 		fmt.Printf("[%s]最新报价：%.6f \n", time.Now().Format("2006-01-02 15:04:05"), kline.Data[0].LastPrice)
-	// 	}
-	// }
+	SetupExchanges()
+	if len(bot.exchanges) == 0 {
+		log.Fatalf("No exchanges were able to be loaded. Exiting")
+	}
 
-	//--------------WebSocket 获取K线
-	// chLen := 10
-	// chKline := make(chan *bitmex.TradeBucketData, chLen)
-	// done := make(chan struct{})
+	log.Debugf("Starting communication mediums..")
+	cfg := bot.config.GetCommunicationsConfig()
+	bot.comms = communications.NewComm(&cfg)
+	bot.comms.GetEnabledCommunicationMediums()
 
-	// // var subscribe, symbol []string
-	// timeIntervals := []bitmex.TimeInterval{
-	// 	bitmex.TimeIntervalMinute,
-	// 	bitmex.TimeIntervalFiveMinutes,
-	// 	bitmex.TimeIntervalHour,
-	// 	bitmex.TimeIntervalDay,
-	// }
-	// symbolList := []string{"xbtusd"}
+	var newFxSettings []currency.FXSettings
+	for _, d := range bot.config.Currency.ForexProviders {
+		newFxSettings = append(newFxSettings, currency.FXSettings(d))
+	}
 
-	// go exchange.WebsocketKline(chKline, timeIntervals, symbolList, done)
+	err = currency.RunStorageUpdater(currency.BotOverrides{
+		Coinmarketcap:       *Coinmarketcap,
+		FxCurrencyConverter: *FxCurrencyConverter,
+		FxCurrencyLayer:     *FxCurrencyLayer,
+		FxFixer:             *FxFixer,
+		FxOpenExchangeRates: *FxOpenExchangeRates,
+	},
+		&currency.MainConfiguration{
+			ForexProviders:         newFxSettings,
+			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider),
+			Cryptocurrencies:       bot.config.Currency.Cryptocurrencies,
+			FiatDisplayCurrency:    bot.config.Currency.FiatDisplayCurrency,
+			CurrencyDelay:          bot.config.Currency.CurrencyFileUpdateDuration,
+			FxRateDelay:            bot.config.Currency.ForeignExchangeUpdateDuration,
+		},
+		bot.dataDir,
+		*verbosity)
+	if err != nil {
+		log.Fatalf("currency updater system failed to start %v", err)
 
-	// for {
-	// 	select {
-	// 	case <-done:
-	// 		return
-	// 	case kline := <-chKline:
-	// 		fmt.Printf("%+v \n", kline)
-	// 	}
-	// }
+	}
 
-	//--------------批量创建新订单
-	// list, err := exchange.CreateBulkOrders(bitmex.OrderNewBulkParams{
-	// 	[]bitmex.OrderNewParams{
-	// 		bitmex.OrderNewParams{
-	// 			Symbol:   "XBTUSD",
-	// 			Side:     "Sell",
-	// 			Price:    6386.1,
-	// 			ClOrdID:  "test/idoall1",
-	// 			OrderQty: 10,
-	// 		},
-	// 	},
-	// })
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	for _, v := range list {
-	// 		b, _ := commonutils.JSONEncode(v)
-	// 		fmt.Printf("%s\n", b)
-	// 	}
-	// }
+	bot.portfolio = &portfolio.Portfolio
+	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
+	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 
-	//------------------平仓
-	// res, err := exchange.CreateOrder(bitmex.OrderNewParams{
-	// 	Symbol: "XBTUSD",
-	// 	// Side:     "Buy",
-	// 	Price:    6210,
-	// 	ExecInst: "Close",
-	// 	// ClOrdID:  "test/idoall",
-	// 	// OrderQty: 10,
-	// })
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	fmt.Printf("%v\n", res)
-	// }
+	if bot.config.Webserver.Enabled {
+		listenAddr := bot.config.Webserver.ListenAddress
+		log.Debugf(
+			"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
+			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
+		)
 
-	//-----------------取消订单，平仓或者发布中未成交的都可以取消
-	// list, err := exchange.CancelOrders(bitmex.OrderCancelParams{
-	// 	OrderID: "94673f58-3edc-46a2-d2e3-7d201ddacffe",
-	// })
+		router := NewRouter()
+		go func() {
+			err = http.ListenAndServe(listenAddr, router)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
 
-	// // list, err := exchange.GetStats()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	for _, v := range list {
-	// 		b, _ := commonutils.JSONEncode(v)
-	// 		fmt.Printf("%s\n", b)
-	// 	}
-	// }
+		log.Debugln("HTTP Webserver started successfully.")
+		log.Debugln("Starting websocket handler.")
+		StartWebsocketHandler()
+	} else {
+		log.Debugln("HTTP RESTful Webserver support disabled.")
+	}
 
-	// ---------------获取K线,每个时间段的统计，都是向前推5分钟，例如1小时的是从5分开始到一个小时的0分
-	// list, err := exchange.GetPreviousTrades(bitmex.TradeGetBucketedParams{
-	// 	BinSize:   string(bitmex.TimeIntervalMinute),
-	// 	Symbol:    "XBT",
-	// 	Reverse:   false, //如果为true，从endTime开始是倒排序
-	// 	Partial:   true,  //当前时段在更新的数据也发送过来
-	// 	Count:     10,
-	// 	StartTime: "2017-01-01T00:00:00.000Z",
-	// 	EndTime:   "2018-10-26T13:00:00.000Z",
-	// })
+	go portfolio.StartPortfolioWatcher()
 
-	// // list, err := exchange.GetStats()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	for k, v := range list {
-	// 		t, _ := time.ParseInLocation("2006-01-02T15:04:05.000Z", v.Timestamp, time.Local)
-	// 		t = t.Add(time.Duration(8) * time.Hour)
-	// 		b, _ := commonutils.JSONEncode(v)
-	// 		fmt.Printf("index:%d %s %s\n", k, t.Format("2006-01-02 15:04:05"), b)
-	// 	}
-	// }
+	go TickerUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
+	go WebsocketRoutine(*verbosity)
 
-	// list, err := exchange.CancelOrders(bitmex.OrderCancelParams{
-	// 	OrderID: "76049cb1-abba-efef-a918-373d151ee892",
-	// })
+	<-bot.shutdown
+	Shutdown()
+}
 
-	//----------BM调整杠杆
-	// res, err := exchange.LeveragePosition(bitmex.PositionUpdateLeverageParams{Leverage: 10, Symbol: "XBTUSD"})
+// AdjustGoMaxProcs adjusts the maximum processes that the CPU can handle.
+func AdjustGoMaxProcs() {
+	log.Debugln("Adjusting bot runtime performance..")
+	maxProcsEnv := os.Getenv("GOMAXPROCS")
+	maxProcs := runtime.NumCPU()
+	log.Debugln("Number of CPU's detected:", maxProcs)
 
-	// // list, err := exchange.GetStats()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	fmt.Printf("%+v\n", res)
+	if maxProcsEnv != "" {
+		log.Debugln("GOMAXPROCS env =", maxProcsEnv)
+		env, err := strconv.Atoi(maxProcsEnv)
+		if err != nil {
+			log.Debugf("Unable to convert GOMAXPROCS to int, using %d", maxProcs)
+		} else {
+			maxProcs = env
+		}
+	}
+	if i := runtime.GOMAXPROCS(maxProcs); i != maxProcs {
+		log.Error("Go Max Procs were not set correctly.")
+	}
+	log.Debugln("Set GOMAXPROCS to:", maxProcs)
+}
 
-	// 	// for _, v := range list {
-	// 	// 	b, _ := commonutils.JSONEncode(v)
-	// 	// 	fmt.Printf("%s\n", b)
-	// 	// }
+// HandleInterrupt monitors and captures the SIGTERM in a new goroutine then
+// shuts down bot
+func HandleInterrupt() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		sig := <-c
+		log.Debugf("Captured %v, shutdown requested.", sig)
+		close(bot.shutdown)
+	}()
+}
 
-	// }
+// Shutdown correctly shuts down bot saving configuration files
+func Shutdown() {
+	log.Debugln("Bot shutting down..")
 
-	// ch := make(chan *binance.KlineStream)
-	// done := make(chan struct{})
-	// timeIntervals := []binance.TimeInterval{
-	// 	binance.TimeIntervalFiveMinutes,
-	// 	binance.TimeIntervalMinute,
-	// 	binance.TimeIntervalDay,
-	// 	binance.TimeIntervalHour,
-	// 	binance.TimeIntervalTwoHours,
-	// }
+	if len(portfolio.Portfolio.Addresses) != 0 {
+		bot.config.Portfolio = portfolio.Portfolio
+	}
 
-	// go exchange.WebsocketKline(ch, timeIntervals, done)
-	// for {
-	// 	fmt.Fprintln(os.Stdout, gocolorize.NewColor("green").Paint("接收....."))
-	// 	kline := <-ch
-	// 	log.Println("Kline received", "value:", kline.Kline.Interval, kline.Symbol, kline.EventTime, kline.Kline.HighPrice, kline.Kline.LowPrice)
-	// }
-	// res, err := exchange.GetExchangeInfo()
+	if !bot.dryRun {
+		err := bot.config.SaveConfig(bot.configFile)
 
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	// fmt.Printf("%v\n", res)
+		if err != nil {
+			log.Warn("Unable to save config.")
+		} else {
+			log.Debugln("Config file saved successfully.")
+		}
+	}
 
-	// 	for _, v := range res.Symbols {
-	// 		if v.BaseAsset == "BTC" {
-	// 			b, _ := commonutils.JSONEncode(v)
-	// 			fmt.Printf("%s\n", b)
-	// 		}
-	// 	}
+	log.Debugln("Exiting.")
 
-	// }
-
-	// sh1 := common.GetHMAC(common.MD5New, []byte("accesskey=6d8f62fd-3086-46e3-a0ba-c66a929c24e2&method=getAccountInfo"), []byte(common.Sha1ToHex("48939bbc-8d49-402b-b731-adadf2ea9628")))
-	// fmt.Println(common.HexEncodeToString((sh1)))
-	// arg := huobi.SpotNewOrderRequestParams{
-	// 	Symbol:    exchange.GetSymbol(),
-	// 	AccountID: 3838465,
-	// 	Amount:    0.01,
-	// 	Price:     10.1,
-	// 	Type:      huobi.SpotNewOrderRequestTypeBuyLimit,
-	// }
-	// fmt.Println(exchange.SpotNewOrder(arg))
-
-	// res, err := exchange.SpotNewOrder(okex.SpotNewOrderRequestParams{
-	// 	Symbol: exchange.GetSymbol(),
-	// 	Amount: 1.1,
-	// 	Price:  10.1,
-	// 	Type:   okex.SpotNewOrderRequestTypeBuy,
-	// })
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	fmt.Println(res)
-	// }
-
-	// fmt.Println(exchange.GetKline("btcusdt", "1min", ""))
-	// fmt.Println(exchange.GetKline("btcusdt", "1min", ""))
-	// fmt.Println(exchange.GetKline("btcusdt", "15min", ""))
-	// fmt.Println(exchange.GetKline("btcusdt", "1hour", ""))
-	// fmt.Println(exchange.GetKline("btcusdt", "1day", ""))
-
-	// list, err := exchange.GetAccountInfo()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	for k, v := range list {
-	// 		// b, _ := json.Marshal(v)
-	// 		fmt.Printf("%s:%v \n", k, v)
-	// 	}
-	// }
-
-	// fmt.Println(exchange.CancelOrder(917591554, exchange.GetSymbol()))
-
-	//获取交易所的规则和交易对信息
-	// getExchangeInfo(exchange)
-
-	//获取交易深度
-	// getOrderBook(exchange)
-
-	//获取最近的交易记录
-	// getRecentTrades(exchange)
-
-	//获取 k 线数据
-	// getCandleStickData(exchange)
-
-	//获取最新价格
-	// getLatestSpotPrice(exchange)
-
-	//新订单
-	// newOrder(exchange)
-
-	//取消订单
-	// cancelOrder(exchange, 82584683)
-
-	// fmt.Println(exchange.GetAccount())
-
-	// fmt.Println(exchange.GetSymbol())
-
+	log.CloseLogFile()
+	os.Exit(0)
 }

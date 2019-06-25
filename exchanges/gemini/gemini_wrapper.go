@@ -2,14 +2,19 @@ package gemini
 
 import (
 	"errors"
-	"log"
+	"fmt"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
-	"github.com/idoall/gocryptotrader/currency/pair"
-	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/currency"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // Start starts the Gemini go routine
@@ -24,44 +29,57 @@ func (g *Gemini) Start(wg *sync.WaitGroup) {
 // Run implements the Gemini wrapper
 func (g *Gemini) Run() {
 	if g.Verbose {
-		log.Printf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
 	}
 
 	exchangeProducts, err := g.GetSymbols()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", g.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", g.GetName())
 	} else {
-		err = g.UpdateCurrencies(exchangeProducts, false, false)
+		var newExchangeProducts currency.Pairs
+		for _, p := range exchangeProducts {
+			newExchangeProducts = append(newExchangeProducts,
+				currency.NewPairFromString(p))
+		}
+
+		err = g.UpdateCurrencies(newExchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", g.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", g.GetName())
 		}
 	}
 }
 
-// GetExchangeAccountInfo Retrieves balances for all enabled currencies for the
+// GetAccountInfo Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = g.GetName()
+	response.Exchange = g.GetName()
 	accountBalance, err := g.GetBalances()
 	if err != nil {
 		return response, err
 	}
+
+	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gemini) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (g *Gemini) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := g.GetTicker(p.Pair().String())
+	tick, err := g.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -70,12 +88,17 @@ func (g *Gemini) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	tickerPrice.Bid = tick.Bid
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Volume.USD
-	ticker.ProcessTicker(g.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(g.GetName(), &tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(g.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (g *Gemini) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (g *Gemini) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateTicker(p, assetType)
@@ -84,8 +107,8 @@ func (g *Gemini) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (g *Gemini) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(g.GetName(), p, assetType)
+func (g *Gemini) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.Get(g.GetName(), p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
 	}
@@ -93,9 +116,9 @@ func (g *Gemini) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gemini) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := g.GetOrderbook(p.Pair().String(), url.Values{})
+	orderbookNew, err := g.GetOrderbook(p.String(), url.Values{})
 	if err != nil {
 		return orderBook, err
 	}
@@ -108,70 +131,251 @@ func (g *Gemini) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderbook.ProcessOrderbook(g.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(g.Name, p, assetType)
+	orderBook.Pair = p
+	orderBook.ExchangeName = g.GetName()
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(g.Name, p, assetType)
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gemini) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order
-func (g *Gemini) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+// SubmitOrder submits a new order
+func (g *Gemini) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	response, err := g.NewOrder(p.String(),
+		amount,
+		price,
+		side.ToString(),
+		orderType.ToString())
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gemini) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (g *Gemini) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (g *Gemini) CancelExchangeOrder(orderID int64) error {
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (g *Gemini) CancelOrder(order *exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	_, err = g.CancelExistingOrder(orderIDInt)
+	return err
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (g *Gemini) CancelAllExchangeOrders() error {
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders associated with a currency pair
+func (g *Gemini) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	resp, err := g.CancelExistingOrders(false)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	for _, order := range resp.Details.CancelRejects {
+		cancelAllOrdersResponse.OrderStatus[order] = "Could not cancel order"
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (g *Gemini) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+// GetOrderInfo returns information on a current open order
+func (g *Gemini) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, errors.New("not yet implemented")
+	return orderDetail, common.ErrNotYetImplemented
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (g *Gemini) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", errors.New("not yet implemented")
+// GetDepositAddress returns a deposit address for a specified currency
+func (g *Gemini) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
+	addr, err := g.GetCryptoDepositAddress("", cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+	return addr.Address, nil
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (g *Gemini) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (g *Gemini) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	resp, err := g.WithdrawCrypto(withdrawRequest.Address, withdrawRequest.Currency.String(), withdrawRequest.Amount)
+	if err != nil {
+		return "", err
+	}
+	if resp.Result == "error" {
+		return "", errors.New(resp.Message)
+	}
+
+	return resp.TXHash, err
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (g *Gemini) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (g *Gemini) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
-// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (g *Gemini) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (g *Gemini) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (g *Gemini) GetWebsocket() (*exchange.Websocket, error) {
+	return g.Websocket, nil
+}
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (g *Gemini) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if (g.APIKey == "" || g.APISecret == "") && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	return g.GetFee(feeBuilder)
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := g.GetOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for i := range resp {
+		symbol := currency.NewPairDelimiter(resp[i].Symbol,
+			g.ConfigCurrencyPairFormat.Delimiter)
+		var orderType exchange.OrderType
+		if resp[i].Type == "exchange limit" {
+			orderType = exchange.LimitOrderType
+		} else if resp[i].Type == "market buy" || resp[i].Type == "market sell" {
+			orderType = exchange.MarketOrderType
+		}
+
+		side := exchange.OrderSide(strings.ToUpper(resp[i].Type))
+		orderDate := time.Unix(resp[i].Timestamp, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:          resp[i].OriginalAmount,
+			RemainingAmount: resp[i].RemainingAmount,
+			ID:              fmt.Sprintf("%v", resp[i].OrderID),
+			ExecutedAmount:  resp[i].ExecutedAmount,
+			Exchange:        g.Name,
+			OrderType:       orderType,
+			OrderSide:       side,
+			Price:           resp[i].Price,
+			CurrencyPair:    symbol,
+			OrderDate:       orderDate,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) == 0 {
+		return nil, errors.New("currency must be supplied")
+	}
+
+	var trades []TradeHistory
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := g.GetTradeHistory(exchange.FormatExchangeCurrency(g.Name, currency).String(),
+			getOrdersRequest.StartTicks.Unix())
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range resp {
+			resp[i].BaseCurrency = currency.Base.String()
+			resp[i].QuoteCurrency = currency.Quote.String()
+			trades = append(trades, resp[i])
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for i := range trades {
+		side := exchange.OrderSide(strings.ToUpper(trades[i].Type))
+		orderDate := time.Unix(trades[i].Timestamp, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:    trades[i].Amount,
+			ID:        fmt.Sprintf("%v", trades[i].OrderID),
+			Exchange:  g.Name,
+			OrderDate: orderDate,
+			OrderSide: side,
+			Fee:       trades[i].FeeAmount,
+			Price:     trades[i].Price,
+			CurrencyPair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
+				trades[i].QuoteCurrency,
+				g.ConfigCurrencyPairFormat.Delimiter),
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (g *Gemini) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (g *Gemini) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (g *Gemini) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (g *Gemini) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
 }

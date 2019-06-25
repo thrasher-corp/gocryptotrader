@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common"
 )
 
 const (
@@ -55,7 +55,6 @@ const (
 	bitmex        = "..%s..%sexchanges%sbitmex%s"
 	bitstamp      = "..%s..%sexchanges%sbitstamp%s"
 	bittrex       = "..%s..%sexchanges%sbittrex%s"
-	btcc          = "..%s..%sexchanges%sbtcc%s"
 	btcmarkets    = "..%s..%sexchanges%sbtcmarkets%s"
 	coinbasepro   = "..%s..%sexchanges%scoinbasepro%s"
 	coinut        = "..%s..%sexchanges%scoinut%s"
@@ -68,12 +67,10 @@ const (
 	itbit         = "..%s..%sexchanges%sitbit%s"
 	kraken        = "..%s..%sexchanges%skraken%s"
 	lakebtc       = "..%s..%sexchanges%slakebtc%s"
-	liqui         = "..%s..%sexchanges%sliqui%s"
 	localbitcoins = "..%s..%sexchanges%slocalbitcoins%s"
 	okcoin        = "..%s..%sexchanges%sokcoin%s"
 	okex          = "..%s..%sexchanges%sokex%s"
 	poloniex      = "..%s..%sexchanges%spoloniex%s"
-	wex           = "..%s..%sexchanges%swex%s"
 	yobit         = "..%s..%sexchanges%syobit%s"
 	zb            = "..%s..%sexchanges%szb%s"
 
@@ -142,7 +139,7 @@ func main() {
 	fmt.Println("\nTool finished")
 }
 
-// Iterates through codebase paths to check for readme files and either adds
+// updateReadme iterates through codebase paths to check for readme files and either adds
 // or replaces with new readme files.
 func updateReadme() error {
 	addPaths()
@@ -181,7 +178,7 @@ func updateReadme() error {
 	return nil
 }
 
-// Adds paths to different potential README.md files in the codebase
+// addPaths adds paths to different potential README.md files in the codebase
 func addPaths() {
 	codebasePaths["common"] = fmt.Sprintf(commonPath, path, path, path)
 
@@ -230,7 +227,6 @@ func addPaths() {
 	codebasePaths["exchanges bitmex"] = fmt.Sprintf(bitmex, path, path, path, path)
 	codebasePaths["exchanges bitstamp"] = fmt.Sprintf(bitstamp, path, path, path, path)
 	codebasePaths["exchanges bittrex"] = fmt.Sprintf(bittrex, path, path, path, path)
-	codebasePaths["exchanges btcc"] = fmt.Sprintf(btcc, path, path, path, path)
 	codebasePaths["exchanges btcmarkets"] = fmt.Sprintf(btcmarkets, path, path, path, path)
 	codebasePaths["exchanges coinut"] = fmt.Sprintf(coinut, path, path, path, path)
 	codebasePaths["exchanges exmo"] = fmt.Sprintf(exmo, path, path, path, path)
@@ -243,12 +239,10 @@ func addPaths() {
 	codebasePaths["exchanges itbit"] = fmt.Sprintf(itbit, path, path, path, path)
 	codebasePaths["exchanges kraken"] = fmt.Sprintf(kraken, path, path, path, path)
 	codebasePaths["exchanges lakebtc"] = fmt.Sprintf(lakebtc, path, path, path, path)
-	codebasePaths["exchanges liqui"] = fmt.Sprintf(liqui, path, path, path, path)
 	codebasePaths["exchanges localbitcoins"] = fmt.Sprintf(localbitcoins, path, path, path, path)
 	codebasePaths["exchanges okcoin"] = fmt.Sprintf(okcoin, path, path, path, path)
 	codebasePaths["exchanges okex"] = fmt.Sprintf(okex, path, path, path, path)
 	codebasePaths["exchanges poloniex"] = fmt.Sprintf(poloniex, path, path, path, path)
-	codebasePaths["exchanges wex"] = fmt.Sprintf(wex, path, path, path, path)
 	codebasePaths["exchanges yobit"] = fmt.Sprintf(yobit, path, path, path, path)
 	codebasePaths["exchanges zb"] = fmt.Sprintf(zb, path, path, path, path)
 
@@ -282,13 +276,13 @@ func getName(name string, capital bool) string {
 }
 
 func getCapital(name string) string {
-	cap := strings.ToUpper(string(name[0]))
+	capLetter := strings.ToUpper(string(name[0]))
 	last := name[1:]
 
-	return cap + last
+	return capLetter + last
 }
 
-// returns a string for godoc package names
+// getslashFromName returns a string for godoc package names
 func getslashFromName(packageName string) string {
 	if strings.Contains(packageName, " ") {
 		s := strings.Split(packageName, " ")
@@ -315,7 +309,7 @@ var globS = []string{
 	fmt.Sprintf("web_templates%s*", common.GetOSPathSlash()),
 }
 
-// adds all the template files
+// addTemplates adds all the template files
 func addTemplates() error {
 	tmpl = template.New("")
 
@@ -338,7 +332,7 @@ func checkReadme(packageName string) bool {
 	return os.IsNotExist(err)
 }
 
-// replaces readme file
+// replaceReadme replaces readme file
 func replaceReadme(packageName string) error {
 	if packageName == licenseName || packageName == contributorName {
 		if err := deleteFile(codebasePaths[packageName] + packageName); err != nil {
@@ -352,24 +346,24 @@ func replaceReadme(packageName string) error {
 	return createReadme(packageName)
 }
 
-// creates new readme file and executes template
+// createReadme creates new readme file and executes template
 func createReadme(packageName string) error {
 	if packageName == licenseName || packageName == contributorName {
 		file, err := os.Create(codebasePaths[packageName] + packageName)
-		defer file.Close()
 		if err != nil {
 			return err
 		}
+		defer file.Close()
 		if verbose {
 			fmt.Println("File done")
 		}
 		return tmpl.ExecuteTemplate(file, packageName, codebaseReadme[packageName])
 	}
 	file, err := os.Create(codebasePaths[packageName] + "README.md")
-	defer file.Close()
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	if verbose {
 		fmt.Println("File done")
 	}

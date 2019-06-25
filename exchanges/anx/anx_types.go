@@ -1,7 +1,16 @@
 package anx
 
-// Currency holds the currency information
-type Currency struct {
+import "github.com/idoall/gocryptotrader/currency"
+
+// List of strings
+const (
+	CancelOrderNotFound    string = "ORDER_NOT_FOUND"
+	CancelRequestSubmitted string = "CANCEL_REQUEST_SUBMITTED"
+	CancelOrderWrongState  string = "ORDER_CANCEL_WRONG_STATE"
+)
+
+// CurrencyData holds the currency information
+type CurrencyData struct {
 	Decimals               int     `json:"decimals"`
 	MinOrderSize           float64 `json:"minOrderSize"`
 	MaxOrderSize           float64 `json:"maxOrderSize"`
@@ -32,10 +41,10 @@ type Currency struct {
 }
 
 // Currencies stores a list of currencies
-type Currencies map[string]Currency
+type Currencies map[string]CurrencyData
 
-// CurrencyPair holds the currency information
-type CurrencyPair struct {
+// CurrencyPairData holds the currency information
+type CurrencyPairData struct {
 	PriceDecimals  int `json:"priceDecimals"`
 	EngineSettings struct {
 		TradingEnabled bool `json:"tradingEnabled"`
@@ -55,8 +64,31 @@ type CurrencyPair struct {
 	SimpleTradeEnabled   bool    `json:"simpleTradeEnabled"`
 }
 
+// AccountInformation Used by Get account information
+// Retrieves details of the account and api's
+type AccountInformation struct {
+	UserUUID   string   `json:"userUuid"`
+	Rights     []string `json:"Rights"`
+	ResultCode string   `json:"resultCode"`
+	Wallets    map[string]struct {
+		Balance              Amount `json:"Balance"`
+		AvailableBalance     Amount `json:"Available_Balance"`
+		DailyWithdrawalLimit Amount `json:"Daily_Withdrawal_Limit"`
+		MaxWithdraw          Amount `json:"Max_Withdraw"`
+	} `json:"Wallets"`
+}
+
+// Amount basic storage of wallet details
+type Amount struct {
+	DisplayShort string  `json:"displayShort"`
+	ValueInt     int64   `json:"valueInt"`
+	Currency     string  `json:"currency"`
+	Display      string  `json:"display"`
+	Value        float64 `json:"value"`
+}
+
 // CurrencyPairs stores currency pair info
-type CurrencyPairs map[string]CurrencyPair
+type CurrencyPairs map[string]CurrencyPairData
 
 // CurrenciesStore stores the available cryptocurrencies
 // and fiat currencies
@@ -74,33 +106,47 @@ type CurrenciesStaticResponse struct {
 
 // Order holds order information
 type Order struct {
-	OrderType                      string `json:"orderType"`
-	BuyTradedCurrency              bool   `json:"buyTradedCurrency"`
-	TradedCurrency                 string `json:"tradedCurrency"`
-	SettlementCurrency             string `json:"settlementCurrency"`
-	TradedCurrencyAmount           string `json:"tradedCurrencyAmount"`
-	SettlementCurrencyAmount       string `json:"settlementCurrencyAmount"`
-	LimitPriceInSettlementCurrency string `json:"limitPriceInSettlementCurrency"`
-	ReplaceExistingOrderUUID       string `json:"replaceExistingOrderUuid"`
-	ReplaceOnlyIfActive            bool   `json:"replaceOnlyIfActive"`
+	OrderType                      string  `json:"orderType"`
+	BuyTradedCurrency              bool    `json:"buyTradedCurrency"`
+	TradedCurrency                 string  `json:"tradedCurrency"`
+	SettlementCurrency             string  `json:"settlementCurrency"`
+	TradedCurrencyAmount           float64 `json:"tradedCurrencyAmount,string"`
+	SettlementCurrencyAmount       float64 `json:"settlementCurrencyAmount,string"`
+	LimitPriceInSettlementCurrency float64 `json:"limitPriceInSettlementCurrency,string"`
+	ReplaceExistingOrderUUID       string  `json:"replaceExistingOrderUuid"`
+	ReplaceOnlyIfActive            bool    `json:"replaceOnlyIfActive"`
 }
 
 // OrderResponse holds order response data
 type OrderResponse struct {
-	BuyTradedCurrency              bool   `json:"buyTradedCurrency"`
-	ExecutedAverageRate            string `json:"executedAverageRate"`
-	LimitPriceInSettlementCurrency string `json:"limitPriceInSettlementCurrency"`
-	OrderID                        string `json:"orderId"`
-	OrderStatus                    string `json:"orderStatus"`
-	OrderType                      string `json:"orderType"`
-	ReplaceExistingOrderUUID       string `json:"replaceExistingOrderId"`
-	SettlementCurrency             string `json:"settlementCurrency"`
-	SettlementCurrencyAmount       string `json:"settlementCurrencyAmount"`
-	SettlementCurrencyOutstanding  string `json:"settlementCurrencyOutstanding"`
-	Timestamp                      int64  `json:"timestamp"`
-	TradedCurrency                 string `json:"tradedCurrency"`
-	TradedCurrencyAmount           string `json:"tradedCurrencyAmount"`
-	TradedCurrencyOutstanding      string `json:"tradedCurrencyOutstanding"`
+	BuyTradedCurrency              bool    `json:"buyTradedCurrency"`
+	ExecutedAverageRate            string  `json:"executedAverageRate"`
+	LimitPriceInSettlementCurrency string  `json:"limitPriceInSettlementCurrency"`
+	OrderID                        string  `json:"orderId"`
+	OrderStatus                    string  `json:"orderStatus"`
+	OrderType                      string  `json:"orderType"`
+	ReplaceExistingOrderUUID       string  `json:"replaceExistingOrderId"`
+	SettlementCurrency             string  `json:"settlementCurrency"`
+	SettlementCurrencyAmount       float64 `json:"settlementCurrencyAmount,string"`
+	SettlementCurrencyOutstanding  string  `json:"settlementCurrencyOutstanding"`
+	Timestamp                      int64   `json:"timestamp"`
+	TradedCurrency                 string  `json:"tradedCurrency"`
+	TradedCurrencyAmount           float64 `json:"tradedCurrencyAmount,string"`
+	TradedCurrencyOutstanding      string  `json:"tradedCurrencyOutstanding"`
+}
+
+// OrderCancelResponse returned when cancelling multiple orders
+type OrderCancelResponse struct {
+	OrderCancellationResponses []OrderCancellationResponse `json:"orderIds"`
+	ResultCode                 string                      `json:"resultCode"`
+	UUID                       int64                       `json:"uuid"`
+	ErrorCode                  int64                       `json:"errorCode"`
+}
+
+// OrderCancellationResponse contains the orderID and error when cancelling multiple orders
+type OrderCancellationResponse struct {
+	UUID  string `json:"uuid"`
+	Error string `json:"errorCode"`
 }
 
 // TickerComponent is a sub-type for ticker
@@ -145,4 +191,17 @@ type Depth struct {
 		Asks           []DepthItem `json:"asks"`
 		Bids           []DepthItem `json:"bids"`
 	} `json:"data"`
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[currency.Code]float64{
+	currency.BTC:  0.002,
+	currency.DOGE: 0.1,
+	currency.ETH:  0.005,
+	currency.GNT:  0.001,
+	currency.LTC:  0.02,
+	currency.OAX:  0.001,
+	currency.XRP:  1,
+	currency.HKD:  0.01,
 }

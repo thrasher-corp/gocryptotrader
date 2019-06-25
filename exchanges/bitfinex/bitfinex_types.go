@@ -133,36 +133,22 @@ type AccountInfoFull struct {
 
 // AccountInfo general account information with fees
 type AccountInfo struct {
-	MakerFees string            `json:"maker_fees"`
-	TakerFees string            `json:"taker_fees"`
+	MakerFees float64           `json:"maker_fees,string"`
+	TakerFees float64           `json:"taker_fees,string"`
 	Fees      []AccountInfoFees `json:"fees"`
 	Message   string            `json:"message"`
 }
 
 // AccountInfoFees general account information with fees
 type AccountInfoFees struct {
-	Pairs     string `json:"pairs"`
-	MakerFees string `json:"maker_fees"`
-	TakerFees string `json:"taker_fees"`
+	Pairs     string  `json:"pairs"`
+	MakerFees float64 `json:"maker_fees,string"`
+	TakerFees float64 `json:"taker_fees,string"`
 }
 
 // AccountFees stores withdrawal account fee data from Bitfinex
 type AccountFees struct {
-	Withdraw struct {
-		BTC float64 `json:"BTC,string"`
-		LTC float64 `json:"LTC,string"`
-		ETH float64 `json:"ETH,string"`
-		ETC float64 `json:"ETC,string"`
-		ZEC float64 `json:"ZEC,string"`
-		XMR float64 `json:"XMR,string"`
-		DSH float64 `json:"DSH,string"`
-		XRP float64 `json:"XRP,string"`
-		IOT float64 `json:"IOT"`
-		EOS float64 `json:"EOS,string"`
-		SAN float64 `json:"SAN,string"`
-		OMG float64 `json:"OMG,string"`
-		BCH float64 `json:"BCH,string"`
-	} `json:"withdraw"`
+	Withdraw map[string]interface{} `json:"withdraw"`
 }
 
 // AccountSummary holds account summary data
@@ -250,7 +236,8 @@ type WalletTransfer struct {
 type Withdrawal struct {
 	Status       string `json:"status"`
 	Message      string `json:"message"`
-	WithdrawalID int64  `json:"withdrawal_id,string"`
+	WithdrawalID int64  `json:"withdrawal_id,omitempty"`
+	Fees         string `json:"fees,omitempty"`
 }
 
 // Order holds order information when an order is in the market
@@ -270,7 +257,7 @@ type Order struct {
 	OriginalAmount        float64 `json:"original_amount,string"`
 	RemainingAmount       float64 `json:"remaining_amount,string"`
 	ExecutedAmount        float64 `json:"executed_amount,string"`
-	OrderID               int64   `json:"order_id"`
+	OrderID               int64   `json:"order_id,omitempty"`
 }
 
 // OrderMultiResponse holds order information on the executed orders
@@ -459,6 +446,18 @@ type WebsocketTradeExecuted struct {
 	OrderID        int64
 	AmountExecuted float64
 	PriceExecuted  float64
+}
+
+// WebsocketTradeData holds executed trade data
+type WebsocketTradeData struct {
+	TradeID        int64
+	Pair           string
+	Timestamp      int64
+	OrderID        int64
+	AmountExecuted float64
+	PriceExecuted  float64
+	Fee            float64
+	FeeCurrency    string
 }
 
 // ErrorCapture is a simple type for returned errors from Bitfinex

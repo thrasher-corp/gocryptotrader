@@ -1,4 +1,4 @@
-基于项目 [thrasher-/gocryptotrader](https://github.com/thrasher-/gocryptotrader) 做的个性化修改
+基于项目 [thrasher-/gocryptotrader](https://github.com/idoall/gocryptotrader) 做的个性化修改
 
 ## 修改的内容
 
@@ -10,13 +10,13 @@
 + 修复 Bitfinex 的 GetAccountInfo 方法
 + 增加 ZB 交易所的部分功能支持
 
-<img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
-[![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
-[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader)
+[![Build Status](https://travis-ci.com/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.com/thrasher-/gocryptotrader)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/idoall/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader)
 [![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
+[![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
 
 A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
@@ -24,7 +24,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 ## Community
 
-Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTQyYjIxNGVhMWU5MDZlOGYzMmE0NTJmM2MzYWY5NGMzMmM4MzUwNTBjZTEzNjIwODM5NDcxODQwZDljMGQyNGY)
 
 ## Exchange Support Table
 
@@ -36,31 +36,28 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
-| BitMEX | Yes | No | NA |
+| BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
-| BTCC | Yes  | Yes     | No  |
 | BTCMarkets | Yes | No       | NA  |
-| COINUT | Yes | No | NA |
+| BTSE | Yes | Yes | NA |
+| COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | CoinbasePro | Yes | Yes | No|
-| GateIO | Yes | No | NA |
-| Gemini | Yes | No | No |
+| GateIO | Yes | Yes | NA |
+| Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
-| Huobi.Pro | Yes | No | NA |
-| Huobi.Hadax | Yes | No | NA |
+| Huobi.Pro | Yes | Yes | NA |
+| Huobi.Hadax | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
-| Kraken | Yes | NA | NA |
+| Kraken | Yes | Yes | NA |
 | LakeBTC | Yes | No | NA |
-| Liqui | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
-| OKCoin China | Yes | Yes | No |
 | OKCoin International | Yes | Yes | No |
-| OKEX | Yes | No | No |
+| OKEX | Yes | Yes | No |
 | Poloniex | Yes | Yes | NA |
-| WEX     | Yes  | NA        | NA  |
 | Yobit | Yes | NA | NA |
-| ZB.COM | Yes | No | NA |
+| ZB.COM | Yes | Yes | NA |
 
 We are aiming to support the top 20 highest volume exchanges based off the [CoinMarketCap exchange data](https://coinmarketcap.com/exchanges/volume/24-hour/).
 
@@ -94,7 +91,7 @@ When submitting a PR, please abide by our coding guidelines:
 
 + Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
 + Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-+ Code must adhere to our [coding style](https://github.com/thrasher-/gocryptotrader/blob/master/doc/coding_style.md).
++ Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
 ## Compiling instructions
@@ -104,39 +101,24 @@ platform.
 
 ### Linux/OSX
 
-We use the `dep` tool provided by Golang for managing dependencies. As it is not officially part
-of the go tools package suite, you will need to manually install it if you have not already.
-
-On MacOS you can install or upgrade to the latest released version with Homebrew:
-
-```sh
-brew install dep
-brew upgrade dep
-```
-
-On linux or MacOS, you can also install it via `go get`:
-
-```sh
-go get -u github.com/golang/dep/cmd/dep
-```
-
-After `dep` is installed, please follow the instructions below:
+GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
+Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
-go get github.com/thrasher-/gocryptotrader
-cd $GOPATH/src/github.com/thrasher-/gocryptotrader
-make get
-make install
-cp $GOPATH/src/github.com/thrasher-/gocryptotrader/config_example.json $GOPATH/bin/config.json
+git clone https://github.com/idoall/gocryptotrader.git
+cd gocryptotrader
+go build
+mkdir ~/.gocryptotrader
+cp config_example.json ~/.gocryptotrader/config.json
 ```
 
 ### Windows
 
 ```bash
-go get github.com/thrasher-/gocryptotrader
-cd %GOPATH%\src\github.com\thrasher-\gocryptotrader
-go install
-copy %GOPATH%\src\github.com\thrasher-\gocryptotrader\config_example.json %GOPATH%\bin\config.json
+git clone https://github.com/idoall/gocryptotrader.git
+cd gocryptotrader
+go build
+copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
 + Make any neccessary changes to the `config.json` file.
@@ -144,7 +126,7 @@ copy %GOPATH%\src\github.com\thrasher-\gocryptotrader\config_example.json %GOPAT
 
 ## Donations
 
-<img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
@@ -160,18 +142,29 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 456 |
-| shazbert | https://github.com/shazbert | 142 |
-| gloriousCode | https://github.com/gloriousCode | 122 |
+| thrasher- | https://github.com/idoall | 526 |
+| shazbert | https://github.com/shazbert | 166 |
+| gloriousCode | https://github.com/gloriousCode | 146 |
+| ermalguni | https://github.com/ermalguni | 14 |
+| xtda | https://github.com/xtda | 11 |
 | 140am | https://github.com/140am | 8 |
-| ermalguni | https://github.com/ermalguni | 4 |
-| marcofranssen | https://github.com/marcofranssen | 4 |
-| Betazoid | https://github.com/Betazoid | 4 |
+| marcofranssen | https://github.com/marcofranssen | 8 |
+| vadimzhukck | https://github.com/vadimzhukck | 8 |
+| cranktakular | https://github.com/cranktakular | 5 |
 | crackcomm | https://github.com/crackcomm | 3 |
+| MadCozBadd | https://github.com/MadCozBadd | 2 |
+| andreygrehov | https://github.com/andreygrehov | 2 |
 | bretep | https://github.com/bretep | 2 |
+| woshidama323 | https://github.com/woshidama323 | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
 | cornelk | https://github.com/cornelk | 2 |
 | if1live | https://github.com/if1live | 2 |
+| soxipy | https://github.com/soxipy | 2 |
+| herenow | https://github.com/herenow | 2 |
+| blombard | https://github.com/blombard | 1 |
+| CodeLingoBot | https://github.com/CodeLingoBot | 1 |
+| CodeLingoTeam | https://github.com/CodeLingoTeam | 1 |
+| Daanikus | https://github.com/Daanikus | 1 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
 | frankzougc | https://github.com/frankzougc | 1 |
 | starit | https://github.com/starit | 1 |
@@ -182,9 +175,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | mKurrels | https://github.com/mKurrels | 1 |
 | m1kola | https://github.com/m1kola | 1 |
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
-| tongxiaofeng | https://github.com/tongxiaofeng | 1 |
-| idealhack | https://github.com/idealhack | 1 |
-| vyloy | https://github.com/vyloy | 1 |
-| askew- | https://github.com/askew- | 1 |
-| whilei | https://github.com/whilei | 1 |
-| snipesjr | https://github.com/snipesjr | 1 |
+
+
+
