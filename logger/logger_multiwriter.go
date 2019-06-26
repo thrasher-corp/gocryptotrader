@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -18,7 +17,6 @@ func (mw *multiWriter) Remove(writer io.Writer) {
 	for i := range mw.writers {
 		if mw.writers[i] == writer {
 			mw.writers = append(mw.writers[:i], mw.writers[i+1:]...)
-			fmt.Print(mw.writers[i])
 		}
 	}
 	mw.mu.Unlock()
