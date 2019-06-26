@@ -5,7 +5,6 @@ go 1.12
 require (
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/protobuf v1.3.1
-	github.com/golangci/golangci-lint v1.16.0 // indirect
 	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/mux v1.7.2
 	github.com/gorilla/websocket v1.4.0

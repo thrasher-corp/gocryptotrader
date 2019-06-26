@@ -119,7 +119,7 @@ func GetExchangeOTPs() (map[string]string, error) {
 			exchName := Bot.Config.Exchanges[x].Name
 			o, err := totp.GenerateCode(otpSecret, time.Now())
 			if err != nil {
-				log.Errorf(log.LogGlobal, "Unable to generate OTP code for exchange %s. Err: %s\n",
+				log.Errorf(log.Global, "Unable to generate OTP code for exchange %s. Err: %s\n",
 					exchName, err)
 				continue
 			}
@@ -668,7 +668,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 			cryptocurrency := cryptoCurrencies[y]
 			depositAddr, err := Bot.Exchanges[x].GetDepositAddress(currency.NewCode(cryptocurrency), "")
 			if err != nil {
-				log.Debugf(log.LogGlobal, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
+				log.Debugf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 				continue
 			}
 			cryptoAddr[cryptocurrency] = depositAddr
@@ -801,7 +801,7 @@ func checkCerts() error {
 		return genCert(targetDir)
 	}
 
-	log.Debugln(log.LogGlobal, "gRPC TLS certs directory already exists, will use them.")
+	log.Debugln(log.Global, "gRPC TLS certs directory already exists, will use them.")
 	return nil
 }
 
@@ -881,6 +881,6 @@ func genCert(targetDir string) error {
 		return fmt.Errorf("failed to write cert.pem file %s", err)
 	}
 
-	log.Debugf(log.LogGlobal, "TLS key.pem and cert.pem files written to %s\n", targetDir)
+	log.Debugf(log.Global, "TLS key.pem and cert.pem files written to %s\n", targetDir)
 	return nil
 }

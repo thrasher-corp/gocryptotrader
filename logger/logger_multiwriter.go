@@ -5,16 +5,17 @@ import (
 	"io"
 )
 
+// Add appends a new writer to the multiwriter slice
 func (mw *multiWriter) Add(writer io.Writer) {
 	mw.mu.Lock()
 	mw.writers = append(mw.writers, writer)
 	mw.mu.Unlock()
 }
 
+// Remove removes exisiting writer from multiwriter slice
 func (mw *multiWriter) Remove(writer io.Writer) {
 	mw.mu.Lock()
 	for i := range mw.writers {
-		fmt.Print(mw.writers[i])
 		if mw.writers[i] == writer {
 			mw.writers = append(mw.writers[:i], mw.writers[i+1:]...)
 			fmt.Print(mw.writers[i])
@@ -23,6 +24,7 @@ func (mw *multiWriter) Remove(writer io.Writer) {
 	mw.mu.Unlock()
 }
 
+// Write concurrent safe Write for each writer
 func (mw *multiWriter) Write(p []byte) (n int, err error) {
 	type data struct {
 		n   int
@@ -33,6 +35,7 @@ func (mw *multiWriter) Write(p []byte) (n int, err error) {
 
 	for _, wr := range mw.writers {
 		go func(w io.Writer, p []byte, ch chan data) {
+
 			n, err = w.Write(p)
 			if err != nil {
 				ch <- data{n, err}

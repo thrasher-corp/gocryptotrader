@@ -281,12 +281,12 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 // DoRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose, httpDebug bool) error {
 	if verbose {
-		log.Debugf(log.LogGlobal,
+		log.Debugf(log.Global,
 			"%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
 		for k, d := range req.Header {
-			log.Debugf(log.LogGlobal, "%s exchange request header [%s]: %s", r.Name, k, d)
+			log.Debugf(log.Global, "%s exchange request header [%s]: %s", r.Name, k, d)
 		}
-		log.Debugln(log.LogGlobal, body)
+		log.Debugln(log.Global, body)
 	}
 
 	var timeoutError error
@@ -357,10 +357,10 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		if httpDebug {
 			dump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
-				log.Errorf(log.LogGlobal, "DumpResponse invalid response: %v:", err)
+				log.Errorf(log.Global, "DumpResponse invalid response: %v:", err)
 			}
-			log.Debugf(log.LogGlobal, "DumpResponse Headers (%v):\n%s", path, dump)
-			log.Debugf(log.LogGlobal, "DumpResponse Body (%v):\n %s", path, string(contents))
+			log.Debugf(log.Global, "DumpResponse Headers (%v):\n%s", path, dump)
+			log.Debugf(log.Global, "DumpResponse Body (%v):\n %s", path, string(contents))
 		}
 
 		resp.Body.Close()
@@ -453,10 +453,10 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	if httpDebugging {
 		dump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			log.Errorf(log.LogGlobal,
+			log.Errorf(log.Global,
 				"DumpRequest invalid response %v:", err)
 		}
-		log.Debugf(log.LogGlobal,
+		log.Debugf(log.Global,
 			"DumpRequest:\n%s", dump)
 	}
 

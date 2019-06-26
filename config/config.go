@@ -1065,7 +1065,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		for x := range fxProviders {
 			_, err := c.GetForexProviderConfig(fxProviders[x])
 			if err != nil {
-				log.Warnf(log.LogGlobal, "%s forex provider not found, adding to config..\n", fxProviders[x])
+				log.Warnf(log.Global, "%s forex provider not found, adding to config..\n", fxProviders[x])
 				c.Currency.ForexProviders = append(c.Currency.ForexProviders, base.Settings{
 					Name:             fxProviders[x],
 					RESTPollingDelay: 600,
@@ -1080,7 +1080,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
 			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-				log.Warnf(log.LogGlobal, "%s enabled forex provider API key not set. Please set this in your config.json file\n", c.Currency.ForexProviders[i].Name)
+				log.Warnf(log.Global, "%s enabled forex provider API key not set. Please set this in your config.json file\n", c.Currency.ForexProviders[i].Name)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				continue
@@ -1091,7 +1091,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 					c.Currency.ForexProviders[i].PrimaryProvider &&
 					(c.Currency.ForexProviders[i].APIKey == "" ||
 						c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-					log.Warnf(log.LogGlobal, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..\n")
+					log.Warnf(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..\n")
 					c.Currency.ForexProviders[i].Enabled = false
 					c.Currency.ForexProviders[i].PrimaryProvider = false
 					c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
@@ -1101,7 +1101,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			}
 
 			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-				log.Warnf(log.LogGlobal, "%s APIKey Level not set, functions limited. Please set this in your config.json file\n",
+				log.Warnf(log.Global, "%s APIKey Level not set, functions limited. Please set this in your config.json file\n",
 					c.Currency.ForexProviders[i].Name)
 			}
 			count++
@@ -1242,9 +1242,9 @@ func (c *Config) CheckLoggerConfig() error {
 	}
 	log.GlobalLogConfig = &c.Logging
 
-	if len(log.GlobalLogConfig.SubLoggers) == 0 {
-		log.GlobalLogConfig.SubLoggers = log.GetDefaultSubLogger()
-	}
+	// if len(log.GlobalLogConfig.SubLoggers) == 0 {
+	// 	log.GlobalLogConfig.SubLoggers = log.GetDefaultSubLogger()
+	// }
 
 	logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
 	err := common.CreateDir(logPath)

@@ -16,10 +16,6 @@ func newLogger(c *Config) *Logger {
 	}
 }
 
-func SetupGlobalLogger() {
-	logger = newLogger(GlobalLogConfig)
-}
-
 func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	if w == nil {
 		return
@@ -34,7 +30,9 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	}
 	e.data = append(e.data, l.Spacer...)
 	e.data = append(e.data, []byte(data)...)
-
+	if data == "" || data[len(data)-1] != '\n' {
+		e.data = append(e.data, '\n')
+	}
 	e.output.Write(e.data)
 	e.data = (e.data)[:0]
 	eventPool.Put(e)
@@ -44,10 +42,9 @@ func CloseLogger() {
 	closeAllFiles()
 }
 
-func subSystemData(subsystem string) *subLogger {
-	if v, found := subSystemLoggers[subsystem]; found {
-		return &v
+func validSubLogger(s string) (bool, *subLogger) {
+	if v, found := subLoggers[s]; found {
+		return true, v
 	}
-	temp := subSystemLoggers["log"]
-	return &temp
+	return false, nil
 }

@@ -20,7 +20,7 @@ import (
 func printCurrencyFormat(price float64) string {
 	displaySymbol, err := currency.GetSymbolByCurrencyName(Bot.Config.Currency.FiatDisplayCurrency)
 	if err != nil {
-		log.Errorf(log.LogGlobal, "Failed to get display symbol: %s\n", err)
+		log.Errorf(log.Global, "Failed to get display symbol: %s\n", err)
 	}
 
 	return fmt.Sprintf("%s%.8f", displaySymbol, price)
@@ -32,17 +32,17 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 		origCurrency,
 		displayCurrency)
 	if err != nil {
-		log.Errorf(log.LogGlobal, "Failed to convert currency: %s\n", err)
+		log.Errorf(log.Global, "Failed to convert currency: %s\n", err)
 	}
 
 	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
 	if err != nil {
-		log.Errorf(log.LogGlobal, "Failed to get display symbol: %s\n", err)
+		log.Errorf(log.Global, "Failed to get display symbol: %s\n", err)
 	}
 
 	origSymbol, err := currency.GetSymbolByCurrencyName(origCurrency)
 	if err != nil {
-		log.Errorf(log.LogGlobal, "Failed to get original currency symbol for %s: %s\n",
+		log.Errorf(log.Global, "Failed to get original currency symbol for %s: %s\n",
 			origCurrency,
 			err)
 	}

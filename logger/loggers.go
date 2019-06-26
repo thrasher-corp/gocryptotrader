@@ -1,111 +1,114 @@
 package logger
 
-import "fmt"
+import (
+	"fmt"
+)
 
-func Info(subSystem, data string) {
-	sub := subSystemData(subSystem)
-	if !sub.Info {
-		return
-	}
-
-	logger.newLogEvent(data, logger.InfoHeader, sub.output)
+func printDetails(sl *subLogger) {
+	return
+	fmt.Printf("%+v\n", sl)
 }
 
-func Infoln(subSystem string, v ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Info {
+func Info(sl *subLogger, data string) {
+	printDetails(sl)
+	if !sl.Info {
 		return
 	}
 
-	logger.newLogEvent(fmt.Sprintln(v...), logger.InfoHeader, sub.output)
+	logger.newLogEvent(data, logger.InfoHeader, sl.output)
 }
 
-func Infof(subSystem, data string, v ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Info {
+func Infoln(sl *subLogger, v ...interface{}) {
+	printDetails(sl)
+	if !sl.Info {
 		return
 	}
 
-	Info(subSystem, fmt.Sprintf(data, v...))
+	logger.newLogEvent(fmt.Sprintln(v...), logger.InfoHeader, sl.output)
 }
 
-func Debug(subSystem, data string) {
-	sub := subSystemData(subSystem)
-	if !sub.Debug {
+func Infof(sl *subLogger, data string, v ...interface{}) {
+	if !sl.Info {
 		return
 	}
 
-	logger.newLogEvent(data, logger.DebugHeader, sub.output)
+	Info(sl, fmt.Sprintf(data, v...))
 }
 
-func Debugln(subSystem string, v ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Debug {
+func Debug(sl *subLogger, data string) {
+	printDetails(sl)
+	if !sl.Debug {
 		return
 	}
 
-	logger.newLogEvent(fmt.Sprintln(v...), logger.DebugHeader, sub.output)
+	logger.newLogEvent(data, logger.DebugHeader, sl.output)
 }
 
-func Debugf(subSystem, data string, v ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Debug {
+func Debugln(sl *subLogger, v ...interface{}) {
+	printDetails(sl)
+	if !sl.Debug {
 		return
 	}
 
-	Debug(subSystem, fmt.Sprintf(data, v...))
+	logger.newLogEvent(fmt.Sprintln(v...), logger.DebugHeader, sl.output)
 }
 
-func Warn(subSystem, data string) {
-	sub := subSystemData(subSystem)
-	if !sub.Warn {
+func Debugf(sl *subLogger, data string, v ...interface{}) {
+	if !sl.Debug {
 		return
 	}
 
-	logger.newLogEvent(data, logger.WarnHeader, sub.output)
+	Debug(sl, fmt.Sprintf(data, v...))
 }
 
-func Warnln(subSystem string, v ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Warn {
+func Warn(sl *subLogger, data string) {
+	printDetails(sl)
+	if !sl.Warn {
 		return
 	}
 
-	logger.newLogEvent(fmt.Sprintln(v...), logger.WarnHeader, sub.output)
+	logger.newLogEvent(data, logger.WarnHeader, sl.output)
 }
 
-func Warnf(subSystem, data string, v ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Warn {
+func Warnln(sl *subLogger, v ...interface{}) {
+	printDetails(sl)
+	if !sl.Warn {
 		return
 	}
 
-	Warn(subSystem, fmt.Sprintf(data, v...))
+	logger.newLogEvent(fmt.Sprintln(v...), logger.WarnHeader, sl.output)
 }
 
-func Error(subSystem string, data ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Error {
+func Warnf(sl *subLogger, data string, v ...interface{}) {
+	if !sl.Warn {
 		return
 	}
 
-	logger.newLogEvent(fmt.Sprint(data...), logger.ErrorHeader, sub.output)
+	Warn(sl, fmt.Sprintf(data, v...))
 }
 
-func Errorln(subSystem string, v ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Error {
+func Error(sl *subLogger, data ...interface{}) {
+	printDetails(sl)
+	if !sl.Error {
 		return
 	}
 
-	logger.newLogEvent(fmt.Sprintln(v...), logger.ErrorHeader, sub.output)
+	logger.newLogEvent(fmt.Sprint(data...), logger.ErrorHeader, sl.output)
 }
 
-func Errorf(subSystem, data string, v ...interface{}) {
-	sub := subSystemData(subSystem)
-	if !sub.Error {
+func Errorln(sl *subLogger, v ...interface{}) {
+	printDetails(sl)
+	if !sl.Error {
 		return
 	}
 
-	Error(subSystem, fmt.Sprintf(data, v...))
+	logger.newLogEvent(fmt.Sprintln(v...), logger.ErrorHeader, sl.output)
+}
+
+func Errorf(sl *subLogger, data string, v ...interface{}) {
+	if !sl.Error {
+		return
+	}
+
+	Error(sl, fmt.Sprintf(data, v...))
 }

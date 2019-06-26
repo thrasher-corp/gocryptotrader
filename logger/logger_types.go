@@ -10,9 +10,16 @@ const timestampFormat = " 02/01/2006 15:04:05 "
 const spacer = "|"
 
 type Config struct {
-	Enabled          *bool            `json:"enabled"`
-	AdvancedSettings advancedSettings `json:"advancedSettings"`
-	SubLoggers       []SubLoggers     `json:"subloggers"`
+	Enabled *bool `json:"enabled"`
+	SubLoggerConfig
+	AdvancedSettings advancedSettings  `json:"advancedSettings"`
+	SubLoggers       []SubLoggerConfig `json:"subloggers,omitempty"`
+}
+
+type advancedSettings struct {
+	Spacer          string  `json:"spacer"`
+	TimeStampFormat string  `json:"timeStampFormat"`
+	Headers         headers `json:"headers"`
 }
 
 type headers struct {
@@ -22,14 +29,8 @@ type headers struct {
 	Error string `json:"error"`
 }
 
-type advancedSettings struct {
-	Spacer          string  `json:"spacer"`
-	TimeStampFormat string  `json:"timeStampFormat"`
-	Headers         headers `json:"headers"`
-}
-
-type SubLoggers struct {
-	Name   string `json:"name"`
+type SubLoggerConfig struct {
+	Name   string `json:"name,omitempty"`
 	Level  string `json:"level"`
 	Output string `json:"output"`
 }
@@ -40,9 +41,14 @@ type Logger struct {
 	Spacer                                           string
 }
 
-type subLogger struct {
+type levels struct {
 	Info, Debug, Warn, Error bool
-	output                   io.Writer
+}
+
+type subLogger struct {
+	name string
+	levels
+	output io.Writer
 }
 
 type LogEvent struct {
@@ -56,36 +62,34 @@ type multiWriter struct {
 }
 
 var (
-	logger           = &Logger{}
-	GlobalLogConfig  = &Config{}
-	subSystemLoggers = map[string]subLogger{}
-	eventPool        = &sync.Pool{
+	logger          = &Logger{}
+	GlobalLogConfig = &Config{}
+	subLoggers      = map[string]*subLogger{}
+	eventPool       = &sync.Pool{
 		New: func() interface{} {
 			return &LogEvent{
 				data: make([]byte, 0, 80),
 			}
 		},
 	}
+
 	LogPath string
-)
 
-const (
-	LogGlobal = "log"
+	Global           *subLogger
+	SubSystemConnMgr *subLogger
+	SubSystemCommMgr *subLogger
+	SubSystemConfMgr *subLogger
+	SubSystemOrdrMgr *subLogger
+	SubSystemPortMgr *subLogger
+	SubSystemSyncMgr *subLogger
+	SubSystemTimeMgr *subLogger
+	SubSystemWsocMgr *subLogger
+	SubSystemEvntMgr *subLogger
 
-	SubSystemConnMgr = "connection"
-	SubSystemCommMgr = "communications"
-	SubSystemConfMgr = "config"
-	SubSystemOrdrMgr = "order"
-	SubSystemPortMgr = "portfolio"
-	SubSystemSyncMgr = "syncer"
-	SubSystemTimeMgr = "timekeeper"
-	SubSystemWsocMgr = "websocket"
-	SubSystemEvntMgr = "event"
+	SubSystemExchSys *subLogger
+	SubSystemGrpcSys *subLogger
+	SubSystemRestSys *subLogger
 
-	SubSystemExchSys = "exchange"
-	SubSystemGrpcSys = "grpc"
-	SubSystemRestSys = "rest"
-
-	SubSystemTicker    = "ticker"
-	SubSystemOrderBook = "orderbook"
+	SubSystemTicker    *subLogger
+	SubSystemOrderBook *subLogger
 )

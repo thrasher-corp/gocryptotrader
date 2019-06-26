@@ -18,7 +18,7 @@ import (
 func main() {
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
-		log.Errorln(log.LogGlobal, err)
+		log.Errorln(log.Global, err)
 		os.Exit(1)
 	}
 
@@ -89,7 +89,7 @@ func main() {
 
 	engine.Bot, err = engine.NewFromSettings(&settings)
 	if engine.Bot == nil || err != nil {
-		log.Errorf(log.LogGlobal, "Unable to initialise bot engine. Err: %s\n", err)
+		log.Errorf(log.Global, "Unable to initialise bot engine. Err: %s\n", err)
 		os.Exit(1)
 	}
 
