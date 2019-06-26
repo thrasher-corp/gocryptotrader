@@ -68,8 +68,8 @@ var (
 	logger          = &Logger{}
 	GlobalLogConfig = &Config{} // GlobalLogConfig hold global configuration options for logger
 	GlobalLogFile   io.Writer   // GlobalLogFile handle to global log file
-	subLoggers      = map[string]*subLogger{}
-	eventPool       = &sync.Pool{
+
+	eventPool = &sync.Pool{
 		New: func() interface{} {
 			return &LogEvent{
 				data: make([]byte, 0, 80),
@@ -78,22 +78,4 @@ var (
 	}
 
 	LogPath string
-
-	Global           *subLogger
-	ConnectionMgr    *subLogger
-	CommunicationMgr *subLogger
-	ConfigMgr        *subLogger
-	OrderMgr         *subLogger
-	PortfolioMgr     *subLogger
-	SyncMgr          *subLogger
-	TimeMgr          *subLogger
-	WebsocketMgr     *subLogger
-	EventMgr         *subLogger
-
-	ExchangeSys *subLogger
-	GRPCSys     *subLogger
-	RESTSys     *subLogger
-
-	Ticker    *subLogger
-	OrderBook *subLogger
 )
