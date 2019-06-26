@@ -505,7 +505,7 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 		if quoteCurrency.String() != "" && baseCurrency.String() != "" {
 			currPair = currency.NewPairWithDelimiter(baseCurrency.String(),
 				quoteCurrency.String(),
-				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+				b.GetPairFormat(asset.Spot, false).Delimiter)
 		}
 		orderDate := time.Unix(order.Date, 0)
 		orders = append(orders, exchange.OrderDetail{

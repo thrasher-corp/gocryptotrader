@@ -24,20 +24,20 @@ import (
 // Engine contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
 type Engine struct {
-	Config                         *config.Config
-	Portfolio                      *portfolio.Base
-	Exchanges                      []exchange.IBotExchange
-	ExchangeCurrencyPairManager    *ExchangeCurrencyPairSyncer
-	NTPManager                     ntpManager
-	ConnectionManager              connectionManager
-	OrderManager                   orderManager
-	PortfolioManager               portfolioManager
-	CommsManager                   commsManager
-	Shutdown                       chan struct{}
-	Settings                       Settings
-	CryptocurrencyDepositAddresses map[string]map[string]string
-	Uptime                         time.Time
-	ServicesWG                     sync.WaitGroup
+	Config                      *config.Config
+	Portfolio                   *portfolio.Base
+	Exchanges                   []exchange.IBotExchange
+	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
+	NTPManager                  ntpManager
+	ConnectionManager           connectionManager
+	OrderManager                orderManager
+	PortfolioManager            portfolioManager
+	CommsManager                commsManager
+	DepositAddressManager       *DepositAddressManager
+	Shutdown                    chan struct{}
+	Settings                    Settings
+	Uptime                      time.Time
+	ServicesWG                  sync.WaitGroup
 }
 
 // Vars for engine
@@ -60,8 +60,6 @@ func New() (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
-
-	b.CryptocurrencyDepositAddresses = make(map[string]map[string]string)
 
 	return &b, nil
 }
@@ -95,17 +93,13 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	b.Settings.ConfigFile = settings.ConfigFile
 	b.Settings.DataDir = settings.DataDir
 
-	b.CryptocurrencyDepositAddresses = make(map[string]map[string]string)
-
 	err = utils.AdjustGoMaxProcs(settings.GoMaxProcs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
 
 	b.handleInterrupt()
-
 	ValidateSettings(&b, settings)
-
 	return &b, nil
 }
 
@@ -158,6 +152,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableNTPClient = s.EnableNTPClient
 	b.Settings.EnableOrderManager = s.EnableOrderManager
 	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
+	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableTickerSyncing = s.EnableTickerSyncing
 	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
@@ -211,49 +206,51 @@ func ValidateSettings(b *Engine, s *Settings) {
 
 // PrintSettings returns the engine settings
 func PrintSettings(s *Settings) {
-
-	log.Debugln(log.Global, "ENGINE SETTINGS")
-	log.Debugln(log.Global, "- CORE SETTINGS:")
-	log.Debugf(log.Global, "\t Verbose mode: %v\n", s.Verbose)
-	log.Debugf(log.Global, "\t Enable dry run mode: %v\n", s.EnableDryRun)
-	log.Debugf(log.Global, "\t Enable all exchanges: %v\n", s.EnableAllExchanges)
-	log.Debugf(log.Global, "\t Enable all pairs: %v\n", s.EnableAllPairs)
-	log.Debugf(log.Global, "\t Enable coinmarketcap analaysis: %v\n", s.EnableCoinmarketcapAnalysis)
-	log.Debugf(log.Global, "\t Enable portfolio manager: %v\n", s.EnablePortfolioManager)
-	log.Debugf(log.Global, "\t Enable gPRC: %v\n", s.EnableGRPC)
-	log.Debugf(log.Global, "\t Enable gRPC Proxy: %v\n", s.EnableGRPCProxy)
-	log.Debugf(log.Global, "\t Enable websocket RPC: %v\n", s.EnableWebsocketRPC)
-	log.Debugf(log.Global, "\t Enable deprecated RPC: %v\n", s.EnableDeprecatedRPC)
-	log.Debugf(log.Global, "\t Enable comms relayer: %v\n", s.EnableCommsRelayer)
-	log.Debugf(log.Global, "\t Enable event manager: %v\n", s.EnableEventManager)
-	log.Debugf(log.Global, "\t Event manager sleep delay: %v\n", s.EventManagerDelay)
-	log.Debugf(log.Global, "\t Enable order manager: %v\n", s.EnableOrderManager)
-	log.Debugf(log.Global, "\t Enable exchange sync manager: %v\n", s.EnableExchangeSyncManager)
-	log.Debugf(log.Global, "\t Enable ticker syncing: %v\n", s.EnableTickerSyncing)
-	log.Debugf(log.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
+	log.Debugln(log.Global)
+	log.Debugf(log.Global, "ENGINE SETTINGS")
+	log.Debugf(log.Global, "- CORE SETTINGS:")
+	log.Debugf(log.Global, "\t Verbose mode: %v", s.Verbose)
+	log.Debugf(log.Global, "\t Enable dry run mode: %v", s.EnableDryRun)
+	log.Debugf(log.Global, "\t Enable all exchanges: %v", s.EnableAllExchanges)
+	log.Debugf(log.Global, "\t Enable all pairs: %v", s.EnableAllPairs)
+	log.Debugf(log.Global, "\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
+	log.Debugf(log.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
+	log.Debugf(log.Global, "\t Enable gPRC: %v", s.EnableGRPC)
+	log.Debugf(log.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
+	log.Debugf(log.Global, "\t Enable websocket RPC: %v", s.EnableWebsocketRPC)
+	log.Debugf(log.Global, "\t Enable deprecated RPC: %v", s.EnableDeprecatedRPC)
+	log.Debugf(log.Global, "\t Enable comms relayer: %v", s.EnableCommsRelayer)
+	log.Debugf(log.Global, "\t Enable event manager: %v", s.EnableEventManager)
+	log.Debugf(log.Global, "\t Event manager sleep delay: %v", s.EventManagerDelay)
+	log.Debugf(log.Global, "\t Enable order manager: %v", s.EnableOrderManager)
+	log.Debugf(log.Global, "\t Enable exchange sync manager: %v", s.EnableExchangeSyncManager)
+	log.Debugf(log.Global, "\t Enable deposit address manager: %v\n", s.EnableDepositAddressManager)
+	log.Debugf(log.Global, "\t Enable ticker syncing: %v", s.EnableTickerSyncing)
+	log.Debugf(log.Global, "\t Enable orderbook syncing: %v", s.EnableOrderbookSyncing)
 	log.Debugf(log.Global, "\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
-	log.Debugf(log.Global, "\t Enable NTP client: %v\n", s.EnableNTPClient)
-	log.Debugln(log.Global, "- FOREX SETTINGS:")
-	log.Debugf(log.Global, "\t Enable currency conveter: %v\n", s.EnableCurrencyConverter)
-	log.Debugf(log.Global, "\t Enable currency layer: %v\n", s.EnableCurrencyLayer)
-	log.Debugf(log.Global, "\t Enable fixer: %v\n", s.EnableFixer)
-	log.Debugf(log.Global, "\t Enable OpenExchangeRates: %v\n", s.EnableOpenExchangeRates)
-	log.Debugln(log.Global, "- EXCHANGE SETTINGS:")
-	log.Debugf(log.Global, "\t Enable exchange auto pair updates: %v\n", s.EnableExchangeAutoPairUpdates)
-	log.Debugf(log.Global, "\t Disable all exchange auto pair updates: %v\n", s.DisableExchangeAutoPairUpdates)
-	log.Debugf(log.Global, "\t Enable exchange websocket support: %v\n", s.EnableExchangeWebsocketSupport)
-	log.Debugf(log.Global, "\t Enable exchange verbose mode: %v\n", s.EnableExchangeVerbose)
-	log.Debugf(log.Global, "\t Enable exchange HTTP rate limiter: %v\n", s.EnableExchangeHTTPRateLimiter)
-	log.Debugf(log.Global, "\t Enable exchange HTTP debugging: %v\n", s.EnableExchangeHTTPDebugging)
-	log.Debugf(log.Global, "\t Exchange max HTTP request jobs: %v\n", s.MaxHTTPRequestJobsLimit)
-	log.Debugf(log.Global, "\t Exchange HTTP request timeout retry amount: %v\n", s.RequestTimeoutRetryAttempts)
-	log.Debugf(log.Global, "\t Exchange HTTP timeout: %v\n", s.ExchangeHTTPTimeout)
-	log.Debugf(log.Global, "\t Exchange HTTP user agent: %v\n", s.ExchangeHTTPUserAgent)
+	log.Debugf(log.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
+	log.Debugf(log.Global, "- FOREX SETTINGS:")
+	log.Debugf(log.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
+	log.Debugf(log.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
+	log.Debugf(log.Global, "\t Enable fixer: %v", s.EnableFixer)
+	log.Debugf(log.Global, "\t Enable OpenExchangeRates: %v", s.EnableOpenExchangeRates)
+	log.Debugf(log.Global, "- EXCHANGE SETTINGS:")
+	log.Debugf(log.Global, "\t Enable exchange auto pair updates: %v", s.EnableExchangeAutoPairUpdates)
+	log.Debugf(log.Global, "\t Disable all exchange auto pair updates: %v", s.DisableExchangeAutoPairUpdates)
+	log.Debugf(log.Global, "\t Enable exchange websocket support: %v", s.EnableExchangeWebsocketSupport)
+	log.Debugf(log.Global, "\t Enable exchange verbose mode: %v", s.EnableExchangeVerbose)
+	log.Debugf(log.Global, "\t Enable exchange HTTP rate limiter: %v", s.EnableExchangeHTTPRateLimiter)
+	log.Debugf(log.Global, "\t Enable exchange HTTP debugging: %v", s.EnableExchangeHTTPDebugging)
+	log.Debugf(log.Global, "\t Exchange max HTTP request jobs: %v", s.MaxHTTPRequestJobsLimit)
+	log.Debugf(log.Global, "\t Exchange HTTP request timeout retry amount: %v", s.RequestTimeoutRetryAttempts)
+	log.Debugf(log.Global, "\t Exchange HTTP timeout: %v", s.ExchangeHTTPTimeout)
+	log.Debugf(log.Global, "\t Exchange HTTP user agent: %v", s.ExchangeHTTPUserAgent)
 	log.Debugf(log.Global, "\t Exchange HTTP proxy: %v\n", s.ExchangeHTTPProxy)
-	log.Debugln(log.Global, "- COMMON SETTINGS:")
-	log.Debugf(log.Global, "\t Global HTTP timeout: %v\n", s.GlobalHTTPTimeout)
-	log.Debugf(log.Global, "\t Global HTTP user agent: %v\n", s.GlobalHTTPUserAgent)
-	log.Debugf(log.Global, "\t Global HTTP proxy: %v\n", s.ExchangeHTTPProxy)
+	log.Debugf(log.Global, "- COMMON SETTINGS:")
+	log.Debugf(log.Global, "\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
+	log.Debugf(log.Global, "\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)
+	log.Debugf(log.Global, "\t Global HTTP proxy: %v", s.ExchangeHTTPProxy)
+	log.Debugln(log.Global)
 }
 
 // Start starts the engine
@@ -278,6 +275,7 @@ func (e *Engine) Start() {
 
 	e.Uptime = time.Now()
 	log.Debugf(log.Global, "Bot '%s' started.\n", e.Config.Name)
+	log.Debugf(log.Global, "Using data dir: %s\n", e.Settings.DataDir)
 
 	enabledExchanges := e.Config.CountEnabledExchanges()
 	if e.Settings.EnableAllExchanges {
@@ -332,8 +330,6 @@ func (e *Engine) Start() {
 		log.Errorf(log.Global, "currency updater system failed to start %v", err)
 	}
 
-	e.CryptocurrencyDepositAddresses = GetExchangeCryptocurrencyDepositAddresses()
-
 	if e.Settings.EnableGRPC {
 		go StartRPCServer()
 	}
@@ -351,6 +347,11 @@ func (e *Engine) Start() {
 		if err = e.PortfolioManager.Start(); err != nil {
 			log.Errorf(log.Global, "Fund manager unable to start: %v", err)
 		}
+	}
+
+	if e.Settings.EnableDepositAddressManager {
+		e.DepositAddressManager = new(DepositAddressManager)
+		e.DepositAddressManager.Sync()
 	}
 
 	if e.Settings.EnableOrderManager {

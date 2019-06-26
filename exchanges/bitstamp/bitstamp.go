@@ -505,6 +505,9 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(amount float64, currency,
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
 func (b *Bitstamp) GetCryptoDepositAddress(crypto currency.Code) (string, error) {
 	var resp string
+	v2Resp := struct {
+		Address string `json:"address"`
+	}{}
 
 	switch crypto {
 	case currency.BTC:
@@ -512,20 +515,20 @@ func (b *Bitstamp) GetCryptoDepositAddress(crypto currency.Code) (string, error)
 			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinDeposit, false, nil, &resp)
 
 	case currency.LTC:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(bitstampAPILitecoinDeposit, true, nil, &resp)
+		return v2Resp.Address,
+			b.SendAuthenticatedHTTPRequest(bitstampAPILitecoinDeposit, true, nil, &v2Resp)
 
 	case currency.ETH:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIEthereumDeposit, true, nil, &resp)
+		return v2Resp.Address,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIEthereumDeposit, true, nil, &v2Resp)
 
 	case currency.XRP:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpDeposit, true, nil, &resp)
+		return v2Resp.Address,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpDeposit, true, nil, &v2Resp)
 
 	case currency.BCH:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinCashDeposit, true, nil, &resp)
+		return v2Resp.Address,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinCashDeposit, true, nil, &v2Resp)
 
 	default:
 		return resp, fmt.Errorf("unsupported cryptocurrency string %s", crypto)

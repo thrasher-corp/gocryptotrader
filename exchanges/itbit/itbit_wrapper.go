@@ -420,7 +420,7 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for j := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
-			i.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			i.GetPairFormat(asset.Spot, false).Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
@@ -471,7 +471,7 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 
 		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
-			i.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			i.GetPairFormat(asset.Spot, false).Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {

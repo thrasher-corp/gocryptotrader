@@ -519,7 +519,7 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			Status:    resp[i].OrdStatus,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
-				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				b.GetPairFormat(asset.PerpetualContract, false).Delimiter),
 		}
 
 		orders = append(orders, orderDetail)
@@ -561,7 +561,7 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			Status:    resp[i].OrdStatus,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
-				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				b.GetPairFormat(asset.PerpetualContract, false).Delimiter),
 		}
 
 		orders = append(orders, orderDetail)

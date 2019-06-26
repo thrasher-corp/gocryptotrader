@@ -425,7 +425,7 @@ func (y *Yobit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 
 		for ID, order := range resp {
 			symbol := currency.NewPairDelimiter(order.Pair,
-				y.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+				y.GetPairFormat(asset.Spot, false).Delimiter)
 			orderDate := time.Unix(int64(order.TimestampCreated), 0)
 			side := exchange.OrderSide(strings.ToUpper(order.Type))
 			orders = append(orders, exchange.OrderDetail{
@@ -470,7 +470,7 @@ func (y *Yobit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := currency.NewPairDelimiter(order.Pair,
-			y.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			y.GetPairFormat(asset.Spot, false).Delimiter)
 		orderDate := time.Unix(int64(order.Timestamp), 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 		orders = append(orders, exchange.OrderDetail{

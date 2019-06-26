@@ -447,7 +447,7 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 			Status:          string(exchange.ActiveOrderStatus),
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				b.GetPairFormat(asset.Spot, false).Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
@@ -490,7 +490,7 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 			RemainingAmount: resp.Data[i].UnitsRemaining,
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				b.GetPairFormat(asset.Spot, false).Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {

@@ -446,10 +446,10 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for i := range resp.Open {
-		symbol := currency.NewPairDelimiter(resp.Open[i].Descr.Pair,
-			k.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+		symbol := currency.NewPairFromString(resp.Open[i].Descr.Pair)
 		orderDate := time.Unix(int64(resp.Open[i].StartTm), 0)
 		side := exchange.OrderSide(strings.ToUpper(resp.Open[i].Descr.Type))
+		orderType := exchange.OrderType(strings.ToUpper(resp.Open[i].Descr.OrderType))
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              i,
@@ -458,8 +458,9 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			ExecutedAmount:  resp.Open[i].VolExec,
 			Exchange:        k.Name,
 			OrderDate:       orderDate,
-			Price:           resp.Open[i].Price,
+			Price:           resp.Open[i].Descr.Price,
 			OrderSide:       side,
+			OrderType:       orderType,
 			CurrencyPair:    symbol,
 		})
 	}
@@ -489,10 +490,10 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for i := range resp.Closed {
-		symbol := currency.NewPairDelimiter(resp.Closed[i].Descr.Pair,
-			k.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+		symbol := currency.NewPairFromString(resp.Closed[i].Descr.Pair)
 		orderDate := time.Unix(int64(resp.Closed[i].StartTm), 0)
 		side := exchange.OrderSide(strings.ToUpper(resp.Closed[i].Descr.Type))
+		orderType := exchange.OrderType(strings.ToUpper(resp.Closed[i].Descr.OrderType))
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              i,
@@ -501,8 +502,9 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			ExecutedAmount:  resp.Closed[i].VolExec,
 			Exchange:        k.Name,
 			OrderDate:       orderDate,
-			Price:           resp.Closed[i].Price,
+			Price:           resp.Closed[i].Descr.Price,
 			OrderSide:       side,
+			OrderType:       orderType,
 			CurrencyPair:    symbol,
 		})
 	}

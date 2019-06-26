@@ -486,7 +486,7 @@ func (a *ANX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 			Amount: resp[i].TradedCurrencyAmount,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].TradedCurrency,
 				resp[i].SettlementCurrency,
-				a.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				a.GetPairFormat(asset.Spot, false).Delimiter),
 			OrderDate: orderDate,
 			Exchange:  a.Name,
 			ID:        resp[i].OrderID,
@@ -528,7 +528,7 @@ func (a *ANX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 			Status:    resp[i].OrderStatus,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].TradedCurrency,
 				resp[i].SettlementCurrency,
-				a.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				a.GetPairFormat(asset.Spot, false).Delimiter),
 		}
 
 		orders = append(orders, orderDetail)

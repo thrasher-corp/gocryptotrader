@@ -767,15 +767,15 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	}
 
-	if args.Oflags == "" {
+	if args.Oflags != "" {
 		params.Set("oflags", args.Oflags)
 	}
 
-	if args.StartTm == "" {
+	if args.StartTm != "" {
 		params.Set("starttm", args.StartTm)
 	}
 
-	if args.ExpireTm == "" {
+	if args.ExpireTm != "" {
 		params.Set("expiretm", args.ExpireTm)
 	}
 

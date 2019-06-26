@@ -389,7 +389,7 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for i := range resp {
 		symbol := currency.NewPairDelimiter(resp[i].Symbol,
-			g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			g.GetPairFormat(asset.Spot, false).Delimiter)
 		var orderType exchange.OrderType
 		if resp[i].Type == "exchange limit" {
 			orderType = exchange.LimitOrderType
@@ -459,7 +459,7 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			Price:     trades[i].Price,
 			CurrencyPair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
 				trades[i].QuoteCurrency,
-				g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				g.GetPairFormat(asset.Spot, false).Delimiter),
 		})
 	}
 

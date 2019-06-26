@@ -394,7 +394,8 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		symbol := currency.NewPairDelimiter(order.Symbol, l.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+		symbol := currency.NewPairDelimiter(order.Symbol,
+			l.GetPairFormat(asset.Spot, false).Delimiter)
 		orderDate := time.Unix(order.At, 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 
@@ -431,7 +432,7 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		symbol := currency.NewPairDelimiter(order.Symbol,
-			l.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			l.GetPairFormat(asset.Spot, false).Delimiter)
 		orderDate := time.Unix(order.At, 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 

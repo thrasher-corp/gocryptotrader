@@ -21,6 +21,7 @@ type Settings struct {
 	EnableDeprecatedRPC         bool
 	EnableCommsRelayer          bool
 	EnableExchangeSyncManager   bool
+	EnableDepositAddressManager bool
 	EnableTickerSyncing         bool
 	EnableOrderbookSyncing      bool
 	EnableEventManager          bool

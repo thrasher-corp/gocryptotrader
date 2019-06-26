@@ -399,7 +399,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (exchange.OrderDetail, error) 
 		OrderDetail.Status = orders[i].Status
 		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[i].Instrument,
 			orders[i].Currency,
-			b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			b.GetPairFormat(asset.Spot, false).Delimiter)
 	}
 
 	return OrderDetail, nil
@@ -473,7 +473,8 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest
 			Price:           resp[i].Price,
 			Status:          resp[i].Status,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Instrument,
-				resp[i].Currency, "-"),
+				resp[i].Currency,
+				b.GetPairFormat(asset.Spot, false).Delimiter),
 		}
 
 		for j := range resp[i].Trades {
@@ -542,7 +543,7 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 			Status:          respOrders[i].Status,
 			CurrencyPair: currency.NewPairWithDelimiter(respOrders[i].Instrument,
 				respOrders[i].Currency,
-				b.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter),
+				b.GetPairFormat(asset.Spot, false).Delimiter),
 		}
 
 		for j := range respOrders[i].Trades {

@@ -425,7 +425,7 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			h.GetPairFormat(asset.Spot, false).Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
 		orders = append(orders, exchange.OrderDetail{
 			ID:           allOrders[i].ID,
@@ -463,7 +463,7 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			h.GetPairFormat(asset.Spot, false).Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
 		orders = append(orders, exchange.OrderDetail{
 			ID:           allOrders[i].ID,

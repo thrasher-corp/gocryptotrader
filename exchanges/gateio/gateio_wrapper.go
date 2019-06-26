@@ -419,7 +419,7 @@ func (g *Gateio) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		orderDetail.Status = orders.Orders[x].Status
 		orderDetail.Price = orders.Orders[x].Rate
 		orderDetail.CurrencyPair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
-			g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			g.GetPairFormat(asset.Spot, false).Delimiter)
 		if strings.EqualFold(orders.Orders[x].Type, exchange.AskOrderSide.ToString()) {
 			orderDetail.OrderSide = exchange.AskOrderSide
 		} else if strings.EqualFold(orders.Orders[x].Type, exchange.BidOrderSide.ToString()) {
@@ -505,7 +505,7 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		}
 
 		symbol := currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
-			g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			g.GetPairFormat(asset.Spot, false).Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(resp.Orders[i].Type))
 		orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 
@@ -542,7 +542,7 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for _, trade := range trades {
 		symbol := currency.NewPairDelimiter(trade.Pair,
-			g.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter)
+			g.GetPairFormat(asset.Spot, false).Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(trade.Type))
 		orderDate := time.Unix(trade.TimeUnix, 0)
 		orders = append(orders, exchange.OrderDetail{
