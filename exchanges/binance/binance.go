@@ -16,6 +16,7 @@ import (
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
+	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -79,14 +80,16 @@ func (b *Binance) SetDefaults() {
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	// b.ConfigCurrencyPairFormat.Delimiter = "-"
-	// b.ConfigCurrencyPairFormat.Uppercase = true
-	// b.AssetTypes = []string{ticker.Spot}
-	// b.SupportsAutoPairUpdating = true
-	// b.SupportsRESTTickerBatching = true
+	//------
+	b.ConfigCurrencyPairFormat.Delimiter = "-"
+	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
+	b.SupportsAutoPairUpdating = true
+	b.SupportsRESTTickerBatching = true
+	//-----
 	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
 		exchange.NoFiatWithdrawals
-	// b.SetValues()
+	b.SetValues()
 	b.Requester = request.New(b.Name,
 		request.NewRateLimit(time.Second, binanceAuthRate),
 		request.NewRateLimit(time.Second, binanceUnauthRate),
@@ -141,6 +144,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		err = b.WebsocketSetup(b.WSConnect,
 			nil,
 			nil,

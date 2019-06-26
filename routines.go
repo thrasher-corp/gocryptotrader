@@ -184,6 +184,7 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 }
 
 // TickerUpdaterRoutine fetches and updates the ticker for all enabled
+// 更新所有开启的 kline
 // currency pairs and exchanges
 func TickerUpdaterRoutine() {
 	log.Debugf("Starting ticker updater routine.")

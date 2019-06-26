@@ -296,14 +296,14 @@ type Order struct {
 	MultiLegReportingType string  `json:"multiLegReportingType"`
 	OrdRejReason          string  `json:"ordRejReason"`
 	OrdStatus             string  `json:"ordStatus"` //订单状态，例如："Filled","Canceled","New":新订单
-	OrdType               int64   `json:"ordType,string"`
+	OrdType               string  `json:"ordType,string"`
 	OrderID               string  `json:"orderID"`
 	OrderQty              int64   `json:"orderQty"`
 	PegOffsetValue        float64 `json:"pegOffsetValue"`
 	PegPriceType          string  `json:"pegPriceType"`
 	Price                 float64 `json:"price"`
 	SettlCurrency         string  `json:"settlCurrency"`
-	Side                  int64   `json:"side,string"`
+	Side                  string  `json:"side,string"`
 	SimpleCumQty          float64 `json:"simpleCumQty"`
 	SimpleLeavesQty       float64 `json:"simpleLeavesQty"`
 	SimpleOrderQty        float64 `json:"simpleOrderQty"`

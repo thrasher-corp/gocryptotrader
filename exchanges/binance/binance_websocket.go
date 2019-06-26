@@ -3,6 +3,7 @@ package binance
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/idoall/TokenExchangeCommon/commonutils"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
@@ -342,133 +344,133 @@ func (b *Binance) WsHandleData() {
 }
 
 // WebsocketKline 获取 k 线
-// func (b *Binance) WebsocketKline(ch chan *KlineStream, timeIntervals []TimeInterval, symbolList []string, done <-chan struct{}) {
+func (b *Binance) WebsocketKline(ch chan *KlineStream, timeIntervals []TimeInterval, symbolList []string, done <-chan struct{}) {
 
-// 	for b.Enabled && b.Websocket {
-// 		select {
-// 		case <-done:
-// 			return
-// 		default:
-// 			var Dialer websocket.Dialer
-// 			var err error
+	for b.Enabled {
+		select {
+		case <-b.Websocket.ShutdownC:
+			return
+		default:
+			var Dialer websocket.Dialer
+			var err error
 
-// 			streamsArray := []string{}
-// 			for _, tv := range timeIntervals {
-// 				for _, sv := range symbolList {
-// 					streamsArray = append(streamsArray, fmt.Sprintf("%s@kline_%s", strings.ToLower(sv), tv))
-// 				}
-// 			}
+			streamsArray := []string{}
+			for _, tv := range timeIntervals {
+				for _, sv := range symbolList {
+					streamsArray = append(streamsArray, fmt.Sprintf("%s@kline_%s", strings.ToLower(sv), tv))
+				}
+			}
 
-// 			streams := commonutils.JoinStrings(streamsArray, "/")
+			streams := commonutils.JoinStrings(streamsArray, "/")
 
-// 			wsurl := b.WebsocketURL + "/stream?streams=" + streams
+			wsurl := b.WebsocketURL + "/stream?streams=" + streams
 
-// 			// b.WebsocketConn, _, err = Dialer.Dial(binanceDefaultWebsocketURL+myenabledPairs, http.Header{})
-// 			b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
-// 			if err != nil {
-// 				log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.Name, err)
-// 				continue
-// 			}
+			// b.WebsocketConn, _, err = Dialer.Dial(binanceDefaultWebsocketURL+myenabledPairs, http.Header{})
+			b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
+			if err != nil {
+				log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.Name, err)
+				continue
+			}
 
-// 			if b.Verbose {
-// 				log.Printf("%s Connected to Websocket.\n", b.Name)
-// 				log.Printf("wsurl:%s\n", streams)
-// 			}
+			if b.Verbose {
+				log.Printf("%s Connected to Websocket.\n", b.Name)
+				log.Printf("wsurl:%s\n", streams)
+			}
 
-// 			for b.Enabled && b.Websocket {
-// 				select {
-// 				case <-done:
-// 					return
-// 				default:
-// 					_, resp, err := b.WebsocketConn.ReadMessage()
-// 					if err != nil {
-// 						log.Println(err)
-// 						break
-// 					}
+			for b.Enabled {
+				select {
+				case <-b.Websocket.ShutdownC:
+					return
+				default:
+					_, resp, err := b.WebsocketConn.ReadMessage()
+					if err != nil {
+						log.Println(err)
+						break
+					}
 
-// 					multiStreamData := MultiStreamData{}
-// 					if err = common.JSONDecode(resp, &multiStreamData); err != nil {
-// 						log.Println("Could not load multi stream data.", string(resp))
-// 						continue
-// 					}
+					multiStreamData := MultiStreamData{}
+					if err = common.JSONDecode(resp, &multiStreamData); err != nil {
+						log.Println("Could not load multi stream data.", string(resp))
+						continue
+					}
 
-// 					kline := KlineStream{}
-// 					if err = commonutils.JSONDecode(multiStreamData.Data, &kline); err != nil {
-// 						log.Println("Could not convert to a KlineStream structure")
-// 						continue
-// 					}
+					kline := KlineStream{}
+					if err = commonutils.JSONDecode(multiStreamData.Data, &kline); err != nil {
+						log.Println("Could not convert to a KlineStream structure")
+						continue
+					}
 
-// 					ch <- &kline
-// 				}
-// 			}
-// 			b.WebsocketConn.Close()
-// 			log.Printf("%s Websocket client disconnected.", b.Name)
-// 		}
+					ch <- &kline
+				}
+			}
+			b.WebsocketConn.Close()
+			log.Printf("%s Websocket client disconnected.", b.Name)
+		}
 
-// 	}
-// }
+	}
+}
 
-// // WebsocketLastPrice 获取 最新价格
-// func (b *Binance) WebsocketLastPrice(ch chan *KlineStream, symbolList []string, done <-chan struct{}) {
+// WebsocketLastPrice 获取 最新价格
+func (b *Binance) WebsocketLastPrice(ch chan *KlineStream, symbolList []string, done <-chan struct{}) {
 
-// 	for b.Enabled && b.Websocket {
-// 		select {
-// 		case <-done:
-// 			return
-// 		default:
-// 			var Dialer websocket.Dialer
-// 			var err error
+	for b.Enabled {
+		select {
+		case <-b.Websocket.ShutdownC:
+			return
+		default:
+			var Dialer websocket.Dialer
+			var err error
 
-// 			streamsArray := []string{}
-// 			for _, sv := range symbolList {
-// 				streamsArray = append(streamsArray, fmt.Sprintf("%s@kline_1d", strings.ToLower(sv)))
-// 			}
+			streamsArray := []string{}
+			for _, sv := range symbolList {
+				streamsArray = append(streamsArray, fmt.Sprintf("%s@kline_1d", strings.ToLower(sv)))
+			}
 
-// 			streams := commonutils.JoinStrings(streamsArray, "/")
+			streams := commonutils.JoinStrings(streamsArray, "/")
 
-// 			wsurl := b.WebsocketURL + "/stream?streams=" + streams
+			wsurl := b.WebsocketURL + "/stream?streams=" + streams
 
-// 			// b.WebsocketConn, _, err = Dialer.Dial(binanceDefaultWebsocketURL+myenabledPairs, http.Header{})
-// 			b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
-// 			if err != nil {
-// 				log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.Name, err)
-// 				continue
-// 			}
+			// b.WebsocketConn, _, err = Dialer.Dial(binanceDefaultWebsocketURL+myenabledPairs, http.Header{})
+			b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
+			if err != nil {
+				log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.Name, err)
+				continue
+			}
 
-// 			if b.Verbose {
-// 				log.Printf("%s Connected to Websocket.\n", b.Name)
-// 				log.Printf("wsurl:%s\n", streams)
-// 			}
+			if b.Verbose {
+				log.Printf("%s Connected to Websocket.\n", b.Name)
+				log.Printf("wsurl:%s\n", streams)
+			}
 
-// 			for b.Enabled && b.Websocket {
-// 				select {
-// 				case <-done:
-// 					return
-// 				default:
-// 					_, resp, err := b.WebsocketConn.ReadMessage()
-// 					if err != nil {
-// 						log.Println(err)
-// 						break
-// 					}
+			for b.Enabled {
+				select {
+				case <-b.Websocket.ShutdownC:
+					return
+				default:
+					_, resp, err := b.WebsocketConn.ReadMessage()
+					if err != nil {
+						log.Println(err)
+						break
+					}
 
-// 					multiStreamData := MultiStreamData{}
-// 					if err = common.JSONDecode(resp, &multiStreamData); err != nil {
-// 						log.Println("Could not load multi stream data.", string(resp))
-// 						continue
-// 					}
+					multiStreamData := MultiStreamData{}
+					if err = common.JSONDecode(resp, &multiStreamData); err != nil {
+						log.Println("Could not load multi stream data.", string(resp))
+						continue
+					}
 
-// 					kline := KlineStream{}
-// 					if err = commonutils.JSONDecode(multiStreamData.Data, &kline); err != nil {
-// 						log.Println("Could not convert to a KlineStream structure")
-// 						continue
-// 					}
+					kline := KlineStream{}
+					if err = commonutils.JSONDecode(multiStreamData.Data, &kline); err != nil {
+						log.Println("Could not convert to a KlineStream structure")
+						continue
+					}
 
-// 					ch <- &kline
-// 				}
-// 			}
-// 			b.WebsocketConn.Close()
-// 			log.Printf("%s Websocket client disconnected.", b.Name)
-// 		}
+					ch <- &kline
+				}
+			}
+			b.WebsocketConn.Close()
+			log.Printf("%s Websocket client disconnected.", b.Name)
+		}
 
-// 	}
-// }
+	}
+}

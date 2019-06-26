@@ -70,7 +70,7 @@ func (t *Ticker) PriceToString(p currency.Pair, priceType, tickerType string) st
 	}
 }
 
-// GetTicker checks and returns a requested ticker if it exists
+// GetTicker  checks and returns a requested kline if it exists
 func GetTicker(exchange string, p currency.Pair, tickerType string) (Price, error) {
 	ticker, err := GetTickerByExchange(exchange)
 	if err != nil {

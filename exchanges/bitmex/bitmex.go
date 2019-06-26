@@ -160,18 +160,19 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 		b.BaseCurrencies = exch.BaseCurrencies
 		b.AvailablePairs = exch.AvailablePairs
 		b.EnabledPairs = exch.EnabledPairs
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
+		var err error
+		// err := b.SetCurrencyPairFormat()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = b.SetAssetTypes()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = b.SetAutoPairDefaults()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
@@ -635,8 +636,8 @@ func (b *Bitmex) GetTrade(params *GenericRequestParams) ([]Trade, error) {
 
 // GetPreviousTrades previous trade history in time buckets
 // 获取K线
-func (b *Bitmex) GetPreviousTrades(params *TradeGetBucketedParams) ([]Trade, error) {
-	var trade []Trade
+func (b *Bitmex) GetPreviousTrades(params *TradeGetBucketedParams) ([]TradeBucket, error) {
+	var trade []TradeBucket
 
 	return trade, b.SendHTTPRequest(bitmexEndpointTradeBucketed,
 		params,

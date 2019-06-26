@@ -80,6 +80,7 @@ func (b *Binance) Run() {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Binance) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
+	// 获取最后 24 小时数据
 	tick, err := b.GetTickers()
 	if err != nil {
 		return tickerPrice, err

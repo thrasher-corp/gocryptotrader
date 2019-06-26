@@ -149,6 +149,7 @@ func main() {
 		len(bot.config.Exchanges),
 		bot.config.CountEnabledExchanges())
 
+	// 设置全局的 http client 超时时间
 	common.HTTPClient = common.NewHTTPClientWithTimeout(bot.config.GlobalHTTPTimeout)
 	log.Debugf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
 

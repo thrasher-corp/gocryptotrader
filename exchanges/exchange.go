@@ -13,6 +13,7 @@ import (
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/exchanges/kline"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
@@ -298,6 +299,7 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)
+	// GetTickerPrice 最后 24 时交易数据统计
 	GetTickerPrice(currency currency.Pair, assetType string) (ticker.Price, error)
 	UpdateTicker(currency currency.Pair, assetType string) (ticker.Price, error)
 	GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error)
@@ -333,6 +335,8 @@ type IBotExchange interface {
 	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
 	AuthenticateWebsocket() error
 	GetSubscriptions() ([]WebsocketChannelSubscription, error)
+	// GetKlines 自定义获取 K 线
+	GetKlines(arg interface{}) ([]*kline.Kline, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the

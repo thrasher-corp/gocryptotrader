@@ -766,7 +766,7 @@ func (b *Bitmex) wsSend(data interface{}) error {
 // 	}
 // }
 
-// // WebsocketLastPrice 读取 最新报价
+// WebsocketLastPrice 读取 最新报价
 // func (b *Bitmex) WebsocketLastPrice(ch chan *WSInstrumentData, symbolList []string, done <-chan struct{}) {
 
 // 	for b.Enabled && b.Websocket {

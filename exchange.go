@@ -216,6 +216,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 // SetupExchanges sets up the exchanges used by the bot
 func SetupExchanges() {
 	var wg sync.WaitGroup
+
+	// 读取所有exchanges
 	for x := range bot.config.Exchanges {
 		exch := &bot.config.Exchanges[x]
 		if CheckExchangeExists(exch.Name) {

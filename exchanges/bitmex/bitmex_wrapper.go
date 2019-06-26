@@ -317,42 +317,42 @@ func (b *Bitmex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 // This function is not concurrency safe due to orderSide/orderType maps
 func (b *Bitmex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
-	params := OrdersRequest{}
-	params.Filter = "{\"open\":true}"
+	// params := OrdersRequest{}
+	// params.Filter = "{\"open\":true}"
 
-	resp, err := b.GetOrders(&params)
-	if err != nil {
-		return nil, err
-	}
+	// resp, err := b.GetOrders(&params)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	for i := range resp {
-		orderSide := orderSideMap[resp[i].Side]
-		orderType := orderTypeMap[resp[i].OrdType]
-		if orderType == "" {
-			orderType = exchange.UnknownOrderType
-		}
+	// for i := range resp {
+	// 	orderSide := orderSideMap[resp[i].Side]
+	// 	orderType := orderTypeMap[resp[i].OrdType]
+	// 	if orderType == "" {
+	// 		orderType = exchange.UnknownOrderType
+	// 	}
 
-		orderDetail := exchange.OrderDetail{
-			Price:     resp[i].Price,
-			Amount:    float64(resp[i].OrderQty),
-			Exchange:  b.Name,
-			ID:        resp[i].OrderID,
-			OrderSide: orderSide,
-			OrderType: orderType,
-			Status:    resp[i].OrdStatus,
-			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
-				resp[i].SettlCurrency,
-				b.ConfigCurrencyPairFormat.Delimiter),
-		}
+	// 	orderDetail := exchange.OrderDetail{
+	// 		Price:     resp[i].Price,
+	// 		Amount:    float64(resp[i].OrderQty),
+	// 		Exchange:  b.Name,
+	// 		ID:        resp[i].OrderID,
+	// 		OrderSide: orderSide,
+	// 		OrderType: orderType,
+	// 		Status:    resp[i].OrdStatus,
+	// 		CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
+	// 			resp[i].SettlCurrency,
+	// 			b.ConfigCurrencyPairFormat.Delimiter),
+	// 	}
 
-		orders = append(orders, orderDetail)
-	}
+	// 	orders = append(orders, orderDetail)
+	// }
 
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	// exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	// exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	// exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	// 	getOrdersRequest.EndTicks)
+	// exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
@@ -362,39 +362,39 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 // This function is not concurrency safe due to orderSide/orderType maps
 func (b *Bitmex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
-	params := OrdersRequest{}
-	resp, err := b.GetOrders(&params)
-	if err != nil {
-		return nil, err
-	}
+	// params := OrdersRequest{}
+	// resp, err := b.GetOrders(&params)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	for i := range resp {
-		orderSide := orderSideMap[resp[i].Side]
-		orderType := orderTypeMap[resp[i].OrdType]
-		if orderType == "" {
-			orderType = exchange.UnknownOrderType
-		}
+	// for i := range resp {
+	// 	orderSide := orderSideMap[resp[i].Side]
+	// 	orderType := orderTypeMap[resp[i].OrdType]
+	// 	if orderType == "" {
+	// 		orderType = exchange.UnknownOrderType
+	// 	}
 
-		orderDetail := exchange.OrderDetail{
-			Price:     resp[i].Price,
-			Amount:    float64(resp[i].OrderQty),
-			Exchange:  b.Name,
-			ID:        resp[i].OrderID,
-			OrderSide: orderSide,
-			OrderType: orderType,
-			Status:    resp[i].OrdStatus,
-			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
-				resp[i].SettlCurrency,
-				b.ConfigCurrencyPairFormat.Delimiter),
-		}
+	// 	orderDetail := exchange.OrderDetail{
+	// 		Price:     resp[i].Price,
+	// 		Amount:    float64(resp[i].OrderQty),
+	// 		Exchange:  b.Name,
+	// 		ID:        resp[i].OrderID,
+	// 		OrderSide: orderSide,
+	// 		OrderType: orderType,
+	// 		Status:    resp[i].OrdStatus,
+	// 		CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
+	// 			resp[i].SettlCurrency,
+	// 			b.ConfigCurrencyPairFormat.Delimiter),
+	// 	}
 
-		orders = append(orders, orderDetail)
-	}
+	// 	orders = append(orders, orderDetail)
+	// }
 
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	// exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	// exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	// exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	// exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
