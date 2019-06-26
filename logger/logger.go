@@ -49,3 +49,21 @@ func validSubLogger(s string) (bool, *subLogger) {
 	}
 	return false, nil
 }
+
+func Level(s string) *Levels {
+	found, logger := validSubLogger(s)
+	if !found {
+		return nil
+	}
+
+	return &logger.Levels
+}
+
+func SetLevel(s string) error {
+	found, _ := validSubLogger(s)
+	if !found {
+		return nil
+	}
+
+	return nil
+}

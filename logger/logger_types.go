@@ -44,13 +44,13 @@ type Logger struct {
 	Spacer                                           string
 }
 
-type levels struct {
+type Levels struct {
 	Info, Debug, Warn, Error bool
 }
 
 type subLogger struct {
 	name string
-	levels
+	Levels
 	output io.Writer
 }
 

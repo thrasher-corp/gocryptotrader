@@ -67,7 +67,7 @@ func configureSubLogger(logger, levels string, output io.Writer) {
 
 	logPtr.output = output
 
-	logPtr.levels = splitLevel(levels)
+	logPtr.Levels = splitLevel(levels)
 	subLoggers[logger] = logPtr
 }
 
@@ -87,14 +87,14 @@ func SetupGlobalLogger() {
 		fmt.Printf("Failed to open log file global file logging unavailable %v", err)
 	}
 	for x := range subLoggers {
-		subLoggers[x].levels = splitLevel(GlobalLogConfig.Level)
+		subLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
 		subLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)
 	}
 
 	logger = newLogger(GlobalLogConfig)
 }
 
-func splitLevel(level string) (l levels) {
+func splitLevel(level string) (l Levels) {
 	enabledLevels := strings.Split(level, "|")
 	for x := range enabledLevels {
 		switch level := enabledLevels[x]; level {
@@ -117,7 +117,7 @@ func registerNewSubLogger(logger string) *subLogger {
 		output: os.Stdout,
 	}
 
-	temp.levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
 	subLoggers[logger] = &temp
 
 	return &temp
