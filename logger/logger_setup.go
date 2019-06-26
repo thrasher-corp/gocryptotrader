@@ -20,7 +20,11 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 		case "stderr":
 			m.Add(os.Stderr)
 		case "file":
-			temp, err := createFileHandle(s.Name)
+			if GlobalLogFile != nil {
+				m.Add(GlobalLogFile)
+			}
+		case "ownfile":
+			temp, err := createFileHandle(s.Name, false)
 			if err != nil {
 				fmt.Printf("File handle error %v", err)
 			}
@@ -32,6 +36,7 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 	return m
 }
 
+// GenDefaultSettings return struct with known sane/working logger settings
 func GenDefaultSettings() (log Config) {
 	t := func(t bool) *bool { return &t }(true)
 	log = Config{
@@ -66,6 +71,7 @@ func configureSubLogger(logger, levels string, output io.Writer) {
 	subLoggers[logger] = logPtr
 }
 
+// SetupSubLoggers configure all sub loggers with provided configuration values
 func SetupSubLoggers(s []SubLoggerConfig) {
 	for x := range s {
 		output := getWriters(&s[x])
@@ -73,7 +79,13 @@ func SetupSubLoggers(s []SubLoggerConfig) {
 	}
 }
 
+// SetupGlobalLogger() setup the global loggers with the default global config values
 func SetupGlobalLogger() {
+	var err error
+	GlobalLogFile, err = createFileHandle("", true)
+	if err != nil {
+		fmt.Printf("Failed to open log file global file logging unavailable %v", err)
+	}
 	for x := range subLoggers {
 		subLoggers[x].levels = splitLevel(GlobalLogConfig.Level)
 		subLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)
@@ -106,7 +118,6 @@ func registerNewSubLogger(logger string) *subLogger {
 	}
 
 	temp.levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-
 	subLoggers[logger] = &temp
 
 	return &temp
@@ -116,20 +127,20 @@ func registerNewSubLogger(logger string) *subLogger {
 func init() {
 	Global = registerNewSubLogger("log")
 
-	SubSystemConnMgr = registerNewSubLogger("connection")
-	SubSystemCommMgr = registerNewSubLogger("comms")
-	SubSystemConfMgr = registerNewSubLogger("config")
-	SubSystemOrdrMgr = registerNewSubLogger("order")
-	SubSystemPortMgr = registerNewSubLogger("portfolio")
-	SubSystemSyncMgr = registerNewSubLogger("sync")
-	SubSystemTimeMgr = registerNewSubLogger("timekeeper")
-	SubSystemWsocMgr = registerNewSubLogger("websocket")
-	SubSystemEvntMgr = registerNewSubLogger("event")
+	ConnectionMgr = registerNewSubLogger("connection")
+	CommunicationMgr = registerNewSubLogger("comms")
+	ConfigMgr = registerNewSubLogger("config")
+	OrderMgr = registerNewSubLogger("order")
+	PortfolioMgr = registerNewSubLogger("portfolio")
+	SyncMgr = registerNewSubLogger("sync")
+	TimeMgr = registerNewSubLogger("timekeeper")
+	WebsocketMgr = registerNewSubLogger("websocket")
+	EventMgr = registerNewSubLogger("event")
 
-	SubSystemExchSys = registerNewSubLogger("exchange")
-	SubSystemGrpcSys = registerNewSubLogger("grpc")
-	SubSystemRestSys = registerNewSubLogger("rest")
+	ExchangeSys = registerNewSubLogger("exchange")
+	GRPCSys = registerNewSubLogger("grpc")
+	RESTSys = registerNewSubLogger("rest")
 
-	SubSystemTicker = registerNewSubLogger("ticker")
-	SubSystemOrderBook = registerNewSubLogger("orderbook")
+	Ticker = registerNewSubLogger("ticker")
+	OrderBook = registerNewSubLogger("orderbook")
 }

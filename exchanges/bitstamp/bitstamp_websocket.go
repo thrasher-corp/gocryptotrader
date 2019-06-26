@@ -46,7 +46,7 @@ func (b *Bitstamp) WsConnect() error {
 	}
 
 	if b.Verbose {
-		log.Debugf(log.SubSystemExchSys, "%s Connected to Websocket.\n", b.GetName())
+		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.GetName())
 	}
 
 	err = b.seedOrderBook()
@@ -69,7 +69,7 @@ func (b *Bitstamp) WsReadData() (exchange.WebsocketResponse, error) {
 	}
 
 	if b.Verbose {
-		log.Debugf(log.SubSystemExchSys, "%s websocket raw response: %s", b.GetName(), resp)
+		log.Debugf(log.ExchangeSys, "%s websocket raw response: %s", b.GetName(), resp)
 	}
 
 	b.Websocket.TrafficAlert <- struct{}{}
@@ -106,7 +106,7 @@ func (b *Bitstamp) WsHandleData() {
 			switch wsResponse.Event {
 			case "bts:request_reconnect":
 				if b.Verbose {
-					log.Debugf(log.SubSystemExchSys, "%v - Websocket reconnection request received", b.GetName())
+					log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.GetName())
 				}
 				go b.Websocket.WebsocketReset()
 

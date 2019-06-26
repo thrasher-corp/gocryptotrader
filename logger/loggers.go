@@ -4,13 +4,8 @@ import (
 	"fmt"
 )
 
-func printDetails(sl *subLogger) {
-	return
-	fmt.Printf("%+v\n", sl)
-}
-
+// Info takes a pointer subLogger struct and string sends to newLogEvent
 func Info(sl *subLogger, data string) {
-	printDetails(sl)
 	if !sl.Info {
 		return
 	}
@@ -18,8 +13,8 @@ func Info(sl *subLogger, data string) {
 	logger.newLogEvent(data, logger.InfoHeader, sl.output)
 }
 
+// Infoln takes a pointer subLogger struct and interface sends to newLogEvent
 func Infoln(sl *subLogger, v ...interface{}) {
-	printDetails(sl)
 	if !sl.Info {
 		return
 	}
@@ -27,6 +22,7 @@ func Infoln(sl *subLogger, v ...interface{}) {
 	logger.newLogEvent(fmt.Sprintln(v...), logger.InfoHeader, sl.output)
 }
 
+// Infof takes a pointer subLogger struct, string & interface formats and sends to Info()
 func Infof(sl *subLogger, data string, v ...interface{}) {
 	if !sl.Info {
 		return
@@ -35,8 +31,8 @@ func Infof(sl *subLogger, data string, v ...interface{}) {
 	Info(sl, fmt.Sprintf(data, v...))
 }
 
+// Debug takes a pointer subLogger struct and string sends to multiwriter
 func Debug(sl *subLogger, data string) {
-	printDetails(sl)
 	if !sl.Debug {
 		return
 	}
@@ -44,8 +40,8 @@ func Debug(sl *subLogger, data string) {
 	logger.newLogEvent(data, logger.DebugHeader, sl.output)
 }
 
+// Debugln  takes a pointer subLogger struct, string and interface sends to newLogEvent
 func Debugln(sl *subLogger, v ...interface{}) {
-	printDetails(sl)
 	if !sl.Debug {
 		return
 	}
@@ -53,6 +49,7 @@ func Debugln(sl *subLogger, v ...interface{}) {
 	logger.newLogEvent(fmt.Sprintln(v...), logger.DebugHeader, sl.output)
 }
 
+// Debugf takes a pointer subLogger struct, string & interface formats and sends to Info()
 func Debugf(sl *subLogger, data string, v ...interface{}) {
 	if !sl.Debug {
 		return
@@ -61,8 +58,8 @@ func Debugf(sl *subLogger, data string, v ...interface{}) {
 	Debug(sl, fmt.Sprintf(data, v...))
 }
 
+// Debugf takes a pointer subLogger struct & string  and sends to newLogEvent()
 func Warn(sl *subLogger, data string) {
-	printDetails(sl)
 	if !sl.Warn {
 		return
 	}
@@ -70,8 +67,8 @@ func Warn(sl *subLogger, data string) {
 	logger.newLogEvent(data, logger.WarnHeader, sl.output)
 }
 
+// Warnln takes a pointer subLogger struct & interface formats and sends to newLogEvent()
 func Warnln(sl *subLogger, v ...interface{}) {
-	printDetails(sl)
 	if !sl.Warn {
 		return
 	}
@@ -79,6 +76,7 @@ func Warnln(sl *subLogger, v ...interface{}) {
 	logger.newLogEvent(fmt.Sprintln(v...), logger.WarnHeader, sl.output)
 }
 
+// Warnf takes a pointer subLogger struct, string & interface formats and sends to Warn()
 func Warnf(sl *subLogger, data string, v ...interface{}) {
 	if !sl.Warn {
 		return
@@ -87,8 +85,8 @@ func Warnf(sl *subLogger, data string, v ...interface{}) {
 	Warn(sl, fmt.Sprintf(data, v...))
 }
 
+// Error takes a pointer subLogger struct & interface formats and sends to newLogEvent()
 func Error(sl *subLogger, data ...interface{}) {
-	printDetails(sl)
 	if !sl.Error {
 		return
 	}
@@ -96,8 +94,8 @@ func Error(sl *subLogger, data ...interface{}) {
 	logger.newLogEvent(fmt.Sprint(data...), logger.ErrorHeader, sl.output)
 }
 
+// Errorln takes a pointer subLogger struct, string & interface formats and sends to newLogEvent()
 func Errorln(sl *subLogger, v ...interface{}) {
-	printDetails(sl)
 	if !sl.Error {
 		return
 	}
@@ -105,6 +103,7 @@ func Errorln(sl *subLogger, v ...interface{}) {
 	logger.newLogEvent(fmt.Sprintln(v...), logger.ErrorHeader, sl.output)
 }
 
+// Errorf takes a pointer subLogger struct, string & interface formats and sends to Debug()
 func Errorf(sl *subLogger, data string, v ...interface{}) {
 	if !sl.Error {
 		return

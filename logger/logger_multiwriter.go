@@ -58,6 +58,7 @@ func (mw *multiWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// MultiWriter make and return a new copy of multiWriter
 func MultiWriter(writers ...io.Writer) io.Writer {
 	w := make([]io.Writer, len(writers))
 	copy(w, writers)

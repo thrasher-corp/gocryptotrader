@@ -351,7 +351,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 			sm.Lock()
 			err = ProcessTicker(newName, &tp, asset.Spot)
 			if err != nil {
-				log.Error(log.SubSystemExchSys, err)
+				log.Error(log.ExchangeSys, err)
 				catastrophicFailure = true
 				return
 			}

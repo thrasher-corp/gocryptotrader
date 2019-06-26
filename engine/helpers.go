@@ -541,7 +541,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					continue
 				}
 
-				log.Debugf(log.SubSystemPortMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
 					exchangeName,
 					currencyName,
 					total,
@@ -556,7 +556,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 
 			} else {
 				if total <= 0 {
-					log.Debugf(log.SubSystemPortMgr, "Portfolio: Removing %s %s entry.\n",
+					log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
 						exchangeName,
 						currencyName)
 
@@ -571,7 +571,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					}
 
 					if balance != total {
-						log.Debugf(log.SubSystemPortMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
+						log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
 							exchangeName,
 							currencyName,
 							total)
@@ -652,14 +652,14 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 
 		if !Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if Bot.Settings.Verbose {
-				log.Debugf(log.SubSystemExchSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
+				log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 			}
 			continue
 		}
 
 		cryptoCurrencies, err := GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
 		if err != nil {
-			log.Debugf(log.SubSystemExchSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
+			log.Debugf(log.ExchangeSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 			continue
 		}
 
@@ -754,7 +754,7 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 			for z := range currencies {
 				tp, err := exch.FetchTicker(currencies[z], assets[y])
 				if err != nil {
-					log.Debugf(log.SubSystemExchSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
+					log.Debugf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -774,13 +774,13 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 		if individualBot != nil && individualBot.IsEnabled() {
 			if !individualBot.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 				if Bot.Settings.Verbose {
-					log.Debugf(log.SubSystemExchSys, "GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n", individualBot.GetName())
+					log.Debugf(log.ExchangeSys, "GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n", individualBot.GetName())
 				}
 				continue
 			}
 			individualExchange, err := individualBot.GetAccountInfo()
 			if err != nil {
-				log.Debugf(log.SubSystemExchSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
+				log.Debugf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
 					individualBot.GetName(), err)
 				continue
 			}

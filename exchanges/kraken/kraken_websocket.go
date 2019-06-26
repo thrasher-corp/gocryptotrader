@@ -72,7 +72,7 @@ func (k *Kraken) writeToWebsocket(message []byte) error {
 	k.wsRequestMtx.Lock()
 	defer k.wsRequestMtx.Unlock()
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Sending message to WS: %v",
+		log.Debugf(log.ExchangeSys, "Sending message to WS: %v",
 			string(message))
 	}
 	// Really basic WS rate limit
@@ -98,7 +98,7 @@ func (k *Kraken) WsConnect() error {
 
 	var err error
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Attempting to connect to %v",
+		log.Debugf(log.ExchangeSys, "Attempting to connect to %v",
 			k.Websocket.GetWebsocketURL())
 	}
 	k.WebsocketConn, _, err = dialer.Dial(k.Websocket.GetWebsocketURL(),
@@ -109,7 +109,7 @@ func (k *Kraken) WsConnect() error {
 			err)
 	}
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Successful connection to %v",
+		log.Debugf(log.ExchangeSys, "Successful connection to %v",
 			k.Websocket.GetWebsocketURL())
 	}
 	go k.WsHandleData()
@@ -142,7 +142,7 @@ func (k *Kraken) WsReadData() (exchange.WebsocketResponse, error) {
 		}
 	}
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "%v Websocket message received: %v",
+		log.Debugf(log.ExchangeSys, "%v Websocket message received: %v",
 			k.Name,
 			string(standardMessage))
 	}
@@ -165,7 +165,7 @@ func (k *Kraken) wsPingHandler() {
 		case <-ticker.C:
 			pingEvent := fmt.Sprintf("{\"event\":\"%v\"}", krakenWsPing)
 			if k.Verbose {
-				log.Debugf(log.SubSystemExchSys, "%v sending ping",
+				log.Debugf(log.ExchangeSys, "%v sending ping",
 					k.GetName())
 			}
 			err := k.writeToWebsocket([]byte(pingEvent))
@@ -221,36 +221,36 @@ func (k *Kraken) WsHandleDataResponse(response WebsocketDataResponse) {
 	switch channelData.Subscription {
 	case krakenWsTicker:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket ticker data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket ticker data received",
 				k.GetName())
 		}
 		k.wsProcessTickers(&channelData, response[1])
 	case krakenWsOHLC:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket OHLC data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket OHLC data received",
 				k.GetName())
 		}
 		k.wsProcessCandles(&channelData, response[1])
 	case krakenWsOrderbook:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket Orderbook data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket Orderbook data received",
 				k.GetName())
 		}
 		k.wsProcessOrderBook(&channelData, response[1])
 	case krakenWsSpread:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket Spread data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket Spread data received",
 				k.GetName())
 		}
 		k.wsProcessSpread(&channelData, response[1])
 	case krakenWsTrade:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket Trade data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket Trade data received",
 				k.GetName())
 		}
 		k.wsProcessTrades(&channelData, response[1])
 	default:
-		log.Errorf(log.SubSystemExchSys, "%v Unidentified websocket data received: %v",
+		log.Errorf(log.ExchangeSys, "%v Unidentified websocket data received: %v",
 			k.GetName(), response)
 	}
 }
@@ -260,17 +260,17 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 	switch response.Event {
 	case krakenWsHeartbeat:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket heartbeat data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket heartbeat data received",
 				k.GetName())
 		}
 	case krakenWsPong:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket pong data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket pong data received",
 				k.GetName())
 		}
 	case krakenWsSystemStatus:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket status data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket status data received",
 				k.GetName())
 		}
 		if response.Status != "online" {
@@ -278,12 +278,12 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 				k.GetName(), response.Status)
 		}
 		if response.WebsocketStatusResponse.Version != krakenWSSupportedVersion {
-			log.Warnf(log.SubSystemExchSys, "%v New version of Websocket API released. Was %v Now %v",
+			log.Warnf(log.ExchangeSys, "%v New version of Websocket API released. Was %v Now %v",
 				k.GetName(), krakenWSSupportedVersion, response.WebsocketStatusResponse.Version)
 		}
 	case krakenWsSubscriptionStatus:
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v Websocket subscription status data received",
+			log.Debugf(log.ExchangeSys, "%v Websocket subscription status data received",
 				k.GetName())
 		}
 		if response.Status != "subscribed" {
@@ -296,7 +296,7 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse) {
 		}
 		addNewSubscriptionChannelData(response)
 	default:
-		log.Errorf(log.SubSystemExchSys, "%v Unidentified websocket data received: %v", k.GetName(), response)
+		log.Errorf(log.ExchangeSys, "%v Unidentified websocket data received: %v", k.GetName(), response)
 	}
 }
 
@@ -374,7 +374,7 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data interfa
 	sec, dec := math.Modf(timeData)
 	spreadTimestamp := time.Unix(int64(sec), int64(dec*(1e9)))
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v'",
+		log.Debugf(log.ExchangeSys, "Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v'",
 			channelData.Pair,
 			bestBid,
 			bestAsk,
@@ -550,7 +550,7 @@ func (k *Kraken) wsProcessOrderBookBuffer(channelData *WebsocketChannelData, obD
 	}
 	orderbookBuffer[channelData.ChannelID] = append(orderbookBuffer[channelData.ChannelID], ob)
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Adding orderbook to buffer for channel %v. Lastupdated: %v. %v / %v",
+		log.Debugf(log.ExchangeSys, "Adding orderbook to buffer for channel %v. Lastupdated: %v. %v / %v",
 			channelData.ChannelID,
 			ob.LastUpdated,
 			len(orderbookBuffer[channelData.ChannelID]),
@@ -561,12 +561,12 @@ func (k *Kraken) wsProcessOrderBookBuffer(channelData *WebsocketChannelData, obD
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData) error {
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Current orderbook 'LastUpdated': %v",
+		log.Debugf(log.ExchangeSys, "Current orderbook 'LastUpdated': %v",
 			krakenOrderBooks[channelData.ChannelID].LastUpdated)
 	}
 	lowestLastUpdated := orderbookBuffer[channelData.ChannelID][0].LastUpdated
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Sorting orderbook. Earliest 'LastUpdated' entry: %v",
+		log.Debugf(log.ExchangeSys, "Sorting orderbook. Earliest 'LastUpdated' entry: %v",
 			lowestLastUpdated)
 	}
 	sort.Slice(orderbookBuffer[channelData.ChannelID], func(i, j int) bool {
@@ -575,7 +575,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData) err
 
 	lowestLastUpdated = orderbookBuffer[channelData.ChannelID][0].LastUpdated
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Sorted orderbook. Earliest 'LastUpdated' entry: %v",
+		log.Debugf(log.ExchangeSys, "Sorted orderbook. Earliest 'LastUpdated' entry: %v",
 			lowestLastUpdated)
 	}
 	// The earliest update has to be after the previously stored orderbook
@@ -590,7 +590,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData) err
 	k.updateChannelOrderbookEntries(channelData)
 	highestLastUpdate := orderbookBuffer[channelData.ChannelID][len(orderbookBuffer[channelData.ChannelID])-1].LastUpdated
 	if k.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Saving orderbook. Lastupdated: %v",
+		log.Debugf(log.ExchangeSys, "Saving orderbook. Lastupdated: %v",
 			highestLastUpdate)
 	}
 
@@ -627,7 +627,7 @@ func (k *Kraken) updateChannelOrderbookAsks(i, j int, channelData *WebsocketChan
 	askFound := k.updateChannelOrderbookAsk(i, j, channelData)
 	if !askFound {
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "Adding Ask for channel %v. Price %v. Amount %v",
+			log.Debugf(log.ExchangeSys, "Adding Ask for channel %v. Price %v. Amount %v",
 				channelData.ChannelID,
 				orderbookBuffer[channelData.ChannelID][i].Asks[j].Price,
 				orderbookBuffer[channelData.ChannelID][i].Asks[j].Amount)
@@ -646,7 +646,7 @@ func (k *Kraken) updateChannelOrderbookAsk(i, j int, channelData *WebsocketChann
 			if orderbookBuffer[channelData.ChannelID][i].Asks[j].Amount == 0 {
 				// Remove existing entry
 				if k.Verbose {
-					log.Debugf(log.SubSystemExchSys, "Removing Ask for channel %v. Price %v. Old amount %v. Buffer %v",
+					log.Debugf(log.ExchangeSys, "Removing Ask for channel %v. Price %v. Old amount %v. Buffer %v",
 						channelData.ChannelID,
 						orderbookBuffer[channelData.ChannelID][i].Asks[j].Price,
 						krakenOrderBooks[channelData.ChannelID].Asks[l].Amount, i)
@@ -657,7 +657,7 @@ func (k *Kraken) updateChannelOrderbookAsk(i, j int, channelData *WebsocketChann
 				l--
 			} else if krakenOrderBooks[channelData.ChannelID].Asks[l].Amount != orderbookBuffer[channelData.ChannelID][i].Asks[j].Amount {
 				if k.Verbose {
-					log.Debugf(log.SubSystemExchSys, "Updating Ask for channel %v. Price %v. Old amount %v, New Amount %v",
+					log.Debugf(log.ExchangeSys, "Updating Ask for channel %v. Price %v. Old amount %v, New Amount %v",
 						channelData.ChannelID,
 						orderbookBuffer[channelData.ChannelID][i].Asks[j].Price,
 						krakenOrderBooks[channelData.ChannelID].Asks[l].Amount,
@@ -675,7 +675,7 @@ func (k *Kraken) updateChannelOrderbookBids(i, j int, channelData *WebsocketChan
 	bidFound := k.updateChannelOrderbookBid(i, j, channelData)
 	if !bidFound {
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "Adding Bid for channel %v. Price %v. Amount %v",
+			log.Debugf(log.ExchangeSys, "Adding Bid for channel %v. Price %v. Amount %v",
 				channelData.ChannelID,
 				orderbookBuffer[channelData.ChannelID][i].Bids[j].Price,
 				orderbookBuffer[channelData.ChannelID][i].Bids[j].Amount)
@@ -694,7 +694,7 @@ func (k *Kraken) updateChannelOrderbookBid(i, j int, channelData *WebsocketChann
 			if orderbookBuffer[channelData.ChannelID][i].Bids[j].Amount == 0 {
 				// Remove existing entry
 				if k.Verbose {
-					log.Debugf(log.SubSystemExchSys, "Removing Bid for channel %v. Price %v. Old amount %v. Buffer %v",
+					log.Debugf(log.ExchangeSys, "Removing Bid for channel %v. Price %v. Old amount %v. Buffer %v",
 						channelData.ChannelID,
 						orderbookBuffer[channelData.ChannelID][i].Bids[j].Price,
 						krakenOrderBooks[channelData.ChannelID].Bids[l].Amount, i)
@@ -705,7 +705,7 @@ func (k *Kraken) updateChannelOrderbookBid(i, j int, channelData *WebsocketChann
 				l--
 			} else if krakenOrderBooks[channelData.ChannelID].Bids[l].Amount != orderbookBuffer[channelData.ChannelID][i].Bids[j].Amount {
 				if k.Verbose {
-					log.Debugf(log.SubSystemExchSys, "Updating Bid for channel %v. Price %v. Old amount %v, New Amount %v",
+					log.Debugf(log.ExchangeSys, "Updating Bid for channel %v. Price %v. Old amount %v, New Amount %v",
 						channelData.ChannelID,
 						orderbookBuffer[channelData.ChannelID][i].Bids[j].Price,
 						krakenOrderBooks[channelData.ChannelID].Bids[l].Amount,
@@ -777,7 +777,7 @@ func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v subscribe error: %v", k.Name, err)
+			log.Debugf(log.ExchangeSys, "%v subscribe error: %v", k.Name, err)
 		}
 		return err
 	}
@@ -796,7 +796,7 @@ func (k *Kraken) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if k.Verbose {
-			log.Debugf(log.SubSystemExchSys, "%v unsubscribe error: %v", k.Name, err)
+			log.Debugf(log.ExchangeSys, "%v unsubscribe error: %v", k.Name, err)
 		}
 		return err
 	}

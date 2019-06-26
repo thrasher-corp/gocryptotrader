@@ -342,7 +342,7 @@ func TestProcessOrderbook(t *testing.T) {
 			m.Lock()
 			err = base.Process()
 			if err != nil {
-				log.Error(log.SubSystemExchSys, err)
+				log.Error(log.ExchangeSys, err)
 				catastrophicFailure = true
 				return
 			}

@@ -35,7 +35,15 @@ func SetupTest() {
 	SetupSubLoggers(logTest.SubLoggers)
 }
 
-func TestRemoveWriter(t *testing.T) {
+func SetupTestDisabled() {
+	logTest := Config{
+		Enabled: falseptr,
+	}
+	logger = newLogger(&logTest)
+	SetupSubLoggers(logTest.SubLoggers)
+}
+
+func TestAddWriter(t *testing.T) {
 	mw := MultiWriter()
 	m := mw.(*multiWriter)
 
@@ -46,22 +54,19 @@ func TestRemoveWriter(t *testing.T) {
 	total := len(m.writers)
 
 	if total != 3 {
-		t.Errorf("expected m.Writers to be 1 %v", total)
+		t.Errorf("expected m.Writers to be 3 %v", total)
 	}
+}
 
-	t.Log(m.writers)
+func TestLoggerDisabled(t *testing.T) {
 
-	//m.Remove(ioutil.Discard)
-
-	t.Log(m.writers)
-	t.Log(len(m.writers))
 }
 
 func BenchmarkInfo(b *testing.B) {
 	SetupTest()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		//Info("log", "Hello this is an info benchmark")
+		Info(Global, "Hello this is an info benchmark")
 	}
 }
 
@@ -79,7 +84,7 @@ func BenchmarkInfoDisabled(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-	//	Info("log", "Hello this is an info benchmark")
+		Info(Global, "Hello this is an info benchmark")
 	}
 }
 
@@ -88,7 +93,7 @@ func BenchmarkInfof(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-	//	Infof("log", "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
+		Infof(Global, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
 	}
 }
 
@@ -97,6 +102,6 @@ func BenchmarkInfoln(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		//Infoln("log", "Hello this is an infoln benchmark")
+		Infoln(Global, "Hello this is an infoln benchmark")
 	}
 }

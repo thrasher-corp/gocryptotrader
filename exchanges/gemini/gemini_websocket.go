@@ -48,7 +48,7 @@ func (g *Gemini) WsConnect() error {
 	go g.WsHandleData()
 	err := g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v\n", g.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", g.Name, err)
 	}
 	return g.WsSubscribe(&dialer)
 }

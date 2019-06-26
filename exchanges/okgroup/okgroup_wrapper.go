@@ -92,11 +92,11 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType asset.Item) (resp o
 	for x := range orderbookNew.Bids {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if convErr != nil {
-			log.Errorf(log.SubSystemExchSys, "Could not convert %v to float64", orderbookNew.Bids[x][1])
+			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", orderbookNew.Bids[x][1])
 		}
 		price, convErr := strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
 		if convErr != nil {
-			log.Errorf(log.SubSystemExchSys, "Could not convert %v to float64", orderbookNew.Bids[x][0])
+			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", orderbookNew.Bids[x][0])
 		}
 		resp.Bids = append(resp.Bids, orderbook.Item{
 			Amount: amount,
@@ -107,11 +107,11 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType asset.Item) (resp o
 	for x := range orderbookNew.Asks {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if convErr != nil {
-			log.Errorf(log.SubSystemExchSys, "Could not convert %v to float64", orderbookNew.Asks[x][1])
+			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", orderbookNew.Asks[x][1])
 		}
 		price, convErr := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
 		if convErr != nil {
-			log.Errorf(log.SubSystemExchSys, "Could not convert %v to float64", orderbookNew.Asks[x][0])
+			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", orderbookNew.Asks[x][0])
 		}
 		resp.Asks = append(resp.Asks, orderbook.Item{
 			Amount: amount,
@@ -140,11 +140,11 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 	for _, curr := range currencies {
 		hold, err := strconv.ParseFloat(curr.Hold, 64)
 		if err != nil {
-			log.Errorf(log.SubSystemExchSys, "Could not convert %v to float64", curr.Hold)
+			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", curr.Hold)
 		}
 		totalValue, err := strconv.ParseFloat(curr.Balance, 64)
 		if err != nil {
-			log.Errorf(log.SubSystemExchSys, "Could not convert %v to float64", curr.Balance)
+			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", curr.Balance)
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies, exchange.AccountCurrencyInfo{
 			CurrencyName: currency.NewCode(curr.Currency),

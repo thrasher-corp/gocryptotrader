@@ -59,7 +59,7 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 
 func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.Item, exchangeName string, err error) {
 	if err != nil {
-		log.Errorf(log.SubSystemTicker, "Failed to get %s %s ticker. Error: %s\n",
+		log.Errorf(log.Ticker, "Failed to get %s %s ticker. Error: %s\n",
 			p.String(),
 			exchangeName,
 			err)
@@ -70,7 +70,7 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.I
 	if p.Quote.IsFiatCurrency() &&
 		p.Quote != Bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := p.Quote.Upper()
-		log.Infof(log.SubSystemTicker, "%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
+		log.Infof(log.Ticker, "%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 			exchangeName,
 			FormatCurrency(p).String(),
 			assetType,
@@ -83,7 +83,7 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.I
 	} else {
 		if p.Quote.IsFiatCurrency() &&
 			p.Quote == Bot.Config.Currency.FiatDisplayCurrency {
-			log.Infof(log.SubSystemTicker, "%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
+			log.Infof(log.Ticker, "%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 				exchangeName,
 				FormatCurrency(p).String(),
 				assetType,
@@ -94,7 +94,7 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.I
 				printCurrencyFormat(result.Low),
 				result.Volume)
 		} else {
-			log.Infof(log.SubSystemTicker, "%s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
+			log.Infof(log.Ticker, "%s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
 				exchangeName,
 				FormatCurrency(p).String(),
 				assetType,
@@ -110,7 +110,7 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.I
 
 func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType asset.Item, exchangeName string, err error) {
 	if err != nil {
-		log.Errorf(log.SubSystemOrderBook, "Failed to get %s %s orderbook of type %s. Error: %s\n",
+		log.Errorf(log.OrderBook, "Failed to get %s %s orderbook of type %s. Error: %s\n",
 			p,
 			exchangeName,
 			assetType,
@@ -124,7 +124,7 @@ func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType as
 	if p.Quote.IsFiatCurrency() &&
 		p.Quote != Bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := p.Quote.Upper()
-		log.Infof(log.SubSystemOrderBook, "%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
+		log.Infof(log.OrderBook, "%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
 			exchangeName,
 			FormatCurrency(p).String(),
 			assetType,
@@ -140,7 +140,7 @@ func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType as
 	} else {
 		if p.Quote.IsFiatCurrency() &&
 			p.Quote == Bot.Config.Currency.FiatDisplayCurrency {
-			log.Infof(log.SubSystemOrderBook, "%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
+			log.Infof(log.OrderBook, "%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
 				exchangeName,
 				FormatCurrency(p).String(),
 				assetType,
@@ -154,7 +154,7 @@ func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType as
 				printCurrencyFormat(asksValue),
 			)
 		} else {
-			log.Infof(log.SubSystemOrderBook, "%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f\n",
+			log.Infof(log.OrderBook, "%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f\n",
 				exchangeName,
 				FormatCurrency(p).String(),
 				assetType,
@@ -180,7 +180,7 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 	}
 	err := BroadcastWebsocketMessage(evt)
 	if err != nil {
-		log.Errorf(log.SubSystemWsocMgr, "Failed to broadcast websocket event %v. Error: %s\n",
+		log.Errorf(log.WebsocketMgr, "Failed to broadcast websocket event %v. Error: %s\n",
 			event, err)
 	}
 }
@@ -188,7 +188,7 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 // TickerUpdaterRoutine fetches and updates the ticker for all enabled
 // currency pairs and exchanges
 func TickerUpdaterRoutine() {
-	log.Debugln(log.SubSystemTicker, "Starting ticker updater routine.")
+	log.Debugln(log.Ticker, "Starting ticker updater routine.")
 	var wg sync.WaitGroup
 	for {
 		wg.Add(len(Bot.Exchanges))
@@ -233,7 +233,7 @@ func TickerUpdaterRoutine() {
 			}(x, &wg)
 		}
 		wg.Wait()
-		log.Debugln(log.SubSystemTicker, "All enabled currency tickers fetched.")
+		log.Debugln(log.Ticker, "All enabled currency tickers fetched.")
 		time.Sleep(time.Second * 10)
 	}
 }
@@ -241,7 +241,7 @@ func TickerUpdaterRoutine() {
 // OrderbookUpdaterRoutine fetches and updates the orderbooks for all enabled
 // currency pairs and exchanges
 func OrderbookUpdaterRoutine() {
-	log.Debugln(log.SubSystemOrderBook, "Starting orderbook updater routine.")
+	log.Debugln(log.OrderBook, "Starting orderbook updater routine.")
 	var wg sync.WaitGroup
 	for {
 		wg.Add(len(Bot.Exchanges))
@@ -275,7 +275,7 @@ func OrderbookUpdaterRoutine() {
 			}(x, &wg)
 		}
 		wg.Wait()
-		log.Debugln(log.SubSystemOrderBook, "All enabled currency orderbooks fetched.")
+		log.Debugln(log.OrderBook, "All enabled currency orderbooks fetched.")
 		time.Sleep(time.Second * 10)
 	}
 }
@@ -283,14 +283,14 @@ func OrderbookUpdaterRoutine() {
 // WebsocketRoutine Initial routine management system for websocket
 func WebsocketRoutine() {
 	if Bot.Settings.Verbose {
-		log.Debugln(log.SubSystemWsocMgr, "Connecting exchange websocket services...")
+		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
 
 	for i := range Bot.Exchanges {
 		go func(i int) {
 			if Bot.Exchanges[i].SupportsWebsocket() {
 				if Bot.Settings.Verbose {
-					log.Debugf(log.SubSystemWsocMgr, "Exchange %s websocket support: Yes Enabled: %v\n", Bot.Exchanges[i].GetName(),
+					log.Debugf(log.WebsocketMgr, "Exchange %s websocket support: Yes Enabled: %v\n", Bot.Exchanges[i].GetName(),
 						common.IsEnabled(Bot.Exchanges[i].IsWebsocketEnabled()))
 				}
 
@@ -304,11 +304,11 @@ func WebsocketRoutine() {
 
 					err = ws.Connect()
 					if err != nil {
-						log.Debugf(log.SubSystemWsocMgr, "%v\n", err)
+						log.Debugf(log.WebsocketMgr, "%v\n", err)
 					}
 				}
 			} else if Bot.Settings.Verbose {
-				log.Debugf(log.SubSystemWsocMgr, "Exchange %s websocket support: No\n", Bot.Exchanges[i].GetName())
+				log.Debugf(log.WebsocketMgr, "Exchange %s websocket support: No\n", Bot.Exchanges[i].GetName())
 			}
 		}(i)
 	}
@@ -322,7 +322,7 @@ var wg sync.WaitGroup
 func Websocketshutdown(ws *exchange.Websocket) error {
 	err := ws.Shutdown() // shutdown routines on the exchange
 	if err != nil {
-		log.Errorf(log.SubSystemWsocMgr, "routines.go error - failed to shutdown %s\n", err)
+		log.Errorf(log.WebsocketMgr, "routines.go error - failed to shutdown %s\n", err)
 	}
 
 	timer := time.NewTimer(5 * time.Second)
@@ -356,12 +356,12 @@ func streamDiversion(ws *exchange.Websocket) {
 
 		case <-ws.Connected:
 			if Bot.Settings.Verbose {
-				log.Debugf(log.SubSystemWsocMgr, "exchange %s websocket feed connected\n", ws.GetName())
+				log.Debugf(log.WebsocketMgr, "exchange %s websocket feed connected\n", ws.GetName())
 			}
 
 		case <-ws.Disconnected:
 			if Bot.Settings.Verbose {
-				log.Debugf(log.SubSystemWsocMgr, "exchange %s websocket feed disconnected, switching to REST functionality\n",
+				log.Debugf(log.WebsocketMgr, "exchange %s websocket feed disconnected, switching to REST functionality\n",
 					ws.GetName())
 			}
 		}
@@ -387,12 +387,12 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 				switch d {
 				case exchange.WebsocketNotEnabled:
 					if Bot.Settings.Verbose {
-						log.Warnf(log.SubSystemWsocMgr, "routines.go warning - exchange %s weboscket not enabled\n",
+						log.Warnf(log.WebsocketMgr, "routines.go warning - exchange %s weboscket not enabled\n",
 							ws.GetName())
 					}
 
 				default:
-					log.Info(log.SubSystemWsocMgr, d)
+					log.Info(log.WebsocketMgr, d)
 				}
 
 			case error:
@@ -401,7 +401,7 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 					go ws.WebsocketReset()
 					continue
 				default:
-					log.Errorf(log.SubSystemWsocMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
+					log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
 				}
 
 			case exchange.TradeData:
@@ -433,7 +433,7 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 			case exchange.KlineData:
 				// Kline data
 				if Bot.Settings.Verbose {
-					log.Infof(log.SubSystemWsocMgr, "Websocket Kline Updated:   %v\n", d)
+					log.Infof(log.WebsocketMgr, "Websocket Kline Updated:   %v\n", d)
 				}
 			case exchange.WebsocketOrderbookUpdate:
 				// Orderbook data
@@ -445,11 +445,11 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 				// TO-DO: printOrderbookSummary
 				//nolint:gocritic
 				if Bot.Settings.Verbose {
-					log.Infof(log.SubSystemWsocMgr, "Websocket %s %s orderbook updated\n", ws.GetName(), result.Pair.String())
+					log.Infof(log.WebsocketMgr, "Websocket %s %s orderbook updated\n", ws.GetName(), result.Pair.String())
 				}
 			default:
 				if Bot.Settings.Verbose {
-					log.Warnf(log.SubSystemWsocMgr, "Websocket Unknown type:     %s\n", d)
+					log.Warnf(log.WebsocketMgr, "Websocket Unknown type:     %s\n", d)
 				}
 			}
 		}

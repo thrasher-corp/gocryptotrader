@@ -38,6 +38,7 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	eventPool.Put(e)
 }
 
+// CloseLogger is called on shutdown of application
 func CloseLogger() {
 	closeAllFiles()
 }

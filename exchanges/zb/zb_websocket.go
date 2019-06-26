@@ -364,7 +364,7 @@ func (z *ZB) wsSend(data interface{}) error {
 		return err
 	}
 	if z.Verbose {
-		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %v", z.Name, string(json))
+		log.Debugf(log.ExchangeSys, "%v sending message to websocket %v", z.Name, string(json))
 	}
 	return z.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }
@@ -442,7 +442,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 func (z *ZB) wsGenerateSignature(request interface{}) string {
 	jsonResponse, err := common.JSONEncode(request)
 	if err != nil {
-		log.Error(log.SubSystemExchSys, err)
+		log.Error(log.ExchangeSys, err)
 	}
 	hmac := crypto.GetHMAC(crypto.HashMD5,
 		jsonResponse,

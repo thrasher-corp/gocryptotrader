@@ -130,7 +130,7 @@ func (b *Bitfinex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitfinex wrapper
 func (b *Bitfinex) Run() {
 	if b.Verbose {
-		log.Debugf(log.SubSystemExchSys,
+		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
 		b.PrintEnabledPairs()
 	}
@@ -141,7 +141,7 @@ func (b *Bitfinex) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys,
+		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
@@ -463,7 +463,7 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 		orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
 		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
 		if err != nil {
-			log.Warnf(log.SubSystemExchSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
+			log.Warnf(log.ExchangeSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
 		}
 		orderDate := time.Unix(timestamp, 0)
 
@@ -522,7 +522,7 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 		orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
 		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
 		if err != nil {
-			log.Warnf(log.SubSystemExchSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
+			log.Warnf(log.ExchangeSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
 		}
 		orderDate := time.Unix(timestamp, 0)
 

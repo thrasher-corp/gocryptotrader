@@ -52,7 +52,7 @@ func (g *Gateio) WsConnect() error {
 
 	err = g.wsServerSignIn()
 	if err != nil {
-		log.Errorf(log.SubSystemExchSys, "%v - authentication failed: %v\n", g.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", g.Name, err)
 	}
 	g.GenerateAuthenticatedSubscriptions()
 	g.GenerateDefaultSubscriptions()
@@ -456,7 +456,7 @@ func (g *Gateio) wsSend(data interface{}) error {
 	g.wsRequestMtx.Lock()
 	defer g.wsRequestMtx.Unlock()
 	if g.Verbose {
-		log.Debugf(log.SubSystemExchSys, "%v sending message to websocket %v", g.Name, data)
+		log.Debugf(log.ExchangeSys, "%v sending message to websocket %v", g.Name, data)
 	}
 	// Basic rate limiter
 	time.Sleep(gateioWebsocketRateLimit)

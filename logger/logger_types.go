@@ -9,6 +9,7 @@ const timestampFormat = " 02/01/2006 15:04:05 "
 
 const spacer = "|"
 
+// Config holds configuration settings loaded from bot config
 type Config struct {
 	Enabled *bool `json:"enabled"`
 	SubLoggerConfig
@@ -29,12 +30,14 @@ type headers struct {
 	Error string `json:"error"`
 }
 
+// SubLoggerConfig holds sub logger configuration settings loaded from bot config
 type SubLoggerConfig struct {
 	Name   string `json:"name,omitempty"`
 	Level  string `json:"level"`
 	Output string `json:"output"`
 }
 
+// Logger each instance of logger settings
 type Logger struct {
 	Timestamp                                        string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
@@ -63,7 +66,8 @@ type multiWriter struct {
 
 var (
 	logger          = &Logger{}
-	GlobalLogConfig = &Config{}
+	GlobalLogConfig = &Config{} // GlobalLogConfig hold global configuration options for logger
+	GlobalLogFile   io.Writer   // GlobalLogFile handle to global log file
 	subLoggers      = map[string]*subLogger{}
 	eventPool       = &sync.Pool{
 		New: func() interface{} {
@@ -76,20 +80,20 @@ var (
 	LogPath string
 
 	Global           *subLogger
-	SubSystemConnMgr *subLogger
-	SubSystemCommMgr *subLogger
-	SubSystemConfMgr *subLogger
-	SubSystemOrdrMgr *subLogger
-	SubSystemPortMgr *subLogger
-	SubSystemSyncMgr *subLogger
-	SubSystemTimeMgr *subLogger
-	SubSystemWsocMgr *subLogger
-	SubSystemEvntMgr *subLogger
+	ConnectionMgr    *subLogger
+	CommunicationMgr *subLogger
+	ConfigMgr        *subLogger
+	OrderMgr         *subLogger
+	PortfolioMgr     *subLogger
+	SyncMgr          *subLogger
+	TimeMgr          *subLogger
+	WebsocketMgr     *subLogger
+	EventMgr         *subLogger
 
-	SubSystemExchSys *subLogger
-	SubSystemGrpcSys *subLogger
-	SubSystemRestSys *subLogger
+	ExchangeSys *subLogger
+	GRPCSys     *subLogger
+	RESTSys     *subLogger
 
-	SubSystemTicker    *subLogger
-	SubSystemOrderBook *subLogger
+	Ticker    *subLogger
+	OrderBook *subLogger
 )

@@ -416,7 +416,7 @@ func (p *Base) Seed(port Base) {
 // StartPortfolioWatcher observes the portfolio object
 func StartPortfolioWatcher() {
 	addrCount := len(Portfolio.Addresses)
-	log.Debugf(log.SubSystemPortMgr,
+	log.Debugf(log.PortfolioMgr,
 		"PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount,
 	)
 	for {
@@ -424,7 +424,7 @@ func StartPortfolioWatcher() {
 		for key, value := range data {
 			success := Portfolio.UpdatePortfolio(value, key)
 			if success {
-				log.Debugf(log.SubSystemPortMgr,
+				log.Debugf(log.PortfolioMgr,
 					"PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
 					key, value,
 				)

@@ -331,7 +331,7 @@ func (h *HUOBIHADAX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) 
 	bytesParams, _ := json.Marshal(vals)
 	postBodyParams := string(bytesParams)
 	if h.Verbose {
-		log.Debugf(log.SubSystemExchSys, "Post params: %v", postBodyParams)
+		log.Debugf(log.ExchangeSys, "Post params: %v", postBodyParams)
 	}
 
 	var result response

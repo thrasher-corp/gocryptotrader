@@ -13,8 +13,13 @@ type fileWriters struct {
 
 var f = fileWriters{}
 
-func createFileHandle(subsystem string) (io.Writer, error) {
-	logFile := filepath.Join(LogPath, subsystem+".txt")
+func createFileHandle(logger string, global bool) (io.Writer, error) {
+	var logFile string
+	if global {
+		logFile = filepath.Join(LogPath, "log.txt")
+	} else {
+		logFile = filepath.Join(LogPath, logger+".txt")
+	}
 	fileHandle, err := os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, err
