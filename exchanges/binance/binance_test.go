@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/idoall/TokenExchangeCommon/commonutils"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/binance"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -133,6 +136,35 @@ func TestGetPriceChangeStats(t *testing.T) {
 	}
 }
 
+func TestGetKlines(t *testing.T) {
+	t.Parallel()
+	toBeCharge := "2017-07-20 12:00:00" //待转化为时间戳的字符串 注意 这里的小时和分钟还要秒必须写 因为是跟着模板走的 修改模板的话也可以不写
+	toEnCharge := "2019-07-20 12:00:00" //待转化为时间戳的字符串 注意 这里的小时和分钟还要秒必须写 因为是跟着模板走的 修改模板的话也可以不写
+
+	timeLayout := "2006-01-02 15:04:05"  //时区格式化模板
+	loc, _ := time.LoadLocation("Local") //重要：获取时区
+	var startTime, endTime time.Time
+
+	startTime, _ = time.ParseInLocation(timeLayout, toBeCharge, loc)
+	endTime, _ = time.ParseInLocation(timeLayout, toEnCharge, loc)
+	pair := currency.Pair{Base: currency.BTC, Quote: currency.USDT}
+
+	klines, err := b.GetKlines(binance.KlinesRequestParams{
+		Symbol:    pair.String(),
+		Interval:  binance.TimeIntervalHour,
+		Limit:     100,
+		StartTime: commonutils.UnixNesc(startTime),
+		EndTime:   commonutils.UnixNesc(endTime),
+	})
+	if err != nil {
+		t.Error(err)
+	} else {
+		for _, v := range klines {
+			fmt.Println(v)
+		}
+	}
+}
+
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTickers()
@@ -159,17 +191,12 @@ func TestGetBestPrice(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-<<<<<<< HEAD
-	_, err := b.NewOrder(NewOrderRequest{
-		Symbol:      b.GetSymbol(),
-=======
 
 	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 	_, err := b.NewOrder(&NewOrderRequest{
 		Symbol:      "BTCUSDT",
->>>>>>> upstrem/master
 		Side:        BinanceRequestParamsSideSell,
 		TradeType:   BinanceRequestParamsOrderLimit,
 		TimeInForce: BinanceRequestParamsTimeGTC,
@@ -183,11 +210,6 @@ func TestNewOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-<<<<<<< HEAD
-	_, err := b.CancelOrder(b.GetSymbol(), 82584683, "")
-	if err == nil {
-		t.Error("Test Failed - Binance CancelOrder() error", err)
-=======
 
 	if apiKey == "" || apiSecret == "" {
 		t.Skip()
@@ -196,7 +218,6 @@ func TestCancelExistingOrder(t *testing.T) {
 	_, err := b.CancelExistingOrder("BTCUSDT", 82584683, "")
 	if err != nil {
 		t.Error("Test Failed - Binance CancelExistingOrder() error", err)
->>>>>>> upstrem/master
 	}
 }
 
@@ -209,47 +230,6 @@ func TestQueryOrder(t *testing.T) {
 		//{"code":0,"msg":"","symbol":"BTCUSDT","orderId":131046063,"clientOrderId":"2t38MQXdRe9HvctyRdUbIT","price":"100000","origQty":"0.01","executedQty":"0","status":"NEW","timeInForce":"GTC","type":"LIMIT","side":"SELL","stopPrice":"0","icebergQty":"0","time":1531384312008,"isWorking":true}
 		b, _ := json.Marshal(res)
 		fmt.Println(string(b))
-	}
-}
-
-func TestOpenOrders(t *testing.T) {
-	t.Parallel()
-	list, err := b.OpenOrders(b.GetSymbol())
-	if err != nil {
-		t.Error("Test Failed - Binance OpenOrders() error", err)
-	} else {
-		fmt.Println("----------OpenOrders-------")
-		for _, v := range list {
-			b, _ := json.Marshal(v)
-			fmt.Println(string(b))
-		}
-
-<<<<<<< HEAD
-=======
-	if apiKey == "" || apiSecret == "" {
-		t.Skip()
->>>>>>> upstrem/master
-	}
-}
-
-<<<<<<< HEAD
-func TestAllOrders(t *testing.T) {
-	t.Parallel()
-	list, err := b.AllOrders(b.GetSymbol(), "", "")
-	if err != nil {
-		t.Error("Test Failed - Binance AllOrders() error", err)
-	} else {
-		fmt.Println("----------AllOrders-------")
-		for _, v := range list {
-			b, _ := json.Marshal(v)
-			fmt.Println(string(b))
-		}
-
-=======
-	_, err := b.QueryOrder("BTCUSDT", "", 1337)
-	if err == nil {
-		t.Error("Test Failed - Binance QueryOrder() error", err)
->>>>>>> upstrem/master
 	}
 }
 
