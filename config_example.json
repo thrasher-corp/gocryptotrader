@@ -4,10 +4,19 @@
  "globalHTTPTimeout": 15000000000,
  "logging": {
   "enabled": true,
-  "file": "debug.txt",
-  "colour": false,
-  "level": "DEBUG|WARN|INFO|ERROR|FATAL",
-  "rotate": false
+  "level": "INFO|WARN|DEBUG|ERROR",
+  "output": "console",
+  "advancedSettings": {
+   "spacer": " | ",
+   "timeStampFormat": " 02/01/2006 15:04:05 ",
+   "headers": {
+    "info": "[INFO] ",
+    "warn": "[WARN] ",
+    "debug": "[DEBUG]",
+    "error": "[ERROR]"
+   }
+  },
+  "subloggers": []
  },
  "profiler": {
   "enabled": false

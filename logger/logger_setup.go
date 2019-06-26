@@ -15,7 +15,7 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 	outputWriters := strings.Split(s.Output, "|")
 	for x := range outputWriters {
 		switch outputWriters[x] {
-		case "stdout":
+		case "stdout", "console":
 			m.Add(os.Stdout)
 		case "stderr":
 			m.Add(os.Stderr)
