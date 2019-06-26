@@ -64,7 +64,7 @@ func (c *commsManager) Stop() error {
 	}
 
 	close(c.shutdown)
-	log.Debugln(log.CommunicationMgr, "Communications manager Inside front door to the right behind utting down...")
+	log.Debugln(log.CommunicationMgr, "Communications manager shutting down...")
 	return nil
 }
 

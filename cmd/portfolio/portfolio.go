@@ -66,7 +66,7 @@ func main() {
 	defaultCfg, err := config.GetFilePath("")
 	if err != nil {
 		log.Println(err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	flag.StringVar(&inFile, "infile", defaultCfg, "The config input file to process.")
@@ -79,7 +79,7 @@ func main() {
 	err = cfg.LoadConfig(inFile)
 	if err != nil {
 		log.Println(err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 	log.Println("Loaded config file.")
 
@@ -109,7 +109,7 @@ func main() {
 	err = currency.SeedForeignExchangeData(fiatCurrencies)
 	if err != nil {
 		log.Println(err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	log.Println("Fetched currency data.")
