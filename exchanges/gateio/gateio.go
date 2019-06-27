@@ -84,7 +84,7 @@ func (g *Gateio) SetDefaults() {
 		exchange.WebsocketSubscribeSupported |
 		exchange.WebsocketUnsubscribeSupported |
 		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketMessageCorrelationSupported |
+		exchange.WebsocketMessageCorrelationSupported
 }
 
 // Setup sets user configuration

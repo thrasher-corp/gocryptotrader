@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -917,22 +915,7 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	return w.canUseAuthenticatedEndpoints
 }
 
-// SendMessage
-func (w *Websocket) SendMessage(req WebsocketRequest) error {
-	w.messageLock.Lock()
-	defer w.messageLock.Unlock()
-	json, err := common.JSONEncode(req.Message)
-	if err != nil {
-		return err
-	}
-	if w.verbose {
-		log.Debugf("%v sending message to websocket %v", req.ExchangeName, string(json))
-	}
-	return req.WebsocketConnection.WriteMessage(websocket.TextMessage, json)
-}
+// GenerateMessageID makes a unique ID to track WS responses
+func (w *Websocket) GenerateMessageID() {
 
-type WebsocketRequest struct {
-	ExchangeName        string
-	Message             interface{}
-	WebsocketConnection *websocket.Conn
 }

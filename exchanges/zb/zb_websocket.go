@@ -27,6 +27,9 @@ func (z *ZB) WsConnect() error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
 		return errors.New(exchange.WebsocketNotEnabled)
 	}
+	z.WebsocketConn = exchange.WebsocketConnection{
+		ExchangeName: z.Name,
+	}
 
 	var dialer websocket.Dialer
 	if z.Websocket.GetProxyAddress() != "" {
@@ -38,9 +41,7 @@ func (z *ZB) WsConnect() error {
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
-	var err error
-	z.WebsocketConn, _, err = dialer.Dial(z.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := z.WebsocketConn.Dial()
 	if err != nil {
 		return err
 	}

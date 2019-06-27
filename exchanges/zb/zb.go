@@ -13,7 +13,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/currency"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -48,7 +47,7 @@ const (
 // 47.91.169.147 api.zb.com
 // 47.52.55.212 trade.zb.com
 type ZB struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn exchange.IWebsocketConnection
 	exchange.Base
 	wsRequestMtx sync.Mutex
 }

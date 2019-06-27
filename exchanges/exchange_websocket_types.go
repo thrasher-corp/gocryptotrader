@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
@@ -109,6 +110,9 @@ type Websocket struct {
 	// Functionality defines websocket stream capabilities
 	Functionality                uint32
 	canUseAuthenticatedEndpoints bool
+	sequenceMabye                int64
+	Connection                   *websocket.Conn
+	//HeyManCanIHaveSomeBitcoin    IWebsocketMessageHandler
 }
 
 // WebsocketChannelSubscription container for websocket subscriptions
