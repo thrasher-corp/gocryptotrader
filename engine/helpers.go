@@ -590,24 +590,22 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, enabledPairs bool, assetType asset.Item) ([]string, error) {
 	var cryptocurrencies []string
 	for x := range Bot.Config.Exchanges {
-		if Bot.Config.Exchanges[x].Name != exchangeName {
+		if !strings.EqualFold(Bot.Config.Exchanges[x].Name, exchangeName) {
 			continue
 		}
 		if enabledExchangesOnly && !Bot.Config.Exchanges[x].Enabled {
 			continue
 		}
 
-		exchName := Bot.Config.Exchanges[x].Name
-		var pairs []currency.Pair
 		var err error
-
+		var pairs []currency.Pair
 		if enabledPairs {
-			pairs, err = Bot.Config.GetEnabledPairs(exchName, assetType)
+			pairs, err = Bot.Config.GetEnabledPairs(exchangeName, assetType)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			pairs, err = Bot.Config.GetAvailablePairs(exchName, assetType)
+			pairs, err = Bot.Config.GetAvailablePairs(exchangeName, assetType)
 			if err != nil {
 				return nil, err
 			}

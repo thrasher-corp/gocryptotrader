@@ -87,6 +87,7 @@ func (p *Poloniex) SetDefaults() {
 
 	p.API.Endpoints.URLDefault = poloniexAPIURL
 	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
+	p.API.Endpoints.WebsocketURL = poloniexWebsocketAddress
 	p.WebsocketInit()
 	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |

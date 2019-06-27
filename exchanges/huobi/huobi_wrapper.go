@@ -88,6 +88,7 @@ func (h *HUOBI) SetDefaults() {
 
 	h.API.Endpoints.URLDefault = huobiAPIURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
+	h.API.Endpoints.WebsocketURL = wsMarketURL
 	h.WebsocketInit()
 	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
 		exchange.WebsocketOrderbookSupported |

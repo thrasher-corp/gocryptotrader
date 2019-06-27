@@ -87,6 +87,7 @@ func (h *HitBTC) SetDefaults() {
 
 	h.API.Endpoints.URLDefault = apiURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
+	h.API.Endpoints.WebsocketURL = hitbtcWebsocketAddress
 	h.WebsocketInit()
 	h.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported

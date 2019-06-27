@@ -111,6 +111,7 @@ func (b *Bitmex) SetDefaults() {
 
 	b.API.Endpoints.URLDefault = bitmexAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
+	b.API.Endpoints.WebsocketURL = bitmexWSURL
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
 		exchange.WebsocketOrderbookSupported |
