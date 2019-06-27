@@ -67,8 +67,10 @@ type multiWriter struct {
 var (
 	logger          = &Logger{}
 	GlobalLogConfig = &Config{} // GlobalLogConfig hold global configuration options for logger
-	GlobalLogFile   io.Writer   // GlobalLogFile handle to global log file
-
+	GlobalLogFile   = &Rotate{
+		Filename: "log.txt",
+		MaxSize:  1,
+	}
 	eventPool = &sync.Pool{
 		New: func() interface{} {
 			return &LogEvent{

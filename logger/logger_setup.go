@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -20,15 +19,9 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 		case "stderr":
 			m.Add(os.Stderr)
 		case "file":
-			if GlobalLogFile != nil {
-				m.Add(GlobalLogFile)
-			}
+			m.Add(GlobalLogFile)
 		case "ownfile":
-			temp, err := createFileHandle(s.Name, false)
-			if err != nil {
-				fmt.Printf("File handle error %v", err)
-			}
-			m.Add(temp)
+			m.Add(GlobalLogFile)
 		default:
 			m.Add(ioutil.Discard)
 		}
@@ -81,11 +74,6 @@ func SetupSubLoggers(s []SubLoggerConfig) {
 
 // SetupGlobalLogger() setup the global loggers with the default global config values
 func SetupGlobalLogger() {
-	var err error
-	GlobalLogFile, err = createFileHandle("", true)
-	if err != nil {
-		fmt.Printf("Failed to open log file global file logging unavailable %v", err)
-	}
 	for x := range subLoggers {
 		subLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
 		subLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)
