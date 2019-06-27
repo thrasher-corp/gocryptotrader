@@ -43,7 +43,7 @@ func GenDefaultSettings() (log Config) {
 		Enabled: t,
 		SubLoggerConfig: SubLoggerConfig{
 			Level:  "INFO|DEBUG|WARN|ERROR",
-			Output: "stdout",
+			Output: "console",
 		},
 		AdvancedSettings: advancedSettings{
 			Spacer:          " | ",

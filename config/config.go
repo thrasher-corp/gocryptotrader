@@ -1237,9 +1237,11 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 func (c *Config) CheckLoggerConfig() error {
 	m.Lock()
 	defer m.Unlock()
-	if c.Logging.Enabled == nil {
+
+	if c.Logging.Enabled == nil || c.Logging.Output == "" {
 		c.Logging = log.GenDefaultSettings()
 	}
+
 	log.GlobalLogConfig = &c.Logging
 
 	logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
