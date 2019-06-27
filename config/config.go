@@ -652,6 +652,16 @@ func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.
 		return currency.PairFormat{}, err
 	}
 
+	supports, err := c.SupportsExchangeAssetType(exchName, assetType)
+	if err != nil {
+		return currency.PairFormat{}, err
+	}
+
+	if !supports {
+		return currency.PairFormat{},
+			fmt.Errorf("exchange %s does not support asset type %v", exchName, assetType)
+	}
+
 	if exchCfg.CurrencyPairs == nil {
 		return currency.PairFormat{}, errors.New("exchange currency pairs type is nil")
 	}

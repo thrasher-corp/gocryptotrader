@@ -90,6 +90,7 @@ func (z *ZB) SetDefaults() {
 	z.API.Endpoints.URL = z.API.Endpoints.URLDefault
 	z.API.Endpoints.URLSecondaryDefault = zbMarketURL
 	z.API.Endpoints.URLSecondary = z.API.Endpoints.URLSecondaryDefault
+	z.API.Endpoints.WebsocketURL = zbWebsocketAPI
 	z.WebsocketInit()
 	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |

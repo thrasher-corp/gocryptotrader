@@ -88,6 +88,7 @@ func (b *Bitfinex) SetDefaults() {
 
 	b.API.Endpoints.URLDefault = bitfinexAPIURLBase
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
+	b.API.Endpoints.WebsocketURL = bitfinexWebsocket
 	b.WebsocketInit()
 	b.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketTradeDataSupported |

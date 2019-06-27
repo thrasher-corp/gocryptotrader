@@ -88,6 +88,7 @@ func (c *CoinbasePro) SetDefaults() {
 
 	c.API.Endpoints.URLDefault = coinbaseproAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
+	c.API.Endpoints.WebsocketURL = coinbaseproWebsocketURL
 	c.WebsocketInit()
 	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |

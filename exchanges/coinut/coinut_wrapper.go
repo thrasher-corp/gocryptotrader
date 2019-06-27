@@ -85,6 +85,7 @@ func (c *COINUT) SetDefaults() {
 
 	c.API.Endpoints.URLDefault = coinutAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
+	c.API.Endpoints.WebsocketURL = coinutWebsocketURL
 	c.WebsocketInit()
 	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
 		exchange.WebsocketOrderbookSupported |
