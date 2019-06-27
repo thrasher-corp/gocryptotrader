@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"time"
 )
@@ -50,20 +51,21 @@ func validSubLogger(s string) (bool, *subLogger) {
 	return false, nil
 }
 
-func Level(s string) *Levels {
+func Level(s string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {
-		return nil
+		return nil, fmt.Errorf("logger %v not found", logger)
 	}
 
-	return &logger.Levels
+	return &logger.Levels, nil
 }
 
-func SetLevel(s string) error {
-	found, _ := validSubLogger(s)
+func SetLevel(s, level string) (*Levels, error) {
+	found, logger := validSubLogger(s)
 	if !found {
-		return nil
+		return nil, fmt.Errorf("logger %v not found", logger)
 	}
+	logger.Levels = splitLevel(level)
 
-	return nil
+	return &logger.Levels, nil
 }

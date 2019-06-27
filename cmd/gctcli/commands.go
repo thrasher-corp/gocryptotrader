@@ -1768,3 +1768,104 @@ var withdrawFiatFundsCommand = cli.Command{
 func withdrawFiatFunds(_ *cli.Context) error {
 	return common.ErrNotYetImplemented
 }
+
+var getLoggerDetailsCommand = cli.Command{
+	Name:   "getloggerdetails",
+	Action: getLoggerDetails,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "logger",
+			Usage: "logger to get level details of",
+		},
+	},
+}
+
+func getLoggerDetails(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getloggerdetails")
+		return nil
+	}
+
+	var logger string
+	if c.IsSet("logger") {
+		logger = c.String("logger")
+	} else {
+		logger = c.Args().First()
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.GetLoggerDetails(context.Background(),
+		&gctrpc.GetLoggerDetailsRequest{
+			Logger: logger,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+var setLoggerDetailsCommand = cli.Command{
+	Name:   "setloggerdetails",
+	Action: setLoggerDetails,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "logger",
+			Usage: "logger to get level details of",
+		},
+		cli.StringFlag{
+			Name:  "flags",
+			Usage: "pipe seperated value of loggers e.g INFO|WARN",
+		},
+	},
+}
+
+func setLoggerDetails(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "setloggerdetails")
+		return nil
+	}
+
+	var logger string
+	var level string
+
+	if c.IsSet("logger") {
+		logger = c.String("logger")
+	} else {
+		logger = c.Args().First()
+	}
+
+	if c.IsSet("level") {
+		level = c.String("level")
+	} else {
+		level = c.Args().Get(1)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.SetLoggerDetails(context.Background(),
+		&gctrpc.SetLoggerDetailsRequest{
+			Logger: logger,
+			Level:  level,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}

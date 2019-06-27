@@ -68,7 +68,7 @@ message GetExchangeOTPReponse {
     string otp_code = 1;
 }
 
-message GetExchangeOTPsRequest {} 
+message GetExchangeOTPsRequest {}
 
 message GetExchangeOTPsResponse {
     map<string, string> otp_codes = 1;
@@ -147,7 +147,7 @@ message OrderbookResponse {
     repeated OrderbookItem bids = 3;
     repeated OrderbookItem asks = 4;
     int64 last_updated = 5;
-    string asset_type = 6; 
+    string asset_type = 6;
 }
 
 message GetOrderbooksRequest {}
@@ -225,7 +225,7 @@ message OfflineCoins {
 }
 
 message OnlineCoins {
-    map<string, OnlineCoinSummary> coins = 1; 
+    map<string, OnlineCoinSummary> coins = 1;
 }
 
 message GetPortfolioSummaryResponse {
@@ -348,7 +348,7 @@ message CancelAllOrdersResponse {
         string exchange = 1;
         map<string, string> order_status = 2;
     }
-    repeated Orders orders = 1; 
+    repeated Orders orders = 1;
 }
 
 message GetEventsRequest {}
@@ -430,6 +430,22 @@ message WithdrawCurrencyRequest {
 
 message WithdrawResponse {
     string result = 1;
+}
+
+message GetLoggerDetailsRequest {
+    string logger = 1;
+}
+
+message GetLoggerDetailsResponse{
+    bool info = 1;
+    bool debug = 2;
+    bool warn = 3;
+    bool error = 4;
+}
+
+message SetLoggerDetailsRequest {
+    string logger = 1;
+    string level = 2;
 }
 
 service GoCryptoTrader {
@@ -663,6 +679,19 @@ service GoCryptoTrader {
     rpc WithdrawFiatFunds(WithdrawCurrencyRequest) returns (WithdrawResponse) {
         option (google.api.http) = {
             post: "/v1/withdrawfiatfunds"
+            body: "*"
+        };
+    }
+
+    rpc GetLoggerDetails(GetLoggerDetailsRequest) returns (GetLoggerDetailsResponse) {
+        option (google.api.http) = {
+            get: "/v1/getloggerdetails"
+        };
+    }
+
+    rpc SetLoggerDetails(SetLoggerDetailsRequest) returns (GetLoggerDetailsResponse) {
+        option (google.api.http) = {
+            post: "/v1/setloggerdetails",
             body: "*"
         };
     }

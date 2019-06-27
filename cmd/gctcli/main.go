@@ -120,6 +120,8 @@ func main() {
 		getCryptocurrencyDepositAddressCommand,
 		withdrawCryptocurrencyFundsCommand,
 		withdrawFiatFundsCommand,
+		getLoggerDetailsCommand,
+		setLoggerDetailsCommand,
 	}
 
 	err := app.Run(os.Args)

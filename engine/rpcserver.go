@@ -753,3 +753,31 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawCurrencyRequest) (*gctrpc.WithdrawResponse, error) {
 	return &gctrpc.WithdrawResponse{}, common.ErrNotYetImplemented
 }
+
+func (s *RPCServer) GetLoggerDetails(ctx context.Context, r *gctrpc.GetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
+	levels, err := log.Level(r.Logger)
+	if err != nil {
+		return nil, errors.New("logger not found")
+	}
+
+	return &gctrpc.GetLoggerDetailsResponse{
+		Info:  levels.Info,
+		Debug: levels.Debug,
+		Warn:  levels.Warn,
+		Error: levels.Error,
+	}, nil
+}
+
+func (s *RPCServer) SetLoggerDetails(ctx context.Context, r *gctrpc.SetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
+	levels, err := log.SetLevel(r.Logger, r.Level)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetLoggerDetailsResponse{
+		Info:  levels.Info,
+		Debug: levels.Debug,
+		Warn:  levels.Warn,
+		Error: levels.Error,
+	}, nil
+}
