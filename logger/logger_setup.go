@@ -33,6 +33,7 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 func GenDefaultSettings() (log Config) {
 	t := func(t bool) *bool { return &t }(true)
 	f := func(f bool) *bool { return &f }(false)
+
 	log = Config{
 		Enabled: t,
 		SubLoggerConfig: SubLoggerConfig{
