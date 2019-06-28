@@ -12,6 +12,7 @@ import (
 // global vars contain staged update data that will be sent to the communication
 // mediums
 var (
+	// map[exchangeName]
 	TickerStaged    map[string]map[string]map[string]ticker.Price
 	OrderbookStaged map[string]map[string]map[string]Orderbook
 	PortfolioStaged Portfolio
@@ -20,7 +21,7 @@ var (
 	m               sync.Mutex
 )
 
-// Orderbook holds the minimal orderbook details to be sent to a communication
+// Orderbook 订单信息
 // medium
 type Orderbook struct {
 	CurrencyPair string
@@ -30,7 +31,7 @@ type Orderbook struct {
 	LastUpdated  string
 }
 
-// Ticker holds the minimal orderbook details to be sent to a communication
+// Ticker 交易数据信息
 // medium
 type Ticker struct {
 	CurrencyPair string

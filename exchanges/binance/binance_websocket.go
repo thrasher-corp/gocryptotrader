@@ -343,71 +343,117 @@ func (b *Binance) WsHandleData() {
 	}
 }
 
-// WebsocketKline 获取 k 线
-func (b *Binance) WebsocketKline(ch chan *KlineStream, timeIntervals []TimeInterval, symbolList []string, done <-chan struct{}) {
+// WSKlineConnect intiates a websocket connection
+func (b *Binance) WSKlineConnect(timeIntervals []TimeInterval, symbolList []string) error {
+	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
+		return errors.New(exchange.WebsocketNotEnabled)
+	}
 
-	for b.Enabled {
+	var Dialer websocket.Dialer
+	var err error
+
+	// 组合streams的URL格式 - 每个时间段的k线
+	klineStreamsArray := []string{}
+	for _, tv := range timeIntervals {
+		for _, sv := range symbolList {
+			klineStreamsArray = append(klineStreamsArray, fmt.Sprintf("%s@kline_%s", strings.ToLower(sv), tv))
+		}
+	}
+
+	// 组合streams的URL格式 - 最终的格式
+	klineStreams := commonutils.JoinStrings(klineStreamsArray, "/")
+
+	wsurl := b.Websocket.GetWebsocketURL() +
+		"/stream?streams=" +
+		klineStreams
+
+	if b.Websocket.GetProxyAddress() != "" {
+		var u *url.URL
+		u, err = url.Parse(b.Websocket.GetProxyAddress())
+		if err != nil {
+			return fmt.Errorf("binance_websocket.go - Unable to connect to parse proxy address. Error: %s",
+				err)
+		}
+
+		Dialer.Proxy = http.ProxyURL(u)
+	}
+
+	b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
+	if err != nil {
+		return fmt.Errorf("binance_websocket.go - Unable to connect to Websocket. Error: %s",
+			err)
+	}
+	if b.Verbose {
+		log.Printf("%s Connected to Websocket.\n", b.Name)
+		log.Printf("wsurl:%s\n", wsurl)
+	}
+
+	go b.WsHandleKlineData()
+
+	return nil
+}
+
+// WsHandleKlineData 获取 k 线
+func (b *Binance) WsHandleKlineData() {
+
+	b.Websocket.Wg.Add(1)
+
+	defer func() {
+		b.Websocket.Wg.Done()
+	}()
+
+	for {
 		select {
 		case <-b.Websocket.ShutdownC:
 			return
 		default:
-			var Dialer websocket.Dialer
-			var err error
-
-			streamsArray := []string{}
-			for _, tv := range timeIntervals {
-				for _, sv := range symbolList {
-					streamsArray = append(streamsArray, fmt.Sprintf("%s@kline_%s", strings.ToLower(sv), tv))
-				}
-			}
-
-			streams := commonutils.JoinStrings(streamsArray, "/")
-
-			wsurl := b.WebsocketURL + "/stream?streams=" + streams
-
-			// b.WebsocketConn, _, err = Dialer.Dial(binanceDefaultWebsocketURL+myenabledPairs, http.Header{})
-			b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
+			// 读取消息
+			msgType, resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
-				log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.Name, err)
-				continue
+				b.Websocket.DataHandler <- err
+				return
 			}
 
-			if b.Verbose {
-				log.Printf("%s Connected to Websocket.\n", b.Name)
-				log.Printf("wsurl:%s\n", streams)
-			}
-
-			for b.Enabled {
-				select {
-				case <-b.Websocket.ShutdownC:
-					return
-				default:
-					_, resp, err := b.WebsocketConn.ReadMessage()
-					if err != nil {
-						log.Println(err)
-						break
-					}
-
-					multiStreamData := MultiStreamData{}
-					if err = common.JSONDecode(resp, &multiStreamData); err != nil {
-						log.Println("Could not load multi stream data.", string(resp))
-						continue
-					}
-
-					kline := KlineStream{}
-					if err = commonutils.JSONDecode(multiStreamData.Data, &kline); err != nil {
-						log.Println("Could not convert to a KlineStream structure")
-						continue
-					}
-
-					ch <- &kline
+			// 判断消息类型
+			if msgType == websocket.TextMessage {
+				multiStreamData := MultiStreamData{}
+				err = common.JSONDecode(resp, &multiStreamData)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not load multi stream data: %s",
+						string(resp))
+					continue
 				}
-			}
-			b.WebsocketConn.Close()
-			log.Printf("%s Websocket client disconnected.", b.Name)
-		}
 
+				kline := KlineStream{}
+
+				err := common.JSONDecode(multiStreamData.Data, &kline)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not convert to a KlineStream structure %s",
+						err)
+					continue
+				}
+
+				var wsKline exchange.KlineData
+
+				wsKline.Timestamp = time.Unix(0, kline.EventTime)
+				wsKline.Pair = currency.NewPairFromString(kline.Symbol)
+				wsKline.AssetType = ticker.Spot
+				wsKline.Exchange = b.GetName()
+				wsKline.StartTime = commonutils.TimeFromUnixNEscInt64(kline.Kline.StartTime)
+				wsKline.CloseTime = commonutils.TimeFromUnixNEscInt64(kline.Kline.CloseTime)
+				wsKline.Interval = kline.Kline.Interval
+				wsKline.OpenPrice, _ = strconv.ParseFloat(kline.Kline.OpenPrice, 64)
+				wsKline.ClosePrice, _ = strconv.ParseFloat(kline.Kline.ClosePrice, 64)
+				wsKline.HighPrice, _ = strconv.ParseFloat(kline.Kline.HighPrice, 64)
+				wsKline.LowPrice, _ = strconv.ParseFloat(kline.Kline.LowPrice, 64)
+				wsKline.Volume, _ = strconv.ParseFloat(kline.Kline.Volume, 64)
+
+				b.Websocket.DataHandler <- wsKline
+
+			}
+		}
 	}
+
 }
 
 // WebsocketLastPrice 获取 最新价格
