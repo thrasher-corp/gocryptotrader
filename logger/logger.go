@@ -41,7 +41,10 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 
 // CloseLogger is called on shutdown of application
 func CloseLogger() {
-	closeAllFiles()
+	err := GlobalLogFile.Close()
+	if err != nil {
+		fmt.Printf("Failed to close Global log file %v", err)
+	}
 }
 
 func validSubLogger(s string) (bool, *subLogger) {

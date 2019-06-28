@@ -1251,6 +1251,20 @@ func (c *Config) CheckLoggerConfig() error {
 	if c.Logging.Enabled == nil || c.Logging.Output == "" {
 		c.Logging = log.GenDefaultSettings()
 	}
+	f := func(f bool) *bool { return &f }(false)
+
+	if c.Logging.LoggerFileConfig != nil {
+		if c.Logging.LoggerFileConfig.FileName == "" {
+			c.Logging.LoggerFileConfig.FileName = "log.txt"
+		}
+		if c.Logging.LoggerFileConfig.Rotate == nil {
+			c.Logging.LoggerFileConfig.Rotate = f
+		}
+		if c.Logging.LoggerFileConfig.MaxSize < 0 {
+			c.Logging.LoggerFileConfig.MaxSize = 100
+		}
+		log.FileLoggingConfiguredCorrectly = true
+	}
 
 	log.GlobalLogConfig = &c.Logging
 

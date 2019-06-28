@@ -19,9 +19,9 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 		case "stderr":
 			m.Add(os.Stderr)
 		case "file":
-			m.Add(GlobalLogFile)
-		case "ownfile":
-			m.Add(GlobalLogFile)
+			if FileLoggingConfiguredCorrectly {
+				m.Add(GlobalLogFile)
+			}
 		default:
 			m.Add(ioutil.Discard)
 		}
@@ -32,11 +32,17 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 // GenDefaultSettings return struct with known sane/working logger settings
 func GenDefaultSettings() (log Config) {
 	t := func(t bool) *bool { return &t }(true)
+	f := func(f bool) *bool { return &f }(false)
 	log = Config{
 		Enabled: t,
 		SubLoggerConfig: SubLoggerConfig{
 			Level:  "INFO|DEBUG|WARN|ERROR",
 			Output: "console",
+		},
+		LoggerFileConfig: &loggerFileConfig{
+			FileName: "log.txt",
+			Rotate:   f,
+			MaxSize:  0,
 		},
 		AdvancedSettings: advancedSettings{
 			Spacer:          " | ",
@@ -74,6 +80,14 @@ func SetupSubLoggers(s []SubLoggerConfig) {
 
 // SetupGlobalLogger() setup the global loggers with the default global config values
 func SetupGlobalLogger() {
+	if FileLoggingConfiguredCorrectly {
+		GlobalLogFile = &Rotate{
+			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
+			MaxSize:  GlobalLogConfig.LoggerFileConfig.MaxSize,
+			Rotate:   GlobalLogConfig.LoggerFileConfig.Rotate,
+		}
+	}
+
 	for x := range subLoggers {
 		subLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
 		subLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)

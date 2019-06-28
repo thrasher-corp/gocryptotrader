@@ -13,6 +13,7 @@ const spacer = "|"
 type Config struct {
 	Enabled *bool `json:"enabled"`
 	SubLoggerConfig
+	LoggerFileConfig *loggerFileConfig `json:"file,omitempty"`
 	AdvancedSettings advancedSettings  `json:"advancedSettings"`
 	SubLoggers       []SubLoggerConfig `json:"subloggers,omitempty"`
 }
@@ -35,6 +36,12 @@ type SubLoggerConfig struct {
 	Name   string `json:"name,omitempty"`
 	Level  string `json:"level"`
 	Output string `json:"output"`
+}
+
+type loggerFileConfig struct {
+	FileName string `json:"filename,omitempty"`
+	Rotate   *bool  `json:"rotate,omitempty"`
+	MaxSize  int64  `json:"maxsize,omitempty"`
 }
 
 // Logger each instance of logger settings
@@ -65,12 +72,11 @@ type multiWriter struct {
 }
 
 var (
-	logger          = &Logger{}
-	GlobalLogConfig = &Config{} // GlobalLogConfig hold global configuration options for logger
-	GlobalLogFile   = &Rotate{
-		Filename: "log.txt",
-		MaxSize:  1,
-	}
+	logger                         = &Logger{}
+	FileLoggingConfiguredCorrectly bool
+	GlobalLogConfig                = &Config{} // GlobalLogConfig hold global configuration options for logger
+	GlobalLogFile                  = &Rotate{}
+
 	eventPool = &sync.Pool{
 		New: func() interface{} {
 			return &LogEvent{

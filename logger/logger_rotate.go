@@ -4,49 +4,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 )
 
-const (
-	defaultMaxSize = 100
-	megabyte       = 1024 * 1024
-)
-
-type Rotate struct {
-	Filename string
-	MaxSize  int
-
-	Compress bool
-
-	size   int64
-	output *os.File
-	mu     sync.Mutex
-}
-
+// Write implementation to satisfy io.Writer handles length check and rotation
 func (r *Rotate) Write(output []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	writeLen := int64(len(output))
+	outputLen := int64(len(output))
 
-	if writeLen > r.max() {
+	if outputLen > r.maxSize() {
 		return 0, fmt.Errorf(
-			"write length %v exceeds max file size %v", writeLen, r.max(),
+			"write length %v exceeds max file size %v", outputLen, r.maxSize(),
 		)
 	}
 
 	if r.output == nil {
-		err = r.openOrCreateFile(writeLen)
+		err = r.openOrCreateFile(outputLen)
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	if r.size+writeLen > r.max() {
-		err = r.rotate()
-		if err != nil {
-			return 0, err
+	if *r.Rotate {
+		if r.size+outputLen > r.maxSize() {
+			err = r.rotateFile()
+			if err != nil {
+				return 0, err
+			}
 		}
 	}
 
@@ -57,8 +43,7 @@ func (r *Rotate) Write(output []byte) (n int, err error) {
 }
 
 func (r *Rotate) openOrCreateFile(n int64) error {
-
-	logFile := filepath.Join(LogPath, r.Filename)
+	logFile := filepath.Join(LogPath, r.FileName)
 
 	info, err := os.Stat(logFile)
 	if err != nil {
@@ -68,8 +53,10 @@ func (r *Rotate) openOrCreateFile(n int64) error {
 		return fmt.Errorf("error opening log file info: %s", err)
 	}
 
-	if info.Size()+n >= r.max() {
-		return r.rotate()
+	if *r.Rotate {
+		if info.Size()+n >= r.maxSize() {
+			return r.rotateFile()
+		}
 	}
 
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY, 0600)
@@ -84,12 +71,13 @@ func (r *Rotate) openOrCreateFile(n int64) error {
 }
 
 func (r *Rotate) openNew() error {
-	name := filepath.Join(LogPath, r.Filename)
-	_, err := os.Stat(name)
+	name := filepath.Join(LogPath, r.FileName)
 
 	t := time.Now()
-	timestamp := t.Format("2006-01-02T15-04-05.000")
-	newName := filepath.Join(LogPath, r.Filename, timestamp)
+	timestamp := t.Format("2006-01-02T15-04-05")
+	newName := filepath.Join(LogPath, timestamp+"-"+r.FileName)
+	_, err := os.Stat(name)
+
 	if err == nil {
 		err = os.Rename(name, newName)
 		if err != nil {
@@ -117,7 +105,13 @@ func (r *Rotate) close() (err error) {
 	return err
 }
 
-func (r *Rotate) rotate() (err error) {
+func (r *Rotate) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.close()
+}
+
+func (r *Rotate) rotateFile() (err error) {
 	err = r.close()
 	if err != nil {
 		return
@@ -130,9 +124,9 @@ func (r *Rotate) rotate() (err error) {
 	return nil
 }
 
-func (r *Rotate) max() int64 {
+func (r *Rotate) maxSize() int64 {
 	if r.MaxSize == 0 {
 		return int64(defaultMaxSize * megabyte)
 	}
-	return int64(r.MaxSize) * int64(megabyte)
+	return r.MaxSize * int64(megabyte)
 }
