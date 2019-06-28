@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 // Please enter sandbox API keys & assigned roles for better testing procedures
@@ -568,7 +569,7 @@ func TestWsAuth(t *testing.T) {
 	g.WebsocketURL = geminiWebsocketSandboxEndpoint
 
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	go g.WsHandleData()

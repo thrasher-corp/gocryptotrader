@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -66,11 +67,11 @@ func (b *BTSE) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
-	b.WebsocketInit()
-	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+	b.Websocket = wshandler.Init()
+	b.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -109,14 +110,15 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.WebsocketSetup(b.WsConnect,
+		err = b.Websocket.Setup(b.WsConnect,
 			b.Subscribe,
 			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			btseWebsocket,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}

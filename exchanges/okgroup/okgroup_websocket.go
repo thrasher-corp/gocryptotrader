@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -166,7 +167,7 @@ func (o *OKGroup) writeToWebsocket(message string) error {
 // WsConnect initiates a websocket connection
 func (o *OKGroup) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -211,10 +212,10 @@ func (o *OKGroup) WsConnect() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (o *OKGroup) WsReadData() (exchange.WebsocketResponse, error) {
+func (o *OKGroup) WsReadData() (wshandler.WebsocketResponse, error) {
 	mType, resp, err := o.WebsocketConn.ReadMessage()
 	if err != nil {
-		return exchange.WebsocketResponse{}, err
+		return wshandler.WebsocketResponse{}, err
 	}
 
 	o.Websocket.TrafficAlert <- struct{}{}
@@ -228,14 +229,14 @@ func (o *OKGroup) WsReadData() (exchange.WebsocketResponse, error) {
 		standardMessage, err = ioutil.ReadAll(reader)
 		reader.Close()
 		if err != nil {
-			return exchange.WebsocketResponse{}, err
+			return wshandler.WebsocketResponse{}, err
 		}
 	}
 	if o.Verbose {
 		log.Debugf("%v Websocket message received: %v", o.Name, string(standardMessage))
 	}
 
-	return exchange.WebsocketResponse{Raw: standardMessage}, nil
+	return wshandler.WebsocketResponse{Raw: standardMessage}, nil
 }
 
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
@@ -397,7 +398,7 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		err := o.WsProcessOrderBook(response)
 		if err != nil {
 			pair := currency.NewPairDelimiter(response.Data[0].InstrumentID, "-")
-			channelToResubscribe := exchange.WebsocketChannelSubscription{
+			channelToResubscribe := wshandler.WebsocketChannelSubscription{
 				Channel:  response.Table,
 				Currency: pair,
 			}
@@ -435,7 +436,7 @@ func logDataResponse(response *WebsocketDataResponse) {
 func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
-		o.Websocket.DataHandler <- exchange.TickerData{
+		o.Websocket.DataHandler <- wshandler.TickerData{
 			Timestamp:  response.Data[i].Timestamp,
 			Exchange:   o.GetName(),
 			AssetType:  o.GetAssetTypeFromTableName(response.Table),
@@ -451,7 +452,7 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
-		o.Websocket.DataHandler <- exchange.TradeData{
+		o.Websocket.DataHandler <- wshandler.TradeData{
 			Amount:       response.Data[i].Size,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: instrument,
@@ -480,7 +481,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 			candleInterval = response.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
 		}
 
-		klineData := exchange.KlineData{
+		klineData := wshandler.KlineData{
 			AssetType: o.GetAssetTypeFromTableName(response.Table),
 			Pair:      instrument,
 			Exchange:  o.GetName(),
@@ -548,7 +549,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 	if err != nil {
 		return err
 	}
-	o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: o.GetName(),
 		Asset:    o.GetAssetTypeFromTableName(tableName),
 		Pair:     instrument,
@@ -591,7 +592,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		if err != nil {
 			log.Error(err)
 		}
-		o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Exchange: o.GetName(),
 			Asset:    o.GetAssetTypeFromTableName(tableName),
 			Pair:     instrument,
@@ -694,14 +695,14 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (o *OKGroup) GenerateDefaultSubscriptions() {
 	enabledCurrencies := o.GetEnabledCurrencies()
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		defaultSubscribedChannels = append(defaultSubscribedChannels, okGroupWsSpotMarginAccount, okGroupWsSpotAccount, okGroupWsSpotOrder)
 	}
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -711,7 +712,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (o *OKGroup) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	resp := WebsocketEventRequest{
 		Operation: "subscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
@@ -731,7 +732,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (o *OKGroup) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	resp := WebsocketEventRequest{
 		Operation: "unsubscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},

@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -27,7 +28,7 @@ var requestID nonce.Nonce
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -59,14 +60,14 @@ func (h *HitBTC) WsConnect() error {
 }
 
 // WsReadData reads from the websocket connection
-func (h *HitBTC) WsReadData() (exchange.WebsocketResponse, error) {
+func (h *HitBTC) WsReadData() (wshandler.WebsocketResponse, error) {
 	_, resp, err := h.WebsocketConn.ReadMessage()
 	if err != nil {
-		return exchange.WebsocketResponse{}, err
+		return wshandler.WebsocketResponse{}, err
 	}
 
 	h.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Raw: resp}, nil
+	return wshandler.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles websocket data
@@ -117,7 +118,7 @@ func (h *HitBTC) WsHandleData() {
 	}
 }
 
-func (h *HitBTC) handleSubscriptionUpdates(resp exchange.WebsocketResponse, init capture) {
+func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, init capture) {
 	switch init.Method {
 	case "ticker":
 		var ticker WsTicker
@@ -131,7 +132,7 @@ func (h *HitBTC) handleSubscriptionUpdates(resp exchange.WebsocketResponse, init
 			h.Websocket.DataHandler <- err
 			return
 		}
-		h.Websocket.DataHandler <- exchange.TickerData{
+		h.Websocket.DataHandler <- wshandler.TickerData{
 			Exchange:  h.GetName(),
 			AssetType: "SPOT",
 			Pair:      currency.NewPairFromString(ticker.Params.Symbol),
@@ -187,7 +188,7 @@ func (h *HitBTC) handleSubscriptionUpdates(resp exchange.WebsocketResponse, init
 	}
 }
 
-func (h *HitBTC) handleCommandResponses(resp exchange.WebsocketResponse, init capture) {
+func (h *HitBTC) handleCommandResponses(resp wshandler.WebsocketResponse, init capture) {
 	switch resultType := init.Result.(type) {
 	case map[string]interface{}:
 		switch resultType["reportType"].(string) {
@@ -266,7 +267,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		return err
 	}
 
-	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
 		Asset:    "SPOT",
 		Pair:     p,
@@ -297,7 +298,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 		return err
 	}
 
-	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
 		Asset:    "SPOT",
 		Pair:     p,
@@ -308,9 +309,9 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() {
 	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 			Channel: "subscribeReports",
 		})
 	}
@@ -318,7 +319,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -328,7 +329,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := WsNotification{
 		Method: channelToSubscribe.Channel,
 	}
@@ -354,7 +355,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (h *HitBTC) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -50,7 +51,7 @@ var comms = make(chan WsMessage, 1)
 // WsConnect initiates a new websocket connection
 func (h *HUOBIHADAX) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -298,7 +299,7 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := common.SplitStrings(kline.Channel, ".")
-		h.Websocket.DataHandler <- exchange.KlineData{
+		h.Websocket.DataHandler <- wshandler.KlineData{
 			Timestamp:  time.Unix(0, kline.Timestamp),
 			Exchange:   h.GetName(),
 			AssetType:  "SPOT",
@@ -317,7 +318,7 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := common.SplitStrings(trade.Channel, ".")
-		h.Websocket.DataHandler <- exchange.TradeData{
+		h.Websocket.DataHandler <- wshandler.TradeData{
 			Exchange:     h.GetName(),
 			AssetType:    "SPOT",
 			CurrencyPair: currency.NewPairFromString(data[1]),
@@ -354,7 +355,7 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 		return err
 	}
 
-	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Exchange: h.GetName(),
 		Asset:    "SPOT",
@@ -366,10 +367,10 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, "orders.%v", "orders.%v.update")
-		subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 			Channel: "accounts",
 		})
 	}
@@ -378,7 +379,7 @@ func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
 			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String())
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channel,
 				Currency: enabledCurrencies[j],
 			})
@@ -388,7 +389,7 @@ func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBIHADAX) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (h *HUOBIHADAX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
@@ -401,7 +402,7 @@ func (h *HUOBIHADAX) Subscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)

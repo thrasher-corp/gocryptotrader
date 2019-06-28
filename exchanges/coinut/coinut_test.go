@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 var c COINUT
@@ -55,7 +56,7 @@ func setupWSTestAuth(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
 	if !c.Websocket.IsEnabled() && !c.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	var err error
 	var dialer websocket.Dialer

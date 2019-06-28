@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 var p Poloniex
@@ -443,7 +444,7 @@ func TestWsHandleAccountData(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	TestSetup(t)
 	if !p.Websocket.IsEnabled() && !p.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	var err error
 	var dialer websocket.Dialer

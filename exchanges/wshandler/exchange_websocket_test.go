@@ -1,4 +1,4 @@
-package exchange
+package wshandler
 
 import (
 	"fmt"
@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
-var wsTest Base
+var wsTest exchange.Base
 
 func TestWebsocketInit(t *testing.T) {
 	if wsTest.Websocket != nil {
 		t.Error("test failed - WebsocketInit() error")
 	}
 
-	wsTest.WebsocketInit()
+	wsTest.Websocket = Init()
 
 	if wsTest.Websocket == nil {
 		t.Error("test failed - WebsocketInit() error")
@@ -29,7 +30,7 @@ func TestWebsocket(t *testing.T) {
 		t.Error("test failed - SetProxyAddress", err)
 	}
 
-	wsTest.WebsocketSetup(func() error { return nil },
+	wsTest.Websocket.Setup(func() error { return nil },
 		func(test WebsocketChannelSubscription) error { return nil },
 		func(test WebsocketChannelSubscription) error { return nil },
 		"testName",

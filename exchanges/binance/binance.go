@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -93,12 +94,12 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
+	b.Websocket = wshandler.Init()
 	b.WebsocketURL = binanceDefaultWebsocketURL
-	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketTickerSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported
+	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -138,14 +139,15 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.WebsocketSetup(b.WSConnect,
+		err = b.Websocket.Setup(b.WSConnect,
 			nil,
 			nil,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			binanceDefaultWebsocketURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}

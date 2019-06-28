@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -24,7 +24,7 @@ const (
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -54,14 +54,14 @@ func (b *BTSE) WsConnect() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (b *BTSE) WsReadData() (exchange.WebsocketResponse, error) {
+func (b *BTSE) WsReadData() (wshandler.WebsocketResponse, error) {
 	_, resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
-		return exchange.WebsocketResponse{}, err
+		return wshandler.WebsocketResponse{}, err
 	}
 
 	b.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Raw: resp}, nil
+	return wshandler.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles read data from websocket connection
@@ -118,7 +118,7 @@ func (b *BTSE) WsHandleData() {
 					continue
 				}
 
-				b.Websocket.DataHandler <- exchange.TickerData{
+				b.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp: time.Now(),
 					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
 					AssetType: "SPOT",
@@ -191,7 +191,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 		return err
 	}
 
-	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    "SPOT",
 		Exchange: b.GetName(),
@@ -204,10 +204,10 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 func (b *BTSE) GenerateDefaultSubscriptions() {
 	var channels = []string{"snapshot", "ticker"}
 	enabledCurrencies := b.GetEnabledCurrencies()
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -217,7 +217,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := websocketSubscribe{
 		Type: "subscribe",
 		Channels: []websocketChannel{
@@ -231,7 +231,7 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := websocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []websocketChannel{

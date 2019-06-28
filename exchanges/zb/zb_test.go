@@ -2,16 +2,15 @@ package zb
 
 import (
 	"fmt"
-	"net/http"
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -50,15 +49,13 @@ func setupWsAuth(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
 	if !z.Websocket.IsEnabled() && !z.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var err error
-	var dialer websocket.Dialer
-	z.WebsocketConn, _, err = dialer.Dial(z.Websocket.GetWebsocketURL(),
-		http.Header{})
-	if err != nil {
-		t.Fatal(err)
+	z.WebsocketConn = wshandler.WebsocketConnection{
+		ExchangeName: z.Name,
 	}
+	z.WebsocketConn.Dial()
+
 	z.Websocket.DataHandler = make(chan interface{}, 11)
 	z.Websocket.TrafficAlert = make(chan struct{}, 11)
 	go z.WsHandleData()

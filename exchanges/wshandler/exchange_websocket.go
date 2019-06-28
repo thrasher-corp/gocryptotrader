@@ -1,4 +1,4 @@
-package exchange
+package wshandler
 
 import (
 	"errors"
@@ -14,9 +14,9 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// WebsocketInit initialises the websocket struct
-func (e *Base) WebsocketInit() {
-	e.Websocket = &Websocket{
+// Init initialises the websocket struct
+func Init() *Websocket {
+	return &Websocket{
 		defaultURL: "",
 		enabled:    false,
 		proxyAddr:  "",
@@ -25,37 +25,38 @@ func (e *Base) WebsocketInit() {
 	}
 }
 
-// WebsocketSetup sets main variables for websocket connection
-func (e *Base) WebsocketSetup(connector func() error,
+// Setup sets main variables for websocket connection
+func (w *Websocket) Setup(connector func() error,
 	subscriber func(channelToSubscribe WebsocketChannelSubscription) error,
 	unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error,
 	exchangeName string,
 	wsEnabled,
 	verbose bool,
 	defaultURL,
-	runningURL string) error {
+	runningURL string,
+	authenticatedWebsocketAPISupport bool) error {
 
-	e.Websocket.DataHandler = make(chan interface{}, 1)
-	e.Websocket.Connected = make(chan struct{}, 1)
-	e.Websocket.Disconnected = make(chan struct{}, 1)
-	e.Websocket.TrafficAlert = make(chan struct{}, 1)
-	e.Websocket.verbose = verbose
+	w.DataHandler = make(chan interface{}, 1)
+	w.Connected = make(chan struct{}, 1)
+	w.Disconnected = make(chan struct{}, 1)
+	w.TrafficAlert = make(chan struct{}, 1)
+	w.verbose = verbose
 
-	e.Websocket.SetChannelSubscriber(subscriber)
-	e.Websocket.SetChannelUnsubscriber(unsubscriber)
-	err := e.Websocket.SetWsStatusAndConnection(wsEnabled)
+	w.SetChannelSubscriber(subscriber)
+	w.SetChannelUnsubscriber(unsubscriber)
+	err := w.SetWsStatusAndConnection(wsEnabled)
 	if err != nil {
 		return err
 	}
-	e.Websocket.SetDefaultURL(defaultURL)
-	e.Websocket.SetConnector(connector)
-	e.Websocket.SetWebsocketURL(runningURL)
-	e.Websocket.SetExchangeName(exchangeName)
-	e.Websocket.SetCanUseAuthenticatedEndpoints(e.AuthenticatedWebsocketAPISupport)
+	w.SetDefaultURL(defaultURL)
+	w.SetConnector(connector)
+	w.SetWebsocketURL(runningURL)
+	w.SetExchangeName(exchangeName)
+	w.SetCanUseAuthenticatedEndpoints(authenticatedWebsocketAPISupport)
 
-	e.Websocket.init = false
-	e.Websocket.noConnectionCheckLimit = 5
-	e.Websocket.reconnectionLimit = 10
+	w.init = false
+	w.noConnectionCheckLimit = 5
+	w.reconnectionLimit = 10
 
 	return nil
 }

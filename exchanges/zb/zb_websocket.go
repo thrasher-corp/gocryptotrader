@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -25,9 +26,9 @@ const (
 // WsConnect initiates a websocket connection
 func (z *ZB) WsConnect() error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-	z.WebsocketConn = exchange.WebsocketConnection{
+	z.WebsocketConn = wshandler.WebsocketConnection{
 		ExchangeName: z.Name,
 	}
 
@@ -54,14 +55,14 @@ func (z *ZB) WsConnect() error {
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
-func (z *ZB) WsReadData() (exchange.WebsocketResponse, error) {
-	_, resp, err := z.WebsocketConn.ReadMessage()
+func (z *ZB) WsReadData() (wshandler.WebsocketResponse, error) {
+	resp, err := z.WebsocketConn.ReadMessage()
 	if err != nil {
-		return exchange.WebsocketResponse{}, err
+		return wshandler.WebsocketResponse{}, err
 	}
 
 	z.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Raw: resp}, nil
+	return resp, nil
 }
 
 // WsHandleData handles all the websocket data coming from the websocket
@@ -116,7 +117,7 @@ func (z *ZB) WsHandleData() {
 					continue
 				}
 
-				z.Websocket.DataHandler <- exchange.TickerData{
+				z.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp:  time.Unix(0, ticker.Date),
 					Pair:       currency.NewPairFromString(cPair[0]),
 					AssetType:  "SPOT",
@@ -169,7 +170,7 @@ func (z *ZB) WsHandleData() {
 					continue
 				}
 
-				z.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+				z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     cPair,
 					Asset:    "SPOT",
 					Exchange: z.GetName(),
@@ -192,7 +193,7 @@ func (z *ZB) WsHandleData() {
 				channelInfo := common.SplitStrings(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
 
-				z.Websocket.DataHandler <- exchange.TradeData{
+				z.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Unix(0, t.Date),
 					CurrencyPair: cPair,
 					AssetType:    "SPOT",
@@ -326,9 +327,9 @@ var wsErrCodes = map[int64]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	// Tickerdata is its own channel
-	subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
@@ -336,7 +337,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
 				Currency: enabledCurrencies[j].Lower(),
 			})
@@ -346,7 +347,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (z *ZB) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
 		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,
@@ -365,7 +366,7 @@ func (z *ZB) wsSend(data interface{}) error {
 	if z.Verbose {
 		log.Debugf("%v sending message to websocket %v", z.Name, string(json))
 	}
-	return z.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return z.WebsocketConn.SendMessage(json)
 }
 
 func (z *ZB) wsAddSubUser(username, password string) error {

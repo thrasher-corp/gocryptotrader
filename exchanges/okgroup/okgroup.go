@@ -141,14 +141,15 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = o.WebsocketSetup(o.WsConnect,
+		err = o.Websocket.Setup(o.WsConnect,
 			o.Subscribe,
 			o.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			o.WebsocketURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}

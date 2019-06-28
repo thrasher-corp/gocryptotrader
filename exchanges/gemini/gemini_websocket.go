@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -31,7 +32,7 @@ var comms = make(chan ReadData, 1)
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -271,13 +272,13 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			return
 		}
 
-		g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: pair,
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    "SPOT",
 			Exchange: g.GetName()}
 	} else {
 		for _, event := range result.Events {
 			if event.Type == "trade" {
-				g.Websocket.DataHandler <- exchange.TradeData{
+				g.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Now(),
 					CurrencyPair: pair,
 					AssetType:    "SPOT",
@@ -316,7 +317,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			}
 		}
 
-		g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: pair,
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    "SPOT",
 			Exchange: g.GetName()}
 	}

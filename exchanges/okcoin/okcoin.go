@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 const (
@@ -48,15 +49,15 @@ func (o *OKCoin) SetDefaults() {
 	o.APIUrlDefault = okCoinAPIURL
 	o.APIUrl = okCoinAPIURL
 	o.AssetTypes = []string{ticker.Spot}
-	o.WebsocketInit()
+	o.Websocket = wshandler.Init()
 	o.WebsocketURL = okCoinWebsocketURL
 	o.APIVersion = okCoinAPIVersion
-	o.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketMessageCorrelationSupported
+	o.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketMessageCorrelationSupported
 }

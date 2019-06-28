@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -23,7 +24,7 @@ const (
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -53,13 +54,13 @@ func (c *CoinbasePro) WsConnect() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (c *CoinbasePro) WsReadData() (exchange.WebsocketResponse, error) {
+func (c *CoinbasePro) WsReadData() (wshandler.WebsocketResponse, error) {
 	_, resp, err := c.WebsocketConn.ReadMessage()
 	if err != nil {
-		return exchange.WebsocketResponse{}, err
+		return wshandler.WebsocketResponse{}, err
 	}
 	c.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Raw: resp}, nil
+	return wshandler.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles read data from websocket connection
@@ -109,7 +110,7 @@ func (c *CoinbasePro) WsHandleData() {
 					continue
 				}
 
-				c.Websocket.DataHandler <- exchange.TickerData{
+				c.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp:  ticker.Time,
 					Pair:       currency.NewPairFromString(ticker.ProductID),
 					AssetType:  "SPOT",
@@ -240,7 +241,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		return err
 	}
 
-	c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     pair,
 		Asset:    "SPOT",
 		Exchange: c.GetName(),
@@ -275,7 +276,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 		return err
 	}
 
-	c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    "SPOT",
 		Exchange: c.GetName(),
@@ -288,14 +289,14 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	var channels = []string{"heartbeat", "level2", "ticker", "user"}
 	enabledCurrencies := c.GetEnabledCurrencies()
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") && !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 			continue
 		}
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -305,7 +306,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 		Channels: []WsChannels{
@@ -330,7 +331,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []WsChannels{

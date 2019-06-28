@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -1569,7 +1570,7 @@ func TestGetETTSettlementPriceHistory(t *testing.T) {
 func TestSendWsMessages(t *testing.T) {
 	TestSetDefaults(t)
 	if !o.Websocket.IsEnabled() && !o.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	var err error
@@ -1587,7 +1588,7 @@ func TestSendWsMessages(t *testing.T) {
 	go o.WsHandleData(&wg)
 	wg.Wait()
 
-	subscription := exchange.WebsocketChannelSubscription{
+	subscription := wshandler.WebsocketChannelSubscription{
 		Channel: "badChannel",
 	}
 	o.Subscribe(subscription)

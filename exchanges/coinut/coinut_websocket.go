@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -33,7 +34,7 @@ var populatedList bool
 // WsConnect intiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var Dialer websocket.Dialer
@@ -77,14 +78,14 @@ func (c *COINUT) WsConnect() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (c *COINUT) WsReadData() (exchange.WebsocketResponse, error) {
+func (c *COINUT) WsReadData() (wshandler.WebsocketResponse, error) {
 	_, resp, err := c.WebsocketConn.ReadMessage()
 	if err != nil {
-		return exchange.WebsocketResponse{}, err
+		return wshandler.WebsocketResponse{}, err
 	}
 
 	c.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Raw: resp}, nil
+	return wshandler.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles read data
@@ -164,7 +165,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
-		c.Websocket.DataHandler <- exchange.TickerData{
+		c.Websocket.DataHandler <- wshandler.TickerData{
 			Timestamp:  time.Unix(0, ticker.Timestamp),
 			Exchange:   c.GetName(),
 			AssetType:  "SPOT",
@@ -187,7 +188,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[orderbooksnapshot.InstID]
-		c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Exchange: c.GetName(),
 			Asset:    "SPOT",
 			Pair:     currency.NewPairFromString(currencyPair),
@@ -205,7 +206,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[orderbookUpdate.InstID]
-		c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Exchange: c.GetName(),
 			Asset:    "SPOT",
 			Pair:     currency.NewPairFromString(currencyPair),
@@ -226,7 +227,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[tradeUpdate.InstID]
-		c.Websocket.DataHandler <- exchange.TradeData{
+		c.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: currency.NewPairFromString(currencyPair),
 			AssetType:    "SPOT",
@@ -409,11 +410,11 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() {
 	var channels = []string{"inst_tick", "inst_order_book"}
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies := c.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -423,7 +424,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request:   channelToSubscribe.Channel,
 		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
@@ -434,7 +435,7 @@ func (c *COINUT) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request:   channelToSubscribe.Channel,
 		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
