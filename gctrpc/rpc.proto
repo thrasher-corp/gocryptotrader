@@ -327,6 +327,29 @@ message SubmitOrderResponse {
     string order_id = 2;
 }
 
+message SimulateOrderRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    double amount = 3;
+    string side = 4;
+}
+
+message SimulateOrderResponse {
+    repeated OrderbookItem orders = 1;
+    double amount = 2;
+    double minimum_price = 3;
+    double maximum_price = 4;
+    double percentage_gain_loss = 5;
+    string status = 6;
+}
+
+message WhaleBombRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    double price_target = 3;
+    string side = 4;
+}
+
 message CancelOrderRequest {
     string exchange = 1;
     string account_id = 2;
@@ -601,6 +624,20 @@ service GoCryptoTrader {
     rpc SubmitOrder (SubmitOrderRequest) returns (SubmitOrderResponse) {
         option (google.api.http) = {
             post: "/v1/submitorder"
+            body: "*"
+        };
+    }
+
+    rpc SimulateOrder (SimulateOrderRequest) returns (SimulateOrderResponse) {
+        option (google.api.http) = {
+            post: "/v1/simulateorder"
+            body: "*"
+        };
+    }
+
+    rpc WhaleBomb (WhaleBombRequest) returns (SimulateOrderResponse) {
+        option (google.api.http) = {
+            post: "/v1/whalebomb"
             body: "*"
         };
     }

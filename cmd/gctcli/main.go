@@ -111,6 +111,8 @@ func main() {
 		getOrdersCommand,
 		getOrderCommand,
 		submitOrderCommand,
+		simulateOrderCommand,
+		whaleBombCommand,
 		cancelOrderCommand,
 		cancelAllOrdersCommand,
 		getEventsCommand,

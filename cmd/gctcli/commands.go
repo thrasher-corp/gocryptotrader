@@ -1243,6 +1243,186 @@ func submitOrder(c *cli.Context) error {
 	return nil
 }
 
+var simulateOrderCommand = cli.Command{
+	Name:      "simulateorder",
+	Usage:     "simulate order simulates an exchange order",
+	ArgsUsage: "<exchange> <currency_pair> <side> <amount>",
+	Action:    simulateOrder,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to simulate the order for",
+		},
+		cli.StringFlag{
+			Name:  "currency_pair",
+			Usage: "the currency pair",
+		},
+		cli.StringFlag{
+			Name:  "side",
+			Usage: "the order side to use (BUY OR SELL)",
+		},
+		cli.Float64Flag{
+			Name:  "amount",
+			Usage: "the amount for the order",
+		},
+	},
+}
+
+func simulateOrder(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "simulateorder")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var exchangeName string
+	var currencyPair string
+	var orderSide string
+	var amount float64
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("currency_pair") {
+		currencyPair = c.String("currency_pair")
+	} else {
+		currencyPair = c.Args().Get(1)
+	}
+
+	if c.IsSet("side") {
+		orderSide = c.String("side")
+	} else {
+		orderSide = c.Args().Get(2)
+	}
+
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	} else {
+		amount, _ = strconv.ParseFloat(c.Args().Get(3), 64)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.SimulateOrder(context.Background(), &gctrpc.SimulateOrderRequest{
+		Exchange: exchangeName,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+		Side:   orderSide,
+		Amount: amount,
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var whaleBombCommand = cli.Command{
+	Name:      "whalebomb",
+	Usage:     "whale bomb finds the amount required to reach a price target",
+	ArgsUsage: "<exchange> <currency_pair> <side> <price>",
+	Action:    whaleBomb,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to whale bomb",
+		},
+		cli.StringFlag{
+			Name:  "currency_pair",
+			Usage: "the currency pair",
+		},
+		cli.StringFlag{
+			Name:  "side",
+			Usage: "the order side to use (BUY OR SELL)",
+		},
+		cli.Float64Flag{
+			Name:  "price",
+			Usage: "the price target",
+		},
+	},
+}
+
+func whaleBomb(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "whalebomb")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var exchangeName string
+	var currencyPair string
+	var orderSide string
+	var price float64
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("currency_pair") {
+		currencyPair = c.String("currency_pair")
+	} else {
+		currencyPair = c.Args().Get(1)
+	}
+
+	if c.IsSet("side") {
+		orderSide = c.String("side")
+	} else {
+		orderSide = c.Args().Get(2)
+	}
+
+	if c.IsSet("price") {
+		price = c.Float64("price")
+	} else {
+		price, _ = strconv.ParseFloat(c.Args().Get(3), 64)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.WhaleBomb(context.Background(), &gctrpc.WhaleBombRequest{
+		Exchange: exchangeName,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+		Side:        orderSide,
+		PriceTarget: price,
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var cancelOrderCommand = cli.Command{
 	Name:      "cancelorder",
 	Usage:     "cancel order cancels an exchange order",
