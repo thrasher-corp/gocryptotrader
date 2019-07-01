@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"testing"
 )
 
@@ -26,23 +27,26 @@ type VCRMock struct {
 	Routes map[string]map[string][]HTTPResponse `json:"routes"`
 }
 
+var registrar int64
+
 // NewVCRServer starts a new VCR server for replaying HTTP requests for testing
-// purposes
-func NewVCRServer(path string, t *testing.T) error {
+// purposes and returns the server connection details
+func NewVCRServer(path string, t *testing.T) (string, error) {
 	if t == nil {
-		return errors.New("this service needs to be utilised in a testing environment")
+		return "",
+			errors.New("this service needs to be utilised in a testing environment")
 	}
 
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Get mocking data for the specific service
 	var mockFile VCRMock
 	err = json.Unmarshal(contents, &mockFile)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// range over routes and assign responses to explicit paths and http methods
@@ -50,11 +54,19 @@ func NewVCRServer(path string, t *testing.T) error {
 		RegisterHandler(pattern, mockResponses)
 	}
 
+	if registrar == 0 {
+		registrar = 3000
+	} else {
+		registrar++
+	}
+
+	portDetails := ":" + strconv.FormatInt(registrar, 10)
+
 	go func() {
-		log.Fatal(http.ListenAndServe(mockFile.Host, nil))
+		log.Fatal(http.ListenAndServe(portDetails, nil))
 	}()
 
-	return nil
+	return "http://localhost" + portDetails, nil
 }
 
 // RegisterHandler registers a generalised mock response logic for specific

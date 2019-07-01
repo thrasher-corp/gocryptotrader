@@ -22,12 +22,12 @@ const queryString = "currency=btc&command=getprice"
 const testFile = "test.json"
 
 func TestNewVCRServer(t *testing.T) {
-	err := NewVCRServer("", nil)
+	deets, err := NewVCRServer("", nil)
 	if err == nil {
 		t.Error("Test Failed - NewVCRServer error cannot be nil")
 	}
 
-	err = NewVCRServer("", t)
+	deets, err = NewVCRServer("", t)
 	if err == nil {
 		t.Error("Test Failed - NewVCRServer error cannot be nil")
 	}
@@ -58,7 +58,7 @@ func TestNewVCRServer(t *testing.T) {
 		t.Fatal("Test Failed - marshal error", err)
 	}
 
-	err = NewVCRServer(testFile, t)
+	deets, err = NewVCRServer(testFile, t)
 	if err != nil {
 		t.Error("Test Failed - NewVCRServer error", err)
 	}
@@ -73,7 +73,7 @@ func TestNewVCRServer(t *testing.T) {
 
 	// Expected good outcome
 	r, err := common.SendHTTPRequest(http.MethodGet,
-		"http://localhost:3000/",
+		deets,
 		nil,
 		bytes.NewBufferString(""))
 	if err != nil {
@@ -85,7 +85,7 @@ func TestNewVCRServer(t *testing.T) {
 	}
 
 	r, err = common.SendHTTPRequest(http.MethodGet,
-		"http://localhost:3000/test?"+queryString,
+		deets+"/test?"+queryString,
 		nil,
 		bytes.NewBufferString(""))
 	if err != nil {

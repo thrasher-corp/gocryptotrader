@@ -24,7 +24,10 @@ func TestSetup(t *testing.T) {
 
 	mtx.Lock()
 	if !isSetup {
-		mock.NewVCRServer("../../testdata/http_mock/bitstamp/bitstamp.json", t)
+		serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/bitstamp/bitstamp.json", t)
+		if err != nil {
+			log.Fatal("Test Failed - Mock server error", err)
+		}
 		cfg := config.GetConfig()
 		cfg.LoadConfig("../../testdata/configtest.json")
 		bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
@@ -37,7 +40,7 @@ func TestSetup(t *testing.T) {
 		bitstampConfig.ClientID = customerID
 		b.SetDefaults()
 		b.Setup(&bitstampConfig)
-		b.APIUrl = "http://localhost:3000/api"
+		b.APIUrl = serverDetails + "/api"
 		log.Printf("Mock testing framework in use for %s @ %s",
 			b.GetName(),
 			b.APIUrl)

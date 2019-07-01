@@ -24,7 +24,10 @@ func TestSetup(t *testing.T) {
 
 	mtx.Lock()
 	if !isSetup {
-		mock.NewVCRServer("../../testdata/http_mock/localbitcoins/localbitcoins.json", t)
+		serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/localbitcoins/localbitcoins.json", t)
+		if err != nil {
+			t.Fatal("Test Failed - Mock server error", err)
+		}
 		cfg := config.GetConfig()
 		cfg.LoadConfig("../../testdata/configtest.json")
 		localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
@@ -36,7 +39,7 @@ func TestSetup(t *testing.T) {
 		localbitcoinsConfig.APISecret = apiSecret
 		l.SetDefaults()
 		l.Setup(&localbitcoinsConfig)
-		l.APIUrl = "http://localhost:3000"
+		l.APIUrl = serverDetails
 		log.Printf("Mock testing framework in use for %s @ %s",
 			l.GetName(),
 			l.APIUrl)

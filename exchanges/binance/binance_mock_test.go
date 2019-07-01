@@ -24,7 +24,10 @@ func TestSetup(t *testing.T) {
 
 	mtx.Lock()
 	if !isSetup {
-		mock.NewVCRServer("../../testdata/http_mock/binance/binance.json", t)
+		serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/binance/binance.json", t)
+		if err != nil {
+			log.Fatal("Test Failed - mock server error", err)
+		}
 		cfg := config.GetConfig()
 		cfg.LoadConfig("../../testdata/configtest.json")
 		binanceConfig, err := cfg.GetExchangeConfig("Binance")
@@ -36,7 +39,7 @@ func TestSetup(t *testing.T) {
 		binanceConfig.APISecret = apiSecret
 		b.SetDefaults()
 		b.Setup(&binanceConfig)
-		b.APIUrl = "http://localhost:3000"
+		b.APIUrl = serverDetails
 		log.Printf("Mock testing framework in use for %s @ %s",
 			b.GetName(),
 			b.APIUrl)
