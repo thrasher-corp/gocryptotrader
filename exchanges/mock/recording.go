@@ -88,7 +88,7 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 			return urlErr
 		}
 
-		httpResponse.BodyParams, err = GetFilteredURLVals(vals)
+		httpResponse.BodyParams, urlErr = GetFilteredURLVals(vals)
 		if urlErr != nil {
 			return urlErr
 		}
@@ -306,10 +306,8 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 					cleanSlice = append(cleanSlice, cleanMap)
 				}
 				context[key] = cleanSlice
-			} else {
-				if IsExcluded(key, excluded.Variables) {
-					context[key] = nil // Zero val slice
-				}
+			} else if IsExcluded(key, excluded.Variables) {
+				context[key] = nil // Zero val slice
 			}
 		case Bool, Invalid: // Skip these bad boys for now
 		default:
@@ -374,14 +372,14 @@ func GetExcludedItems() (Exclusion, error) {
 			excludedList.Headers = defaultExcludedHeaders
 			excludedList.Variables = defaultExcludedVariables
 
-			data, err := json.MarshalIndent(excludedList, "", " ")
-			if err != nil {
-				return excludedList, err
+			data, mErr := json.MarshalIndent(excludedList, "", " ")
+			if mErr != nil {
+				return excludedList, mErr
 			}
 
-			err = ioutil.WriteFile(exclusionFile, data, os.ModePerm)
-			if err != nil {
-				return excludedList, err
+			mErr = ioutil.WriteFile(exclusionFile, data, os.ModePerm)
+			if mErr != nil {
+				return excludedList, mErr
 			}
 
 		} else {
