@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -59,23 +60,28 @@ func GenDefaultSettings() (log Config) {
 	return
 }
 
-func configureSubLogger(logger, levels string, output io.Writer) {
+func configureSubLogger(logger, levels string, output io.Writer) error {
 	found, logPtr := validSubLogger(logger)
 	if !found {
-		return
+		return fmt.Errorf("logger %v not found", logger)
 	}
 
 	logPtr.output = output
 
 	logPtr.Levels = splitLevel(levels)
 	subLoggers[logger] = logPtr
+
+	return nil
 }
 
 // SetupSubLoggers configure all sub loggers with provided configuration values
 func SetupSubLoggers(s []SubLoggerConfig) {
 	for x := range s {
 		output := getWriters(&s[x])
-		configureSubLogger(s[x].Name, s[x].Level, output)
+		err := configureSubLogger(s[x].Name, s[x].Level, output)
+		if err != nil {
+			continue
+		}
 	}
 }
 

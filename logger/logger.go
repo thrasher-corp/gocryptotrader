@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -17,9 +18,9 @@ func newLogger(c *Config) *Logger {
 	}
 }
 
-func (l *Logger) newLogEvent(data, header string, w io.Writer) {
+func (l *Logger) newLogEvent(data, header string, w io.Writer) error {
 	if w == nil {
-		return
+		return errors.New("io.Writer not set")
 	}
 	e := eventPool.Get().(*LogEvent)
 	e.output = w
@@ -37,14 +38,18 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) {
 	e.output.Write(e.data)
 	e.data = (e.data)[:0]
 	eventPool.Put(e)
+
+	return nil
 }
 
 // CloseLogger is called on shutdown of application
-func CloseLogger() {
+func CloseLogger() error {
 	err := GlobalLogFile.Close()
 	if err != nil {
-		fmt.Printf("Failed to close Global log file %v", err)
+		return err
 	}
+	return nil
+
 }
 
 func validSubLogger(s string) (bool, *subLogger) {

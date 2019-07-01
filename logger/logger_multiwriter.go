@@ -14,11 +14,20 @@ func (mw *multiWriter) Add(writer io.Writer) {
 // Remove removes exisiting writer from multiwriter slice
 func (mw *multiWriter) Remove(writer io.Writer) {
 	mw.mu.Lock()
+
+	var removeIDs []int
 	for i := range mw.writers {
 		if mw.writers[i] == writer {
-			mw.writers = append(mw.writers[:i], mw.writers[i+1:]...)
+			removeIDs = append(removeIDs, i)
 		}
 	}
+
+	for x := range removeIDs {
+		mw.writers[x] = mw.writers[len(mw.writers)-1]
+		mw.writers[len(mw.writers)-1] = nil
+		mw.writers = mw.writers[:len(mw.writers)-1]
+	}
+
 	mw.mu.Unlock()
 }
 

@@ -433,7 +433,11 @@ func (e *Engine) Stop() {
 	// Wait for services to gracefully shutdown
 	e.ServicesWG.Wait()
 	log.Debugln(log.Global, "Exiting.")
-	log.CloseLogger()
+	err := log.CloseLogger()
+	if err != nil {
+		fmt.Printf("Failed to close logger %v", err)
+	}
+
 	os.Exit(0)
 }
 
