@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 	"testing"
 )
 
@@ -26,8 +25,6 @@ type VCRMock struct {
 	Host   string                               `json:"host"`
 	Routes map[string]map[string][]HTTPResponse `json:"routes"`
 }
-
-var registrar int64
 
 // NewVCRServer starts a new VCR server for replaying HTTP requests for testing
 // purposes and returns the server connection details
@@ -54,19 +51,11 @@ func NewVCRServer(path string, t *testing.T) (string, error) {
 		RegisterHandler(pattern, mockResponses)
 	}
 
-	if registrar == 0 {
-		registrar = 3000
-	} else {
-		registrar++
-	}
-
-	portDetails := ":" + strconv.FormatInt(registrar, 10)
-
 	go func() {
-		log.Fatal(http.ListenAndServe(portDetails, nil))
+		log.Fatal(http.ListenAndServe(mockFile.Host, nil))
 	}()
 
-	return "http://localhost" + portDetails, nil
+	return "http://localhost" + mockFile.Host, nil
 }
 
 // RegisterHandler registers a generalised mock response logic for specific

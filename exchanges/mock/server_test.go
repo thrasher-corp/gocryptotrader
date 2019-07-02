@@ -34,7 +34,7 @@ func TestNewVCRServer(t *testing.T) {
 
 	// Set up mock data
 	test1 := VCRMock{}
-	test1.Host = ":3000"
+	test1.Host = ":3500"
 	test1.Routes = make(map[string]map[string][]HTTPResponse)
 	test1.Routes["/test"] = make(map[string][]HTTPResponse)
 
