@@ -252,7 +252,7 @@ func (o *orderManager) processOrders() {
 		}
 		result, err := exch.GetActiveOrders(&req)
 		if err != nil {
-			log.Debugf(log.OrderMgr, "Order manager: Unable to get active orders: %s\n", err)
+			log.Warnf(log.OrderMgr, "Order manager: Unable to get active orders: %s\n", err)
 			continue
 		}
 

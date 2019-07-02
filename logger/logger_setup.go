@@ -85,7 +85,7 @@ func SetupSubLoggers(s []SubLoggerConfig) {
 	}
 }
 
-// SetupGlobalLogger() setup the global loggers with the default global config values
+// SetupGlobalLogger setup the global loggers with the default global config values
 func SetupGlobalLogger() {
 	if FileLoggingConfiguredCorrectly {
 		GlobalLogFile = &Rotate{

@@ -141,7 +141,7 @@ func (b *Binance) Run() {
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := currency.NewPairsFromStrings([]string{"BTC-USDT"})
 		log.Warn(log.ExchangeSys,
-			"WARNING: Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
+			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)

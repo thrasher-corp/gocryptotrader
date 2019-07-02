@@ -277,7 +277,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			if Bot.Exchanges[x].SupportsWebsocket() && Bot.Exchanges[x].IsWebsocketEnabled() {
 				ws, err := Bot.Exchanges[x].GetWebsocket()
 				if err != nil {
-					log.Debugf(log.SyncMgr, "%s unable to get websocket pointer. Err: %s\n", exchangeName, err)
+					log.Errorf(log.SyncMgr, "%s unable to get websocket pointer. Err: %s\n", exchangeName, err)
 					usingREST = true
 				}
 

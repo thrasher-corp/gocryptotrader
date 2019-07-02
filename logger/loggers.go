@@ -82,7 +82,7 @@ func Debugf(sl *subLogger, data string, v ...interface{}) {
 	Debug(sl, fmt.Sprintf(data, v...))
 }
 
-// Debugf takes a pointer subLogger struct & string  and sends to newLogEvent()
+// Warn takes a pointer subLogger struct & string  and sends to newLogEvent()
 func Warn(sl *subLogger, data string) {
 	if sl == nil {
 		return

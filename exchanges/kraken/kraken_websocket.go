@@ -777,7 +777,7 @@ func (k *Kraken) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if k.Verbose {
-			log.Debugf(log.ExchangeSys, "%v subscribe error: %v", k.Name, err)
+			log.Errorf(log.ExchangeSys, "%v subscribe error: %v", k.Name, err)
 		}
 		return err
 	}
@@ -796,7 +796,7 @@ func (k *Kraken) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscri
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if k.Verbose {
-			log.Debugf(log.ExchangeSys, "%v unsubscribe error: %v", k.Name, err)
+			log.Errorf(log.ExchangeSys, "%v unsubscribe error: %v", k.Name, err)
 		}
 		return err
 	}

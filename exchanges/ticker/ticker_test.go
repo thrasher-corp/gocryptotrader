@@ -10,7 +10,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 func TestPriceToString(t *testing.T) {
@@ -351,7 +350,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 			sm.Lock()
 			err = ProcessTicker(newName, &tp, asset.Spot)
 			if err != nil {
-				log.Error(log.ExchangeSys, err)
+				t.Error(err)
 				catastrophicFailure = true
 				return
 			}

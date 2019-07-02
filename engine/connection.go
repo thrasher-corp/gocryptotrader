@@ -57,7 +57,7 @@ func (c *connectionManager) Stop() error {
 
 func (c *connectionManager) IsOnline() bool {
 	if c.conn == nil {
-		log.Warnf(log.ConnectionMgr, "Connection manager: IsOnline called but conn is nil")
+		log.Warnln(log.ConnectionMgr, "Connection manager: IsOnline called but conn is nil")
 		return false
 	}
 

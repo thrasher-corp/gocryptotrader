@@ -304,7 +304,7 @@ func WebsocketRoutine() {
 
 					err = ws.Connect()
 					if err != nil {
-						log.Debugf(log.WebsocketMgr, "%v\n", err)
+						log.Errorf(log.WebsocketMgr, "%v\n", err)
 					}
 				}
 			} else if Bot.Settings.Verbose {

@@ -1101,7 +1101,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 					c.Currency.ForexProviders[i].PrimaryProvider &&
 					(c.Currency.ForexProviders[i].APIKey == "" ||
 						c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-					log.Warnf(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..\n")
+					log.Warnln(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
 					c.Currency.ForexProviders[i].Enabled = false
 					c.Currency.ForexProviders[i].PrimaryProvider = false
 					c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey

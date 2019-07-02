@@ -727,7 +727,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if o.Verbose {
-			log.Debugf(log.ExchangeSys, "%v subscribe error: %v", o.Name, err)
+			log.Errorf(log.ExchangeSys, "%v subscribe error: %v", o.Name, err)
 		}
 		return err
 	}
@@ -743,7 +743,7 @@ func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscr
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if o.Verbose {
-			log.Debugf(log.ExchangeSys, "%v unsubscribe error: %v", o.Name, err)
+			log.Errorf(log.ExchangeSys, "%v unsubscribe error: %v", o.Name, err)
 		}
 		return err
 	}

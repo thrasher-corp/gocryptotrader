@@ -343,7 +343,7 @@ func (s *Slack) WebsocketKeepAlive() {
 	for {
 		<-ticker.C
 		if err := s.WebsocketSend("ping", ""); err != nil {
-			log.Debugf(log.CommunicationMgr, "Slack: WebsocketKeepAlive() error %s\n", err)
+			log.Errorf(log.CommunicationMgr, "Slack: WebsocketKeepAlive() error %s\n", err)
 		}
 	}
 }

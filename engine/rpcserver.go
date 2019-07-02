@@ -757,7 +757,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawCur
 func (s *RPCServer) GetLoggerDetails(ctx context.Context, r *gctrpc.GetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
 	levels, err := log.Level(r.Logger)
 	if err != nil {
-		return nil, errors.New("logger not found")
+		return nil, err
 	}
 
 	return &gctrpc.GetLoggerDetailsResponse{

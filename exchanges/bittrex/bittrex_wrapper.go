@@ -119,7 +119,7 @@ func (b *Bittrex) Run() {
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		forceUpdate = true
 		enabledPairs := []string{"USDT-BTC"}
-		log.Warn(log.ExchangeSys, "WARNING: Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
+		log.Warn(log.ExchangeSys, "Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
 
 		err := b.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
 		if err != nil {

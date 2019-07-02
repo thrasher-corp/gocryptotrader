@@ -684,7 +684,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 			cryptocurrency := cryptoCurrencies[y]
 			depositAddr, err := Bot.Exchanges[x].GetDepositAddress(currency.NewCode(cryptocurrency), "")
 			if err != nil {
-				log.Debugf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
+				log.Errorf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 				continue
 			}
 			cryptoAddr[cryptocurrency] = depositAddr
@@ -748,7 +748,7 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 			for z := range currencies {
 				tp, err := exch.FetchTicker(currencies[z], assets[y])
 				if err != nil {
-					log.Debugf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
+					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -774,7 +774,7 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 			}
 			individualExchange, err := individualBot.GetAccountInfo()
 			if err != nil {
-				log.Debugf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
+				log.Errorf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
 					individualBot.GetName(), err)
 				continue
 			}

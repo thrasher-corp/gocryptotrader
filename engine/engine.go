@@ -75,7 +75,6 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 
 	log.Debugf(log.Global, "Loading config file %s..\n", settings.ConfigFile)
 	err := b.Config.LoadConfig(settings.ConfigFile)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}

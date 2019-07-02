@@ -25,8 +25,8 @@ func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
 func ({{.Variable}} *{{.CapitalName}}) Run() {
 	if {{.Variable}}.Verbose {
 {{if .WS}} log.Debugf("", %s Websocket: %s. (url: %s).\n", {{.Variable}}.GetName(), common.IsEnabled({{.Variable}}.Websocket.IsEnabled()), {{.Variable}}.Websocket.GetWebsocketURL()) {{end}}
-		log.Debugf("", "%s polling delay: %ds.\n", {{.Variable}}.GetName(), {{.Variable}}.RESTPollingDelay)
-		log.Debugf("", "%s %d currencies enabled: %s.\n", {{.Variable}}.GetName(), len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
+		log.Debugf(*subLogger, "%s polling delay: %ds.\n", {{.Variable}}.GetName(), {{.Variable}}.RESTPollingDelay)
+		log.Debugf(*subLogger, "%s %d currencies enabled: %s.\n", {{.Variable}}.GetName(), len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
 	}
 }
 

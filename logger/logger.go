@@ -24,7 +24,6 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) error {
 	}
 	e := eventPool.Get().(*LogEvent)
 	e.output = w
-	e.data = e.data[:0]
 	e.data = append(e.data, []byte(header)...)
 	e.data = append(e.data, l.Spacer...)
 	if l.Timestamp != "" {
@@ -36,7 +35,7 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) error {
 		e.data = append(e.data, '\n')
 	}
 	e.output.Write(e.data)
-	e.data = (e.data)[:0]
+	e.data = e.data[:0]
 	eventPool.Put(e)
 
 	return nil
@@ -62,7 +61,7 @@ func validSubLogger(s string) (bool, *subLogger) {
 func Level(s string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {
-		return nil, fmt.Errorf("logger %v not found", logger)
+		return nil, fmt.Errorf("logger %v not found", s)
 	}
 
 	return &logger.Levels, nil
@@ -71,7 +70,7 @@ func Level(s string) (*Levels, error) {
 func SetLevel(s, level string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {
-		return nil, fmt.Errorf("logger %v not found", logger)
+		return nil, fmt.Errorf("logger %v not found", s)
 	}
 	logger.Levels = splitLevel(level)
 

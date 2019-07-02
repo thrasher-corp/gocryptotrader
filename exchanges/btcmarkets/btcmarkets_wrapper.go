@@ -118,7 +118,7 @@ func (b *BTCMarkets) Run() {
 	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := []string{"BTC-AUD"}
-		log.Warnln(log.ExchangeSys, "WARNING: Available pairs for BTC Makrets reset due to config upgrade, please enable the pairs you would like again.")
+		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
 
 		err := b.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
