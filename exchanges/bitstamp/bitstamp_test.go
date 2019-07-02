@@ -143,7 +143,6 @@ func TestGetFee(t *testing.T) {
 
 func TestCalculateTradingFee(t *testing.T) {
 	TestSetup(t)
-	b.Balance = Balances{}
 	b.Balance.BTCUSDFee = 1
 	b.Balance.BTCEURFee = 0
 

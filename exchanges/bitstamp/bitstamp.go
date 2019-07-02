@@ -177,7 +177,6 @@ func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		var err error
-
 		b.Balance, err = b.GetBalance()
 		if err != nil {
 			return 0, err
