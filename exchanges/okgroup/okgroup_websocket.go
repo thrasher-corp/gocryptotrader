@@ -602,7 +602,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		}
 	} else {
 		if o.Verbose {
-			log.Debug(log.ExchangeSys, "Orderbook invalid")
+			log.Warnln(log.ExchangeSys, "Orderbook invalid")
 		}
 		return fmt.Errorf("channel: %v. Orderbook update for %v checksum invalid. Received %v Calculated %v", tableName, instrument, wsEventData.Checksum, checksum)
 	}
