@@ -253,7 +253,7 @@ func (k *Kraken) WsHandleDataResponse(response WebsocketDataResponse) {
 		k.wsProcessTrades(&channelData, response[1])
 	default:
 		log.Errorf("%v Unidentified websocket data received: %v",
-			k.Name, 
+			k.Name,
 			response)
 	}
 }
