@@ -24,49 +24,49 @@ type IWebsocketConnection interface {
 
 // WebsocketConnection contains all the datas needed to send a message to a WS
 type WebsocketConnection struct {
-	verbose                      bool
+	sync.Mutex
+	Verbose                      bool
 	supportsMessageIDCorrelation bool
 	supportsRetry                bool
 	retryLimit                   int64
-	timeout                      time.Duration
 	MessageSequence              int64
 	RateLimit                    float64
+	timeout                      time.Duration
 	ExchangeName                 string
-	url                          string
-	proxyURL                     string
-	sync.Mutex
-	Wg                        sync.WaitGroup
-	Message                   interface{}
-	WebsocketConnection       *websocket.Conn
-	pendingMessageResponseIDs []WebsocketMessageIDTimeoutMonitor
-	ResponseIDTrackChannel    chan int64
-	Shutdown                  chan struct{}
+	Url                          string
+	ProxyURL                     string
+	Wg                           sync.WaitGroup
+	WebsocketConnection          *websocket.Conn
+	pendingMessageResponseIDs    []WebsocketIDRequest
+	// These are the requests and responses
+	Shutdown    chan struct{}
+	IDResponses map[int64][]byte
 }
 
-// WebsocketMessageIDTimeoutMonitor l o l
-type WebsocketMessageIDTimeoutMonitor struct {
-	ExpectedResponseID int64
-	RetryCount         int64
-	Timeout            *time.Timer
+// WebsocketIDRequest l o l
+type WebsocketIDRequest struct {
+	MessageID  int64
+	RetryCount int64
+	Timeout    *time.Timer
+	Message    interface{}
 }
 
 // Dial will handle all your life's problems
 func (w *WebsocketConnection) Dial() error {
 	var dialer websocket.Dialer
-	if w.proxyURL != "" {
-		proxy, err := url.Parse(w.proxyURL)
+	if w.ProxyURL != "" {
+		proxy, err := url.Parse(w.ProxyURL)
 		if err != nil {
 			return err
 		}
-
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
 	var err error
 	var conStatus *http.Response
-	w.WebsocketConnection, _, err = dialer.Dial(w.url, http.Header{})
+	w.WebsocketConnection, _, err = dialer.Dial(w.Url, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v %v %v Error: %v", w.url, conStatus, conStatus.StatusCode, err)
+		return fmt.Errorf("%v %v %v Error: %v", w.Url, conStatus, conStatus.StatusCode, err)
 	}
 	return nil
 }
@@ -77,7 +77,7 @@ func (w *WebsocketConnection) Setup(verbose, supportsMessageIDCorrelation bool, 
 		return errors.New("Exchange name not set")
 	}
 	w.supportsMessageIDCorrelation = supportsMessageIDCorrelation
-	w.verbose = verbose
+	w.Verbose = verbose
 	w.RateLimit = rateLimit
 	w.ExchangeName = exchangeName
 	return nil
@@ -91,10 +91,47 @@ func (w *WebsocketConnection) SendMessage(data interface{}) error {
 	if err != nil {
 		return err
 	}
-	if w.verbose {
+	if w.Verbose {
 		log.Debugf("%v sending message to websocket %v", w.ExchangeName, string(json))
 	}
 	return w.WebsocketConnection.WriteMessage(websocket.TextMessage, json)
+}
+
+func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interface{}) ([]byte, error) {
+	err := w.SendMessage(request)
+	if err != nil {
+		return nil, err
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go w.WaitForResult(id, &wg)
+	wg.Wait()
+	if _, ok := w.IDResponses[id]; !ok {
+		return nil, fmt.Errorf("Timeout waiting for response with ID %v", id)
+	}
+	return w.IDResponses[id], nil
+}
+
+func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	timer := time.NewTimer(3 * time.Second)
+	for {
+		select {
+		case <-timer.C:
+			return
+		default:
+			w.Lock()
+			for k := range w.IDResponses {
+				if k == id {
+					// Remove entry too
+					w.Unlock()
+					return
+				}
+			}
+			w.Unlock()
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
 }
 
 // ReadMessage reads messages
@@ -103,69 +140,19 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	if err != nil {
 		return WebsocketResponse{}, err
 	}
-	//p.Websocket.TrafficAlert <- struct{}{}
 	return WebsocketResponse{Raw: resp}, nil
-}
-
-// ResponseChannelReader will loop and wait for ids to verify if the WS has replied
-func (w *WebsocketConnection) ResponseChannelReader() {
-	w.Wg.Add(1)
-	defer w.Wg.Done()
-	for {
-		select {
-		case <-w.Shutdown:
-			return
-		case resp := <-w.ResponseIDTrackChannel:
-			w.VerifyResponseID(resp)
-		default:
-			w.verifyTimeouts()
-
-		}
-	}
-}
-
-func (w *WebsocketConnection) verifyTimeouts() {
-	for i := 0; i < len(w.pendingMessageResponseIDs); i++ {
-
-	}
-}
-
-// VerifyResponseID will check if the passed responseID matches any pending messages
-func (w *WebsocketConnection) VerifyResponseID(responseID int64) bool {
-	w.Lock()
-	defer w.Unlock()
-	for i := 0; i < len(w.pendingMessageResponseIDs); i++ {
-		if responseID == w.pendingMessageResponseIDs[i].ExpectedResponseID {
-			w.removePendingMessageResponse(i)
-			return true
-		}
-	}
-	return false
-}
-
-func (w *WebsocketConnection) removePendingMessageResponse(i int) {
-	w.pendingMessageResponseIDs[i].Timeout.Stop()
-	w.pendingMessageResponseIDs = append(w.pendingMessageResponseIDs[:i], w.pendingMessageResponseIDs[i+1:]...)
 }
 
 // GenerateMessageID Creates a messageID to checkout
 func (w *WebsocketConnection) GenerateMessageID() int64 {
 	w.Lock()
 	defer w.Unlock()
-	pendingMessageID := WebsocketMessageIDTimeoutMonitor{
-		ExpectedResponseID: time.Now().Unix(),
-		RetryCount:         w.retryLimit,
-		Timeout:            time.NewTimer(w.timeout),
+	pendingMessageID := WebsocketIDRequest{
+		MessageID:  time.Now().Unix(),
+		RetryCount: w.retryLimit,
+		Timeout:    time.NewTimer(w.timeout),
 	}
-	go w.monitorTimeout(pendingMessageID.Timeout)
+	//go w.monitorTimeout(&pendingMessageID)
 	w.pendingMessageResponseIDs = append(w.pendingMessageResponseIDs, pendingMessageID)
-	return pendingMessageID.ExpectedResponseID
-}
-
-func (w *WebsocketConnection) monitorTimeout(timeout *time.Timer) {
-	select {
-	case <-timeout.C:
-		// RELEASE THE HOUNDS
-		return
-	}
+	return pendingMessageID.MessageID
 }

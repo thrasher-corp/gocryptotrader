@@ -10,6 +10,7 @@ import (
 type Subscription struct {
 	Event   string `json:"event"`
 	Channel string `json:"channel"`
+	No      int64  `json:"no,string,omitempty"`
 }
 
 // Generic defines a generic fields associated with many return types
@@ -18,7 +19,7 @@ type Generic struct {
 	Success bool            `json:"success"`
 	Channel string          `json:"channel"`
 	Message interface{}     `json:"message"`
-	No      string          `json:"no"`
+	No      int64           `json:"no,string,omitempty"`
 	Data    json.RawMessage `json:"data"`
 }
 
@@ -65,7 +66,7 @@ type WsAuthenticatedRequest struct {
 	Accesskey string `json:"accesskey"`
 	Channel   string `json:"channel"`
 	Event     string `json:"event"`
-	No        string `json:"no,omitempty"`
+	No        int64  `json:"no,string,omitempty"`
 	Sign      string `json:"sign,omitempty"`
 }
 
@@ -74,10 +75,11 @@ type WsAddSubUserRequest struct {
 	Accesskey   string `json:"accesskey"`
 	Channel     string `json:"channel"`
 	Event       string `json:"event"`
-	Sign        string `json:"sign,omitempty"`
 	Memo        string `json:"memo"`
 	Password    string `json:"password"`
 	SubUserName string `json:"subUserName"`
+	No          int64  `json:"no,string,omtempty"`
+	Sign        string `json:"sign,omitempty"`
 }
 
 // WsCreateSubUserKeyRequest data to add sub user keys
@@ -90,7 +92,7 @@ type WsCreateSubUserKeyRequest struct {
 	KeyName     string `json:"keyName"`
 	LeverPerm   bool   `json:"leverPerm,string"`
 	MoneyPerm   bool   `json:"moneyPerm,string"`
-	No          string `json:"no"`
+	No          int64  `json:"no,string,omitempty"`
 	Sign        string `json:"sign,omitempty"`
 	ToUserID    string `json:"toUserId"`
 }
@@ -103,7 +105,7 @@ type WsDoTransferFundsRequest struct {
 	Currency     currency.Code `json:"currency"`
 	Event        string        `json:"event"`
 	FromUserName string        `json:"fromUserName"`
-	No           string        `json:"no"`
+	No           int64         `json:"no,string"`
 	Sign         string        `json:"sign,omitempty"`
 	ToUserName   string        `json:"toUserName"`
 }
@@ -114,7 +116,7 @@ type WsGetSubUserListResponse struct {
 	Code    int64                          `json:"code"`
 	Channel string                         `json:"channel"`
 	Message []WsGetSubUserListResponseData `json:"message"`
-	No      string                         `json:"no"`
+	No      int64                          `json:"no,string"`
 }
 
 // WsGetSubUserListResponseData user data
@@ -132,7 +134,7 @@ type WsRequestResponse struct {
 	Code    int64       `json:"code"`
 	Channel string      `json:"channel"`
 	Message interface{} `json:"message"`
-	No      string      `json:"no"`
+	No      int64       `json:"no,string"`
 }
 
 // WsSubmitOrderRequest creates an order via ws
@@ -141,7 +143,7 @@ type WsSubmitOrderRequest struct {
 	Amount    float64 `json:"amount,string"`
 	Channel   string  `json:"channel"`
 	Event     string  `json:"event"`
-	No        string  `json:"no,omitempty"`
+	No        int64   `json:"no,string,omitempty"`
 	Price     float64 `json:"price,string"`
 	Sign      string  `json:"sign,omitempty"`
 	TradeType int64   `json:"tradeType,string"`
@@ -150,7 +152,7 @@ type WsSubmitOrderRequest struct {
 // WsSubmitOrderResponse data about submitted order
 type WsSubmitOrderResponse struct {
 	Message string `json:"message"`
-	No      string `json:"no"`
+	No      int64  `json:"no,string"`
 	Data    struct {
 		EntrustID int64 `json:"intrustID"`
 	} `json:"data"`
@@ -166,12 +168,13 @@ type WsCancelOrderRequest struct {
 	Event     string `json:"event"`
 	ID        int64  `json:"id"`
 	Sign      string `json:"sign,omitempty"`
+	No        int64  `json:"no,string"`
 }
 
 // WsCancelOrderResponse order cancel response
 type WsCancelOrderResponse struct {
 	Message string `json:"message"`
-	No      string `json:"no"`
+	No      int64  `json:"no,string"`
 	Code    int64  `json:"code"`
 	Channel string `json:"channel"`
 	Success bool   `json:"success"`
@@ -184,12 +187,13 @@ type WsGetOrderRequest struct {
 	Event     string `json:"event"`
 	ID        int64  `json:"id"`
 	Sign      string `json:"sign,omitempty"`
+	No        int64  `json:"no,string"`
 }
 
 // WsGetOrderResponse contains order data
 type WsGetOrderResponse struct {
 	Message string                 `json:"message"`
-	No      string                 `json:"no"`
+	No      int64                  `json:"no,string"`
 	Code    int64                  `json:"code"`
 	Channel string                 `json:"channel"`
 	Success bool                   `json:"success"`
@@ -209,6 +213,7 @@ type WsGetOrderResponseData struct {
 	TradeDate   int64   `json:"trade_date"`
 	TradeMoney  float64 `json:"trade_money"`
 	Type        int64   `json:"type"`
+	No          int64   `json:"no,string"`
 }
 
 // WsGetOrdersRequest get more orders, with no orderID filtering
@@ -216,6 +221,7 @@ type WsGetOrdersRequest struct {
 	Accesskey string `json:"accesskey"`
 	Channel   string `json:"channel"`
 	Event     string `json:"event"`
+	No        int64  `json:"no,string"`
 	PageIndex int64  `json:"pageIndex"`
 	TradeType int64  `json:"tradeType"`
 	Sign      string `json:"sign,omitempty"`
@@ -224,7 +230,7 @@ type WsGetOrdersRequest struct {
 // WsGetOrdersResponse contains orders data
 type WsGetOrdersResponse struct {
 	Message string                   `json:"message"`
-	No      string                   `json:"no"`
+	No      int64                    `json:"no,string"`
 	Code    int64                    `json:"code"`
 	Channel string                   `json:"channel"`
 	Success bool                     `json:"success"`
@@ -236,7 +242,7 @@ type WsGetOrdersIgnoreTradeTypeRequest struct {
 	Accesskey string `json:"accesskey"`
 	Channel   string `json:"channel"`
 	Event     string `json:"event"`
-	ID        int64  `json:"id"`
+	No        int64  `json:"no,string"`
 	PageIndex int64  `json:"pageIndex"`
 	PageSize  int64  `json:"pageSize"`
 	Sign      string `json:"sign,omitempty"`
@@ -245,7 +251,7 @@ type WsGetOrdersIgnoreTradeTypeRequest struct {
 // WsGetOrdersIgnoreTradeTypeResponse contains orders data
 type WsGetOrdersIgnoreTradeTypeResponse struct {
 	Message string                   `json:"message"`
-	No      string                   `json:"no"`
+	No      int64                    `json:"no,string"`
 	Code    int64                    `json:"code"`
 	Channel string                   `json:"channel"`
 	Success bool                     `json:"success"`
@@ -255,7 +261,7 @@ type WsGetOrdersIgnoreTradeTypeResponse struct {
 // WsGetAccountInfoResponse contains account data
 type WsGetAccountInfoResponse struct {
 	Message string `json:"message"`
-	No      string `json:"no"`
+	No      int64  `json:"no,string"`
 	Data    struct {
 		Coins []struct {
 			Freez       float64 `json:"freez,string"`

@@ -283,8 +283,8 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 		default:
 			resp, err := o.WsReadData()
 			if err != nil {
-				time.Sleep(time.Second)
 				o.Websocket.DataHandler <- err
+				return
 			}
 			var dataResponse WebsocketDataResponse
 			err = common.JSONDecode(resp.Raw, &dataResponse)

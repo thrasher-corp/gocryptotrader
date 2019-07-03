@@ -109,9 +109,7 @@ func (g *Gateio) WsHandleData() {
 			resp, err := g.WsReadData()
 			if err != nil {
 				g.Websocket.DataHandler <- err
-				// Read data error messages can overwhelm and panic the application
-				time.Sleep(time.Second)
-				continue
+				return
 			}
 
 			var result WebsocketResponse

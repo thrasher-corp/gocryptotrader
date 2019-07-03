@@ -3,13 +3,11 @@ package zb
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
@@ -53,6 +51,8 @@ func setupWsAuth(t *testing.T) {
 	}
 	z.WebsocketConn = wshandler.WebsocketConnection{
 		ExchangeName: z.Name,
+		Url:          zbWebsocketAPI,
+		Verbose:      z.Verbose,
 	}
 	z.WebsocketConn.Dial()
 
@@ -518,206 +518,164 @@ func TestZBInvalidJSON(t *testing.T) {
 // TestWsTransferFunds ws test
 func TestWsTransferFunds(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsDoTransferFunds(currency.BTC,
+	result, err := z.wsDoTransferFunds(currency.BTC,
 		0.0001,
 		"username1",
 		"username2",
 	)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsRequestResponse).Code == 1002 || resp.(WsRequestResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
 
 // TestWsCreateSuUserKey ws test
 func TestWsCreateSuUserKey(t *testing.T) {
 	setupWsAuth(t)
-	z.wsGetSubUserList()
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	var userID int64
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if len(resp.(WsGetSubUserListResponse).Message) == 0 {
-			t.Fatal("Expected a userID. Ensure you have made a subuserID before running this test")
-		}
-		userID = resp.(WsGetSubUserListResponse).Message[0].UserID
-	case <-timer.C:
-		t.Fatal("Have not received a response")
-	}
-	timer.Stop()
-	err := z.wsCreateSubUserKey(true, true, true, true, "subu", fmt.Sprintf("%v", userID))
+	subUsers, err := z.wsGetSubUserList()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	timer = time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsRequestResponse).Code == 1002 || resp.(WsRequestResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if subUsers.Code == 1002 || subUsers.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if subUsers.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", subUsers.Channel, subUsers.Code, subUsers.No, subUsers.Success)
+	}
+	userID := subUsers.Message[0].UserID
+	result, err := z.wsCreateSubUserKey(true, true, true, true, "subu", fmt.Sprintf("%v", userID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
+	}
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
 
 // TestGetSubUserList ws test
 func TestGetSubUserList(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsGetSubUserList()
+	result, err := z.wsGetSubUserList()
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsGetSubUserListResponse).Code == 1002 || resp.(WsGetSubUserListResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
 
 // TestAddSubUser ws test
 func TestAddSubUser(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsAddSubUser("abcde", "123456789101112aA!")
+	result, err := z.wsAddSubUser("1", "123456789101112aA!")
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsRequestResponse).Code == 1002 || resp.(WsRequestResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
 
 // TestWsSubmitOrder ws test
 func TestWsSubmitOrder(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsSubmitOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1, 1)
+	result, err := z.wsSubmitOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsSubmitOrderResponse).Code == 1002 || resp.(WsSubmitOrderResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v  Code %v Data %v Message %v No %v Success %v", result.Channel, result.Code, result.Data, result.Message, result.No, result.Success)
+	}
 }
 
 // TestWsCancelOrder ws test
 func TestWsCancelOrder(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsCancelOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1234)
+	result, err := z.wsCancelOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1234)
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsCancelOrderResponse).Code == 1002 || resp.(WsCancelOrderResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
 
 // TestWsGetAccountInfo ws test
 func TestWsGetAccountInfo(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsGetAccountInfoRequest()
+	result, err := z.wsGetAccountInfoRequest()
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsGetAccountInfoResponse).Code == 1002 || resp.(WsGetAccountInfoResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
 
 // TestWsGetOrder ws test
 func TestWsGetOrder(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsGetOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1234)
+	result, err := z.wsGetOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1234)
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsGetOrderResponse).Code == 1002 || resp.(WsGetOrderResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
 
 // TestWsGetOrders ws test
 func TestWsGetOrders(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsGetOrders(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
+	result, err := z.wsGetOrders(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsGetOrdersResponse).Code == 1002 || resp.(WsGetOrdersResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
 
 // TestWsGetOrdersIgnoreTradeType ws test
 func TestWsGetOrdersIgnoreTradeType(t *testing.T) {
 	setupWsAuth(t)
-	err := z.wsGetOrdersIgnoreTradeType(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
+	result, err := z.wsGetOrdersIgnoreTradeType(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-z.Websocket.DataHandler:
-		if resp.(WsGetOrdersResponse).Code == 1002 || resp.(WsGetOrdersResponse).Code == 1003 {
-			t.Error("Hash not calculated correctly")
-		}
-	case <-timer.C:
-		t.Error("Have not received a response")
+	if result.Code == 1002 || result.Code == 1003 {
+		t.Fatal("Hash not calculated correctly")
 	}
-	timer.Stop()
+	if result.No > 0 && z.Verbose {
+		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
+	}
 }
