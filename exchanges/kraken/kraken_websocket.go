@@ -26,7 +26,7 @@ import (
 const (
 	krakenWSURL              = "wss://ws.kraken.com"
 	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
-	krakenWSSupportedVersion = "0.1.1"
+	krakenWSSupportedVersion = "0.2.0"
 	// If a checksum fails, then resubscribing to the channel fails, fatal after these attempts
 	krakenWsResubscribeFailureLimit   = 3
 	krakenWsResubscribeDelayInSeconds = 3
@@ -192,7 +192,7 @@ func (k *Kraken) WsHandleData() {
 				k.Websocket.DataHandler <- fmt.Errorf("%v WsHandleData: %v",
 					k.Name,
 					err)
-				time.Sleep(time.Second)
+				return
 			}
 			// event response handling
 			var eventResponse WebsocketEventResponse
@@ -370,14 +370,18 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data interfa
 	bestBid := spreadData[0].(string)
 	bestAsk := spreadData[1].(string)
 	timeData, _ := strconv.ParseFloat(spreadData[2].(string), 64)
+	bidVolume := spreadData[3].(string)
+	askVolume := spreadData[4].(string)
 	sec, dec := math.Modf(timeData)
 	spreadTimestamp := time.Unix(int64(sec), int64(dec*(1e9)))
 	if k.Verbose {
-		log.Debugf("Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v'",
+		log.Debugf("Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v', Bid volume '%v', Ask volume '%v'",
 			channelData.Pair,
 			bestBid,
 			bestAsk,
-			spreadTimestamp)
+			spreadTimestamp,
+			bidVolume,
+			askVolume)
 	}
 }
 
@@ -530,6 +534,7 @@ func (k *Kraken) wsProcessOrderBookBuffer(channelData *WebsocketChannelData, obD
 			bids := bidData[i].([]interface{})
 			price, _ := strconv.ParseFloat(bids[0].(string), 64)
 			amount, _ := strconv.ParseFloat(bids[1].(string), 64)
+			// isBorderRepublish := len(bids) == 4 && bids[3].(string) == "r"
 			ob.Bids = append(ob.Bids, orderbook.Item{
 				Amount: amount,
 				Price:  price,
