@@ -515,7 +515,7 @@ func (c *COINUT) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChan
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (c *COINUT) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	c.Websocket.UnsubscribeToChannels(channels)
+	c.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

@@ -521,7 +521,7 @@ func (h *HUOBI) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChann
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (h *HUOBI) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	h.Websocket.UnsubscribeToChannels(channels)
+	h.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

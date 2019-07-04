@@ -48,7 +48,7 @@ const (
 // 47.91.169.147 api.zb.com
 // 47.52.55.212 trade.zb.com
 type ZB struct {
-	WebsocketConn wshandler.WebsocketConnection
+	WebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
 	wsRequestMtx sync.Mutex
 }

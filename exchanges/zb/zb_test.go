@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -54,7 +55,8 @@ func setupWsAuth(t *testing.T) {
 		Url:          zbWebsocketAPI,
 		Verbose:      z.Verbose,
 	}
-	z.WebsocketConn.Dial()
+	var dialer websocket.Dialer
+	z.WebsocketConn.Dial(&dialer)
 
 	z.Websocket.DataHandler = make(chan interface{}, 11)
 	z.Websocket.TrafficAlert = make(chan struct{}, 11)

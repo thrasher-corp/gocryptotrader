@@ -3,8 +3,6 @@ package zb
 import (
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"regexp"
 	"time"
 
@@ -27,21 +25,13 @@ func (z *ZB) WsConnect() error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-	z.WebsocketConn = wshandler.WebsocketConnection{
+	z.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName: z.Name,
+		Url:          z.WebsocketURL,
+		Verbose:      z.Verbose,
 	}
-
 	var dialer websocket.Dialer
-	if z.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(z.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	err := z.WebsocketConn.Dial()
+	err := z.WebsocketConn.Dial(&dialer)
 	if err != nil {
 		return err
 	}

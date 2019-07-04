@@ -385,7 +385,7 @@ func (h *HitBTC) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChan
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (h *HitBTC) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	h.Websocket.UnsubscribeToChannels(channels)
+	h.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

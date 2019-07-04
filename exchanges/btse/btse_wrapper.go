@@ -370,7 +370,7 @@ func (b *BTSE) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChanne
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (b *BTSE) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	b.Websocket.UnsubscribeToChannels(channels)
+	b.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

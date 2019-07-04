@@ -406,7 +406,7 @@ func (k *Kraken) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChan
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (k *Kraken) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	k.Websocket.UnsubscribeToChannels(channels)
+	k.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

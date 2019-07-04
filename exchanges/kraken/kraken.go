@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -59,7 +58,7 @@ const (
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
-	WebsocketConn      *websocket.Conn
+	WebsocketConn      *wshandler.WebsocketConnection
 	CryptoFee, FiatFee float64
 	wsRequestMtx       sync.Mutex
 }

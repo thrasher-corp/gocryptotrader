@@ -788,9 +788,10 @@ func (w *Websocket) subscribeToChannels() error {
 			}
 			err := w.channelSubscriber(w.channelsToSubscribe[i])
 			if err != nil {
-				return err
+				w.DataHandler <- err
+			} else {
+				w.subscribedChannels = append(w.subscribedChannels, w.channelsToSubscribe[i])
 			}
-			w.subscribedChannels = append(w.subscribedChannels, w.channelsToSubscribe[i])
 		}
 	}
 	return nil
@@ -820,6 +821,13 @@ func (w *Websocket) unsubscribeToChannels() error {
 	w.subscribedChannels = append(w.channelsToSubscribe[:0:0], w.channelsToSubscribe...) //nolint:gocritic
 
 	return nil
+}
+
+// RemoveSubscribedChannels removes supplied channels from channelsToSubscribe
+func (w *Websocket) RemoveSubscribedChannels(channels []WebsocketChannelSubscription) {
+	for i := range channels {
+		w.removeChannelToSubscribe(channels[i])
+	}
 }
 
 // removeChannelToSubscribe removes an entry from w.channelsToSubscribe
@@ -881,13 +889,6 @@ func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription)
 	w.noConnectionChecks = 0
 }
 
-// UnsubscribeToChannels removes supplied channels from channelsToSubscribe
-func (w *Websocket) UnsubscribeToChannels(channels []WebsocketChannelSubscription) {
-	for i := range channels {
-		w.removeChannelToSubscribe(channels[i])
-	}
-}
-
 // Equal two WebsocketChannelSubscription to determine equality
 func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannelSubscription) bool {
 	return strings.EqualFold(w.Channel, subscribedChannel.Channel) &&
@@ -914,9 +915,4 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
 	return w.canUseAuthenticatedEndpoints
-}
-
-// GenerateMessageID makes a unique ID to track WS responses
-func (w *Websocket) GenerateMessageID() {
-
 }

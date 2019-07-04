@@ -443,7 +443,7 @@ func (o *OKGroup) SubscribeToWebsocketChannels(channels []wshandler.WebsocketCha
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	o.Websocket.UnsubscribeToChannels(channels)
+	o.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

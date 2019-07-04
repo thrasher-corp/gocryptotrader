@@ -405,7 +405,7 @@ func (p *Poloniex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketCh
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	p.Websocket.UnsubscribeToChannels(channels)
+	p.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

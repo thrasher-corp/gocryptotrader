@@ -466,7 +466,7 @@ func (b *Bitfinex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketCh
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	b.Websocket.UnsubscribeToChannels(channels)
+	b.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

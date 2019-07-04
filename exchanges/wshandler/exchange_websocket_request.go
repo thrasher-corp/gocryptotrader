@@ -1,8 +1,11 @@
 package wshandler
 
 import (
+	"bytes"
+	"compress/flate"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sync"
@@ -28,12 +31,10 @@ type WebsocketConnection struct {
 	Verbose                      bool
 	supportsMessageIDCorrelation bool
 	supportsRetry                bool
-	retryLimit                   int64
-	MessageSequence              int64
 	RateLimit                    float64
 	timeout                      time.Duration
 	ExchangeName                 string
-	Url                          string
+	URL                          string
 	ProxyURL                     string
 	Wg                           sync.WaitGroup
 	WebsocketConnection          *websocket.Conn
@@ -51,9 +52,18 @@ type WebsocketIDRequest struct {
 	Message    interface{}
 }
 
+// AddResponseWithID adds data to IDResponses with locks and a nil check
+func (w *WebsocketConnection) AddResponseWithID(id int64, data []byte) {
+	w.Lock()
+	defer w.Unlock()
+	if w.IDResponses == nil {
+		w.IDResponses = make(map[int64][]byte)
+	}
+	w.IDResponses[id] = data
+}
+
 // Dial will handle all your life's problems
-func (w *WebsocketConnection) Dial() error {
-	var dialer websocket.Dialer
+func (w *WebsocketConnection) Dial(dialer *websocket.Dialer) error {
 	if w.ProxyURL != "" {
 		proxy, err := url.Parse(w.ProxyURL)
 		if err != nil {
@@ -64,9 +74,9 @@ func (w *WebsocketConnection) Dial() error {
 
 	var err error
 	var conStatus *http.Response
-	w.WebsocketConnection, _, err = dialer.Dial(w.Url, http.Header{})
+	w.WebsocketConnection, _, err = dialer.Dial(w.URL, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v %v %v Error: %v", w.Url, conStatus, conStatus.StatusCode, err)
+		return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
 	}
 	return nil
 }
@@ -97,6 +107,9 @@ func (w *WebsocketConnection) SendMessage(data interface{}) error {
 	return w.WebsocketConnection.WriteMessage(websocket.TextMessage, json)
 }
 
+// SendMessageReturnResponse will send a WS message to the connection
+// It will then run a goroutine to await a JSON response
+// If there is no response it will return an error
 func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interface{}) ([]byte, error) {
 	err := w.SendMessage(request)
 	if err != nil {
@@ -112,6 +125,8 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 	return w.IDResponses[id], nil
 }
 
+// WaitForResult will keep checking w.IDResponses for a response ID
+// If the timer expires, it will return without
 func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 	defer wg.Done()
 	timer := time.NewTimer(3 * time.Second)
@@ -134,13 +149,32 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 	}
 }
 
-// ReadMessage reads messages
+// ReadMessage reads messages, can handle text and binary
 func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
-	_, resp, err := w.WebsocketConnection.ReadMessage()
+	w.Lock()
+	defer w.Unlock()
+	mType, resp, err := w.WebsocketConnection.ReadMessage()
 	if err != nil {
 		return WebsocketResponse{}, err
 	}
-	return WebsocketResponse{Raw: resp}, nil
+	var standardMessage []byte
+	switch mType {
+	case websocket.TextMessage:
+		standardMessage = resp
+	case websocket.BinaryMessage:
+		reader := flate.NewReader(bytes.NewReader(resp))
+		standardMessage, err = ioutil.ReadAll(reader)
+		reader.Close()
+		if err != nil {
+			return WebsocketResponse{}, err
+		}
+	}
+	if w.Verbose {
+		log.Debugf("%v Websocket message received: %v",
+			w.ExchangeName,
+			string(standardMessage))
+	}
+	return WebsocketResponse{Raw: standardMessage}, nil
 }
 
 // GenerateMessageID Creates a messageID to checkout
@@ -149,7 +183,7 @@ func (w *WebsocketConnection) GenerateMessageID() int64 {
 	defer w.Unlock()
 	pendingMessageID := WebsocketIDRequest{
 		MessageID:  time.Now().Unix(),
-		RetryCount: w.retryLimit,
+		RetryCount: 1,
 		Timeout:    time.NewTimer(w.timeout),
 	}
 	//go w.monitorTimeout(&pendingMessageID)

@@ -366,7 +366,7 @@ func TestUnsubscribe(t *testing.T) {
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	w.unsubscribeToChannels()
+	w.RemoveSubscribedChannels()
 	if len(w.subscribedChannels) != 0 {
 		t.Errorf("Unsubscription did not occur")
 	}
@@ -408,7 +408,7 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	w.unsubscribeToChannels()
+	w.RemoveSubscribedChannels()
 	if len(w.subscribedChannels) != 1 {
 		t.Errorf("Unsubscription should not have occured")
 	}
@@ -558,7 +558,7 @@ func TestSliceCopyDoesntImpactBoth(t *testing.T) {
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	w.unsubscribeToChannels()
+	w.RemoveSubscribedChannels()
 	if len(w.subscribedChannels) != 2 {
 		t.Errorf("Unsubscription did not occur")
 	}

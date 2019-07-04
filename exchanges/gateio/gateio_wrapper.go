@@ -457,7 +457,7 @@ func (g *Gateio) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChan
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (g *Gateio) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	g.Websocket.UnsubscribeToChannels(channels)
+	g.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 

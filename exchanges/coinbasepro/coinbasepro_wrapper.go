@@ -394,7 +394,7 @@ func (c *CoinbasePro) SubscribeToWebsocketChannels(channels []wshandler.Websocke
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	c.Websocket.UnsubscribeToChannels(channels)
+	c.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
