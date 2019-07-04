@@ -50,9 +50,9 @@ func setupWsAuth(t *testing.T) {
 	if !z.Websocket.IsEnabled() && !z.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	z.WebsocketConn = wshandler.WebsocketConnection{
+	z.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName: z.Name,
-		Url:          zbWebsocketAPI,
+		URL:          zbWebsocketAPI,
 		Verbose:      z.Verbose,
 	}
 	var dialer websocket.Dialer

@@ -104,6 +104,9 @@ func (w *WebsocketConnection) SendMessage(data interface{}) error {
 	if w.Verbose {
 		log.Debugf("%v sending message to websocket %v", w.ExchangeName, string(json))
 	}
+	if w.RateLimit > 0 {
+		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
+	}
 	return w.WebsocketConnection.WriteMessage(websocket.TextMessage, json)
 }
 
@@ -151,8 +154,6 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 
 // ReadMessage reads messages, can handle text and binary
 func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
-	w.Lock()
-	defer w.Unlock()
 	mType, resp, err := w.WebsocketConnection.ReadMessage()
 	if err != nil {
 		return WebsocketResponse{}, err
@@ -182,7 +183,7 @@ func (w *WebsocketConnection) GenerateMessageID() int64 {
 	w.Lock()
 	defer w.Unlock()
 	pendingMessageID := WebsocketIDRequest{
-		MessageID:  time.Now().Unix(),
+		MessageID:  time.Now().UnixNano(),
 		RetryCount: 1,
 		Timeout:    time.NewTimer(w.timeout),
 	}

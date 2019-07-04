@@ -27,8 +27,9 @@ func (z *ZB) WsConnect() error {
 	}
 	z.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName: z.Name,
-		Url:          z.WebsocketURL,
+		URL:          zbWebsocketAPI,
 		Verbose:      z.Verbose,
+		RateLimit:    20,
 	}
 	var dialer websocket.Dialer
 	err := z.WebsocketConn.Dial(&dialer)
@@ -266,7 +267,7 @@ func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription
 	subscriptionRequest := Subscription{
 		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,
-		No:      z.WebsocketConn.GenerateMessageID(),
+		//	No:      z.WebsocketConn.GenerateMessageID(),
 	}
 	return z.WebsocketConn.SendMessage(subscriptionRequest)
 }
