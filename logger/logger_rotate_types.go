@@ -10,6 +10,7 @@ const (
 	megabyte       = 1024 * 1024
 )
 
+// Rotate struct for each instance of Rotate
 type Rotate struct {
 	FileName string
 	Rotate   *bool
