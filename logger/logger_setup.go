@@ -27,6 +27,7 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 			m.Add(ioutil.Discard)
 		}
 	}
+
 	return m
 }
 

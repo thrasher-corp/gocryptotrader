@@ -63,4 +63,5 @@ type IBotExchange interface {
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetSubscriptions() ([]WebsocketChannelSubscription, error)
 	AuthenticateWebsocket() error
+	GetBase() *Base
 }

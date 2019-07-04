@@ -42,7 +42,6 @@ func (mw *multiWriter) Write(p []byte) (n int, err error) {
 
 	for _, wr := range mw.writers {
 		go func(w io.Writer, p []byte, ch chan data) {
-
 			n, err = w.Write(p)
 			if err != nil {
 				ch <- data{n, err}
@@ -52,7 +51,10 @@ func (mw *multiWriter) Write(p []byte) (n int, err error) {
 				ch <- data{n, io.ErrShortWrite}
 				return
 			}
-			ch <- data{n, nil}
+			select {
+			case ch <- data{n, nil}:
+			default:
+			}
 		}(wr, p, results)
 	}
 

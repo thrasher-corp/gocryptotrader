@@ -664,6 +664,80 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	}, err
 }
 
+// SimulateOrder simulates an order specified by exchange, currency pair and asset
+// type
+func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	o, err := exch.FetchOrderbook(p, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	var buy = true
+	if !strings.EqualFold(r.Side, exchange.BuyOrderSide.ToString()) &&
+		!strings.EqualFold(r.Side, exchange.BidOrderSide.ToString()) {
+		buy = false
+	}
+
+	result := o.SimulateOrder(r.Amount, buy)
+	var resp gctrpc.SimulateOrderResponse
+	for x := range result.Orders {
+		resp.Orders = append(resp.Orders, &gctrpc.OrderbookItem{
+			Price:  result.Orders[x].Price,
+			Amount: result.Orders[x].Amount,
+		})
+	}
+
+	resp.Amount = result.Amount
+	resp.MaximumPrice = result.MaximumPrice
+	resp.MinimumPrice = result.MinimumPrice
+	resp.PercentageGainLoss = result.PercentageGainOrLoss
+	resp.Status = result.Status
+	return &resp, nil
+}
+
+// WhaleBomb finds the amount required to reach a specific price target for a given exchange, pair
+// and asset type
+func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	o, err := exch.FetchOrderbook(p, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	var buy = true
+	if !strings.EqualFold(r.Side, exchange.BuyOrderSide.ToString()) &&
+		!strings.EqualFold(r.Side, exchange.BidOrderSide.ToString()) {
+		buy = false
+	}
+
+	result, err := o.WhaleBomb(r.PriceTarget, buy)
+	var resp gctrpc.SimulateOrderResponse
+	for x := range result.Orders {
+		resp.Orders = append(resp.Orders, &gctrpc.OrderbookItem{
+			Price:  result.Orders[x].Price,
+			Amount: result.Orders[x].Amount,
+		})
+	}
+
+	resp.Amount = result.Amount
+	resp.MaximumPrice = result.MaximumPrice
+	resp.MinimumPrice = result.MinimumPrice
+	resp.PercentageGainLoss = result.PercentageGainOrLoss
+	resp.Status = result.Status
+	return &resp, err
+}
+
 // CancelOrder cancels an order specified by exchange, currency pair and asset
 // type
 func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.CancelOrderResponse, error) {

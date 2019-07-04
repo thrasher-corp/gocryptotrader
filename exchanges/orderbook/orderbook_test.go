@@ -11,6 +11,28 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 )
 
+func TestVerify(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		ExchangeName: "TestExchange",
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Bids: []Item{
+			{Price: 100}, {Price: 101}, {Price: 99},
+		},
+		Asks: []Item{
+			{Price: 100}, {Price: 99}, {Price: 101},
+		},
+	}
+
+	b.Verify()
+	if r := b.Bids[1].Price; r != 100 {
+		t.Error("unexpected result")
+	}
+	if r := b.Asks[1].Price; r != 100 {
+		t.Error("unexpected result")
+	}
+}
+
 func TestCalculateTotalBids(t *testing.T) {
 	t.Parallel()
 	currency := currency.NewPairFromStrings("BTC", "USD")

@@ -733,7 +733,10 @@ func (e *Base) IsAssetTypeSupported(asset asset.Item) bool {
 // PrintEnabledPairs prints the exchanges enabled asset pairs
 func (e *Base) PrintEnabledPairs() {
 	for k, v := range e.CurrencyPairs.Pairs {
-		log.Infof(log.ExchangeSys, "Asset type %v:", k)
-		log.Infof(log.ExchangeSys, "\t Enabled pairs: %v", v.Enabled)
+		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v",
+			e.Name, strings.ToUpper(k.String()), v.Enabled)
 	}
 }
+
+// GetBase returns the exchange base
+func (e *Base) GetBase() *Base { return e }

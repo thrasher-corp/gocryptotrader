@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"sort"
 	"sync"
 	"time"
 
@@ -45,6 +46,45 @@ type Base struct {
 type Orderbook struct {
 	Orderbook    map[*currency.Item]map[*currency.Item]map[asset.Item]Base
 	ExchangeName string
+}
+
+type byOBPrice []Item
+
+func (a byOBPrice) Len() int           { return len(a) }
+func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
+
+// Verify ensures that the orderbook items are correctly sorted
+// Bids should always go from a high price to a low price and
+// asks should always go from a low price to a higher price
+func (o *Base) Verify() {
+	var lastPrice float64
+	var sortBids, sortAsks bool
+	for x := range o.Bids {
+		if lastPrice != 0 && o.Bids[x].Price >= lastPrice {
+			sortBids = true
+			break
+		}
+		lastPrice = o.Bids[x].Price
+	}
+
+	lastPrice = 0
+	for x := range o.Asks {
+		if lastPrice != 0 && o.Asks[x].Price <= lastPrice {
+			sortAsks = true
+			break
+		}
+		lastPrice = o.Asks[x].Price
+	}
+
+	if sortBids {
+		sort.Sort(sort.Reverse(byOBPrice(o.Bids)))
+	}
+
+	if sortAsks {
+		sort.Sort((byOBPrice(o.Asks)))
+	}
+
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
@@ -167,6 +207,8 @@ func (o *Base) Process() error {
 	if o.LastUpdated.IsZero() {
 		o.LastUpdated = time.Now()
 	}
+
+	o.Verify()
 
 	orderbook, err := GetByExchange(o.ExchangeName)
 	if err != nil {

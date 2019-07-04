@@ -782,6 +782,32 @@
         ]
       }
     },
+    "/v1/simulateorder": {
+      "post": {
+        "operationId": "SimulateOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSimulateOrderResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSimulateOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/submitorder": {
       "post": {
         "operationId": "SubmitOrder",
@@ -800,6 +826,32 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/gctrpcSubmitOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/whalebomb": {
+      "post": {
+        "operationId": "WhaleBomb",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSimulateOrderResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWhaleBombRequest"
             }
           }
         ],
@@ -1772,6 +1824,54 @@
         }
       }
     },
+    "gctrpcSimulateOrderRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "side": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcSimulateOrderResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOrderbookItem"
+          }
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "minimum_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "maximum_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "percentage_gain_loss": {
+          "type": "number",
+          "format": "double"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcSubmitOrderRequest": {
       "type": "object",
       "properties": {
@@ -1866,6 +1966,24 @@
           "items": {
             "$ref": "#/definitions/gctrpcTickerResponse"
           }
+        }
+      }
+    },
+    "gctrpcWhaleBombRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "price_target": {
+          "type": "number",
+          "format": "double"
+        },
+        "side": {
+          "type": "string"
         }
       }
     },
