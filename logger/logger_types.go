@@ -13,7 +13,7 @@ const spacer = "|"
 type Config struct {
 	Enabled *bool `json:"enabled"`
 	SubLoggerConfig
-	LoggerFileConfig *loggerFileConfig `json:"file,omitempty"`
+	LoggerFileConfig *loggerFileConfig `json:"fileSettings,omitempty"`
 	AdvancedSettings advancedSettings  `json:"advancedSettings"`
 	SubLoggers       []SubLoggerConfig `json:"subloggers,omitempty"`
 }
