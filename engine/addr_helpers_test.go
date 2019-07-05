@@ -13,7 +13,7 @@ const (
 func TestSeed(t *testing.T) {
 	var d DepositAddressStore
 	u := map[string]map[string]string{
-		"BITSTAMP": map[string]string{
+		"BITSTAMP": {
 			"BTC": testBTCAddress,
 		},
 	}
@@ -37,7 +37,7 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 
 	d.Store = map[string]map[string]string{
-		"BITSTAMP": map[string]string{
+		"BITSTAMP": {
 			"BTC": testBTCAddress,
 		},
 	}

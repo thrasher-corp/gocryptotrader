@@ -6,7 +6,7 @@
   "enabled": true,
   "level": "INFO|WARN|DEBUG|ERROR",
   "output": "console",
-  "file": {
+  "fileSettings": {
     "filename": "log.txt",
     "rotate": true,
     "maxsize": 250
