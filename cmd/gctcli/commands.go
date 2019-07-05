@@ -2003,7 +2003,7 @@ var setLoggerDetailsCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "flags",
-			Usage: "pipe seperated value of loggers e.g INFO|WARN",
+			Usage: "pipe separated value of loggers e.g INFO|WARN",
 		},
 	},
 }
