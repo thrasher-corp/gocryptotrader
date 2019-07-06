@@ -143,7 +143,7 @@ func (e *Event) ExecuteAction() bool {
 // String turns the structure event into a string
 func (e *Event) String() string {
 	return fmt.Sprintf(
-		"If the %s [%s] %s on %s meets the following %v then %s.\n", e.Pair.String(),
+		"If the %s [%s] %s on %s meets the following %v then %s.", e.Pair.String(),
 		strings.ToUpper(e.Asset.String()), e.Item, e.Exchange, e.Condition, e.Action,
 	)
 }
