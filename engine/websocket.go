@@ -59,7 +59,7 @@ func (h *WebsocketHub) run() {
 			h.Clients[client] = true
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
-				log.Debugln("websocket: disconnected client")
+				log.Debugln(log.WebsocketMgr, "websocket: disconnected client")
 				delete(h.Clients, client)
 				close(client.Send)
 			}
@@ -68,7 +68,7 @@ func (h *WebsocketHub) run() {
 				select {
 				case client.Send <- message:
 				default:
-					log.Debugln("websocket: disconnected client")
+					log.Debugln(log.WebsocketMgr, "websocket: disconnected client")
 					close(client.Send)
 					delete(h.Clients, client)
 				}
@@ -81,7 +81,7 @@ func (h *WebsocketHub) run() {
 func (c *WebsocketClient) SendWebsocketMessage(evt interface{}) error {
 	data, err := common.JSONEncode(evt)
 	if err != nil {
-		log.Errorf("websocket: failed to send message: %s", err)
+		log.Errorf(log.WebsocketMgr, "websocket: failed to send message: %s\n", err)
 		return err
 	}
 
@@ -99,7 +99,7 @@ func (c *WebsocketClient) read() {
 		msgType, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Errorf("websocket: client disconnected, err: %s", err)
+				log.Errorf(log.WebsocketMgr, "websocket: client disconnected, err: %s\n", err)
 			}
 			break
 		}
@@ -108,39 +108,39 @@ func (c *WebsocketClient) read() {
 			var evt WebsocketEvent
 			err := common.JSONDecode(message, &evt)
 			if err != nil {
-				log.Errorf("websocket: failed to decode JSON sent from client %s", err)
+				log.Errorf(log.WebsocketMgr, "websocket: failed to decode JSON sent from client %s\n", err)
 				continue
 			}
 
 			if evt.Event == "" {
-				log.Warnf("websocket: client sent a blank event, disconnecting")
+				log.Warnln(log.WebsocketMgr, "websocket: client sent a blank event, disconnecting")
 				continue
 			}
 
 			dataJSON, err := common.JSONEncode(evt.Data)
 			if err != nil {
-				log.Errorf("websocket: client sent data we couldn't JSON decode")
+				log.Errorln(log.WebsocketMgr, "websocket: client sent data we couldn't JSON decode")
 				break
 			}
 
 			req := strings.ToLower(evt.Event)
-			log.Debugf("websocket: request received: %s", req)
+			log.Debugf(log.WebsocketMgr, "websocket: request received: %s\n", req)
 
 			result, ok := wsHandlers[req]
 			if !ok {
-				log.Debugln("websocket: unsupported event")
+				log.Debugln(log.WebsocketMgr, "websocket: unsupported event")
 				continue
 			}
 
 			if result.authRequired && !c.Authenticated {
-				log.Warnf("Websocket: request %s failed due to unauthenticated request on an authenticated API", evt.Event)
+				log.Warnf(log.WebsocketMgr, "Websocket: request %s failed due to unauthenticated request on an authenticated API\n", evt.Event)
 				c.SendWebsocketMessage(WebsocketEventResponse{Event: evt.Event, Error: "unauthorised request on authenticated API"})
 				continue
 			}
 
 			err = result.handler(c, dataJSON)
 			if err != nil {
-				log.Errorf("websocket: request %s failed. Error %s", evt.Event, err)
+				log.Errorf(log.WebsocketMgr, "websocket: request %s failed. Error %s\n", evt.Event, err)
 				continue
 			}
 		}
@@ -156,13 +156,13 @@ func (c *WebsocketClient) write() {
 		case message, ok := <-c.Send:
 			if !ok {
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				log.Debugln("websocket: hub closed the channel")
+				log.Debugln(log.WebsocketMgr, "websocket: hub closed the channel")
 				return
 			}
 
 			w, err := c.Conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				log.Errorf("websocket: failed to create new io.writeCloser: %s", err)
+				log.Errorf(log.WebsocketMgr, "websocket: failed to create new io.writeCloser: %s\n", err)
 				return
 			}
 			w.Write(message)
@@ -174,7 +174,7 @@ func (c *WebsocketClient) write() {
 			}
 
 			if err := w.Close(); err != nil {
-				log.Errorf("websocket: failed to close io.WriteCloser: %s", err)
+				log.Errorf(log.WebsocketMgr, "websocket: failed to close io.WriteCloser: %s\n", err)
 				return
 			}
 		}
@@ -217,7 +217,8 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	numClients := len(wsHub.Clients)
 
 	if numClients >= connectionLimit {
-		log.Warnf("websocket: client rejected due to websocket client limit reached. Number of clients %d. Limit %d.",
+		log.Warnf(log.WebsocketMgr,
+			"websocket: client rejected due to websocket client limit reached. Number of clients %d. Limit %d.\n",
 			numClients, connectionLimit)
 		w.WriteHeader(http.StatusForbidden)
 		return
@@ -236,13 +237,14 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Error(err)
+		log.Error(log.WebsocketMgr, err)
 		return
 	}
 
 	client := &WebsocketClient{Hub: wsHub, Conn: conn, Send: make(chan []byte, 1024)}
 	client.Hub.Register <- client
-	log.Debugf("websocket: client connected. Connected clients: %d. Limit %d.",
+	log.Debugf(log.WebsocketMgr,
+		"websocket: client connected. Connected clients: %d. Limit %d.\n",
 		numClients+1, connectionLimit)
 
 	go client.read()
@@ -266,7 +268,8 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	if auth.Username == Bot.Config.RemoteControl.Username && auth.Password == hashPW {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
-		log.Debugf("websocket: client authenticated successfully")
+		log.Debugln(log.WebsocketMgr,
+			"websocket: client authenticated successfully")
 		return client.SendWebsocketMessage(wsResp)
 	}
 
@@ -274,13 +277,15 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	client.authFailures++
 	client.SendWebsocketMessage(wsResp)
 	if client.authFailures >= Bot.Config.RemoteControl.WebsocketRPC.MaxAuthFailures {
-		log.Debugf("websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)",
+		log.Debugf(log.WebsocketMgr,
+			"websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)\n",
 			client.authFailures, Bot.Config.RemoteControl.WebsocketRPC.MaxAuthFailures)
 		wsHub.Unregister <- client
 		return nil
 	}
 
-	log.Debugf("websocket: client sent wrong username/password (failures: %d limit: %d)",
+	log.Debugf(log.WebsocketMgr,
+		"websocket: client sent wrong username/password (failures: %d limit: %d)\n",
 		client.authFailures, Bot.Config.RemoteControl.WebsocketRPC.MaxAuthFailures)
 	return nil
 }

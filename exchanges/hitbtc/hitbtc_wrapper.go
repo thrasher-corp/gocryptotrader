@@ -127,7 +127,7 @@ func (h *HitBTC) Start(wg *sync.WaitGroup) {
 // Run implements the HitBTC wrapper
 func (h *HitBTC) Run() {
 	if h.Verbose {
-		log.Debugf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
 		h.PrintEnabledPairs()
 	}
 
@@ -135,12 +135,12 @@ func (h *HitBTC) Run() {
 	if !common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), "-") ||
 		!common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := []string{"BTC-USD"}
-		log.Warn("WARNING: Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
+		log.Warn(log.ExchangeSys, "Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
 		forceUpdate = true
 
 		err := h.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
 		if err != nil {
-			log.Errorf("%s failed to update enabled currencies.\n", h.GetName())
+			log.Errorf(log.ExchangeSys, "%s failed to update enabled currencies.\n", h.GetName())
 		}
 	}
 
@@ -150,7 +150,7 @@ func (h *HitBTC) Run() {
 
 	err := h.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", h.Name, err)
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", h.Name, err)
 	}
 }
 

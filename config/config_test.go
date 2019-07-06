@@ -855,7 +855,7 @@ func TestCheckLoggerConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Logging = log.Logging{}
+	c.Logging = log.Config{}
 	err = c.CheckLoggerConfig()
 	if err != nil {
 		t.Errorf("Failed to create default logger reason: %v", err)

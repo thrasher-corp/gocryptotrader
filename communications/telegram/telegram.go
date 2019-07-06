@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -86,7 +87,7 @@ func (t *Telegram) PollerStart() {
 	for {
 		resp, err := t.GetUpdates()
 		if err != nil {
-			log.Error(err)
+			log.Errorln(log.CommunicationMgr, err)
 		}
 
 		for i := range resp.Result {
@@ -94,7 +95,7 @@ func (t *Telegram) PollerStart() {
 				if string(resp.Result[i].Message.Text[0]) == "/" {
 					err = t.HandleMessages(resp.Result[i].Message.Text, resp.Result[i].Message.From.ID)
 					if err != nil {
-						log.Error(err)
+						log.Errorln(log.CommunicationMgr, err)
 					}
 				}
 				t.Offset = resp.Result[i].UpdateID
@@ -108,11 +109,13 @@ func (t *Telegram) PollerStart() {
 func (t *Telegram) InitialConnect() {
 	resp, err := t.GetUpdates()
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(log.CommunicationMgr, err)
+		os.Exit(1)
 	}
 
 	if !resp.Ok {
-		log.Fatal(resp.Description)
+		log.Errorln(log.CommunicationMgr, resp.Description)
+		os.Exit(1)
 	}
 
 	warmWelcomeList := make(map[string]int64)
@@ -125,7 +128,8 @@ func (t *Telegram) InitialConnect() {
 	for userName, ID := range warmWelcomeList {
 		err = t.SendMessage(fmt.Sprintf("GoCryptoTrader bot has connected: Hello, %s!", userName), ID)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorln(log.CommunicationMgr, err)
+			os.Exit(1)
 		}
 	}
 	if len(resp.Result) == 0 {

@@ -159,7 +159,7 @@ func (o *OKGroup) writeToWebsocket(message string) error {
 	o.wsRequestMtx.Lock()
 	defer o.wsRequestMtx.Unlock()
 	if o.Verbose {
-		log.Debugf("%v sending message to WS: %v", o.Name, message)
+		log.Debugf(log.ExchangeSys, "%v sending message to WS: %v", o.Name, message)
 	}
 	// Really basic WS rate limit
 	time.Sleep(okGroupWsRateLimit)
@@ -183,7 +183,7 @@ func (o *OKGroup) WsConnect() error {
 
 	var err error
 	if o.Verbose {
-		log.Debugf("Attempting to connect to %v", o.Websocket.GetWebsocketURL())
+		log.Debugf(log.ExchangeSys, "Attempting to connect to %v", o.Websocket.GetWebsocketURL())
 	}
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
@@ -193,7 +193,7 @@ func (o *OKGroup) WsConnect() error {
 			err)
 	}
 	if o.Verbose {
-		log.Debugf("Successful connection to %v",
+		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			o.Websocket.GetWebsocketURL())
 	}
 	wg := sync.WaitGroup{}
@@ -203,7 +203,7 @@ func (o *OKGroup) WsConnect() error {
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
-			log.Errorf("%v - authentication failed: %v", o.Name, err)
+			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", o.Name, err)
 		}
 	}
 
@@ -235,7 +235,7 @@ func (o *OKGroup) WsReadData() (exchange.WebsocketResponse, error) {
 		}
 	}
 	if o.Verbose {
-		log.Debugf("%v Websocket message received: %v", o.Name, string(standardMessage))
+		log.Debugf(log.ExchangeSys, "%v Websocket message received: %v", o.Name, string(standardMessage))
 	}
 
 	return exchange.WebsocketResponse{Raw: standardMessage}, nil
@@ -259,7 +259,7 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 		case <-ticker.C:
 			err := o.writeToWebsocket("ping")
 			if o.Verbose {
-				log.Debugf("%v sending ping", o.GetName())
+				log.Debugf(log.ExchangeSys, "%v sending ping", o.GetName())
 			}
 			if err != nil {
 				o.Websocket.DataHandler <- err
@@ -300,7 +300,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 			err = common.JSONDecode(resp.Raw, &errorResponse)
 			if err == nil && errorResponse.ErrorCode > 0 {
 				if o.Verbose {
-					log.Debugf("WS Error Event: %v Message: %v", errorResponse.Event, errorResponse.Message)
+					log.Debugf(log.ExchangeSys, "WS Error Event: %v Message: %v", errorResponse.Event, errorResponse.Message)
 				}
 				o.WsHandleErrorResponse(errorResponse)
 				continue
@@ -312,7 +312,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 					o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)
 				}
 				if o.Verbose {
-					log.Debugf("WS Event: %v on Channel: %v", eventResponse.Event, eventResponse.Channel)
+					log.Debugf(log.ExchangeSys, "WS Event: %v on Channel: %v", eventResponse.Event, eventResponse.Channel)
 				}
 				o.Websocket.DataHandler <- eventResponse
 				continue
@@ -352,7 +352,7 @@ func (o *OKGroup) WsHandleErrorResponse(event WebsocketErrorResponse) {
 	errorMessage := fmt.Sprintf("%v error - %v message: %s ",
 		o.GetName(), event.ErrorCode, event.Message)
 	if o.Verbose {
-		log.Error(errorMessage)
+		log.Error(log.ExchangeSys, errorMessage)
 	}
 	o.Websocket.DataHandler <- fmt.Errorf(errorMessage)
 }
@@ -389,12 +389,12 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		okGroupWsCandle1800s, okGroupWsCandle3600s, okGroupWsCandle7200s, okGroupWsCandle14400s,
 		okGroupWsCandle21600s, okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:
 		if o.Verbose {
-			log.Debugf("%v Websocket candle data received", o.GetName())
+			log.Debugf(log.ExchangeSys, "%v Websocket candle data received", o.GetName())
 		}
 		o.wsProcessCandles(response)
 	case okGroupWsDepth, okGroupWsDepth5:
 		if o.Verbose {
-			log.Debugf("%v Websocket orderbook data received", o.GetName())
+			log.Debugf(log.ExchangeSys, "%v Websocket orderbook data received", o.GetName())
 		}
 		// Locking, orderbooks cannot be processed out of order
 		orderbookMutex.Lock()
@@ -410,12 +410,12 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		orderbookMutex.Unlock()
 	case okGroupWsTicker:
 		if o.Verbose {
-			log.Debugf("%v Websocket ticker data received", o.GetName())
+			log.Debugf(log.ExchangeSys, "%v Websocket ticker data received", o.GetName())
 		}
 		o.wsProcessTickers(response)
 	case okGroupWsTrade:
 		if o.Verbose {
-			log.Debugf("%v Websocket trade data received", o.GetName())
+			log.Debugf(log.ExchangeSys, "%v Websocket trade data received", o.GetName())
 		}
 		o.wsProcessTrades(response)
 	default:
@@ -427,7 +427,7 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 // where there is no websocket datahandler for it
 func logDataResponse(response *WebsocketDataResponse) {
 	for i := range response.Data {
-		log.Errorf("Unhandled channel: '%v'. Instrument '%v' Timestamp '%v', Data '%v",
+		log.Errorf(log.ExchangeSys, "Unhandled channel: '%v'. Instrument '%v' Timestamp '%v', Data '%v",
 			response.Table,
 			response.Data[i].InstrumentID,
 			response.Data[i].Timestamp,
@@ -474,7 +474,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
 		timeData, err := time.Parse(time.RFC3339Nano, response.Data[i].WebsocketCandleResponse.Candle[0])
 		if err != nil {
-			log.Warnf("%v Time data could not be parsed: %v", o.GetName(), response.Data[i].Candle[0])
+			log.Warnf(log.ExchangeSys, "%v Time data could not be parsed: %v", o.GetName(), response.Data[i].Candle[0])
 		}
 
 		candleIndex := strings.LastIndex(response.Table, okGroupWsCandle)
@@ -535,7 +535,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 		return fmt.Errorf("channel: %v. Orderbook partial for %v checksum invalid", tableName, instrument)
 	}
 	if o.Verbose {
-		log.Debug("Passed checksum!")
+		log.Debug(log.ExchangeSys, "Passed checksum!")
 	}
 	asks := o.AppendWsOrderbookItems(wsEventData.Asks)
 	bids := o.AppendWsOrderbookItems(wsEventData.Bids)
@@ -569,7 +569,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 	}
 	if internalOrderbook.LastUpdated.After(wsEventData.Timestamp) {
 		if o.Verbose {
-			log.Errorf("Orderbook update out of order. Existing: %v, Attempted: %v", internalOrderbook.LastUpdated.Unix(), wsEventData.Timestamp.Unix())
+			log.Errorf(log.ExchangeSys, "Orderbook update out of order. Existing: %v, Attempted: %v", internalOrderbook.LastUpdated.Unix(), wsEventData.Timestamp.Unix())
 		}
 		return errors.New("updated orderbook is older than existing")
 	}
@@ -584,16 +584,16 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 	checksum := o.CalculateUpdateOrderbookChecksum(&internalOrderbook)
 	if checksum == wsEventData.Checksum {
 		if o.Verbose {
-			log.Debug("Orderbook valid")
+			log.Debug(log.ExchangeSys, "Orderbook valid")
 		}
 		internalOrderbook.LastUpdated = wsEventData.Timestamp
 		if o.Verbose {
-			log.Debug("Internalising orderbook")
+			log.Debug(log.ExchangeSys, "Internalising orderbook")
 		}
 
 		err := o.Websocket.Orderbook.LoadSnapshot(&internalOrderbook, o.GetName(), true)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 		}
 		o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 			Exchange: o.GetName(),
@@ -602,7 +602,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		}
 	} else {
 		if o.Verbose {
-			log.Debug("Orderbook invalid")
+			log.Warnln(log.ExchangeSys, "Orderbook invalid")
 		}
 		return fmt.Errorf("channel: %v. Orderbook update for %v checksum invalid. Received %v Calculated %v", tableName, instrument, wsEventData.Checksum, checksum)
 	}
@@ -727,7 +727,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscrip
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if o.Verbose {
-			log.Debugf("%v subscribe error: %v", o.Name, err)
+			log.Errorf(log.ExchangeSys, "%v subscribe error: %v", o.Name, err)
 		}
 		return err
 	}
@@ -743,7 +743,7 @@ func (o *OKGroup) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscr
 	json, err := common.JSONEncode(resp)
 	if err != nil {
 		if o.Verbose {
-			log.Debugf("%v unsubscribe error: %v", o.Name, err)
+			log.Errorf(log.ExchangeSys, "%v unsubscribe error: %v", o.Name, err)
 		}
 		return err
 	}

@@ -393,7 +393,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 		[]byte(req), []byte(b.API.Credentials.Secret))
 
 	if b.Verbose {
-		log.Debugf("Sending %s request to URL %s with params %s\n",
+		log.Debugf(log.ExchangeSys, "Sending %s request to URL %s with params %s\n",
 			reqType,
 			b.API.Endpoints.URL+path,
 			req)

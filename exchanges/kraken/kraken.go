@@ -835,7 +835,7 @@ func GetError(apiErrors []string) error {
 	for _, e := range apiErrors {
 		switch e[0] {
 		case 'W':
-			log.Warnf("%s API warning: %v\n", exchangeName, e[1:])
+			log.Warnf(log.ExchangeSys, "%s API warning: %v\n", exchangeName, e[1:])
 		default:
 			return fmt.Errorf("%s API error: %v", exchangeName, e[1:])
 		}
@@ -865,7 +865,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 		append([]byte(path), shasum...), []byte(k.API.Credentials.Secret)))
 
 	if k.Verbose {
-		log.Debugf("Sending POST request to %s, path: %s, params: %s",
+		log.Debugf(log.ExchangeSys, "Sending POST request to %s, path: %s, params: %s",
 			k.API.Endpoints.URL,
 			path,
 			encoded)

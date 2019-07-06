@@ -24,7 +24,7 @@ func (c *connectionManager) Start() error {
 		return errors.New("connection manager already started")
 	}
 
-	log.Debugln("Connection manager starting...")
+	log.Debugln(log.ConnectionMgr, "Connection manager starting...")
 	var err error
 	c.conn, err = connchecker.New(Bot.Config.ConnectionMonitor.DNSList,
 		Bot.Config.ConnectionMonitor.PublicDomainList,
@@ -34,7 +34,7 @@ func (c *connectionManager) Start() error {
 		return err
 	}
 
-	log.Debugln("Connection manager started.")
+	log.Debugln(log.ConnectionMgr, "Connection manager started.")
 	return nil
 }
 
@@ -47,17 +47,17 @@ func (c *connectionManager) Stop() error {
 		return errors.New("connection manager is already stopped")
 	}
 
-	log.Debugln("Connection manager shutting down...")
+	log.Debugln(log.ConnectionMgr, "Connection manager shutting down...")
 	c.conn.Shutdown()
 	atomic.CompareAndSwapInt32(&c.stopped, 1, 0)
 	atomic.CompareAndSwapInt32(&c.started, 1, 0)
-	log.Debugln("Connection manager stopped.")
+	log.Debugln(log.ConnectionMgr, "Connection manager stopped.")
 	return nil
 }
 
 func (c *connectionManager) IsOnline() bool {
 	if c.conn == nil {
-		log.Warnf("Connection manager: IsOnline called but conn is nil")
+		log.Warnln(log.ConnectionMgr, "Connection manager: IsOnline called but conn is nil")
 		return false
 	}
 

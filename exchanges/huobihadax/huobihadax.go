@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -330,7 +331,7 @@ func (h *HUOBIHADAX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) 
 	bytesParams, _ := json.Marshal(vals)
 	postBodyParams := string(bytesParams)
 	if h.Verbose {
-		fmt.Println("Post params:", postBodyParams)
+		log.Debugf(log.ExchangeSys, "Post params: %v", postBodyParams)
 	}
 
 	var result response

@@ -203,7 +203,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 
 	p := fmt.Sprintf("%s/%s", b.API.Endpoints.URL, endpoint)
 	if b.Verbose {
-		log.Debugf("Sending %s request to URL %s with params %s\n", method, p, string(payload))
+		log.Debugf(log.ExchangeSys, "Sending %s request to URL %s with params %s\n", method, p, string(payload))
 	}
 	return b.SendPayload(method, p, headers, strings.NewReader(string(payload)),
 		&result, true, false, b.Verbose, b.HTTPDebugging)

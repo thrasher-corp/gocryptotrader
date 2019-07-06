@@ -125,7 +125,7 @@ func (y *Yobit) Run() {
 
 	err := y.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", y.Name, err)
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", y.Name, err)
 	}
 }
 

@@ -1,7 +1,6 @@
 package huobihadax
 
 import (
-	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -276,7 +275,7 @@ func TestSpotNewOrder(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed - Huobi SpotNewOrder: %s", err)
 	} else {
-		fmt.Println(newOrderID)
+		t.Log(newOrderID)
 	}
 }
 

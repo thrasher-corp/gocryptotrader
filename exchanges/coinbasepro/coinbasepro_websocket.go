@@ -354,7 +354,7 @@ func (c *CoinbasePro) wsSend(data interface{}) error {
 	c.wsRequestMtx.Lock()
 	defer c.wsRequestMtx.Unlock()
 	if c.Verbose {
-		log.Debugf("%v sending message to websocket %v", c.Name, data)
+		log.Debugf(log.ExchangeSys, "%v sending message to websocket %v", c.Name, data)
 	}
 	json, err := common.JSONEncode(data)
 	if err != nil {

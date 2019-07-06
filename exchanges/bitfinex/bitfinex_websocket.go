@@ -73,7 +73,7 @@ func (b *Bitfinex) wsSend(data interface{}) error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v", b.Name, data)
+		log.Debugf(log.ExchangeSys, "%v sending message to websocket %v", b.Name, data)
 	}
 	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }
@@ -119,7 +119,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 	b.WebsocketSubdChannels[chanID] = chanInfo
 
 	if b.Verbose {
-		log.Debugf("%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n",
+		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n",
 			b.GetName(),
 			channel,
 			pair,
@@ -163,13 +163,13 @@ func (b *Bitfinex) WsConnect() error {
 
 	err = b.WsSendAuth()
 	if err != nil {
-		log.Errorf("%v - authentication failed: %v", b.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
 	}
 
 	b.GenerateDefaultSubscriptions()
 	if hs.Event == "info" {
 		if b.Verbose {
-			log.Debugf("%s Connected to Websocket.\n", b.GetName())
+			log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.GetName())
 		}
 	}
 
@@ -224,7 +224,7 @@ func (b *Bitfinex) WsDataHandler() {
 					eventData := result.(map[string]interface{})
 					event := eventData["event"]
 					if b.Verbose {
-						log.Debugf("%v Received message. Type '%v' Message: %v", b.Name, event, eventData)
+						log.Debugf(log.ExchangeSys, "%v Received message. Type '%v' Message: %v", b.Name, event, eventData)
 					}
 					switch event {
 					case "subscribed":

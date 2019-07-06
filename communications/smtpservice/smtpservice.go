@@ -39,7 +39,7 @@ func (s *SMTPservice) Setup(cfg *config.CommunicationsConfig) {
 	s.AccountPassword = cfg.SMTPConfig.AccountPassword
 	s.From = cfg.SMTPConfig.From
 	s.RecipientList = cfg.SMTPConfig.RecipientList
-	log.Debugf("SMTP: Setup - From: %v. To: %s. Server: %s.", s.From, s.RecipientList, s.Host)
+	log.Debugf(log.CommunicationMgr, "SMTP: Setup - From: %v. To: %s. Server: %s.\n", s.From, s.RecipientList, s.Host)
 }
 
 // IsConnected returns whether or not the connection is connected
@@ -65,7 +65,7 @@ func (s *SMTPservice) Send(subject, msg string) error {
 		return errors.New("STMPservice Send() please add subject and alert")
 	}
 
-	log.Debugf("SMTP: Sending email to %v. Subject: %s Message: %s [From: %s]", s.RecipientList,
+	log.Debugf(log.CommunicationMgr, "SMTP: Sending email to %v. Subject: %s Message: %s [From: %s]\n", s.RecipientList,
 		subject, msg, s.From)
 	messageToSend := fmt.Sprintf(
 		msgSMTP,

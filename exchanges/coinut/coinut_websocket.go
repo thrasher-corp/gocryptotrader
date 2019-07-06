@@ -459,7 +459,7 @@ func (c *COINUT) wsSend(data interface{}) error {
 		return err
 	}
 	if c.Verbose {
-		log.Debugf("%v sending message to websocket %v", c.Name, string(json))
+		log.Debugf(log.ExchangeSys, "%v sending message to websocket %v", c.Name, string(json))
 	}
 	// Basic rate limiter
 	time.Sleep(coinutWebsocketRateLimit)

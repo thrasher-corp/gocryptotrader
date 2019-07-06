@@ -480,6 +480,30 @@
         ]
       }
     },
+    "/v1/getloggerdetails": {
+      "get": {
+        "operationId": "GetLoggerDetails",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetLoggerDetailsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "logger",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getorder": {
       "post": {
         "operationId": "GetOrder",
@@ -724,6 +748,32 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/gctrpcRemovePortfolioAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/setloggerdetails": {
+      "post": {
+        "operationId": "SetLoggerDetails",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetLoggerDetailsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetLoggerDetailsRequest"
             }
           }
         ],
@@ -1371,6 +1421,27 @@
         }
       }
     },
+    "gctrpcGetLoggerDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "info": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "debug": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "warn": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "error": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
     "gctrpcGetOrderRequest": {
       "type": "object",
       "properties": {
@@ -1741,6 +1812,17 @@
     },
     "gctrpcRemovePortfolioAddressResponse": {
       "type": "object"
+    },
+    "gctrpcSetLoggerDetailsRequest": {
+      "type": "object",
+      "properties": {
+        "logger": {
+          "type": "string"
+        },
+        "level": {
+          "type": "string"
+        }
+      }
     },
     "gctrpcSimulateOrderRequest": {
       "type": "object",

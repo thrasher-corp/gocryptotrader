@@ -499,7 +499,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
 
 	if b.Verbose {
-		log.Debugf("sent path: %s", path)
+		log.Debugf(log.ExchangeSys, "sent path: %s", path)
 	}
 
 	path = common.EncodeURLValues(path, params)

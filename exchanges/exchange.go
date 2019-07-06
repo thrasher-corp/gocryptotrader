@@ -395,7 +395,7 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 		if err != nil {
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
-			log.Warnf(warningBase64DecryptSecretKeyFailed, e.Name)
+			log.Warnf(log.ExchangeSys, warningBase64DecryptSecretKeyFailed, e.Name)
 		}
 		e.API.Credentials.Secret = string(result)
 	} else {
@@ -482,7 +482,8 @@ func (e *Base) ValidateAPICredentials() bool {
 	if e.API.CredentialsValidator.RequiresKey {
 		if e.API.Credentials.Key == "" ||
 			e.API.Credentials.Key == config.DefaultAPIKey {
-			log.Warnf("exchange %s requires API key but default/empty one set",
+			log.Warnf(log.ExchangeSys,
+				"exchange %s requires API key but default/empty one set",
 				e.Name)
 			return false
 		}
@@ -491,7 +492,8 @@ func (e *Base) ValidateAPICredentials() bool {
 	if e.API.CredentialsValidator.RequiresSecret {
 		if e.API.Credentials.Secret == "" ||
 			e.API.Credentials.Secret == config.DefaultAPISecret {
-			log.Warnf("exchange %s requires API secret but default/empty one set",
+			log.Warnf(log.ExchangeSys,
+				"exchange %s requires API secret but default/empty one set",
 				e.Name)
 			return false
 		}
@@ -500,7 +502,8 @@ func (e *Base) ValidateAPICredentials() bool {
 	if e.API.CredentialsValidator.RequiresPEM {
 		if e.API.Credentials.PEMKey == "" ||
 			strings.Contains(e.API.Credentials.PEMKey, "JUSTADUMMY") {
-			log.Warnf("exchange %s requires API PEM key but default/empty one set",
+			log.Warnf(log.ExchangeSys,
+				"exchange %s requires API PEM key but default/empty one set",
 				e.Name)
 			return false
 		}
@@ -509,7 +512,8 @@ func (e *Base) ValidateAPICredentials() bool {
 	if e.API.CredentialsValidator.RequiresClientID {
 		if e.API.Credentials.ClientID == "" ||
 			e.API.Credentials.ClientID == config.DefaultAPIClientID {
-			log.Warnf("exchange %s requires API ClientID but default/empty one set",
+			log.Warnf(log.ExchangeSys,
+				"exchange %s requires API ClientID but default/empty one set",
 				e.Name)
 			return false
 		}
@@ -518,7 +522,8 @@ func (e *Base) ValidateAPICredentials() bool {
 	if e.API.CredentialsValidator.RequiresBase64DecodeSecret && !e.LoadedByConfig {
 		_, err := crypto.Base64Decode(e.API.Credentials.Secret)
 		if err != nil {
-			log.Warnf("exchange %s API secret base64 decode failed: %s",
+			log.Warnf(log.ExchangeSys,
+				"exchange %s API secret base64 decode failed: %s",
 				e.Name, err)
 			return false
 		}
@@ -575,15 +580,18 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 	if force || len(newPairs) > 0 || len(removedPairs) > 0 {
 		if force {
-			log.Debugf("%s forced update of %s [%v] pairs.", e.Name, updateType,
+			log.Debugf(log.ExchangeSys,
+				"%s forced update of %s [%v] pairs.", e.Name, updateType,
 				strings.ToUpper(assetType.String()))
 		} else {
 			if len(newPairs) > 0 {
-				log.Debugf("%s Updating pairs [%v] - New: %s.\n", e.Name,
+				log.Debugf(log.ExchangeSys,
+					"%s Updating pairs [%v] - New: %s.\n", e.Name,
 					strings.ToUpper(assetType.String()), newPairs)
 			}
 			if len(removedPairs) > 0 {
-				log.Debugf("%s Updating pairs [%v] - Removed: %s.\n", e.Name,
+				log.Debugf(log.ExchangeSys,
+					"%s Updating pairs [%v] - Removed: %s.\n", e.Name,
 					strings.ToUpper(assetType.String()), removedPairs)
 			}
 		}
@@ -725,7 +733,7 @@ func (e *Base) IsAssetTypeSupported(asset asset.Item) bool {
 // PrintEnabledPairs prints the exchanges enabled asset pairs
 func (e *Base) PrintEnabledPairs() {
 	for k, v := range e.CurrencyPairs.Pairs {
-		log.Infof("%s Asset type %v:\n\t Enabled pairs: %v",
+		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v",
 			e.Name, strings.ToUpper(k.String()), v.Enabled)
 	}
 }

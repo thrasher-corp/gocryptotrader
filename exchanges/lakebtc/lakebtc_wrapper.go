@@ -120,7 +120,7 @@ func (l *LakeBTC) Run() {
 
 	err := l.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", l.Name, err)
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
 	}
 }
 

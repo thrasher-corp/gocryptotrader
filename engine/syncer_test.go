@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 func TestNewCurrencyPairSyncer(t *testing.T) {
@@ -27,7 +26,7 @@ func TestNewCurrencyPairSyncer(t *testing.T) {
 	SetupExchanges()
 
 	if err != nil {
-		log.Printf("failed to start exchange syncer")
+		t.Log("failed to start exchange syncer")
 	}
 
 	Bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(CurrencyPairSyncerConfig{

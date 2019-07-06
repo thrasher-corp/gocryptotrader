@@ -52,7 +52,7 @@ func (h *HitBTC) WsConnect() error {
 	go h.WsHandleData()
 	err = h.wsLogin()
 	if err != nil {
-		log.Errorf("%v - authentication failed: %v", h.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 	}
 
 	h.GenerateDefaultSubscriptions()
@@ -391,7 +391,7 @@ func (h *HitBTC) wsSend(data interface{}) error {
 		return err
 	}
 	if h.Verbose {
-		log.Debugf("%v sending message to websocket %v", h.Name, string(json))
+		log.Debugf(log.ExchangeSys, "%v sending message to websocket %v", h.Name, string(json))
 	}
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

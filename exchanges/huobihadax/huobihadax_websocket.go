@@ -72,11 +72,11 @@ func (h *HUOBIHADAX) WsConnect() error {
 	}
 	err = h.wsAuthenticatedDial(&dialer)
 	if err != nil {
-		log.Errorf("%v - authenticated dial failed: %v", h.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authenticated dial failed: %v\n", h.Name, err)
 	}
 	err = h.wsLogin()
 	if err != nil {
-		log.Errorf("%v - authentication failed: %v", h.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 	}
 
 	go h.WsHandleData()
@@ -156,7 +156,7 @@ func (h *HUOBIHADAX) WsHandleData() {
 			return
 		case resp := <-comms:
 			if h.Verbose {
-				log.Debugf("%v: %v: %v", h.Name, resp.URL, string(resp.Raw))
+				log.Debugf(log.ExchangeSys, "%v: %v: %v", h.Name, resp.URL, string(resp.Raw))
 			}
 			switch resp.URL {
 			case HuobiHadaxSocketIOAddress:
@@ -189,14 +189,14 @@ func (h *HUOBIHADAX) wsHandleAuthenticatedData(resp WsMessage) {
 	if init.Ping != 0 {
 		err = h.WebsocketConn.WriteJSON(`{"pong":1337}`)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 		}
 		return
 	}
 
 	if init.Op == "sub" {
 		if h.Verbose {
-			log.Debugf("%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
+			log.Debugf(log.ExchangeSys, "%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
 		}
 		return
 	}
@@ -277,7 +277,7 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 	if init.Ping != 0 {
 		err = h.WebsocketConn.WriteJSON(`{"pong":1337}`)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 		}
 		return
 	}
@@ -420,7 +420,7 @@ func (h *HUOBIHADAX) wsSend(data []byte) error {
 	h.wsRequestMtx.Lock()
 	defer h.wsRequestMtx.Unlock()
 	if h.Verbose {
-		log.Debugf("%v sending message to websocket %s", h.Name, string(data))
+		log.Debugf(log.ExchangeSys, "%v sending message to websocket %s", h.Name, string(data))
 	}
 	return h.WebsocketConn.WriteMessage(websocket.TextMessage, data)
 }
@@ -456,7 +456,7 @@ func (h *HUOBIHADAX) wsAuthenticatedSend(request interface{}) error {
 		return err
 	}
 	if h.Verbose {
-		log.Debugf("%v sending Authenticated message to websocket %s", h.Name, string(encodedRequest))
+		log.Debugf(log.ExchangeSys, "%v sending Authenticated message to websocket %s", h.Name, string(encodedRequest))
 	}
 	return h.AuthenticatedWebsocketConn.WriteMessage(websocket.TextMessage, encodedRequest)
 }

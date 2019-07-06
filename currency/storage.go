@@ -113,10 +113,13 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		return errors.New("currency storage error, no fiat display currency set in config")
 	}
 	s.baseCurrency = settings.FiatDisplayCurrency
-	log.Debugf("Fiat display currency: %s.", s.baseCurrency)
+	log.Debugf(log.Global,
+		"Fiat display currency: %s.\n", s.baseCurrency)
 
 	if settings.CryptocurrencyProvider.Enabled {
-		log.Debugf("Setting up currency analysis system with Coinmarketcap...")
+		log.Debugln(
+			log.Global,
+			"Setting up currency analysis system with Coinmarketcap...")
 		c := &coinmarketcap.Coinmarketcap{}
 		c.SetDefaults()
 		c.Setup(coinmarketcap.Settings{
@@ -200,11 +203,13 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 			return err
 		}
 
-		log.Debugf("Primary foreign exchange conversion provider %s enabled",
+		log.Debugf(log.Global,
+			"Primary foreign exchange conversion provider %s enabled\n",
 			s.fiatExchangeMarkets.Primary.Provider.GetName())
 
 		for i := range s.fiatExchangeMarkets.Support {
-			log.Debugf("Support forex conversion provider %s enabled",
+			log.Debugf(log.Global,
+				"Support forex conversion provider %s enabled\n",
 				s.fiatExchangeMarkets.Support[i].Provider.GetName())
 		}
 
@@ -212,7 +217,8 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		// until this system initially updates
 		go s.ForeignExchangeUpdater()
 	} else {
-		log.Warnf("No foreign exchange providers enabled in config.json")
+		log.Warnln(log.Global,
+			"No foreign exchange providers enabled in config.json")
 		s.mtx.Unlock()
 	}
 
@@ -258,19 +264,20 @@ func (s *Storage) SetupForexProviders(setting ...base.Settings) error {
 // ForeignExchangeUpdater is a routine that seeds foreign exchange rate and keeps
 // updated as fast as possible
 func (s *Storage) ForeignExchangeUpdater() {
-	log.Debugf("Foreign exchange updater started, seeding FX rate list..")
+	log.Debugln(log.Global,
+		"Foreign exchange updater started, seeding FX rate list..")
 
 	s.wg.Add(1)
 	defer s.wg.Done()
 
 	err := s.SeedCurrencyAnalysisData()
 	if err != nil {
-		log.Error(err)
+		log.Errorln(log.Global, err)
 	}
 
 	err = s.SeedForeignExchangeRates()
 	if err != nil {
-		log.Error(err)
+		log.Errorln(log.Global, err)
 	}
 
 	// Unlock main rate retrieval mutex so all routines waiting can get access
@@ -291,13 +298,13 @@ func (s *Storage) ForeignExchangeUpdater() {
 		case <-SeedForeignExchangeTick.C:
 			err := s.SeedForeignExchangeRates()
 			if err != nil {
-				log.Error(err)
+				log.Errorln(log.Global, err)
 			}
 
 		case <-SeedCurrencyAnalysisTick.C:
 			err := s.SeedCurrencyAnalysisData()
 			if err != nil {
-				log.Error(err)
+				log.Errorln(log.Global, err)
 			}
 		}
 	}
@@ -344,7 +351,8 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 // loads it into memory
 func (s *Storage) FetchCurrencyAnalysisData() error {
 	if s.currencyAnalysis == nil {
-		log.Warn("Currency analysis system offline, please set api keys for coinmarketcap if you wish to use this feature.")
+		log.Warnln(log.Global,
+			"Currency analysis system offline, please set api keys for coinmarketcap if you wish to use this feature.")
 		return errors.New("currency analysis system offline")
 	}
 

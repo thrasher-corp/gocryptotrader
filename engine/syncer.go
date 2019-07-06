@@ -48,12 +48,12 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyn
 
 	s.tickerBatchLastRequested = make(map[string]time.Time)
 
-	log.Debugf("Exchange currency pair syncer config:")
-	log.Debugf("SyncContinuously: %v", s.Cfg.SyncContinuously)
-	log.Debugf("SyncTicker: %v", s.Cfg.SyncTicker)
-	log.Debugf("SyncOrderbook: %v", s.Cfg.SyncOrderbook)
-	log.Debugf("SyncTrades: %v", s.Cfg.SyncTrades)
-	log.Debugf("NumWorkers: %v", s.Cfg.NumWorkers)
+	log.Debugln(log.SyncMgr, "Exchange currency pair syncer config:")
+	log.Debugf(log.SyncMgr, "SyncContinuously: %v\n", s.Cfg.SyncContinuously)
+	log.Debugf(log.SyncMgr, "SyncTicker: %v\n", s.Cfg.SyncTicker)
+	log.Debugf(log.SyncMgr, "SyncOrderbook: %v\n", s.Cfg.SyncOrderbook)
+	log.Debugf(log.SyncMgr, "SyncTrades: %v\n", s.Cfg.SyncTrades)
+	log.Debugf(log.SyncMgr, "NumWorkers: %v\n", s.Cfg.NumWorkers)
 
 	return &s, nil
 }
@@ -92,7 +92,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 	defer e.mux.Unlock()
 
 	if e.Cfg.SyncTicker {
-		log.Debugf("%s: Added ticker sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
+		log.Debugf(log.SyncMgr, "%s: Added ticker sync item %v: using websocket: %v using REST: %v\n", c.Exchange, c.Pair.String(),
 			c.Ticker.IsUsingWebsocket, c.Ticker.IsUsingREST)
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
 			e.initSyncWG.Add(1)
@@ -101,7 +101,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 	}
 
 	if e.Cfg.SyncOrderbook {
-		log.Debugf("%s: Added orderbook sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
+		log.Debugf(log.SyncMgr, "%s: Added orderbook sync item %v: using websocket: %v using REST: %v\n", c.Exchange, c.Pair.String(),
 			c.Orderbook.IsUsingWebsocket, c.Orderbook.IsUsingREST)
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
 			e.initSyncWG.Add(1)
@@ -110,7 +110,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 	}
 
 	if e.Cfg.SyncTrades {
-		log.Debugf("%s: Added trade sync item %v: using websocket: %v using REST: %v", c.Exchange, c.Pair.String(),
+		log.Debugf(log.SyncMgr, "%s: Added trade sync item %v: using websocket: %v using REST: %v\n", c.Exchange, c.Pair.String(),
 			c.Trade.IsUsingWebsocket, c.Trade.IsUsingREST)
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
 			e.initSyncWG.Add(1)
@@ -197,7 +197,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 			return
 		}
 	default:
-		log.Warnf("ExchangeCurrencyPairSyncer: unknown sync item %v", syncType)
+		log.Warnf(log.SyncMgr, "ExchangeCurrencyPairSyncer: unknown sync item %v\n", syncType)
 		return
 	}
 
@@ -218,7 +218,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				e.CurrencyPairs[x].Ticker.HaveData = true
 				e.CurrencyPairs[x].Ticker.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
-					log.Debugf("%s ticker sync complete %v [%d/%d].", exchangeName, p, removedCounter, createdCounter)
+					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].\n", exchangeName, p, removedCounter, createdCounter)
 					removedCounter++
 					e.initSyncWG.Done()
 				}
@@ -232,7 +232,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				e.CurrencyPairs[x].Orderbook.HaveData = true
 				e.CurrencyPairs[x].Orderbook.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
-					log.Debugf("%s orderbook sync complete %v [%d/%d].", exchangeName, p, removedCounter, createdCounter)
+					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].\n", exchangeName, p, removedCounter, createdCounter)
 					removedCounter++
 					e.initSyncWG.Done()
 				}
@@ -246,7 +246,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				e.CurrencyPairs[x].Trade.HaveData = true
 				e.CurrencyPairs[x].Trade.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
-					log.Debugf("%s trade sync complete %v [%d/%d].", exchangeName, p, removedCounter, createdCounter)
+					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].\n", exchangeName, p, removedCounter, createdCounter)
 					removedCounter++
 					e.initSyncWG.Done()
 				}
@@ -257,7 +257,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 
 func (e *ExchangeCurrencyPairSyncer) worker() {
 	cleanup := func() {
-		log.Debugf("Exchange CurrencyPairSyncer worker shutting down.")
+		log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer worker shutting down.")
 	}
 	defer cleanup()
 
@@ -277,7 +277,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			if Bot.Exchanges[x].SupportsWebsocket() && Bot.Exchanges[x].IsWebsocketEnabled() {
 				ws, err := Bot.Exchanges[x].GetWebsocket()
 				if err != nil {
-					log.Debugf("%s unable to get websocket pointer. Err: %s", exchangeName, err)
+					log.Errorf(log.SyncMgr, "%s unable to get websocket pointer. Err: %s\n", exchangeName, err)
 					usingREST = true
 				}
 
@@ -329,7 +329,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 					c, err := e.get(exchangeName, p, assetTypes[y])
 					if err != nil {
-						log.Errorf("failed to get item. Err: %s", err)
+						log.Errorf(log.SyncMgr, "failed to get item. Err: %s\n", err)
 						continue
 					}
 
@@ -345,7 +345,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, true)
 										c.Ticker.IsUsingWebsocket = false
 										c.Ticker.IsUsingREST = true
-										log.Warnf("%s %s: No ticker update after 10 seconds, switching from websocket to rest",
+										log.Warnf(log.SyncMgr, "%s %s: No ticker update after 10 seconds, switching from websocket to rest\n",
 											c.Exchange, c.Pair.String())
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
 									}
@@ -367,14 +367,14 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										if batchLastDone.IsZero() || time.Since(batchLastDone) > defaultSyncerTimeout {
 											e.mux.Lock()
 											if e.Cfg.Verbose {
-												log.Debugf("%s Init'ing REST ticker batching", exchangeName)
+												log.Debugf(log.SyncMgr, "%s Init'ing REST ticker batching\n", exchangeName)
 											}
 											result, err = Bot.Exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 											e.tickerBatchLastRequested[exchangeName] = time.Now()
 											e.mux.Unlock()
 										} else {
 											if e.Cfg.Verbose {
-												log.Debugf("%s Using recent batching cache", exchangeName)
+												log.Debugf(log.OrderMgr, "%s Using recent batching cache\n", exchangeName)
 											}
 											result, err = Bot.Exchanges[x].FetchTicker(c.Pair, c.AssetType)
 										}
@@ -407,7 +407,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
 										c.Orderbook.IsUsingWebsocket = false
 										c.Orderbook.IsUsingREST = true
-										log.Warnf("%s %s: No orderbook update after 15 seconds, switching from websocket to rest",
+										log.Warnf(log.SyncMgr, "%s %s: No orderbook update after 15 seconds, switching from websocket to rest\n",
 											c.Exchange, c.Pair.String())
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, false)
 									}
@@ -445,7 +445,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
-	log.Debugf("Exchange CurrencyPairSyncer started.")
+	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
 
 	for x := range Bot.Exchanges {
 		if !Bot.Exchanges[x].IsEnabled() {
@@ -458,7 +458,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 		supportsREST := Bot.Exchanges[x].SupportsREST()
 
 		if !supportsREST && !supportsWebsocket {
-			log.Warnf("Loaded exchange %s does not support REST or Websocket.", exchangeName)
+			log.Warnf(log.SyncMgr, "Loaded exchange %s does not support REST or Websocket.\n", exchangeName)
 			continue
 		}
 
@@ -468,7 +468,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 		if supportsWebsocket {
 			ws, err := Bot.Exchanges[x].GetWebsocket()
 			if err != nil {
-				log.Errorf("%s failed to get websocket. Err: %s", exchangeName, err)
+				log.Errorf(log.SyncMgr, "%s failed to get websocket. Err: %s\n", exchangeName, err)
 				usingREST = true
 			}
 
@@ -481,7 +481,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 
 				err = ws.Connect()
 				if err != nil {
-					log.Errorf("%s websocket failed to connect. Err: %s", exchangeName, err)
+					log.Errorf(log.SyncMgr, "%s websocket failed to connect. Err: %s\n", exchangeName, err)
 					usingREST = true
 				} else {
 					usingWebsocket = true
@@ -529,21 +529,21 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 	}
 
 	if atomic.CompareAndSwapInt32(&e.initSyncStarted, 0, 1) {
-		log.Debugln("Exchange CurrencyPairSyncer initial sync started.")
+		log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync started.")
 		e.initSyncStartTime = time.Now()
-		log.Debugln(createdCounter)
-		log.Debugln(removedCounter)
+		log.Debugln(log.SyncMgr, createdCounter)
+		log.Debugln(log.SyncMgr, removedCounter)
 	}
 
 	go func() {
 		e.initSyncWG.Wait()
 		if atomic.CompareAndSwapInt32(&e.initSyncCompleted, 0, 1) {
-			log.Debugf("Exchange CurrencyPairSyncer initial sync is complete.")
+			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.\n")
 			completedTime := time.Now()
-			log.Debugf("Exchange CurrencyPairSyncer initiial sync took %v [%v sync items].", completedTime.Sub(e.initSyncStartTime), createdCounter)
+			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initiial sync took %v [%v sync items].\n", completedTime.Sub(e.initSyncStartTime), createdCounter)
 
 			if !e.Cfg.SyncContinuously {
-				log.Debugf("Exchange CurrencyPairSyncer stopping.")
+				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
 				e.Stop()
 				Bot.Stop()
 				return
@@ -564,6 +564,6 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 func (e *ExchangeCurrencyPairSyncer) Stop() {
 	stopped := atomic.CompareAndSwapInt32(&e.shutdown, 0, 1)
 	if stopped {
-		log.Debugf("Exchange CurrencyPairSyncer stopped.")
+		log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	}
 }

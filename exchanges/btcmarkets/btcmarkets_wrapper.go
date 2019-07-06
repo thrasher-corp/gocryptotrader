@@ -118,12 +118,12 @@ func (b *BTCMarkets) Run() {
 	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
 		enabledPairs := []string{"BTC-AUD"}
-		log.Println("WARNING: Available pairs for BTC Makrets reset due to config upgrade, please enable the pairs you would like again.")
+		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
 
 		err := b.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
 		if err != nil {
-			log.Errorf("%s failed to update currencies. Err: %s", b.Name, err)
+			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s", b.Name, err)
 		}
 	}
 
@@ -133,7 +133,7 @@ func (b *BTCMarkets) Run() {
 
 	err := b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 

@@ -433,7 +433,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	}
 
 	if g.Verbose {
-		log.Debugf("Request JSON: %s", PayloadJSON)
+		log.Debugf(log.ExchangeSys, "Request JSON: %s", PayloadJSON)
 	}
 
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)

@@ -113,7 +113,7 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
 	}
 
 	if !o.GetEnabledFeatures().AutoPairUpdates {
@@ -122,7 +122,7 @@ func (o *OKCoin) Run() {
 
 	err := o.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", o.Name, err)
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", o.Name, err)
 	}
 }
 

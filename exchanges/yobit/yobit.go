@@ -286,7 +286,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(encoded), []byte(y.API.Credentials.Secret))
 
 	if y.Verbose {
-		log.Debugf("Sending POST request to %s calling path %s with params %s\n",
+		log.Debugf(log.ExchangeSys, "Sending POST request to %s calling path %s with params %s\n",
 			apiPrivateURL,
 			path,
 			encoded)

@@ -62,7 +62,7 @@ func (o *orderManager) Start() error {
 		return errors.New("order manager already started")
 	}
 
-	log.Debugln("Order manager starting...")
+	log.Debugln(log.OrderBook, "Order manager starting...")
 
 	o.shutdown = make(chan struct{})
 	o.orderStore.Orders = make(map[string][]exchange.OrderDetail)
@@ -82,23 +82,23 @@ func (o *orderManager) Stop() error {
 		atomic.CompareAndSwapInt32(&o.started, 1, 0)
 	}()
 
-	log.Debugln("Order manager shutting down...")
+	log.Debugln(log.OrderBook, "Order manager shutting down...")
 	close(o.shutdown)
 	return nil
 }
 
 func (o *orderManager) gracefulShutdown() {
 	if o.cfg.CancelOrdersOnShutdown {
-		log.Debug("Order manager: Cancelling any open orders...")
+		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
 		orders := o.orderStore.Get()
 		if orders == nil {
 			return
 		}
 
 		for k, v := range orders {
-			log.Debugf("Order manager: Cancelling order(s) for exchange %s.", k)
+			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.\n", k)
 			for y := range v {
-				log.Debugf("order manager: Cancelling order ID %v [%v]",
+				log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
 					v[y].ID, v[y])
 				err := o.Cancel(k, &exchange.OrderCancellation{
 					OrderID: v[y].ID,
@@ -106,7 +106,7 @@ func (o *orderManager) gracefulShutdown() {
 				if err != nil {
 					msg := fmt.Sprintf("Order manager: Exchange %s unable to cancel order ID=%v. Err: %s",
 						k, v[y].ID, err)
-					log.Debugln(msg)
+					log.Debugln(log.OrderBook, msg)
 					Bot.CommsManager.PushEvent(base.Event{
 						Type:    "order",
 						Message: msg,
@@ -116,7 +116,7 @@ func (o *orderManager) gracefulShutdown() {
 
 				msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
 					k, v[y].ID)
-				log.Debugln(msg)
+				log.Debugln(log.OrderBook, msg)
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: msg,
@@ -127,11 +127,11 @@ func (o *orderManager) gracefulShutdown() {
 }
 
 func (o *orderManager) run() {
-	log.Debugln("Order manager started.")
+	log.Debugln(log.OrderBook, "Order manager started.")
 	tick := time.NewTicker(OrderManagerDelay)
 	Bot.ServicesWG.Add(1)
 	defer func() {
-		log.Debugf("Order manager shutdown.")
+		log.Debugln(log.OrderMgr, "Order manager shutdown.")
 		tick.Stop()
 		Bot.ServicesWG.Done()
 	}()
@@ -213,7 +213,7 @@ func (o *orderManager) Submit(exchName string, order *exchange.OrderSubmission) 
 
 	id, err := common.GetV4UUID()
 	if err != nil {
-		log.Warnf("Order manager: Unable to generate UUID. Err: %s", err)
+		log.Warnf(log.OrderMgr, "Order manager: Unable to generate UUID. Err: %s\n", err)
 	}
 
 	result, err := exch.SubmitOrder(order)
@@ -227,7 +227,7 @@ func (o *orderManager) Submit(exchName string, order *exchange.OrderSubmission) 
 
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v.",
 		exchName, result.OrderID, id.String(), order.Pair, order.Price, order.Amount, order.OrderSide, order.OrderType)
-	log.Debugln(msg)
+	log.Debugln(log.OrderMgr, msg)
 	Bot.CommsManager.PushEvent(base.Event{
 		Type:    "order",
 		Message: msg,
@@ -244,7 +244,7 @@ func (o *orderManager) Submit(exchName string, order *exchange.OrderSubmission) 
 func (o *orderManager) processOrders() {
 	authExchanges := GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
-		log.Debugf("Order manager: Procesing orders for exchange %v.", authExchanges[x])
+		log.Debugf(log.OrderMgr, "Order manager: Procesing orders for exchange %v.\n", authExchanges[x])
 		exch := GetExchangeByName(authExchanges[x])
 		req := exchange.GetOrdersRequest{
 			OrderSide: exchange.AnyOrderSide,
@@ -252,7 +252,7 @@ func (o *orderManager) processOrders() {
 		}
 		result, err := exch.GetActiveOrders(&req)
 		if err != nil {
-			log.Debugf("Order manager: Unable to get active orders: %s", err)
+			log.Warnf(log.OrderMgr, "Order manager: Unable to get active orders: %s\n", err)
 			continue
 		}
 
@@ -262,7 +262,7 @@ func (o *orderManager) processOrders() {
 			if result != ErrOrdersAlreadyExists {
 				msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
 					order.Exchange, order.ID, order.CurrencyPair, order.Price, order.Amount, order.OrderSide, order.OrderType)
-				log.Debug(msg)
+				log.Debugf(log.OrderMgr, "%v\n", msg)
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: msg,

@@ -9,7 +9,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 func TestVerify(t *testing.T) {
@@ -364,7 +363,7 @@ func TestProcessOrderbook(t *testing.T) {
 			m.Lock()
 			err = base.Process()
 			if err != nil {
-				log.Error(err)
+				t.Error(err)
 				catastrophicFailure = true
 				return
 			}

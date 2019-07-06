@@ -162,13 +162,13 @@ func (s *Slack) NewConnection() error {
 		}
 
 		if s.Verbose {
-			log.Debugf("Slack: %s [%s] connected to %s [%s] \nWebsocket URL: %s.\n",
+			log.Debugf(log.CommunicationMgr, "Slack: %s [%s] connected to %s [%s] \nWebsocket URL: %s.\n",
 				s.Details.Self.Name,
 				s.Details.Self.ID,
 				s.Details.Team.Domain,
 				s.Details.Team.ID,
 				s.Details.URL)
-			log.Debugf("Slack: Public channels: %s", s.GetChannelsString())
+			log.Debugf(log.CommunicationMgr, "Slack: Public channels: %s\n", s.GetChannelsString())
 		}
 
 		s.TargetChannelID, err = s.GetIDByName(s.TargetChannel)
@@ -176,7 +176,7 @@ func (s *Slack) NewConnection() error {
 			return err
 		}
 
-		log.Debugf("Slack: Target channel ID: %v [#%v]", s.TargetChannelID,
+		log.Debugf(log.CommunicationMgr, "Slack: Target channel ID: %v [#%v]\n", s.TargetChannelID,
 			s.TargetChannel)
 		return s.WebsocketConnect()
 	}
@@ -208,13 +208,13 @@ func (s *Slack) WebsocketReader() {
 	for {
 		_, resp, err := s.WebsocketConn.ReadMessage()
 		if err != nil {
-			log.Error(err)
+			log.Errorln(log.CommunicationMgr, err)
 		}
 
 		var data WebsocketResponse
 		err = common.JSONDecode(resp, &data)
 		if err != nil {
-			log.Error(err)
+			log.Errorln(log.CommunicationMgr, err)
 			continue
 		}
 
@@ -249,10 +249,10 @@ func (s *Slack) WebsocketReader() {
 
 		case "pong":
 			if s.Verbose {
-				log.Debugf("Slack: Pong received from server")
+				log.Debugln(log.CommunicationMgr, "Slack: Pong received from server")
 			}
 		default:
-			log.Debugf(string(resp))
+			log.Debugln(log.CommunicationMgr, string(resp))
 		}
 	}
 }
@@ -264,7 +264,7 @@ func (s *Slack) handlePresenceChange(resp []byte) error {
 		return err
 	}
 	if s.Verbose {
-		log.Debugf("Slack: Presence change. User %s [%s] changed status to %s\n",
+		log.Debugf(log.CommunicationMgr, "Slack: Presence change. User %s [%s] changed status to %s\n",
 			s.GetUsernameByID(pres.User),
 			pres.User, pres.Presence)
 	}
@@ -281,7 +281,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 		return err
 	}
 	if s.Verbose {
-		log.Debugf("Slack: Message received by %s [%s] with text: %s\n",
+		log.Debugf(log.CommunicationMgr, "Slack: Message received by %s [%s] with text: %s\n",
 			s.GetUsernameByID(msg.User),
 			msg.User, msg.Text)
 	}
@@ -293,7 +293,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 	if data.Error.Msg == "Socket URL has expired" {
 		if s.Verbose {
-			log.Debugf("Slack websocket URL has expired.. Reconnecting")
+			log.Debugln(log.CommunicationMgr, "Slack websocket URL has expired.. Reconnecting")
 		}
 
 		if s.WebsocketConn == nil {
@@ -301,7 +301,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 		}
 
 		if err := s.WebsocketConn.Close(); err != nil {
-			log.Error(err)
+			log.Errorln(log.CommunicationMgr, err)
 		}
 
 		s.ReconnectURL = ""
@@ -313,7 +313,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 
 func (s *Slack) handleHelloResponse() {
 	if s.Verbose {
-		log.Debugln("Slack: Websocket connected successfully.")
+		log.Debugln(log.CommunicationMgr, "Slack: Websocket connected successfully.")
 	}
 	s.Connected = true
 	go s.WebsocketKeepAlive()
@@ -330,7 +330,7 @@ func (s *Slack) handleReconnectResponse(resp []byte) error {
 	}
 	s.ReconnectURL = recURL.URL
 	if s.Verbose {
-		log.Debugf("Slack: Reconnect URL set to %s\n", s.ReconnectURL)
+		log.Debugf(log.CommunicationMgr, "Slack: Reconnect URL set to %s\n", s.ReconnectURL)
 	}
 	return nil
 }
@@ -343,7 +343,7 @@ func (s *Slack) WebsocketKeepAlive() {
 	for {
 		<-ticker.C
 		if err := s.WebsocketSend("ping", ""); err != nil {
-			log.Debugf("Slack: WebsocketKeepAlive() error %s", err)
+			log.Errorf(log.CommunicationMgr, "Slack: WebsocketKeepAlive() error %s\n", err)
 		}
 	}
 }
@@ -364,7 +364,7 @@ func (s *Slack) WebsocketSend(eventType, text string) error {
 	}
 
 	if s.Verbose {
-		log.Debugf("Slack: Sending websocket message: %s", string(data))
+		log.Debugf(log.CommunicationMgr, "Slack: Sending websocket message: %s\n", string(data))
 	}
 
 	if s.WebsocketConn == nil {

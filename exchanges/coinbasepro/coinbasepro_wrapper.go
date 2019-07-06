@@ -130,7 +130,7 @@ func (c *CoinbasePro) Start(wg *sync.WaitGroup) {
 // Run implements the coinbasepro wrapper
 func (c *CoinbasePro) Run() {
 	if c.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinbaseproWebsocketURL)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinbaseproWebsocketURL)
 		c.PrintEnabledPairs()
 	}
 
@@ -140,7 +140,7 @@ func (c *CoinbasePro) Run() {
 
 	err := c.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s failed to update tradable pairs. Err: %s", c.Name, err)
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
 }
 
@@ -434,7 +434,7 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersReques
 		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
-			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				c.Name, "GetActiveOrders", respOrders[i].ID, respOrders[i].CreatedAt)
 		}
 
@@ -477,7 +477,7 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
-			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				c.Name, "GetActiveOrders", respOrders[i].ID, respOrders[i].CreatedAt)
 		}
 

@@ -18,7 +18,8 @@ import (
 func main() {
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(log.Global, err)
+		os.Exit(1)
 	}
 
 	// Handle flags
@@ -89,7 +90,8 @@ func main() {
 
 	engine.Bot, err = engine.NewFromSettings(&settings)
 	if engine.Bot == nil || err != nil {
-		log.Fatalf("Unable to initialise bot engine. Err: %s", err)
+		log.Errorf(log.Global, "Unable to initialise bot engine. Err: %s\n", err)
+		os.Exit(1)
 	}
 
 	engine.PrintSettings(&engine.Bot.Settings)
