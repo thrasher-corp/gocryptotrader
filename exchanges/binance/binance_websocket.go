@@ -250,7 +250,7 @@ func (b *Binance) WsHandleData() {
 
 					b.Websocket.DataHandler <- exchange.TradeData{
 						CurrencyPair: currency.NewPairFromString(trade.Symbol),
-						Timestamp:    time.Unix(0, trade.TimeStamp * 1000000),
+						Timestamp:    time.Unix(0, trade.TimeStamp * int64(time.Millisecond)),
 						Price:        price,
 						Amount:       amount,
 						Exchange:     b.GetName(),
