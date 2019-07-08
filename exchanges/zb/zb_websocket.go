@@ -311,6 +311,9 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 	request.Accesskey = z.APIKey
 	request.Sign = z.wsGenerateSignature(request)
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsGetSubUserListResponse{}, err
+	}
 	var response WsGetSubUserListResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -328,7 +331,9 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
-	log.Error(string(resp))
+	if err != nil {
+		return &WsGetSubUserListResponse{}, err
+	}
 	var response WsGetSubUserListResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -351,6 +356,9 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsRequestResponse{}, err
+	}
 	var response WsRequestResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -375,6 +383,9 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsRequestResponse{}, err
+	}
 	var response WsRequestResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -396,6 +407,9 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsSubmitOrderResponse{}, err
+	}
 	var response WsSubmitOrderResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -415,6 +429,9 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsCancelOrderResponse{}, err
+	}
 	var response WsCancelOrderResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -434,6 +451,9 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsGetOrderResponse{}, err
+	}
 	var response WsGetOrderResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -454,6 +474,9 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 	request.Sign = z.wsGenerateSignature(request)
 	log.Debug(request)
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsGetOrdersResponse{}, err
+	}
 	var response WsGetOrdersResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -474,6 +497,9 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsGetOrdersIgnoreTradeTypeResponse{}, err
+	}
 	var response WsGetOrdersIgnoreTradeTypeResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err
@@ -492,6 +518,9 @@ func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
+	if err != nil {
+		return &WsGetAccountInfoResponse{}, err
+	}
 	var response WsGetAccountInfoResponse
 	err = common.JSONDecode(resp, &response)
 	return &response, err

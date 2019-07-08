@@ -3,6 +3,7 @@ package wshandler
 import (
 	"bytes"
 	"compress/flate"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -38,18 +39,9 @@ type WebsocketConnection struct {
 	ProxyURL                     string
 	Wg                           sync.WaitGroup
 	WebsocketConnection          *websocket.Conn
-	pendingMessageResponseIDs    []WebsocketIDRequest
+	Shutdown                     chan struct{}
 	// These are the requests and responses
-	Shutdown    chan struct{}
 	IDResponses map[int64][]byte
-}
-
-// WebsocketIDRequest l o l
-type WebsocketIDRequest struct {
-	MessageID  int64
-	RetryCount int64
-	Timeout    *time.Timer
-	Message    interface{}
 }
 
 // AddResponseWithID adds data to IDResponses with locks and a nil check
@@ -74,7 +66,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer) error {
 
 	var err error
 	var conStatus *http.Response
-	w.WebsocketConnection, _, err = dialer.Dial(w.URL, http.Header{})
+	w.WebsocketConnection, conStatus, err = dialer.Dial(w.URL, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
 	}
@@ -163,11 +155,28 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	case websocket.TextMessage:
 		standardMessage = resp
 	case websocket.BinaryMessage:
-		reader := flate.NewReader(bytes.NewReader(resp))
-		standardMessage, err = ioutil.ReadAll(reader)
-		reader.Close()
-		if err != nil {
-			return WebsocketResponse{}, err
+		// Detect GZIP
+		if resp[0] == 31 && resp[1] == 139 {
+			b := bytes.NewReader(resp)
+			gReader, err := gzip.NewReader(b)
+			if err != nil {
+				return WebsocketResponse{}, err
+			}
+			standardMessage, err = ioutil.ReadAll(gReader)
+			if err != nil {
+				return WebsocketResponse{}, err
+			}
+			err = gReader.Close()
+			if err != nil {
+				return WebsocketResponse{}, err
+			}
+		} else {
+			reader := flate.NewReader(bytes.NewReader(resp))
+			standardMessage, err = ioutil.ReadAll(reader)
+			reader.Close()
+			if err != nil {
+				return WebsocketResponse{}, err
+			}
 		}
 	}
 	if w.Verbose {
@@ -180,14 +189,5 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 
 // GenerateMessageID Creates a messageID to checkout
 func (w *WebsocketConnection) GenerateMessageID() int64 {
-	w.Lock()
-	defer w.Unlock()
-	pendingMessageID := WebsocketIDRequest{
-		MessageID:  time.Now().UnixNano(),
-		RetryCount: 1,
-		Timeout:    time.NewTimer(w.timeout),
-	}
-	//go w.monitorTimeout(&pendingMessageID)
-	w.pendingMessageResponseIDs = append(w.pendingMessageResponseIDs, pendingMessageID)
-	return pendingMessageID.MessageID
+	return time.Now().UnixNano()
 }
