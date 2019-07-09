@@ -13,7 +13,7 @@ import (
 const (
 	// Default number of enabled exchanges. Modify this whenever an exchange is
 	// added or removed
-	defaultEnabledExchanges = 27
+	defaultEnabledExchanges = 28
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
@@ -479,7 +479,7 @@ func TestCountEnabledExchanges(t *testing.T) {
 	}
 	enabledExch := GetConfigEnabledExchanges.CountEnabledExchanges()
 	if enabledExch != defaultEnabledExchanges {
-		t.Error("Test failed. GetConfigEnabledExchanges is wrong")
+		t.Errorf("Test failed. Expected %v, Received %v", defaultEnabledExchanges, enabledExch)
 	}
 }
 

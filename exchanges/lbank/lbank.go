@@ -1,6 +1,7 @@
 package lbank
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -52,7 +53,7 @@ const (
 	lbankUSD2CNYRate       = "usdToCny.do"
 	lbankWithdrawConfig    = "withdrawConfigs.do"
 	lbankWithdraw          = "withdraw.do"
-	lbankWithdrawCancel    = "withdrawCancel.do"
+	lbankRevokeWithdraw    = "withdrawCancel.do"
 
 	// Authenticated endpoints
 
@@ -64,10 +65,10 @@ func (l *Lbank) SetDefaults() {
 	l.Enabled = false
 	l.Verbose = false
 	l.RESTPollingDelay = 10
-	l.RequestCurrencyPairFormat.Delimiter = ""
-	l.RequestCurrencyPairFormat.Uppercase = true
-	l.ConfigCurrencyPairFormat.Delimiter = ""
-	l.ConfigCurrencyPairFormat.Uppercase = true
+	l.RequestCurrencyPairFormat.Delimiter = "_"
+	l.RequestCurrencyPairFormat.Uppercase = false
+	l.ConfigCurrencyPairFormat.Delimiter = "_"
+	l.ConfigCurrencyPairFormat.Uppercase = false
 	l.AssetTypes = []string{ticker.Spot}
 	l.SupportsAutoPairUpdating = false
 	l.SupportsRESTTickerBatching = false
@@ -117,15 +118,6 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 
-		// If the exchange supports websocket, update the below block
-		// err = l.WebsocketSetup(l.WsConnect,
-		//	exch.Name,
-		//	exch.Websocket,
-		//	lbankWebsocket,
-		//	exch.WebsocketURL)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
 	}
 }
 
@@ -246,8 +238,8 @@ func (l *Lbank) GetUserInfo() (InfoResponse, error) {
 }
 
 // CreateOrder creates an order
-func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (SubmitOrderResponse, error) {
-	var resp SubmitOrderResponse
+func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (CreateOrderResponse, error) {
+	var resp CreateOrderResponse
 	if !strings.EqualFold(side, "buy") && !strings.EqualFold(side, "sell") {
 		log.Println(side)
 		log.Println(strings.EqualFold(side, "BUY"))
@@ -266,32 +258,17 @@ func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (SubmitOrd
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	path := fmt.Sprintf("%s/v%s/%s?", l.APIUrl, lbankAPIVersion, lbankPlaceOrder)
-	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
-	if err != nil {
-		return resp, err
-	}
-	if !resp.Result {
-		return resp, errors.New(errorCodes[resp.ErrorCode])
-	}
-	return resp, nil
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
 }
 
-// CancelOrder cancels a given order
-func (l *Lbank) CancelOrder(pair, orderID string) (CancelOrderResponse, error) {
-	var resp CancelOrderResponse
+// RemoveOrder cancels a given order
+func (l *Lbank) RemoveOrder(pair, orderID string) (RemoveOrderResponse, error) {
+	var resp RemoveOrderResponse
 	params := url.Values{}
 	params.Set("symbol", pair)
 	params.Set("order_id", orderID)
-	path := fmt.Sprintf("%s/v%s/%s?", l.APIUrl, lbankAPIVersion, lbankCancelOrder)
-	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
-	if err != nil {
-		return resp, err
-	}
-
-	if !resp.Result {
-		return resp, errors.New(errorCodes[resp.ErrorCode])
-	}
-	return resp, nil
+	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankCancelOrder)
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
 }
 
 // QueryOrder finds out information about orders
@@ -301,19 +278,12 @@ func (l *Lbank) QueryOrder(pair, orderIDs string) (QueryOrderResponse, error) {
 	params.Set("symbol", pair)
 	params.Set("order_id", orderIDs)
 	path := fmt.Sprintf("%s/v%s/%s?", l.APIUrl, lbankAPIVersion, lbankQueryOrder)
-	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
-	if err != nil {
-		return resp, err
-	}
-	if !resp.Result {
-		return resp, errors.New(errorCodes[resp.ErrorCode])
-	}
-	return resp, nil
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
 }
 
 // QueryOrderHistory finds order info in the past 2 days
 func (l *Lbank) QueryOrderHistory(pair, pageNumber, pageLength string) (OrderHistoryResponse, error) {
-	var resp OrderHistoryResponse
+	var resp OrderHistory
 	params := url.Values{}
 	params.Set("symbol", pair)
 	params.Set("current_page", pageNumber)
@@ -322,12 +292,31 @@ func (l *Lbank) QueryOrderHistory(pair, pageNumber, pageLength string) (OrderHis
 	log.Println(path)
 	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
 	if err != nil {
-		return resp, err
+		return OrderHistoryResponse{}, err
 	}
-	if !resp.Result {
-		return resp, errors.New(errorCodes[resp.ErrorCode])
+
+	var rt OrderHistoryResponse
+	rt.CurrentPage = resp.CurrentPage
+	rt.ErrorCode = resp.ErrorCode
+	rt.PageLength = resp.PageLength
+	rt.Result = resp.Result
+	rt.Total = resp.Total
+
+	var orders []OrderResponse
+	err = json.Unmarshal(resp.Orders, &orders)
+	if err == nil {
+		rt.Orders = orders
+		return rt, nil
 	}
-	return resp, nil
+
+	var order OrderResponse
+	err = json.Unmarshal(resp.Orders, &order)
+	if err == nil {
+		rt.Orders = append(rt.Orders, order)
+		return rt, nil
+	}
+
+	return rt, nil
 }
 
 // GetPairInfo finds information about all trading pairs
@@ -337,26 +326,25 @@ func (l *Lbank) GetPairInfo() ([]PairInfoResponse, error) {
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
-// GetOpeningOrders gets opening orders
-func (l *Lbank) GetOpeningOrders(pair, pageNumber, pageLength string) (OpeningOrderResponse, error) {
-	var q OpeningOrderResponse
+// GetOpenOrders gets opening orders
+func (l *Lbank) GetOpenOrders(pair string, pageNumber, pageLength int64) (OpenOrderResponse, error) {
+	var resp OpenOrderResponse
 	params := url.Values{}
 	params.Set("symbol", pair)
-	params.Set("page_number", pageNumber)
-	params.Set("page_length", pageLength)
-	path := fmt.Sprintf("%s/v%s/%s?", l.APIUrl, lbankAPIVersion, lbankOpeningOrders)
-	return q, l.SendAuthHTTPRequest("POST", path, params, &q)
+	params.Set("current_page", strconv.FormatInt(pageNumber, 10))
+	params.Set("page_length", strconv.FormatInt(pageLength, 10))
+	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankOpeningOrders)
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
 }
 
 // USD2RMBRate finds USD-CNY Rate
 func (l *Lbank) USD2RMBRate() (ExchangeRateResponse, error) {
 	var resp ExchangeRateResponse
-	path := fmt.Sprintf("%s/v%s/%s?", lbankAPIURL, lbankAPIVersion, lbankUSD2CNYRate)
+	path := fmt.Sprintf("%s/v%s/%s", lbankAPIURL, lbankAPIVersion, lbankUSD2CNYRate)
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
 // GetWithdrawConfig gets information about withdrawls
-// ASK ABOUT THIS <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< needs if statement with currency = ""??
 func (l *Lbank) GetWithdrawConfig(assetCode string) ([]WithdrawConfigResponse, error) {
 	l.Verbose = true
 	var resp []WithdrawConfigResponse
@@ -368,22 +356,58 @@ func (l *Lbank) GetWithdrawConfig(assetCode string) ([]WithdrawConfigResponse, e
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
-// Withdraw does some stuff
-func (l *Lbank) Withdraw(account, assetCode, amount, memo, mark string) {}
+// Withdraw withdraws
+func (l *Lbank) Withdraw(account, assetCode, amount, memo, mark string) (WithdrawResponse, error) {
+	var resp WithdrawResponse
+	params := url.Values{}
+	params.Set("account", account)
+	params.Set("assetCode", assetCode)
+	params.Set("amount", amount)
+	if memo != "" {
+		params.Set("memo", memo)
+	}
+	if mark != "" {
+		params.Set("mark", mark)
+	}
+	path := fmt.Sprintf("%s/v%s/%s", lbankAPIURL, lbankAPIVersion, lbankWithdraw)
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+}
 
-// WithdrawCancel cancels the withdrawal given the withdrawalID
-func (l *Lbank) WithdrawCancel(withdrawID string) {}
+// RevokeWithdraw cancels the withdrawal given the withdrawalID
+func (l *Lbank) RevokeWithdraw(withdrawID string) (RevokeWithdrawResponse, error) {
+	var resp RevokeWithdrawResponse
+	params := url.Values{}
+	if withdrawID != "" {
+		params.Set("withdrawId", withdrawID)
+	}
+	path := fmt.Sprintf("%s/v%s/%s?", lbankAPIURL, lbankAPIVersion, lbankRevokeWithdraw)
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+}
 
 // GetWithdrawlRecords gets withdrawl records
 func (l *Lbank) GetWithdrawlRecords(assetCode, status, pageNo, pageSize string) (WithdrawlResponse, error) {
-	var w WithdrawlResponse
+	var resp WithdrawlResponse
 	params := url.Values{}
 	params.Set("assetCode", assetCode)
 	params.Set("status", status)
 	params.Set("pageNo", pageNo)
 	params.Set("pageSize", pageSize)
-	path := fmt.Sprintf("%s/v%s/%s?%s", l.APIUrl, lbankAPIVersion, lbankWithdrawlRecords, params.Encode())
-	return w, l.SendAuthHTTPRequest("POST", path, params, &w)
+	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankWithdrawlRecords)
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+}
+
+// ErrorCapture captures errors
+func ErrorCapture(intermediary json.RawMessage) error {
+	var capErr ErrCapture
+	err := json.Unmarshal(intermediary, &capErr)
+	if err == nil && capErr.Error != 0 {
+		msg, ok := errorCodes[capErr.Error]
+		if !ok {
+			return errors.New("undefined code please check api docs for error code definition")
+		}
+		return errors.New(msg)
+	}
+	return nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -393,17 +417,11 @@ func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
 	if err != nil {
 		return err
 	}
-	var capErr ErrCapture
-	err = json.Unmarshal(intermediary, &capErr)
-	log.Debugln(capErr)
-	if err == nil && capErr.Error != 0 {
-		msg, ok := errorCodes[capErr.Error]
-		if !ok {
-			return errors.New("undefined code please check api docs for error code definition")
-		}
-		return errors.New(msg)
-	}
 
+	err = ErrorCapture(intermediary)
+	if err != nil {
+		return err
+	}
 	return json.Unmarshal(intermediary, result)
 }
 
@@ -472,7 +490,18 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 	vals.Set("sign", sig)
 	payload := vals.Encode()
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	return l.SendPayload(method, endpoint, headers, strings.NewReader(payload), &result, false, false, l.Verbose, l.HTTPDebugging)
+
+	var intermediary json.RawMessage
+	err = l.SendPayload(method, endpoint, headers, bytes.NewBufferString(payload), &intermediary, false, false, l.Verbose, l.HTTPDebugging)
+	if err != nil {
+		return err
+	}
+
+	err = ErrorCapture(intermediary)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(intermediary, result)
 }
 
 var errorCodes = map[int64]string{

@@ -7,28 +7,33 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey    = "9820cd63-6f97-4086-a370-0fb89b7ec3c3"
-	testAPISecret = "MIICeQIBADANBgkqhkiG9w0BAQEFAASCAmMwggJfAgEAAoGBAPTBCsEhejCYzRZ9WvxvZzdueQFscHCxNJ9fFoHfeLPpXtBQM/929aKZT72zkIxkif7NUDAZufvIm9ejlyENs0QT3bs9YRjc6dJ/uhuUGhsN/sHokU0DpQ8i0S7sQL5P0LEBjbsR/+e0L43YDMnRVof5yvd3KZ9DVgVhoGfivYfZAgMBAAECgYEAqAIXWsmbMd7B8W0tVtk2FhPsVnDUolbSE5BXR+FZ3s4UepSDjRpgtTPeTA8F64lcPJ89KzeNtmtXpuex50ubQIlih8NaNOiCivEA5jnlOTuJgWx+zXmywlMCt91JXi+2+C4BG0PemArwhUIl1miW5WPEiTfLMHrp7t9eFrT4qs0CQQD82UGBqAj475uj9WoPAEwkkU+lIEylGavO+frJBu417a1cFAWG7g+E5Uv+3s+Ua+RYIg9yjIwT6kLyTX79/dcrAkEA9831mYu1AMHurq1t4ifRTxQ5hewwtSFbLhKETNP3fB2pVnjdjD4lUR347RK6Yc56E0/AuReaGIaLyus9O4tbCwJBALmxyPUy9lv0hSa1/w1DV6hne8m23fNG1jIszuzChUHf6zi7j4+X2JfuWpC1DFhhoJLFePjUla+ulTokhgZ9XX8CQQCRYYryb01cyWovnt31raiVvWbWFDCrQ4uL5x8pN75dWcWMTtKjwZ4BDhWJeNBSK2HhTIvjy14Df4QqI4LEGUjrAkEA/DIKkFIUMU3ZhAtvGi0EB3TetxtMiwHttktWMdaBnvAAAR8pF7oqmaSTJ97isVILf/814er2WmahLBLEplUddA=="
+	testAPIKey    = ""
+	testAPISecret = ""
 )
 
 var l Lbank
+var setupRan bool
 
 func TestSetDefaults(t *testing.T) {
 	l.SetDefaults()
 }
 
 func TestSetup(t *testing.T) {
+	if setupRan {
+		return
+	}
+	setupRan = true
 	t.Parallel()
 	l.SetDefaults()
 	l.APIKey = testAPIKey
 	l.APISecret = testAPISecret
 	l.loadPrivKey()
-	l.Verbose = true
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json")
 	if err != nil {
@@ -38,10 +43,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Fatal("Test Failed - Lbank Setup() init error", err)
 	}
-
-	// lbankConfig.AuthenticatedAPISupport = true
-	// lbankConfig.APIKey = testAPIKey
-	// lbankConfig.APISecret = testAPISecret
 
 	l.Setup(&lbankConfig)
 }
@@ -64,8 +65,7 @@ func TestGetCurrencyPairs(t *testing.T) {
 
 func TestGetMarketDepths(t *testing.T) {
 	TestSetup(t)
-	an, err := l.GetMarketDepths("btc_usdt", "60", "1")
-	t.Log(an)
+	_, err := l.GetMarketDepths("btc_usdt", "60", "1")
 	if err != nil {
 		t.Fatalf("GetMarketDepth failed: %v", err)
 	}
@@ -103,32 +103,30 @@ func TestUpdateOrderbook(t *testing.T) {
 	TestSetup(t)
 	p := currency.Pair{
 		Delimiter: "_",
-		Base:      currency.BTC,
-		Quote:     currency.USD}
+		Base:      currency.ETH,
+		Quote:     currency.BTC}
 
-	_, err := l.UpdateOrderbook(p, "spot")
+	_, err := l.UpdateOrderbook(p.Lower(), "spot")
 	if err != nil {
 		t.Fatalf("Update for orderbook failed: %v", err)
 	}
 }
 
 func TestGetUserInfo(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	TestSetup(t)
-	meow, err := l.GetUserInfo()
+	_, err := l.GetUserInfo()
 	if err != nil {
 		t.Error("invalid key or sign", err)
 	}
-
-	log.Println(meow)
-
-	for key, val := range meow.Freeze {
-		log.Println(key, val)
-	}
-
-	t.Error()
 }
 
 func TestCreateOrder(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	TestSetup(t)
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.CreateOrder(cp.Lower().String(), "what", 1231, 12314)
@@ -149,16 +147,22 @@ func TestCreateOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestRemoveOrder(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	TestSetup(t)
-	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.CancelOrder(cp.Lower().String(), "lkjsdaflka1238dsfj7")
+	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
+	_, err := l.RemoveOrder(cp.Lower().String(), "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
 	if err != nil {
-		t.Error("Test failed - expected an error due to wrong orderID input", err)
+		t.Error(err)
 	}
 }
 
 func TestQueryOrder(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	TestSetup(t)
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.QueryOrder(cp.Lower().String(), "1")
@@ -168,36 +172,41 @@ func TestQueryOrder(t *testing.T) {
 }
 
 func TestQueryOrderHistory(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	TestSetup(t)
-	l.Verbose = true
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.QueryOrderHistory(cp.Lower().String(), "1", "50")
+	havealook, err := l.QueryOrderHistory(cp.Lower().String(), "1", "50")
 	if err != nil {
 		t.Error(err)
 	}
+
+	log.Println(havealook)
 }
 
 func TestGetPairInfo(t *testing.T) {
 	TestSetup(t)
-	l.Verbose = true
 	_, err := l.GetPairInfo()
 	if err != nil {
 		t.Error("somethings wrong")
 	}
 }
 
-func TestGetOpeningOrders(t *testing.T) {
+func TestGetOpenOrders(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	TestSetup(t)
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.GetOpeningOrders(cp.Lower().String(), "1", "50")
+	_, err := l.GetOpenOrders(cp.Lower().String(), 1, 50)
 	if err != nil {
-		t.Error("unexpected error")
+		t.Error("unexpected error", err)
 	}
 }
 
 func TestUSD2RMBRate(t *testing.T) {
 	TestSetup(t)
-	l.Verbose = true
 	_, err := l.USD2RMBRate()
 	if err != nil {
 		t.Error("wtf")
@@ -213,13 +222,32 @@ func TestGetWithdrawConfig(t *testing.T) {
 	}
 }
 
-func TestGetWithdrawRecords(t *testing.T) {
+func TestWithdraw(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	TestSetup(t)
-	l.Verbose = true
-	_, err := l.GetWithdrawlRecords("eth", "1")
+	_, err := l.Withdraw("", "", "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawRecords(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
+	TestSetup(t)
+	_, err := l.GetWithdrawlRecords("eth", "0", "1", "20")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestLoadPrivKey(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	l.SetDefaults()
 	l.APISecret = testAPISecret
 	err := l.loadPrivKey()
@@ -235,11 +263,63 @@ func TestLoadPrivKey(t *testing.T) {
 }
 
 func TestSign(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	l.SetDefaults()
 	l.APISecret = testAPISecret
 	l.loadPrivKey()
 	a, err := l.sign("wtf", l.privateKey)
 	fmt.Printf(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
+	TestSetup(t)
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
+	_, err := l.SubmitOrder(cp.Lower(), "BUY", "ANY", 2, 1312, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
+	TestSetup(t)
+	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
+	var a exchange.OrderCancellation
+	a.CurrencyPair = cp
+	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
+	err := l.CancelOrder(&a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
+	TestSetup(t)
+	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllOpenOrderID(t *testing.T) {
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
+	TestSetup(t)
+	_, err := l.GetAllOpenOrderID()
 	if err != nil {
 		t.Error(err)
 	}

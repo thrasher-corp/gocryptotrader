@@ -1,7 +1,11 @@
 package lbank
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -99,7 +103,28 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
 func (l *Lbank) GetAccountInfo() (exchange.AccountInfo, error) {
-	return exchange.AccountInfo{}, common.ErrNotYetImplemented
+	var info exchange.AccountInfo
+	data, err := l.GetUserInfo()
+	if err != nil {
+		return info, err
+	}
+
+	var account exchange.Account
+	for key, val := range data.Asset {
+		c := currency.NewCode(key)
+		hold, ok := data.Freeze[key]
+		if !ok {
+			return info, fmt.Errorf("hold data not found with %s", key)
+		}
+		account.Currencies = append(account.Currencies,
+			exchange.AccountCurrencyInfo{CurrencyName: c,
+				TotalValue: val,
+				Hold:       hold})
+	}
+
+	info.Accounts = append(info.Accounts, account)
+	info.Exchange = l.GetName()
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -116,51 +141,155 @@ func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType string) ([]exchang
 // SubmitOrder submits a new order
 func (l *Lbank) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var resp exchange.SubmitOrderResponse
-	return resp, common.ErrNotYetImplemented
+	if side != "BUY" && side != "SELL" {
+		return resp, fmt.Errorf("%s orderside is not supported by the exchange", side)
+	}
+	tempResp, err := l.CreateOrder(p.String(), side.ToString(), amount, price)
+	if err != nil {
+		return resp, err
+	}
+	resp.OrderID = tempResp.OrderID
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (l *Lbank) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-// func (l *Lbank) CancelOrder(order *exchange.OrderCancellation) error {
-// 	return common.ErrNotYetImplemented
-// }
+func (l *Lbank) CancelOrder(order *exchange.OrderCancellation) error {
+	_, err := l.RemoveOrder(order.CurrencyPair.Lower().String(), order.OrderID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *Lbank) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
+func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var resp exchange.CancelAllOrdersResponse
+	mappymCMapMap, err := l.GetAllOpenOrderID()
+	if err != nil {
+		return resp, nil
+	}
+	for key := range mappymCMapMap {
+		if key == orders.CurrencyPair.String() {
+			var x int64
+			x = 0
+			for mappymCMapMap[key][x] != "" {
+				x++
+			}
+			var y int64
+			y = 0
+			for y != x {
+				var tempSlice []string
+				tempSlice = append(tempSlice, mappymCMapMap[key][y])
+				if y%3 == 0 {
+					input := strings.Join(tempSlice, ",")
+					CancelResponse, err2 := l.RemoveOrder(key, input)
+					if err2 != nil {
+						return resp, err2
+					}
+					tempStringSuccess := strings.Split(CancelResponse.Success, ",")
+					for k := range tempStringSuccess {
+						resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
+					}
+					tempStringError := strings.Split(CancelResponse.Error, ",")
+					for l := range tempStringError {
+						resp.OrderStatus[tempStringError[l]] = "Failed"
+					}
+					tempSlice = tempSlice[:0]
+					y++
+				}
+				y++
+			}
+			x++
+		}
+	}
+
+	// get all exchange trading pairs
+	// var allOrders map[string][]string
+	return resp, nil
 }
 
 // GetOrderInfo returns information on a current open order
 func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	return exchange.OrderDetail{}, common.ErrNotYetImplemented
+	var resp exchange.OrderDetail
+	mappymCMapMap, err := l.GetAllOpenOrderID()
+	if err != nil {
+		return resp, err
+	}
+
+	for key, val := range mappymCMapMap {
+		for i := range val {
+			if val[i] == orderID {
+				tempResp, err := l.QueryOrder(key, orderID)
+				if err != nil {
+					return resp, err
+				}
+				resp.Exchange = l.GetName()
+				resp.CurrencyPair = currency.NewPairFromString(key)
+				if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
+					resp.OrderSide = exchange.BuyOrderSide
+				} else {
+					resp.OrderSide = exchange.SellOrderSide
+				}
+				if tempResp.Orders[0].Status == -1 {
+					resp.Status = "cancelled"
+				}
+				if tempResp.Orders[0].Status == 1 {
+					resp.Status = "on trading"
+				}
+				if tempResp.Orders[0].Status == 2 {
+					resp.Status = "filled partially"
+				}
+				if tempResp.Orders[0].Status == 3 {
+					resp.Status = "Filled totally"
+				}
+				if tempResp.Orders[0].Status == 4 {
+					resp.Status = "Cancelling"
+				}
+				resp.Price = tempResp.Orders[0].Price
+				resp.Amount = tempResp.Orders[0].Amount
+				resp.ExecutedAmount = tempResp.Orders[0].DealAmount
+				resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
+				resp.Fee = 0.001
+			}
+		}
+	}
+
+	return resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (l *Lbank) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *Lbank) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	var resp string
+	tempResp, err := l.Withdraw(withdrawRequest.Address, withdrawRequest.Currency.String(), strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64), "", withdrawRequest.Description)
+	if err != nil {
+		return resp, err
+	}
+	resp = tempResp.WithdrawID
+	return resp, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *Lbank) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *Lbank) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
@@ -170,16 +299,131 @@ func (l *Lbank) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	finalResp := make([]exchange.OrderDetail, 0)
+	var resp exchange.OrderDetail
+	tempData, err := l.GetAllOpenOrderID()
+	if err != nil {
+		return finalResp, err
+	}
+
+	for key, val := range tempData {
+		for x := range val {
+			tempResp, err := l.QueryOrder(key, val[x])
+			if err != nil {
+				return finalResp, err
+			}
+			resp.Exchange = l.GetName()
+			resp.CurrencyPair = currency.NewPairFromString(key)
+			if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
+				resp.OrderSide = exchange.BuyOrderSide
+			} else {
+				resp.OrderSide = exchange.SellOrderSide
+			}
+			if tempResp.Orders[0].Status == -1 {
+				resp.Status = "cancelled"
+			}
+			if tempResp.Orders[0].Status == 1 {
+				resp.Status = "on trading"
+			}
+			if tempResp.Orders[0].Status == 2 {
+				resp.Status = "filled partially"
+			}
+			if tempResp.Orders[0].Status == 3 {
+				resp.Status = "Filled totally"
+			}
+			if tempResp.Orders[0].Status == 4 {
+				resp.Status = "Cancelling"
+			}
+			resp.Price = tempResp.Orders[0].Price
+			resp.Amount = tempResp.Orders[0].Amount
+			resp.OrderDate = time.Unix(tempResp.Orders[0].CreateTime, 9)
+			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
+			resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
+			resp.Fee = 0.001
+			for y := int(0); y < len(getOrdersRequest.Currencies); y++ {
+				if getOrdersRequest.Currencies[y].String() != key {
+					continue
+				}
+				if getOrdersRequest.OrderSide == "ANY" {
+					finalResp = append(finalResp, resp)
+					continue
+				}
+				if strings.EqualFold(getOrdersRequest.OrderSide.ToString(), tempResp.Orders[0].Type) {
+					finalResp = append(finalResp, resp)
+				}
+
+			}
+
+		}
+	}
+	return finalResp, nil
 }
 
-// GetOrderHistory retrieves account order information
+// GetOrderHistory retrieves account order information *
 // Can Limit response to specific order status
 func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var resp []exchange.OrderDetail
+	for a := range getOrdersRequest.Currencies {
+		p := exchange.FormatExchangeCurrency(l.Name, getOrdersRequest.Currencies[a])
+		b := int64(1)
+		tempResp, err := l.QueryOrderHistory(p.String(), strconv.FormatInt(b, 10), "200")
+		if err != nil {
+			return resp, err
+		}
+		tempData := tempResp.PageLength
+		for tempData == 200 {
+			tempResp, err = l.QueryOrderHistory(p.String(), strconv.FormatInt(b, 10), "200")
+			if err != nil {
+
+			}
+		}
+	}
+	return resp, nil
 }
 
-// GetFeeByType returns an estimate of fee based on the type of transaction
+// GetFeeByType returns an estimate of fee based on the type of transaction *
 func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	resp := float64(0.001)
+	return resp, nil
+}
+
+// GetAllOpenOrderID returns map[string][]string -> map[currencypair][]orderIDs
+func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
+	allPairs := l.GetEnabledCurrencies()
+	resp := make(map[string][]string)
+
+	for a := range allPairs {
+		p := exchange.FormatExchangeCurrency(l.Name, allPairs[a])
+		b := int64(1)
+		tempResp, err := l.GetOpenOrders(p.String(), b, 200)
+		if err != nil {
+			return resp, err
+		}
+		tempData := tempResp.PageLength
+		for tempData == 200 {
+			tempResp, err = l.GetOpenOrders(p.String(), b, 200)
+			if err != nil {
+				return resp, err
+			}
+
+			for c := int64(0); c < tempData; c++ {
+				resp[allPairs[a].String()] = append(resp[p.String()], tempResp.Orders[c].OrderID)
+			}
+
+			b++
+		}
+	}
+	return resp, nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (l *Lbank) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (l *Lbank) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+	return common.ErrFunctionNotSupported
 }
