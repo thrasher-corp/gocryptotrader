@@ -29,6 +29,7 @@ func TestSetup(t *testing.T) {
 		return
 	}
 	setupRan = true
+
 	t.Parallel()
 	l.SetDefaults()
 	l.APIKey = testAPIKey
@@ -40,6 +41,7 @@ func TestSetup(t *testing.T) {
 		t.Fatal("Test Failed - Lbank Setup() init error", err)
 	}
 	lbankConfig, err := cfg.GetExchangeConfig("Lbank")
+	lbankConfig.Websocket = true
 	if err != nil {
 		t.Fatal("Test Failed - Lbank Setup() init error", err)
 	}
@@ -238,7 +240,7 @@ func TestGetWithdrawRecords(t *testing.T) {
 		t.Skip()
 	}
 	TestSetup(t)
-	_, err := l.GetWithdrawlRecords("eth", "0", "1", "20")
+	_, err := l.GetWithdrawalRecords("eth", "0", "1", "20")
 	if err != nil {
 		t.Error(err)
 	}
@@ -269,8 +271,7 @@ func TestSign(t *testing.T) {
 	l.SetDefaults()
 	l.APISecret = testAPISecret
 	l.loadPrivKey()
-	a, err := l.sign("wtf", l.privateKey)
-	fmt.Printf(a)
+	_, err := l.sign("wtf", l.privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -320,6 +321,14 @@ func TestGetAllOpenOrderID(t *testing.T) {
 	}
 	TestSetup(t)
 	_, err := l.GetAllOpenOrderID()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	TestSetup(t)
+	err := l.WsConnect()
 	if err != nil {
 		t.Error(err)
 	}

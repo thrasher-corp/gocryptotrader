@@ -29,6 +29,7 @@ type Lbank struct {
 	exchange.Base
 	privateKey    *rsa.PrivateKey
 	privKeyLoaded bool
+	WebsocketConn *websocket.Conn
 }
 
 const (
@@ -48,7 +49,7 @@ const (
 	lbankQueryOrder        = "orders_info.do"
 	lbankQueryHistoryOrder = "orders_info_history.do"
 	lbankOpeningOrders     = "orders_info_no_deal.do"
-	lbankWithdrawlRecords  = "withdraws.do"
+	lbankWithdrawalRecords = "withdraws.do"
 	lbankPairInfo          = "accuracy.do"
 	lbankUSD2CNYRate       = "usdToCny.do"
 	lbankWithdrawConfig    = "withdrawConfigs.do"
@@ -79,6 +80,10 @@ func (l *Lbank) SetDefaults() {
 	l.APIUrlDefault = lbankAPIURL
 	l.APIUrl = l.APIUrlDefault
 	l.WebsocketInit()
+	l.WebsocketURL = lbankwsurl
+	l.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketKlineSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -117,7 +122,17 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		err = l.WebsocketSetup(l.WsConnect,
+			l.Subscribe,
+			l.Unsubscribe,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			lbankwsurl,
+			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -141,7 +156,7 @@ func (l *Lbank) GetCurrencyPairs() ([]string, error) {
 }
 
 // GetMarketDepths returns arrays of asks, bids and timestamp
-func (l *Lbank) GetMarketDepths(symbol string, size string, merge string) (MarketDepthResponse, error) {
+func (l *Lbank) GetMarketDepths(symbol, size, merge string) (MarketDepthResponse, error) {
 	var m MarketDepthResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -152,7 +167,7 @@ func (l *Lbank) GetMarketDepths(symbol string, size string, merge string) (Marke
 }
 
 // GetTrades returns an array of structs of available trades regarding a particular exchange
-func (l *Lbank) GetTrades(symbol string, size string, time string) ([]TradeResponse, error) {
+func (l *Lbank) GetTrades(symbol, size, time string) ([]TradeResponse, error) {
 	var g []TradeResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -164,7 +179,7 @@ func (l *Lbank) GetTrades(symbol string, size string, time string) ([]TradeRespo
 }
 
 // GetKlines returns arrays of something
-func (l *Lbank) GetKlines(symbol string, size string, klineType string, time string) ([]KlineResponse, error) {
+func (l *Lbank) GetKlines(symbol, size, klineType, time string) ([]KlineResponse, error) {
 	var klineTemp interface{}
 	var k []KlineResponse
 	params := url.Values{}
@@ -344,7 +359,7 @@ func (l *Lbank) USD2RMBRate() (ExchangeRateResponse, error) {
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
-// GetWithdrawConfig gets information about withdrawls
+// GetWithdrawConfig gets information about withdrawals
 func (l *Lbank) GetWithdrawConfig(assetCode string) ([]WithdrawConfigResponse, error) {
 	l.Verbose = true
 	var resp []WithdrawConfigResponse
@@ -384,15 +399,15 @@ func (l *Lbank) RevokeWithdraw(withdrawID string) (RevokeWithdrawResponse, error
 	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
 }
 
-// GetWithdrawlRecords gets withdrawl records
-func (l *Lbank) GetWithdrawlRecords(assetCode, status, pageNo, pageSize string) (WithdrawlResponse, error) {
-	var resp WithdrawlResponse
+// GetWithdrawalRecords gets withdrawal records
+func (l *Lbank) GetWithdrawalRecords(assetCode, status, pageNo, pageSize string) (WithdrawalResponse, error) {
+	var resp WithdrawalResponse
 	params := url.Values{}
 	params.Set("assetCode", assetCode)
 	params.Set("status", status)
 	params.Set("pageNo", pageNo)
 	params.Set("pageSize", pageSize)
-	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankWithdrawlRecords)
+	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankWithdrawalRecords)
 	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
 }
 

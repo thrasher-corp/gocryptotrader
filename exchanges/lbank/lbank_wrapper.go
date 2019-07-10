@@ -175,38 +175,38 @@ func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.Ca
 		return resp, nil
 	}
 	for key := range mappymCMapMap {
-		if key == orders.CurrencyPair.String() {
-			var x int64
-			x = 0
-			for mappymCMapMap[key][x] != "" {
-				x++
-			}
-			var y int64
-			y = 0
-			for y != x {
-				var tempSlice []string
-				tempSlice = append(tempSlice, mappymCMapMap[key][y])
-				if y%3 == 0 {
-					input := strings.Join(tempSlice, ",")
-					CancelResponse, err2 := l.RemoveOrder(key, input)
-					if err2 != nil {
-						return resp, err2
-					}
-					tempStringSuccess := strings.Split(CancelResponse.Success, ",")
-					for k := range tempStringSuccess {
-						resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
-					}
-					tempStringError := strings.Split(CancelResponse.Error, ",")
-					for l := range tempStringError {
-						resp.OrderStatus[tempStringError[l]] = "Failed"
-					}
-					tempSlice = tempSlice[:0]
-					y++
-				}
-				y++
-			}
+		if key != orders.CurrencyPair.String() {
+			continue
+		}
+		var x, y int64
+		x = 0
+		y = 0
+		var tempSlice []string
+		for mappymCMapMap[key][x] != "" {
 			x++
 		}
+		for y != x {
+			tempSlice = append(tempSlice, mappymCMapMap[key][y])
+			if y%3 == 0 {
+				input := strings.Join(tempSlice, ",")
+				CancelResponse, err2 := l.RemoveOrder(key, input)
+				if err2 != nil {
+					return resp, err2
+				}
+				tempStringSuccess := strings.Split(CancelResponse.Success, ",")
+				for k := range tempStringSuccess {
+					resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
+				}
+				tempStringError := strings.Split(CancelResponse.Error, ",")
+				for l := range tempStringError {
+					resp.OrderStatus[tempStringError[l]] = "Failed"
+				}
+				tempSlice = tempSlice[:0]
+				y++
+			}
+			y++
+		}
+		x++
 	}
 
 	// get all exchange trading pairs
@@ -224,39 +224,40 @@ func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 
 	for key, val := range mappymCMapMap {
 		for i := range val {
-			if val[i] == orderID {
-				tempResp, err := l.QueryOrder(key, orderID)
-				if err != nil {
-					return resp, err
-				}
-				resp.Exchange = l.GetName()
-				resp.CurrencyPair = currency.NewPairFromString(key)
-				if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
-					resp.OrderSide = exchange.BuyOrderSide
-				} else {
-					resp.OrderSide = exchange.SellOrderSide
-				}
-				if tempResp.Orders[0].Status == -1 {
-					resp.Status = "cancelled"
-				}
-				if tempResp.Orders[0].Status == 1 {
-					resp.Status = "on trading"
-				}
-				if tempResp.Orders[0].Status == 2 {
-					resp.Status = "filled partially"
-				}
-				if tempResp.Orders[0].Status == 3 {
-					resp.Status = "Filled totally"
-				}
-				if tempResp.Orders[0].Status == 4 {
-					resp.Status = "Cancelling"
-				}
-				resp.Price = tempResp.Orders[0].Price
-				resp.Amount = tempResp.Orders[0].Amount
-				resp.ExecutedAmount = tempResp.Orders[0].DealAmount
-				resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
-				resp.Fee = 0.001
+			if val[i] != orderID {
+				continue
 			}
+			tempResp, err := l.QueryOrder(key, orderID)
+			if err != nil {
+				return resp, err
+			}
+			resp.Exchange = l.GetName()
+			resp.CurrencyPair = currency.NewPairFromString(key)
+			if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
+				resp.OrderSide = exchange.BuyOrderSide
+			} else {
+				resp.OrderSide = exchange.SellOrderSide
+			}
+			if tempResp.Orders[0].Status == -1 {
+				resp.Status = "cancelled"
+			}
+			if tempResp.Orders[0].Status == 1 {
+				resp.Status = "on trading"
+			}
+			if tempResp.Orders[0].Status == 2 {
+				resp.Status = "filled partially"
+			}
+			if tempResp.Orders[0].Status == 3 {
+				resp.Status = "Filled totally"
+			}
+			if tempResp.Orders[0].Status == 4 {
+				resp.Status = "Cancelling"
+			}
+			resp.Price = tempResp.Orders[0].Price
+			resp.Amount = tempResp.Orders[0].Amount
+			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
+			resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
+			resp.Fee = 0.001
 		}
 	}
 
@@ -374,7 +375,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		for tempData == 200 {
 			tempResp, err = l.QueryOrderHistory(p.String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
-
+				return resp, err
 			}
 		}
 	}
@@ -407,7 +408,7 @@ func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
 			}
 
 			for c := int64(0); c < tempData; c++ {
-				resp[allPairs[a].String()] = append(resp[p.String()], tempResp.Orders[c].OrderID)
+				resp[p.String()] = append(resp[p.String()], tempResp.Orders[c].OrderID)
 			}
 
 			b++
@@ -419,11 +420,21 @@ func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (l *Lbank) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
+	return common.ErrNotYetImplemented
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (l *Lbank) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
+	return common.ErrNotYetImplemented
+}
+
+// AuthenticateWebsocket authenticates it
+func (l *Lbank) AuthenticateWebsocket() error {
+	return common.ErrNotYetImplemented
+}
+
+// GetSubscriptions gets subscriptions
+func (l *Lbank) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+	return nil, common.ErrNotYetImplemented
 }
