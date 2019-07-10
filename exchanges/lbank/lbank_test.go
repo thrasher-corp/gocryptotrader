@@ -325,11 +325,3 @@ func TestGetAllOpenOrderID(t *testing.T) {
 		t.Error(err)
 	}
 }
-
-func TestWsConnect(t *testing.T) {
-	TestSetup(t)
-	err := l.WsConnect()
-	if err != nil {
-		t.Error(err)
-	}
-}
