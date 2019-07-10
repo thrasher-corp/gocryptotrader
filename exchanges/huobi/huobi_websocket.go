@@ -427,7 +427,7 @@ func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsL
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
 	request.Signature = common.Base64Encode(hmac)
-	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID()
+	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return &WsAuthenticatedAccountsListResponse{}, err
@@ -455,7 +455,7 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
 	request.Signature = common.Base64Encode(hmac)
-	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID()
+	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return &WsAuthenticatedOrdersResponse{}, err
@@ -481,7 +481,7 @@ func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailRe
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
 	request.Signature = common.Base64Encode(hmac)
-	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID()
+	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return &WsAuthenticatedOrderDetailResponse{}, err

@@ -188,6 +188,9 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 }
 
 // GenerateMessageID Creates a messageID to checkout
-func (w *WebsocketConnection) GenerateMessageID() int64 {
-	return time.Now().UnixNano()
+func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
+	if useNano {
+		return time.Now().UnixNano()
+	}
+	return time.Now().Unix()
 }

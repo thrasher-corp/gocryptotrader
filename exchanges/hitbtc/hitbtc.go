@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -55,7 +54,7 @@ const (
 // HitBTC is the overarching type across the hitbtc package
 type HitBTC struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	wsRequestMtx  sync.Mutex
 }
 

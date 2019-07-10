@@ -728,7 +728,7 @@ func (k *Kraken) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		Subscription: WebsocketSubscriptionData{
 			Name: channelToSubscribe.Channel,
 		},
-		RequestID: k.WebsocketConn.GenerateMessageID(),
+		RequestID: k.WebsocketConn.GenerateMessageID(true),
 	}
 	_, err := k.WebsocketConn.SendMessageReturnResponse(resp.RequestID, resp)
 	return err
@@ -742,7 +742,7 @@ func (k *Kraken) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		Subscription: WebsocketSubscriptionData{
 			Name: channelToSubscribe.Channel,
 		},
-		RequestID: k.WebsocketConn.GenerateMessageID(),
+		RequestID: k.WebsocketConn.GenerateMessageID(true),
 	}
 	_, err := k.WebsocketConn.SendMessageReturnResponse(resp.RequestID, resp)
 	return err

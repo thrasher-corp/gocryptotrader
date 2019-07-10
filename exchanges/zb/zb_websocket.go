@@ -267,7 +267,6 @@ func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription
 	subscriptionRequest := Subscription{
 		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,
-		//	No:      z.WebsocketConn.GenerateMessageID(),
 	}
 	return z.WebsocketConn.SendMessage(subscriptionRequest)
 }
@@ -327,7 +326,7 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 	request.Channel = "getSubUserList"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
-	request.No = z.WebsocketConn.GenerateMessageID()
+	request.No = z.WebsocketConn.GenerateMessageID(true)
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
@@ -348,7 +347,7 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 		Currency:     pair,
 		FromUserName: fromUserName,
 		ToUserName:   toUserName,
-		No:           z.WebsocketConn.GenerateMessageID(),
+		No:           z.WebsocketConn.GenerateMessageID(true),
 	}
 	request.Channel = "doTransferFunds"
 	request.Event = zWebsocketAddChannel
@@ -374,7 +373,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 		KeyName:     keyName,
 		LeverPerm:   leverPerm,
 		MoneyPerm:   moneyPerm,
-		No:          z.WebsocketConn.GenerateMessageID(),
+		No:          z.WebsocketConn.GenerateMessageID(true),
 		ToUserID:    toUserID,
 	}
 	request.Channel = "createSubUserKey"
@@ -399,7 +398,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 		Amount:    amount,
 		Price:     price,
 		TradeType: tradeType,
-		No:        z.WebsocketConn.GenerateMessageID(),
+		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
 	request.Channel = fmt.Sprintf("%v_order", pair.String())
 	request.Event = zWebsocketAddChannel
@@ -421,7 +420,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 	}
 	request := WsCancelOrderRequest{
 		ID: orderID,
-		No: z.WebsocketConn.GenerateMessageID(),
+		No: z.WebsocketConn.GenerateMessageID(true),
 	}
 	request.Channel = fmt.Sprintf("%v_cancelorder", pair.String())
 	request.Event = zWebsocketAddChannel
@@ -443,7 +442,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 	}
 	request := WsGetOrderRequest{
 		ID: orderID,
-		No: z.WebsocketConn.GenerateMessageID(),
+		No: z.WebsocketConn.GenerateMessageID(true),
 	}
 	request.Channel = fmt.Sprintf("%v_getorder", pair.String())
 	request.Event = zWebsocketAddChannel
@@ -466,7 +465,7 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 	request := WsGetOrdersRequest{
 		PageIndex: pageIndex,
 		TradeType: tradeType,
-		No:        z.WebsocketConn.GenerateMessageID(),
+		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
 	request.Channel = fmt.Sprintf("%v_getorders", pair.String())
 	request.Event = zWebsocketAddChannel
@@ -489,7 +488,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 	request := WsGetOrdersIgnoreTradeTypeRequest{
 		PageIndex: pageIndex,
 		PageSize:  pageSize,
-		No:        z.WebsocketConn.GenerateMessageID(),
+		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
 	request.Channel = fmt.Sprintf("%v_getordersignoretradetype", pair.String())
 	request.Event = zWebsocketAddChannel
@@ -513,7 +512,7 @@ func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
 		Channel:   "getaccountinfo",
 		Event:     zWebsocketAddChannel,
 		Accesskey: z.APIKey,
-		No:        z.WebsocketConn.GenerateMessageID(),
+		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
 	request.Sign = z.wsGenerateSignature(request)
 
