@@ -117,6 +117,9 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 	if _, ok := w.IDResponses[id]; !ok {
 		return nil, fmt.Errorf("Timeout waiting for response with ID %v", id)
 	}
+	defer func() {
+		delete(w.IDResponses, id)
+	}()
 	return w.IDResponses[id], nil
 }
 
@@ -124,7 +127,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 // If the timer expires, it will return without
 func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 	defer wg.Done()
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(7 * time.Second)
 	for {
 		select {
 		case <-timer.C:
@@ -133,7 +136,6 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 			w.Lock()
 			for k := range w.IDResponses {
 				if k == id {
-					// Remove entry too
 					w.Unlock()
 					return
 				}

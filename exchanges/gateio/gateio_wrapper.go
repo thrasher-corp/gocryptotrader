@@ -468,5 +468,6 @@ func (g *Gateio) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (g *Gateio) AuthenticateWebsocket() error {
-	return g.wsServerSignIn()
+	_, err := g.wsServerSignIn()
+	return err
 }
