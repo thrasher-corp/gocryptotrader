@@ -452,7 +452,7 @@ func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TradeData{
-			Amount:       response.Data[i].Qty,
+			Amount:       response.Data[i].Size,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: instrument,
 			EventTime:    time.Now().Unix(),
