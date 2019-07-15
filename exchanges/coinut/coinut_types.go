@@ -268,6 +268,7 @@ type wsRequest struct {
 }
 
 type wsResponse struct {
+	Nonce int64  `json:"nonce,omitempty"`
 	Reply string `json:"reply"`
 }
 
@@ -400,14 +401,14 @@ type WsCancelOrderParameters struct {
 	OrderID  int64
 }
 
-// WsCancelOrderRequest ws request
+// WsCancelOrderRequest data required for cancelling an order
 type WsCancelOrderRequest struct {
 	InstID  int64 `json:"inst_id"`
 	OrderID int64 `json:"order_id"`
 	WsRequest
 }
 
-// WsCancelOrderResponse ws response
+// WsCancelOrderResponse contains cancelled order data
 type WsCancelOrderResponse struct {
 	Nonce       int64    `json:"nonce"`
 	Reply       string   `json:"reply"`
@@ -416,16 +417,20 @@ type WsCancelOrderResponse struct {
 	Status      []string `json:"status"`
 }
 
-// WsCancelOrdersResponse ws response
+// WsCancelOrdersResponse contains all cancelled order data
 type WsCancelOrdersResponse struct {
-	WsRequest
-	Entries []WsCancelOrdersResponseEntry `json:"entries"`
+	Nonce   int64                        `json:"nonce"`
+	Reply   string                       `json:"reply"`
+	Results []WsCancelOrdersResponseData `json:"results"`
+	Status  []string                     `json:"status"`
+	TransID int64                        `json:"trans_id"`
 }
 
-// WsCancelOrdersResponseEntry ws response entry
-type WsCancelOrdersResponseEntry struct {
-	InstID  int64 `json:"inst_id"`
-	OrderID int64 `json:"order_id"`
+// WsCancelOrdersResponseData individual cancellation response data
+type WsCancelOrdersResponseData struct {
+	InstID  int64  `json:"inst_id"`
+	OrderID int64  `json:"order_id"`
+	Status  string `json:"status"`
 }
 
 // WsGetOpenOrdersRequest ws request
@@ -547,6 +552,25 @@ type WsOrderRejectedResponse struct {
 	TransID     int64    `json:"trans_id"`
 }
 
+// WsStandardOrderResponse a standardised order
+type WsStandardOrderResponse struct {
+	InstID             int64
+	OrderID            int64
+	ClientOrdID        int64
+	TransID            int64
+	Nonce              int64
+	Status             []string
+	Qty                float64
+	OpenQty            float64
+	Price              float64
+	Side               string
+	Reasons            []string
+	Timestamp          int64
+	OrderType          string
+	CommissionAmount   float64
+	CommissionCurrency currency.Pair
+}
+
 // WsUserOpenOrdersResponse ws response
 type WsUserOpenOrdersResponse struct {
 	Nonce  int64         `json:"nonce"`
@@ -611,4 +635,26 @@ type WsNewOrderResponse struct {
 	Nonce  int64    `json:"nonce"`
 	Reply  string   `json:"reply"`
 	Status []string `json:"status"`
+}
+
+// WsGetAccountBalanceResponse contains values of each currency
+type WsGetAccountBalanceResponse struct {
+	Bch     string   `json:"BCH"`
+	Btc     string   `json:"BTC"`
+	Btg     string   `json:"BTG"`
+	CAD     string   `json:"CAD"`
+	Etc     string   `json:"ETC"`
+	Eth     string   `json:"ETH"`
+	Lch     string   `json:"LCH"`
+	Ltc     string   `json:"LTC"`
+	Myr     string   `json:"MYR"`
+	Sgd     string   `json:"SGD"`
+	Usd     string   `json:"USD"`
+	Usdt    string   `json:"USDT"`
+	Xmr     string   `json:"XMR"`
+	Zec     string   `json:"ZEC"`
+	Nonce   int64    `json:"nonce"`
+	Reply   string   `json:"reply"`
+	Status  []string `json:"status"`
+	TransID int64    `json:"trans_id"`
 }

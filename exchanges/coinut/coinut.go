@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -48,7 +47,7 @@ const (
 // COINUT is the overarching type across the coinut package
 type COINUT struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	InstrumentMap map[string]int
 	wsRequestMtx  sync.Mutex
 }

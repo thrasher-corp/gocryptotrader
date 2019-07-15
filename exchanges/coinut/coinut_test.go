@@ -1,7 +1,6 @@
 package coinut
 
 import (
-	"net/http"
 	"testing"
 	"time"
 
@@ -58,10 +57,14 @@ func setupWSTestAuth(t *testing.T) {
 	if !c.Websocket.IsEnabled() && !c.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var err error
+	c.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: c.Name,
+		URL:          coinutWebsocketURL,
+		Verbose:      c.Verbose,
+		RateLimit:    coinutWebsocketRateLimit,
+	}
 	var dialer websocket.Dialer
-	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := c.WebsocketConn.Dial(&dialer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,17 +76,6 @@ func setupWSTestAuth(t *testing.T) {
 		t.Error(err)
 	}
 
-	timer := time.NewTimer(5 * time.Second)
-	select {
-	case resp := <-c.Websocket.DataHandler:
-		if resp.(WsLoginResponse).Username != clientID {
-			t.Fatal("Unsuccessful login")
-		}
-	case <-timer.C:
-		t.Fatal("Expected response")
-	}
-	timer.Stop()
-	time.Sleep(2 * time.Second)
 	instrumentListByString = make(map[string]int64)
 	instrumentListByString[currency.NewPair(currency.LTC, currency.BTC).String()] = 1
 	wsSetupRan = true
@@ -449,28 +441,21 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuthGetAccountBalance dials websocket, sends login request.
+// TestWsAuthGetAccountBalance dials websocket, retrieves account balance
 func TestWsAuthGetAccountBalance(t *testing.T) {
 	setupWSTestAuth(t)
-	err := c.wsGetAccountBalance()
+	_, err := c.wsGetAccountBalance()
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
-	select {
-	case resp := <-c.Websocket.DataHandler:
-		if resp.(WsUserBalanceResponse).Status[0] != "OK" {
-			t.Error("Expected successful response")
-		}
-	case <-timer.C:
-		t.Error("Expected response")
-	}
-	timer.Stop()
 }
 
-// TestWsAuthSubmitOrders dials websocket, sends login request.
-func TestWsAuthSubmitOrders(t *testing.T) {
+// TestWsAuthSubmitOrder dials websocket, submit order
+func TestWsAuthSubmitOrder(t *testing.T) {
 	setupWSTestAuth(t)
+	if !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	order := WsSubmitOrderParameters{
 		Amount:   1,
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
@@ -478,42 +463,64 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 		Price:    1,
 		Side:     exchange.BuyOrderSide,
 	}
-	err := c.wsSubmitOrders([]WsSubmitOrderParameters{order, order})
+	_, err := c.wsSubmitOrder(&order)
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
-	select {
-	case <-c.Websocket.DataHandler:
-	case <-timer.C:
-		t.Error("Expected response")
-	}
-	timer.Stop()
 }
 
-// TestWsAuthCancelOrders dials websocket, sends login request.
+// TestWsAuthCancelOrders dials websocket, submit orders
+func TestWsAuthSubmitOrders(t *testing.T) {
+	setupWSTestAuth(t)
+	if !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	order1 := WsSubmitOrderParameters{
+		Amount:   1,
+		Currency: currency.NewPair(currency.LTC, currency.BTC),
+		OrderID:  1,
+		Price:    1,
+		Side:     exchange.BuyOrderSide,
+	}
+	order2 := WsSubmitOrderParameters{
+		Amount:   3,
+		Currency: currency.NewPair(currency.LTC, currency.BTC),
+		OrderID:  2,
+		Price:    2,
+		Side:     exchange.BuyOrderSide,
+	}
+	_, err := c.wsSubmitOrders([]WsSubmitOrderParameters{order1, order2})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsAuthCancelOrders dials websocket, cancels orders
 func TestWsAuthCancelOrders(t *testing.T) {
 	setupWSTestAuth(t)
+	if !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	order := WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
-	err := c.wsCancelOrders([]WsCancelOrderParameters{order, order})
-	if err != nil {
-		t.Error(err)
+	order2 := WsCancelOrderParameters{
+		Currency: currency.NewPair(currency.LTC, currency.BTC),
+		OrderID:  2,
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
-	select {
-	case <-c.Websocket.DataHandler:
-	case <-timer.C:
-		t.Error("Expected response")
+	_, errs := c.wsCancelOrders([]WsCancelOrderParameters{order, order2})
+	if len(errs) > 0 {
+		t.Error(errs)
 	}
-	timer.Stop()
 }
 
-// TestWsAuthCancelOrder dials websocket, sends login request.
+// TestWsAuthCancelOrder dials websocket, cancels order
 func TestWsAuthCancelOrder(t *testing.T) {
 	setupWSTestAuth(t)
+	if !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	order := WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
@@ -522,27 +529,13 @@ func TestWsAuthCancelOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
-	select {
-	case <-c.Websocket.DataHandler:
-	case <-timer.C:
-		t.Error("Expected response")
-	}
-	timer.Stop()
 }
 
-// TestWsAuthGetOpenOrders dials websocket, sends login request.
+// TestWsAuthGetOpenOrders dials websocket, retrieves open orders
 func TestWsAuthGetOpenOrders(t *testing.T) {
 	setupWSTestAuth(t)
 	err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC))
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseExtendedTimeout)
-	select {
-	case <-c.Websocket.DataHandler:
-	case <-timer.C:
-		t.Error("Expected response")
-	}
-	timer.Stop()
 }

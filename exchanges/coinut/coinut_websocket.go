@@ -3,8 +3,6 @@ package coinut
 import (
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -14,11 +12,10 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const coinutWebsocketURL = "wss://wsapi.coinut.com"
-const coinutWebsocketRateLimit = 30 * time.Millisecond
+const coinutWebsocketRateLimit = 30
 
 var nNonce map[int64]string
 var channels map[string]chan []byte
@@ -37,21 +34,15 @@ func (c *COINUT) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
-	var Dialer websocket.Dialer
-
-	if c.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(c.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-
-		Dialer.Proxy = http.ProxyURL(proxy)
+	c.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: c.Name,
+		URL:          coinutWebsocketURL,
+		ProxyURL:     c.Websocket.GetProxyAddress(),
+		Verbose:      c.Verbose,
+		RateLimit:    coinutWebsocketRateLimit,
 	}
-
-	var err error
-	c.WebsocketConn, _, err = Dialer.Dial(c.Websocket.GetWebsocketURL(),
-		http.Header{})
-
+	var dialer websocket.Dialer
+	err := c.WebsocketConn.Dial(&dialer)
 	if err != nil {
 		return err
 	}
@@ -59,7 +50,6 @@ func (c *COINUT) WsConnect() error {
 	if !populatedList {
 		instrumentListByString = make(map[string]int64)
 		instrumentListByCode = make(map[int64]string)
-
 		err = c.WsSetInstrumentList()
 		if err != nil {
 			return err
@@ -77,17 +67,6 @@ func (c *COINUT) WsConnect() error {
 	return nil
 }
 
-// WsReadData reads data from the websocket connection
-func (c *COINUT) WsReadData() (wshandler.WebsocketResponse, error) {
-	_, resp, err := c.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	c.Websocket.TrafficAlert <- struct{}{}
-	return wshandler.WebsocketResponse{Raw: resp}, nil
-}
-
 // WsHandleData handles read data
 func (c *COINUT) WsHandleData() {
 	c.Websocket.Wg.Add(1)
@@ -102,11 +81,12 @@ func (c *COINUT) WsHandleData() {
 			return
 
 		default:
-			resp, err := c.WsReadData()
+			resp, err := c.WebsocketConn.ReadMessage()
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				return
 			}
+			c.Websocket.TrafficAlert <- struct{}{}
 
 			if strings.HasPrefix(string(resp.Raw), "[") {
 				var incoming []wsResponse
@@ -116,6 +96,10 @@ func (c *COINUT) WsHandleData() {
 					continue
 				}
 				for i := range incoming {
+					if incoming[i].Nonce > 0 {
+						c.WebsocketConn.AddResponseWithID(incoming[i].Nonce, resp.Raw)
+						break
+					}
 					var individualJSON []byte
 					individualJSON, err = common.JSONEncode(incoming[i])
 					if err != nil {
@@ -132,6 +116,7 @@ func (c *COINUT) WsHandleData() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
+
 				c.wsProcessResponse(resp.Raw)
 			}
 
@@ -146,16 +131,11 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		c.Websocket.DataHandler <- err
 		return
 	}
+	if incoming.Nonce > 0 {
+		c.WebsocketConn.AddResponseWithID(incoming.Nonce, resp)
+		return
+	}
 	switch incoming.Reply {
-	case "login":
-		var login WsLoginResponse
-		err := common.JSONDecode(resp, &login)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.SetCanUseAuthenticatedEndpoints(login.Username == c.ClientID)
-		c.Websocket.DataHandler <- login
 	case "hb":
 		channels["hb"] <- resp
 	case "inst_tick":
@@ -235,78 +215,6 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			Price:        tradeUpdate.Price,
 			Side:         tradeUpdate.Side,
 		}
-	case "user_balance":
-		var userBalance WsUserBalanceResponse
-		err := common.JSONDecode(resp, &userBalance)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- userBalance
-	case "new_order":
-		var newOrder WsNewOrderResponse
-		err := common.JSONDecode(resp, &newOrder)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- newOrder
-	case "order_accepted":
-		var orderAccepted WsOrderAcceptedResponse
-		err := common.JSONDecode(resp, &orderAccepted)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- orderAccepted
-	case "order_filled":
-		var orderFilled WsOrderFilledResponse
-		err := common.JSONDecode(resp, &orderFilled)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- orderFilled
-	case "order_rejected":
-		var orderRejected WsOrderRejectedResponse
-		err := common.JSONDecode(resp, &orderRejected)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- orderRejected
-	case "user_open_orders":
-		var openOrders WsUserOpenOrdersResponse
-		err := common.JSONDecode(resp, &openOrders)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- openOrders
-	case "trade_history":
-		var tradeHistory WsTradeHistoryResponse
-		err := common.JSONDecode(resp, &tradeHistory)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- tradeHistory
-	case "cancel_orders":
-		var cancelOrders WsCancelOrdersResponse
-		err := common.JSONDecode(resp, &cancelOrders)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- cancelOrders
-	case "cancel_order":
-		var cancelOrder WsCancelOrderResponse
-		err := common.JSONDecode(resp, &cancelOrder)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
-		}
-		c.Websocket.DataHandler <- cancelOrder
 	}
 }
 
@@ -323,37 +231,27 @@ func (c *COINUT) GetNonce() int64 {
 
 // WsSetInstrumentList fetches instrument list and propagates a local cache
 func (c *COINUT) WsSetInstrumentList() error {
-	err := c.wsSend(wsRequest{
+	request := wsRequest{
 		Request: "inst_list",
 		SecType: "SPOT",
-		Nonce:   c.GetNonce(),
-	})
+		Nonce:   c.WebsocketConn.GenerateMessageID(false),
+	}
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(request.Nonce, request)
 	if err != nil {
 		return err
 	}
-
-	_, resp, err := c.WebsocketConn.ReadMessage()
-	if err != nil {
-		return err
-	}
-
-	c.Websocket.TrafficAlert <- struct{}{}
-
 	var list WsInstrumentList
 	err = common.JSONDecode(resp, &list)
 	if err != nil {
 		return err
 	}
-
 	for currency, data := range list.Spot {
 		instrumentListByString[currency] = data[0].InstID
 		instrumentListByCode[data[0].InstID] = currency
 	}
-
 	if len(instrumentListByString) == 0 || len(instrumentListByCode) == 0 {
 		return errors.New("instrument lists failed to populate")
 	}
-
 	return nil
 }
 
@@ -429,9 +327,21 @@ func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		Request:   channelToSubscribe.Channel,
 		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
 		Subscribe: true,
-		Nonce:     c.GetNonce(),
+		Nonce:     c.WebsocketConn.GenerateMessageID(false),
 	}
-	return c.wsSend(subscribe)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(subscribe.Nonce, subscribe)
+	if err != nil {
+		return err
+	}
+	var response map[string]interface{}
+	err = common.JSONDecode(resp, &response)
+	if err != nil {
+		return err
+	}
+	if response["status"].([]interface{})[0] != "OK" {
+		return fmt.Errorf("%v subscription failed for channel %v", c.Name, channelToSubscribe.Channel)
+	}
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -440,26 +350,21 @@ func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		Request:   channelToSubscribe.Channel,
 		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
 		Subscribe: false,
-		Nonce:     c.GetNonce(),
+		Nonce:     c.WebsocketConn.GenerateMessageID(false),
 	}
-	return c.wsSend(subscribe)
-}
-
-// WsSend sends data to the websocket server
-func (c *COINUT) wsSend(data interface{}) error {
-	c.wsRequestMtx.Lock()
-	defer c.wsRequestMtx.Unlock()
-
-	json, err := common.JSONEncode(data)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(subscribe.Nonce, subscribe)
 	if err != nil {
 		return err
 	}
-	if c.Verbose {
-		log.Debugf("%v sending message to websocket %v", c.Name, string(json))
+	var response map[string]interface{}
+	err = common.JSONDecode(resp, &response)
+	if err != nil {
+		return err
 	}
-	// Basic rate limiter
-	time.Sleep(coinutWebsocketRateLimit)
-	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	if response["status"].([]interface{})[0] != "OK" {
+		return fmt.Errorf("%v subscription failed for channel %v", c.Name, channelToSubscribe.Channel)
+	}
+	return nil
 }
 
 func (c *COINUT) wsAuthenticate() error {
@@ -467,7 +372,7 @@ func (c *COINUT) wsAuthenticate() error {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", c.Name)
 	}
 	timestamp := time.Now().Unix()
-	nonce := c.GetNonce()
+	nonce := c.WebsocketConn.GenerateMessageID(false)
 	payload := fmt.Sprintf("%v|%v|%v", c.ClientID, timestamp, nonce)
 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APIKey))
 	loginRequest := struct {
@@ -484,34 +389,54 @@ func (c *COINUT) wsAuthenticate() error {
 		Timestamp: timestamp,
 	}
 
-	err := c.wsSend(loginRequest)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(loginRequest.Nonce, loginRequest)
 	if err != nil {
-		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
+	var response map[string]interface{}
+	err = common.JSONDecode(resp, &response)
+	if err != nil {
+		return err
+	}
+	if response["status"].([]interface{})[0] != "OK" {
+		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return fmt.Errorf("%v failed to authenticate", c.Name)
+	}
+	c.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	return nil
-
 }
 
-func (c *COINUT) wsGetAccountBalance() error {
+func (c *COINUT) wsGetAccountBalance() (*WsGetAccountBalanceResponse, error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v not authorised to submit order", c.Name)
+		return &WsGetAccountBalanceResponse{}, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
 	accBalance := wsRequest{
 		Request: "user_balance",
-		Nonce:   c.GetNonce(),
+		Nonce:   c.WebsocketConn.GenerateMessageID(false),
 	}
-	return c.wsSend(accBalance)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(accBalance.Nonce, accBalance)
+	if err != nil {
+		return &WsGetAccountBalanceResponse{}, err
+	}
+	var response WsGetAccountBalanceResponse
+	err = common.JSONDecode(resp, &response)
+	if err != nil {
+		return &WsGetAccountBalanceResponse{}, err
+	}
+	if response.Status[0] != "OK" {
+		return &response, fmt.Errorf("%v get account balance failed", c.Name)
+	}
+	return &response, nil
 }
 
-func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) error {
+func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) (*WsStandardOrderResponse, error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v not authorised to submit order", c.Name)
+		return &WsStandardOrderResponse{}, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
 	currency := exchange.FormatExchangeCurrency(c.Name, order.Currency).String()
 	var orderSubmissionRequest WsSubmitOrderRequest
 	orderSubmissionRequest.Request = "new_order"
-	orderSubmissionRequest.Nonce = c.GetNonce()
+	orderSubmissionRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
 	orderSubmissionRequest.InstID = instrumentListByString[currency]
 	orderSubmissionRequest.Qty = order.Amount
 	orderSubmissionRequest.Price = order.Price
@@ -520,12 +445,96 @@ func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) error {
 	if order.OrderID > 0 {
 		orderSubmissionRequest.OrderID = order.OrderID
 	}
-	return c.wsSend(orderSubmissionRequest)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(orderSubmissionRequest.Nonce, orderSubmissionRequest)
+	if err != nil {
+		return &WsStandardOrderResponse{}, err
+	}
+	standardOrder, err := c.wsStandardiseOrderResponse(resp)
+	if standardOrder.Status[0] != "OK" {
+		return &standardOrder, fmt.Errorf("%v order submission failed. %v", c.Name, standardOrder)
+	}
+	if len(standardOrder.Reasons) > 0 && standardOrder.Reasons[0] != "" {
+		return &standardOrder, fmt.Errorf("%v order submission failed. %v", c.Name, standardOrder.Reasons[0])
+	}
+	return &standardOrder, nil
 }
 
-func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) error {
+func (c *COINUT) wsStandardiseOrderResponse(resp []byte) (WsStandardOrderResponse, error) {
+	var response WsStandardOrderResponse
+	var incoming wsResponse
+	err := common.JSONDecode(resp, &incoming)
+	if err != nil {
+		return response, err
+	}
+	switch incoming.Reply {
+	case "order_accepted":
+		var orderAccepted WsOrderAcceptedResponse
+		err := common.JSONDecode(resp, &orderAccepted)
+		if err != nil {
+			return response, err
+		}
+		response = WsStandardOrderResponse{
+			InstID:      orderAccepted.InstID,
+			Nonce:       orderAccepted.Nonce,
+			OpenQty:     orderAccepted.OpenQty,
+			OrderID:     orderAccepted.OrderID,
+			OrderType:   orderAccepted.Reply,
+			Price:       orderAccepted.OrderPrice,
+			Qty:         orderAccepted.Qty,
+			Side:        orderAccepted.Side,
+			Status:      orderAccepted.Status,
+			TransID:     orderAccepted.TransID,
+			ClientOrdID: orderAccepted.ClientOrdID,
+		}
+	case "order_filled":
+		var orderFilled WsOrderFilledResponse
+		err := common.JSONDecode(resp, &orderFilled)
+		if err != nil {
+			return response, err
+		}
+		response = WsStandardOrderResponse{
+			InstID:      orderFilled.Order.InstID,
+			Nonce:       orderFilled.Nonce,
+			OpenQty:     orderFilled.Order.OpenQty,
+			OrderID:     orderFilled.Order.OrderID,
+			OrderType:   orderFilled.Reply,
+			Price:       orderFilled.Order.Price,
+			Qty:         orderFilled.Order.Qty,
+			Side:        orderFilled.Order.Side,
+			Status:      orderFilled.Status,
+			TransID:     orderFilled.TransID,
+			ClientOrdID: orderFilled.Order.ClientOrdID,
+		}
+	case "order_rejected":
+		var orderRejected WsOrderRejectedResponse
+		err := common.JSONDecode(resp, &orderRejected)
+		if err != nil {
+			return response, err
+		}
+		response = WsStandardOrderResponse{
+			InstID:      orderRejected.InstID,
+			Nonce:       orderRejected.Nonce,
+			OpenQty:     orderRejected.OpenQty,
+			OrderID:     orderRejected.OrderID,
+			OrderType:   orderRejected.Reply,
+			Price:       orderRejected.Price,
+			Qty:         orderRejected.Qty,
+			Side:        orderRejected.Side,
+			Status:      orderRejected.Status,
+			TransID:     orderRejected.TransID,
+			ClientOrdID: orderRejected.ClientOrdID,
+			Reasons:     orderRejected.Reasons,
+		}
+	}
+	return response, nil
+}
+
+func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]WsStandardOrderResponse, []error) {
+	var errors []error
+	var ordersResponse []WsStandardOrderResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v not authorised to submit orders", c.Name)
+		errors = append(errors, fmt.Errorf("%v not authorised to submit orders", c.Name))
+		return nil, errors
 	}
 	orderRequest := WsSubmitOrdersRequest{}
 	for i := range orders {
@@ -540,9 +549,48 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) error {
 			})
 	}
 
-	orderRequest.Nonce = c.GetNonce()
+	orderRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
 	orderRequest.Request = "new_orders"
-	return c.wsSend(orderRequest)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(orderRequest.Nonce, orderRequest)
+	if err != nil {
+		errors = append(errors, err)
+		return nil, errors
+	}
+	var incoming []interface{}
+	err = common.JSONDecode(resp, &incoming)
+	if err != nil {
+		errors = append(errors, err)
+		return nil, errors
+	}
+	for i := range incoming {
+		var individualJSON []byte
+		individualJSON, err = common.JSONEncode(incoming[i])
+		if err != nil {
+			errors = append(errors, err)
+			continue
+		}
+		standardOrder, err := c.wsStandardiseOrderResponse(individualJSON)
+		if err != nil {
+			errors = append(errors, err)
+			continue
+		}
+		if standardOrder.Status[0] != "OK" {
+			errors = append(errors, fmt.Errorf("%v order submission failed. %v", c.Name, standardOrder))
+			continue
+		}
+		if len(standardOrder.Reasons) > 0 && standardOrder.Reasons[0] != "" {
+			errors = append(errors, fmt.Errorf("%v order submission failed for currency %v and orderID %v, message %v ",
+				c.Name,
+				instrumentListByCode[standardOrder.InstID],
+				standardOrder.OrderID,
+				standardOrder.Reasons[0]))
+
+			continue
+		}
+		ordersResponse = append(ordersResponse, standardOrder)
+	}
+
+	return ordersResponse, errors
 }
 
 func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
@@ -552,10 +600,24 @@ func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
 	currency := exchange.FormatExchangeCurrency(c.Name, p).String()
 	var openOrdersRequest WsGetOpenOrdersRequest
 	openOrdersRequest.Request = "user_open_orders"
-	openOrdersRequest.Nonce = c.GetNonce()
+	openOrdersRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
 	openOrdersRequest.InstID = instrumentListByString[currency]
 
-	return c.wsSend(openOrdersRequest)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(openOrdersRequest.Nonce, openOrdersRequest)
+	if err != nil {
+		return err
+	}
+	var response map[string]interface{}
+	err = common.JSONDecode(resp, &response)
+	if err != nil {
+		return err
+	}
+	if response["status"].([]interface{})[0] != "OK" {
+		return fmt.Errorf("%v get open orders failed for currency %v",
+			c.Name,
+			p)
+	}
+	return nil
 }
 
 func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
@@ -567,14 +629,30 @@ func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
 	cancellationRequest.Request = "cancel_order"
 	cancellationRequest.InstID = instrumentListByString[currency]
 	cancellationRequest.OrderID = cancellation.OrderID
-	cancellationRequest.Nonce = c.GetNonce()
+	cancellationRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
 
-	return c.wsSend(cancellationRequest)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancellationRequest.Nonce, cancellationRequest)
+	if err != nil {
+		return err
+	}
+	var response map[string]interface{}
+	err = common.JSONDecode(resp, &response)
+	if err != nil {
+		return err
+	}
+	if response["status"].([]interface{})[0] != "OK" {
+		return fmt.Errorf("%v order cancellation failed for currency %v and orderID %v, message %v",
+			c.Name,
+			cancellation.Currency,
+			cancellation.OrderID,
+			response["status"])
+	}
+	return nil
 }
 
-func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) error {
+func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*WsCancelOrdersResponse, []error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v not authorised to cancel orders", c.Name)
+		return &WsCancelOrdersResponse{}, []error{fmt.Errorf("%v not authorised to cancel orders", c.Name)}
 	}
 	cancelOrderRequest := WsCancelOrdersRequest{}
 	for i := range cancellations {
@@ -586,8 +664,30 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) error {
 	}
 
 	cancelOrderRequest.Request = "cancel_orders"
-	cancelOrderRequest.Nonce = c.GetNonce()
-	return c.wsSend(cancelOrderRequest)
+	cancelOrderRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancelOrderRequest.Nonce, cancelOrderRequest)
+	if err != nil {
+		return &WsCancelOrdersResponse{}, []error{err}
+	}
+	var response WsCancelOrdersResponse
+	err = common.JSONDecode(resp, &response)
+	if err != nil {
+		return &WsCancelOrdersResponse{}, []error{err}
+	}
+	if response.Status[0] != "OK" {
+		return &WsCancelOrdersResponse{}, []error{fmt.Errorf("%v order cancellations failed %v", c.Name, response.Status[0])}
+	}
+	var errors []error
+	for i := range response.Results {
+		if response.Results[i].Status != "OK" {
+			errors = append(errors, fmt.Errorf("%v order cancellation failed for currency %v and orderID %v, message %v",
+				c.Name,
+				instrumentListByCode[response.Results[i].InstID],
+				response.Results[i].OrderID,
+				response.Results[i].Status))
+		}
+	}
+	return &response, errors
 }
 
 func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) error {
@@ -598,9 +698,23 @@ func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) error {
 	var request WsTradeHistoryRequest
 	request.Request = "trade_history"
 	request.InstID = instrumentListByString[currency]
-	request.Nonce = c.GetNonce()
+	request.Nonce = c.WebsocketConn.GenerateMessageID(false)
 	request.Start = start
 	request.Limit = limit
 
-	return c.wsSend(request)
+	resp, err := c.WebsocketConn.SendMessageReturnResponse(request.Nonce, request)
+	if err != nil {
+		return err
+	}
+	var response map[string]interface{}
+	err = common.JSONDecode(resp, &response)
+	if err != nil {
+		return err
+	}
+	if response["status"].([]interface{})[0] != "OK" {
+		return fmt.Errorf("%v get trade history failed for %v",
+			c.Name,
+			request)
+	}
+	return nil
 }

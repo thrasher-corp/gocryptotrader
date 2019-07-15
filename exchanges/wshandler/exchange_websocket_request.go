@@ -68,7 +68,12 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer) error {
 	var conStatus *http.Response
 	w.WebsocketConnection, conStatus, err = dialer.Dial(w.URL, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
+		if conStatus != nil {
+			return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
+
+		} else {
+			return fmt.Errorf("%v Error: %v", w.URL, err)
+		}
 	}
 	return nil
 }
