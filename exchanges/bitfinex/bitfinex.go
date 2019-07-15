@@ -6,10 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -87,9 +85,8 @@ const (
 // depending on some factors (e.g. servers load, endpoint, etc.).
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn         *websocket.Conn
+	WebsocketConn         *wshandler.WebsocketConnection
 	WebsocketSubdChannels map[int]WebsocketChanInfo
-	wsRequestMtx          sync.Mutex
 }
 
 // SetDefaults sets the basic defaults for bitfinex

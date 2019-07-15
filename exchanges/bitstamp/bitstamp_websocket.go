@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -27,23 +26,16 @@ func (b *Bitstamp) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
+	b.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: b.Name,
+		URL:          b.Websocket.GetWebsocketURL(),
+		Verbose:      b.Verbose,
+	}
 	var dialer websocket.Dialer
-	if b.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	var err error
-	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
+	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%s Unable to connect to Websocket. Error: %s",
-			b.Name,
-			err)
+		return err
 	}
-
 	if b.Verbose {
 		log.Debugf("%s Connected to Websocket.\n", b.GetName())
 	}
@@ -57,22 +49,6 @@ func (b *Bitstamp) WsConnect() error {
 	go b.WsHandleData()
 
 	return nil
-}
-
-// WsReadData reads data coming from bitstamp websocket connection
-func (b *Bitstamp) WsReadData() (wshandler.WebsocketResponse, error) {
-	msgType, resp, err := b.WebsocketConn.ReadMessage()
-
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	if b.Verbose {
-		log.Debugf("%s websocket raw response: %s", b.GetName(), resp)
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-	return wshandler.WebsocketResponse{Type: msgType, Raw: resp}, nil
 }
 
 // WsHandleData handles websocket data from WsReadData
@@ -89,12 +65,12 @@ func (b *Bitstamp) WsHandleData() {
 			return
 
 		default:
-			resp, err := b.WsReadData()
+			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
-
+			b.Websocket.TrafficAlert <- struct{}{}
 			wsResponse := websocketResponse{}
 			err = common.JSONDecode(resp.Raw, &wsResponse)
 			if err != nil {
@@ -166,30 +142,24 @@ func (b *Bitstamp) generateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-
 	req := websocketEventRequest{
 		Event: "bts:subscribe",
 		Data: websocketData{
 			Channel: channelToSubscribe.Channel,
 		},
 	}
-	return b.WebsocketConn.WriteJSON(req)
+	return b.WebsocketConn.SendMessage(req)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitstamp) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-
 	req := websocketEventRequest{
 		Event: "bts:unsubscribe",
 		Data: websocketData{
 			Channel: channelToSubscribe.Channel,
 		},
 	}
-	return b.WebsocketConn.WriteJSON(req)
+	return b.WebsocketConn.SendMessage(req)
 }
 
 func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {

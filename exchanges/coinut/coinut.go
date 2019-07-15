@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -49,7 +48,6 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
 	InstrumentMap map[string]int
-	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets current default values

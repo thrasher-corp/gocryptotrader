@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -21,6 +22,7 @@ const (
 )
 
 var g Gateio
+var wsSetupRan bool
 
 func TestSetDefaults(t *testing.T) {
 	g.SetDefaults()
@@ -509,7 +511,7 @@ func TestWsGetBalance(t *testing.T) {
 		RateLimit:    gateioWebsocketRateLimit,
 	}
 	var dialer websocket.Dialer
-	err := g.WebsocketConn.Dial(&dialer)
+	err := g.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -543,7 +545,7 @@ func TestWsGetOrderInfo(t *testing.T) {
 		RateLimit:    gateioWebsocketRateLimit,
 	}
 	var dialer websocket.Dialer
-	err := g.WebsocketConn.Dial(&dialer)
+	err := g.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -563,8 +565,10 @@ func TestWsGetOrderInfo(t *testing.T) {
 	}
 }
 
-// TestWsSubscribe dials websocket, sends a subscribe request.
-func TestWsSubscribe(t *testing.T) {
+func setupWSTestAuth(t *testing.T) {
+	if wsSetupRan {
+		return
+	}
 	g.SetDefaults()
 	TestSetup(t)
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport {
@@ -577,14 +581,20 @@ func TestWsSubscribe(t *testing.T) {
 		RateLimit:    gateioWebsocketRateLimit,
 	}
 	var dialer websocket.Dialer
-	err := g.WebsocketConn.Dial(&dialer)
+	err := g.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	go g.WsHandleData()
 	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	err = g.Subscribe(wshandler.WebsocketChannelSubscription{
+	wsSetupRan = true
+}
+
+// TestWsSubscribe dials websocket, sends a subscribe request.
+func TestWsSubscribe(t *testing.T) {
+	setupWSTestAuth(t)
+	err := g.Subscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
 	})
@@ -595,27 +605,8 @@ func TestWsSubscribe(t *testing.T) {
 
 // TestWsUnsubscribe dials websocket, sends an unsubscribe request.
 func TestWsUnsubscribe(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport {
-		t.Skip(wshandler.WebsocketNotEnabled)
-	}
-	g.Verbose = true
-	g.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: g.Name,
-		URL:          gateioWebsocketEndpoint,
-		Verbose:      g.Verbose,
-		RateLimit:    gateioWebsocketRateLimit,
-	}
-	var dialer websocket.Dialer
-	err := g.WebsocketConn.Dial(&dialer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	go g.WsHandleData()
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	err = g.Unsubscribe(wshandler.WebsocketChannelSubscription{
+	setupWSTestAuth(t)
+	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
 	})

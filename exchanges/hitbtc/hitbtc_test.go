@@ -1,6 +1,7 @@
 package hitbtc
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -400,7 +401,7 @@ func setupWsAuth(t *testing.T) {
 		Verbose:      h.Verbose,
 	}
 	var dialer websocket.Dialer
-	err := h.WebsocketConn.Dial(&dialer)
+	err := h.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}

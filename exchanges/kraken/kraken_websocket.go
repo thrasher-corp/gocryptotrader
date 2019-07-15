@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"net/http"
 	"sync"
 	"time"
 
@@ -73,7 +74,7 @@ func (k *Kraken) WsConnect() error {
 		URL:          k.Websocket.GetWebsocketURL(),
 		Verbose:      k.Verbose,
 	}
-	err := k.WebsocketConn.Dial(&dialer)
+	err := k.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}

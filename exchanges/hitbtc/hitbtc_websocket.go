@@ -3,6 +3,7 @@ package hitbtc
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -32,13 +33,13 @@ func (h *HitBTC) WsConnect() error {
 
 	h.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName: h.Name,
-		URL:          hitbtcWebsocketAddress,
+		URL:          h.Websocket.GetWebsocketURL(),
 		ProxyURL:     h.Websocket.GetProxyAddress(),
 		Verbose:      h.Verbose,
 		RateLimit:    rateLimit,
 	}
 	var dialer websocket.Dialer
-	err := h.WebsocketConn.Dial(&dialer)
+	err := h.WebsocketConn.Dial(&dialer, http.Header{})
 
 	go h.WsHandleData()
 	err = h.wsLogin()

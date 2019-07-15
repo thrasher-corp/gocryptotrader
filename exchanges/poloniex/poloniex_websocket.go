@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -37,19 +36,13 @@ func (p *Poloniex) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
-	var dialer websocket.Dialer
-	if p.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(p.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
+	p.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: p.Name,
+		URL:          p.Websocket.GetWebsocketURL(),
+		Verbose:      p.Verbose,
 	}
-
-	var err error
-	p.WebsocketConn, _, err = dialer.Dial(p.Websocket.GetWebsocketURL(),
-		http.Header{})
+	var dialer websocket.Dialer
+	err := p.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -70,17 +63,6 @@ func (p *Poloniex) WsConnect() error {
 	p.GenerateDefaultSubscriptions()
 
 	return nil
-}
-
-// WsReadData reads data from the websocket connection
-func (p *Poloniex) WsReadData() (wshandler.WebsocketResponse, error) {
-	_, resp, err := p.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	p.Websocket.TrafficAlert <- struct{}{}
-	return wshandler.WebsocketResponse{Raw: resp}, nil
 }
 
 func getWSDataType(data interface{}) string {
@@ -107,12 +89,12 @@ func (p *Poloniex) WsHandleData() {
 			return
 
 		default:
-			resp, err := p.WsReadData()
+			resp, err := p.WebsocketConn.ReadMessage()
 			if err != nil {
 				p.Websocket.DataHandler <- err
 				return
 			}
-
+			p.Websocket.TrafficAlert <- struct{}{}
 			var result interface{}
 			err = common.JSONDecode(resp.Raw, &result)
 			if err != nil {
@@ -531,7 +513,7 @@ func (p *Poloniex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	default:
 		subscriptionRequest.Channel = channelToSubscribe.Currency.String()
 	}
-	return p.wsSend(subscriptionRequest)
+	return p.WebsocketConn.SendMessage(subscriptionRequest)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -547,21 +529,7 @@ func (p *Poloniex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 	default:
 		unsubscriptionRequest.Channel = channelToSubscribe.Currency.String()
 	}
-	return p.wsSend(unsubscriptionRequest)
-}
-
-// WsSend sends data to the websocket server
-func (p *Poloniex) wsSend(data interface{}) error {
-	p.wsRequestMtx.Lock()
-	defer p.wsRequestMtx.Unlock()
-	json, err := common.JSONEncode(data)
-	if err != nil {
-		return err
-	}
-	if p.Verbose {
-		log.Debugf("%v sending message to websocket %v", p.Name, data)
-	}
-	return p.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return p.WebsocketConn.SendMessage(unsubscriptionRequest)
 }
 
 func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
@@ -574,5 +542,5 @@ func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
 		Key:     p.APIKey,
 		Payload: nonce,
 	}
-	return p.wsSend(request)
+	return p.WebsocketConn.SendMessage(request)
 }

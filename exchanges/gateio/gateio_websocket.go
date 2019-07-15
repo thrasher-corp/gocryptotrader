@@ -3,6 +3,7 @@ package gateio
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -30,13 +31,13 @@ func (g *Gateio) WsConnect() error {
 
 	g.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName: g.Name,
-		URL:          gateioWebsocketEndpoint,
+		URL:          g.Websocket.GetWebsocketURL(),
 		ProxyURL:     g.Websocket.GetProxyAddress(),
 		Verbose:      g.Verbose,
 		RateLimit:    gateioWebsocketRateLimit,
 	}
 	var dialer websocket.Dialer
-	err := g.WebsocketConn.Dial(&dialer)
+	err := g.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}

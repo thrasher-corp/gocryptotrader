@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -70,31 +69,24 @@ func (b *Bitmex) WsConnector() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
-	var dialer websocket.Dialer
-	var err error
-
-	if b.Websocket.GetProxyAddress() != "" {
-		var proxy *url.URL
-		proxy, err = url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
+	b.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: b.Name,
+		URL:          b.Websocket.GetWebsocketURL(),
+		Verbose:      b.Verbose,
 	}
-
-	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(), nil)
+	var dialer websocket.Dialer
+	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	_, p, err := b.WebsocketConn.ReadMessage()
+	p, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
 		return err
 	}
 
 	var welcomeResp WebsocketWelcome
-	err = common.JSONDecode(p, &welcomeResp)
+	err = common.JSONDecode(p.Raw, &welcomeResp)
 	if err != nil {
 		return err
 	}
@@ -117,19 +109,6 @@ func (b *Bitmex) WsConnector() error {
 	return nil
 }
 
-func (b *Bitmex) wsReadData() (wshandler.WebsocketResponse, error) {
-	_, resp, err := b.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-
-	return wshandler.WebsocketResponse{
-		Raw: resp,
-	}, nil
-}
-
 // wsHandleIncomingData services incoming data from the websocket connection
 func (b *Bitmex) wsHandleIncomingData() {
 	b.Websocket.Wg.Add(1)
@@ -144,12 +123,12 @@ func (b *Bitmex) wsHandleIncomingData() {
 			return
 
 		default:
-			resp, err := b.wsReadData()
+			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
-
+			b.Websocket.TrafficAlert <- struct{}{}
 			message := string(resp.Raw)
 			if common.StringContains(message, "pong") {
 				pongChan <- 1
@@ -157,7 +136,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			if common.StringContains(message, "ping") {
-				err = b.wsSend("pong")
+				err = b.WebsocketConn.SendMessage("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -517,7 +496,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
-	return b.wsSend(subscriber)
+	return b.WebsocketConn.SendMessage(subscriber)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -527,7 +506,7 @@ func (b *Bitmex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	subscriber.Arguments = append(subscriber.Arguments,
 		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
-	return b.wsSend(subscriber)
+	return b.WebsocketConn.SendMessage(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription
@@ -546,20 +525,10 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
 		signature)
-	err := b.wsSend(sendAuth)
+	err := b.WebsocketConn.SendMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	return nil
-}
-
-// WsSend sends data to the websocket server
-func (b *Bitmex) wsSend(data interface{}) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v", b.Name, data)
-	}
-	return b.WebsocketConn.WriteJSON(data)
 }

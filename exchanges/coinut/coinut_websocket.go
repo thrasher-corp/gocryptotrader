@@ -3,6 +3,7 @@ package coinut
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -36,13 +37,13 @@ func (c *COINUT) WsConnect() error {
 
 	c.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName: c.Name,
-		URL:          coinutWebsocketURL,
+		URL:          c.Websocket.GetWebsocketURL(),
 		ProxyURL:     c.Websocket.GetProxyAddress(),
 		Verbose:      c.Verbose,
 		RateLimit:    coinutWebsocketRateLimit,
 	}
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer)
+	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}

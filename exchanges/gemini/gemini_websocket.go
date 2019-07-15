@@ -63,11 +63,16 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			geminiWsMarketData,
 			c.String(),
 			val.Encode())
-		conn, conStatus, err := dialer.Dial(endpoint, http.Header{})
-		if err != nil {
-			return fmt.Errorf("%v %v %v Error: %v", endpoint, conStatus, conStatus.StatusCode, err)
+		connection := &wshandler.WebsocketConnection{
+			ExchangeName: g.Name,
+			URL:          endpoint,
+			Verbose:      g.Verbose,
 		}
-		go g.WsReadData(conn, c)
+		err := connection.Dial(dialer, http.Header{})
+		if err != nil {
+			return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
+		}
+		go g.WsReadData(connection, c)
 		if len(enabledCurrencies)-1 == i {
 			return nil
 		}
@@ -100,17 +105,22 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("X-GEMINI-SIGNATURE", common.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	conn, conStatus, err := dialer.Dial(endpoint, headers)
-	if err != nil {
-		return fmt.Errorf("%v %v %v Error: %v", endpoint, conStatus, conStatus.StatusCode, err)
+	g.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: g.Name,
+		URL:          endpoint,
+		Verbose:      g.Verbose,
 	}
-	go g.WsReadData(conn, currency.Pair{})
+	g.AuthenticatedWebsocketConn.Dial(dialer, headers)
+	if err != nil {
+		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
+	}
+	go g.WsReadData(g.AuthenticatedWebsocketConn, currency.Pair{})
 	return nil
 }
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
-func (g *Gemini) WsReadData(ws *websocket.Conn, c currency.Pair) {
+func (g *Gemini) WsReadData(ws *wshandler.WebsocketConnection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
@@ -118,13 +128,13 @@ func (g *Gemini) WsReadData(ws *websocket.Conn, c currency.Pair) {
 		case <-g.Websocket.ShutdownC:
 			return
 		default:
-			_, resp, err := ws.ReadMessage()
+			resp, err := ws.ReadMessage()
 			if err != nil {
 				g.Websocket.DataHandler <- err
 				return
 			}
 			g.Websocket.TrafficAlert <- struct{}{}
-			comms <- ReadData{Raw: resp, Currency: c}
+			comms <- ReadData{Raw: resp.Raw, Currency: c}
 		}
 	}
 }

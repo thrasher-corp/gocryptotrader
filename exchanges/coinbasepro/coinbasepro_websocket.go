@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -27,40 +25,21 @@ func (c *CoinbasePro) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
-	var dialer websocket.Dialer
-
-	if c.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(c.Websocket.GetProxyAddress())
-		if err != nil {
-			return fmt.Errorf("coinbasepro_websocket.go error - proxy address %s",
-				err)
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
+	c.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: c.Name,
+		URL:          c.Websocket.GetWebsocketURL(),
+		Verbose:      c.Verbose,
 	}
-
-	var err error
-	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
-		http.Header{})
+	var dialer websocket.Dialer
+	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("coinbasepro_websocket.go error - unable to connect to websocket %s",
-			err)
+		return err
 	}
 
 	c.GenerateDefaultSubscriptions()
 	go c.WsHandleData()
 
 	return nil
-}
-
-// WsReadData reads data from the websocket connection
-func (c *CoinbasePro) WsReadData() (wshandler.WebsocketResponse, error) {
-	_, resp, err := c.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-	c.Websocket.TrafficAlert <- struct{}{}
-	return wshandler.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles read data from websocket connection
@@ -76,11 +55,13 @@ func (c *CoinbasePro) WsHandleData() {
 		case <-c.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := c.WsReadData()
+			resp, err := c.WebsocketConn.ReadMessage()
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				return
 			}
+			c.Websocket.TrafficAlert <- struct{}{}
+
 			type MsgType struct {
 				Type      string `json:"type"`
 				Sequence  int64  `json:"sequence"`
@@ -327,7 +308,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSub
 		subscribe.Passphrase = c.ClientID
 		subscribe.Timestamp = n
 	}
-	return c.wsSend(subscribe)
+	return c.WebsocketConn.SendMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -343,19 +324,5 @@ func (c *CoinbasePro) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelS
 			},
 		},
 	}
-	return c.wsSend(subscribe)
-}
-
-// WsSend sends data to the websocket server
-func (c *CoinbasePro) wsSend(data interface{}) error {
-	c.wsRequestMtx.Lock()
-	defer c.wsRequestMtx.Unlock()
-	if c.Verbose {
-		log.Debugf("%v sending message to websocket %v", c.Name, data)
-	}
-	json, err := common.JSONEncode(data)
-	if err != nil {
-		return err
-	}
-	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return c.WebsocketConn.SendMessage(subscribe)
 }

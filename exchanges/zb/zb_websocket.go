@@ -3,6 +3,7 @@ package zb
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"time"
 
@@ -27,12 +28,12 @@ func (z *ZB) WsConnect() error {
 	}
 	z.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName: z.Name,
-		URL:          zbWebsocketAPI,
+		URL:          z.Websocket.GetWebsocketURL(),
 		Verbose:      z.Verbose,
 		RateLimit:    20,
 	}
 	var dialer websocket.Dialer
-	err := z.WebsocketConn.Dial(&dialer)
+	err := z.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}

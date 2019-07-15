@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -55,7 +54,6 @@ const (
 type HitBTC struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
-	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets default settings for hitbtc

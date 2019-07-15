@@ -588,17 +588,19 @@ func TestWsAuth(t *testing.T) {
 	if !c.Websocket.IsEnabled() && !c.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var err error
+	c.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: c.Name,
+		URL:          c.Websocket.GetWebsocketURL(),
+		Verbose:      c.Verbose,
+	}
 	var dialer websocket.Dialer
-	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go c.WsHandleData()
-	defer c.WebsocketConn.Close()
 	err = c.Subscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "user",
 		Currency: currency.NewPairFromString("BTC-USD"),

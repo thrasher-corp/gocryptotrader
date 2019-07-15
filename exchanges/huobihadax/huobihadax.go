@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -66,7 +65,7 @@ type HUOBIHADAX struct {
 	WebsocketConn              *wshandler.WebsocketConnection
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
-	wsRequestMtx sync.Mutex
+	
 }
 
 // SetDefaults sets default values for the exchange

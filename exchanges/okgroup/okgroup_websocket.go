@@ -1,14 +1,10 @@
 package okgroup
 
 import (
-	"bytes"
-	"compress/flate"
 	"errors"
 	"fmt"
 	"hash/crc32"
-	"io/ioutil"
 	"net/http"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -145,50 +141,28 @@ const (
 	okGroupWsFuturesPosition       = okGroupWsFuturesSubsection + okGroupWsPosition
 	okGroupWsFuturesOrder          = okGroupWsFuturesSubsection + okGroupWsOrder
 
-	okGroupWsRateLimit = 30 * time.Millisecond
+	okGroupWsRateLimit = 30
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var orderbookMutex sync.Mutex
 var defaultSubscribedChannels = []string{okGroupWsSpotDepth, okGroupWsSpotCandle300s, okGroupWsSpotTicker, okGroupWsSpotTrade}
 
-// writeToWebsocket sends a message to the websocket endpoint
-func (o *OKGroup) writeToWebsocket(message string) error {
-	o.wsRequestMtx.Lock()
-	defer o.wsRequestMtx.Unlock()
-	if o.Verbose {
-		log.Debugf("%v sending message to WS: %v", o.Name, message)
-	}
-	// Really basic WS rate limit
-	time.Sleep(okGroupWsRateLimit)
-	return o.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
-}
-
 // WsConnect initiates a websocket connection
 func (o *OKGroup) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
+	o.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: o.Name,
+		URL:          o.Websocket.GetWebsocketURL(),
+		Verbose:      o.Verbose,
+		RateLimit:    okGroupWsRateLimit,
+	}
 	var dialer websocket.Dialer
-	if o.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(o.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	var err error
-	if o.Verbose {
-		log.Debugf("Attempting to connect to %v", o.Websocket.GetWebsocketURL())
-	}
-	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := o.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%s Unable to connect to Websocket. Error: %s",
-			o.Name,
-			err)
+		return err
 	}
 	if o.Verbose {
 		log.Debugf("Successful connection to %v",
@@ -211,34 +185,6 @@ func (o *OKGroup) WsConnect() error {
 	return nil
 }
 
-// WsReadData reads data from the websocket connection
-func (o *OKGroup) WsReadData() (wshandler.WebsocketResponse, error) {
-	mType, resp, err := o.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	o.Websocket.TrafficAlert <- struct{}{}
-	var standardMessage []byte
-	switch mType {
-	case websocket.TextMessage:
-		standardMessage = resp
-
-	case websocket.BinaryMessage:
-		reader := flate.NewReader(bytes.NewReader(resp))
-		standardMessage, err = ioutil.ReadAll(reader)
-		reader.Close()
-		if err != nil {
-			return wshandler.WebsocketResponse{}, err
-		}
-	}
-	if o.Verbose {
-		log.Debugf("%v Websocket message received: %v", o.Name, string(standardMessage))
-	}
-
-	return wshandler.WebsocketResponse{Raw: standardMessage}, nil
-}
-
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
 func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
@@ -255,7 +201,7 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 			return
 
 		case <-ticker.C:
-			err := o.writeToWebsocket("ping")
+			err := o.WebsocketConn.SendMessage("ping")
 			if o.Verbose {
 				log.Debugf("%v sending ping", o.GetName())
 			}
@@ -281,11 +227,12 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 			return
 
 		default:
-			resp, err := o.WsReadData()
+			resp, err := o.WebsocketConn.ReadMessage()
 			if err != nil {
 				o.Websocket.DataHandler <- err
 				return
 			}
+			o.Websocket.TrafficAlert <- struct{}{}
 			var dataResponse WebsocketDataResponse
 			err = common.JSONDecode(resp.Raw, &dataResponse)
 			if err == nil && dataResponse.Table != "" {
@@ -327,16 +274,11 @@ func (o *OKGroup) WsLogin() error {
 	signPath := "/users/self/verify"
 	hmac := common.GetHMAC(common.HashSHA256, []byte(fmt.Sprintf("%v", unixTime)+http.MethodGet+signPath), []byte(o.APISecret))
 	base64 := common.Base64Encode(hmac)
-	resp := WebsocketEventRequest{
+	request := WebsocketEventRequest{
 		Operation: "login",
 		Arguments: []string{o.APIKey, o.ClientID, fmt.Sprintf("%v", unixTime), base64},
 	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return err
-	}
-	err = o.writeToWebsocket(string(json))
+	err := o.WebsocketConn.SendMessage(request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -713,36 +655,22 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (o *OKGroup) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	resp := WebsocketEventRequest{
+	request := WebsocketEventRequest{
 		Operation: "subscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
 	}
 	if strings.EqualFold(channelToSubscribe.Channel, okGroupWsSpotAccount) {
-		resp.Arguments = []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.Base.String())}
+		request.Arguments = []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.Base.String())}
 	}
 
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		if o.Verbose {
-			log.Debugf("%v subscribe error: %v", o.Name, err)
-		}
-		return err
-	}
-	return o.writeToWebsocket(string(json))
+	return o.WebsocketConn.SendMessage(request)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (o *OKGroup) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	resp := WebsocketEventRequest{
+	request := WebsocketEventRequest{
 		Operation: "unsubscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
 	}
-	json, err := common.JSONEncode(resp)
-	if err != nil {
-		if o.Verbose {
-			log.Debugf("%v unsubscribe error: %v", o.Name, err)
-		}
-		return err
-	}
-	return o.writeToWebsocket(string(json))
+	return o.WebsocketConn.SendMessage(request)
 }

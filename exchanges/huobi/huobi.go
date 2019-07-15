@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -71,7 +70,6 @@ type HUOBI struct {
 	AccountID                  string
 	WebsocketConn              *wshandler.WebsocketConnection
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
-	wsRequestMtx               sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange

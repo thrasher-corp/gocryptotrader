@@ -1,6 +1,7 @@
 package coinut
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -64,7 +65,7 @@ func setupWSTestAuth(t *testing.T) {
 		RateLimit:    coinutWebsocketRateLimit,
 	}
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer)
+	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}

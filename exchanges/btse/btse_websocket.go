@@ -2,9 +2,7 @@ package btse
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -27,41 +25,21 @@ func (b *BTSE) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
-	var dialer websocket.Dialer
-
-	if b.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return fmt.Errorf("%s websocket error - proxy address %s",
-				b.Name, err)
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
+	b.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: b.Name,
+		URL:          b.Websocket.GetWebsocketURL(),
+		Verbose:      b.Verbose,
 	}
-
-	var err error
-	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(),
-		http.Header{})
+	var dialer websocket.Dialer
+	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%s websocket error - unable to connect %s",
-			b.Name, err)
+		return err
 	}
 
 	go b.WsHandleData()
 	b.GenerateDefaultSubscriptions()
 
 	return nil
-}
-
-// WsReadData reads data from the websocket connection
-func (b *BTSE) WsReadData() (wshandler.WebsocketResponse, error) {
-	_, resp, err := b.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-	return wshandler.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles read data from websocket connection
@@ -78,11 +56,12 @@ func (b *BTSE) WsHandleData() {
 			return
 
 		default:
-			resp, err := b.WsReadData()
+			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
+			b.Websocket.TrafficAlert <- struct{}{}
 
 			type MsgType struct {
 				Type      string `json:"type"`
@@ -227,7 +206,7 @@ func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscripti
 			},
 		},
 	}
-	return b.wsSend(subscribe)
+	return b.WebsocketConn.SendMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -241,19 +220,5 @@ func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 			},
 		},
 	}
-	return b.wsSend(subscribe)
-}
-
-// WsSend sends data to the websocket server
-func (b *BTSE) wsSend(data interface{}) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v", b.Name, data)
-	}
-	json, err := common.JSONEncode(data)
-	if err != nil {
-		return err
-	}
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return b.WebsocketConn.SendMessage(subscribe)
 }

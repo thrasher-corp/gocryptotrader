@@ -23,7 +23,7 @@ type IWebsocketConnection interface {
 	SendMessage(data interface{}) error
 	VerifyResponseID(responseID uint64) bool
 	GenerateMessageID()
-	Dial() error
+	Dial(dialer *websocket.Dialer, headers http.Header) error
 }
 
 // WebsocketConnection contains all the datas needed to send a message to a WS
@@ -55,7 +55,7 @@ func (w *WebsocketConnection) AddResponseWithID(id int64, data []byte) {
 }
 
 // Dial will handle all your life's problems
-func (w *WebsocketConnection) Dial(dialer *websocket.Dialer) error {
+func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
 	if w.ProxyURL != "" {
 		proxy, err := url.Parse(w.ProxyURL)
 		if err != nil {
@@ -66,14 +66,12 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer) error {
 
 	var err error
 	var conStatus *http.Response
-	w.WebsocketConnection, conStatus, err = dialer.Dial(w.URL, http.Header{})
+	w.WebsocketConnection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
 			return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
-
-		} else {
-			return fmt.Errorf("%v Error: %v", w.URL, err)
 		}
+		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
 	return nil
 }

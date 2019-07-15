@@ -84,8 +84,8 @@ func main() {
 		common.ExtractPort(listenAddr))
 	log.Printf("Connecting to websocket host: %s", wsHost)
 
-	var Dialer websocket.Dialer
-	WSConn, _, err = Dialer.Dial(wsHost, http.Header{})
+	var dialer websocket.Dialer
+	WSConn, _, err = dialer.Dial(wsHost, http.Header{})
 	if err != nil {
 		log.Println("Unable to connect to websocket server")
 		return

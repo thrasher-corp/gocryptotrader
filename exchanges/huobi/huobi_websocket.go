@@ -3,6 +3,7 @@ package huobi
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -87,7 +88,7 @@ func (h *HUOBI) WsConnect() error {
 }
 
 func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
-	err := h.WebsocketConn.Dial(dialer)
+	err := h.WebsocketConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -99,7 +100,7 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
 	}
-	err := h.AuthenticatedWebsocketConn.Dial(dialer)
+	err := h.AuthenticatedWebsocketConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}

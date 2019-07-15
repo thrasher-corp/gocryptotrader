@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"reflect"
 	"strconv"
 	"time"
@@ -60,21 +59,7 @@ func (b *Bitfinex) WsPingHandler() error {
 	req := make(map[string]string)
 	req["event"] = "ping"
 
-	return b.wsSend(req)
-}
-
-// WsSend sends data to the websocket server
-func (b *Bitfinex) wsSend(data interface{}) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-	json, err := common.JSONEncode(data)
-	if err != nil {
-		return err
-	}
-	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v", b.Name, data)
-	}
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return b.WebsocketConn.SendMessage(req)
 }
 
 // WsSendAuth sends a autheticated event payload
@@ -95,7 +80,7 @@ func (b *Bitfinex) WsSendAuth() error {
 
 	req["authPayload"] = payload
 
-	err := b.wsSend(req)
+	err := b.WebsocketConn.SendMessage(req)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -108,7 +93,7 @@ func (b *Bitfinex) WsSendUnauth() error {
 	req := make(map[string]string)
 	req["event"] = "unauth"
 
-	return b.wsSend(req)
+	return b.WebsocketConn.SendMessage(req)
 }
 
 // WsAddSubscriptionChannel adds a new subscription channel to the
@@ -132,30 +117,25 @@ func (b *Bitfinex) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
-	var Dialer websocket.Dialer
-	var err error
-
-	if b.Websocket.GetProxyAddress() != "" {
-		var proxy *url.URL
-		proxy, err = url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-		Dialer.Proxy = http.ProxyURL(proxy)
+	var dialer websocket.Dialer
+	b.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: b.Name,
+		URL:          b.Websocket.GetWebsocketURL(),
+		ProxyURL:     b.Websocket.GetProxyAddress(),
+		Verbose:      b.Verbose,
 	}
-
-	b.WebsocketConn, _, err = Dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
+	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", b.Name, err)
 	}
 
-	_, resp, err := b.WebsocketConn.ReadMessage()
+	resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
 		return fmt.Errorf("%v unable to read from Websocket. Error: %s", b.Name, err)
 	}
 
 	var hs WebsocketHandshake
-	err = common.JSONDecode(resp, &hs)
+	err = common.JSONDecode(resp.Raw, &hs)
 	if err != nil {
 		return err
 	}
@@ -179,22 +159,6 @@ func (b *Bitfinex) WsConnect() error {
 	return nil
 }
 
-// WsReadData reads and handles websocket stream data
-func (b *Bitfinex) WsReadData() (wshandler.WebsocketResponse, error) {
-	msgType, resp, err := b.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-
-	return wshandler.WebsocketResponse{
-		Type: msgType,
-		Raw:  resp,
-	}, nil
-
-}
-
 // WsDataHandler handles data from WsReadData
 func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
@@ -209,11 +173,12 @@ func (b *Bitfinex) WsDataHandler() {
 			return
 
 		default:
-			stream, err := b.WsReadData()
+			stream, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
+			b.Websocket.TrafficAlert <- struct{}{}
 
 			if stream.Type == websocket.TextMessage {
 				var result interface{}
@@ -651,7 +616,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 			req[k] = v
 		}
 	}
-	return b.wsSend(req)
+	return b.WebsocketConn.SendMessage(req)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -665,5 +630,5 @@ func (b *Bitfinex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 			req[k] = v
 		}
 	}
-	return b.wsSend(req)
+	return b.WebsocketConn.SendMessage(req)
 }

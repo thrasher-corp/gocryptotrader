@@ -446,20 +446,22 @@ func TestWsAuth(t *testing.T) {
 	if !p.Websocket.IsEnabled() && !p.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var err error
+	p.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: p.Name,
+		URL:          p.Websocket.GetWebsocketURL(),
+		Verbose:      p.Verbose,
+	}
 	var dialer websocket.Dialer
-	p.WebsocketConn, _, err = dialer.Dial(p.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := p.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go p.WsHandleData()
-	defer p.WebsocketConn.Close()
 	err = p.wsSendAuthorisedCommand("subscribe")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
