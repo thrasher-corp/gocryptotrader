@@ -34,16 +34,15 @@ func TestSetup(t *testing.T) {
 	l.SetDefaults()
 	l.APIKey = testAPIKey
 	l.APISecret = testAPISecret
-	l.loadPrivKey()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json")
 	if err != nil {
-		t.Fatal("Test Failed - Lbank Setup() init error", err)
+		t.Errorf("Test Failed - Lbank Setup() init error:, %v", err)
 	}
 	lbankConfig, err := cfg.GetExchangeConfig("Lbank")
 	lbankConfig.Websocket = true
 	if err != nil {
-		t.Fatal("Test Failed - Lbank Setup() init error", err)
+		t.Errorf("Test Failed - Lbank Setup() init error: %v", err)
 	}
 
 	l.Setup(&lbankConfig)
@@ -53,7 +52,7 @@ func TestGetTicker(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetTicker("btc_usdt")
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
@@ -61,7 +60,7 @@ func TestGetCurrencyPairs(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetCurrencyPairs()
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
@@ -69,15 +68,15 @@ func TestGetMarketDepths(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetMarketDepths("btc_usdt", "60", "1")
 	if err != nil {
-		t.Fatalf("GetMarketDepth failed: %v", err)
+		t.Errorf("GetMarketDepth failed: %v", err)
 	}
 	a, _ := l.GetMarketDepths("btc_usdt", "60", "0")
 	if len(a.Asks) != 60 {
-		t.Fatal("length requested doesnt match the output")
+		t.Errorf("length requested doesnt match the output")
 	}
 	_, err = l.GetMarketDepths("btc_usdt", "61", "0")
 	if err == nil {
-		t.Fatal("size is greater than the maximum allowed")
+		t.Errorf("size is greater than the maximum allowed")
 	}
 }
 
@@ -85,11 +84,11 @@ func TestGetTrades(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetTrades("btc_usdt", "600", fmt.Sprintf("%v", time.Now().Unix()))
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	a, err := l.GetTrades("btc_usdt", "600", "0")
 	if len(a) != 600 && err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
@@ -97,7 +96,7 @@ func TestGetKlines(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetKlines("btc_usdt", "600", "minute1", fmt.Sprintf("%v", time.Now().Unix()))
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
@@ -110,7 +109,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 	_, err := l.UpdateOrderbook(p.Lower(), "spot")
 	if err != nil {
-		t.Fatalf("Update for orderbook failed: %v", err)
+		t.Errorf("Update for orderbook failed: %v", err)
 	}
 }
 
@@ -157,7 +156,7 @@ func TestRemoveOrder(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	_, err := l.RemoveOrder(cp.Lower().String(), "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
 	if err != nil {
-		t.Error(err)
+		t.Errorf("unable to remove order: %v", err)
 	}
 }
 
@@ -183,7 +182,6 @@ func TestQueryOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	log.Println(havealook)
 }
 
@@ -191,7 +189,7 @@ func TestGetPairInfo(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetPairInfo()
 	if err != nil {
-		t.Error("somethings wrong")
+		t.Errorf("couldnt get pair info: %v", err)
 	}
 }
 
@@ -211,7 +209,7 @@ func TestUSD2RMBRate(t *testing.T) {
 	TestSetup(t)
 	_, err := l.USD2RMBRate()
 	if err != nil {
-		t.Error("wtf")
+		t.Error("unable to acquire the rate")
 	}
 }
 
@@ -220,7 +218,7 @@ func TestGetWithdrawConfig(t *testing.T) {
 	curr := "eth"
 	_, err := l.GetWithdrawConfig(curr)
 	if err != nil {
-		t.Error("wtf", err)
+		t.Errorf("unable to get withdraw config: %v", err)
 	}
 }
 
@@ -231,7 +229,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetup(t)
 	_, err := l.Withdraw("", "", "", "", "")
 	if err != nil {
-		t.Error(err)
+		t.Errorf("unable to withdraw: %v", err)
 	}
 }
 
@@ -242,7 +240,7 @@ func TestGetWithdrawRecords(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetWithdrawalRecords("eth", "0", "1", "20")
 	if err != nil {
-		t.Error(err)
+		t.Errorf("unable to get withdrawal records: %v", err)
 	}
 }
 
@@ -271,7 +269,7 @@ func TestSign(t *testing.T) {
 	l.SetDefaults()
 	l.APISecret = testAPISecret
 	l.loadPrivKey()
-	_, err := l.sign("wtf", l.privateKey)
+	_, err := l.sign("hello123", l.privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -323,5 +321,21 @@ func TestGetAllOpenOrderID(t *testing.T) {
 	_, err := l.GetAllOpenOrderID()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetFeeByType(t *testing.T) {
+	TestSetup(t)
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
+	var input exchange.FeeBuilder
+	input.Amount = 2
+	input.FeeType = exchange.CryptocurrencyWithdrawalFee
+	input.Pair = cp
+	a, err := l.GetFeeByType(&input)
+	if err != nil {
+		t.Error(err)
+	}
+	if a != 0.0005 {
+		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)
 	}
 }

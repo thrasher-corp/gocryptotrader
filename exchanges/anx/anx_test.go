@@ -445,6 +445,7 @@ func TestGetDepositAddress(t *testing.T) {
 		}
 	}
 }
+
 func TestUpdateOrderbook(t *testing.T) {
 	a.SetDefaults()
 	q := currency.Pair{

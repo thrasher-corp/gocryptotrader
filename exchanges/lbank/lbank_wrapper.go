@@ -161,20 +161,17 @@ func (l *Lbank) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (l *Lbank) CancelOrder(order *exchange.OrderCancellation) error {
 	_, err := l.RemoveOrder(order.CurrencyPair.Lower().String(), order.OrderID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
-	mappymCMapMap, err := l.GetAllOpenOrderID()
+	orderIDs, err := l.GetAllOpenOrderID()
 	if err != nil {
 		return resp, nil
 	}
-	for key := range mappymCMapMap {
+	for key := range orderIDs {
 		if key != orders.CurrencyPair.String() {
 			continue
 		}
@@ -182,11 +179,11 @@ func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.Ca
 		x = 0
 		y = 0
 		var tempSlice []string
-		for mappymCMapMap[key][x] != "" {
+		for orderIDs[key][x] != "" {
 			x++
 		}
 		for y != x {
-			tempSlice = append(tempSlice, mappymCMapMap[key][y])
+			tempSlice = append(tempSlice, orderIDs[key][y])
 			if y%3 == 0 {
 				input := strings.Join(tempSlice, ",")
 				CancelResponse, err2 := l.RemoveOrder(key, input)
@@ -208,21 +205,18 @@ func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.Ca
 		}
 		x++
 	}
-
-	// get all exchange trading pairs
-	// var allOrders map[string][]string
 	return resp, nil
 }
 
 // GetOrderInfo returns information on a current open order
 func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var resp exchange.OrderDetail
-	mappymCMapMap, err := l.GetAllOpenOrderID()
+	orderIDs, err := l.GetAllOpenOrderID()
 	if err != nil {
 		return resp, err
 	}
 
-	for key, val := range mappymCMapMap {
+	for key, val := range orderIDs {
 		for i := range val {
 			if val[i] != orderID {
 				continue
@@ -272,13 +266,11 @@ func (l *Lbank) GetDepositAddress(cryptocurrency currency.Code, accountID string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *Lbank) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	var resp string
-	tempResp, err := l.Withdraw(withdrawRequest.Address, withdrawRequest.Currency.String(), strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64), "", withdrawRequest.Description)
+	resp, err := l.Withdraw(withdrawRequest.Address, withdrawRequest.Currency.String(), strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64), "", withdrawRequest.Description)
 	if err != nil {
-		return resp, err
+		return resp.WithdrawID, err
 	}
-	resp = tempResp.WithdrawID
-	return resp, nil
+	return resp.WithdrawID, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -300,7 +292,7 @@ func (l *Lbank) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	finalResp := make([]exchange.OrderDetail, 0)
+	var finalResp []exchange.OrderDetail
 	var resp exchange.OrderDetail
 	tempData, err := l.GetAllOpenOrderID()
 	if err != nil {
@@ -340,7 +332,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			resp.OrderDate = time.Unix(tempResp.Orders[0].CreateTime, 9)
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
-			resp.Fee = 0.001
+			resp.Fee = tempResp.Orders[0].Amount * tempResp.Orders[0].Price * 0.001
 			for y := int(0); y < len(getOrdersRequest.Currencies); y++ {
 				if getOrdersRequest.Currencies[y].String() != key {
 					continue
@@ -352,9 +344,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 				if strings.EqualFold(getOrdersRequest.OrderSide.ToString(), tempResp.Orders[0].Type) {
 					finalResp = append(finalResp, resp)
 				}
-
 			}
-
 		}
 	}
 	return finalResp, nil
@@ -384,7 +374,18 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 
 // GetFeeByType returns an estimate of fee based on the type of transaction *
 func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	resp := float64(0.001)
+	var resp float64
+	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.001, nil
+	}
+	if feeBuilder.FeeType == exchange.CryptocurrencyWithdrawalFee {
+		withdrawalFee, err := l.GetWithdrawConfig(feeBuilder.Pair.Base.Lower().String())
+		if err != nil {
+			return resp, err
+		}
+
+		return withdrawalFee.Fee, nil
+	}
 	return resp, nil
 }
 

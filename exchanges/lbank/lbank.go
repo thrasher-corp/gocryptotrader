@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -30,19 +31,25 @@ type Lbank struct {
 	privateKey    *rsa.PrivateKey
 	privKeyLoaded bool
 	WebsocketConn *websocket.Conn
+	privKeyMutex  sync.Mutex
 }
 
 const (
 	lbankAPIURL     = "https://api.lbkex.com"
 	lbankAPIVersion = "1"
+	lbankRateLimit  = time.Second
 
 	// Public endpoints
+	lbankTicker         = "ticker.do"
+	lbankCurrencyPairs  = "currencyPairs.do"
+	lbankMarketDepths   = "depth.do"
+	lbankTrades         = "trades.do"
+	lbankKlines         = "kline.do"
+	lbankPairInfo       = "accuracy.do"
+	lbankUSD2CNYRate    = "usdToCny.do"
+	lbankWithdrawConfig = "withdrawConfigs.do"
 
-	lbankTicker            = "ticker.do"
-	lbankCurrencyPairs     = "currencyPairs.do"
-	lbankMarketDepths      = "depth.do"
-	lbankTrades            = "trades.do"
-	lbankKlines            = "kline.do"
+	// Authenticated endpoints
 	lbankUserInfo          = "user_info.do"
 	lbankPlaceOrder        = "create_order.do"
 	lbankCancelOrder       = "cancel_order.do"
@@ -50,32 +57,20 @@ const (
 	lbankQueryHistoryOrder = "orders_info_history.do"
 	lbankOpeningOrders     = "orders_info_no_deal.do"
 	lbankWithdrawalRecords = "withdraws.do"
-	lbankPairInfo          = "accuracy.do"
-	lbankUSD2CNYRate       = "usdToCny.do"
-	lbankWithdrawConfig    = "withdrawConfigs.do"
 	lbankWithdraw          = "withdraw.do"
 	lbankRevokeWithdraw    = "withdrawCancel.do"
-
-	// Authenticated endpoints
-
 )
 
 // SetDefaults sets the basic defaults for Lbank
 func (l *Lbank) SetDefaults() {
 	l.Name = "Lbank"
-	l.Enabled = false
-	l.Verbose = false
 	l.RESTPollingDelay = 10
 	l.RequestCurrencyPairFormat.Delimiter = "_"
-	l.RequestCurrencyPairFormat.Uppercase = false
 	l.ConfigCurrencyPairFormat.Delimiter = "_"
-	l.ConfigCurrencyPairFormat.Uppercase = false
 	l.AssetTypes = []string{ticker.Spot}
-	l.SupportsAutoPairUpdating = false
-	l.SupportsRESTTickerBatching = false
 	l.Requester = request.New(l.Name,
-		request.NewRateLimit(time.Second, 0),
-		request.NewRateLimit(time.Second, 0),
+		request.NewRateLimit(lbankRateLimit, 0),
+		request.NewRateLimit(lbankRateLimit, 0),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = lbankAPIURL
 	l.APIUrl = l.APIUrlDefault
@@ -89,6 +84,7 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) {
 	} else {
 		l.Enabled = true
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		l.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		l.SetHTTPClientTimeout(exch.HTTPTimeout)
 		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
@@ -151,7 +147,7 @@ func (l *Lbank) GetMarketDepths(symbol, size, merge string) (MarketDepthResponse
 	return m, l.SendHTTPRequest(path, &m)
 }
 
-// GetTrades returns an array of structs of available trades regarding a particular exchange
+// GetTrades returns an array of available trades regarding a particular exchange
 func (l *Lbank) GetTrades(symbol, size, time string) ([]TradeResponse, error) {
 	var g []TradeResponse
 	params := url.Values{}
@@ -159,11 +155,10 @@ func (l *Lbank) GetTrades(symbol, size, time string) ([]TradeResponse, error) {
 	params.Set("size", size)
 	params.Set("time", time)
 	path := fmt.Sprintf("%s/v%s/%s?%s", l.APIUrl, lbankAPIVersion, lbankTrades, params.Encode())
-	log.Println(path)
 	return g, l.SendHTTPRequest(path, &g)
 }
 
-// GetKlines returns arrays of something
+// GetKlines returns kline data
 func (l *Lbank) GetKlines(symbol, size, klineType, time string) ([]KlineResponse, error) {
 	var klineTemp interface{}
 	var k []KlineResponse
@@ -224,12 +219,6 @@ func (l *Lbank) GetKlines(symbol, size, klineType, time string) ([]KlineResponse
 	return k, nil
 }
 
-// ErrCapture helps with error info
-type ErrCapture struct {
-	Error  int64 `json:"error_code"`
-	Result bool  `json:"result,string"`
-}
-
 // GetUserInfo gets users account info
 func (l *Lbank) GetUserInfo() (InfoResponse, error) {
 	var resp InfoResponse
@@ -241,8 +230,6 @@ func (l *Lbank) GetUserInfo() (InfoResponse, error) {
 func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (CreateOrderResponse, error) {
 	var resp CreateOrderResponse
 	if !strings.EqualFold(side, "buy") && !strings.EqualFold(side, "sell") {
-		log.Println(side)
-		log.Println(strings.EqualFold(side, "BUY"))
 		return resp, errors.New("side type invalid can only be 'buy' or 'sell'")
 	}
 	if amount <= 0 {
@@ -289,7 +276,6 @@ func (l *Lbank) QueryOrderHistory(pair, pageNumber, pageLength string) (OrderHis
 	params.Set("current_page", pageNumber)
 	params.Set("page_length", pageLength)
 	path := fmt.Sprintf("%s/v%s/%s?", l.APIUrl, lbankAPIVersion, lbankQueryHistoryOrder)
-	log.Println(path)
 	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
 	if err != nil {
 		return OrderHistoryResponse{}, err
@@ -345,18 +331,25 @@ func (l *Lbank) USD2RMBRate() (ExchangeRateResponse, error) {
 }
 
 // GetWithdrawConfig gets information about withdrawals
-func (l *Lbank) GetWithdrawConfig(assetCode string) ([]WithdrawConfigResponse, error) {
+func (l *Lbank) GetWithdrawConfig(assetCode string) (WithdrawConfigRespFee, error) {
 	l.Verbose = true
+	var finalResp WithdrawConfigRespFee
 	var resp []WithdrawConfigResponse
 	params := url.Values{}
 	if assetCode != "" {
 		params.Set("assetCode", assetCode)
 	}
 	path := fmt.Sprintf("%s/v%s/%s?%s", lbankAPIURL, lbankAPIVersion, lbankWithdrawConfig, params.Encode())
-	return resp, l.SendHTTPRequest(path, &resp)
+	err := l.SendHTTPRequest(path, &resp)
+	if err != nil {
+		return finalResp, err
+	}
+	json.Unmarshal([]byte(resp[0].Fee), &finalResp)
+
+	return finalResp, nil
 }
 
-// Withdraw withdraws
+// Withdraw sends a withdrawal request
 func (l *Lbank) Withdraw(account, assetCode, amount, memo, mark string) (WithdrawResponse, error) {
 	var resp WithdrawResponse
 	params := url.Values{}
@@ -426,6 +419,8 @@ func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
 }
 
 func (l *Lbank) loadPrivKey() error {
+	l.privKeyMutex.Lock()
+	defer l.privKeyMutex.Unlock()
 	if l.privKeyLoaded {
 		return nil
 	}
@@ -474,11 +469,9 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 		vals = url.Values{}
 	}
 
-	if !l.privKeyLoaded {
-		err := l.loadPrivKey()
-		if err != nil {
-			return err
-		}
+	err := l.loadPrivKey()
+	if err != nil {
+		return err
 	}
 
 	vals.Set("api_key", l.APIKey)
@@ -502,40 +495,4 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 		return err
 	}
 	return json.Unmarshal(intermediary, result)
-}
-
-var errorCodes = map[int64]string{
-	10000: "Internal error",
-	10001: "The required parameters can not be empty",
-	10002: "Validation Failed",
-	10003: "Invalid parameter",
-	10004: "Request too frequent",
-	10005: "Secret key does not exist",
-	10006: "User does not exist",
-	10007: "Invalid signature",
-	10008: "Invalid Trading Pair",
-	10009: "Price and/or Amount are required for limit order",
-	10010: "Price and/or Amount must be more than 0",
-	10013: "The amount is too small",
-	10014: "Insufficient amount of money in account",
-	10015: "Invalid order type",
-	10016: "Insufficient account balance",
-	10017: "Server Error",
-	10018: "Page size should be between 1 and 50",
-	10019: "Cancel NO more than 3 orders in one request",
-	10020: "Volume < 0.001",
-	10021: "Price < 0.01",
-	10022: "Access denied",
-	10023: "Market Order is not supported yet.",
-	10024: "User cannot trade on this pair",
-	10025: "Order has been filled",
-	10026: "Order has been cancelld",
-	10027: "Order is cancelling",
-	10028: "Trading is paused",
-	10100: "Has no privilege to withdraw",
-	10101: "Invalid fee rate to withdraw",
-	10102: "Too little to withdraw",
-	10103: "Exceed daily limitation of withdraw",
-	10104: "Cancel was rejected",
-	10105: "Request has been cancelled",
 }

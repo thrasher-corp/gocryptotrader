@@ -21,10 +21,12 @@ An exchange interface wrapper for the GoCryptoTrader application.
 + Please add notes here with any production issues
 + Please provide link to exchange website and API documentation
 
+https://github.com/LBank-exchange/lbank-official-api-docs/tree/master/API-For-Spot-EN
+
 ## Contributors
 
 + Please add your information
 
-|User|Github|Contribution|
+|Name|Github|Contribution|
 |--|--|--|
-|AliasGoesHere|https://github.com/AliasGoesHere |WHAT-YOU-DID|
+|MadCozBadd|https://github.com/madcozbadd |everything|
