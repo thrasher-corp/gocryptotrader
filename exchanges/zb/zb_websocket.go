@@ -19,6 +19,7 @@ import (
 const (
 	zbWebsocketAPI       = "wss://api.zb.cn:9999/websocket"
 	zWebsocketAddChannel = "addChannel"
+	zbWebsocketRateLimit = 20
 )
 
 // WsConnect initiates a websocket connection
@@ -30,7 +31,7 @@ func (z *ZB) WsConnect() error {
 		ExchangeName: z.Name,
 		URL:          z.Websocket.GetWebsocketURL(),
 		Verbose:      z.Verbose,
-		RateLimit:    20,
+		RateLimit:    zbWebsocketRateLimit,
 	}
 	var dialer websocket.Dialer
 	err := z.WebsocketConn.Dial(&dialer, http.Header{})
