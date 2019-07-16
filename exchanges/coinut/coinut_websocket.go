@@ -47,6 +47,7 @@ func (c *COINUT) WsConnect() error {
 	if err != nil {
 		return err
 	}
+	go c.WsHandleData()
 
 	if !populatedList {
 		instrumentListByString = make(map[string]int64)
@@ -64,7 +65,6 @@ func (c *COINUT) WsConnect() error {
 	channels = make(map[string]chan []byte)
 	channels["hb"] = make(chan []byte, 1)
 
-	go c.WsHandleData()
 	return nil
 }
 

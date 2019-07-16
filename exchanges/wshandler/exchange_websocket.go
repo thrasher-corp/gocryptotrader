@@ -271,9 +271,6 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 				w.connected = true
 			}
 			w.m.Unlock()
-			if w.verbose {
-				log.Debugf("%v received a traffic alert", w.exchangeName)
-			}
 			trafficTimer.Reset(WebsocketTrafficLimitTime)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set

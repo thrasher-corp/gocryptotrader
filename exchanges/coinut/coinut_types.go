@@ -263,7 +263,7 @@ type wsRequest struct {
 	SecType   string `json:"sec_type,omitempty"`
 	InstID    int64  `json:"inst_id,omitempty"`
 	TopN      int64  `json:"top_n,omitempty"`
-	Subscribe bool   `json:"subscribe"`
+	Subscribe bool   `json:"subscribe,omitempty"`
 	Nonce     int64  `json:"nonce"`
 }
 

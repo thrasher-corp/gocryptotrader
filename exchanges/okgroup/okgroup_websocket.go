@@ -327,14 +327,8 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 	case okGroupWsCandle60s, okGroupWsCandle180s, okGroupWsCandle300s, okGroupWsCandle900s,
 		okGroupWsCandle1800s, okGroupWsCandle3600s, okGroupWsCandle7200s, okGroupWsCandle14400s,
 		okGroupWsCandle21600s, okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:
-		if o.Verbose {
-			log.Debugf("%v Websocket candle data received", o.GetName())
-		}
 		o.wsProcessCandles(response)
 	case okGroupWsDepth, okGroupWsDepth5:
-		if o.Verbose {
-			log.Debugf("%v Websocket orderbook data received", o.GetName())
-		}
 		// Locking, orderbooks cannot be processed out of order
 		orderbookMutex.Lock()
 		err := o.WsProcessOrderBook(response)
@@ -348,14 +342,8 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		}
 		orderbookMutex.Unlock()
 	case okGroupWsTicker:
-		if o.Verbose {
-			log.Debugf("%v Websocket ticker data received", o.GetName())
-		}
 		o.wsProcessTickers(response)
 	case okGroupWsTrade:
-		if o.Verbose {
-			log.Debugf("%v Websocket trade data received", o.GetName())
-		}
 		o.wsProcessTrades(response)
 	default:
 		logDataResponse(response)

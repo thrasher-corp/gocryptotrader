@@ -187,9 +187,6 @@ func (b *Bitfinex) WsDataHandler() {
 				case "map[string]interface {}":
 					eventData := result.(map[string]interface{})
 					event := eventData["event"]
-					if b.Verbose {
-						log.Debugf("%v Received message. Type '%v' Message: %v", b.Name, event, eventData)
-					}
 					switch event {
 					case "subscribed":
 						b.WsAddSubscriptionChannel(int(eventData["chanId"].(float64)),

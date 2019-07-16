@@ -1572,17 +1572,17 @@ func TestSendWsMessages(t *testing.T) {
 	if !o.Websocket.IsEnabled() && !o.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var dialer websocket.Dialer
-	var err error
 	var ok bool
-	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
-		http.Header{})
-	if err != nil {
-		t.Fatalf("%s Unable to connect to Websocket. Error: %s",
-			o.Name,
-			err)
+	o.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: o.Name,
+		URL:          o.Websocket.GetWebsocketURL(),
+		Verbose:      o.Verbose,
 	}
-	defer o.WebsocketConn.Close()
+	var dialer websocket.Dialer
+	err := o.WebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go o.WsHandleData(&wg)

@@ -19,11 +19,14 @@ import (
 
 // IWebsocketConnection an interface for testing
 type IWebsocketConnection interface {
-	Setup(verbose, supportsMessageIDCorrelation, supportsMessageSequence bool, rateLimit float64, exchangeName string, connection *websocket.Conn) error
-	SendMessage(data interface{}) error
-	VerifyResponseID(responseID uint64) bool
-	GenerateMessageID()
+	AddResponseWithID(id int64, data []byte)
 	Dial(dialer *websocket.Dialer, headers http.Header) error
+	Setup(verbose, supportsMessageIDCorrelation bool, rateLimit float64, exchangeName string)
+	SendMessage(data interface{}) error
+	SendMessageReturnResponse(id int64, request interface{}) ([]byte, error)
+	WaitForResult(id int64, wg *sync.WaitGroup)
+	ReadMessage() (WebsocketResponse, error)
+	GenerateMessageID(useNano bool) int64
 }
 
 // WebsocketConnection contains all the datas needed to send a message to a WS
@@ -31,9 +34,7 @@ type WebsocketConnection struct {
 	sync.Mutex
 	Verbose                      bool
 	supportsMessageIDCorrelation bool
-	supportsRetry                bool
 	RateLimit                    float64
-	timeout                      time.Duration
 	ExchangeName                 string
 	URL                          string
 	ProxyURL                     string
@@ -54,7 +55,7 @@ func (w *WebsocketConnection) AddResponseWithID(id int64, data []byte) {
 	w.IDResponses[id] = data
 }
 
-// Dial will handle all your life's problems
+// Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
 	if w.ProxyURL != "" {
 		proxy, err := url.Parse(w.ProxyURL)
@@ -149,7 +150,7 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 	}
 }
 
-// ReadMessage reads messages, can handle text and binary
+// ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	mType, resp, err := w.WebsocketConnection.ReadMessage()
 	if err != nil {
@@ -189,7 +190,7 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 			w.ExchangeName,
 			string(standardMessage))
 	}
-	return WebsocketResponse{Raw: standardMessage}, nil
+	return WebsocketResponse{Raw: standardMessage, Type: mType}, nil
 }
 
 // GenerateMessageID Creates a messageID to checkout
