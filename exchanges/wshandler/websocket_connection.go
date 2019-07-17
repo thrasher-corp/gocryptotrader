@@ -81,7 +81,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 	}()
 	wg.Wait()
 	if _, ok := w.IDResponses[id]; !ok {
-		return nil, fmt.Errorf("Timeout waiting for response with ID %v", id)
+		return nil, fmt.Errorf("timeout waiting for response with ID %v", id)
 	}
 
 	return w.IDResponses[id], nil
@@ -141,7 +141,8 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	// Detect GZIP
 	if resp[0] == 31 && resp[1] == 139 {
 		b := bytes.NewReader(resp)
-		gReader, err := gzip.NewReader(b)
+		var gReader *gzip.Reader
+		gReader, err = gzip.NewReader(b)
 		if err != nil {
 			return standardMessage, err
 		}

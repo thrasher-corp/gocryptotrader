@@ -40,7 +40,9 @@ func (h *HitBTC) WsConnect() error {
 	}
 	var dialer websocket.Dialer
 	err := h.WebsocketConn.Dial(&dialer, http.Header{})
-
+	if err != nil {
+		return err
+	}
 	go h.WsHandleData()
 	err = h.wsLogin()
 	if err != nil {

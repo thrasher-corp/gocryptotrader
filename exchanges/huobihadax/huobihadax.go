@@ -65,7 +65,6 @@ type HUOBIHADAX struct {
 	WebsocketConn              *wshandler.WebsocketConnection
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
-	
 }
 
 // SetDefaults sets default values for the exchange

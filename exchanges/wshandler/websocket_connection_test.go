@@ -64,14 +64,15 @@ func TestDial(t *testing.T) {
 		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: ""}},
 		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL}},
 	}
-	for i := range testCases {
-		t.Run(testCases[i].WC.ExchangeName, func(t *testing.T) {
-			if testCases[i].WC.ProxyURL != "" && !useProxyTests {
+	for i := 0; i < len(testCases); i++ {
+		testData := &testCases[i]
+		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+			if testData.WC.ProxyURL != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
-			err := testCases[i].WC.Dial(&dialer, http.Header{})
+			err := testData.WC.Dial(&dialer, http.Header{})
 			if err != nil {
-				if testCases[i].Error != nil && err.Error() == testCases[i].Error.Error() {
+				if testData.Error != nil && err.Error() == testData.Error.Error() {
 					return
 				}
 				t.Fatal(err)
@@ -86,19 +87,20 @@ func TestSendMessage(t *testing.T) {
 		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: ""}},
 		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL}},
 	}
-	for i := range testCases {
-		t.Run(testCases[i].WC.ExchangeName, func(t *testing.T) {
-			if testCases[i].WC.ProxyURL != "" && !useProxyTests {
+	for i := 0; i < len(testCases); i++ {
+		testData := &testCases[i]
+		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+			if testData.WC.ProxyURL != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
-			err := testCases[i].WC.Dial(&dialer, http.Header{})
+			err := testData.WC.Dial(&dialer, http.Header{})
 			if err != nil {
-				if testCases[i].Error != nil && err.Error() == testCases[i].Error.Error() {
+				if testData.Error != nil && err.Error() == testData.Error.Error() {
 					return
 				}
 				t.Fatal(err)
 			}
-			err = testCases[i].WC.SendMessage("ping")
+			err = testData.WC.SendMessage("ping")
 			if err != nil {
 				t.Error(err)
 			}
@@ -144,15 +146,18 @@ func TestParseBinaryResponse(t *testing.T) {
 	}
 
 	var b2 bytes.Buffer
-	w2, err := flate.NewWriter(&b2, 1)
+	w2, err2 := flate.NewWriter(&b2, 1)
+	if err2 != nil {
+		t.Error(err2)
+	}
 	w2.Write([]byte("hello"))
 	w2.Close()
-	resp, err = wc.parseBinaryResponse(b2.Bytes())
-	if err != nil {
-		t.Error(err)
+	resp2, err3 := wc.parseBinaryResponse(b2.Bytes())
+	if err3 != nil {
+		t.Error(err3)
 	}
-	if !strings.EqualFold(string(resp), "hello") {
-		t.Errorf("GZip conversion failed. Received: '%v', Expected: 'hello'", string(resp))
+	if !strings.EqualFold(string(resp2), "hello") {
+		t.Errorf("GZip conversion failed. Received: '%v', Expected: 'hello'", string(resp2))
 	}
 }
 

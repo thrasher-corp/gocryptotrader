@@ -450,7 +450,11 @@ func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) (*WsStandardOrder
 	if err != nil {
 		return &WsStandardOrderResponse{}, err
 	}
-	standardOrder, err := c.wsStandardiseOrderResponse(resp)
+	var standardOrder WsStandardOrderResponse
+	standardOrder, err = c.wsStandardiseOrderResponse(resp)
+	if err != nil {
+		return &WsStandardOrderResponse{}, err
+	}
 	if standardOrder.Status[0] != "OK" {
 		return &standardOrder, fmt.Errorf("%v order submission failed. %v", c.Name, standardOrder)
 	}

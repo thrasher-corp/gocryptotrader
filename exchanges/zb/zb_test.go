@@ -57,8 +57,10 @@ func setupWsAuth(t *testing.T) {
 		Verbose:      z.Verbose,
 	}
 	var dialer websocket.Dialer
-	z.WebsocketConn.Dial(&dialer, http.Header{})
-
+	err := z.WebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	z.Websocket.DataHandler = make(chan interface{}, 11)
 	z.Websocket.TrafficAlert = make(chan struct{}, 11)
 	go z.WsHandleData()

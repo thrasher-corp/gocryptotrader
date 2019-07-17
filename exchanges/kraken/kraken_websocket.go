@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"sort"
 	"strconv"
-	"net/http"
 	"sync"
 	"time"
 

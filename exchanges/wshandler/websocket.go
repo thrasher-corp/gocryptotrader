@@ -785,10 +785,9 @@ func (w *Websocket) subscribeToChannels() error {
 			}
 			err := w.channelSubscriber(w.channelsToSubscribe[i])
 			if err != nil {
-				w.DataHandler <- err
-			} else {
-				w.subscribedChannels = append(w.subscribedChannels, w.channelsToSubscribe[i])
+				return err
 			}
+			w.subscribedChannels = append(w.subscribedChannels, w.channelsToSubscribe[i])
 		}
 	}
 	return nil

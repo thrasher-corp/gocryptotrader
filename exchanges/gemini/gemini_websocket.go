@@ -110,7 +110,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 		URL:          endpoint,
 		Verbose:      g.Verbose,
 	}
-	g.AuthenticatedWebsocketConn.Dial(dialer, headers)
+	err = g.AuthenticatedWebsocketConn.Dial(dialer, headers)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
