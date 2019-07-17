@@ -265,13 +265,12 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose, httpDebug bool) error {
-	verbose = false
 	if verbose {
 		log.Debugf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
 		for k, d := range req.Header {
 			log.Debugf("%s exchange request header [%s]: %s", r.Name, k, d)
 		}
-		//	log.Debug(body)
+		log.Debug(body)
 	}
 
 	var timeoutError error
@@ -332,8 +331,8 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		if resp.StatusCode != 200 && resp.StatusCode != 201 && resp.StatusCode != 202 {
 			err = fmt.Errorf("unsuccessful HTTP status code: %d", resp.StatusCode)
 			if verbose {
-				//	err = fmt.Errorf("%s\n%s", err.Error(),
-				//		fmt.Sprintf("%s exchange raw response: %s", r.Name, string(contents)))
+				err = fmt.Errorf("%s\n%s", err.Error(),
+					fmt.Sprintf("%s exchange raw response: %s", r.Name, string(contents)))
 			}
 
 			return err
@@ -345,16 +344,16 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 				log.Errorf("DumpResponse invalid response: %v:", err)
 			}
 			log.Debugf("DumpResponse Headers (%v):\n%s", path, dump)
-			//	log.Debugf("DumpResponse Body (%v):\n %s", path, string(contents))
+			log.Debugf("DumpResponse Body (%v):\n %s", path, string(contents))
 		}
 
 		resp.Body.Close()
-		/*if verbose {
+		if verbose {
 			log.Debugf("HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 			if !httpDebug {
 				log.Debugf("%s exchange raw response: %s", r.Name, string(contents))
 			}
-		}*/
+		}
 
 		if result != nil {
 			return common.JSONDecode(contents, result)
@@ -369,7 +368,6 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 func (r *Requester) worker() {
 	for {
 		for x := range r.Jobs {
-			x.Verbose = false
 			if !r.IsRateLimited(x.AuthRequest) {
 				r.IncrementRequests(x.AuthRequest)
 
@@ -411,7 +409,6 @@ func (r *Requester) worker() {
 
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose, httpDebugging bool) error {
-	verbose = false
 	if !nonceEnabled {
 		r.lock()
 	}
