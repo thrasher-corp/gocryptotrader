@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -39,25 +38,13 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 
 	var err error
 	var conStatus *http.Response
-	w.WebsocketConnection, conStatus, err = dialer.Dial(w.URL, headers)
+	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
 			return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
 		}
 		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
-	return nil
-}
-
-// Setup functions aren't necessary, but use this to ensure everything will be done correctly with validation
-func (w *WebsocketConnection) Setup(verbose, supportsMessageIDCorrelation bool, rateLimit float64, exchangeName string) error {
-	if exchangeName == "" {
-		return errors.New("Exchange name not set")
-	}
-	w.supportsMessageIDCorrelation = supportsMessageIDCorrelation
-	w.Verbose = verbose
-	w.RateLimit = rateLimit
-	w.ExchangeName = exchangeName
 	return nil
 }
 
@@ -75,7 +62,7 @@ func (w *WebsocketConnection) SendMessage(data interface{}) error {
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 	}
-	return w.WebsocketConnection.WriteMessage(websocket.TextMessage, json)
+	return w.Connection.WriteMessage(websocket.TextMessage, json)
 }
 
 // SendMessageReturnResponse will send a WS message to the connection
@@ -125,7 +112,7 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 
 // ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
-	mType, resp, err := w.WebsocketConnection.ReadMessage()
+	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		return WebsocketResponse{}, err
 	}
@@ -134,28 +121,9 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	case websocket.TextMessage:
 		standardMessage = resp
 	case websocket.BinaryMessage:
-		// Detect GZIP
-		if resp[0] == 31 && resp[1] == 139 {
-			b := bytes.NewReader(resp)
-			gReader, err := gzip.NewReader(b)
-			if err != nil {
-				return WebsocketResponse{}, err
-			}
-			standardMessage, err = ioutil.ReadAll(gReader)
-			if err != nil {
-				return WebsocketResponse{}, err
-			}
-			err = gReader.Close()
-			if err != nil {
-				return WebsocketResponse{}, err
-			}
-		} else {
-			reader := flate.NewReader(bytes.NewReader(resp))
-			standardMessage, err = ioutil.ReadAll(reader)
-			reader.Close()
-			if err != nil {
-				return WebsocketResponse{}, err
-			}
+		standardMessage, err = w.parseBinaryResponse(resp)
+		if err != nil {
+			return WebsocketResponse{}, err
 		}
 	}
 	if w.Verbose {
@@ -164,6 +132,36 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 			string(standardMessage))
 	}
 	return WebsocketResponse{Raw: standardMessage, Type: mType}, nil
+}
+
+// parseBinaryResponse parses a websocket binaray response into a usable byte array
+func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
+	var standardMessage []byte
+	var err error
+	// Detect GZIP
+	if resp[0] == 31 && resp[1] == 139 {
+		b := bytes.NewReader(resp)
+		gReader, err := gzip.NewReader(b)
+		if err != nil {
+			return standardMessage, err
+		}
+		standardMessage, err = ioutil.ReadAll(gReader)
+		if err != nil {
+			return standardMessage, err
+		}
+		err = gReader.Close()
+		if err != nil {
+			return standardMessage, err
+		}
+	} else {
+		reader := flate.NewReader(bytes.NewReader(resp))
+		standardMessage, err = ioutil.ReadAll(reader)
+		reader.Close()
+		if err != nil {
+			return standardMessage, err
+		}
+	}
+	return standardMessage, nil
 }
 
 // GenerateMessageID Creates a messageID to checkout

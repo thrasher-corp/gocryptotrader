@@ -29,7 +29,7 @@ type WebsocketConnection struct {
 	URL                          string
 	ProxyURL                     string
 	Wg                           sync.WaitGroup
-	WebsocketConnection          *websocket.Conn
+	Connection                   *websocket.Conn
 	Shutdown                     chan struct{}
 	// These are the requests and responses
 	IDResponses map[int64][]byte
