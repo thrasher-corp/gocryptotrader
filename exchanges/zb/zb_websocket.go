@@ -79,8 +79,12 @@ func (z *ZB) WsHandleData() {
 			fixedJSON := z.wsFixInvalidJSON(resp.Raw)
 			var result Generic
 			err = common.JSONDecode(fixedJSON, &result)
-			if err != nil || !result.Success {
+			if err != nil {
 				z.Websocket.DataHandler <- err
+				continue
+			}
+			if !result.Success {
+				z.Websocket.DataHandler <- fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, result.Message, wsErrCodes[result.Code])
 				continue
 			}
 			switch {
@@ -277,6 +281,7 @@ func (z *ZB) wsGenerateSignature(request interface{}) string {
 	jsonResponse, err := common.JSONEncode(request)
 	if err != nil {
 		log.Error(err)
+		return ""
 	}
 	hmac := common.GetHMAC(common.HashMD5,
 		jsonResponse,
