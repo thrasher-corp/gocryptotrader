@@ -210,6 +210,19 @@ func TestGetAccountBalance(t *testing.T) {
 	}
 }
 
+func TestGetAggregatedBalance(t *testing.T) {
+	t.Parallel()
+
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
+
+	_, err := h.GetAggregatedBalance()
+	if err != nil {
+		t.Errorf("Test failed - Huobi GetAggregatedBalance: %s", err)
+	}
+}
+
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 

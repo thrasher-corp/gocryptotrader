@@ -131,6 +131,12 @@ type AccountBalanceDetail struct {
 	Balance  float64 `json:"balance,string"`
 }
 
+// AggregatedBalance stores balances of all the sub-account
+type AggregatedBalance struct {
+	Currency string  `json:"currency"`
+	Balance  float64 `json:"balance,string"`
+}
+
 // CancelOrderBatch stores the cancel order batch data
 type CancelOrderBatch struct {
 	Success []string `json:"success"`
