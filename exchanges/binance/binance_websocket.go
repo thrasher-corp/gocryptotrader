@@ -253,7 +253,6 @@ func (b *Binance) WsHandleData() {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
 						b.Name,
 						err.Error())
-				}
 					continue
 				}
 
