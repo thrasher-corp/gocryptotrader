@@ -3,6 +3,7 @@ package wshandler
 import (
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -29,6 +30,9 @@ type WebsocketConnection struct {
 	Wg           sync.WaitGroup
 	Connection   *websocket.Conn
 	Shutdown     chan struct{}
-	// These are the requests and responses
+	// These are the request IDs and the corresponding response JSON
 	IDResponses map[int64][]byte
 }
+
+var noResponseFoundTimeout = 20 * time.Millisecond
+var waitForResponseTimer = 7 * time.Second

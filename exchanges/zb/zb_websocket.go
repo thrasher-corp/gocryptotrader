@@ -473,7 +473,6 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
 	request.Sign = z.wsGenerateSignature(request)
-	log.Debug(request)
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return &WsGetOrdersResponse{}, err

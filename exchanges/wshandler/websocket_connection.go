@@ -91,7 +91,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 // If the timer expires, it will return without
 func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 	defer wg.Done()
-	timer := time.NewTimer(7 * time.Second)
+	timer := time.NewTimer(waitForResponseTimer)
 	for {
 		select {
 		case <-timer.C:
@@ -105,7 +105,7 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 				}
 			}
 			w.Unlock()
-			time.Sleep(20 * time.Millisecond)
+			time.Sleep(noResponseFoundTimeout)
 		}
 	}
 }

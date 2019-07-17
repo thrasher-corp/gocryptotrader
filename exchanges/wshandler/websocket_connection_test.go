@@ -23,32 +23,33 @@ const (
 	proxyURL          = "http://212.186.171.4:80" // Replace with a usable proxy server
 )
 
-type TestStruct struct {
+var wc *WebsocketConnection
+var dialer websocket.Dialer
+
+type testStruct struct {
 	Error error
 	WC    WebsocketConnection
 }
 
-var wc *WebsocketConnection
-var dialer websocket.Dialer
-
-type WebsocketSubscriptionEventRequest struct {
-	Event        string                    `json:"event"`
-	RequestID    int64                     `json:"reqid,omitempty"`
-	Pairs        []string                  `json:"pair"`
-	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
+type testRequest struct {
+	Event        string          `json:"event"`
+	RequestID    int64           `json:"reqid,omitempty"`
+	Pairs        []string        `json:"pair"`
+	Subscription testRequestData `json:"subscription,omitempty"`
 }
 
-// WebsocketSubscriptionData contains details on WS channel
-type WebsocketSubscriptionData struct {
+// testRequestData contains details on WS channel
+type testRequestData struct {
 	Name     string `json:"name,omitempty"`
 	Interval int64  `json:"interval,omitempty"`
 	Depth    int64  `json:"depth,omitempty"`
 }
 
-type TestWebsocketResponse struct {
+type testResponse struct {
 	RequestID int64 `json:"reqid,omitempty"`
 }
 
+// TestMain setup test
 func TestMain(m *testing.M) {
 	wc = &WebsocketConnection{
 		ExchangeName: "test",
@@ -58,8 +59,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// TestDial logic test
 func TestDial(t *testing.T) {
-	var testCases = []TestStruct{
+	var testCases = []testStruct{
 		{Error: nil, WC: WebsocketConnection{ExchangeName: "test1", Verbose: true, URL: websocketTestURL, RateLimit: 10}},
 		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: ""}},
 		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL}},
@@ -81,8 +83,9 @@ func TestDial(t *testing.T) {
 	}
 }
 
+// TestSendMessage logic test
 func TestSendMessage(t *testing.T) {
-	var testCases = []TestStruct{
+	var testCases = []testStruct{
 		{Error: nil, WC: WebsocketConnection{ExchangeName: "test1", Verbose: true, URL: websocketTestURL, RateLimit: 10}},
 		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: ""}},
 		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL}},
@@ -108,6 +111,7 @@ func TestSendMessage(t *testing.T) {
 	}
 }
 
+// TestSendMessageWithResponse logic test
 func TestSendMessageWithResponse(t *testing.T) {
 	if wc.ProxyURL != "" && !useProxyTests {
 		t.Skip("Proxy testing not enabled, skipping")
@@ -118,10 +122,10 @@ func TestSendMessageWithResponse(t *testing.T) {
 	}
 	go readMesages(wc, t)
 
-	request := WebsocketSubscriptionEventRequest{
+	request := testRequest{
 		Event: "subscribe",
 		Pairs: []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
-		Subscription: WebsocketSubscriptionData{
+		Subscription: testRequestData{
 			Name: "ticker",
 		},
 		RequestID: wc.GenerateMessageID(true),
@@ -132,6 +136,7 @@ func TestSendMessageWithResponse(t *testing.T) {
 	}
 }
 
+// TestParseBinaryResponse logic test
 func TestParseBinaryResponse(t *testing.T) {
 	var b bytes.Buffer
 	w := gzip.NewWriter(&b)
@@ -161,12 +166,14 @@ func TestParseBinaryResponse(t *testing.T) {
 	}
 }
 
+// TestAddResponseWithID logic test
 func TestAddResponseWithID(t *testing.T) {
 	wc.IDResponses = nil
 	wc.AddResponseWithID(0, []byte("hi"))
 	wc.AddResponseWithID(1, []byte("hi"))
 }
 
+// readMesages helper func
 func readMesages(wc *WebsocketConnection, t *testing.T) {
 	timer := time.NewTimer(20 * time.Second)
 	for {
@@ -179,7 +186,7 @@ func readMesages(wc *WebsocketConnection, t *testing.T) {
 				t.Error(err)
 				return
 			}
-			var incoming TestWebsocketResponse
+			var incoming testResponse
 			err = common.JSONDecode(resp.Raw, &incoming)
 			if err != nil {
 				t.Error(err)

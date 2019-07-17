@@ -691,9 +691,6 @@ func (w *Websocket) FormatFunctionality() string {
 			case WebsocketMessageCorrelationSupported:
 				functionality = append(functionality, WebsocketMessageCorrelationSupportedText)
 
-			case WebsocketOrderMessageCorrelationSupported:
-				functionality = append(functionality, WebsocketOrderMessageCorrelationSupportedText)
-
 			case WebsocketSequenceNumberSupported:
 				functionality = append(functionality, WebsocketSequenceNumberSupportedText)
 
