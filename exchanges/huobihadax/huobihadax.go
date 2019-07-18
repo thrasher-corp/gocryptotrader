@@ -36,6 +36,7 @@ const (
 	huobihadaxCurrencies            = "common/currencys"
 	huobihadaxTimestamp             = "common/timestamp"
 	huobihadaxAccounts              = "account/accounts"
+	huobihadaxAggregatedBalance     = "subuser/aggregate-balance"
 	huobihadaxAccountBalance        = "account/accounts/%s/balance"
 	huobihadaxOrderPlace            = "order/orders/place"
 	huobihadaxOrderCancel           = "order/orders/%s/submitcancel"
@@ -387,6 +388,28 @@ func (h *HUOBIHADAX) GetAccountBalance(accountID string) ([]AccountBalanceDetail
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.AccountBalanceData.AccountBalanceDetails, err
+}
+
+// GetAggregatedBalance returns the balances of all the sub-account aggregated.
+func (h *HUOBIHADAX) GetAggregatedBalance() ([]AggregatedBalance, error) {
+	type response struct {
+		Response
+		AggregatedBalances []AggregatedBalance `json:"data"`
+	}
+
+	var result response
+
+	err := h.SendAuthenticatedHTTPRequest(
+		http.MethodGet,
+		huobihadaxAggregatedBalance,
+		url.Values{},
+		&result,
+	)
+
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+	return result.AggregatedBalances, err
 }
 
 // SpotNewOrder submits an order to Huobi
