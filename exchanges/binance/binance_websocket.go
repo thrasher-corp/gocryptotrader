@@ -203,7 +203,7 @@ func (b *Binance) WsHandleData() {
 			if err != nil {
 				b.Websocket.DataHandler <- fmt.Errorf("%v - Could not load multi stream data: %s",
 					b.Name,
-					string(read.Raw))
+					read.Raw)
 				continue
 			}
 			streamType := strings.Split(multiStreamData.Stream, "@")
