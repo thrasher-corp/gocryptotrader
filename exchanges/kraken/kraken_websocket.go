@@ -87,16 +87,6 @@ func (k *Kraken) WsConnect() error {
 	return nil
 }
 
-// WsReadData reads data from the websocket connection
-func (k *Kraken) WsReadData() (wshandler.WebsocketResponse, error) {
-	resp, err := k.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-	k.Websocket.TrafficAlert <- struct{}{}
-	return resp, nil
-}
-
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
 func (k *Kraken) wsPingHandler() {
 	k.Websocket.Wg.Add(1)
@@ -134,13 +124,14 @@ func (k *Kraken) WsHandleData() {
 		case <-k.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := k.WsReadData()
+			resp, err := k.WebsocketConn.ReadMessage()
 			if err != nil {
 				k.Websocket.DataHandler <- fmt.Errorf("%v WsHandleData: %v",
 					k.Name,
 					err)
 				return
 			}
+			k.Websocket.TrafficAlert <- struct{}{}
 			// event response handling
 			var eventResponse WebsocketEventResponse
 			err = common.JSONDecode(resp.Raw, &eventResponse)

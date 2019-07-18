@@ -45,18 +45,6 @@ func (z *ZB) WsConnect() error {
 	return nil
 }
 
-// WsReadData reads from the websocket connection and returns the websocket
-// response
-func (z *ZB) WsReadData() (wshandler.WebsocketResponse, error) {
-	resp, err := z.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	z.Websocket.TrafficAlert <- struct{}{}
-	return resp, nil
-}
-
 // WsHandleData handles all the websocket data coming from the websocket
 // connection
 func (z *ZB) WsHandleData() {
@@ -71,11 +59,12 @@ func (z *ZB) WsHandleData() {
 		case <-z.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := z.WsReadData()
+			resp, err := z.WebsocketConn.ReadMessage()
 			if err != nil {
 				z.Websocket.DataHandler <- err
 				return
 			}
+			z.Websocket.TrafficAlert <- struct{}{}
 			fixedJSON := z.wsFixInvalidJSON(resp.Raw)
 			var result Generic
 			err = common.JSONDecode(fixedJSON, &result)
@@ -305,7 +294,7 @@ func (z *ZB) wsFixInvalidJSON(json []byte) []byte {
 
 func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsGetSubUserListResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsAddSubUserRequest{
 		Memo:        "memo",
@@ -318,7 +307,7 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 	request.Sign = z.wsGenerateSignature(request)
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsGetSubUserListResponse{}, err
+		return nil, err
 	}
 	var response WsGetSubUserListResponse
 	err = common.JSONDecode(resp, &response)
@@ -327,7 +316,7 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 
 func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsGetSubUserListResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsAuthenticatedRequest{}
 	request.Channel = "getSubUserList"
@@ -338,7 +327,7 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsGetSubUserListResponse{}, err
+		return nil, err
 	}
 	var response WsGetSubUserListResponse
 	err = common.JSONDecode(resp, &response)
@@ -347,7 +336,7 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 
 func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName, toUserName string) (*WsRequestResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsRequestResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsDoTransferFundsRequest{
 		Amount:       amount,
@@ -363,7 +352,7 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsRequestResponse{}, err
+		return nil, err
 	}
 	var response WsRequestResponse
 	err = common.JSONDecode(resp, &response)
@@ -372,7 +361,7 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 
 func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm bool, keyName, toUserID string) (*WsRequestResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsRequestResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsCreateSubUserKeyRequest{
 		AssetPerm:   assetPerm,
@@ -390,7 +379,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsRequestResponse{}, err
+		return nil, err
 	}
 	var response WsRequestResponse
 	err = common.JSONDecode(resp, &response)
@@ -399,7 +388,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 
 func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType int64) (*WsSubmitOrderResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsSubmitOrderResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsSubmitOrderRequest{
 		Amount:    amount,
@@ -414,7 +403,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsSubmitOrderResponse{}, err
+		return nil, err
 	}
 	var response WsSubmitOrderResponse
 	err = common.JSONDecode(resp, &response)
@@ -423,7 +412,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 
 func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsCancelOrderResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsCancelOrderRequest{
 		ID: orderID,
@@ -436,7 +425,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsCancelOrderResponse{}, err
+		return nil, err
 	}
 	var response WsCancelOrderResponse
 	err = common.JSONDecode(resp, &response)
@@ -445,7 +434,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 
 func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsGetOrderResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsGetOrderRequest{
 		ID: orderID,
@@ -458,7 +447,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsGetOrderResponse{}, err
+		return nil, err
 	}
 	var response WsGetOrderResponse
 	err = common.JSONDecode(resp, &response)
@@ -467,7 +456,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 
 func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGetOrdersResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsGetOrdersResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsGetOrdersRequest{
 		PageIndex: pageIndex,
@@ -480,7 +469,7 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 	request.Sign = z.wsGenerateSignature(request)
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsGetOrdersResponse{}, err
+		return nil, err
 	}
 	var response WsGetOrdersResponse
 	err = common.JSONDecode(resp, &response)
@@ -489,7 +478,7 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 
 func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize int64) (*WsGetOrdersIgnoreTradeTypeResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsGetOrdersIgnoreTradeTypeResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsGetOrdersIgnoreTradeTypeRequest{
 		PageIndex: pageIndex,
@@ -503,7 +492,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsGetOrdersIgnoreTradeTypeResponse{}, err
+		return nil, err
 	}
 	var response WsGetOrdersIgnoreTradeTypeResponse
 	err = common.JSONDecode(resp, &response)
@@ -512,7 +501,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 
 func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WsGetAccountInfoResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsAuthenticatedRequest{
 		Channel:   "getaccountinfo",
@@ -524,7 +513,7 @@ func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
-		return &WsGetAccountInfoResponse{}, err
+		return nil, err
 	}
 	var response WsGetAccountInfoResponse
 	err = common.JSONDecode(resp, &response)

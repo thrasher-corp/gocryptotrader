@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
-
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 

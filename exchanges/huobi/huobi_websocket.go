@@ -414,7 +414,7 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 
 func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsListResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsAuthenticatedAccountsListResponse{}, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
+		return nil, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
 	}
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedAccountsListRequest{
@@ -431,7 +431,7 @@ func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsL
 	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
-		return &WsAuthenticatedAccountsListResponse{}, err
+		return nil, err
 	}
 	var response WsAuthenticatedAccountsListResponse
 	err = common.JSONDecode(resp, &response)
@@ -440,7 +440,7 @@ func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsL
 
 func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthenticatedOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsAuthenticatedOrdersResponse{}, fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
+		return nil, fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
 	}
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrdersListRequest{
@@ -459,7 +459,7 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
-		return &WsAuthenticatedOrdersResponse{}, err
+		return nil, err
 	}
 	var response WsAuthenticatedOrdersResponse
 	err = common.JSONDecode(resp, &response)
@@ -468,7 +468,7 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 
 func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsAuthenticatedOrderDetailResponse{}, fmt.Errorf("%v not authenticated cannot get order details", h.Name)
+		return nil, fmt.Errorf("%v not authenticated cannot get order details", h.Name)
 	}
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrderDetailsRequest{
@@ -485,7 +485,7 @@ func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailRe
 	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
-		return &WsAuthenticatedOrderDetailResponse{}, err
+		return nil, err
 	}
 	var response WsAuthenticatedOrderDetailResponse
 	err = common.JSONDecode(resp, &response)

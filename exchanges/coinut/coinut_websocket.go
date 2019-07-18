@@ -409,7 +409,7 @@ func (c *COINUT) wsAuthenticate() error {
 
 func (c *COINUT) wsGetAccountBalance() (*WsGetAccountBalanceResponse, error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsGetAccountBalanceResponse{}, fmt.Errorf("%v not authorised to submit order", c.Name)
+		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
 	accBalance := wsRequest{
 		Request: "user_balance",
@@ -417,12 +417,12 @@ func (c *COINUT) wsGetAccountBalance() (*WsGetAccountBalanceResponse, error) {
 	}
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(accBalance.Nonce, accBalance)
 	if err != nil {
-		return &WsGetAccountBalanceResponse{}, err
+		return nil, err
 	}
 	var response WsGetAccountBalanceResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsGetAccountBalanceResponse{}, err
+		return nil, err
 	}
 	if response.Status[0] != "OK" {
 		return &response, fmt.Errorf("%v get account balance failed", c.Name)
@@ -432,7 +432,7 @@ func (c *COINUT) wsGetAccountBalance() (*WsGetAccountBalanceResponse, error) {
 
 func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) (*WsStandardOrderResponse, error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsStandardOrderResponse{}, fmt.Errorf("%v not authorised to submit order", c.Name)
+		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
 	currency := exchange.FormatExchangeCurrency(c.Name, order.Currency).String()
 	var orderSubmissionRequest WsSubmitOrderRequest
@@ -448,12 +448,12 @@ func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) (*WsStandardOrder
 	}
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(orderSubmissionRequest.Nonce, orderSubmissionRequest)
 	if err != nil {
-		return &WsStandardOrderResponse{}, err
+		return nil, err
 	}
 	var standardOrder WsStandardOrderResponse
 	standardOrder, err = c.wsStandardiseOrderResponse(resp)
 	if err != nil {
-		return &WsStandardOrderResponse{}, err
+		return nil, err
 	}
 	if standardOrder.Status[0] != "OK" {
 		return &standardOrder, fmt.Errorf("%v order submission failed. %v", c.Name, standardOrder)
@@ -656,8 +656,9 @@ func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
 }
 
 func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*WsCancelOrdersResponse, []error) {
+	var errors []error
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsCancelOrdersResponse{}, []error{fmt.Errorf("%v not authorised to cancel orders", c.Name)}
+		return nil, errors
 	}
 	cancelOrderRequest := WsCancelOrdersRequest{}
 	for i := range cancellations {
@@ -672,17 +673,16 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*WsCan
 	cancelOrderRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancelOrderRequest.Nonce, cancelOrderRequest)
 	if err != nil {
-		return &WsCancelOrdersResponse{}, []error{err}
+		return nil, []error{err}
 	}
 	var response WsCancelOrdersResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsCancelOrdersResponse{}, []error{err}
+		return nil, []error{err}
 	}
 	if response.Status[0] != "OK" {
-		return &WsCancelOrdersResponse{}, []error{fmt.Errorf("%v order cancellations failed %v", c.Name, response.Status[0])}
+		return &response, []error{err}
 	}
-	var errors []error
 	for i := range response.Results {
 		if response.Results[i].Status != "OK" {
 			errors = append(errors, fmt.Errorf("%v order cancellation failed for currency %v and orderID %v, message %v",

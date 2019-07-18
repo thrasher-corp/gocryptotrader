@@ -53,7 +53,7 @@ func (g *Gateio) WsConnect() error {
 
 func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 	if !g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return &WebsocketAuthenticationResponse{}, fmt.Errorf("%v AuthenticatedWebsocketAPISuppo	rt not enabled", g.Name)
+		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
 	}
 	nonce := int(time.Now().Unix() * 1000)
 	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
@@ -66,13 +66,13 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 	resp, err := g.WebsocketConn.SendMessageReturnResponse(signinWsRequest.ID, signinWsRequest)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return &WebsocketAuthenticationResponse{}, err
+		return nil, err
 	}
 	var response WebsocketAuthenticationResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return &response, err
+		return nil, err
 	}
 	if response.Result.Status == "success" {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -392,7 +392,7 @@ func (g *Gateio) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 
 func (g *Gateio) wsGetBalance(currencies []string) (*WsGetBalanceResponse, error) {
 	if !g.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsGetBalanceResponse{}, fmt.Errorf("%v not authorised to get balance", g.Name)
+		return nil, fmt.Errorf("%v not authorised to get balance", g.Name)
 	}
 	balanceWsRequest := wsGetBalanceRequest{
 		ID:     g.WebsocketConn.GenerateMessageID(false),
@@ -401,7 +401,7 @@ func (g *Gateio) wsGetBalance(currencies []string) (*WsGetBalanceResponse, error
 	}
 	resp, err := g.WebsocketConn.SendMessageReturnResponse(balanceWsRequest.ID, balanceWsRequest)
 	if err != nil {
-		return &WsGetBalanceResponse{}, err
+		return nil, err
 	}
 	var balance WsGetBalanceResponse
 	err = common.JSONDecode(resp, &balance)
@@ -414,7 +414,7 @@ func (g *Gateio) wsGetBalance(currencies []string) (*WsGetBalanceResponse, error
 
 func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrderQueryResult, error) {
 	if !g.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WebSocketOrderQueryResult{}, fmt.Errorf("%v not authorised to get order info", g.Name)
+		return nil, fmt.Errorf("%v not authorised to get order info", g.Name)
 	}
 	order := WebsocketRequest{
 		ID:     g.WebsocketConn.GenerateMessageID(true),
@@ -427,7 +427,7 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrd
 	}
 	resp, err := g.WebsocketConn.SendMessageReturnResponse(order.ID, order)
 	if err != nil {
-		return &WebSocketOrderQueryResult{}, err
+		return nil, err
 	}
 	var orderQuery WebSocketOrderQueryResult
 	err = common.JSONDecode(resp, &orderQuery)

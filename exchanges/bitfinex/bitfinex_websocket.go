@@ -133,7 +133,7 @@ func (b *Bitfinex) WsConnect() error {
 	if err != nil {
 		return fmt.Errorf("%v unable to read from Websocket. Error: %s", b.Name, err)
 	}
-
+	b.Websocket.TrafficAlert <- struct{}{}
 	var hs WebsocketHandshake
 	err = common.JSONDecode(resp.Raw, &hs)
 	if err != nil {

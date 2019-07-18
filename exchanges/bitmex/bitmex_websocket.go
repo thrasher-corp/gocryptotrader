@@ -84,7 +84,7 @@ func (b *Bitmex) WsConnector() error {
 	if err != nil {
 		return err
 	}
-
+	b.Websocket.TrafficAlert <- struct{}{}
 	var welcomeResp WebsocketWelcome
 	err = common.JSONDecode(p.Raw, &welcomeResp)
 	if err != nil {

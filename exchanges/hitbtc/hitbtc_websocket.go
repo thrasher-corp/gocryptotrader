@@ -54,17 +54,6 @@ func (h *HitBTC) WsConnect() error {
 	return nil
 }
 
-// WsReadData reads from the websocket connection
-func (h *HitBTC) WsReadData() (wshandler.WebsocketResponse, error) {
-	resp, err := h.WebsocketConn.ReadMessage()
-	if err != nil {
-		return wshandler.WebsocketResponse{}, err
-	}
-
-	h.Websocket.TrafficAlert <- struct{}{}
-	return resp, nil
-}
-
 // WsHandleData handles websocket data
 func (h *HitBTC) WsHandleData() {
 	h.Websocket.Wg.Add(1)
@@ -79,11 +68,12 @@ func (h *HitBTC) WsHandleData() {
 			return
 
 		default:
-			resp, err := h.WsReadData()
+			resp, err := h.WebsocketConn.ReadMessage()
 			if err != nil {
 				h.Websocket.DataHandler <- err
 				return
 			}
+			h.Websocket.TrafficAlert <- struct{}{}
 
 			var init capture
 			err = common.JSONDecode(resp.Raw, &init)
@@ -407,7 +397,7 @@ func (h *HitBTC) wsLogin() error {
 // wsPlaceOrder sends a websocket message to submit an order
 func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity float64) (*WsSubmitOrderSuccessResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsSubmitOrderSuccessResponse{}, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	id := h.WebsocketConn.GenerateMessageID(false)
 	request := WsSubmitOrderRequest{
@@ -423,15 +413,15 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 	}
 	resp, err := h.WebsocketConn.SendMessageReturnResponse(id, request)
 	if err != nil {
-		return &WsSubmitOrderSuccessResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	var response WsSubmitOrderSuccessResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsSubmitOrderSuccessResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	if response.Error.Code > 0 || response.Error.Message != "" {
-		return &WsSubmitOrderSuccessResponse{}, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
+		return &response, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
 	}
 	return &response, nil
 }
@@ -439,7 +429,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 // wsCancelOrder sends a websocket message to cancel an order
 func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsCancelOrderResponse{}, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsCancelOrderRequest{
 		Method: "cancelOrder",
@@ -450,15 +440,15 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, er
 	}
 	resp, err := h.WebsocketConn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
-		return &WsCancelOrderResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	var response WsCancelOrderResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsCancelOrderResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	if response.Error.Code > 0 || response.Error.Message != "" {
-		return &WsCancelOrderResponse{}, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
+		return &response, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
 	}
 	return &response, nil
 }
@@ -466,7 +456,7 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, er
 // wsReplaceOrder sends a websocket message to replace an order
 func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (*WsReplaceOrderResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsReplaceOrderResponse{}, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsReplaceOrderRequest{
 		Method: "cancelReplaceOrder",
@@ -480,15 +470,15 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 	}
 	resp, err := h.WebsocketConn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
-		return &WsReplaceOrderResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	var response WsReplaceOrderResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsReplaceOrderResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	if response.Error.Code > 0 || response.Error.Message != "" {
-		return &WsReplaceOrderResponse{}, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
+		return &response, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
 	}
 	return &response, nil
 }
@@ -496,7 +486,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 // wsGetActiveOrders sends a websocket message to get all active orders
 func (h *HitBTC) wsGetActiveOrders() (*WsActiveOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsActiveOrdersResponse{}, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsReplaceOrderRequest{
 		Method: "getOrders",
@@ -505,15 +495,15 @@ func (h *HitBTC) wsGetActiveOrders() (*WsActiveOrdersResponse, error) {
 	}
 	resp, err := h.WebsocketConn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
-		return &WsActiveOrdersResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	var response WsActiveOrdersResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsActiveOrdersResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	if response.Error.Code > 0 || response.Error.Message != "" {
-		return &WsActiveOrdersResponse{}, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
+		return &response, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
 	}
 	return &response, nil
 }
@@ -521,7 +511,7 @@ func (h *HitBTC) wsGetActiveOrders() (*WsActiveOrdersResponse, error) {
 // wsGetTradingBalance sends a websocket message to get trading balance
 func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return &WsGetTradingBalanceResponse{}, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
 	request := WsReplaceOrderRequest{
 		Method: "getTradingBalance",
@@ -530,15 +520,15 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 	}
 	resp, err := h.WebsocketConn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
-		return &WsGetTradingBalanceResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	var response WsGetTradingBalanceResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsGetTradingBalanceResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	if response.Error.Code > 0 || response.Error.Message != "" {
-		return &WsGetTradingBalanceResponse{}, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
+		return &response, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
 	}
 	return &response, nil
 }
@@ -554,15 +544,15 @@ func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesRe
 	}
 	resp, err := h.WebsocketConn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
-		return &WsGetCurrenciesResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	var response WsGetCurrenciesResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsGetCurrenciesResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	if response.Error.Code > 0 || response.Error.Message != "" {
-		return &WsGetCurrenciesResponse{}, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
+		return &response, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
 	}
 	return &response, nil
 }
@@ -578,15 +568,15 @@ func (h *HitBTC) wsGetSymbols(currencyItem currency.Pair) (*WsGetSymbolsResponse
 	}
 	resp, err := h.WebsocketConn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
-		return &WsGetSymbolsResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	var response WsGetSymbolsResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsGetSymbolsResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	if response.Error.Code > 0 || response.Error.Message != "" {
-		return &WsGetSymbolsResponse{}, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
+		return &response, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
 	}
 	return &response, nil
 }
@@ -605,15 +595,15 @@ func (h *HitBTC) wsGetTrades(currencyItem currency.Pair, limit int64, sort, by s
 	}
 	resp, err := h.WebsocketConn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
-		return &WsGetTradesResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	var response WsGetTradesResponse
 	err = common.JSONDecode(resp, &response)
 	if err != nil {
-		return &WsGetTradesResponse{}, fmt.Errorf("%v %v", h.Name, err)
+		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
 	if response.Error.Code > 0 || response.Error.Message != "" {
-		return &WsGetTradesResponse{}, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
+		return &response, fmt.Errorf("%v Error:%v Message:%v", h.Name, response.Error.Code, response.Error.Message)
 	}
 	return &response, nil
 }

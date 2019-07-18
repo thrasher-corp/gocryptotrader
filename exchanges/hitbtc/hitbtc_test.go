@@ -427,11 +427,10 @@ func TestWsCancelOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	resp, err := h.wsCancelOrder("ImNotARealOrderID")
+	_, err := h.wsCancelOrder("ImNotARealOrderID")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(resp)
 }
 
 // TestWsPlaceOrder dials websocket, sends order submission.
@@ -440,11 +439,10 @@ func TestWsPlaceOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	resp, err := h.wsPlaceOrder(currency.NewPair(currency.LTC, currency.BTC), exchange.BuyOrderSide.ToString(), 1, 1)
+	_, err := h.wsPlaceOrder(currency.NewPair(currency.LTC, currency.BTC), exchange.BuyOrderSide.ToString(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(resp)
 }
 
 // TestWsReplaceOrder dials websocket, sends replace order request.
@@ -453,21 +451,19 @@ func TestWsReplaceOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	resp, err := h.wsReplaceOrder("ImNotARealOrderID", 1, 1)
+	_, err := h.wsReplaceOrder("ImNotARealOrderID", 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(resp)
 }
 
 // TestWsGetActiveOrders dials websocket, sends get active orders request.
 func TestWsGetActiveOrders(t *testing.T) {
 	setupWsAuth(t)
-	resp, err := h.wsGetActiveOrders()
+	_, err := h.wsGetActiveOrders()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(resp)
 }
 
 // TestWsGetTradingBalance dials websocket, sends get trading balance request.
