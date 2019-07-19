@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -22,6 +21,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -30,14 +30,14 @@ type Lbank struct {
 	exchange.Base
 	privateKey    *rsa.PrivateKey
 	privKeyLoaded bool
-	WebsocketConn *websocket.Conn
-	privKeyMutex  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (
-	lbankAPIURL     = "https://api.lbkex.com"
-	lbankAPIVersion = "1"
-	lbankRateLimit  = time.Second
+	lbankAPIURL          = "https://api.lbkex.com"
+	lbankAPIVersion      = "1"
+	lbankAuthRateLimit   = 0
+	lbankUnAuthRateLimit = 0
 
 	// Public endpoints
 	lbankTicker         = "ticker.do"
@@ -69,12 +69,12 @@ func (l *Lbank) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Delimiter = "_"
 	l.AssetTypes = []string{ticker.Spot}
 	l.Requester = request.New(l.Name,
-		request.NewRateLimit(lbankRateLimit, 0),
-		request.NewRateLimit(lbankRateLimit, 0),
+		request.NewRateLimit(time.Second, lbankAuthRateLimit),
+		request.NewRateLimit(time.Second, lbankUnAuthRateLimit),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = lbankAPIURL
 	l.APIUrl = l.APIUrlDefault
-	l.WebsocketInit()
+	l.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -111,6 +111,10 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = l.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.loadPrivKey()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -258,7 +262,7 @@ func (l *Lbank) RemoveOrder(pair, orderID string) (RemoveOrderResponse, error) {
 	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
 }
 
-// QueryOrder finds out information about orders
+// QueryOrder finds out information about orders(can pass up to 3 comma seperated values to this)
 func (l *Lbank) QueryOrder(pair, orderIDs string) (QueryOrderResponse, error) {
 	var resp QueryOrderResponse
 	params := url.Values{}
@@ -332,7 +336,6 @@ func (l *Lbank) USD2RMBRate() (ExchangeRateResponse, error) {
 
 // GetWithdrawConfig gets information about withdrawals
 func (l *Lbank) GetWithdrawConfig(assetCode string) (WithdrawConfigRespFee, error) {
-	l.Verbose = true
 	var finalResp WithdrawConfigRespFee
 	var resp []WithdrawConfigResponse
 	params := url.Values{}
@@ -344,7 +347,10 @@ func (l *Lbank) GetWithdrawConfig(assetCode string) (WithdrawConfigRespFee, erro
 	if err != nil {
 		return finalResp, err
 	}
-	json.Unmarshal([]byte(resp[0].Fee), &finalResp)
+	err = json.Unmarshal([]byte(resp[0].Fee), &finalResp)
+	if err != nil {
+		return finalResp, err
+	}
 
 	return finalResp, nil
 }
@@ -419,8 +425,6 @@ func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
 }
 
 func (l *Lbank) loadPrivKey() error {
-	l.privKeyMutex.Lock()
-	defer l.privKeyMutex.Unlock()
 	if l.privKeyLoaded {
 		return nil
 	}
@@ -450,14 +454,14 @@ func (l *Lbank) loadPrivKey() error {
 	return nil
 }
 
-func (l *Lbank) sign(data string, p *rsa.PrivateKey) (string, error) {
-	if p == nil {
+func (l *Lbank) sign(data string) (string, error) {
+	if l.privateKey == nil {
 		return "", errors.New("p cannot be nil")
 	}
 	md5hash := common.GetMD5([]byte(data))
 	m := common.StringToUpper(common.HexEncodeToString(md5hash))
 	s := common.GetSHA256([]byte(m))
-	r, err := rsa.SignPKCS1v15(rand.Reader, p, crypto.SHA256, s)
+	r, err := rsa.SignPKCS1v15(rand.Reader, l.privateKey, crypto.SHA256, s)
 	return common.Base64Encode(r), err
 }
 
@@ -469,13 +473,8 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 		vals = url.Values{}
 	}
 
-	err := l.loadPrivKey()
-	if err != nil {
-		return err
-	}
-
 	vals.Set("api_key", l.APIKey)
-	sig, err := l.sign(vals.Encode(), l.privateKey)
+	sig, err := l.sign(vals.Encode())
 	if err != nil {
 		return err
 	}
@@ -485,7 +484,7 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	var intermediary json.RawMessage
-	err = l.SendPayload(method, endpoint, headers, bytes.NewBufferString(payload), &intermediary, false, false, l.Verbose, l.HTTPDebugging)
+	err = l.SendPayload(method, endpoint, headers, bytes.NewBufferString(payload), &intermediary, true, false, l.Verbose, l.HTTPDebugging)
 	if err != nil {
 		return err
 	}

@@ -29,4 +29,4 @@ https://github.com/LBank-exchange/lbank-official-api-docs/tree/master/API-For-Sp
 
 |Name|Github|Contribution|
 |--|--|--|
-|MadCozBadd|https://github.com/madcozbadd |everything|
+|MadCozBadd|https://github.com/madcozbadd |Initial REST and Wrapper Implementation|

@@ -829,7 +829,7 @@ type Format struct {
 	OrderSide    map[string]string
 }
 
-// CancelAllOrdersResponse returns the status from attempting to cancel all orders on an exchagne
+// CancelAllOrdersResponse returns the status from attempting to cancel all orders on an exchange
 type CancelAllOrdersResponse struct {
 	OrderStatus map[string]string
 }

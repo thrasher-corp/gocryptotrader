@@ -12,6 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -30,6 +31,28 @@ func (l *Lbank) Run() {
 		log.Debugf("%s Websocket: %s. (url: %s).\n", l.GetName(), common.IsEnabled(l.Websocket.IsEnabled()), l.Websocket.GetWebsocketURL())
 		log.Debugf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
 		log.Debugf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
+	}
+	exchangeCurrencies, err := l.GetCurrencyPairs()
+	if err != nil {
+		log.Errorf("%s Failed to get available symbols.\n", l.GetName())
+	} else {
+		forceUpdate := false
+		if common.StringDataCompare(l.AvailablePairs.Strings(), "btc_usdt") {
+			log.Warnf("%s contains invalid pair, forcing upgrade of available currencies.\n",
+				l.GetName())
+			forceUpdate = true
+		}
+
+		var newExchangeCurrencies currency.Pairs
+		for _, p := range exchangeCurrencies {
+			newExchangeCurrencies = append(newExchangeCurrencies,
+				currency.NewPairFromString(p))
+		}
+
+		err = l.UpdateCurrencies(newExchangeCurrencies, false, forceUpdate)
+		if err != nil {
+			log.Errorf("%s Failed to update available currencies %s.\n", l.GetName(), err)
+		}
 	}
 }
 
@@ -130,12 +153,12 @@ func (l *Lbank) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -286,7 +309,7 @@ func (l *Lbank) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.W
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (l *Lbank) GetWebsocket() (*exchange.Websocket, error) {
+func (l *Lbank) GetWebsocket() (*wshandler.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -420,13 +443,13 @@ func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (l *Lbank) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (l *Lbank) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrNotYetImplemented
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (l *Lbank) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (l *Lbank) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrNotYetImplemented
 }
 
@@ -436,6 +459,6 @@ func (l *Lbank) AuthenticateWebsocket() error {
 }
 
 // GetSubscriptions gets subscriptions
-func (l *Lbank) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (l *Lbank) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrNotYetImplemented
 }
