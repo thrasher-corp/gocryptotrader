@@ -380,7 +380,9 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 
 	var orders []exchange.OrderDetail
 	for _, c := range getOrdersRequest.Currencies {
-		resp, err := b.AllOrders(exchange.FormatExchangeCurrency(b.Name, c).String(), "", "1000")
+
+		resp, err := b.AllOrders(c.Format(b.RequestCurrencyPairFormat.Delimiter, b.RequestCurrencyPairFormat.Uppercase).String(), "", "1000")
+		// resp, err := b.AllOrders(exchange.FormatExchangeCurrency(b.Name, c).String(), "", "1000")
 		if err != nil {
 			return nil, err
 		}

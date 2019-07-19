@@ -682,7 +682,6 @@ func GetAndFormatExchangeCurrencies(exchName string, pairs []currency.Pair) (str
 func FormatExchangeCurrency(exchName string, p currency.Pair) currency.Pair {
 	cfg := config.GetConfig()
 	exch, _ := cfg.GetExchangeConfig(exchName)
-
 	return p.Format(exch.RequestCurrencyPairFormat.Delimiter,
 		exch.RequestCurrencyPairFormat.Uppercase)
 }
