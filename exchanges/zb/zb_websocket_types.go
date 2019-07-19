@@ -16,7 +16,6 @@ type Subscription struct {
 // Generic defines a generic fields associated with many return types
 type Generic struct {
 	Code    int64           `json:"code"`
-	Success bool            `json:"success"`
 	Channel string          `json:"channel"`
 	Message interface{}     `json:"message"`
 	No      int64           `json:"no,string,omitempty"`
@@ -266,7 +265,7 @@ type WsGetAccountInfoResponse struct {
 		Coins []struct {
 			Freez       float64 `json:"freez,string"`
 			EnName      string  `json:"enName"`
-			UnitDecimal int     `json:"unitDecimal"`
+			UnitDecimal int64   `json:"unitDecimal"`
 			CnName      string  `json:"cnName"`
 			UnitTag     string  `json:"unitTag"`
 			Available   float64 `json:"available,string"`
@@ -279,7 +278,7 @@ type WsGetAccountInfoResponse struct {
 			AuthMobileEnabled    bool   `json:"auth_mobile_enabled"`
 		} `json:"base"`
 	} `json:"data"`
-	Code    int    `json:"code"`
+	Code    int64  `json:"code"`
 	Channel string `json:"channel"`
 	Success bool   `json:"success"`
 }

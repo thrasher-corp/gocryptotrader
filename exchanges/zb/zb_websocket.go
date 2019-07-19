@@ -72,17 +72,16 @@ func (z *ZB) WsHandleData() {
 				z.Websocket.DataHandler <- err
 				continue
 			}
-			if !result.Success {
+			if result.No > 0 {
+				z.WebsocketConn.AddResponseWithID(result.No, fixedJSON)
+				continue
+			}
+			if result.Code > 0 && result.Code != 1000 {
 				z.Websocket.DataHandler <- fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, result.Message, wsErrCodes[result.Code])
 				continue
 			}
 			switch {
 			case common.StringContains(result.Channel, "markets"):
-				if !result.Success {
-					z.Websocket.DataHandler <- fmt.Errorf("zb_websocket.go error - unsuccessful market response %s", wsErrCodes[result.Code])
-					continue
-				}
-
 				var markets Markets
 				err := common.JSONDecode(result.Data, &markets)
 				if err != nil {
@@ -92,9 +91,7 @@ func (z *ZB) WsHandleData() {
 
 			case common.StringContains(result.Channel, "ticker"):
 				cPair := common.SplitStrings(result.Channel, "_")
-
 				var ticker WsTicker
-
 				err := common.JSONDecode(fixedJSON, &ticker)
 				if err != nil {
 					z.Websocket.DataHandler <- err
@@ -139,7 +136,6 @@ func (z *ZB) WsHandleData() {
 
 				channelInfo := common.SplitStrings(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
-
 				var newOrderBook orderbook.Base
 				newOrderBook.Asks = asks
 				newOrderBook.Bids = bids
@@ -167,16 +163,13 @@ func (z *ZB) WsHandleData() {
 					z.Websocket.DataHandler <- err
 					continue
 				}
-
 				// Most up to date trade
 				if len(trades.Data) == 0 {
 					continue
 				}
 				t := trades.Data[len(trades.Data)-1]
-
 				channelInfo := common.SplitStrings(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
-
 				z.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Unix(0, t.Date),
 					CurrencyPair: cPair,
@@ -188,13 +181,6 @@ func (z *ZB) WsHandleData() {
 					Side:         t.TradeType,
 				}
 			default:
-				if result.No > 0 {
-					if z.WebsocketConn.IDResponses == nil {
-						z.WebsocketConn.IDResponses = make(map[int64][]byte)
-					}
-					z.WebsocketConn.IDResponses[result.No] = fixedJSON
-					continue
-				}
 				z.Websocket.DataHandler <- errors.New("zb_websocket.go error - unhandled websocket response")
 				continue
 			}
@@ -304,14 +290,26 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 	request.Channel = "addSubUser"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.APIKey
+	request.No = z.WebsocketConn.GenerateMessageID(true)
 	request.Sign = z.wsGenerateSignature(request)
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
+	var genericResponse Generic
+	err = common.JSONDecode(resp, &genericResponse)
+	if err != nil {
+		return nil, err
+	}
+	if genericResponse.Code > 0 && genericResponse.Code != 1000 {
+		return nil, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, genericResponse.Message, wsErrCodes[genericResponse.Code])
+	}
 	var response WsGetSubUserListResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
@@ -331,7 +329,13 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 	}
 	var response WsGetSubUserListResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName, toUserName string) (*WsRequestResponse, error) {
@@ -356,7 +360,13 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 	}
 	var response WsRequestResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm bool, keyName, toUserID string) (*WsRequestResponse, error) {
@@ -383,7 +393,13 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 	}
 	var response WsRequestResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType int64) (*WsSubmitOrderResponse, error) {
@@ -407,7 +423,13 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 	}
 	var response WsSubmitOrderResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderResponse, error) {
@@ -429,7 +451,13 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 	}
 	var response WsCancelOrderResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse, error) {
@@ -451,7 +479,13 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 	}
 	var response WsGetOrderResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGetOrdersResponse, error) {
@@ -473,7 +507,13 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 	}
 	var response WsGetOrdersResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize int64) (*WsGetOrdersIgnoreTradeTypeResponse, error) {
@@ -496,7 +536,13 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 	}
 	var response WsGetOrdersIgnoreTradeTypeResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
 
 func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
@@ -517,5 +563,11 @@ func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
 	}
 	var response WsGetAccountInfoResponse
 	err = common.JSONDecode(resp, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+	if response.Code > 0 && response.Code != 1000 {
+		return &response, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, response.Message, wsErrCodes[response.Code])
+	}
+	return &response, nil
 }
