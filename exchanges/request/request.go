@@ -24,7 +24,7 @@ var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead
 const (
 	maxRequestJobs              = 50
 	proxyTLSTimeout             = 15 * time.Second
-	defaultTimeoutRetryAttempts = 3
+	defaultTimeoutRetryAttempts = 10
 )
 
 // Requester struct for the request client
@@ -280,11 +280,11 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		resp, err := r.HTTPClient.Do(req)
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
-				if verbose {
-					log.Errorf("%s request has timed-out retrying request, count %d",
-						r.Name,
-						i)
-				}
+				// if verbose {
+				log.Errorf("%s request has timed-out retrying request, count %d",
+					r.Name,
+					i)
+				// }
 				timeoutError = err
 				continue
 			}
