@@ -294,6 +294,7 @@ type Base struct {
 // GoCryptoTrader
 type IBotExchange interface {
 	Setup(exch *config.ExchangeConfig)
+	SetAPIKeys(apiKey, apiSecret, clientID string, b64Decode bool)
 	Start(wg *sync.WaitGroup)
 	SetDefaults()
 	GetName() string
