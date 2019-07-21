@@ -132,10 +132,6 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		c.Websocket.DataHandler <- err
 		return
 	}
-	if incoming.Nonce > 0 {
-		c.WebsocketConn.AddResponseWithID(incoming.Nonce, resp)
-		return
-	}
 	switch incoming.Reply {
 	case "hb":
 		channels["hb"] <- resp
@@ -216,6 +212,12 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			Price:        tradeUpdate.Price,
 			Side:         tradeUpdate.Side,
 		}
+	default:
+		if incoming.Nonce > 0 {
+			c.WebsocketConn.AddResponseWithID(incoming.Nonce, resp)
+			return
+		}
+		c.Websocket.DataHandler <- fmt.Errorf("%v unhandled websocket response: %s", c.Name, resp)
 	}
 }
 
@@ -330,19 +332,7 @@ func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		Subscribe: true,
 		Nonce:     c.WebsocketConn.GenerateMessageID(false),
 	}
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(subscribe.Nonce, subscribe)
-	if err != nil {
-		return err
-	}
-	var response map[string]interface{}
-	err = common.JSONDecode(resp, &response)
-	if err != nil {
-		return err
-	}
-	if response["status"].([]interface{})[0] != "OK" {
-		return fmt.Errorf("%v subscription failed for channel %v", c.Name, channelToSubscribe.Channel)
-	}
-	return nil
+	return c.WebsocketConn.SendMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -363,7 +353,7 @@ func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		return err
 	}
 	if response["status"].([]interface{})[0] != "OK" {
-		return fmt.Errorf("%v subscription failed for channel %v", c.Name, channelToSubscribe.Channel)
+		return fmt.Errorf("%v unsubscribe failed for channel %v", c.Name, channelToSubscribe.Channel)
 	}
 	return nil
 }
