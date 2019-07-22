@@ -89,7 +89,7 @@ func (h *HUOBIHADAX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobihadaxAPIURL
 	h.APIUrl = h.APIUrlDefault
-	h.Websocket = wshandler.Init()
+	h.Websocket = wshandler.New()
 	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
 		wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketOrderbookSupported |

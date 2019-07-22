@@ -111,7 +111,7 @@ func (b *Bitfinex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bitfinexAPIURLBase
 	b.APIUrl = b.APIUrlDefault
-	b.Websocket = wshandler.Init()
+	b.Websocket = wshandler.New()
 	b.Websocket.Functionality = wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketOrderbookSupported |

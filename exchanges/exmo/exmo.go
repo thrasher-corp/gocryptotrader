@@ -74,7 +74,7 @@ func (e *EXMO) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	e.APIUrlDefault = exmoAPIURL
 	e.APIUrl = e.APIUrlDefault
-	e.Websocket = wshandler.Init()
+	e.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

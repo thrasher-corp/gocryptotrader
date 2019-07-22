@@ -74,7 +74,7 @@ func (z *ZB) SetDefaults() {
 	z.APIUrl = z.APIUrlDefault
 	z.APIUrlSecondaryDefault = zbMarketURL
 	z.APIUrlSecondary = z.APIUrlSecondaryDefault
-	z.Websocket = wshandler.Init()
+	z.Websocket = wshandler.New()
 	z.Websocket.Functionality = wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketTradeDataSupported |

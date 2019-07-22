@@ -133,7 +133,7 @@ func (b *Bitmex) SetDefaults() {
 	b.APIUrlDefault = bitmexAPIURL
 	b.APIUrl = b.APIUrlDefault
 	b.SupportsAutoPairUpdating = true
-	b.Websocket = wshandler.Init()
+	b.Websocket = wshandler.New()
 	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketSubscribeSupported |

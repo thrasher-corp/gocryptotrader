@@ -13,9 +13,9 @@ import (
 var ws *Websocket
 
 func TestWebsocketInit(t *testing.T) {
-	ws = Init()
+	ws = New()
 	if ws == nil {
-		t.Error("test failed - WebsocketInit() error")
+		t.Error("test failed - Websocket New() error")
 	}
 }
 

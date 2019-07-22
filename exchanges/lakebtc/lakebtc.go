@@ -66,7 +66,7 @@ func (l *LakeBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = lakeBTCAPIURL
 	l.APIUrl = l.APIUrlDefault
-	l.Websocket = wshandler.Init()
+	l.Websocket = wshandler.New()
 }
 
 // Setup sets exchange configuration profile

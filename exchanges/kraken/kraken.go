@@ -89,7 +89,7 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
-	k.Websocket = wshandler.Init()
+	k.Websocket = wshandler.New()
 	k.WebsocketURL = krakenWSURL
 	k.Websocket.Functionality = wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketTradeDataSupported |

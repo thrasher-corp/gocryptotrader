@@ -93,7 +93,7 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
-	b.Websocket = wshandler.Init()
+	b.Websocket = wshandler.New()
 	b.WebsocketURL = binanceDefaultWebsocketURL
 	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketTickerSupported |

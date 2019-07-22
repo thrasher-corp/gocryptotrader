@@ -86,7 +86,7 @@ func (b *Bittrex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bittrexAPIURL
 	b.APIUrl = b.APIUrlDefault
-	b.Websocket = wshandler.Init()
+	b.Websocket = wshandler.New()
 }
 
 // Setup method sets current configuration details if enabled

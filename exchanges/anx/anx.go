@@ -73,7 +73,7 @@ func (a *ANX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	a.APIUrlDefault = anxAPIURL
 	a.APIUrl = a.APIUrlDefault
-	a.Websocket = wshandler.Init()
+	a.Websocket = wshandler.New()
 }
 
 // Setup is run on startup to setup exchange with config values

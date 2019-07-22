@@ -13,8 +13,8 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Init initialises the websocket struct
-func Init() *Websocket {
+// New initialises the websocket struct
+func New() *Websocket {
 	return &Websocket{
 		defaultURL: "",
 		enabled:    false,

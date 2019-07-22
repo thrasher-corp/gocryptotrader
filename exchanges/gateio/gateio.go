@@ -74,7 +74,7 @@ func (g *Gateio) SetDefaults() {
 	g.APIUrl = g.APIUrlDefault
 	g.APIUrlSecondaryDefault = gateioMarketURL
 	g.APIUrlSecondary = g.APIUrlSecondaryDefault
-	g.Websocket = wshandler.Init()
+	g.Websocket = wshandler.New()
 	g.Websocket.Functionality = wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketOrderbookSupported |

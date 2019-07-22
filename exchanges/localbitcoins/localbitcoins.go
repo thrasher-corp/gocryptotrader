@@ -135,7 +135,7 @@ func (l *LocalBitcoins) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = localbitcoinsAPIURL
 	l.APIUrl = l.APIUrlDefault
-	l.Websocket = wshandler.Init()
+	l.Websocket = wshandler.New()
 }
 
 // Setup sets exchange configuration parameters

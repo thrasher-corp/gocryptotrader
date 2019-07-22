@@ -100,7 +100,7 @@ func (b *Bitflyer) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.APIUrlSecondaryDefault = chainAnalysis
 	b.APIUrlSecondary = b.APIUrlSecondaryDefault
-	b.Websocket = wshandler.Init()
+	b.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

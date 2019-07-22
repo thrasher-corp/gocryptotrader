@@ -121,7 +121,7 @@ func (g *Gemini) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	g.APIUrlDefault = geminiAPIURL
 	g.APIUrl = g.APIUrlDefault
-	g.Websocket = wshandler.Init()
+	g.Websocket = wshandler.New()
 	g.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketAuthenticatedEndpointsSupported |

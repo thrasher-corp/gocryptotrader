@@ -86,7 +86,7 @@ func (p *Poloniex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	p.APIUrlDefault = poloniexAPIURL
 	p.APIUrl = p.APIUrlDefault
-	p.Websocket = wshandler.Init()
+	p.Websocket = wshandler.New()
 	p.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketTickerSupported |

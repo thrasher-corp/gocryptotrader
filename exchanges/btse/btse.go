@@ -64,7 +64,7 @@ func (b *BTSE) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
-	b.Websocket = wshandler.Init()
+	b.Websocket = wshandler.New()
 	b.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketSubscribeSupported |

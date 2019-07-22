@@ -78,7 +78,7 @@ func (h *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = apiURL
 	h.APIUrl = h.APIUrlDefault
-	h.Websocket = wshandler.Init()
+	h.Websocket = wshandler.New()
 	h.Websocket.Functionality = wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketSubscribeSupported |

@@ -74,7 +74,7 @@ func (o *OKEX) SetDefaults() {
 	o.APIUrlDefault = okExAPIURL
 	o.APIUrl = okExAPIURL
 	o.AssetTypes = []string{ticker.Spot}
-	o.Websocket = wshandler.Init()
+	o.Websocket = wshandler.New()
 	o.APIVersion = okExAPIVersion
 	o.WebsocketURL = OkExWebsocketURL
 	o.Websocket.Functionality = wshandler.WebsocketTickerSupported |

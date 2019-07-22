@@ -75,7 +75,7 @@ func (b *BTCMarkets) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = btcMarketsAPIURL
 	b.APIUrl = b.APIUrlDefault
-	b.Websocket = wshandler.Init()
+	b.Websocket = wshandler.New()
 }
 
 // Setup takes in an exchange configuration and sets all parameters

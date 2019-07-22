@@ -75,7 +75,7 @@ func (y *Yobit) SetDefaults() {
 	y.APIUrl = y.APIUrlDefault
 	y.APIUrlSecondaryDefault = apiPrivateURL
 	y.APIUrlSecondary = y.APIUrlSecondaryDefault
-	y.Websocket = wshandler.Init()
+	y.Websocket = wshandler.New()
 }
 
 // Setup sets exchange configuration parameters for Yobit

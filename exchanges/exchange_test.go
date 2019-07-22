@@ -80,7 +80,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 
 	newBase := Base{Name: "Testicles", Requester: requester}
 
-	newBase.Websocket = wshandler.Init()
+	newBase.Websocket = wshandler.New()
 
 	err := newBase.SetClientProxyAddress(":invalid")
 	if err == nil {

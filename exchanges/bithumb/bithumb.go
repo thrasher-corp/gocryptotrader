@@ -82,7 +82,7 @@ func (b *Bithumb) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
-	b.Websocket = wshandler.Init()
+	b.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

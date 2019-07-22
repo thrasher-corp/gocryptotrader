@@ -86,7 +86,7 @@ func (c *CoinbasePro) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.APIUrlDefault = coinbaseproAPIURL
 	c.APIUrl = c.APIUrlDefault
-	c.Websocket = wshandler.Init()
+	c.Websocket = wshandler.New()
 	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketSubscribeSupported |

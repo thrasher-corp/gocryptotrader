@@ -49,7 +49,7 @@ func (o *OKCoin) SetDefaults() {
 	o.APIUrlDefault = okCoinAPIURL
 	o.APIUrl = okCoinAPIURL
 	o.AssetTypes = []string{ticker.Spot}
-	o.Websocket = wshandler.Init()
+	o.Websocket = wshandler.New()
 	o.WebsocketURL = okCoinWebsocketURL
 	o.APIVersion = okCoinAPIVersion
 	o.Websocket.Functionality = wshandler.WebsocketTickerSupported |

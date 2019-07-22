@@ -66,7 +66,7 @@ func (i *ItBit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	i.APIUrlDefault = itbitAPIURL
 	i.APIUrl = i.APIUrlDefault
-	i.Websocket = wshandler.Init()
+	i.Websocket = wshandler.New()
 }
 
 // Setup sets the exchange parameters from exchange config
