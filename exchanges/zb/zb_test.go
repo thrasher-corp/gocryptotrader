@@ -505,37 +505,31 @@ func TestZBInvalidJSON(t *testing.T) {
 	var response WsGetSubUserListResponse
 	err := common.JSONDecode(fixedJSON, &response)
 	if err != nil {
-		t.Log(err)
+		t.Fatal(err)
 	}
 	if response.Message[0].UserID != 1337 {
-		t.Error("Expected extracted JSON USERID to equal 1337")
+		t.Fatal("Expected extracted JSON USERID to equal 1337")
 	}
 
-	json = `{"success":true,"code":1000,"channel":"createSubUserKey","message":"{"apiKey":"thisisnotareallykeyyousillybilly","apiSecret":"lol"}","no":"14728151154382111746154"}`
+	json = `{"success":true,"code":1000,"channel":"createSubUserKey","message":"{"apiKey":"thisisnotareallykeyyousillybilly","apiSecret":"lol"}","no":"123"}`
 	fixedJSON = z.wsFixInvalidJSON([]byte(json))
 	var response2 WsRequestResponse
 	err = common.JSONDecode(fixedJSON, &response2)
 	if err != nil {
-		t.Log(err)
+		t.Error(err)
 	}
 }
 
 // TestWsTransferFunds ws test
 func TestWsTransferFunds(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsDoTransferFunds(currency.BTC,
+	_, err := z.wsDoTransferFunds(currency.BTC,
 		0.0001,
 		"username1",
 		"username2",
 	)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
 
@@ -546,141 +540,81 @@ func TestWsCreateSuUserKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if subUsers.Code == 1002 || subUsers.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if subUsers.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", subUsers.Channel, subUsers.Code, subUsers.No, subUsers.Success)
-	}
 	userID := subUsers.Message[0].UserID
-	result, err := z.wsCreateSubUserKey(true, true, true, true, "subu", fmt.Sprintf("%v", userID))
+	_, err = z.wsCreateSubUserKey(true, true, true, true, "subu", fmt.Sprintf("%v", userID))
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
 
 // TestGetSubUserList ws test
 func TestGetSubUserList(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsGetSubUserList()
+	_, err := z.wsGetSubUserList()
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
 
 // TestAddSubUser ws test
 func TestAddSubUser(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsAddSubUser("1", "123456789101112aA!")
+	_, err := z.wsAddSubUser("1", "123456789101112aA!")
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
 
 // TestWsSubmitOrder ws test
 func TestWsSubmitOrder(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsSubmitOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1, 1)
+	_, err := z.wsSubmitOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1, 1)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v  Code %v Data %v Message %v No %v Success %v", result.Channel, result.Code, result.Data, result.Message, result.No, result.Success)
 	}
 }
 
 // TestWsCancelOrder ws test
 func TestWsCancelOrder(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsCancelOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1234)
+	_, err := z.wsCancelOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1234)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
 
 // TestWsGetAccountInfo ws test
 func TestWsGetAccountInfo(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsGetAccountInfoRequest()
+	_, err := z.wsGetAccountInfoRequest()
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
 
 // TestWsGetOrder ws test
 func TestWsGetOrder(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsGetOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1234)
+	_, err := z.wsGetOrder(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1234)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
 
 // TestWsGetOrders ws test
 func TestWsGetOrders(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsGetOrders(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
+	_, err := z.wsGetOrders(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
 
 // TestWsGetOrdersIgnoreTradeType ws test
 func TestWsGetOrdersIgnoreTradeType(t *testing.T) {
 	setupWsAuth(t)
-	result, err := z.wsGetOrdersIgnoreTradeType(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
+	_, err := z.wsGetOrdersIgnoreTradeType(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result.Code == 1002 || result.Code == 1003 {
-		t.Fatal("Hash not calculated correctly")
-	}
-	if result.No > 0 && z.Verbose {
-		t.Logf("Channel %v Code %v No %v Success %v", result.Channel, result.Code, result.No, result.Success)
 	}
 }
