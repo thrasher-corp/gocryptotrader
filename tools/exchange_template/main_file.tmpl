@@ -2,14 +2,15 @@
 package {{.Name}}
 
 import (
-	"log"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // {{.CapitalName}} is the overarching type across this package
@@ -46,7 +47,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	{{.Variable}}.APIUrlDefault = {{.Name}}APIURL
 	{{.Variable}}.APIUrl = {{.Variable}}.APIUrlDefault
-	{{.Variable}}.WebsocketInit()
+	{{.Variable}}.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
