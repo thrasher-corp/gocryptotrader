@@ -281,23 +281,23 @@ func TestCancelOrder(t *testing.T) {
 	}
 }
 
-// func TestGetOrderInfo(t *testing.T) {
-// 	areTestAPIKeysSet()
-// 	TestSetup(t)
-// 	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestGetOrderInfo(t *testing.T) {
+	areTestAPIKeysSet()
+	TestSetup(t)
+	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-// func TestGetAllOpenOrderID(t *testing.T) {
-// 	areTestAPIKeysSet()
-// 	TestSetup(t)
-// 	_, err := l.GetAllOpenOrderID()
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestGetAllOpenOrderID(t *testing.T) {
+	areTestAPIKeysSet()
+	TestSetup(t)
+	_, err := l.GetAllOpenOrderID()
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestGetFeeByType(t *testing.T) {
 	TestSetup(t)
@@ -314,49 +314,6 @@ func TestGetFeeByType(t *testing.T) {
 		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)
 	}
 }
-
-// func TestSomething(t *testing.T) {
-// 	var resp exchange.CancelAllOrdersResponse
-// 	orderIDs, err := l.GetAllOpenOrderID()
-// 	if err != nil {
-// 		return resp, nil
-// 	}
-// 	for key := range orderIDs {
-// 		if key != orders.CurrencyPair.String() {
-// 			continue
-// 		}
-// 		var x, y int64
-// 		x = 0
-// 		y = 0
-// 		var tempSlice []string
-// 		tempSlice = append(tempSlice, orderIDs[key][x])
-// 		for orderIDs[key][x] != "" {
-// 			x++
-// 			for y != x {
-// 				tempSlice = append(tempSlice, orderIDs[key][y])
-// 				if y%3 == 0 {
-// 					input := strings.Join(tempSlice, ",")
-// 					CancelResponse, err2 := l.RemoveOrder(key, input)
-// 					if err2 != nil {
-// 						return resp, err2
-// 					}
-// 					tempStringSuccess := strings.Split(CancelResponse.Success, ",")
-// 					for k := range tempStringSuccess {
-// 						resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
-// 					}
-// 					tempStringError := strings.Split(CancelResponse.Error, ",")
-// 					for l := range tempStringError {
-// 						resp.OrderStatus[tempStringError[l]] = "Failed"
-// 					}
-// 					tempSlice = tempSlice[:0]
-// 					y++
-// 				}
-// 			y++
-// 			}
-// 		}
-// 	}
-// 	return resp, nil
-// }
 
 func TestSomething(t *testing.T) {
 	var temp OpenOrderResponse
