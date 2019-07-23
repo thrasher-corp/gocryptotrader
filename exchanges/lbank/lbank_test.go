@@ -2,6 +2,8 @@ package lbank
 
 import (
 	"fmt"
+	"log"
+	"strconv"
 	"testing"
 	"time"
 
@@ -279,23 +281,23 @@ func TestCancelOrder(t *testing.T) {
 	}
 }
 
-func TestGetOrderInfo(t *testing.T) {
-	areTestAPIKeysSet()
-	TestSetup(t)
-	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestGetOrderInfo(t *testing.T) {
+// 	areTestAPIKeysSet()
+// 	TestSetup(t)
+// 	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
-func TestGetAllOpenOrderID(t *testing.T) {
-	areTestAPIKeysSet()
-	TestSetup(t)
-	_, err := l.GetAllOpenOrderID()
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestGetAllOpenOrderID(t *testing.T) {
+// 	areTestAPIKeysSet()
+// 	TestSetup(t)
+// 	_, err := l.GetAllOpenOrderID()
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
 func TestGetFeeByType(t *testing.T) {
 	TestSetup(t)
@@ -311,4 +313,120 @@ func TestGetFeeByType(t *testing.T) {
 	if a != 0.0005 {
 		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)
 	}
+}
+
+// func TestSomething(t *testing.T) {
+// 	var resp exchange.CancelAllOrdersResponse
+// 	orderIDs, err := l.GetAllOpenOrderID()
+// 	if err != nil {
+// 		return resp, nil
+// 	}
+// 	for key := range orderIDs {
+// 		if key != orders.CurrencyPair.String() {
+// 			continue
+// 		}
+// 		var x, y int64
+// 		x = 0
+// 		y = 0
+// 		var tempSlice []string
+// 		tempSlice = append(tempSlice, orderIDs[key][x])
+// 		for orderIDs[key][x] != "" {
+// 			x++
+// 			for y != x {
+// 				tempSlice = append(tempSlice, orderIDs[key][y])
+// 				if y%3 == 0 {
+// 					input := strings.Join(tempSlice, ",")
+// 					CancelResponse, err2 := l.RemoveOrder(key, input)
+// 					if err2 != nil {
+// 						return resp, err2
+// 					}
+// 					tempStringSuccess := strings.Split(CancelResponse.Success, ",")
+// 					for k := range tempStringSuccess {
+// 						resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
+// 					}
+// 					tempStringError := strings.Split(CancelResponse.Error, ",")
+// 					for l := range tempStringError {
+// 						resp.OrderStatus[tempStringError[l]] = "Failed"
+// 					}
+// 					tempSlice = tempSlice[:0]
+// 					y++
+// 				}
+// 			y++
+// 			}
+// 		}
+// 	}
+// 	return resp, nil
+// }
+
+func TestSomething(t *testing.T) {
+	var temp OpenOrderResponse
+	temp.PageLength = 200
+	temp.PageNumber = 1
+	temp.Total = "3"
+	temp.Result = true
+	var temp2 OrderResponse
+	temp2.Symbol = "eth_btc"
+	temp2.Amount = 5.00
+	temp2.CreateTime = 12472345454
+	temp2.Price = 6666.00
+	temp2.AvgPrice = 0.00
+	temp2.Type = "sell"
+	temp2.OrderID = "a"
+	temp2.DealAmount = 10.00
+	temp2.Status = 2
+	var temp3 OrderResponse
+	temp3.Symbol = "eth_btc"
+	temp3.Amount = 5.00
+	temp3.CreateTime = 12472345454
+	temp3.Price = 6666.00
+	temp3.AvgPrice = 0.00
+	temp3.Type = "sell"
+	temp3.OrderID = "b"
+	temp3.DealAmount = 10.00
+	temp3.Status = 2
+	var temp4 OrderResponse
+	temp4.Symbol = "eth_btc"
+	temp4.Amount = 5.00
+	temp4.CreateTime = 12472345454
+	temp4.Price = 6666.00
+	temp4.AvgPrice = 0.00
+	temp4.Type = "sell"
+	temp4.OrderID = "c"
+	temp4.DealAmount = 10.00
+	temp4.Status = 2
+	temp.Orders = append(temp.Orders, temp2)
+	t.Log(temp)
+	temp.Orders = append(temp.Orders, temp3)
+	t.Log(temp)
+	temp.Orders = append(temp.Orders, temp4)
+	t.Log(temp)
+	var resp []GetAllOpenIDResp
+
+	b := int64(1)
+	var x int64
+	tempData, err := strconv.ParseInt(temp.Total, 10, 64)
+	if err != nil {
+		t.Log(err)
+	}
+	if tempData%200 != 0 {
+		tempData = tempData - (tempData % 200)
+		x = tempData/200 + 1
+	} else {
+		x = tempData / 200
+	}
+	d, err := strconv.ParseInt(temp.Total, 10, 64)
+	if err != nil {
+		t.Log(err)
+	}
+	log.Println("HELLO MATE")
+	for ; b <= x; b++ {
+		log.Println("HELLO DUDE")
+
+		for c := int64(0); c < d; c++ {
+			resp = append(resp, GetAllOpenIDResp{
+				CurrencyPair: "eth_btc",
+				OrderID:      temp.Orders[c].OrderID})
+		}
+	}
+	t.Log(resp)
 }

@@ -416,7 +416,6 @@ func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
 	if err != nil {
 		return err
 	}
-
 	err = ErrorCapture(intermediary)
 	if err != nil {
 		return err

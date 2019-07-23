@@ -194,39 +194,31 @@ func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.Ca
 	if err != nil {
 		return resp, nil
 	}
-	for key := range orderIDs {
-		if key != orders.CurrencyPair.String() {
+	y := 1
+	var tempSlice []string
+	for i := range orderIDs {
+		if orderIDs[i].CurrencyPair != orders.CurrencyPair.String() {
 			continue
 		}
-		var x, y int64
-		x = 0
-		y = 0
-		var tempSlice []string
-		for orderIDs[key][x] != "" {
-			x++
-		}
-		for y != x {
-			tempSlice = append(tempSlice, orderIDs[key][y])
-			if y%3 == 0 {
-				input := strings.Join(tempSlice, ",")
-				CancelResponse, err2 := l.RemoveOrder(key, input)
-				if err2 != nil {
-					return resp, err2
-				}
-				tempStringSuccess := strings.Split(CancelResponse.Success, ",")
-				for k := range tempStringSuccess {
-					resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
-				}
-				tempStringError := strings.Split(CancelResponse.Error, ",")
-				for l := range tempStringError {
-					resp.OrderStatus[tempStringError[l]] = "Failed"
-				}
-				tempSlice = tempSlice[:0]
-				y++
+		tempSlice = append(tempSlice, orderIDs[y].OrderID)
+		if y%3 == 0 {
+			input := strings.Join(tempSlice, ",")
+			CancelResponse, err2 := l.RemoveOrder(orderIDs[y].CurrencyPair, input)
+			if err2 != nil {
+				return resp, err2
 			}
+			tempStringSuccess := strings.Split(CancelResponse.Success, ",")
+			for k := range tempStringSuccess {
+				resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
+			}
+			tempStringError := strings.Split(CancelResponse.Error, ",")
+			for l := range tempStringError {
+				resp.OrderStatus[tempStringError[l]] = "Failed"
+			}
+			tempSlice = tempSlice[:0]
 			y++
 		}
-		x++
+		y++
 	}
 	return resp, nil
 }
@@ -239,42 +231,46 @@ func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		return resp, err
 	}
 
-	for key, val := range orderIDs {
-		for i := range val {
-			if val[i] != orderID {
-				continue
-			}
-			tempResp, err := l.QueryOrder(key, orderID)
-			if err != nil {
-				return resp, err
-			}
-			resp.Exchange = l.GetName()
-			resp.CurrencyPair = currency.NewPairFromString(key)
-			if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
-				resp.OrderSide = exchange.BuyOrderSide
-			} else {
-				resp.OrderSide = exchange.SellOrderSide
-			}
-			if tempResp.Orders[0].Status == -1 {
-				resp.Status = "cancelled"
-			}
-			if tempResp.Orders[0].Status == 1 {
-				resp.Status = "on trading"
-			}
-			if tempResp.Orders[0].Status == 2 {
-				resp.Status = "filled partially"
-			}
-			if tempResp.Orders[0].Status == 3 {
-				resp.Status = "Filled totally"
-			}
-			if tempResp.Orders[0].Status == 4 {
-				resp.Status = "Cancelling"
-			}
-			resp.Price = tempResp.Orders[0].Price
-			resp.Amount = tempResp.Orders[0].Amount
-			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
-			resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
-			resp.Fee = 0.001
+	for i := range orderIDs {
+		if orderIDs[i].OrderID != orderID {
+			continue
+		}
+		tempResp, err := l.QueryOrder(orderIDs[i].CurrencyPair, orderID)
+		if err != nil {
+			return resp, err
+		}
+		resp.Exchange = l.GetName()
+		resp.CurrencyPair = currency.NewPairFromString(orderIDs[i].CurrencyPair)
+		if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
+			resp.OrderSide = exchange.BuyOrderSide
+		} else {
+			resp.OrderSide = exchange.SellOrderSide
+		}
+		z := tempResp.Orders[0].Status
+		switch {
+		case z == -1:
+			resp.Status = "cancelled"
+		case z == 1:
+			resp.Status = "on trading"
+		case z == 2:
+			resp.Status = "filled partially"
+		case z == 3:
+			resp.Status = "Filled totally"
+		case z == 4:
+			resp.Status = "Cancelling"
+		default:
+			return resp, fmt.Errorf("invalid order status: %v", tempResp.Orders[0].Status)
+		}
+		resp.Price = tempResp.Orders[0].Price
+		resp.Amount = tempResp.Orders[0].Amount
+		resp.ExecutedAmount = tempResp.Orders[0].DealAmount
+		resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
+		resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
+			FeeType:       exchange.CryptocurrencyTradeFee,
+			Amount:        tempResp.Orders[0].Amount,
+			PurchasePrice: tempResp.Orders[0].Price})
+		if err != nil {
+			return resp, err
 		}
 	}
 
@@ -322,51 +318,55 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		return finalResp, err
 	}
 
-	for key, val := range tempData {
-		for x := range val {
-			tempResp, err := l.QueryOrder(key, val[x])
-			if err != nil {
-				return finalResp, err
+	for _, val := range tempData {
+		tempResp, err := l.QueryOrder(val.CurrencyPair, val.OrderID)
+		if err != nil {
+			return finalResp, err
+		}
+		resp.Exchange = l.GetName()
+		resp.CurrencyPair = currency.NewPairFromString(val.CurrencyPair)
+		if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
+			resp.OrderSide = exchange.BuyOrderSide
+		} else {
+			resp.OrderSide = exchange.SellOrderSide
+		}
+		z := tempResp.Orders[0].Status
+		switch {
+		case z == -1:
+			resp.Status = "cancelled"
+		case z == 1:
+			resp.Status = "on trading"
+		case z == 2:
+			resp.Status = "filled partially"
+		case z == 3:
+			resp.Status = "Filled totally"
+		case z == 4:
+			resp.Status = "Cancelling"
+		default:
+			return finalResp, fmt.Errorf("invalid order status: %v", tempResp.Orders[0].Status)
+		}
+		resp.Price = tempResp.Orders[0].Price
+		resp.Amount = tempResp.Orders[0].Amount
+		resp.OrderDate = time.Unix(tempResp.Orders[0].CreateTime, 9)
+		resp.ExecutedAmount = tempResp.Orders[0].DealAmount
+		resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
+		resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
+			FeeType:       exchange.CryptocurrencyTradeFee,
+			Amount:        tempResp.Orders[0].Amount,
+			PurchasePrice: tempResp.Orders[0].Price})
+		if err != nil {
+			return finalResp, err
+		}
+		for y := int(0); y < len(getOrdersRequest.Currencies); y++ {
+			if getOrdersRequest.Currencies[y].String() != val.CurrencyPair {
+				continue
 			}
-			resp.Exchange = l.GetName()
-			resp.CurrencyPair = currency.NewPairFromString(key)
-			if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
-				resp.OrderSide = exchange.BuyOrderSide
-			} else {
-				resp.OrderSide = exchange.SellOrderSide
+			if getOrdersRequest.OrderSide == "ANY" {
+				finalResp = append(finalResp, resp)
+				continue
 			}
-			if tempResp.Orders[0].Status == -1 {
-				resp.Status = "cancelled"
-			}
-			if tempResp.Orders[0].Status == 1 {
-				resp.Status = "on trading"
-			}
-			if tempResp.Orders[0].Status == 2 {
-				resp.Status = "filled partially"
-			}
-			if tempResp.Orders[0].Status == 3 {
-				resp.Status = "Filled totally"
-			}
-			if tempResp.Orders[0].Status == 4 {
-				resp.Status = "Cancelling"
-			}
-			resp.Price = tempResp.Orders[0].Price
-			resp.Amount = tempResp.Orders[0].Amount
-			resp.OrderDate = time.Unix(tempResp.Orders[0].CreateTime, 9)
-			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
-			resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
-			resp.Fee = tempResp.Orders[0].Amount * tempResp.Orders[0].Price * 0.001
-			for y := int(0); y < len(getOrdersRequest.Currencies); y++ {
-				if getOrdersRequest.Currencies[y].String() != key {
-					continue
-				}
-				if getOrdersRequest.OrderSide == "ANY" {
-					finalResp = append(finalResp, resp)
-					continue
-				}
-				if strings.EqualFold(getOrdersRequest.OrderSide.ToString(), tempResp.Orders[0].Type) {
-					finalResp = append(finalResp, resp)
-				}
+			if strings.EqualFold(getOrdersRequest.OrderSide.ToString(), tempResp.Orders[0].Type) {
+				finalResp = append(finalResp, resp)
 			}
 		}
 	}
@@ -399,7 +399,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var resp float64
 	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
-		return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.001, nil
+		return feeBuilder.Amount * feeBuilder.PurchasePrice * l.Fee, nil
 	}
 	if feeBuilder.FeeType == exchange.CryptocurrencyWithdrawalFee {
 		withdrawalFee, err := l.GetWithdrawConfig(feeBuilder.Pair.Base.Lower().String())
@@ -413,29 +413,44 @@ func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetAllOpenOrderID returns map[string][]string -> map[currencypair][]orderIDs
-func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
+func (l *Lbank) GetAllOpenOrderID() ([]GetAllOpenIDResp, error) {
 	allPairs := l.GetEnabledCurrencies()
-	resp := make(map[string][]string)
+	var resp []GetAllOpenIDResp
 
-	for a := range allPairs {
-		p := exchange.FormatExchangeCurrency(l.Name, allPairs[a])
+	for i := range allPairs {
+		pair := exchange.FormatExchangeCurrency(l.Name, allPairs[i])
 		b := int64(1)
-		tempResp, err := l.GetOpenOrders(p.String(), b, 200)
+		tempResp, err := l.GetOpenOrders(pair.String(), b, 200)
 		if err != nil {
 			return resp, err
 		}
-		tempData := tempResp.PageLength
-		for tempData == 200 {
-			tempResp, err = l.GetOpenOrders(p.String(), b, 200)
+		var x int64
+		tempData, err := strconv.ParseInt(tempResp.Total, 10, 64)
+		if err != nil {
+			return resp, err
+		}
+		if tempData%200 != 0 {
+			tempData = tempData - (tempData % 200)
+			x = tempData/200 + 1
+		} else {
+			x = tempData / 200
+		}
+		for ; b <= x; b++ {
+			tempResp, err = l.GetOpenOrders(pair.String(), b, 200)
 			if err != nil {
 				return resp, err
 			}
 
-			for c := int64(0); c < tempData; c++ {
-				resp[p.String()] = append(resp[p.String()], tempResp.Orders[c].OrderID)
+			d, err := strconv.ParseInt(tempResp.Total, 10, 64)
+			if err != nil {
+				return resp, err
 			}
 
-			b++
+			for c := int64(0); c < d; c++ {
+				resp = append(resp, GetAllOpenIDResp{
+					CurrencyPair: pair.String(),
+					OrderID:      tempResp.Orders[c].OrderID})
+			}
 		}
 	}
 	return resp, nil

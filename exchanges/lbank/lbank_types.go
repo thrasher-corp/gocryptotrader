@@ -184,6 +184,12 @@ type ErrCapture struct {
 	Result bool  `json:"result,string"`
 }
 
+// GetAllOpenIDResp stores orderIds and currency pairs for open orders
+type GetAllOpenIDResp struct {
+	CurrencyPair string
+	OrderID      string
+}
+
 var errorCodes = map[int64]string{
 	10000: "Internal error",
 	10001: "The required parameters can not be empty",
