@@ -32,6 +32,7 @@ import (
 // GetSubsystemsStatus returns the status of various subsystems
 func GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
+	systems["audit"] = Bot.AuditManager.Started()
 	systems["communications"] = Bot.CommsManager.Started()
 	systems["internet_monitor"] = Bot.ConnectionManager.Started()
 	systems["orders"] = Bot.OrderManager.Started()

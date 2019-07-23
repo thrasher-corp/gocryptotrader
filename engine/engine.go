@@ -30,6 +30,7 @@ type Engine struct {
 	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
+	AuditManager                auditManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
@@ -259,6 +260,10 @@ func (e *Engine) Start() {
 		os.Exit(1)
 	}
 
+	if err := e.AuditManager.Start(); err != nil {
+		log.Errorf(log.Global, "Audit manager unable to start: %v", err)
+	}
+
 	// Sets up internet connectivity monitor
 	if e.Settings.EnableConnectivityMonitor {
 		if err := e.ConnectionManager.Start(); err != nil {
@@ -421,6 +426,12 @@ func (e *Engine) Stop() {
 		}
 	}
 
+	if e.AuditManager.Started() {
+		if err := e.AuditManager.Stop(); err != nil {
+			log.Errorf(log.Global, "Audit manager unable to stop. Error: %v", err)
+		}
+	}
+
 	if !e.Settings.EnableDryRun {
 		err := e.Config.SaveConfig(e.Settings.ConfigFile)
 		if err != nil {
@@ -429,6 +440,7 @@ func (e *Engine) Stop() {
 			log.Debugln(log.Global, "Config file saved successfully.")
 		}
 	}
+
 	// Wait for services to gracefully shutdown
 	e.ServicesWG.Wait()
 	log.Debugln(log.Global, "Exiting.")
