@@ -199,7 +199,7 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	var snapShot3 orderbook.Base
 	asks = []orderbook.Item{
-		{Price: 51, Amount: 1, ID: 1},
+		{Price: 511, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},
 		{Price: 53, Amount: 2, ID: 3},
 		{Price: 54, Amount: 3, ID: 4},
@@ -232,8 +232,13 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
 
 	ws.Orderbook.LoadSnapshot(&snapShot3, "ExchangeTest", false)
-
-	if len(ws.Orderbook.ob) != 3 {
+	if ws.Orderbook.orderbook[snapShot1.Pair][snapShot1.AssetType].Asks[0] != snapShot1.Asks[0] {
+		t.Error("test failed - inserting orderbook data")
+	}
+	if ws.Orderbook.orderbook[snapShot2.Pair][snapShot2.AssetType].Asks[0] != snapShot2.Asks[0] {
+		t.Error("test failed - inserting orderbook data")
+	}
+	if ws.Orderbook.orderbook[snapShot3.Pair][snapShot3.AssetType].Asks[0] != snapShot3.Asks[0] {
 		t.Error("test failed - inserting orderbook data")
 	}
 }
@@ -243,17 +248,17 @@ func TestUpdate(t *testing.T) {
 	BTCUSDPAIR := currency.NewPairFromString("BTCUSD")
 
 	bidTargets := []orderbook.Item{
-		{Price: 49, Amount: 24},    // Amend
-		{Price: 48, Amount: 0},     // Delete
-		{Price: 1337, Amount: 100}, // Append
-		{Price: 1336, Amount: 0},   // Ghost delete
+		{Price: 1, Amount: 24},  // Amend
+		{Price: 2, Amount: 0},   // Delete
+		{Price: 3, Amount: 100}, // Append
+		{Price: 4, Amount: 0},   // Ghost delete
 	}
 
 	askTargets := []orderbook.Item{
-		{Price: 51, Amount: 24},    // Amend
-		{Price: 52, Amount: 0},     // Delete
-		{Price: 1337, Amount: 100}, // Append
-		{Price: 1336, Amount: 0},   // Ghost delete
+		{Price: 5, Amount: 24},  // Amend
+		{Price: 6, Amount: 0},   // Delete
+		{Price: 7, Amount: 100}, // Append
+		{Price: 8, Amount: 0},   // Ghost delete
 	}
 	err := ws.Orderbook.Update(bidTargets,
 		askTargets,
@@ -264,6 +269,9 @@ func TestUpdate(t *testing.T) {
 
 	if err != nil {
 		t.Error("test failed - OrderbookUpdate error", err)
+	}
+	if ws.Orderbook.orderbookBuffer[LTCUSDPAIR]["SPOT"][0].Bids[0].Price != bidTargets[0].Price {
+		t.Error(ws.Orderbook.orderbookBuffer)
 	}
 
 	err = ws.Orderbook.Update(bidTargets,

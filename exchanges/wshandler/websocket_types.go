@@ -4,9 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-)
+	"github.com/thrasher-corp/gocryptotrader/currency")
 
 // Websocket functionality list and state consts
 const (
@@ -111,14 +109,6 @@ type WebsocketChannelSubscription struct {
 	Channel  string
 	Currency currency.Pair
 	Params   map[string]interface{}
-}
-
-// WebsocketOrderbookLocal defines a local cache of orderbooks for amending,
-// appending and deleting changes and updates the main store in orderbook.go
-type WebsocketOrderbookLocal struct {
-	ob          []*orderbook.Base
-	lastUpdated time.Time
-	m           sync.Mutex
 }
 
 // WebsocketResponse defines generalised data from the websocket connection
