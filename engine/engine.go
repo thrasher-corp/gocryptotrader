@@ -30,6 +30,7 @@ type Engine struct {
 	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
+	DatabaseManager				databaseManager
 	AuditManager                auditManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
@@ -260,6 +261,10 @@ func (e *Engine) Start() {
 		os.Exit(1)
 	}
 
+	if err := e.DatabaseManager.Start(); err != nil {
+		log.Errorf(log.Global, "Database manager unable to start: %v", err)
+	}
+
 	if err := e.AuditManager.Start(); err != nil {
 		log.Errorf(log.Global, "Audit manager unable to start: %v", err)
 	}
@@ -429,6 +434,13 @@ func (e *Engine) Stop() {
 	if e.AuditManager.Started() {
 		if err := e.AuditManager.Stop(); err != nil {
 			log.Errorf(log.Global, "Audit manager unable to stop. Error: %v", err)
+		}
+	}
+
+
+	if e.DatabaseManager.Started() {
+		if err := e.DatabaseManager.Stop(); err != nil {
+			log.Errorf(log.Global, "Database manager unable to stop. Error: %v", err)
 		}
 	}
 

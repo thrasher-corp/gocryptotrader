@@ -1,8 +1,12 @@
 package engine
 
 import (
+	"fmt"
 	"errors"
 	"sync/atomic"
+
+	"github.com/thrasher-/gocryptotrader/db/models"
+	"github.com/thrasher-/gocryptotrader/db/repository/postgres"
 
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -24,6 +28,18 @@ func (a *auditManager) Start() error {
 	log.Debugln(log.AuditMgr, "Audit manager starting...")
 
 	a.shutdown = make(chan struct{})
+
+	audit := audit.NewPSQLAudit()
+	tempEvent := models.Event{
+		UserID:  "gct",
+		Type:    "ORDER",
+		Message: "Hello World",
+	}
+	err := audit.AddEvent(tempEvent)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	go a.run()
 
 	return nil

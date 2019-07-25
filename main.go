@@ -13,9 +13,47 @@ import (
 	"github.com/thrasher-/gocryptotrader/engine"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
+
+	// "github.com/thrasher-/gocryptotrader/db/drivers"
+	// db "github.com/thrasher-/gocryptotrader/db/drivers/postgresql"
+
+	// "github.com/thrasher-/gocryptotrader/db/models"
+	// "github.com/thrasher-/gocryptotrader/db/repository/postgres"
 )
 
 func main() {
+
+	// connStr := drivers.ConnectionDetails{
+	// 	Host:     "127.0.0.1",
+	// 	Port:     5432,
+	// 	Database: "gct-audit",
+	// 	Username: "gct",
+	// 	Password: "test1234",
+	// }
+
+	// dbConn, err := db.ConnectPSQL(connStr)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	os.Exit(1)
+	// }
+
+	// dbConn.SQL.SetMaxOpenConns(2)
+	// dbConn.SQL.SetMaxIdleConns(1)
+	// dbConn.SQL.SetConnMaxLifetime(time.Hour)
+
+	// audit := audit.NewPSQLAudit()
+	// tempEvent := models.Event{
+	// 	UserID:  "gct",
+	// 	Type:    "ORDER",
+	// 	Message: "Hello World",
+	// }
+	// err = audit.AddEvent(tempEvent)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+
+	// os.Exit(0)
+
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
 		log.Errorln(log.Global, err)
