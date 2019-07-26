@@ -1,4 +1,4 @@
-package wshandler
+package connection
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -111,10 +112,10 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 }
 
 // ReadMessage reads messages, can handle text, gzip and binary
-func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
+func (w *WebsocketConnection) ReadMessage() (monitor.WebsocketResponse, error) {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-		return WebsocketResponse{}, err
+		return monitor.WebsocketResponse{}, err
 	}
 	var standardMessage []byte
 	switch mType {
@@ -123,7 +124,7 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
-			return WebsocketResponse{}, err
+			return monitor.WebsocketResponse{}, err
 		}
 	}
 	if w.Verbose {
@@ -131,7 +132,7 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 			w.ExchangeName,
 			string(standardMessage))
 	}
-	return WebsocketResponse{Raw: standardMessage, Type: mType}, nil
+	return monitor.WebsocketResponse{Raw: standardMessage, Type: mType}, nil
 }
 
 // parseBinaryResponse parses a websocket binaray response into a usable byte array

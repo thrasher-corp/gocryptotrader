@@ -22,7 +22,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -68,8 +69,8 @@ const (
 type HUOBI struct {
 	exchange.Base
 	AccountID                  string
-	WebsocketConn              *wshandler.WebsocketConnection
-	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
+	WebsocketConn              *connection.WebsocketConnection
+	AuthenticatedWebsocketConn *connection.WebsocketConnection
 }
 
 // SetDefaults sets default values for the exchange
@@ -94,15 +95,15 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobiAPIURL
 	h.APIUrl = h.APIUrlDefault
-	h.Websocket = wshandler.New()
-	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketAccountDataSupported |
-		wshandler.WebsocketMessageCorrelationSupported
+	h.Websocket = monitor.New()
+	h.Websocket.Functionality = monitor.WebsocketKlineSupported |
+		monitor.WebsocketOrderbookSupported |
+		monitor.WebsocketTradeDataSupported |
+		monitor.WebsocketSubscribeSupported |
+		monitor.WebsocketUnsubscribeSupported |
+		monitor.WebsocketAuthenticatedEndpointsSupported |
+		monitor.WebsocketAccountDataSupported |
+		monitor.WebsocketMessageCorrelationSupported
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }

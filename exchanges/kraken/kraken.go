@@ -16,7 +16,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -58,7 +59,7 @@ const (
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
-	WebsocketConn      *wshandler.WebsocketConnection
+	WebsocketConn      *connection.WebsocketConnection
 	CryptoFee, FiatFee float64
 	wsRequestMtx       sync.Mutex
 }
@@ -89,15 +90,15 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
-	k.Websocket = wshandler.New()
+	k.Websocket = monitor.New()
 	k.WebsocketURL = krakenWSURL
-	k.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketMessageCorrelationSupported
+	k.Websocket.Functionality = monitor.WebsocketTickerSupported |
+		monitor.WebsocketTradeDataSupported |
+		monitor.WebsocketKlineSupported |
+		monitor.WebsocketOrderbookSupported |
+		monitor.WebsocketSubscribeSupported |
+		monitor.WebsocketUnsubscribeSupported |
+		monitor.WebsocketMessageCorrelationSupported
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 

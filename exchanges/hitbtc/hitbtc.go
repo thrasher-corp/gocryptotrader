@@ -15,7 +15,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -53,7 +54,7 @@ const (
 // HitBTC is the overarching type across the hitbtc package
 type HitBTC struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
+	WebsocketConn *connection.WebsocketConnection
 }
 
 // SetDefaults sets default settings for hitbtc
@@ -78,15 +79,15 @@ func (h *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = apiURL
 	h.APIUrl = h.APIUrlDefault
-	h.Websocket = wshandler.New()
-	h.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSubmitOrderSupported |
-		wshandler.WebsocketCancelOrderSupported |
-		wshandler.WebsocketMessageCorrelationSupported
+	h.Websocket = monitor.New()
+	h.Websocket.Functionality = monitor.WebsocketTickerSupported |
+		monitor.WebsocketOrderbookSupported |
+		monitor.WebsocketSubscribeSupported |
+		monitor.WebsocketUnsubscribeSupported |
+		monitor.WebsocketAuthenticatedEndpointsSupported |
+		monitor.WebsocketSubmitOrderSupported |
+		monitor.WebsocketCancelOrderSupported |
+		monitor.WebsocketMessageCorrelationSupported
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }

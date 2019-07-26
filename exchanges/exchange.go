@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -290,7 +290,7 @@ type Base struct {
 	APIUrlSecondaryDefault                     string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
-	Websocket                                  *wshandler.Websocket
+	Websocket                                  *monitor.Websocket
 	*request.Requester
 }
 
@@ -333,11 +333,11 @@ type IBotExchange interface {
 	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
-	GetWebsocket() (*wshandler.Websocket, error)
-	SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
+	GetWebsocket() (*monitor.Websocket, error)
+	SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error
 	AuthenticateWebsocket() error
-	GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error)
+	GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the

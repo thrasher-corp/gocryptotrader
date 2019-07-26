@@ -14,7 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -297,7 +297,7 @@ func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(withdrawRequest *ex
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (l *LocalBitcoins) GetWebsocket() (*wshandler.Websocket, error) {
+func (l *LocalBitcoins) GetWebsocket() (*monitor.Websocket, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -431,18 +431,18 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequ
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (l *LocalBitcoins) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (l *LocalBitcoins) SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (l *LocalBitcoins) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (l *LocalBitcoins) UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (l *LocalBitcoins) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (l *LocalBitcoins) GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

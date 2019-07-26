@@ -14,7 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -254,7 +254,7 @@ func (g *Gemini) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (g *Gemini) GetWebsocket() (*wshandler.Websocket, error) {
+func (g *Gemini) GetWebsocket() (*monitor.Websocket, error) {
 	return g.Websocket, nil
 }
 
@@ -361,18 +361,18 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (g *Gemini) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (g *Gemini) SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (g *Gemini) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (g *Gemini) UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (g *Gemini) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (g *Gemini) GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

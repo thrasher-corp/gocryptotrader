@@ -11,7 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -22,7 +23,7 @@ const (
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := b.WebsocketConn.Dial(&dialer, http.Header{})
@@ -91,7 +92,7 @@ func (b *BTSE) WsHandleData() {
 					continue
 				}
 
-				b.Websocket.DataHandler <- wshandler.TickerData{
+				b.Websocket.DataHandler <- monitor.TickerData{
 					Timestamp: time.Now(),
 					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
 					AssetType: "SPOT",
@@ -164,7 +165,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 		return err
 	}
 
-	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+	b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    "SPOT",
 		Exchange: b.GetName(),
@@ -177,10 +178,10 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 func (b *BTSE) GenerateDefaultSubscriptions() {
 	var channels = []string{"snapshot", "ticker"}
 	enabledCurrencies := b.GetEnabledCurrencies()
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -190,7 +191,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *BTSE) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	subscribe := websocketSubscribe{
 		Type: "subscribe",
 		Channels: []websocketChannel{
@@ -204,7 +205,7 @@ func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscripti
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *BTSE) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	subscribe := websocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []websocketChannel{

@@ -13,7 +13,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -28,7 +29,7 @@ var requestID nonce.Nonce
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := h.WebsocketConn.Dial(&dialer, http.Header{})
@@ -98,7 +99,7 @@ func (h *HitBTC) WsHandleData() {
 	}
 }
 
-func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, init capture) {
+func (h *HitBTC) handleSubscriptionUpdates(resp monitor.WebsocketResponse, init capture) {
 	switch init.Method {
 	case "ticker":
 		var ticker WsTicker
@@ -112,7 +113,7 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			h.Websocket.DataHandler <- err
 			return
 		}
-		h.Websocket.DataHandler <- wshandler.TickerData{
+		h.Websocket.DataHandler <- monitor.TickerData{
 			Exchange:  h.GetName(),
 			AssetType: "SPOT",
 			Pair:      currency.NewPairFromString(ticker.Params.Symbol),
@@ -168,7 +169,7 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 	}
 }
 
-func (h *HitBTC) handleCommandResponses(resp wshandler.WebsocketResponse, init capture) {
+func (h *HitBTC) handleCommandResponses(resp monitor.WebsocketResponse, init capture) {
 	switch resultType := init.Result.(type) {
 	case map[string]interface{}:
 		switch resultType["reportType"].(string) {
@@ -247,7 +248,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		return err
 	}
 
-	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+	h.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
 		Asset:    "SPOT",
 		Pair:     p,
@@ -278,7 +279,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 		return err
 	}
 
-	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+	h.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
 		Asset:    "SPOT",
 		Pair:     p,
@@ -289,9 +290,9 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() {
 	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 			Channel: "subscribeReports",
 		})
 	}
@@ -299,7 +300,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -309,7 +310,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (h *HitBTC) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	subscribe := WsNotification{
 		Method: channelToSubscribe.Channel,
 	}
@@ -335,7 +336,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (h *HitBTC) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,

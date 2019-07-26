@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -51,7 +52,7 @@ var comms = make(chan WsMessage, 1)
 // WsConnect initiates a new websocket connection
 func (h *HUOBIHADAX) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := h.wsDial(&dialer)
@@ -94,7 +95,7 @@ func (h *HUOBIHADAX) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 }
 
 // wsMultiConnectionFunnel manages data from multiple endpoints and passes it to a channel
-func (h *HUOBIHADAX) wsMultiConnectionFunnel(ws *wshandler.WebsocketConnection, url string) {
+func (h *HUOBIHADAX) wsMultiConnectionFunnel(ws *connection.WebsocketConnection, url string) {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
@@ -241,7 +242,7 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := common.SplitStrings(kline.Channel, ".")
-		h.Websocket.DataHandler <- wshandler.KlineData{
+		h.Websocket.DataHandler <- monitor.KlineData{
 			Timestamp:  time.Unix(0, kline.Timestamp),
 			Exchange:   h.GetName(),
 			AssetType:  "SPOT",
@@ -260,7 +261,7 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := common.SplitStrings(trade.Channel, ".")
-		h.Websocket.DataHandler <- wshandler.TradeData{
+		h.Websocket.DataHandler <- monitor.TradeData{
 			Exchange:     h.GetName(),
 			AssetType:    "SPOT",
 			CurrencyPair: currency.NewPairFromString(data[1]),
@@ -297,7 +298,7 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 		return err
 	}
 
-	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+	h.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Exchange: h.GetName(),
 		Asset:    "SPOT",
@@ -309,10 +310,10 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, "orders.%v", "orders.%v.update")
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 			Channel: "accounts",
 		})
 	}
@@ -321,7 +322,7 @@ func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
 			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String())
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel:  channel,
 				Currency: enabledCurrencies[j],
 			})
@@ -331,7 +332,7 @@ func (h *HUOBIHADAX) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBIHADAX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (h *HUOBIHADAX) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
@@ -340,7 +341,7 @@ func (h *HUOBIHADAX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (h *HUOBIHADAX) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)

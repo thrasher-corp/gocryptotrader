@@ -12,7 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -23,7 +24,7 @@ const (
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := b.WebsocketConn.Dial(&dialer, http.Header{})
@@ -108,7 +109,7 @@ func (b *Bitstamp) WsHandleData() {
 				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
 				p := currency.NewPairFromString(common.StringToUpper(currencyPair[2]))
 
-				b.Websocket.DataHandler <- wshandler.TradeData{
+				b.Websocket.DataHandler <- monitor.TradeData{
 					Price:        wsTradeTemp.Data.Price,
 					Amount:       wsTradeTemp.Data.Amount,
 					CurrencyPair: p,
@@ -123,10 +124,10 @@ func (b *Bitstamp) WsHandleData() {
 func (b *Bitstamp) generateDefaultSubscriptions() {
 	var channels = []string{"live_trades_", "diff_order_book_"}
 	enabledCurrencies := b.GetEnabledCurrencies()
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel: fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j].Lower().String()),
 			})
 		}
@@ -135,7 +136,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitstamp) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	req := websocketEventRequest{
 		Event: "bts:subscribe",
 		Data: websocketData{
@@ -146,7 +147,7 @@ func (b *Bitstamp) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitstamp) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	req := websocketEventRequest{
 		Event: "bts:unsubscribe",
 		Data: websocketData{
@@ -204,7 +205,7 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 		return err
 	}
 
-	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+	b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    assetType,
 		Exchange: b.GetName(),
@@ -248,7 +249,7 @@ func (b *Bitstamp) seedOrderBook() error {
 			return err
 		}
 
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 			Pair:     p[x],
 			Asset:    ticker.Spot,
 			Exchange: b.GetName(),

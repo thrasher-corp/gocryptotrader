@@ -1,4 +1,4 @@
-package wshandler
+package monitor
 
 import (
 	"errors"
@@ -93,15 +93,15 @@ func (w *Websocket) Connect() error {
 	go w.trafficMonitor(&anotherWG)
 	anotherWG.Wait()
 	if !w.connectionMonitorRunning {
-		go w.wsConnectionMonitor()
+		go w.connectionMonitor()
 	}
 	go w.manageSubscriptions()
 
 	return nil
 }
 
-// WsConnectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) wsConnectionMonitor() {
+// connectionMonitor ensures that the WS keeps connecting
+func (w *Websocket) connectionMonitor() {
 	w.m.Lock()
 	w.connectionMonitorRunning = true
 	w.m.Unlock()
@@ -114,13 +114,13 @@ func (w *Websocket) wsConnectionMonitor() {
 		w.m.Lock()
 		if !w.enabled {
 			w.m.Unlock()
-			w.DataHandler <- fmt.Errorf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)
+			w.DataHandler <- fmt.Errorf("%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)
 			err := w.Shutdown()
 			if err != nil {
 				log.Error(err)
 			}
 			if w.verbose {
-				log.Debugf("%v WsConnectionMonitor exiting", w.exchangeName)
+				log.Debugf("%v connectionMonitor exiting", w.exchangeName)
 			}
 			return
 		}

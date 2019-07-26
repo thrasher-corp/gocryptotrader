@@ -15,14 +15,15 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Bitmex is the overarching type across this package
 type Bitmex struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
+	WebsocketConn *connection.WebsocketConnection
 }
 
 const (
@@ -133,14 +134,14 @@ func (b *Bitmex) SetDefaults() {
 	b.APIUrlDefault = bitmexAPIURL
 	b.APIUrl = b.APIUrlDefault
 	b.SupportsAutoPairUpdating = true
-	b.Websocket = wshandler.New()
-	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketAccountDataSupported |
-		wshandler.WebsocketDeadMansSwitchSupported
+	b.Websocket = monitor.New()
+	b.Websocket.Functionality = monitor.WebsocketTradeDataSupported |
+		monitor.WebsocketOrderbookSupported |
+		monitor.WebsocketSubscribeSupported |
+		monitor.WebsocketUnsubscribeSupported |
+		monitor.WebsocketAuthenticatedEndpointsSupported |
+		monitor.WebsocketAccountDataSupported |
+		monitor.WebsocketDeadMansSwitchSupported
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }

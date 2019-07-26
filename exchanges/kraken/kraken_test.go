@@ -12,7 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 )
 
 var k Kraken
@@ -755,11 +756,11 @@ func setupWsTests(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
 	if !k.Websocket.IsEnabled() && !k.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(monitor.WebsocketNotEnabled)
 	}
 	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	k.WebsocketConn = &wshandler.WebsocketConnection{
+	k.WebsocketConn = &connection.WebsocketConnection{
 		ExchangeName:         k.Name,
 		URL:                  krakenWSURL,
 		Verbose:              k.Verbose,
@@ -778,7 +779,7 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe(wshandler.WebsocketChannelSubscription{
+	err := k.Subscribe(monitor.WebsocketChannelSubscription{
 		Channel:  defaultSubscribedChannels[0],
 		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
 	})

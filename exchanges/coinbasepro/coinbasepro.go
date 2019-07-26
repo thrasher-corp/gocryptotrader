@@ -16,7 +16,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -60,7 +61,7 @@ const (
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
+	WebsocketConn *connection.WebsocketConnection
 }
 
 // SetDefaults sets default values for the exchange
@@ -86,13 +87,13 @@ func (c *CoinbasePro) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.APIUrlDefault = coinbaseproAPIURL
 	c.APIUrl = c.APIUrlDefault
-	c.Websocket = wshandler.New()
-	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSequenceNumberSupported
+	c.Websocket = monitor.New()
+	c.Websocket.Functionality = monitor.WebsocketTickerSupported |
+		monitor.WebsocketOrderbookSupported |
+		monitor.WebsocketSubscribeSupported |
+		monitor.WebsocketUnsubscribeSupported |
+		monitor.WebsocketAuthenticatedEndpointsSupported |
+		monitor.WebsocketSequenceNumberSupported
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }

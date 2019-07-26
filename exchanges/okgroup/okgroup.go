@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -86,7 +86,7 @@ var errMissValue = errors.New("warning - resp value is missing from exchange")
 type OKGroup struct {
 	exchange.Base
 	ExchangeName  string
-	WebsocketConn *wshandler.WebsocketConnection
+	WebsocketConn *connection.WebsocketConnection
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks

@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 )
 
 // Please supply your own keys here to do better tests
@@ -962,9 +963,9 @@ func TestWsAuth(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	if !b.Websocket.IsEnabled() && !b.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(monitor.WebsocketNotEnabled)
 	}
-	b.WebsocketConn = &wshandler.WebsocketConnection{
+	b.WebsocketConn = &connection.WebsocketConnection{
 		ExchangeName:         b.Name,
 		URL:                  b.Websocket.GetWebsocketURL(),
 		Verbose:              b.Verbose,

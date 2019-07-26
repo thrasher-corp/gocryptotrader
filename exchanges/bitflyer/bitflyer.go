@@ -14,7 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -100,7 +100,7 @@ func (b *Bitflyer) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.APIUrlSecondaryDefault = chainAnalysis
 	b.APIUrlSecondary = b.APIUrlSecondaryDefault
-	b.Websocket = wshandler.New()
+	b.Websocket = monitor.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

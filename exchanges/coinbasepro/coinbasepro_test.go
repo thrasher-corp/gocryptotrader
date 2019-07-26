@@ -10,7 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 )
 
 var c CoinbasePro
@@ -586,9 +587,9 @@ func TestWsAuth(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
 	if !c.Websocket.IsEnabled() && !c.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(monitor.WebsocketNotEnabled)
 	}
-	c.WebsocketConn = &wshandler.WebsocketConnection{
+	c.WebsocketConn = &connection.WebsocketConnection{
 		ExchangeName:         c.Name,
 		URL:                  c.Websocket.GetWebsocketURL(),
 		Verbose:              c.Verbose,
@@ -603,7 +604,7 @@ func TestWsAuth(t *testing.T) {
 	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go c.WsHandleData()
-	err = c.Subscribe(wshandler.WebsocketChannelSubscription{
+	err = c.Subscribe(monitor.WebsocketChannelSubscription{
 		Channel:  "user",
 		Currency: currency.NewPairFromString("BTC-USD"),
 	})

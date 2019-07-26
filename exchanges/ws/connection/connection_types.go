@@ -1,4 +1,4 @@
-package wshandler
+package connection
 
 import (
 	"sync"

@@ -12,7 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -306,7 +306,7 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (k *Kraken) GetWebsocket() (*wshandler.Websocket, error) {
+func (k *Kraken) GetWebsocket() (*monitor.Websocket, error) {
 	return k.Websocket, nil
 }
 
@@ -398,20 +398,20 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (k *Kraken) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (k *Kraken) SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
 	k.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (k *Kraken) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (k *Kraken) UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
 	k.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (k *Kraken) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (k *Kraken) GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error) {
 	return k.Websocket.GetSubscriptions(), nil
 }
 

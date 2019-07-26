@@ -15,7 +15,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 )
 
 const (
@@ -124,7 +125,7 @@ func (b *Binance) UpdateLocalCache(ob *WebsocketDepthStream) error {
 // WSConnect intiates a websocket connection
 func (b *Binance) WSConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -228,7 +229,7 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				b.Websocket.DataHandler <- wshandler.TradeData{
+				b.Websocket.DataHandler <- monitor.TradeData{
 					CurrencyPair: currency.NewPairFromString(trade.Symbol),
 					Timestamp:    time.Unix(0, trade.TimeStamp),
 					Price:        price,
@@ -248,7 +249,7 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				var wsTicker wshandler.TickerData
+				var wsTicker monitor.TickerData
 
 				wsTicker.Timestamp = time.Unix(t.EventTime/1000, 0)
 				wsTicker.Pair = currency.NewPairFromString(t.Symbol)
@@ -273,7 +274,7 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				var wsKline wshandler.KlineData
+				var wsKline monitor.KlineData
 				wsKline.Timestamp = time.Unix(0, kline.EventTime)
 				wsKline.Pair = currency.NewPairFromString(kline.Symbol)
 				wsKline.AssetType = ticker.Spot
@@ -307,7 +308,7 @@ func (b *Binance) WsHandleData() {
 				}
 
 				currencyPair := currency.NewPairFromString(depth.Pair)
-				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+				b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 					Pair:     currencyPair,
 					Asset:    "SPOT",
 					Exchange: b.GetName(),

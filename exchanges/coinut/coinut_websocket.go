@@ -12,7 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 )
 
 const coinutWebsocketURL = "wss://wsapi.coinut.com"
@@ -32,7 +33,7 @@ var populatedList bool
 // WsConnect intiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := c.WebsocketConn.Dial(&dialer, http.Header{})
@@ -134,7 +135,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
-		c.Websocket.DataHandler <- wshandler.TickerData{
+		c.Websocket.DataHandler <- monitor.TickerData{
 			Timestamp:  time.Unix(0, ticker.Timestamp),
 			Exchange:   c.GetName(),
 			AssetType:  "SPOT",
@@ -157,7 +158,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[orderbooksnapshot.InstID]
-		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+		c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 			Exchange: c.GetName(),
 			Asset:    "SPOT",
 			Pair:     currency.NewPairFromString(currencyPair),
@@ -175,7 +176,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[orderbookUpdate.InstID]
-		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+		c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 			Exchange: c.GetName(),
 			Asset:    "SPOT",
 			Pair:     currency.NewPairFromString(currencyPair),
@@ -196,7 +197,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[tradeUpdate.InstID]
-		c.Websocket.DataHandler <- wshandler.TradeData{
+		c.Websocket.DataHandler <- monitor.TradeData{
 			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: currency.NewPairFromString(currencyPair),
 			AssetType:    "SPOT",
@@ -303,11 +304,11 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() {
 	var channels = []string{"inst_tick", "inst_order_book"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	enabledCurrencies := c.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -317,7 +318,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (c *COINUT) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request:   channelToSubscribe.Channel,
 		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
@@ -328,7 +329,7 @@ func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (c *COINUT) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request:   channelToSubscribe.Channel,
 		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],

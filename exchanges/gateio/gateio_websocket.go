@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -26,7 +27,7 @@ const (
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := g.WebsocketConn.Dial(&dialer, http.Header{})
@@ -132,7 +133,7 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
-				g.Websocket.DataHandler <- wshandler.TickerData{
+				g.Websocket.DataHandler <- monitor.TickerData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(c),
 					AssetType:  "SPOT",
@@ -160,7 +161,7 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				for _, trade := range trades {
-					g.Websocket.DataHandler <- wshandler.TradeData{
+					g.Websocket.DataHandler <- monitor.TradeData{
 						Timestamp:    time.Now(),
 						CurrencyPair: currency.NewPairFromString(c),
 						AssetType:    "SPOT",
@@ -252,7 +253,7 @@ func (g *Gateio) WsHandleData() {
 					}
 				}
 
-				g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+				g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 					Pair:     currency.NewPairFromString(c),
 					Asset:    "SPOT",
 					Exchange: g.GetName(),
@@ -272,7 +273,7 @@ func (g *Gateio) WsHandleData() {
 				low, _ := strconv.ParseFloat(data[4].(string), 64)
 				volume, _ := strconv.ParseFloat(data[5].(string), 64)
 
-				g.Websocket.DataHandler <- wshandler.KlineData{
+				g.Websocket.DataHandler <- monitor.KlineData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(data[7].(string)),
 					AssetType:  "SPOT",
@@ -294,11 +295,11 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 		return
 	}
 	var channels = []string{"balance.subscribe", "order.subscribe"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -310,7 +311,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -321,7 +322,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 			} else if strings.EqualFold(channels[i], "kline.subscribe") {
 				params["interval"] = 1800
 			}
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 				Params:   params,
@@ -332,7 +333,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (g *Gateio) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	params := []interface{}{channelToSubscribe.Currency.String()}
 	for _, paramValue := range channelToSubscribe.Params {
 		params = append(params, paramValue)
@@ -360,7 +361,7 @@ func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (g *Gateio) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WebsocketRequest{
 		ID:     g.WebsocketConn.GenerateMessageID(true),

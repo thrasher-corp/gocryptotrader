@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 )
 
 const (
@@ -74,17 +74,17 @@ func (o *OKEX) SetDefaults() {
 	o.APIUrlDefault = okExAPIURL
 	o.APIUrl = okExAPIURL
 	o.AssetTypes = []string{ticker.Spot}
-	o.Websocket = wshandler.New()
+	o.Websocket = monitor.New()
 	o.APIVersion = okExAPIVersion
 	o.WebsocketURL = OkExWebsocketURL
-	o.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketMessageCorrelationSupported
+	o.Websocket.Functionality = monitor.WebsocketTickerSupported |
+		monitor.WebsocketTradeDataSupported |
+		monitor.WebsocketKlineSupported |
+		monitor.WebsocketOrderbookSupported |
+		monitor.WebsocketSubscribeSupported |
+		monitor.WebsocketUnsubscribeSupported |
+		monitor.WebsocketAuthenticatedEndpointsSupported |
+		monitor.WebsocketMessageCorrelationSupported
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 

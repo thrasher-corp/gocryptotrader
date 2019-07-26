@@ -11,7 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -52,20 +53,20 @@ func setupWsTests(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
 	if !h.Websocket.IsEnabled() && !h.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(monitor.WebsocketNotEnabled)
 	}
 	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go h.WsHandleData()
-	h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+	h.AuthenticatedWebsocketConn = &connection.WebsocketConnection{
 		ExchangeName:         h.Name,
 		URL:                  wsAccountsOrdersURL,
 		Verbose:              h.Verbose,
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
-	h.WebsocketConn = &wshandler.WebsocketConnection{
+	h.WebsocketConn = &connection.WebsocketConnection{
 		ExchangeName:         h.Name,
 		URL:                  HuobiHadaxSocketIOAddress,
 		Verbose:              h.Verbose,

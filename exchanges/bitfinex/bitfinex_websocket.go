@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -114,11 +115,11 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 // WsConnect starts a new websocket connection
 func (b *Bitfinex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
-	b.WebsocketConn = &wshandler.WebsocketConnection{
+	b.WebsocketConn = &connection.WebsocketConnection{
 		ExchangeName: b.Name,
 		URL:          b.Websocket.GetWebsocketURL(),
 		ProxyURL:     b.Websocket.GetProxyAddress(),
@@ -269,7 +270,7 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 
 					case "ticker":
-						b.Websocket.DataHandler <- wshandler.TickerData{
+						b.Websocket.DataHandler <- monitor.TickerData{
 							Quantity:   chanData[8].(float64),
 							ClosePrice: chanData[7].(float64),
 							HighPrice:  chanData[9].(float64),
@@ -439,7 +440,7 @@ func (b *Bitfinex) WsDataHandler() {
 								newAmount *= -1
 							}
 
-							b.Websocket.DataHandler <- wshandler.TradeData{
+							b.Websocket.DataHandler <- monitor.TradeData{
 								CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
 								Timestamp:    time.Unix(trades[0].Timestamp, 0),
 								Price:        trades[0].Price,
@@ -487,7 +488,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 		return fmt.Errorf("bitfinex.go error - %s", err)
 	}
 
-	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
+	b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: p,
 		Asset:    assetType,
 		Exchange: b.GetName()}
 	return nil
@@ -512,7 +513,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 				return err
 			}
 
-			b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
+			b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: p,
 				Asset:    assetType,
 				Exchange: b.GetName()}
 
@@ -532,7 +533,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 			return err
 		}
 
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
+		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: p,
 			Asset:    assetType,
 			Exchange: b.GetName()}
 
@@ -553,7 +554,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 			return err
 		}
 
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
+		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: p,
 			Asset:    assetType,
 			Exchange: b.GetName()}
 
@@ -573,7 +574,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 		return err
 	}
 
-	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
+	b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: p,
 		Asset:    assetType,
 		Exchange: b.GetName()}
 
@@ -583,14 +584,14 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book Web
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{"book", "trades", "ticker"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range b.EnabledPairs {
 			params := make(map[string]interface{})
 			if channels[i] == "book" {
 				params["prec"] = "P0"
 			}
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: b.EnabledPairs[j],
 				Params:   params,
@@ -601,7 +602,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitfinex) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	req := make(map[string]interface{})
 	req["event"] = "subscribe"
 	req["channel"] = channelToSubscribe.Channel
@@ -617,7 +618,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitfinex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitfinex) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	req := make(map[string]interface{})
 	req["event"] = "unsubscribe"
 	req["channel"] = channelToSubscribe.Channel

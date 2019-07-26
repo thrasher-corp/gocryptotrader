@@ -1,4 +1,4 @@
-package wshandler
+package orderbook
 
 import (
 	"errors"

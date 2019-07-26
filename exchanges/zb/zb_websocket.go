@@ -12,7 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -25,7 +26,7 @@ const (
 // WsConnect initiates a websocket connection
 func (z *ZB) WsConnect() error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := z.WebsocketConn.Dial(&dialer, http.Header{})
@@ -92,7 +93,7 @@ func (z *ZB) WsHandleData() {
 					continue
 				}
 
-				z.Websocket.DataHandler <- wshandler.TickerData{
+				z.Websocket.DataHandler <- monitor.TickerData{
 					Timestamp:  time.Unix(0, ticker.Date),
 					Pair:       currency.NewPairFromString(cPair[0]),
 					AssetType:  "SPOT",
@@ -144,7 +145,7 @@ func (z *ZB) WsHandleData() {
 					continue
 				}
 
-				z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+				z.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 					Pair:     cPair,
 					Asset:    "SPOT",
 					Exchange: z.GetName(),
@@ -164,7 +165,7 @@ func (z *ZB) WsHandleData() {
 				t := trades.Data[len(trades.Data)-1]
 				channelInfo := common.SplitStrings(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
-				z.Websocket.DataHandler <- wshandler.TradeData{
+				z.Websocket.DataHandler <- monitor.TradeData{
 					Timestamp:    time.Unix(0, t.Date),
 					CurrencyPair: cPair,
 					AssetType:    "SPOT",
@@ -218,9 +219,9 @@ var wsErrCodes = map[int64]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	// Tickerdata is its own channel
-	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+	subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
@@ -228,7 +229,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
 				Currency: enabledCurrencies[j].Lower(),
 			})
@@ -238,7 +239,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (z *ZB) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
 		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,

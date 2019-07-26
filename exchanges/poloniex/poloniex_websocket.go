@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -33,7 +34,7 @@ var (
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(monitor.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := p.WebsocketConn.Dial(&dialer, http.Header{})
@@ -148,7 +149,7 @@ func (p *Poloniex) WsHandleData() {
 									continue
 								}
 
-								p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+								p.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 									Exchange: p.GetName(),
 									Asset:    "SPOT",
 									Pair:     currency.NewPairFromString(currencyPair),
@@ -161,7 +162,7 @@ func (p *Poloniex) WsHandleData() {
 									continue
 								}
 
-								p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+								p.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 									Exchange: p.GetName(),
 									Asset:    "SPOT",
 									Pair:     currency.NewPairFromString(currencyPair),
@@ -181,7 +182,7 @@ func (p *Poloniex) WsHandleData() {
 								trade.Price, _ = strconv.ParseFloat(dataL3[4].(string), 64)
 								trade.Timestamp = int64(dataL3[5].(float64))
 
-								p.Websocket.DataHandler <- wshandler.TradeData{
+								p.Websocket.DataHandler <- monitor.TradeData{
 									Timestamp:    time.Unix(trade.Timestamp, 0),
 									CurrencyPair: currency.NewPairFromString(currencyPair),
 									Side:         trade.Side,
@@ -214,7 +215,7 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) {
 	t.HighestTradeIn24H, _ = strconv.ParseFloat(tickerData[8].(string), 64)
 	t.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
 
-	p.Websocket.DataHandler <- wshandler.TickerData{
+	p.Websocket.DataHandler <- monitor.TickerData{
 		Timestamp: time.Now(),
 		Exchange:  p.GetName(),
 		AssetType: "SPOT",
@@ -471,14 +472,14 @@ var CurrencyPairID = map[int]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []monitor.WebsocketChannelSubscription
 	// Tickerdata is its own channel
-	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+	subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 		Channel: fmt.Sprintf("%v", wsTickerDataID),
 	})
 
 	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 			Channel: fmt.Sprintf("%v", wsAccountNotificationID),
 		})
 	}
@@ -486,7 +487,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 	enabledCurrencies := p.GetEnabledCurrencies()
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = "_"
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
 			Channel:  "orderbook",
 			Currency: enabledCurrencies[j],
 		})
@@ -495,7 +496,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (p *Poloniex) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	subscriptionRequest := WsCommand{
 		Command: "subscribe",
 	}
@@ -511,7 +512,7 @@ func (p *Poloniex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (p *Poloniex) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
 	unsubscriptionRequest := WsCommand{
 		Command: "unsubscribe",
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -312,7 +312,7 @@ func WebsocketRoutine(verbose bool) {
 			err = ws.Connect()
 			if err != nil {
 				switch err.Error() {
-				case wshandler.WebsocketNotEnabled:
+				case monitor.WebsocketNotEnabled:
 					log.Warnf("%s - websocket disabled", bot.exchanges[i].GetName())
 				default:
 					log.Error(err)
@@ -327,7 +327,7 @@ var wg sync.WaitGroup
 
 // Websocketshutdown shuts down the exchange routines and then shuts down
 // governing routines
-func Websocketshutdown(ws *wshandler.Websocket) error {
+func Websocketshutdown(ws *monitor.Websocket) error {
 	err := ws.Shutdown() // shutdown routines on the exchange
 	if err != nil {
 		log.Errorf("routines.go error - failed to shutodwn %s", err)
@@ -353,7 +353,7 @@ func Websocketshutdown(ws *wshandler.Websocket) error {
 
 // streamDiversion is a diversion switch from websocket to REST or other
 // alternative feed
-func streamDiversion(ws *wshandler.Websocket, verbose bool) {
+func streamDiversion(ws *monitor.Websocket, verbose bool) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -378,7 +378,7 @@ func streamDiversion(ws *wshandler.Websocket, verbose bool) {
 
 // WebsocketDataHandler handles websocket data coming from a websocket feed
 // associated with an exchange
-func WebsocketDataHandler(ws *wshandler.Websocket, verbose bool) {
+func WebsocketDataHandler(ws *monitor.Websocket, verbose bool) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -393,7 +393,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket, verbose bool) {
 			switch d := data.(type) {
 			case string:
 				switch d {
-				case wshandler.WebsocketNotEnabled:
+				case monitor.WebsocketNotEnabled:
 					if verbose {
 						log.Warnf("routines.go warning - exchange %s weboscket not enabled",
 							ws.GetName())
@@ -412,23 +412,23 @@ func WebsocketDataHandler(ws *wshandler.Websocket, verbose bool) {
 					log.Errorf("routines.go exchange %s websocket error - %s", ws.GetName(), data)
 				}
 
-			case wshandler.TradeData:
+			case monitor.TradeData:
 				// Trade Data
 				if verbose {
 					log.Infoln("Websocket trades Updated:   ", d)
 				}
 
-			case wshandler.TickerData:
+			case monitor.TickerData:
 				// Ticker data
 				if verbose {
 					log.Infoln("Websocket Ticker Updated:   ", d)
 				}
-			case wshandler.KlineData:
+			case monitor.KlineData:
 				// Kline data
 				if verbose {
 					log.Infoln("Websocket Kline Updated:    ", d)
 				}
-			case wshandler.WebsocketOrderbookUpdate:
+			case monitor.WebsocketOrderbookUpdate:
 				// Orderbook data
 				if verbose {
 					log.Infoln("Websocket Orderbook Updated:", d)
