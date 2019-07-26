@@ -23,3 +23,15 @@ type WebsocketOrderbookLocal struct {
 	lastUpdated     time.Time
 	m               sync.Mutex
 }
+
+// WebsocketOrderbookUpdate contains cool info on how to update the websocket orderbook yeah man
+type WebsocketOrderbookUpdate struct {
+	UsesIDs      bool
+	ExchangeName string
+	AssetType    string
+	Action       string
+	Bids         []orderbook.Item
+	Asks         []orderbook.Item
+	CurrencyPair currency.Pair
+	Updated      time.Time
+}

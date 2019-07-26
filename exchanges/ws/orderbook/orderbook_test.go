@@ -8,9 +8,313 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
-var obl WebsocketOrderbookLocal
+var itemArray = [][]orderbook.Item{
+	[]orderbook.Item{{Price: 1000, Amount: 1, ID: 1}},
+	[]orderbook.Item{{Price: 2000, Amount: 1, ID: 2}},
+	[]orderbook.Item{{Price: 3000, Amount: 1, ID: 3}},
+	[]orderbook.Item{{Price: 3000, Amount: 2, ID: 4}},
+	[]orderbook.Item{{Price: 4000, Amount: 0, ID: 6}},
+	[]orderbook.Item{{Price: 5000, Amount: 1, ID: 7}},
+}
+
+const (
+	exchangeName = "exchangeTest"
+	spot         = "SPOT"
+	futures      = "FUTURES"
+)
+
+func TestHittingTheBuffer(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 8},
+	}
+	bids := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 9},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	for i := 0; i < len(itemArray); i++ {
+		asks = itemArray[i]
+		bids = itemArray[i]
+		err := obl.Update(&WebsocketOrderbookUpdate{
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			Updated:      time.Now(),
+			ExchangeName: exchangeName,
+			AssetType:    spot,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(obl.orderbook[curr][spot].Asks) != 3 {
+		t.Log(obl.orderbook[curr][spot])
+		t.Errorf("expected 3 entries, received: %v", len(obl.orderbook[curr][spot].Asks))
+	}
+	if len(obl.orderbook[curr][spot].Bids) != 3 {
+		t.Errorf("expected 3 entries, received: %v", len(obl.orderbook[curr][spot].Bids))
+	}
+}
+
+func TestInsertWithIDs(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 6},
+	}
+	bids := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 6},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	for i := 0; i < len(itemArray); i++ {
+		asks = itemArray[i]
+		bids = itemArray[i]
+		err := obl.Update(&WebsocketOrderbookUpdate{
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			Updated:      time.Now(),
+			ExchangeName: exchangeName,
+			AssetType:    spot,
+			Action:       "insert",
+			UsesIDs:      true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(obl.orderbook[curr][spot].Asks) != 6 {
+		t.Errorf("expected 6 entries, received: %v", len(obl.orderbook[curr][spot].Asks))
+	}
+	if len(obl.orderbook[curr][spot].Bids) != 6 {
+		t.Errorf("expected 6 entries, received: %v", len(obl.orderbook[curr][spot].Bids))
+	}
+}
+
+func TestDeletetWithIDs(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 6},
+	}
+	bids := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 6},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	for i := 0; i < len(itemArray); i++ {
+		asks = itemArray[i]
+		bids = itemArray[i]
+		err := obl.Update(&WebsocketOrderbookUpdate{
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			Updated:      time.Now(),
+			ExchangeName: exchangeName,
+			AssetType:    spot,
+			Action:       "delete",
+			UsesIDs:      true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(obl.orderbook[curr][spot].Asks) != 0 {
+		t.Errorf("expected 0 entries, received: %v", len(obl.orderbook[curr][spot].Asks))
+	}
+	if len(obl.orderbook[curr][spot].Bids) != 0 {
+		t.Errorf("expected 0 entries, received: %v", len(obl.orderbook[curr][spot].Bids))
+	}
+}
+
+func TestUpdateWithIDs(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 6},
+	}
+	bids := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 6},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	for i := 0; i < len(itemArray); i++ {
+		asks = itemArray[i]
+		bids = itemArray[i]
+		err := obl.Update(&WebsocketOrderbookUpdate{
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			Updated:      time.Now(),
+			ExchangeName: exchangeName,
+			AssetType:    spot,
+			Action:       "update",
+			UsesIDs:      true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(obl.orderbook[curr][spot].Asks) != 1 {
+		t.Log(obl.orderbook[curr][spot])
+		t.Errorf("expected 1 entries, received: %v", len(obl.orderbook[curr][spot].Asks))
+	}
+	if len(obl.orderbook[curr][spot].Bids) != 1 {
+		t.Errorf("expected 1 entries, received: %v", len(obl.orderbook[curr][spot].Bids))
+	}
+}
+
+func TestRunUpdateWithoutSnapshot(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 8},
+	}
+	bids := []orderbook.Item{
+		{Price: 5999, Amount: 1, ID: 8},
+		{Price: 4000, Amount: 1, ID: 9},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	err := obl.Update(&WebsocketOrderbookUpdate{
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: curr,
+		Updated:      time.Now(),
+		ExchangeName: exchangeName,
+		AssetType:    spot,
+	})
+	if err == nil {
+		t.Fatal("expected an error running update with no snapshot loaded")
+	}
+	if err.Error() != "orderbook.Base could not be found for Exchange exchangeTest CurrencyPair: BTCUSD AssetType: SPOT" {
+		t.Fatal(err)
+	}
+}
+
+func TestRunUpdateWithoutAnyUpdatesLol(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	snapShot1.Asks = []orderbook.Item{}
+	snapShot1.Bids = []orderbook.Item{}
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	err := obl.Update(&WebsocketOrderbookUpdate{
+		Bids:         snapShot1.Asks,
+		Asks:         snapShot1.Bids,
+		CurrencyPair: curr,
+		Updated:      time.Now(),
+		ExchangeName: exchangeName,
+		AssetType:    spot,
+	})
+	if err == nil {
+		t.Fatal("expected an error running update with no snapshot loaded")
+	}
+	if err.Error() != "cannot have bids and ask targets both nil" {
+		t.Fatal(err)
+	}
+}
+
+func TestRunSnapshotWithNoDataLmao(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	snapShot1.Asks = []orderbook.Item{}
+	snapShot1.Bids = []orderbook.Item{}
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	err := obl.LoadSnapshot(&snapShot1,
+		exchangeName,
+		false)
+	if err == nil {
+		t.Fatal("expected an error loading a snapshot")
+	}
+	if err.Error() != "snapshot ask and bids are nil" {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadSnapshotWithOverride(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 8},
+	}
+	bids := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 9},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Error(err)
+	}
+	err = obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err == nil {
+		t.Error("expected error: 'snapshot instance already found'")
+	}
+	err = obl.LoadSnapshot(&snapShot1, exchangeName, true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlushCache(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 8},
+	}
+	bids := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 9},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Error(err)
+	}
+	if obl.orderbook[curr][spot] == nil {
+		t.Error("expected orderbook to have ask entries")
+	}
+	obl.FlushCache()
+	if obl.orderbook[curr][spot] != nil {
+		t.Error("expected orderbook be flushed")
+	}
+
+}
 
 func TestInsertingSnapShots(t *testing.T) {
+	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
 	asks := []orderbook.Item{
 		{Price: 6000, Amount: 1, ID: 1},
@@ -42,10 +346,10 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = "SPOT"
+	snapShot1.AssetType = spot
 	snapShot1.Pair = currency.NewPairFromString("BTCUSD")
 
-	obl.LoadSnapshot(&snapShot1, "ExchangeTest", false)
+	obl.LoadSnapshot(&snapShot1, exchangeName, false)
 
 	var snapShot2 orderbook.Base
 	asks = []orderbook.Item{
@@ -78,10 +382,10 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot2.Asks = asks
 	snapShot2.Bids = bids
-	snapShot2.AssetType = "SPOT"
+	snapShot2.AssetType = spot
 	snapShot2.Pair = currency.NewPairFromString("LTCUSD")
 
-	obl.LoadSnapshot(&snapShot2, "ExchangeTest", false)
+	obl.LoadSnapshot(&snapShot2, exchangeName, false)
 
 	var snapShot3 orderbook.Base
 	asks = []orderbook.Item{
@@ -117,82 +421,14 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
 
-	obl.LoadSnapshot(&snapShot3, "ExchangeTest", false)
+	obl.LoadSnapshot(&snapShot3, exchangeName, false)
 	if obl.orderbook[snapShot1.Pair][snapShot1.AssetType].Asks[0] != snapShot1.Asks[0] {
-		t.Error("test failed - inserting orderbook data")
+		t.Errorf("loaded data mismatch. Expected %v, received %v", snapShot1.Asks[0], obl.orderbook[snapShot1.Pair][snapShot1.AssetType].Asks[0])
 	}
 	if obl.orderbook[snapShot2.Pair][snapShot2.AssetType].Asks[0] != snapShot2.Asks[0] {
-		t.Error("test failed - inserting orderbook data")
+		t.Errorf("loaded data mismatch. Expected %v, received %v", snapShot2.Asks[0], obl.orderbook[snapShot2.Pair][snapShot2.AssetType].Asks[0])
 	}
 	if obl.orderbook[snapShot3.Pair][snapShot3.AssetType].Asks[0] != snapShot3.Asks[0] {
-		t.Error("test failed - inserting orderbook data")
-	}
-}
-
-func TestUpdate(t *testing.T) {
-	LTCUSDPAIR := currency.NewPairFromString("LTCUSD")
-	BTCUSDPAIR := currency.NewPairFromString("BTCUSD")
-
-	bidTargets := []orderbook.Item{
-		{Price: 1, Amount: 24},  // Amend
-		{Price: 2, Amount: 0},   // Delete
-		{Price: 3, Amount: 100}, // Append
-		{Price: 4, Amount: 0},   // Ghost delete
-	}
-
-	askTargets := []orderbook.Item{
-		{Price: 5, Amount: 24},  // Amend
-		{Price: 6, Amount: 0},   // Delete
-		{Price: 7, Amount: 100}, // Append
-		{Price: 8, Amount: 0},   // Ghost delete
-	}
-	err := obl.Update(bidTargets,
-		askTargets,
-		LTCUSDPAIR,
-		time.Now(),
-		"ExchangeTest",
-		"SPOT")
-
-	if err != nil {
-		t.Error("test failed - OrderbookUpdate error", err)
-	}
-	if obl.orderbookBuffer[LTCUSDPAIR]["SPOT"][0].Bids[0].Price != bidTargets[0].Price {
-		t.Error(obl.orderbookBuffer)
-	}
-
-	err = obl.Update(bidTargets,
-		askTargets,
-		LTCUSDPAIR,
-		time.Now(),
-		"ExchangeTest",
-		"FUTURES")
-
-	if err != nil {
-		t.Error("test failed - OrderbookUpdate error", err)
-	}
-
-	bidTargets = []orderbook.Item{
-		{Price: 5999, Amount: 24},  // Amend
-		{Price: 5998, Amount: 0},   // Delete
-		{Price: 1337, Amount: 100}, // Append
-		{Price: 1336, Amount: 0},   // Ghost delete
-	}
-
-	askTargets = []orderbook.Item{
-		{Price: 6000, Amount: 24},  // Amend
-		{Price: 6001, Amount: 0},   // Delete
-		{Price: 1337, Amount: 100}, // Append
-		{Price: 1336, Amount: 0},   // Ghost delete
-	}
-
-	err = obl.Update(bidTargets,
-		askTargets,
-		BTCUSDPAIR,
-		time.Now(),
-		"ExchangeTest",
-		"SPOT")
-
-	if err != nil {
-		t.Error("test failed - OrderbookUpdate error", err)
+		t.Errorf("loaded data mismatch. Expected %v, received %v", snapShot3.Asks[0], obl.orderbook[snapShot3.Pair][snapShot3.AssetType].Asks[0])
 	}
 }
