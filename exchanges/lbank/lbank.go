@@ -50,15 +50,17 @@ const (
 	lbankWithdrawConfig = "withdrawConfigs.do"
 
 	// Authenticated endpoints
-	lbankUserInfo          = "user_info.do"
-	lbankPlaceOrder        = "create_order.do"
-	lbankCancelOrder       = "cancel_order.do"
-	lbankQueryOrder        = "orders_info.do"
-	lbankQueryHistoryOrder = "orders_info_history.do"
-	lbankOpeningOrders     = "orders_info_no_deal.do"
-	lbankWithdrawalRecords = "withdraws.do"
-	lbankWithdraw          = "withdraw.do"
-	lbankRevokeWithdraw    = "withdrawCancel.do"
+	lbankUserInfo                = "user_info.do"
+	lbankPlaceOrder              = "create_order.do"
+	lbankCancelOrder             = "cancel_order.do"
+	lbankQueryOrder              = "orders_info.do"
+	lbankQueryHistoryOrder       = "orders_info_history.do"
+	lbankOrderTransactionDetails = "order_transaction_detail.do"
+	lbankPastTransactions        = "transaction_history.do"
+	lbankOpeningOrders           = "orders_info_no_deal.do"
+	lbankWithdrawalRecords       = "withdraws.do"
+	lbankWithdraw                = "withdraw.do"
+	lbankRevokeWithdraw          = "withdrawCancel.do"
 )
 
 // SetDefaults sets the basic defaults for Lbank
@@ -114,9 +116,11 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = l.loadPrivKey()
-		if err != nil {
-			log.Fatal(err)
+		if l.AuthenticatedAPISupport {
+			err = l.loadPrivKey()
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 }
@@ -262,7 +266,7 @@ func (l *Lbank) RemoveOrder(pair, orderID string) (RemoveOrderResponse, error) {
 	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
 }
 
-// QueryOrder finds out information about orders(can pass up to 3 comma seperated values to this)
+// QueryOrder finds out information about orders (can pass up to 3 comma separated values to this)
 func (l *Lbank) QueryOrder(pair, orderIDs string) (QueryOrderResponse, error) {
 	var resp QueryOrderResponse
 	params := url.Values{}
@@ -316,6 +320,31 @@ func (l *Lbank) GetPairInfo() ([]PairInfoResponse, error) {
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
+// OrderTransactionDetails stores info about transactions
+func (l *Lbank) OrderTransactionDetails(symbol, orderID string) (TransactionHistoryResp, error) {
+	var resp TransactionHistoryResp
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("order_id", orderID)
+	path := fmt.Sprintf("%s/v%s/%s?", lbankAPIURL, lbankAPIVersion, lbankOrderTransactionDetails)
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+}
+
+// TransactionHistory stores info about transactions
+func (l *Lbank) TransactionHistory(symbol, transactiontype, startdate, enddate, from, direct, size string) (TransactionHistoryResp, error) {
+	var resp TransactionHistoryResp
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("type", transactiontype)
+	params.Set("start_date", startdate)
+	params.Set("emd_date", enddate)
+	params.Set("from", from)
+	params.Set("direct", direct)
+	params.Set("size", size)
+	path := fmt.Sprintf("%s/v%s/%s?", lbankAPIURL, lbankAPIVersion, lbankPastTransactions)
+	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+}
+
 // GetOpenOrders gets opening orders
 func (l *Lbank) GetOpenOrders(pair string, pageNumber, pageLength int64) (OpenOrderResponse, error) {
 	var resp OpenOrderResponse
@@ -335,24 +364,13 @@ func (l *Lbank) USD2RMBRate() (ExchangeRateResponse, error) {
 }
 
 // GetWithdrawConfig gets information about withdrawals
-func (l *Lbank) GetWithdrawConfig(assetCode string) (WithdrawConfigRespFee, error) {
-	var finalResp WithdrawConfigRespFee
+func (l *Lbank) GetWithdrawConfig(assetCode string) ([]WithdrawConfigResponse, error) {
 	var resp []WithdrawConfigResponse
 	params := url.Values{}
-	if assetCode != "" {
-		params.Set("assetCode", assetCode)
-	}
+	params.Set("assetCode", assetCode)
 	path := fmt.Sprintf("%s/v%s/%s?%s", lbankAPIURL, lbankAPIVersion, lbankWithdrawConfig, params.Encode())
-	err := l.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return finalResp, err
-	}
-	err = json.Unmarshal([]byte(resp[0].Fee), &finalResp)
-	if err != nil {
-		return finalResp, err
-	}
+	return resp, l.SendHTTPRequest(path, &resp)
 
-	return finalResp, nil
 }
 
 // Withdraw sends a withdrawal request
@@ -455,7 +473,7 @@ func (l *Lbank) loadPrivKey() error {
 
 func (l *Lbank) sign(data string) (string, error) {
 	if l.privateKey == nil {
-		return "", errors.New("p cannot be nil")
+		return "", errors.New("private key not loaded")
 	}
 	md5hash := common.GetMD5([]byte(data))
 	m := common.StringToUpper(common.HexEncodeToString(md5hash))

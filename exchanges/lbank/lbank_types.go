@@ -79,9 +79,8 @@ type OrderResponse struct {
 
 // QueryOrderResponse stores the data from queries
 type QueryOrderResponse struct {
-	Result    bool            `json:"result,string"`
-	Orders    []OrderResponse `json:"orders"`
-	ErrorCode int64           `json:"error_code"`
+	Result bool            `json:"result,string"`
+	Orders []OrderResponse `json:"orders"`
 }
 
 // OrderHistory stores data for past orders
@@ -113,13 +112,31 @@ type PairInfoResponse struct {
 	ErrorCode        int64  `json:"error_code"`
 }
 
+// TransactionTemp stores details about transactions
+type TransactionTemp struct {
+	TxUUID       string  `json:"txUuid"`
+	OrderUUID    string  `json:"orderUuid"`
+	TradeType    string  `json:"tradeType"`
+	DealTime     int64   `json:"dealTime"`
+	DealPrice    float64 `json:"dealPrice"`
+	DealQuantity float64 `json:"dealQuantity"`
+	DealVolPrice float64 `json:"dealVolumePrice"`
+	TradeFee     float64 `json:"tradeFee"`
+	TradeFeeRate float64 `json:"tradeFeeRate"`
+}
+
+// TransactionHistoryResp stores details about past transactions
+type TransactionHistoryResp struct {
+	Transaction []TransactionTemp `json:"transaction"`
+}
+
 // OpenOrderResponse stores information about the opening orders
 type OpenOrderResponse struct {
 	PageLength int64           `json:"page_length"`
 	PageNumber int64           `json:"page_number"`
 	Total      string          `json:"total"`
 	Result     bool            `json:"result,string"`
-	Orders     []OrderResponse `json:"orders"`
+	Orders     json.RawMessage `json:"orders"`
 	ErrorCode  int64           `json:"error_code"`
 }
 
@@ -134,12 +151,6 @@ type WithdrawConfigResponse struct {
 	Minimum     string `json:"min"`
 	CanWithDraw bool   `json:"canWithDraw"`
 	Fee         string `json:"fee"`
-}
-
-// WithdrawConfigRespFee contains info about the fee
-type WithdrawConfigRespFee struct {
-	Fee  float64 `json:"fee,string"`
-	Type string  `json:"type"`
 }
 
 // WithdrawResponse stores info about something
@@ -217,7 +228,9 @@ var errorCodes = map[int64]string{
 	10025: "Order has been filled",
 	10026: "Order has been cancelld",
 	10027: "Order is cancelling",
-	10028: "Trading is paused",
+	10028: "Wrong query time",
+	10029: "'from' is not in the query time",
+	10030: "'from' does not match the transaction type of inqury",
 	10100: "Has no privilege to withdraw",
 	10101: "Invalid fee rate to withdraw",
 	10102: "Too little to withdraw",

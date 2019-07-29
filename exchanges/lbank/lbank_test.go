@@ -2,8 +2,7 @@ package lbank
 
 import (
 	"fmt"
-	"log"
-	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,24 +13,25 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey          = ""
-	testAPISecret       = ""
-	canManipulateOrders = false
+	testAPIKey              = ""
+	testAPISecret           = ""
+	canManipulateRealOrders = true
 )
 
 var l Lbank
 var setupRan bool
+var m sync.Mutex
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
+	m.Lock()
+	defer m.Unlock()
 	if setupRan {
 		return
 	}
 	setupRan = true
 
-	t.Parallel()
 	l.SetDefaults()
-	l.APIKey = testAPIKey
-	l.APISecret = testAPISecret
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json")
 	if err != nil {
@@ -42,6 +42,9 @@ func TestSetup(t *testing.T) {
 		t.Errorf("Test Failed - Lbank Setup() init error: %v", err)
 	}
 	lbankConfig.Websocket = true
+	lbankConfig.AuthenticatedAPISupport = true
+	lbankConfig.APISecret = testAPISecret
+	lbankConfig.APIKey = testAPIKey
 	l.Setup(&lbankConfig)
 }
 
@@ -119,17 +122,24 @@ func TestUpdateOrderbook(t *testing.T) {
 }
 
 func TestGetUserInfo(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := l.GetUserInfo()
 	if err != nil {
-		t.Error("invalid key or sign", err)
+		t.Errorf("invalid key or sign: %v", err)
 	}
 }
 
 func TestCreateOrder(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.CreateOrder(cp.Lower().String(), "what", 1231, 12314)
 	if err == nil {
@@ -150,8 +160,13 @@ func TestCreateOrder(t *testing.T) {
 }
 
 func TestRemoveOrder(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	_, err := l.RemoveOrder(cp.Lower().String(), "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
 	if err != nil {
@@ -160,8 +175,10 @@ func TestRemoveOrder(t *testing.T) {
 }
 
 func TestQueryOrder(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.QueryOrder(cp.Lower().String(), "1")
 	if err != nil {
@@ -170,8 +187,10 @@ func TestQueryOrder(t *testing.T) {
 }
 
 func TestQueryOrderHistory(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.QueryOrderHistory(cp.Lower().String(), "1", "50")
 	if err != nil {
@@ -187,9 +206,27 @@ func TestGetPairInfo(t *testing.T) {
 	}
 }
 
-func TestGetOpenOrders(t *testing.T) {
-	areTestAPIKeysSet()
+func TestOrderTransactionDetails(t *testing.T) {
 	TestSetup(t)
+	_, err := l.OrderTransactionDetails("eth_btc", "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
+	if err != nil {
+		t.Errorf("couldnt get transaction details: %v", err)
+	}
+}
+
+func TestTransactionHistory(t *testing.T) {
+	TestSetup(t)
+	_, err := l.TransactionHistory("btc_usdt", "", "", "", "", "", "")
+	if err != nil {
+		t.Errorf("couldnt get transaction history: %v", err)
+	}
+}
+
+func TestGetOpenOrders(t *testing.T) {
+	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.GetOpenOrders(cp.Lower().String(), 1, 50)
 	if err != nil {
@@ -214,8 +251,16 @@ func TestGetWithdrawConfig(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := l.Withdraw("", "", "", "", "")
 	if err != nil {
 		t.Errorf("unable to withdraw: %v", err)
@@ -223,8 +268,10 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestGetWithdrawRecords(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := l.GetWithdrawalRecords("eth", "0", "1", "20")
 	if err != nil {
 		t.Errorf("unable to get withdrawal records: %v", err)
@@ -232,8 +279,10 @@ func TestGetWithdrawRecords(t *testing.T) {
 }
 
 func TestLoadPrivKey(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	err := l.loadPrivKey()
 	if err != nil {
 		t.Error(err)
@@ -248,8 +297,9 @@ func TestLoadPrivKey(t *testing.T) {
 
 func TestSign(t *testing.T) {
 	TestSetup(t)
-	areTestAPIKeysSet()
-
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	l.APISecret = testAPISecret
 	l.loadPrivKey()
 	_, err := l.sign("hello123")
@@ -259,8 +309,10 @@ func TestSign(t *testing.T) {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.SubmitOrder(cp.Lower(), "BUY", "ANY", 2, 1312, "")
 	if err != nil {
@@ -269,8 +321,13 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelOrder(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	var a exchange.OrderCancellation
 	a.CurrencyPair = cp
@@ -282,8 +339,10 @@ func TestCancelOrder(t *testing.T) {
 }
 
 func TestGetOrderInfo(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
 	if err != nil {
 		t.Error(err)
@@ -291,8 +350,10 @@ func TestGetOrderInfo(t *testing.T) {
 }
 
 func TestGetAllOpenOrderID(t *testing.T) {
-	areTestAPIKeysSet()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := l.GetAllOpenOrderID()
 	if err != nil {
 		t.Error(err)
@@ -313,77 +374,4 @@ func TestGetFeeByType(t *testing.T) {
 	if a != 0.0005 {
 		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)
 	}
-}
-
-func TestSomething(t *testing.T) {
-	var temp OpenOrderResponse
-	temp.PageLength = 200
-	temp.PageNumber = 1
-	temp.Total = "3"
-	temp.Result = true
-	var temp2 OrderResponse
-	temp2.Symbol = "eth_btc"
-	temp2.Amount = 5.00
-	temp2.CreateTime = 12472345454
-	temp2.Price = 6666.00
-	temp2.AvgPrice = 0.00
-	temp2.Type = "sell"
-	temp2.OrderID = "a"
-	temp2.DealAmount = 10.00
-	temp2.Status = 2
-	var temp3 OrderResponse
-	temp3.Symbol = "eth_btc"
-	temp3.Amount = 5.00
-	temp3.CreateTime = 12472345454
-	temp3.Price = 6666.00
-	temp3.AvgPrice = 0.00
-	temp3.Type = "sell"
-	temp3.OrderID = "b"
-	temp3.DealAmount = 10.00
-	temp3.Status = 2
-	var temp4 OrderResponse
-	temp4.Symbol = "eth_btc"
-	temp4.Amount = 5.00
-	temp4.CreateTime = 12472345454
-	temp4.Price = 6666.00
-	temp4.AvgPrice = 0.00
-	temp4.Type = "sell"
-	temp4.OrderID = "c"
-	temp4.DealAmount = 10.00
-	temp4.Status = 2
-	temp.Orders = append(temp.Orders, temp2)
-	t.Log(temp)
-	temp.Orders = append(temp.Orders, temp3)
-	t.Log(temp)
-	temp.Orders = append(temp.Orders, temp4)
-	t.Log(temp)
-	var resp []GetAllOpenIDResp
-
-	b := int64(1)
-	var x int64
-	tempData, err := strconv.ParseInt(temp.Total, 10, 64)
-	if err != nil {
-		t.Log(err)
-	}
-	if tempData%200 != 0 {
-		tempData = tempData - (tempData % 200)
-		x = tempData/200 + 1
-	} else {
-		x = tempData / 200
-	}
-	d, err := strconv.ParseInt(temp.Total, 10, 64)
-	if err != nil {
-		t.Log(err)
-	}
-	log.Println("HELLO MATE")
-	for ; b <= x; b++ {
-		log.Println("HELLO DUDE")
-
-		for c := int64(0); c < d; c++ {
-			resp = append(resp, GetAllOpenIDResp{
-				CurrencyPair: "eth_btc",
-				OrderID:      temp.Orders[c].OrderID})
-		}
-	}
-	t.Log(resp)
 }
