@@ -4,6 +4,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+
+	audit "github.com/thrasher-/gocryptotrader/db/repository/audit"
+
 	"os"
 	"os/signal"
 	"sync"
@@ -30,8 +33,7 @@ type Engine struct {
 	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
-	DatabaseManager				databaseManager
-	AuditManager                auditManager
+	DatabaseManager             databaseManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
@@ -265,10 +267,6 @@ func (e *Engine) Start() {
 		log.Errorf(log.Global, "Database manager unable to start: %v", err)
 	}
 
-	if err := e.AuditManager.Start(); err != nil {
-		log.Errorf(log.Global, "Audit manager unable to start: %v", err)
-	}
-
 	// Sets up internet connectivity monitor
 	if e.Settings.EnableConnectivityMonitor {
 		if err := e.ConnectionManager.Start(); err != nil {
@@ -389,6 +387,8 @@ func (e *Engine) Start() {
 		go EventManger()
 	}
 
+	audit.Event("test", "test", "test")
+
 	<-e.Shutdown
 	e.Stop()
 }
@@ -430,13 +430,6 @@ func (e *Engine) Stop() {
 			log.Errorf(log.Global, "Connection manager unable to stop. Error: %v", err)
 		}
 	}
-
-	if e.AuditManager.Started() {
-		if err := e.AuditManager.Stop(); err != nil {
-			log.Errorf(log.Global, "Audit manager unable to stop. Error: %v", err)
-		}
-	}
-
 
 	if e.DatabaseManager.Started() {
 		if err := e.DatabaseManager.Stop(); err != nil {

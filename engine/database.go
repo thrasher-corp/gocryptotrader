@@ -3,12 +3,13 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"os"
+	audit "github.com/thrasher-/gocryptotrader/db/repository/audit"
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/db/drivers"
 	db "github.com/thrasher-/gocryptotrader/db/drivers/postgresql"
+
+	auditRepo "github.com/thrasher-/gocryptotrader/db/repository/audit/postgres"
 
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -31,23 +32,24 @@ func (a *databaseManager) Start() error {
 
 	a.shutdown = make(chan struct{})
 
-	connStr := drivers.ConnectionDetails{
-		Host:     "127.0.0.1",
-		Port:     5432,
-		Database: "gct-audit",
-		Username: "gct",
-		Password: "test1234",
-	}
+	//connStr := drivers.ConnectionDetails{
+	//	Host:     "127.0.0.1",
+	//	Port:     5432,
+	//	Database: "gct-audit",
+	//	Username: "gct",
+	//	Password: "test1234",
+	//}
 
-	dbConn, err := db.ConnectPSQL(connStr)
+	dbConn, err := db.ConnectPSQL()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return fmt.Errorf("Database failed to connect: %v Some features that utilise a database will be unavailable", err)
 	}
 
 	dbConn.SQL.SetMaxOpenConns(2)
 	dbConn.SQL.SetMaxIdleConns(1)
 	dbConn.SQL.SetConnMaxLifetime(time.Hour)
+
+	audit.Audit = auditRepo.NewPSQLAudit()
 
 	go a.run()
 
@@ -59,14 +61,14 @@ func (a *databaseManager) Stop() error {
 		return errors.New("database manager already stopped")
 	}
 
-	log.Debugln(log.AuditMgr, "database manager shutting down...")
+	log.Debugln(log.DatabaseMgr, "database manager shutting down...")
 
 	close(a.shutdown)
 	return nil
 }
 
 func (a *databaseManager) run() {
-	log.Debugln(log.AuditMgr, "database manager started.")
+	log.Debugln(log.DatabaseMgr, "database manager started.")
 	Bot.ServicesWG.Add(1)
 
 	a.running.Store(true)
@@ -76,7 +78,7 @@ func (a *databaseManager) run() {
 
 		Bot.ServicesWG.Done()
 
-		log.Debugln(log.AuditMgr, "database manager shutdown.")
+		log.Debugln(log.DatabaseMgr, "database manager shutdown.")
 	}()
 
 	for {

@@ -8,6 +8,7 @@ var (
 	ConnectionMgr    *subLogger
 	CommunicationMgr *subLogger
 	ConfigMgr        *subLogger
+	DatabaseMgr      *subLogger
 	OrderMgr         *subLogger
 	PortfolioMgr     *subLogger
 	SyncMgr          *subLogger

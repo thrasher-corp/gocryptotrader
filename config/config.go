@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/thrasher-/gocryptotrader/db"
 	"io"
 	"io/ioutil"
 	"os"
@@ -1279,6 +1280,12 @@ func (c *Config) CheckLoggerConfig() error {
 	return nil
 }
 
+func (c *Config) CheckDatabaseConfig() error {
+	db.Conn.Config = &c.Database
+
+	return nil
+}
+
 // CheckNTPConfig checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
 func (c *Config) CheckNTPConfig() {
 	m.Lock()
@@ -1592,6 +1599,11 @@ func (c *Config) CheckConfig() error {
 	err := c.CheckLoggerConfig()
 	if err != nil {
 		log.Errorf(log.ConfigMgr, "Failed to configure logger, some logging features unavailable: %s\n", err)
+	}
+
+	err = c.CheckDatabaseConfig()
+	if err != nil {
+		log.Errorf(log.DatabaseMgr, "Failed to configure database: %v", err)
 	}
 
 	err = c.CheckExchangeConfigValues()

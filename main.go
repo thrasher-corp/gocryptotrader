@@ -13,10 +13,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/engine"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
-
 	// "github.com/thrasher-/gocryptotrader/db/drivers"
 	// db "github.com/thrasher-/gocryptotrader/db/drivers/postgresql"
-
 	// "github.com/thrasher-/gocryptotrader/db/models"
 	// "github.com/thrasher-/gocryptotrader/db/repository/postgres"
 )
