@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/db"
 )
 
-func ConnectPSQL() (*db.Database, error) {
+func Connect() (*db.Database, error) {
 	connConfig := pgx.ConnConfig{
 		Host:     db.Conn.Config.Host,
 		Port:     db.Conn.Config.Port,
@@ -31,4 +31,23 @@ func ConnectPSQL() (*db.Database, error) {
 	sqlxDB := stdlib.OpenDBFromPool(connPool)
 	db.Conn.SQL = sqlx.NewDb(sqlxDB, "pgx")
 	return db.Conn, nil
+}
+
+
+func CreateTable() error {
+	query := `
+CREATE TABLE IF NOT EXISTS audit
+(
+    id bigserial  PRIMARY KEY NOT NULL,
+    Type       varchar(255)  NOT NULL,
+    Identifier varchar(255)  NOT NULL,
+    Message    text          NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);`
+	_, err := db.Conn.SQL.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

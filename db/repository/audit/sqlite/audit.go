@@ -2,7 +2,6 @@ package audit
 
 import (
 	"fmt"
-
 	"github.com/thrasher-/gocryptotrader/db"
 	"github.com/thrasher-/gocryptotrader/db/models"
 	"github.com/thrasher-/gocryptotrader/db/repository/audit"

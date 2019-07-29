@@ -1281,6 +1281,20 @@ func (c *Config) CheckLoggerConfig() error {
 }
 
 func (c *Config) CheckDatabaseConfig() error {
+	m.Lock()
+	defer m.Unlock()
+
+	// f := func(f bool) *bool { return &f }(false)
+
+	// if c.Database.Enabled == nil {
+	// 	c.Database.Enabled = f
+	// }
+
+
+	//if c.Database.Host == "" {
+	//
+	//}
+
 	db.Conn.Config = &c.Database
 
 	return nil

@@ -2,6 +2,6 @@ package models
 
 type Event struct {
 	Type    string
-	UserID  string
+	Identifier string
 	Message string
 }

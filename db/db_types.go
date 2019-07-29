@@ -7,11 +7,12 @@ import (
 
 type Database struct {
 	Config *DatabaseConfig
-	SQL *sqlx.DB
+	SQL    *sqlx.DB
 }
 
 type DatabaseConfig struct {
-	Enabled                   *bool `json:"enabled"`
+	Enabled                   *bool  `json:"enabled"`
+	Driver                    string `json:"driver"`
 	drivers.ConnectionDetails `json:"connectionDetails"`
 }
 

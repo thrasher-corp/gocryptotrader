@@ -3,13 +3,16 @@ package engine
 import (
 	"errors"
 	"fmt"
-	audit "github.com/thrasher-/gocryptotrader/db/repository/audit"
 	"sync/atomic"
 	"time"
 
-	db "github.com/thrasher-/gocryptotrader/db/drivers/postgresql"
+	audit "github.com/thrasher-/gocryptotrader/db/repository/audit"
 
-	auditRepo "github.com/thrasher-/gocryptotrader/db/repository/audit/postgres"
+	db "github.com/thrasher-/gocryptotrader/db/drivers/postgresql"
+	dbsqlite3 "github.com/thrasher-/gocryptotrader/db/drivers/sqlite"
+
+	auditPSQL "github.com/thrasher-/gocryptotrader/db/repository/audit/postgres"
+	auditSQLite "github.com/thrasher-/gocryptotrader/db/repository/audit/sqlite"
 
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -32,24 +35,37 @@ func (a *databaseManager) Start() error {
 
 	a.shutdown = make(chan struct{})
 
-	//connStr := drivers.ConnectionDetails{
-	//	Host:     "127.0.0.1",
-	//	Port:     5432,
-	//	Database: "gct-audit",
-	//	Username: "gct",
-	//	Password: "test1234",
-	//}
+	if Bot.Config.Database.Driver == "postgres" {
+		dbConn, err := db.Connect()
+		if err != nil {
+			return fmt.Errorf("Database failed to connect: %v Some features that utilise a database will be unavailable", err)
+		}
 
-	dbConn, err := db.ConnectPSQL()
-	if err != nil {
-		return fmt.Errorf("Database failed to connect: %v Some features that utilise a database will be unavailable", err)
+		dbConn.SQL.SetMaxOpenConns(2)
+		dbConn.SQL.SetMaxIdleConns(1)
+		dbConn.SQL.SetConnMaxLifetime(time.Hour)
+
+		err = db.CreateTable()
+		if err != nil {
+			return err
+		}
+
+		audit.Audit = auditPSQL.Audit()
+	} else if Bot.Config.Database.Driver == "sqlite" {
+		_, err := dbsqlite3.Connect()
+
+		if err != nil {
+			return fmt.Errorf("Database failed to connect: %v Some features that utilise a database will be unavailable", err)
+		}
+
+		err = dbsqlite3.CreateTable()
+		if err != nil {
+			return err
+		}
+		audit.Audit = auditSQLite.Audit()
+	} else {
+		fmt.Println(":D")
 	}
-
-	dbConn.SQL.SetMaxOpenConns(2)
-	dbConn.SQL.SetMaxIdleConns(1)
-	dbConn.SQL.SetConnMaxLifetime(time.Hour)
-
-	audit.Audit = auditRepo.NewPSQLAudit()
 
 	go a.run()
 
