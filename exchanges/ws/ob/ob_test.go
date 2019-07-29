@@ -1,4 +1,4 @@
-package orderbook
+package ob
 
 import (
 	"testing"
@@ -41,7 +41,7 @@ func TestHittingTheBuffer(t *testing.T) {
 	for i := 0; i < len(itemArray); i++ {
 		asks = itemArray[i]
 		bids = itemArray[i]
-		err := obl.Update(&WebsocketOrderbookUpdate{
+		err := obl.Update(&BufferUpdate{
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: curr,
@@ -80,7 +80,7 @@ func TestInsertWithIDs(t *testing.T) {
 	for i := 0; i < len(itemArray); i++ {
 		asks = itemArray[i]
 		bids = itemArray[i]
-		err := obl.Update(&WebsocketOrderbookUpdate{
+		err := obl.Update(&BufferUpdate{
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: curr,
@@ -88,7 +88,7 @@ func TestInsertWithIDs(t *testing.T) {
 			ExchangeName: exchangeName,
 			AssetType:    spot,
 			Action:       "insert",
-			UsesIDs:      true,
+			UseUpdateIDs:      true,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -120,7 +120,7 @@ func TestDeletetWithIDs(t *testing.T) {
 	for i := 0; i < len(itemArray); i++ {
 		asks = itemArray[i]
 		bids = itemArray[i]
-		err := obl.Update(&WebsocketOrderbookUpdate{
+		err := obl.Update(&BufferUpdate{
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: curr,
@@ -128,7 +128,7 @@ func TestDeletetWithIDs(t *testing.T) {
 			ExchangeName: exchangeName,
 			AssetType:    spot,
 			Action:       "delete",
-			UsesIDs:      true,
+			UseUpdateIDs:      true,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -160,7 +160,7 @@ func TestUpdateWithIDs(t *testing.T) {
 	for i := 0; i < len(itemArray); i++ {
 		asks = itemArray[i]
 		bids = itemArray[i]
-		err := obl.Update(&WebsocketOrderbookUpdate{
+		err := obl.Update(&BufferUpdate{
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: curr,
@@ -168,7 +168,7 @@ func TestUpdateWithIDs(t *testing.T) {
 			ExchangeName: exchangeName,
 			AssetType:    spot,
 			Action:       "update",
-			UsesIDs:      true,
+			UseUpdateIDs:      true,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -198,7 +198,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
-	err := obl.Update(&WebsocketOrderbookUpdate{
+	err := obl.Update(&BufferUpdate{
 		Bids:         bids,
 		Asks:         asks,
 		CurrencyPair: curr,
@@ -222,7 +222,7 @@ func TestRunUpdateWithoutAnyUpdatesLol(t *testing.T) {
 	snapShot1.Bids = []orderbook.Item{}
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
-	err := obl.Update(&WebsocketOrderbookUpdate{
+	err := obl.Update(&BufferUpdate{
 		Bids:         snapShot1.Asks,
 		Asks:         snapShot1.Bids,
 		CurrencyPair: curr,

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
 )
 
 const coinutWebsocketURL = "wss://wsapi.coinut.com"
@@ -279,26 +280,20 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 }
 
 // WsProcessOrderbookUpdate process an orderbook update
-func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
-	p := currency.NewPairFromString(instrumentListByCode[ob.InstID])
-
-	if ob.Side == "buy" {
-		return c.Websocket.Orderbook.Update([]orderbook.Item{
-			{Price: ob.Price, Amount: ob.Volume}},
-			nil,
-			p,
-			time.Now(),
-			c.GetName(),
-			"SPOT")
+func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
+	p := currency.NewPairFromString(instrumentListByCode[update.InstID])
+	bufferUpdate := &ob.BufferUpdate{
+		CurrencyPair: p,
+		Updated:      time.Now(),
+		ExchangeName: c.Name,
+		AssetType:    "SPOT",
 	}
-
-	return c.Websocket.Orderbook.Update([]orderbook.Item{
-		{Price: ob.Price, Amount: ob.Volume}},
-		nil,
-		p,
-		time.Now(),
-		c.GetName(),
-		"SPOT")
+	if strings.EqualFold(update.Side, "buy") {
+		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
+	} else {
+		bufferUpdate.Asks = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
+	}
+	return c.Websocket.Orderbook.Update(bufferUpdate)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

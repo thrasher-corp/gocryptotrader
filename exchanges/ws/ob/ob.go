@@ -1,4 +1,4 @@
-package orderbook
+package ob
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const wsOrderbookBufferLimit = 5
@@ -17,7 +18,7 @@ const wsOrderbookBufferLimit = 5
 // Volume == 0; deletion at price target
 // Price target not found; append of price target
 // Price target found; amend volume of price target
-func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpdate) error {
+func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *BufferUpdate) error {
 	if (orderbookUpdate.Bids == nil && orderbookUpdate.Asks == nil) ||
 		(len(orderbookUpdate.Bids) == 0 && len(orderbookUpdate.Asks) == 0) {
 		return errors.New("cannot have bids and ask targets both nil")
@@ -50,7 +51,7 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpda
 		return w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].LastUpdated.Before(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].LastUpdated)
 	})
 	for i := range w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] {
-		if orderbookUpdate.UsesIDs {
+		if orderbookUpdate.UseUpdateIDs {
 			w.DoTheThing(orderbookUpdate)
 		} else {
 			var wg sync.WaitGroup
@@ -60,6 +61,9 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpda
 			wg.Wait()
 		}
 	}
+	log.Debug("---------------------------------------------")
+	log.Debug(w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType])
+	log.Debug("---------------------------------------------")
 	err := w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Process()
 	if err != nil {
 		return err
@@ -69,7 +73,7 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpda
 	return nil
 }
 
-func (w *WebsocketOrderbookLocal) updateAsksByPrice(base *orderbook.Base, orderbookUpdate *WebsocketOrderbookUpdate, wg *sync.WaitGroup) {
+func (w *WebsocketOrderbookLocal) updateAsksByPrice(base *orderbook.Base, orderbookUpdate *BufferUpdate, wg *sync.WaitGroup) {
 	for j := range base.Asks {
 		found := false
 		for k := range w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks {
@@ -92,7 +96,7 @@ func (w *WebsocketOrderbookLocal) updateAsksByPrice(base *orderbook.Base, orderb
 	wg.Done()
 }
 
-func (w *WebsocketOrderbookLocal) updateBidsByPrice(base *orderbook.Base, orderbookUpdate *WebsocketOrderbookUpdate, wg *sync.WaitGroup) {
+func (w *WebsocketOrderbookLocal) updateBidsByPrice(base *orderbook.Base, orderbookUpdate *BufferUpdate, wg *sync.WaitGroup) {
 	for j := range base.Bids {
 		found := false
 		for k := range w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids {
@@ -116,7 +120,7 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(base *orderbook.Base, orderb
 }
 
 // NewBase creates an orderbook base for websocket use
-func (w *WebsocketOrderbookLocal) NewBase(orderbookUpdate *WebsocketOrderbookUpdate) (*orderbook.Base, error) {
+func (w *WebsocketOrderbookLocal) NewBase(orderbookUpdate *BufferUpdate) (*orderbook.Base, error) {
 	orderbookAddress := orderbook.Base{
 		AssetType:    orderbookUpdate.AssetType,
 		ExchangeName: orderbookUpdate.ExchangeName,
@@ -171,7 +175,7 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exc
 // reflects on how it impacts the world around us.
 //
 // Then fucking does it
-func (w *WebsocketOrderbookLocal) DoTheThing(orderbookUpdate *WebsocketOrderbookUpdate) {
+func (w *WebsocketOrderbookLocal) DoTheThing(orderbookUpdate *BufferUpdate) {
 	switch orderbookUpdate.Action {
 	case "update":
 		for _, target := range orderbookUpdate.Bids {

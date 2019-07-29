@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -157,15 +158,14 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscr
 	return b.WebsocketConn.SendMessage(req)
 }
 
-func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {
-	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
+func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair, assetType string) error {
+	if len(update.Asks) == 0 && len(update.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
 	}
 
 	var asks, bids []orderbook.Item
-
-	if len(ob.Asks) > 0 {
-		for _, ask := range ob.Asks {
+	if len(update.Asks) > 0 {
+		for _, ask := range update.Asks {
 			target, err := strconv.ParseFloat(ask[0], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
@@ -182,8 +182,8 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 		}
 	}
 
-	if len(ob.Bids) > 0 {
-		for _, bid := range ob.Bids {
+	if len(update.Bids) > 0 {
+		for _, bid := range update.Bids {
 			target, err := strconv.ParseFloat(bid[0], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
@@ -199,8 +199,14 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 			bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 		}
 	}
-
-	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), assetType)
+	err := b.Websocket.Orderbook.Update(&ob.BufferUpdate{
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: p,
+		Updated:      time.Now(),
+		ExchangeName: b.Name,
+		AssetType:    "SPOT",
+	})
 	if err != nil {
 		return err
 	}

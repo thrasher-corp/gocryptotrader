@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -404,13 +405,16 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 				})
 			}
 
-			err := b.Websocket.Orderbook.UpdateUsingID(bids,
-				asks,
-				currencyPair,
-				b.GetName(),
-				assetType,
-				action)
-
+			err := b.Websocket.Orderbook.Update(&ob.BufferUpdate{
+				Bids:         bids,
+				Asks:         asks,
+				CurrencyPair: currencyPair,
+				Updated:      time.Now(),
+				ExchangeName: b.Name,
+				AssetType:    "SPOT",
+				UseUpdateIDs:      true,
+				Action:       action,
+			})
 			if err != nil {
 				return err
 			}

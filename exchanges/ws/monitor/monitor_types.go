@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
 )
 
 // Websocket functionality list and state consts
@@ -94,7 +94,7 @@ type Websocket struct {
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks
-	Orderbook orderbook.WebsocketOrderbookLocal
+	Orderbook ob.WebsocketOrderbookLocal
 	// Wg defines a wait group for websocket routines for cleanly shutting down
 	// routines
 	Wg sync.WaitGroup

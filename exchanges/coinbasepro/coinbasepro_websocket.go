@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
 )
 
 const (
@@ -228,26 +229,33 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 
 // ProcessUpdate updates the orderbook local cache
 func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
-	var Asks, Bids []orderbook.Item
+	var asks, bids []orderbook.Item
 
 	for _, data := range update.Changes {
 		price, _ := strconv.ParseFloat(data[1].(string), 64)
 		volume, _ := strconv.ParseFloat(data[2].(string), 64)
 
 		if data[0].(string) == "buy" {
-			Bids = append(Bids, orderbook.Item{Price: price, Amount: volume})
+			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
 		} else {
-			Asks = append(Asks, orderbook.Item{Price: price, Amount: volume})
+			asks = append(asks, orderbook.Item{Price: price, Amount: volume})
 		}
 	}
 
-	if len(Asks) == 0 && len(Bids) == 0 {
+	if len(asks) == 0 && len(bids) == 0 {
 		return errors.New("coibasepro_websocket.go error - no data in websocket update")
 	}
 
 	p := currency.NewPairFromString(update.ProductID)
 
-	err := c.Websocket.Orderbook.Update(Bids, Asks, p, time.Now(), c.GetName(), "SPOT")
+	err := c.Websocket.Orderbook.Update(&ob.BufferUpdate{
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: p,
+		Updated:      time.Now(),
+		ExchangeName: c.Name,
+		AssetType:    "SPOT",
+	})
 	if err != nil {
 		return err
 	}

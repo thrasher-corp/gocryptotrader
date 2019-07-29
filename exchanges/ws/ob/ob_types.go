@@ -1,4 +1,4 @@
-package orderbook
+package ob
 
 import (
 	"sync"
@@ -24,9 +24,11 @@ type WebsocketOrderbookLocal struct {
 	m               sync.Mutex
 }
 
-// WebsocketOrderbookUpdate contains cool info on how to update the websocket orderbook yeah man
-type WebsocketOrderbookUpdate struct {
-	UsesIDs      bool
+// BufferUpdate contains cool info on how to update the websocket orderbook yeah man
+type BufferUpdate struct {
+	OrderByIDs   bool
+	UseUpdateIDs bool
+	UpdateID     int64 // Used when no time is provided
 	ExchangeName string
 	AssetType    string
 	Action       string

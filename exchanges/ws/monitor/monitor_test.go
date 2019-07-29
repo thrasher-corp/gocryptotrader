@@ -250,8 +250,8 @@ func TestManageSubscriptionsStartStop(t *testing.T) {
 	close(w.ShutdownC)
 }
 
-// TestconnectionMonitorNoConnection logic test
-func TestconnectionMonitorNoConnection(t *testing.T) {
+// TestConnectionMonitorNoConnection logic test
+func TestConnectionMonitorNoConnection(t *testing.T) {
 	w := Websocket{}
 	w.DataHandler = make(chan interface{}, 1)
 	w.ShutdownC = make(chan struct{}, 1)

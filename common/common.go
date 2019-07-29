@@ -43,6 +43,7 @@ var (
 	// ErrFunctionNotSupported defines a standardised error for an unsupported
 	// wrapper function by an API
 	ErrFunctionNotSupported = errors.New("unsupported wrapper function")
+	SpotAssetType           = "SPOT"
 )
 
 // Const declarations for common.go operations

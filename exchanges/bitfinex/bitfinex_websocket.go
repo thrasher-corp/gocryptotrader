@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -262,7 +263,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 						err := b.WsUpdateOrderbook(currency.NewPairFromString(chanInfo.Pair),
 							"SPOT",
-							newOrderbook[0])
+							newOrderbook)
 
 						if err != nil {
 							b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go updating orderbook error: %s",
@@ -496,80 +497,39 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book WebsocketBook) error {
+func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book []WebsocketBook) error {
+	orderbookUpdate := ob.BufferUpdate{
+		Asks:         []orderbook.Item{},
+		Bids:         []orderbook.Item{},
+		AssetType:    assetType,
+		ExchangeName: b.Name,
+	}
 
-	if book.Count > 0 {
-		if book.Amount > 0 {
-			// Update/add bid
-			newBidPrice := orderbook.Item{Price: book.Price, Amount: book.Amount}
-			err := b.Websocket.Orderbook.Update([]orderbook.Item{newBidPrice},
-				nil,
-				p,
-				time.Now(),
-				b.GetName(),
-				assetType)
-
-			if err != nil {
-				return err
+	for i := 0; i < len(book); i++ {
+		if book[i].Count > 0 {
+			if book[i].Amount > 0 {
+				//update bid
+				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{Amount: book[i].Amount, Price: book[i].Price})
+			} else if book[i].Amount < 0 {
+				//update ask
+				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: book[i].Amount * -1, Price: book[i].Price})
 			}
-
-			b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: p,
-				Asset:    assetType,
-				Exchange: b.GetName()}
-
-			return nil
+		} else if book[i].Count == 0 {
+			if book[i].Amount == 1 {
+				//delete bid
+				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{Amount: 0, Price: book[i].Price})
+			} else if book[i].Amount == -1 {
+				//delete ask
+				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: 0, Price: book[i].Price})
+			}
+		} else {
+			// unhandled
 		}
 
-		// Update/add ask
-		newAskPrice := orderbook.Item{Price: book.Price, Amount: book.Amount * -1}
-		err := b.Websocket.Orderbook.Update(nil,
-			[]orderbook.Item{newAskPrice},
-			p,
-			time.Now(),
-			b.GetName(),
-			assetType)
-
-		if err != nil {
-			return err
-		}
-
-		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: p,
-			Asset:    assetType,
-			Exchange: b.GetName()}
-
-		return nil
 	}
 
-	if book.Amount == 1 {
-		// Remove bid
-		bidPriceRemove := orderbook.Item{Price: book.Price, Amount: 0}
-		err := b.Websocket.Orderbook.Update([]orderbook.Item{bidPriceRemove},
-			nil,
-			p,
-			time.Now(),
-			b.GetName(),
-			assetType)
-
-		if err != nil {
-			return err
-		}
-
-		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: p,
-			Asset:    assetType,
-			Exchange: b.GetName()}
-
-		return nil
-	}
-
-	// Remove from ask
-	askPriceRemove := orderbook.Item{Price: book.Price, Amount: 0}
-	err := b.Websocket.Orderbook.Update(nil,
-		[]orderbook.Item{askPriceRemove},
-		p,
-		time.Now(),
-		b.GetName(),
-		assetType)
-
+	orderbookUpdate.Updated = time.Now()
+	err := b.Websocket.Orderbook.Update(&orderbookUpdate)
 	if err != nil {
 		return err
 	}
