@@ -23,6 +23,9 @@ var setupRan bool
 var m sync.Mutex
 
 func TestSetup(t *testing.T) {
+	if setupRan {
+		return
+	}
 	t.Parallel()
 	m.Lock()
 	defer m.Unlock()
@@ -41,9 +44,6 @@ func TestSetup(t *testing.T) {
 	lbankConfig.APISecret = testAPISecret
 	lbankConfig.APIKey = testAPIKey
 	l.Setup(&lbankConfig)
-	if setupRan {
-		return
-	}
 	setupRan = true
 }
 
