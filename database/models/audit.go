@@ -1,7 +1,7 @@
 package models
 
 type Event struct {
-	Type    string
+	Type       string
 	Identifier string
-	Message string
+	Message    string
 }

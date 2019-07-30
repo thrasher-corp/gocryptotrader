@@ -3,9 +3,10 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"github.com/thrasher-/gocryptotrader/database"
 	"sync/atomic"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/database"
 
 	audit "github.com/thrasher-/gocryptotrader/database/repository/audit"
 
@@ -40,39 +41,41 @@ func (a *databaseManager) Start() (err error) {
 
 	a.shutdown = make(chan struct{})
 
-	if Bot.Config.Database.Driver == "postgres" {
-		dbConn, err = db.Connect()
-		if err != nil {
-			return fmt.Errorf("Database failed to connect: %v Some features that utilise a database will be unavailable", err)
+	if *Bot.Config.Database.Enabled {
+		if Bot.Config.Database.Driver == "postgres" {
+			dbConn, err = db.Connect()
+			if err != nil {
+				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+			}
+
+			dbConn.SQL.SetMaxOpenConns(2)
+			dbConn.SQL.SetMaxIdleConns(1)
+			dbConn.SQL.SetConnMaxLifetime(time.Hour)
+
+			err = db.Setup()
+			if err != nil {
+				return err
+			}
+
+			audit.Audit = auditPSQL.Audit()
+		} else if Bot.Config.Database.Driver == "sqlite" {
+			dbConn, err = dbsqlite3.Connect()
+
+			if err != nil {
+				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+			}
+
+			err = dbsqlite3.Setup()
+			if err != nil {
+				return err
+			}
+			audit.Audit = auditSQLite.Audit()
 		}
-
-		dbConn.SQL.SetMaxOpenConns(2)
-		dbConn.SQL.SetMaxIdleConns(1)
-		dbConn.SQL.SetConnMaxLifetime(time.Hour)
-
-		err = db.Setup()
-		if err != nil {
-			return err
-		}
-
-		audit.Audit = auditPSQL.Audit()
-	} else if Bot.Config.Database.Driver == "sqlite" {
-		dbConn, err = dbsqlite3.Connect()
-
-		if err != nil {
-			return fmt.Errorf("Database failed to connect: %v Some features that utilise a database will be unavailable", err)
-		}
-
-		err = dbsqlite3.Setup()
-		if err != nil {
-			return err
-		}
-		audit.Audit = auditSQLite.Audit()
+		go a.run()
+		return nil
 	}
 
-	go a.run()
-
-	return nil
+	return errors.New("database support disabled")
 }
 
 func (a *databaseManager) Stop() error {
@@ -93,6 +96,7 @@ func (a *databaseManager) run() {
 	log.Debugln(log.DatabaseMgr, "database manager started.")
 	Bot.ServicesWG.Add(1)
 
+	t := time.NewTicker(180)
 	a.running.Store(true)
 
 	defer func() {
@@ -107,6 +111,8 @@ func (a *databaseManager) run() {
 		select {
 		case <-a.shutdown:
 			return
+		case <-t.C:
+			dbConn.SQL.Ping()
 		}
 	}
 }

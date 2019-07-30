@@ -27,6 +27,7 @@ type Settings struct {
 	EnableEventManager          bool
 	EnableOrderManager          bool
 	EnableConnectivityMonitor   bool
+	EnableDatabaseManager       bool
 	EnableNTPClient             bool
 	EnableWebsocketRoutine      bool
 	EventManagerDelay           time.Duration

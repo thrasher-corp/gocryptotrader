@@ -1,12 +1,13 @@
 package tests
 
 import (
+	"path"
+	"testing"
+
 	"github.com/thrasher-/gocryptotrader/database"
 	db "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
 	"github.com/thrasher-/gocryptotrader/database/repository/audit"
 	auditSQlite "github.com/thrasher-/gocryptotrader/database/repository/audit/sqlite"
-	"path"
-	"testing"
 )
 
 func TestAudit(t *testing.T) {
@@ -31,8 +32,4 @@ func TestAudit(t *testing.T) {
 	if err != nil {
 		t.Error("Failed to close database")
 	}
-}
-
-func TestAuditEvent(t *testing.T) {
-	audit.Event("nil", "nil", "nil")
 }

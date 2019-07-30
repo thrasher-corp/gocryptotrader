@@ -13,15 +13,15 @@ var (
 	Audit Repository
 )
 
-func Event(Type, Identifier, Message string) {
+func Event(msgType, identifier, message string) {
 	if database.Conn.SQL == nil {
 		return
 	}
 
 	tempEvent := models.Event{
-		Type:    Type,
-		Identifier:  Identifier,
-		Message: Message}
+		Type:       msgType,
+		Identifier: identifier,
+		Message:    message}
 
 	Audit.AddEvent(&tempEvent)
 }

@@ -2,7 +2,7 @@ package postgresql
 
 import "github.com/thrasher-/gocryptotrader/database"
 
-func Setup()(err error){
+func Setup() (err error) {
 	err = createAuditTable()
 	return
 }

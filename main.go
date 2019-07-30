@@ -20,38 +20,6 @@ import (
 )
 
 func main() {
-
-	// connStr := drivers.ConnectionDetails{
-	// 	Host:     "127.0.0.1",
-	// 	Port:     5432,
-	// 	Database: "gct-audit",
-	// 	Username: "gct",
-	// 	Password: "test1234",
-	// }
-
-	// dbConn, err := database.ConnectPSQL(connStr)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	os.Exit(1)
-	// }
-
-	// dbConn.SQL.SetMaxOpenConns(2)
-	// dbConn.SQL.SetMaxIdleConns(1)
-	// dbConn.SQL.SetConnMaxLifetime(time.Hour)
-
-	// audit := audit.NewPSQLAudit()
-	// tempEvent := models.Event{
-	// 	UserID:  "gct",
-	// 	Type:    "ORDER",
-	// 	Message: "Hello World",
-	// }
-	// err = audit.AddEvent(tempEvent)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// os.Exit(0)
-
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
 		log.Errorln(log.Global, err)
@@ -85,6 +53,7 @@ func main() {
 	flag.BoolVar(&settings.EnableOrderManager, "ordermanager", true, "enables the order manager")
 	flag.BoolVar(&settings.EnableDepositAddressManager, "depositaddressmanager", true, "enables the deposit address manager")
 	flag.BoolVar(&settings.EnableConnectivityMonitor, "connectivitymonitor", true, "enables the connectivity monitor")
+	flag.BoolVar(&settings.EnableDatabaseManager, "databasemanager", true, "enables database manager to")
 	flag.DurationVar(&settings.EventManagerDelay, "eventmanagerdelay", time.Duration(0), "sets the event managers sleep delay between event checking")
 	flag.BoolVar(&settings.EnableNTPClient, "ntpclient", true, "enables the NTP client to check system clock drift")
 

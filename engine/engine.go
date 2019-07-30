@@ -114,6 +114,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableAllPairs = s.EnableAllPairs
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
+	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
 
 	// TO-DO: FIXME
 	if flag.Lookup("grpc") != nil {
@@ -263,8 +264,10 @@ func (e *Engine) Start() {
 		os.Exit(1)
 	}
 
-	if err := e.DatabaseManager.Start(); err != nil {
-		log.Errorf(log.Global, "Database manager unable to start: %v", err)
+	if e.Settings.EnableDatabaseManager {
+		if err := e.DatabaseManager.Start(); err != nil {
+			log.Errorf(log.Global, "Database manager unable to start: %v", err)
+		}
 	}
 
 	// Sets up internet connectivity monitor
