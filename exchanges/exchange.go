@@ -787,7 +787,6 @@ func (e *Base) UpdateCurrencies(exchangeProducts currency.Pairs, enabled, force 
 				log.Debugf("%s Updating pairs - Removed: %s.\n", e.Name, removedPairs)
 			}
 		}
-
 		if enabled {
 			exch.EnabledPairs = products
 			e.EnabledPairs = products

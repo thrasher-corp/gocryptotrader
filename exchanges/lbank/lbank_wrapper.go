@@ -43,7 +43,6 @@ func (l *Lbank) Run() {
 			newExchangeCurrencies = append(newExchangeCurrencies,
 				currency.NewPairFromString(p))
 		}
-
 		err = l.UpdateCurrencies(newExchangeCurrencies, false, true)
 		if err != nil {
 			log.Errorf("%s Failed to update available currencies %s.\n", l.GetName(), err)
@@ -303,10 +302,7 @@ func (l *Lbank) GetDepositAddress(cryptocurrency currency.Code, accountID string
 // submitted
 func (l *Lbank) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	resp, err := l.Withdraw(withdrawRequest.Address, withdrawRequest.Currency.String(), strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64), "", withdrawRequest.Description)
-	if err != nil {
-		return resp.WithdrawID, err
-	}
-	return resp.WithdrawID, nil
+	return resp.WithdrawID, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is

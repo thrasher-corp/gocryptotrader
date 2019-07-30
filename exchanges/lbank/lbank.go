@@ -119,7 +119,8 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) {
 		if l.AuthenticatedAPISupport {
 			err = l.loadPrivKey()
 			if err != nil {
-				log.Fatal(err)
+				l.AuthenticatedAPISupport = false
+				log.Errorf("couldnt load private key, setting authenticated support to false")
 			}
 		}
 	}
@@ -183,46 +184,46 @@ func (l *Lbank) GetKlines(symbol, size, klineType, time string) ([]KlineResponse
 
 	resp, ok := klineTemp.([]interface{})
 	if !ok {
-		return nil, errors.New("response recieved is invalid")
+		return nil, errors.New("response received is invalid")
 	}
 
 	for i := range resp {
 		resp2, ok := resp[i].([]interface{})
 		if !ok {
-			return nil, errors.New("response recieved is invalid")
+			return nil, errors.New("response received is invalid")
 		}
-		var someResponse KlineResponse
+		var tempResp KlineResponse
 		for x := range resp2 {
 			switch x {
 			case 0:
-				someResponse.TimeStamp = int64(resp2[x].(float64))
+				tempResp.TimeStamp = int64(resp2[x].(float64))
 			case 1:
 				if val, ok := resp2[x].(int64); ok {
-					someResponse.OpenPrice = float64(val)
+					tempResp.OpenPrice = float64(val)
 				} else {
-					someResponse.OpenPrice = resp2[x].(float64)
+					tempResp.OpenPrice = resp2[x].(float64)
 				}
 			case 2:
 				if val, ok := resp2[x].(int64); ok {
-					someResponse.HigestPrice = float64(val)
+					tempResp.HigestPrice = float64(val)
 				} else {
-					someResponse.HigestPrice = resp2[x].(float64)
+					tempResp.HigestPrice = resp2[x].(float64)
 				}
 			case 3:
 				if val, ok := resp2[x].(int64); ok {
-					someResponse.ClosePrice = float64(val)
+					tempResp.ClosePrice = float64(val)
 				} else {
-					someResponse.ClosePrice = resp2[x].(float64)
+					tempResp.ClosePrice = resp2[x].(float64)
 				}
 			case 4:
 				if val, ok := resp2[x].(int64); ok {
-					someResponse.TradingVolume = float64(val)
+					tempResp.TradingVolume = float64(val)
 				} else {
-					someResponse.TradingVolume = resp2[x].(float64)
+					tempResp.TradingVolume = resp2[x].(float64)
 				}
 			}
 		}
-		k = append(k, someResponse)
+		k = append(k, tempResp)
 	}
 	return k, nil
 }
@@ -241,10 +242,10 @@ func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (CreateOrd
 		return resp, errors.New("side type invalid can only be 'buy' or 'sell'")
 	}
 	if amount <= 0 {
-		return resp, errors.New("amount can't be smaller than 0")
+		return resp, errors.New("amount can't be smaller than or equal to 0")
 	}
 	if price <= 0 {
-		return resp, errors.New("price can't be smaller than 0")
+		return resp, errors.New("price can't be smaller than or equal to 0")
 	}
 	params := url.Values{}
 
@@ -310,7 +311,7 @@ func (l *Lbank) QueryOrderHistory(pair, pageNumber, pageLength string) (OrderHis
 		return rt, nil
 	}
 
-	return rt, nil
+	return rt, err
 }
 
 // GetPairInfo finds information about all trading pairs
@@ -320,7 +321,7 @@ func (l *Lbank) GetPairInfo() ([]PairInfoResponse, error) {
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
-// OrderTransactionDetails stores info about transactions
+// OrderTransactionDetails gets info about transactions
 func (l *Lbank) OrderTransactionDetails(symbol, orderID string) (TransactionHistoryResp, error) {
 	var resp TransactionHistoryResp
 	params := url.Values{}
@@ -420,7 +421,7 @@ func ErrorCapture(intermediary json.RawMessage) error {
 	if err == nil && capErr.Error != 0 {
 		msg, ok := errorCodes[capErr.Error]
 		if !ok {
-			return errors.New("undefined code please check api docs for error code definition")
+			return fmt.Errorf("undefined code please check api docs for error code definition: %v", capErr.Error)
 		}
 		return errors.New(msg)
 	}
@@ -442,10 +443,6 @@ func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
 }
 
 func (l *Lbank) loadPrivKey() error {
-	if l.privKeyLoaded {
-		return nil
-	}
-
 	key := strings.Join([]string{
 		"-----BEGIN RSA PRIVATE KEY-----",
 		l.APISecret,
@@ -454,7 +451,7 @@ func (l *Lbank) loadPrivKey() error {
 
 	block, _ := pem.Decode([]byte(key))
 	if block == nil {
-		return fmt.Errorf("pem block is nil")
+		return errors.New("pem block is nil")
 	}
 
 	p, err := x509.ParsePKCS8PrivateKey(block.Bytes)
@@ -465,9 +462,8 @@ func (l *Lbank) loadPrivKey() error {
 	var ok bool
 	l.privateKey, ok = p.(*rsa.PrivateKey)
 	if !ok {
-		return fmt.Errorf("unable to parse RSA private key")
+		return errors.New("unable to parse RSA private key")
 	}
-	l.privKeyLoaded = true
 	return nil
 }
 
@@ -479,13 +475,14 @@ func (l *Lbank) sign(data string) (string, error) {
 	m := common.StringToUpper(common.HexEncodeToString(md5hash))
 	s := common.GetSHA256([]byte(m))
 	r, err := rsa.SignPKCS1v15(rand.Reader, l.privateKey, crypto.SHA256, s)
-	return common.Base64Encode(r), err
+	if err != nil {
+		return "", err
+	}
+	return common.Base64Encode(r), nil
 }
 
 // SendAuthHTTPRequest sends an authenticated request
 func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, result interface{}) error {
-	headers := make(map[string]string)
-
 	if vals == nil {
 		vals = url.Values{}
 	}
@@ -498,6 +495,7 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 
 	vals.Set("sign", sig)
 	payload := vals.Encode()
+	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	var intermediary json.RawMessage
