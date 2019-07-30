@@ -15,7 +15,7 @@ import (
 const (
 	testAPIKey              = ""
 	testAPISecret           = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var l Lbank
