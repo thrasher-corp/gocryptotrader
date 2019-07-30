@@ -6,7 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/thrasher-/gocryptotrader/db"
+	"github.com/thrasher-/gocryptotrader/database"
 	"io"
 	"io/ioutil"
 	"os"
@@ -1284,18 +1284,17 @@ func (c *Config) CheckDatabaseConfig() error {
 	m.Lock()
 	defer m.Unlock()
 
-	// f := func(f bool) *bool { return &f }(false)
+	f := func(f bool) *bool { return &f }(false)
 
-	// if c.Database.Enabled == nil {
-	// 	c.Database.Enabled = f
-	// }
+	if c.Database.Enabled == nil {
+		c.Database.Enabled = f
+	}
 
+	if c.Database.Driver == "sqlite" {
+		c.Database.Database = filepath.Join(common.GetDefaultDataDir(runtime.GOOS),"/" ,c.Database.Database)
+	}
 
-	//if c.Database.Host == "" {
-	//
-	//}
-
-	db.Conn.Config = &c.Database
+	database.Conn.Config = &c.Database
 
 	return nil
 }

@@ -1,16 +1,16 @@
-package db
+package database
 
 import (
 	"github.com/jmoiron/sqlx"
-	"github.com/thrasher-/gocryptotrader/db/drivers"
+	"github.com/thrasher-/gocryptotrader/database/drivers"
 )
 
 type Database struct {
-	Config *DatabaseConfig
+	Config *Config
 	SQL    *sqlx.DB
 }
 
-type DatabaseConfig struct {
+type Config struct {
 	Enabled                   *bool  `json:"enabled"`
 	Driver                    string `json:"driver"`
 	drivers.ConnectionDetails `json:"connectionDetails"`

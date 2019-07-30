@@ -13,10 +13,10 @@ import (
 	"github.com/thrasher-/gocryptotrader/engine"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
-	// "github.com/thrasher-/gocryptotrader/db/drivers"
-	// db "github.com/thrasher-/gocryptotrader/db/drivers/postgresql"
-	// "github.com/thrasher-/gocryptotrader/db/models"
-	// "github.com/thrasher-/gocryptotrader/db/repository/postgres"
+	// "github.com/thrasher-/gocryptotrader/database/drivers"
+	// database "github.com/thrasher-/gocryptotrader/database/drivers/postgresql"
+	// "github.com/thrasher-/gocryptotrader/database/models"
+	// "github.com/thrasher-/gocryptotrader/database/repository/postgres"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 	// 	Password: "test1234",
 	// }
 
-	// dbConn, err := db.ConnectPSQL(connStr)
+	// dbConn, err := database.ConnectPSQL(connStr)
 	// if err != nil {
 	// 	fmt.Println(err)
 	// 	os.Exit(1)

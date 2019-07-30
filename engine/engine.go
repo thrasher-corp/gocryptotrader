@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	audit "github.com/thrasher-/gocryptotrader/db/repository/audit"
+	audit "github.com/thrasher-/gocryptotrader/database/repository/audit"
 
 	"os"
 	"os/signal"

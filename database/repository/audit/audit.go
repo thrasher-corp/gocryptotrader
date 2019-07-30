@@ -1,8 +1,8 @@
 package audit
 
 import (
-	"github.com/thrasher-/gocryptotrader/db"
-	"github.com/thrasher-/gocryptotrader/db/models"
+	"github.com/thrasher-/gocryptotrader/database"
+	"github.com/thrasher-/gocryptotrader/database/models"
 )
 
 type Repository interface {
@@ -14,7 +14,7 @@ var (
 )
 
 func Event(Type, Identifier, Message string) {
-	if db.Conn.SQL == nil {
+	if database.Conn.SQL == nil {
 		return
 	}
 

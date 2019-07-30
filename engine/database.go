@@ -3,18 +3,23 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"github.com/thrasher-/gocryptotrader/database"
 	"sync/atomic"
 	"time"
 
-	audit "github.com/thrasher-/gocryptotrader/db/repository/audit"
+	audit "github.com/thrasher-/gocryptotrader/database/repository/audit"
 
-	db "github.com/thrasher-/gocryptotrader/db/drivers/postgresql"
-	dbsqlite3 "github.com/thrasher-/gocryptotrader/db/drivers/sqlite"
+	db "github.com/thrasher-/gocryptotrader/database/drivers/postgresql"
+	dbsqlite3 "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
 
-	auditPSQL "github.com/thrasher-/gocryptotrader/db/repository/audit/postgres"
-	auditSQLite "github.com/thrasher-/gocryptotrader/db/repository/audit/sqlite"
+	auditPSQL "github.com/thrasher-/gocryptotrader/database/repository/audit/postgres"
+	auditSQLite "github.com/thrasher-/gocryptotrader/database/repository/audit/sqlite"
 
 	log "github.com/thrasher-/gocryptotrader/logger"
+)
+
+var (
+	dbConn *database.Database
 )
 
 type databaseManager struct {
@@ -26,7 +31,7 @@ func (a *databaseManager) Started() bool {
 	return a.running.Load() == true
 }
 
-func (a *databaseManager) Start() error {
+func (a *databaseManager) Start() (err error) {
 	if a.Started() {
 		return errors.New("database manager already started")
 	}
@@ -36,7 +41,7 @@ func (a *databaseManager) Start() error {
 	a.shutdown = make(chan struct{})
 
 	if Bot.Config.Database.Driver == "postgres" {
-		dbConn, err := db.Connect()
+		dbConn, err = db.Connect()
 		if err != nil {
 			return fmt.Errorf("Database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
@@ -45,26 +50,24 @@ func (a *databaseManager) Start() error {
 		dbConn.SQL.SetMaxIdleConns(1)
 		dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
-		err = db.CreateTable()
+		err = db.Setup()
 		if err != nil {
 			return err
 		}
 
 		audit.Audit = auditPSQL.Audit()
 	} else if Bot.Config.Database.Driver == "sqlite" {
-		_, err := dbsqlite3.Connect()
+		dbConn, err = dbsqlite3.Connect()
 
 		if err != nil {
 			return fmt.Errorf("Database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
 
-		err = dbsqlite3.CreateTable()
+		err = dbsqlite3.Setup()
 		if err != nil {
 			return err
 		}
 		audit.Audit = auditSQLite.Audit()
-	} else {
-		fmt.Println(":D")
 	}
 
 	go a.run()
@@ -78,7 +81,10 @@ func (a *databaseManager) Stop() error {
 	}
 
 	log.Debugln(log.DatabaseMgr, "database manager shutting down...")
-
+	err := dbConn.SQL.Close()
+	if err != nil {
+		log.Errorf(log.DatabaseMgr, "Failed to close database: %v", err)
+	}
 	close(a.shutdown)
 	return nil
 }
