@@ -1,6 +1,8 @@
 package lbank
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // Ticker stores the ticker price data for a currency pair
 type Ticker struct {

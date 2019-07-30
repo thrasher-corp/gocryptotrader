@@ -23,12 +23,13 @@ var setupRan bool
 var m sync.Mutex
 
 func TestSetup(t *testing.T) {
-	if setupRan {
-		return
-	}
 	t.Parallel()
 	m.Lock()
 	defer m.Unlock()
+
+	if setupRan {
+		return
+	}
 	l.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json")
@@ -201,6 +202,9 @@ func TestGetPairInfo(t *testing.T) {
 
 func TestOrderTransactionDetails(t *testing.T) {
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := l.OrderTransactionDetails("eth_btc", "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
 	if err != nil {
 		t.Errorf("couldnt get transaction details: %v", err)
@@ -209,6 +213,9 @@ func TestOrderTransactionDetails(t *testing.T) {
 
 func TestTransactionHistory(t *testing.T) {
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := l.TransactionHistory("btc_usdt", "", "", "", "", "", "")
 	if err != nil {
 		t.Errorf("couldnt get transaction history: %v", err)
@@ -344,8 +351,9 @@ func TestGetAllOpenOrderID(t *testing.T) {
 }
 
 func TestGetFeeByType(t *testing.T) {
+
 	TestSetup(t)
-	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
+	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.USDT.String(), "_")
 	var input exchange.FeeBuilder
 	input.Amount = 2
 	input.FeeType = exchange.CryptocurrencyWithdrawalFee
@@ -354,7 +362,7 @@ func TestGetFeeByType(t *testing.T) {
 	if err != nil {
 		t.Errorf("test failed. couldnt get fee: %v", err)
 	}
-	if a != 0.0005 {
-		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)
+	if a != 0.01 {
+		t.Errorf("testGetFeeByType failed. Expected: 0.0001, Received: %v", a)
 	}
 }

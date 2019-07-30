@@ -371,7 +371,6 @@ func (l *Lbank) GetWithdrawConfig(assetCode string) ([]WithdrawConfigResponse, e
 	params.Set("assetCode", assetCode)
 	path := fmt.Sprintf("%s/v%s/%s?%s", lbankAPIURL, lbankAPIVersion, lbankWithdrawConfig, params.Encode())
 	return resp, l.SendHTTPRequest(path, &resp)
-
 }
 
 // Withdraw sends a withdrawal request
