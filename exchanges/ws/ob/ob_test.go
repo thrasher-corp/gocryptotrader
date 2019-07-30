@@ -9,12 +9,12 @@ import (
 )
 
 var itemArray = [][]orderbook.Item{
-	[]orderbook.Item{{Price: 1000, Amount: 1, ID: 1}},
-	[]orderbook.Item{{Price: 2000, Amount: 1, ID: 2}},
-	[]orderbook.Item{{Price: 3000, Amount: 1, ID: 3}},
-	[]orderbook.Item{{Price: 3000, Amount: 2, ID: 4}},
+	[]orderbook.Item{{Price: 1000, Amount: 1}},
+	[]orderbook.Item{{Price: 2000, Amount: 1}},
+	[]orderbook.Item{{Price: 3000, Amount: 1}},
+	[]orderbook.Item{{Price: 3000, Amount: 2}},
 	[]orderbook.Item{{Price: 4000, Amount: 0, ID: 6}},
-	[]orderbook.Item{{Price: 5000, Amount: 1, ID: 7}},
+	[]orderbook.Item{{Price: 5000, Amount: 1}},
 }
 
 const (
@@ -37,11 +37,14 @@ func TestHittingTheBuffer(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
-	obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < len(itemArray); i++ {
 		asks = itemArray[i]
 		bids = itemArray[i]
-		err := obl.Update(&BufferUpdate{
+		err = obl.Update(&BufferUpdate{
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: curr,
@@ -76,11 +79,14 @@ func TestInsertWithIDs(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
-	obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < len(itemArray); i++ {
 		asks = itemArray[i]
 		bids = itemArray[i]
-		err := obl.Update(&BufferUpdate{
+		err = obl.Update(&BufferUpdate{
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: curr,
@@ -88,7 +94,7 @@ func TestInsertWithIDs(t *testing.T) {
 			ExchangeName: exchangeName,
 			AssetType:    spot,
 			Action:       "insert",
-			UseUpdateIDs:      true,
+			UseUpdateIDs: true,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -102,7 +108,88 @@ func TestInsertWithIDs(t *testing.T) {
 	}
 }
 
-func TestDeletetWithIDs(t *testing.T) {
+func TestSortIDs(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1},
+	}
+	bids := []orderbook.Item{
+		{Price: 4000, Amount: 1},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < len(itemArray); i++ {
+		asks = itemArray[i]
+		bids = itemArray[i]
+		err = obl.Update(&BufferUpdate{
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			UpdateID:     int64(i),
+			ExchangeName: exchangeName,
+			AssetType:    spot,
+			OrderByIDs:   true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(obl.orderbook[curr][spot].Asks) != 3 {
+		t.Errorf("expected 6 entries, received: %v", len(obl.orderbook[curr][spot].Asks))
+	}
+	if len(obl.orderbook[curr][spot].Bids) != 3 {
+		t.Errorf("expected 6 entries, received: %v", len(obl.orderbook[curr][spot].Bids))
+	}
+}
+
+func TestOutOfOrderIDs(t *testing.T) {
+	var obl WebsocketOrderbookLocal
+	var snapShot1 orderbook.Base
+	curr := currency.NewPairFromString("BTCUSD")
+	asks := []orderbook.Item{
+		{Price: 7000, Amount: 1, ID: 6},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = asks
+	snapShot1.AssetType = spot
+	snapShot1.Pair = curr
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6}
+	if itemArray[0][0].Price != 1000 {
+		t.Errorf("expected sorted price to be 3000, received: %v", itemArray[1][0].Price)
+	}
+	for i := 0; i < len(itemArray); i++ {
+		asks = itemArray[i]
+		err = obl.Update(&BufferUpdate{
+			Asks:         asks,
+			CurrencyPair: curr,
+			UpdateID:     outOFOrderIDs[i],
+			ExchangeName: exchangeName,
+			AssetType:    spot,
+			OrderByIDs:   true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Index 1 since index 0 is price 7000
+	if obl.orderbook[curr][spot].Asks[1].Price != 2000 {
+		t.Errorf("expected sorted price to be 3000, received: %v", obl.orderbook[curr][spot].Asks[1].Price)
+	}
+}
+
+func TestDeleteWithIDs(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
 	curr := currency.NewPairFromString("BTCUSD")
@@ -116,11 +203,14 @@ func TestDeletetWithIDs(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
-	obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < len(itemArray); i++ {
 		asks = itemArray[i]
 		bids = itemArray[i]
-		err := obl.Update(&BufferUpdate{
+		err = obl.Update(&BufferUpdate{
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: curr,
@@ -128,7 +218,7 @@ func TestDeletetWithIDs(t *testing.T) {
 			ExchangeName: exchangeName,
 			AssetType:    spot,
 			Action:       "delete",
-			UseUpdateIDs:      true,
+			UseUpdateIDs: true,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -156,11 +246,14 @@ func TestUpdateWithIDs(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
-	obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < len(itemArray); i++ {
 		asks = itemArray[i]
 		bids = itemArray[i]
-		err := obl.Update(&BufferUpdate{
+		err = obl.Update(&BufferUpdate{
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: curr,
@@ -168,7 +261,7 @@ func TestUpdateWithIDs(t *testing.T) {
 			ExchangeName: exchangeName,
 			AssetType:    spot,
 			Action:       "update",
-			UseUpdateIDs:      true,
+			UseUpdateIDs: true,
 		})
 		if err != nil {
 			t.Fatal(err)
