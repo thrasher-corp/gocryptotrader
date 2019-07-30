@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/ws/ob"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -259,7 +261,6 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 				g.Websocket.DataHandler <- errors.New("gemini_websocket.go orderbook should be snapshot only")
 				continue
 			}
-
 			if event.Side == "ask" {
 				asks = append(asks, orderbook.Item{
 					Amount: event.Remaining,
@@ -278,7 +279,6 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		newOrderBook.Bids = bids
 		newOrderBook.AssetType = "SPOT"
 		newOrderBook.Pair = pair
-
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
 			g.GetName(),
 			false)
@@ -286,11 +286,11 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			g.Websocket.DataHandler <- err
 			return
 		}
-
 		g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    "SPOT",
 			Exchange: g.GetName()}
 	} else {
+		var asks, bids []orderbook.Item
 		for _, event := range result.Events {
 			if event.Type == "trade" {
 				g.Websocket.DataHandler <- monitor.TradeData{
@@ -303,35 +303,29 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 					Amount:       event.Amount,
 					Side:         event.MakerSide,
 				}
-
 			} else {
-				var i orderbook.Item
-				i.Amount = event.Remaining
-				i.Price = event.Price
+				i := orderbook.Item{
+					Amount: event.Remaining,
+					Price:  event.Price,
+				}
 				if event.Side == "ask" {
-					err := g.Websocket.Orderbook.Update(nil,
-						[]orderbook.Item{i},
-						pair,
-						time.Now(),
-						g.GetName(),
-						"SPOT")
-					if err != nil {
-						g.Websocket.DataHandler <- err
-					}
+					asks = append(asks, i)
 				} else {
-					err := g.Websocket.Orderbook.Update([]orderbook.Item{i},
-						nil,
-						pair,
-						time.Now(),
-						g.GetName(),
-						"SPOT")
-					if err != nil {
-						g.Websocket.DataHandler <- err
-					}
+					bids = append(bids, i)
 				}
 			}
 		}
-
+		err := g.Websocket.Orderbook.Update(&ob.BufferUpdate{
+			Asks:         asks,
+			Bids:         bids,
+			CurrencyPair: pair,
+			Updated:      time.Unix(result.Timestamp, 0),
+			ExchangeName: g.Name,
+			AssetType:    "SPOT",
+		})
+		if err != nil {
+			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
+		}
 		g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    "SPOT",
 			Exchange: g.GetName()}

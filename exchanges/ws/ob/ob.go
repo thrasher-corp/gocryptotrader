@@ -37,6 +37,7 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *BufferUpdate) error {
 		w.orderbookBuffer[orderbookUpdate.CurrencyPair] = make(map[string][]BufferUpdate)
 	}
 	if len(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) <= wsOrderbookBufferLimit {
+		log.Debugf("%v adding to orderbook buffer %v/%v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType, len(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]), wsOrderbookBufferLimit)
 		w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = append(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], *orderbookUpdate)
 		if len(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) < wsOrderbookBufferLimit {
 			return nil
@@ -59,16 +60,19 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *BufferUpdate) error {
 		} else {
 			var wg sync.WaitGroup
 			wg.Add(2)
-			w.updateAsksByPrice(&w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i], &wg)
-			w.updateBidsByPrice(&w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i], &wg)
+			go w.updateAsksByPrice(&w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i], &wg)
+			go w.updateBidsByPrice(&w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i], &wg)
 			wg.Wait()
 		}
 	}
+	log.Debugf("%v processing orderbook %v %v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType)
 	err := w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Process()
 	if err != nil {
 		return err
 	}
 	// Reset the buffer
+	log.Debugf("%v resetting orderbook buffer %v %v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType)
+
 	w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = []BufferUpdate{}
 	return nil
 }

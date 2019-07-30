@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/ws/ob"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -331,9 +333,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 // WsProcessOrderbookUpdate processses new orderbook updates
 func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string) error {
 	sideCheck := target[1].(float64)
-
 	cP := currency.NewPairFromString(symbol)
-
 	price, err := strconv.ParseFloat(target[2].(string), 64)
 	if err != nil {
 		return err
@@ -343,22 +343,18 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 	if err != nil {
 		return err
 	}
-
-	if sideCheck == 0 {
-		return p.Websocket.Orderbook.Update(nil,
-			[]orderbook.Item{{Price: price, Amount: volume}},
-			cP,
-			time.Now(),
-			p.GetName(),
-			"SPOT")
+	update := &ob.BufferUpdate{
+		CurrencyPair: cP,
+		Updated:      time.Now(),
+		ExchangeName: p.Name,
+		AssetType:    "SPOT",
 	}
-
-	return p.Websocket.Orderbook.Update([]orderbook.Item{{Price: price, Amount: volume}},
-		nil,
-		cP,
-		time.Now(),
-		p.GetName(),
-		"SPOT")
+	if sideCheck == 0 {
+		update.Bids = []orderbook.Item{{Price: price, Amount: volume}}
+	} else {
+		update.Asks = []orderbook.Item{{Price: price, Amount: volume}}
+	}
+	return p.Websocket.Orderbook.Update(update)
 }
 
 // CurrencyPairID contains a list of IDS for currency pairs.

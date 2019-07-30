@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/ws/ob"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -258,23 +260,29 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 }
 
 // WsProcessOrderbookUpdate updates a local cache
-func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
-	if len(ob.Params.Bid) == 0 && len(ob.Params.Ask) == 0 {
+func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
+	if len(update.Params.Bid) == 0 && len(update.Params.Ask) == 0 {
 		return errors.New("hitbtc_websocket.go error - no data")
 	}
 
 	var bids, asks []orderbook.Item
-	for _, bid := range ob.Params.Bid {
+	for _, bid := range update.Params.Bid {
 		bids = append(bids, orderbook.Item{Price: bid.Price, Amount: bid.Size})
 	}
 
-	for _, ask := range ob.Params.Ask {
+	for _, ask := range update.Params.Ask {
 		asks = append(asks, orderbook.Item{Price: ask.Price, Amount: ask.Size})
 	}
 
-	p := currency.NewPairFromString(ob.Params.Symbol)
-
-	err := h.Websocket.Orderbook.Update(bids, asks, p, time.Now(), h.GetName(), "SPOT")
+	p := currency.NewPairFromString(update.Params.Symbol)
+	err := h.Websocket.Orderbook.Update(&ob.BufferUpdate{
+		Asks:         asks,
+		Bids:         bids,
+		CurrencyPair: p,
+		Updated:      time.Now(),
+		ExchangeName: h.Name,
+		AssetType:    "SPOT",
+	})
 	if err != nil {
 		return err
 	}

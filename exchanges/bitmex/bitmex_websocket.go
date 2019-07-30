@@ -412,7 +412,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 				Updated:      time.Now(),
 				ExchangeName: b.Name,
 				AssetType:    "SPOT",
-				UseUpdateIDs:      true,
+				UseUpdateIDs: true,
 				Action:       action,
 			})
 			if err != nil {

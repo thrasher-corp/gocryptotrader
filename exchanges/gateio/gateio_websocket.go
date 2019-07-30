@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/ws/ob"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -242,12 +244,15 @@ func (g *Gateio) WsHandleData() {
 						g.Websocket.DataHandler <- err
 					}
 				} else {
-					err = g.Websocket.Orderbook.Update(asks,
-						bids,
-						currency.NewPairFromString(c),
-						time.Now(),
-						g.GetName(),
-						"SPOT")
+					err = g.Websocket.Orderbook.Update(
+						&ob.BufferUpdate{
+							Asks:         asks,
+							Bids:         bids,
+							CurrencyPair: currency.NewPairFromString(c),
+							Updated:      time.Now(),
+							ExchangeName: g.Name,
+							AssetType:    "SPOT",
+						})
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}
