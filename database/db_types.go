@@ -6,8 +6,9 @@ import (
 )
 
 type Database struct {
-	Config *Config
-	SQL    *sqlx.DB
+	Config   *Config
+	DataPath string
+	SQL      *sqlx.DB
 }
 
 type Config struct {

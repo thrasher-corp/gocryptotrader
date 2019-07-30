@@ -3,9 +3,6 @@ package sqlite
 import (
 	"errors"
 	"path/filepath"
-	"runtime"
-
-	"github.com/thrasher-/gocryptotrader/common"
 
 	"github.com/jmoiron/sqlx"
 
@@ -18,12 +15,7 @@ func Connect() (*database.Database, error) {
 	if database.Conn.Config.Database == "" {
 		return nil, errors.New("no database provided")
 	}
-	databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
-	err := common.CreateDir(databaseDir)
-	if err != nil {
-		return nil, err
-	}
-	databaseFullLocation := filepath.Join(databaseDir, database.Conn.Config.Database)
+	databaseFullLocation := filepath.Join(database.Conn.DataPath, database.Conn.Config.Database)
 	dbConn, err := sqlx.Open("sqlite3", databaseFullLocation)
 	if err != nil {
 		return nil, err

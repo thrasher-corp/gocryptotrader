@@ -1291,6 +1291,12 @@ func (c *Config) CheckDatabaseConfig() error {
 		c.Database.Enabled = f
 	}
 
+	databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
+	err := common.CreateDir(databaseDir)
+	if err != nil {
+		return err
+	}
+	database.Conn.DataPath = databaseDir
 	database.Conn.Config = &c.Database
 
 	return nil

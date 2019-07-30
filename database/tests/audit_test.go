@@ -12,6 +12,7 @@ import (
 
 func TestAudit(t *testing.T) {
 	testConfig := database.Config{}
+
 	testConfig.Database = path.Join(tempDir, "./auditdb.db")
 
 	database.Conn.Config = &testConfig
