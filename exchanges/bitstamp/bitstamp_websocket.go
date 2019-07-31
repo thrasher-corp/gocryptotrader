@@ -199,11 +199,11 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 			bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 		}
 	}
-	err := b.Websocket.Orderbook.Update(&ob.BufferUpdate{
+	err := b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
 		Bids:         bids,
 		Asks:         asks,
 		CurrencyPair: p,
-		Updated:      time.Now(),
+		UpdateTime:   time.Now(),
 		ExchangeName: b.Name,
 		AssetType:    "SPOT",
 	})

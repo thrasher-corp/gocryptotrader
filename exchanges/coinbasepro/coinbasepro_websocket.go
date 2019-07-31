@@ -248,11 +248,11 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 
 	p := currency.NewPairFromString(update.ProductID)
 
-	err := c.Websocket.Orderbook.Update(&ob.BufferUpdate{
+	err := c.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
 		Bids:         bids,
 		Asks:         asks,
 		CurrencyPair: p,
-		Updated:      time.Now(),
+		UpdateTime:   time.Now(),
 		ExchangeName: c.Name,
 		AssetType:    "SPOT",
 	})

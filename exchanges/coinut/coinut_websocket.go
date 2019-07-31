@@ -282,12 +282,13 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 // WsProcessOrderbookUpdate process an orderbook update
 func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 	p := currency.NewPairFromString(instrumentListByCode[update.InstID])
-	bufferUpdate := &ob.BufferUpdate{
-		CurrencyPair: p,
-		UpdateID:     update.TransID,
-		ExchangeName: c.Name,
-		AssetType:    "SPOT",
-		UseUpdateIDs: true,
+	bufferUpdate := &ob.WebsocketOrderbookUpdate{
+		CurrencyPair:  p,
+		UpdateID:      update.TransID,
+		ExchangeName:  c.Name,
+		AssetType:     "SPOT",
+		UpdateByIDs:   true,
+		BufferEnabled: true,
 	}
 	if strings.EqualFold(update.Side, "buy") {
 		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}

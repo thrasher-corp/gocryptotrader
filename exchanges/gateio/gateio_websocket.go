@@ -245,11 +245,11 @@ func (g *Gateio) WsHandleData() {
 					}
 				} else {
 					err = g.Websocket.Orderbook.Update(
-						&ob.BufferUpdate{
+						&ob.WebsocketOrderbookUpdate{
 							Asks:         asks,
 							Bids:         bids,
 							CurrencyPair: currency.NewPairFromString(c),
-							Updated:      time.Now(),
+							UpdateTime:   time.Now(),
 							ExchangeName: g.Name,
 							AssetType:    "SPOT",
 						})

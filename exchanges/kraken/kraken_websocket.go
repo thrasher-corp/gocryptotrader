@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -16,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -46,16 +45,7 @@ const (
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
-var orderbookMutex sync.Mutex
 var subscriptionChannelPair []WebsocketChannelData
-
-// krakenOrderBooks TODO THIS IS A TEMPORARY SOLUTION UNTIL ENGINE BRANCH IS MERGED
-// WS orderbook data can only rely on WS orderbook data
-// Currently REST and WS runs simultaneously, dirtying the data
-var krakenOrderBooks map[int64]orderbook.Base
-
-// orderbookBuffer Stores orderbook updates per channel
-var orderbookBuffer map[int64][]orderbook.Base
 var subscribeToDefaultChannels = true
 
 // Channels require a topic and a currency
@@ -228,22 +218,6 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse, rawResp
 // addNewSubscriptionChannelData stores channel ids, pairs and subscription types to an array
 // allowing correlation between subscriptions and returned data
 func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
-	for i := range subscriptionChannelPair {
-		if response.ChannelID != subscriptionChannelPair[i].ChannelID {
-			continue
-		}
-		// kill the stale orderbooks due to resubscribing
-		if orderbookBuffer == nil {
-			orderbookBuffer = make(map[int64][]orderbook.Base)
-		}
-		orderbookBuffer[response.ChannelID] = []orderbook.Base{}
-		if krakenOrderBooks == nil {
-			krakenOrderBooks = make(map[int64]orderbook.Base)
-		}
-		krakenOrderBooks[response.ChannelID] = orderbook.Base{}
-		return
-	}
-
 	// We change the / to - to maintain compatibility with REST/config
 	pair := currency.NewPairWithDelimiter(response.Pair.Base.String(), response.Pair.Quote.String(), "-")
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
@@ -347,16 +321,13 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 		if asksExist || bidsExist {
 			k.wsRequestMtx.Lock()
 			defer k.wsRequestMtx.Unlock()
-			k.wsProcessOrderBookBuffer(channelData, obData)
-			if len(orderbookBuffer[channelData.ChannelID]) >= orderbookBufferLimit {
-				err := k.wsProcessOrderBookUpdate(channelData)
-				if err != nil {
-					subscriptionToRemove := monitor.WebsocketChannelSubscription{
-						Channel:  krakenWsOrderbook,
-						Currency: channelData.Pair,
-					}
-					k.Websocket.ResubscribeToChannel(subscriptionToRemove)
+			err := k.wsProcessOrderBookUpdate(channelData, obData)
+			if err != nil {
+				subscriptionToRemove := monitor.WebsocketChannelSubscription{
+					Channel:  krakenWsOrderbook,
+					Currency: channelData.Pair,
 				}
+				k.Websocket.ResubscribeToChannel(subscriptionToRemove)
 			}
 		}
 	}
@@ -364,7 +335,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, obData map[string]interface{}) {
-	ob := orderbook.Base{
+	base := orderbook.Base{
 		Pair:      channelData.Pair,
 		AssetType: orderbook.Spot,
 	}
@@ -376,11 +347,10 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 		asks := askData[i].([]interface{})
 		price, _ := strconv.ParseFloat(asks[0].(string), 64)
 		amount, _ := strconv.ParseFloat(asks[1].(string), 64)
-		ob.Asks = append(ob.Asks, orderbook.Item{
+		base.Asks = append(base.Asks, orderbook.Item{
 			Amount: amount,
 			Price:  price,
 		})
-
 		timeData, _ := strconv.ParseFloat(asks[2].(string), 64)
 		sec, dec := math.Modf(timeData)
 		askUpdatedTime := time.Unix(int64(sec), int64(dec*(1e9)))
@@ -388,17 +358,15 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 			highestLastUpdate = askUpdatedTime
 		}
 	}
-
 	bidData := obData["bs"].([]interface{})
 	for i := range bidData {
 		bids := bidData[i].([]interface{})
 		price, _ := strconv.ParseFloat(bids[0].(string), 64)
 		amount, _ := strconv.ParseFloat(bids[1].(string), 64)
-		ob.Bids = append(ob.Bids, orderbook.Item{
+		base.Bids = append(base.Bids, orderbook.Item{
 			Amount: amount,
 			Price:  price,
 		})
-
 		timeData, _ := strconv.ParseFloat(bids[2].(string), 64)
 		sec, dec := math.Modf(timeData)
 		bidUpdateTime := time.Unix(int64(sec), int64(dec*(1e9)))
@@ -406,33 +374,27 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 			highestLastUpdate = bidUpdateTime
 		}
 	}
-
-	ob.LastUpdated = highestLastUpdate
-	err := k.Websocket.Orderbook.LoadSnapshot(&ob, k.Name, true)
+	base.LastUpdated = highestLastUpdate
+	err := k.Websocket.Orderbook.LoadSnapshot(&base, k.Name, true)
 	if err != nil {
 		k.Websocket.DataHandler <- err
 		return
 	}
-
 	k.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Exchange: k.Name,
 		Asset:    orderbook.Spot,
 		Pair:     channelData.Pair,
 	}
-
-	if krakenOrderBooks == nil {
-		krakenOrderBooks = make(map[int64]orderbook.Base)
-	}
-	krakenOrderBooks[channelData.ChannelID] = ob
 }
 
-func (k *Kraken) wsProcessOrderBookBuffer(channelData *WebsocketChannelData, obData map[string]interface{}) {
-	ob := orderbook.Base{
-		AssetType:    orderbook.Spot,
-		ExchangeName: k.Name,
-		Pair:         channelData.Pair,
+// wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
+func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obData map[string]interface{}) error {
+	update := ob.WebsocketOrderbookUpdate{
+		BufferEnabled: true,
+		AssetType:     krakenWsAssetType,
+		ExchangeName:  k.Name,
+		CurrencyPair:  channelData.Pair,
 	}
-
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
 	if _, ok := obData["a"]; ok {
@@ -441,11 +403,10 @@ func (k *Kraken) wsProcessOrderBookBuffer(channelData *WebsocketChannelData, obD
 			asks := askData[i].([]interface{})
 			price, _ := strconv.ParseFloat(asks[0].(string), 64)
 			amount, _ := strconv.ParseFloat(asks[1].(string), 64)
-			ob.Asks = append(ob.Asks, orderbook.Item{
+			update.Asks = append(update.Asks, orderbook.Item{
 				Amount: amount,
 				Price:  price,
 			})
-
 			timeData, _ := strconv.ParseFloat(asks[2].(string), 64)
 			sec, dec := math.Modf(timeData)
 			askUpdatedTime := time.Unix(int64(sec), int64(dec*(1e9)))
@@ -461,7 +422,7 @@ func (k *Kraken) wsProcessOrderBookBuffer(channelData *WebsocketChannelData, obD
 			bids := bidData[i].([]interface{})
 			price, _ := strconv.ParseFloat(bids[0].(string), 64)
 			amount, _ := strconv.ParseFloat(bids[1].(string), 64)
-			ob.Bids = append(ob.Bids, orderbook.Item{
+			update.Bids = append(update.Bids, orderbook.Item{
 				Amount: amount,
 				Price:  price,
 			})
@@ -473,191 +434,18 @@ func (k *Kraken) wsProcessOrderBookBuffer(channelData *WebsocketChannelData, obD
 			}
 		}
 	}
-	ob.LastUpdated = highestLastUpdate
-	if orderbookBuffer == nil {
-		orderbookBuffer = make(map[int64][]orderbook.Base)
-	}
-	orderbookBuffer[channelData.ChannelID] = append(orderbookBuffer[channelData.ChannelID], ob)
-	if k.Verbose {
-		log.Debugf("%v Adding orderbook to buffer for channel %v. Lastupdated: %v. %v / %v",
-			k.Name,
-			channelData.ChannelID,
-			ob.LastUpdated,
-			len(orderbookBuffer[channelData.ChannelID]),
-			orderbookBufferLimit)
-	}
-}
-
-// wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
-func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData) error {
-	if k.Verbose {
-		log.Debugf("%v Current orderbook 'LastUpdated': %v",
-			k.Name,
-			krakenOrderBooks[channelData.ChannelID].LastUpdated)
-	}
-	lowestLastUpdated := orderbookBuffer[channelData.ChannelID][0].LastUpdated
-	if k.Verbose {
-		log.Debugf("%v Sorting orderbook. Earliest 'LastUpdated' entry: %v",
-			k.Name,
-			lowestLastUpdated)
-	}
-	sort.Slice(orderbookBuffer[channelData.ChannelID], func(i, j int) bool {
-		return orderbookBuffer[channelData.ChannelID][i].LastUpdated.Before(orderbookBuffer[channelData.ChannelID][j].LastUpdated)
-	})
-
-	lowestLastUpdated = orderbookBuffer[channelData.ChannelID][0].LastUpdated
-	if k.Verbose {
-		log.Debugf("%v Sorted orderbook. Earliest 'LastUpdated' entry: %v",
-			k.Name,
-			lowestLastUpdated)
-	}
-	// The earliest update has to be after the previously stored orderbook
-	if krakenOrderBooks[channelData.ChannelID].LastUpdated.After(lowestLastUpdated) {
-		err := fmt.Errorf("%v orderbook update out of order. Existing: %v, Attempted: %v",
-			k.Name,
-			krakenOrderBooks[channelData.ChannelID].LastUpdated,
-			lowestLastUpdated)
-		k.Websocket.DataHandler <- err
-		return err
-	}
-
-	k.updateChannelOrderbookEntries(channelData)
-	highestLastUpdate := orderbookBuffer[channelData.ChannelID][len(orderbookBuffer[channelData.ChannelID])-1].LastUpdated
-	if k.Verbose {
-		log.Debugf("%v Saving orderbook. Lastupdated: %v",
-			k.Name,
-			highestLastUpdate)
-	}
-
-	ob := krakenOrderBooks[channelData.ChannelID]
-	ob.LastUpdated = highestLastUpdate
-	err := k.Websocket.Orderbook.LoadSnapshot(&ob, k.Name, true)
+	update.UpdateTime = highestLastUpdate
+	err := k.Websocket.Orderbook.Update(&update)
 	if err != nil {
 		k.Websocket.DataHandler <- err
 		return err
 	}
-
 	k.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Exchange: k.Name,
 		Asset:    orderbook.Spot,
 		Pair:     channelData.Pair,
 	}
-	// Reset the buffer
-	orderbookBuffer[channelData.ChannelID] = []orderbook.Base{}
 	return nil
-}
-
-func (k *Kraken) updateChannelOrderbookEntries(channelData *WebsocketChannelData) {
-	for i := 0; i < len(orderbookBuffer[channelData.ChannelID]); i++ {
-		for j := 0; j < len(orderbookBuffer[channelData.ChannelID][i].Asks); j++ {
-			k.updateChannelOrderbookAsks(i, j, channelData)
-		}
-		for j := 0; j < len(orderbookBuffer[channelData.ChannelID][i].Bids); j++ {
-			k.updateChannelOrderbookBids(i, j, channelData)
-		}
-	}
-}
-
-func (k *Kraken) updateChannelOrderbookAsks(i, j int, channelData *WebsocketChannelData) {
-	askFound := k.updateChannelOrderbookAsk(i, j, channelData)
-	if !askFound {
-		if k.Verbose {
-			log.Debugf("%v Adding Ask for channel %v. Price %v. Amount %v",
-				k.Name,
-				channelData.ChannelID,
-				orderbookBuffer[channelData.ChannelID][i].Asks[j].Price,
-				orderbookBuffer[channelData.ChannelID][i].Asks[j].Amount)
-		}
-		ob := krakenOrderBooks[channelData.ChannelID]
-		ob.Asks = append(ob.Asks, orderbookBuffer[channelData.ChannelID][i].Asks[j])
-		krakenOrderBooks[channelData.ChannelID] = ob
-	}
-}
-
-func (k *Kraken) updateChannelOrderbookAsk(i, j int, channelData *WebsocketChannelData) bool {
-	askFound := false
-	for l := 0; l < len(krakenOrderBooks[channelData.ChannelID].Asks); l++ {
-		if krakenOrderBooks[channelData.ChannelID].Asks[l].Price == orderbookBuffer[channelData.ChannelID][i].Asks[j].Price {
-			askFound = true
-			if orderbookBuffer[channelData.ChannelID][i].Asks[j].Amount == 0 {
-				// Remove existing entry
-				if k.Verbose {
-					log.Debugf("%v Removing Ask for channel %v. Price %v. Old amount %v. Buffer %v",
-						k.Name,
-						channelData.ChannelID,
-						orderbookBuffer[channelData.ChannelID][i].Asks[j].Price,
-						krakenOrderBooks[channelData.ChannelID].Asks[l].Amount, i)
-				}
-				ob := krakenOrderBooks[channelData.ChannelID]
-				ob.Asks = append(ob.Asks[:l], ob.Asks[l+1:]...)
-				krakenOrderBooks[channelData.ChannelID] = ob
-				l--
-			} else if krakenOrderBooks[channelData.ChannelID].Asks[l].Amount != orderbookBuffer[channelData.ChannelID][i].Asks[j].Amount {
-				if k.Verbose {
-					log.Debugf("%v Updating Ask for channel %v. Price %v. Old amount %v, New Amount %v",
-						k.Name,
-						channelData.ChannelID,
-						orderbookBuffer[channelData.ChannelID][i].Asks[j].Price,
-						krakenOrderBooks[channelData.ChannelID].Asks[l].Amount,
-						orderbookBuffer[channelData.ChannelID][i].Asks[j].Amount)
-				}
-				krakenOrderBooks[channelData.ChannelID].Asks[l].Amount = orderbookBuffer[channelData.ChannelID][i].Asks[j].Amount
-			}
-			return askFound
-		}
-	}
-	return askFound
-}
-
-func (k *Kraken) updateChannelOrderbookBids(i, j int, channelData *WebsocketChannelData) {
-	bidFound := k.updateChannelOrderbookBid(i, j, channelData)
-	if !bidFound {
-		if k.Verbose {
-			log.Debugf("%v Adding Bid for channel %v. Price %v. Amount %v",
-				k.Name,
-				channelData.ChannelID,
-				orderbookBuffer[channelData.ChannelID][i].Bids[j].Price,
-				orderbookBuffer[channelData.ChannelID][i].Bids[j].Amount)
-		}
-		ob := krakenOrderBooks[channelData.ChannelID]
-		ob.Bids = append(ob.Bids, orderbookBuffer[channelData.ChannelID][i].Bids[j])
-		krakenOrderBooks[channelData.ChannelID] = ob
-	}
-}
-
-func (k *Kraken) updateChannelOrderbookBid(i, j int, channelData *WebsocketChannelData) bool {
-	bidFound := false
-	for l := 0; l < len(krakenOrderBooks[channelData.ChannelID].Bids); l++ {
-		if krakenOrderBooks[channelData.ChannelID].Bids[l].Price == orderbookBuffer[channelData.ChannelID][i].Bids[j].Price {
-			bidFound = true
-			if orderbookBuffer[channelData.ChannelID][i].Bids[j].Amount == 0 {
-				// Remove existing entry
-				if k.Verbose {
-					log.Debugf("%v Removing Bid for channel %v. Price %v. Old amount %v. Buffer %v",
-						k.Name,
-						channelData.ChannelID,
-						orderbookBuffer[channelData.ChannelID][i].Bids[j].Price,
-						krakenOrderBooks[channelData.ChannelID].Bids[l].Amount, i)
-				}
-				ob := krakenOrderBooks[channelData.ChannelID]
-				ob.Bids = append(ob.Bids[:l], ob.Bids[l+1:]...)
-				krakenOrderBooks[channelData.ChannelID] = ob
-				l--
-			} else if krakenOrderBooks[channelData.ChannelID].Bids[l].Amount != orderbookBuffer[channelData.ChannelID][i].Bids[j].Amount {
-				if k.Verbose {
-					log.Debugf("%v Updating Bid for channel %v. Price %v. Old amount %v, New Amount %v",
-						k.Name,
-						channelData.ChannelID,
-						orderbookBuffer[channelData.ChannelID][i].Bids[j].Price,
-						krakenOrderBooks[channelData.ChannelID].Bids[l].Amount,
-						orderbookBuffer[channelData.ChannelID][i].Bids[j].Amount)
-				}
-				krakenOrderBooks[channelData.ChannelID].Bids[l].Amount = orderbookBuffer[channelData.ChannelID][i].Bids[j].Amount
-			}
-			return bidFound
-		}
-	}
-	return bidFound
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler

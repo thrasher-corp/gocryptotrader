@@ -14,116 +14,134 @@ import (
 const wsOrderbookBufferLimit = 5
 
 // Update updates a local cache using bid targets and ask targets then updates
-// main cache in orderbook.go
+// main cache in ob.go
 // Volume == 0; deletion at price target
 // Price target not found; append of price target
 // Price target found; amend volume of price target
-func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *BufferUpdate) error {
+func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpdate) error {
 	if (orderbookUpdate.Bids == nil && orderbookUpdate.Asks == nil) ||
 		(len(orderbookUpdate.Bids) == 0 && len(orderbookUpdate.Asks) == 0) {
 		return errors.New("cannot have bids and ask targets both nil")
 	}
-	if _, ok := w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]; !ok {
-		return fmt.Errorf("orderbook.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
+	w.m.Lock()
+	defer w.m.Unlock()
+	if _, ok := w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]; !ok {
+		return fmt.Errorf("ob.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
 			orderbookUpdate.ExchangeName,
 			orderbookUpdate.CurrencyPair.String(),
 			orderbookUpdate.AssetType)
 	}
-
-	if w.orderbookBuffer == nil {
-		w.orderbookBuffer = make(map[currency.Pair]map[string][]BufferUpdate)
-	}
-	if w.orderbookBuffer[orderbookUpdate.CurrencyPair] == nil {
-		w.orderbookBuffer[orderbookUpdate.CurrencyPair] = make(map[string][]BufferUpdate)
-	}
-	if len(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) <= wsOrderbookBufferLimit {
-		log.Debugf("%v adding to orderbook buffer %v/%v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType, len(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]), wsOrderbookBufferLimit)
-		w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = append(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], *orderbookUpdate)
-		if len(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) < wsOrderbookBufferLimit {
+	if orderbookUpdate.BufferEnabled {
+		err, underBufferLimit := w.ProcessBufferUpdate(orderbookUpdate)
+		if err != nil {
+			return err
+		}
+		if underBufferLimit {
 			return nil
 		}
-	}
-	// sort by last updated to ensure each update is in order
-	if orderbookUpdate.OrderByIDs {
-		sort.Slice(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
-			return w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateID < w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateID
-		})
 	} else {
-		sort.Slice(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
-			return w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].Updated.Before(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].Updated)
-		})
+		w.ProcessObUpdate(orderbookUpdate)
 	}
-	for i := 0; i < len(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]); i++ {
-		if w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UseUpdateIDs {
-			log.Debug(w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].Asks[0])
-			w.DoTheThing(&w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i])
-		} else {
-			var wg sync.WaitGroup
-			wg.Add(2)
-			go w.updateAsksByPrice(&w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i], &wg)
-			go w.updateBidsByPrice(&w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i], &wg)
-			wg.Wait()
-		}
-	}
-	log.Debugf("%v processing orderbook %v %v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType)
-	err := w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Process()
+	err := w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Process()
 	if err != nil {
 		return err
 	}
-	// Reset the buffer
-	log.Debugf("%v resetting orderbook buffer %v %v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType)
-
-	w.orderbookBuffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = []BufferUpdate{}
+	if orderbookUpdate.BufferEnabled {
+		// Reset the buffer
+		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = []WebsocketOrderbookUpdate{}
+	}
 	return nil
 }
 
-func (w *WebsocketOrderbookLocal) updateAsksByPrice(base *BufferUpdate, wg *sync.WaitGroup) {
+func (w *WebsocketOrderbookLocal) ProcessBufferUpdate(orderbookUpdate *WebsocketOrderbookUpdate) (error, bool) {
+	if w.buffer == nil {
+		w.buffer = make(map[currency.Pair]map[string][]WebsocketOrderbookUpdate)
+	}
+	if w.buffer[orderbookUpdate.CurrencyPair] == nil {
+		w.buffer[orderbookUpdate.CurrencyPair] = make(map[string][]WebsocketOrderbookUpdate)
+	}
+	if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) <= wsOrderbookBufferLimit {
+		log.Debugf("%v adding to ob buffer %v %v %v/%v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType, len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]), wsOrderbookBufferLimit)
+		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = append(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], *orderbookUpdate)
+		if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) < wsOrderbookBufferLimit {
+			return nil, true
+		}
+	}
+	// sort by last updated to ensure each update is in order
+	if orderbookUpdate.OrderByUpdateIDs {
+		sort.Slice(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
+			return w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateID < w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateID
+		})
+	} else {
+		sort.Slice(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
+			return w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateTime.Before(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateTime)
+		})
+	}
+	for i := 0; i < len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]); i++ {
+		w.ProcessObUpdate(&w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i])
+	}
+	return nil, false
+}
+
+func (w *WebsocketOrderbookLocal) ProcessObUpdate(orderbookUpdate *WebsocketOrderbookUpdate) {
+	if orderbookUpdate.UpdateByIDs {
+		w.DoTheThing(orderbookUpdate)
+	} else {
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go w.updateAsksByPrice(orderbookUpdate, &wg)
+		go w.updateBidsByPrice(orderbookUpdate, &wg)
+		wg.Wait()
+	}
+}
+
+func (w *WebsocketOrderbookLocal) updateAsksByPrice(base *WebsocketOrderbookUpdate, wg *sync.WaitGroup) {
 	for j := 0; j < len(base.Asks); j++ {
 		found := false
-		for k := 0; k < len(w.orderbook[base.CurrencyPair][base.AssetType].Asks); k++ {
-			if w.orderbook[base.CurrencyPair][base.AssetType].Asks[k].Price == base.Asks[j].Price {
+		for k := 0; k < len(w.ob[base.CurrencyPair][base.AssetType].Asks); k++ {
+			if w.ob[base.CurrencyPair][base.AssetType].Asks[k].Price == base.Asks[j].Price {
 				found = true
 				if base.Asks[j].Amount == 0 {
-					w.orderbook[base.CurrencyPair][base.AssetType].Asks = append(w.orderbook[base.CurrencyPair][base.AssetType].Asks[:k],
-						w.orderbook[base.CurrencyPair][base.AssetType].Asks[k+1:]...)
+					w.ob[base.CurrencyPair][base.AssetType].Asks = append(w.ob[base.CurrencyPair][base.AssetType].Asks[:k],
+						w.ob[base.CurrencyPair][base.AssetType].Asks[k+1:]...)
 					break
 				}
-				w.orderbook[base.CurrencyPair][base.AssetType].Asks[k].Amount = base.Asks[j].Amount
+				w.ob[base.CurrencyPair][base.AssetType].Asks[k].Amount = base.Asks[j].Amount
 				break
 			}
 		}
 		if !found {
-			w.orderbook[base.CurrencyPair][base.AssetType].Asks = append(w.orderbook[base.CurrencyPair][base.AssetType].Asks, base.Asks[j])
+			w.ob[base.CurrencyPair][base.AssetType].Asks = append(w.ob[base.CurrencyPair][base.AssetType].Asks, base.Asks[j])
 		}
 	}
 	wg.Done()
 }
 
-func (w *WebsocketOrderbookLocal) updateBidsByPrice(base *BufferUpdate, wg *sync.WaitGroup) {
+func (w *WebsocketOrderbookLocal) updateBidsByPrice(base *WebsocketOrderbookUpdate, wg *sync.WaitGroup) {
 	for j := 0; j < len(base.Bids); j++ {
 		found := false
-		for k := 0; k < len(w.orderbook[base.CurrencyPair][base.AssetType].Bids); k++ {
-			if w.orderbook[base.CurrencyPair][base.AssetType].Bids[k].Price == base.Bids[j].Price {
+		for k := 0; k < len(w.ob[base.CurrencyPair][base.AssetType].Bids); k++ {
+			if w.ob[base.CurrencyPair][base.AssetType].Bids[k].Price == base.Bids[j].Price {
 
 				found = true
 				if base.Bids[j].Amount == 0 {
-					w.orderbook[base.CurrencyPair][base.AssetType].Bids = append(w.orderbook[base.CurrencyPair][base.AssetType].Bids[:k],
-						w.orderbook[base.CurrencyPair][base.AssetType].Bids[k+1:]...)
+					w.ob[base.CurrencyPair][base.AssetType].Bids = append(w.ob[base.CurrencyPair][base.AssetType].Bids[:k],
+						w.ob[base.CurrencyPair][base.AssetType].Bids[k+1:]...)
 					break
 				}
-				w.orderbook[base.CurrencyPair][base.AssetType].Bids[k].Amount = base.Bids[j].Amount
+				w.ob[base.CurrencyPair][base.AssetType].Bids[k].Amount = base.Bids[j].Amount
 				break
 			}
 		}
 		if !found {
-			w.orderbook[base.CurrencyPair][base.AssetType].Bids = append(w.orderbook[base.CurrencyPair][base.AssetType].Bids, base.Bids[j])
+			w.ob[base.CurrencyPair][base.AssetType].Bids = append(w.ob[base.CurrencyPair][base.AssetType].Bids, base.Bids[j])
 		}
 	}
 	wg.Done()
 }
 
-// LoadSnapshot loads initial snapshot of orderbook data, overite allows full
-// orderbook to be completely rewritten because the exchange is a doing a full
+// LoadSnapshot loads initial snapshot of ob data, overite allows full
+// ob to be completely rewritten because the exchange is a doing a full
 // update not an incremental one
 func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exchName string, overwrite bool) error {
 	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
@@ -131,23 +149,29 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exc
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
-	if w.orderbook == nil {
-		w.orderbook = make(map[currency.Pair]map[string]*orderbook.Base)
+	if w.ob == nil {
+		w.ob = make(map[currency.Pair]map[string]*orderbook.Base)
 	}
-	if w.orderbook[newOrderbook.Pair] == nil {
-		w.orderbook[newOrderbook.Pair] = make(map[string]*orderbook.Base)
+	if w.ob[newOrderbook.Pair] == nil {
+		w.ob[newOrderbook.Pair] = make(map[string]*orderbook.Base)
 	}
-	if w.orderbook[newOrderbook.Pair][newOrderbook.AssetType] != nil &&
-		(len(w.orderbook[newOrderbook.Pair][newOrderbook.AssetType].Asks) > 0 ||
-			len(w.orderbook[newOrderbook.Pair][newOrderbook.AssetType].Bids) > 0) {
+	if w.ob[newOrderbook.Pair][newOrderbook.AssetType] != nil &&
+		(len(w.ob[newOrderbook.Pair][newOrderbook.AssetType].Asks) > 0 ||
+			len(w.ob[newOrderbook.Pair][newOrderbook.AssetType].Bids) > 0) {
 		if overwrite {
-			w.orderbook[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
+			w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
 			return newOrderbook.Process()
 		}
 		return errors.New("snapshot instance already found")
 	}
-	w.orderbook[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
+	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
 	return newOrderbook.Process()
+}
+
+// GetOrderbook retrieves the orderbook for validation
+// TODO replace with dedicated ob validation
+func (w *WebsocketOrderbookLocal) GetOrderbook(curr currency.Pair, assetType string) *orderbook.Base {
+	return w.ob[curr][assetType]
 }
 
 // DoTheThing studies the thing,
@@ -155,22 +179,22 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exc
 // reflects on how it impacts the world around us.
 //
 // Then fucking does it
-func (w *WebsocketOrderbookLocal) DoTheThing(orderbookUpdate *BufferUpdate) {
+func (w *WebsocketOrderbookLocal) DoTheThing(orderbookUpdate *WebsocketOrderbookUpdate) {
 	switch orderbookUpdate.Action {
 	case "update":
 		for _, target := range orderbookUpdate.Bids {
-			for i := range w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids {
-				if w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[i].ID == target.ID {
-					w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[i].Amount = target.Amount
+			for i := range w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids {
+				if w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[i].ID == target.ID {
+					w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[i].Amount = target.Amount
 					break
 				}
 			}
 		}
 
 		for _, target := range orderbookUpdate.Asks {
-			for i := range w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks {
-				if w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[i].ID == target.ID {
-					w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[i].Amount = target.Amount
+			for i := range w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks {
+				if w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[i].ID == target.ID {
+					w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[i].Amount = target.Amount
 					break
 				}
 			}
@@ -178,10 +202,10 @@ func (w *WebsocketOrderbookLocal) DoTheThing(orderbookUpdate *BufferUpdate) {
 
 	case "delete":
 		for _, target := range orderbookUpdate.Bids {
-			for i := range w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids {
-				if w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[i].ID == target.ID {
-					w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids = append(w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[:i],
-						w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[i+1:]...)
+			for i := range w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids {
+				if w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[i].ID == target.ID {
+					w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids = append(w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[:i],
+						w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids[i+1:]...)
 					i--
 					break
 				}
@@ -189,10 +213,10 @@ func (w *WebsocketOrderbookLocal) DoTheThing(orderbookUpdate *BufferUpdate) {
 		}
 
 		for _, target := range orderbookUpdate.Asks {
-			for i := range w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks {
-				if w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[i].ID == target.ID {
-					w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks = append(w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[:i],
-						w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[i+1:]...)
+			for i := range w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks {
+				if w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[i].ID == target.ID {
+					w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks = append(w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[:i],
+						w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks[i+1:]...)
 					i--
 					break
 				}
@@ -200,8 +224,8 @@ func (w *WebsocketOrderbookLocal) DoTheThing(orderbookUpdate *BufferUpdate) {
 		}
 
 	case "insert":
-		w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids = append(w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids, orderbookUpdate.Bids...)
-		w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks = append(w.orderbook[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks, orderbookUpdate.Asks...)
+		w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids = append(w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Bids, orderbookUpdate.Bids...)
+		w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks = append(w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Asks, orderbookUpdate.Asks...)
 	}
 }
 
@@ -209,7 +233,7 @@ func (w *WebsocketOrderbookLocal) DoTheThing(orderbookUpdate *BufferUpdate) {
 // connection is lost and reconnected
 func (w *WebsocketOrderbookLocal) FlushCache() {
 	w.m.Lock()
-	w.orderbook = nil
-	w.orderbookBuffer = nil
+	w.ob = nil
+	w.buffer = nil
 	w.m.Unlock()
 }

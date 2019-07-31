@@ -343,9 +343,9 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 	if err != nil {
 		return err
 	}
-	update := &ob.BufferUpdate{
+	update := &ob.WebsocketOrderbookUpdate{
 		CurrencyPair: cP,
-		Updated:      time.Now(),
+		UpdateTime:   time.Now(),
 		ExchangeName: p.Name,
 		AssetType:    "SPOT",
 	}

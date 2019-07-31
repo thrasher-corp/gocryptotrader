@@ -498,7 +498,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book []WebsocketBook) error {
-	orderbookUpdate := ob.BufferUpdate{
+	orderbookUpdate := ob.WebsocketOrderbookUpdate{
 		Asks:         []orderbook.Item{},
 		Bids:         []orderbook.Item{},
 		AssetType:    assetType,
@@ -525,10 +525,8 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book []W
 		} else {
 			// unhandled
 		}
-
 	}
-
-	orderbookUpdate.Updated = time.Now()
+	orderbookUpdate.UpdateTime = time.Now()
 	err := b.Websocket.Orderbook.Update(&orderbookUpdate)
 	if err != nil {
 		return err

@@ -328,102 +328,82 @@ func (b *Bitmex) wsHandleIncomingData() {
 	}
 }
 
-var snapshotloaded = make(map[currency.Pair]map[string]bool)
-
 // ProcessOrderbook processes orderbook updates
 func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair currency.Pair, assetType string) error { // nolint: unparam
 	if len(data) < 1 {
 		return errors.New("bitmex_websocket.go error - no orderbook data")
 	}
 
-	_, ok := snapshotloaded[currencyPair]
-	if !ok {
-		snapshotloaded[currencyPair] = make(map[string]bool)
-	}
-
-	_, ok = snapshotloaded[currencyPair][assetType]
-	if !ok {
-		snapshotloaded[currencyPair][assetType] = false
-	}
-
 	switch action {
 	case bitmexActionInitialData:
-		if !snapshotloaded[currencyPair][assetType] {
-			var newOrderBook orderbook.Base
-			var bids, asks []orderbook.Item
-
-			for _, orderbookItem := range data {
-				if strings.EqualFold(orderbookItem.Side, exchange.SellOrderSide.ToString()) {
-					asks = append(asks, orderbook.Item{
-						Price:  orderbookItem.Price,
-						Amount: float64(orderbookItem.Size),
-					})
-					continue
-				}
-				bids = append(bids, orderbook.Item{
+		var newOrderBook orderbook.Base
+		var bids, asks []orderbook.Item
+		for _, orderbookItem := range data {
+			if strings.EqualFold(orderbookItem.Side, exchange.SellOrderSide.ToString()) {
+				asks = append(asks, orderbook.Item{
 					Price:  orderbookItem.Price,
 					Amount: float64(orderbookItem.Size),
 				})
+				continue
 			}
-
-			if len(bids) == 0 || len(asks) == 0 {
-				return errors.New("bitmex_websocket.go error - snapshot not initialised correctly")
-			}
-
-			newOrderBook.Asks = asks
-			newOrderBook.Bids = bids
-			newOrderBook.AssetType = assetType
-			newOrderBook.Pair = currencyPair
-
-			err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
-			if err != nil {
-				return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
-					err)
-			}
-			snapshotloaded[currencyPair][assetType] = true
-			b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
-				Pair:     currencyPair,
-				Asset:    assetType,
-				Exchange: b.GetName(),
-			}
+			bids = append(bids, orderbook.Item{
+				Price:  orderbookItem.Price,
+				Amount: float64(orderbookItem.Size),
+			})
 		}
 
+		if len(bids) == 0 || len(asks) == 0 {
+			return errors.New("bitmex_websocket.go error - snapshot not initialised correctly")
+		}
+
+		newOrderBook.Asks = asks
+		newOrderBook.Bids = bids
+		newOrderBook.AssetType = assetType
+		newOrderBook.Pair = currencyPair
+		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+		if err != nil {
+			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
+				err)
+		}
+		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+			Pair:     currencyPair,
+			Asset:    assetType,
+			Exchange: b.GetName(),
+		}
 	default:
-		if snapshotloaded[currencyPair][assetType] {
-			var asks, bids []orderbook.Item
-			for _, orderbookItem := range data {
-				if orderbookItem.Side == "Sell" {
-					asks = append(asks, orderbook.Item{
-						Price:  orderbookItem.Price,
-						Amount: float64(orderbookItem.Size),
-					})
-					continue
-				}
-				bids = append(bids, orderbook.Item{
+		var asks, bids []orderbook.Item
+		for _, orderbookItem := range data {
+			if strings.EqualFold(orderbookItem.Side, "Sell") {
+				asks = append(asks, orderbook.Item{
 					Price:  orderbookItem.Price,
 					Amount: float64(orderbookItem.Size),
 				})
+				continue
 			}
-
-			err := b.Websocket.Orderbook.Update(&ob.BufferUpdate{
-				Bids:         bids,
-				Asks:         asks,
-				CurrencyPair: currencyPair,
-				Updated:      time.Now(),
-				ExchangeName: b.Name,
-				AssetType:    "SPOT",
-				UseUpdateIDs: true,
-				Action:       action,
+			bids = append(bids, orderbook.Item{
+				Price:  orderbookItem.Price,
+				Amount: float64(orderbookItem.Size),
 			})
-			if err != nil {
-				return err
-			}
+		}
 
-			b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
-				Pair:     currencyPair,
-				Asset:    assetType,
-				Exchange: b.GetName(),
-			}
+		err := b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: currencyPair,
+			UpdateTime:   time.Now(),
+			ExchangeName: b.Name,
+			AssetType:    assetType,
+			UpdateByIDs:  true,
+			Action:       action,
+		})
+		if err != nil {
+			return err
+		}
+
+		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+			Pair:     currencyPair,
+			Asset:    assetType,
+			Exchange: b.GetName(),
 		}
 	}
 	return nil
