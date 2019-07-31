@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/exchanges/ws/ob"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -481,79 +482,55 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, tableName string) error {
-	internalOrderbook, err := o.GetOrderbookEx(instrument, o.GetAssetTypeFromTableName(tableName))
-	if err != nil {
-		return errors.New("orderbook nil, could not load existing orderbook")
+	update := ob.WebsocketOrderbookUpdate{
+		ExchangeName:  o.Name,
+		BufferEnabled: false,
+		AssetType:     "SPOT",
+		CurrencyPair:  instrument,
 	}
-	if internalOrderbook.LastUpdated.After(wsEventData.Timestamp) {
-		if o.Verbose {
-			log.Errorf("Orderbook update out of order. Existing: %v, Attempted: %v", internalOrderbook.LastUpdated.Unix(), wsEventData.Timestamp.Unix())
-		}
-		return errors.New("updated orderbook is older than existing")
-	}
-	internalOrderbook.Asks = o.WsUpdateOrderbookEntry(wsEventData.Asks, internalOrderbook.Asks)
-	internalOrderbook.Bids = o.WsUpdateOrderbookEntry(wsEventData.Bids, internalOrderbook.Bids)
-	sort.Slice(internalOrderbook.Asks, func(i, j int) bool {
-		return internalOrderbook.Asks[i].Price < internalOrderbook.Asks[j].Price
-	})
-	sort.Slice(internalOrderbook.Bids, func(i, j int) bool {
-		return internalOrderbook.Bids[i].Price > internalOrderbook.Bids[j].Price
-	})
-	checksum := o.CalculateUpdateOrderbookChecksum(&internalOrderbook)
+	update.Asks = o.WsUpdateOrderbookEntry(wsEventData.Asks)
+	update.Bids = o.WsUpdateOrderbookEntry(wsEventData.Bids)
+	/*checksum := o.CalculateUpdateOrderbookChecksum(&internalOrderbook)
 	if checksum == wsEventData.Checksum {
 		if o.Verbose {
 			log.Debug("Orderbook valid")
 		}
-		internalOrderbook.LastUpdated = wsEventData.Timestamp
+		update.UpdateTime = wsEventData.Timestamp
 		if o.Verbose {
 			log.Debug("Internalising orderbook")
 		}
-
-		err := o.Websocket.Orderbook.LoadSnapshot(&internalOrderbook, o.GetName(), true)
-		if err != nil {
-			log.Error(err)
-		}
-		o.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
-			Exchange: o.GetName(),
-			Asset:    o.GetAssetTypeFromTableName(tableName),
-			Pair:     instrument,
-		}
-	} else {
-		if o.Verbose {
-			log.Debug("Orderbook invalid")
-		}
-		return fmt.Errorf("channel: %v. Orderbook update for %v checksum invalid. Received %v Calculated %v", tableName, instrument, wsEventData.Checksum, checksum)
+	*/
+	err := o.Websocket.Orderbook.Update(&update)
+	if err != nil {
+		log.Error(err)
 	}
+	o.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+		Exchange: o.GetName(),
+		Asset:    o.GetAssetTypeFromTableName(tableName),
+		Pair:     instrument,
+	}
+	/*
+		} else {
+			if o.Verbose {
+				log.Debug("Orderbook invalid")
+			}
+			return fmt.Errorf("channel: %v. Orderbook update for %v checksum invalid. Received %v Calculated %v", tableName, instrument, wsEventData.Checksum, checksum)
+		}*/
 	return nil
 }
 
 // WsUpdateOrderbookEntry takes WS bid or ask data and merges it with existing orderbook bid or ask data
-func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}, existingOrderbookEntries []orderbook.Item) []orderbook.Item {
+func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}) []orderbook.Item {
+	var response []orderbook.Item
 	for j := range wsEntries {
 		wsEntryPrice, _ := strconv.ParseFloat(wsEntries[j][0].(string), 64)
 		wsEntryAmount, _ := strconv.ParseFloat(wsEntries[j][1].(string), 64)
-		matchFound := false
-		for k := 0; k < len(existingOrderbookEntries); k++ {
-			if existingOrderbookEntries[k].Price != wsEntryPrice {
-				continue
-			}
-			matchFound = true
-			if wsEntryAmount == 0 {
-				existingOrderbookEntries = append(existingOrderbookEntries[:k], existingOrderbookEntries[k+1:]...)
-				k--
-				continue
-			}
-			existingOrderbookEntries[k].Amount = wsEntryAmount
-			continue
-		}
-		if !matchFound {
-			existingOrderbookEntries = append(existingOrderbookEntries, orderbook.Item{
-				Amount: wsEntryAmount,
-				Price:  wsEntryPrice,
-			})
-		}
+		response = append(response, orderbook.Item{
+			Amount: wsEntryAmount,
+			Price:  wsEntryPrice,
+		})
 	}
-	return existingOrderbookEntries
+	return response
 }
 
 // CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data
