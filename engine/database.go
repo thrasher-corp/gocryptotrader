@@ -10,7 +10,7 @@ import (
 
 	audit "github.com/thrasher-/gocryptotrader/database/repository/audit"
 
-	db "github.com/thrasher-/gocryptotrader/database/drivers/postgresql"
+	db "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
 
 	auditPSQL "github.com/thrasher-/gocryptotrader/database/repository/audit/postgres"
@@ -96,10 +96,11 @@ func (a *databaseManager) run() {
 	log.Debugln(log.DatabaseMgr, "database manager started.")
 	Bot.ServicesWG.Add(1)
 
-	t := time.NewTicker(180)
+	t := time.NewTicker(time.Second * 5)
 	a.running.Store(true)
 
 	defer func() {
+		t.Stop()
 		a.running.Store(false)
 
 		Bot.ServicesWG.Done()
@@ -112,7 +113,14 @@ func (a *databaseManager) run() {
 		case <-a.shutdown:
 			return
 		case <-t.C:
-			dbConn.SQL.Ping()
+			a.checkConnection()
 		}
+	}
+}
+
+func (a *databaseManager) checkConnection() {
+	err := dbConn.SQL.Ping()
+	if err != nil {
+		log.Errorf(log.DatabaseMgr, "database connection error: %v", err)
 	}
 }

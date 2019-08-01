@@ -1,36 +1,112 @@
 package tests
 
 import (
+	"fmt"
 	"path"
+	"sync"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/database"
-	db "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
 	"github.com/thrasher-/gocryptotrader/database/repository/audit"
+	auditPSQL "github.com/thrasher-/gocryptotrader/database/repository/audit/postgres"
 	auditSQlite "github.com/thrasher-/gocryptotrader/database/repository/audit/sqlite"
+
+	"github.com/thrasher-/gocryptotrader/database"
+	"github.com/thrasher-/gocryptotrader/database/drivers"
+	dbpsql "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
+	dbsqlite "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
 )
 
 func TestAudit(t *testing.T) {
-	testConfig := database.Config{}
-
-	testConfig.Database = path.Join(tempDir, "./auditdb.db")
-
-	database.Conn.Config = &testConfig
-	dbConn, err := db.Connect()
-
-	if err != nil {
-		t.Fatal(err)
+	testCases := []struct {
+		name   string
+		config database.Config
+		setup  func() error
+		audit  audit.Repository
+		runner func(t *testing.T)
+		output interface{}
+	}{
+		{
+			"SQLite",
+			database.Config{
+				Driver:            "sqlite",
+				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
+			},
+			dbsqlite.Setup,
+			auditSQlite.Audit(),
+			writeAudit,
+			nil,
+		},
+		{
+			"Postgres",
+			database.Config{
+				Driver: "postgres",
+				ConnectionDetails: drivers.ConnectionDetails{
+					Host:     "localhost",
+					Port:     5432,
+					Username: "gct",
+					Password: "test1234",
+					Database: "gct",
+				},
+			},
+			dbpsql.Setup,
+			auditPSQL.Audit(),
+			writeAudit,
+			nil,
+		},
 	}
 
-	err = db.Setup()
-	if err != nil {
-		t.Fatal(err)
+	for _, tests := range testCases {
+		test := tests
+
+		t.Run(test.name, func(t *testing.T) {
+			dbConn, err := connectToDatabase(t, &test.config)
+
+			if test.setup != nil {
+				err = test.setup()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			if test.audit != nil {
+				audit.Audit = test.audit
+			}
+
+			if test.runner != nil {
+				test.runner(t)
+			}
+
+			switch v := test.output.(type) {
+
+			case error:
+				if v.Error() != test.output.(error).Error() {
+					t.Fatal(err)
+				}
+				return
+			default:
+				break
+			}
+
+			err = closeDatabase(t, dbConn)
+			if err != nil {
+				t.Error("Failed to close database")
+			}
+		})
+	}
+}
+
+func writeAudit(t *testing.T) {
+	t.Helper()
+	var wg sync.WaitGroup
+
+	for x := 0; x < 20; x++ {
+		wg.Add(1)
+
+		go func(x int) {
+			defer wg.Done()
+			audit.Event("Hello", fmt.Sprintf("t-%v", x), ":D")
+		}(x)
 	}
 
-	audit.Audit = auditSQlite.Audit()
-
-	err = dbConn.SQL.Close()
-	if err != nil {
-		t.Error("Failed to close database")
-	}
+	wg.Wait()
 }

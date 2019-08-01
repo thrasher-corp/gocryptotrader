@@ -1,6 +1,8 @@
 package sqlite
 
-import "github.com/thrasher-/gocryptotrader/database"
+import (
+	"github.com/thrasher-/gocryptotrader/database"
+)
 
 func Setup() (err error) {
 	err = createAuditTable()

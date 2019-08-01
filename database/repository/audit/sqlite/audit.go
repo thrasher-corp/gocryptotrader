@@ -19,8 +19,19 @@ func (pg *auditRepo) AddEvent(event *models.Event) {
 		return
 	}
 	query := `INSERT INTO audit (type, identifier, message) VALUES($1, $2, $3)`
-	_, err := database.Conn.SQL.Exec(query, &event.Type, &event.Identifier, &event.Message)
+	tx, err := database.Conn.SQL.Begin()
 	if err != nil {
-		log.Errorf(log.AuditMgr, "Failed to write audit event: %v", err)
+		return
+	}
+	_, err = tx.Exec(query, &event.Type, &event.Identifier, &event.Message)
+	if err != nil {
+		_ = tx.Rollback()
+		return
+	}
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		log.Errorf(log.AuditMgr, "Failed to write audit event: %v\n", err)
+		return
 	}
 }

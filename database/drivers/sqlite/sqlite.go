@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 
 	"github.com/jmoiron/sqlx"
@@ -16,6 +17,7 @@ func Connect() (*database.Database, error) {
 		return nil, errors.New("no database provided")
 	}
 	databaseFullLocation := filepath.Join(database.Conn.DataPath, database.Conn.Config.Database)
+	fmt.Println(databaseFullLocation)
 	dbConn, err := sqlx.Open("sqlite3", databaseFullLocation)
 	if err != nil {
 		return nil, err

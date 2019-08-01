@@ -18,6 +18,10 @@ func Event(msgType, identifier, message string) {
 		return
 	}
 
+	if Audit == nil {
+		return
+	}
+
 	tempEvent := models.Event{
 		Type:       msgType,
 		Identifier: identifier,

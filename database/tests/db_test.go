@@ -10,15 +10,28 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/database"
 	"github.com/thrasher-/gocryptotrader/database/drivers"
-	db "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
+	dbpsql "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
+	dbsqlite "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
 )
 
 var (
-	tempDir string
-	trueptr = func(b bool) *bool { return &b }(true)
+	tempDir              string
+	trueptr              = func(b bool) *bool { return &b }(true)
+	postgresTestDatabase = database.Config{
+		Enabled: trueptr,
+		Driver:  "postgres",
+		ConnectionDetails: drivers.ConnectionDetails{
+			Host:     "localhost",
+			Port:     5432,
+			Username: "gct",
+			Password: "test1234",
+			Database: "gct",
+		},
+	}
 )
 
 func TestMain(m *testing.M) {
+	fmt.Println(postgresTestDatabase)
 	var err error
 	tempDir, err = ioutil.TempDir("", "gct-temp")
 
@@ -29,45 +42,57 @@ func TestMain(m *testing.M) {
 
 	t := m.Run()
 
-	err = os.RemoveAll(tempDir)
-	if err != nil {
-		fmt.Printf("Failed to remove temp db file: %v", err)
-	}
+	// err = os.RemoveAll(tempDir)
+	// if err != nil {
+	//	fmt.Printf("Failed to remove temp db file: %v", err)
+	// }
 
 	os.Exit(t)
 }
 
-func TestDatabase(t *testing.T) {
+func TestDatabaseConnect(t *testing.T) {
 	testCases := []struct {
-		name    string
-		config  database.Config
-		output  interface{}
-		cleanup bool
+		name   string
+		config database.Config
+		output interface{}
 	}{
 		{
-			"Connect",
+			"SQLite",
 			database.Config{
+				Driver:            "sqlite",
 				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
 			},
 			nil,
-			true,
 		},
 		{
-			"NoDatabase",
+			"SQliteNoDatabase",
 			database.Config{
 				Enabled: trueptr,
 				Driver:  "sqlite",
 			},
 			errors.New("no database provided"),
-			false,
+		},
+		{
+			name: "Postgres",
+			config: database.Config{
+				Driver: "postgres",
+				ConnectionDetails: drivers.ConnectionDetails{
+					Host:     "localhost",
+					Port:     5432,
+					Username: "gct",
+					Password: "test1234",
+					Database: "gct",
+				},
+			},
+			output: nil,
 		},
 	}
 
 	for _, tests := range testCases {
 		test := tests
 		t.Run(test.name, func(t *testing.T) {
-			database.Conn.Config = &test.config
-			dbConn, err := db.Connect()
+
+			dbConn, err := connectToDatabase(t, &test.config)
 
 			switch v := test.output.(type) {
 
@@ -75,15 +100,44 @@ func TestDatabase(t *testing.T) {
 				if v.Error() != test.output.(error).Error() {
 					t.Fatal(err)
 				}
-			default:
 				return
+			default:
+				break
 			}
-			if test.cleanup {
-				err = dbConn.SQL.Close()
+
+			if dbConn != nil {
+				err := dbConn.SQL.Close()
 				if err != nil {
 					t.Error("Failed to close database")
 				}
 			}
 		})
 	}
+}
+
+func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Database, err error) {
+	t.Helper()
+	database.Conn.Config = conn
+
+	if conn.Driver == "postgres" {
+		dbConn, err = dbpsql.Connect()
+		if err != nil {
+			return
+		}
+	} else if conn.Driver == "sqlite" {
+		dbConn, err = dbsqlite.Connect()
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func closeDatabase(t *testing.T, conn *database.Database) (err error) {
+	t.Helper()
+
+	if conn != nil {
+		err = conn.SQL.Close()
+	}
+	return
 }

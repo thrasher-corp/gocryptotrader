@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-/gocryptotrader/logger"
 	// "github.com/thrasher-/gocryptotrader/database/drivers"
-	// database "github.com/thrasher-/gocryptotrader/database/drivers/postgresql"
+	// database "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
 	// "github.com/thrasher-/gocryptotrader/database/models"
 	// "github.com/thrasher-/gocryptotrader/database/repository/postgres"
 )
