@@ -3,10 +3,9 @@ package config
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/database"
-
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/database"
 	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
@@ -17,8 +16,8 @@ import (
 type Config struct {
 	Name              string                  `json:"name"`
 	EncryptConfig     int                     `json:"encryptConfig"`
-	Database          database.Config         `json:"database"`
 	GlobalHTTPTimeout time.Duration           `json:"globalHTTPTimeout"`
+	Database          database.Config         `json:"database"`
 	Logging           log.Config              `json:"logging"`
 	ConnectionMonitor ConnectionMonitorConfig `json:"connectionMonitor"`
 	Profiler          ProfilerConfig          `json:"profiler"`

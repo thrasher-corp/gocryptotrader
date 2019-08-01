@@ -1,11 +1,11 @@
 package tests
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/database"
@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	tempDir              string
-	trueptr              = func(b bool) *bool { return &b }(true)
+	tempDir string
+	trueptr = func(b bool) *bool { return &b }(true)
+
 	postgresTestDatabase = database.Config{
 		Enabled: trueptr,
 		Driver:  "postgres",
@@ -31,7 +32,6 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	fmt.Println(postgresTestDatabase)
 	var err error
 	tempDir, err = ioutil.TempDir("", "gct-temp")
 
@@ -42,10 +42,10 @@ func TestMain(m *testing.M) {
 
 	t := m.Run()
 
-	// err = os.RemoveAll(tempDir)
-	// if err != nil {
-	//	fmt.Printf("Failed to remove temp db file: %v", err)
-	// }
+	err = os.RemoveAll(tempDir)
+	if err != nil {
+		fmt.Printf("Failed to remove temp db file: %v", err)
+	}
 
 	os.Exit(t)
 }
@@ -67,23 +67,13 @@ func TestDatabaseConnect(t *testing.T) {
 		{
 			"SQliteNoDatabase",
 			database.Config{
-				Enabled: trueptr,
-				Driver:  "sqlite",
+				ConnectionDetails: drivers.ConnectionDetails{Host: "local"},
 			},
-			errors.New("no database provided"),
+			database.ErrNoDatabaseProvided,
 		},
 		{
-			name: "Postgres",
-			config: database.Config{
-				Driver: "postgres",
-				ConnectionDetails: drivers.ConnectionDetails{
-					Host:     "localhost",
-					Port:     5432,
-					Username: "gct",
-					Password: "test1234",
-					Database: "gct",
-				},
-			},
+			name:   "Postgres",
+			config: postgresTestDatabase,
 			output: nil,
 		},
 	}
@@ -92,12 +82,16 @@ func TestDatabaseConnect(t *testing.T) {
 		test := tests
 		t.Run(test.name, func(t *testing.T) {
 
+			if !checkValidConfig(t, &test.config.ConnectionDetails) {
+				t.Skip("database not configured skipping test")
+			}
+
 			dbConn, err := connectToDatabase(t, &test.config)
 
 			switch v := test.output.(type) {
 
 			case error:
-				if v.Error() != test.output.(error).Error() {
+				if v != test.output.(error) {
 					t.Fatal(err)
 				}
 				return
@@ -140,4 +134,10 @@ func closeDatabase(t *testing.T, conn *database.Database) (err error) {
 		err = conn.SQL.Close()
 	}
 	return
+}
+
+func checkValidConfig(t *testing.T, config *drivers.ConnectionDetails) bool {
+	t.Helper()
+
+	return !reflect.DeepEqual(drivers.ConnectionDetails{}, *config)
 }

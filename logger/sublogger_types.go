@@ -4,7 +4,6 @@ var (
 	subLoggers = map[string]*subLogger{}
 
 	Global           *subLogger
-	AuditMgr         *subLogger
 	ConnectionMgr    *subLogger
 	CommunicationMgr *subLogger
 	ConfigMgr        *subLogger

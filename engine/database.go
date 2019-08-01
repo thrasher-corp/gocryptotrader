@@ -37,7 +37,7 @@ func (a *databaseManager) Start() (err error) {
 		return errors.New("database manager already started")
 	}
 
-	log.Debugln(log.AuditMgr, "database manager starting...")
+	log.Debugln(log.DatabaseMgr, "database manager starting...")
 
 	a.shutdown = make(chan struct{})
 

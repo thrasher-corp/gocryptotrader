@@ -38,16 +38,7 @@ func TestAudit(t *testing.T) {
 		},
 		{
 			"Postgres",
-			database.Config{
-				Driver: "postgres",
-				ConnectionDetails: drivers.ConnectionDetails{
-					Host:     "localhost",
-					Port:     5432,
-					Username: "gct",
-					Password: "test1234",
-					Database: "gct",
-				},
-			},
+			postgresTestDatabase,
 			dbpsql.Setup,
 			auditPSQL.Audit(),
 			writeAudit,
@@ -59,6 +50,11 @@ func TestAudit(t *testing.T) {
 		test := tests
 
 		t.Run(test.name, func(t *testing.T) {
+
+			if !checkValidConfig(t, &test.config.ConnectionDetails) {
+				t.Skip("database not configured skipping test")
+			}
+
 			dbConn, err := connectToDatabase(t, &test.config)
 
 			if test.setup != nil {
@@ -104,7 +100,8 @@ func writeAudit(t *testing.T) {
 
 		go func(x int) {
 			defer wg.Done()
-			audit.Event("Hello", fmt.Sprintf("t-%v", x), ":D")
+			test := fmt.Sprintf("test-%v", x)
+			audit.Event(test, test, test)
 		}(x)
 	}
 

@@ -2,6 +2,17 @@
  "name": "Skynet",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
+ "database": {
+  "enabled": false,
+  "driver": "sqlite",
+  "connectionDetails": {
+   "Host": "",
+   "Port": 0,
+   "Username": "",
+   "Password": "",
+   "Database": ""
+  }
+ },
  "logging": {
   "enabled": true,
   "level": "INFO|WARN|DEBUG|ERROR",

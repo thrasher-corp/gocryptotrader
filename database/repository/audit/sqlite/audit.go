@@ -31,7 +31,7 @@ func (pg *auditRepo) AddEvent(event *models.Event) {
 	err = tx.Commit()
 	if err != nil {
 		_ = tx.Rollback()
-		log.Errorf(log.AuditMgr, "Failed to write audit event: %v\n", err)
+		log.Errorf(log.Global, "Failed to write audit event: %v\n", err)
 		return
 	}
 }

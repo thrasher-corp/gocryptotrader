@@ -137,7 +137,6 @@ func registerNewSubLogger(logger string) *subLogger {
 func init() {
 	Global = registerNewSubLogger("log")
 
-	AuditMgr = registerNewSubLogger("audit")
 	ConnectionMgr = registerNewSubLogger("connection")
 	CommunicationMgr = registerNewSubLogger("comms")
 	ConfigMgr = registerNewSubLogger("config")

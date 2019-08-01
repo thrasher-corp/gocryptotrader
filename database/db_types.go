@@ -1,6 +1,8 @@
 package database
 
 import (
+	"errors"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/thrasher-/gocryptotrader/database/drivers"
 )
@@ -18,3 +20,7 @@ type Config struct {
 }
 
 var Conn = &Database{}
+
+var (
+	ErrNoDatabaseProvided = errors.New("no database provided")
+)
