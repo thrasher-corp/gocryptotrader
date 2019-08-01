@@ -484,11 +484,10 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 // After merging WS data, it will sort, validate and finally update the existing orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, tableName string) error {
 	update := ob.WebsocketOrderbookUpdate{
-		ExchangeName:  o.Name,
-		BufferEnabled: false,
-		AssetType:     "SPOT",
-		CurrencyPair:  instrument,
-		UpdateTime:    wsEventData.Timestamp,
+		ExchangeName: o.Name,
+		AssetType:    "SPOT",
+		CurrencyPair: instrument,
+		UpdateTime:   wsEventData.Timestamp,
 	}
 	update.Asks = o.AppendWsOrderbookItems(wsEventData.Asks)
 	update.Bids = o.AppendWsOrderbookItems(wsEventData.Bids)

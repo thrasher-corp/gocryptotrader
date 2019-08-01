@@ -316,13 +316,14 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			}
 		}
 		err := g.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-			Asks:          asks,
-			Bids:          bids,
-			CurrencyPair:  pair,
-			UpdateTime:    time.Unix(result.Timestamp, 0),
-			ExchangeName:  g.Name,
-			AssetType:     "SPOT",
-			BufferEnabled: true,
+			Asks:           asks,
+			Bids:           bids,
+			CurrencyPair:   pair,
+			UpdateTime:     time.Unix(result.Timestamp, 0),
+			ExchangeName:   g.Name,
+			AssetType:      "SPOT",
+			SortingEnabled: true,
+			BufferEnabled:  true,
 		})
 		if err != nil {
 			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)

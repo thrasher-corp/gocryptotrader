@@ -499,10 +499,11 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book []WebsocketBook) error {
 	orderbookUpdate := ob.WebsocketOrderbookUpdate{
-		Asks:         []orderbook.Item{},
-		Bids:         []orderbook.Item{},
-		AssetType:    assetType,
-		ExchangeName: b.Name,
+		Asks:          []orderbook.Item{},
+		Bids:          []orderbook.Item{},
+		AssetType:     assetType,
+		ExchangeName:  b.Name,
+		BufferEnabled: true,
 	}
 
 	for i := 0; i < len(book); i++ {
@@ -523,8 +524,6 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book []W
 				// delete ask
 				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: 0, Price: book[i].Price})
 			}
-		default:
-			// unhandled
 		}
 	}
 	orderbookUpdate.UpdateTime = time.Now()

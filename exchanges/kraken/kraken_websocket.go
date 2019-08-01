@@ -390,10 +390,11 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obData map[string]interface{}) error {
 	update := ob.WebsocketOrderbookUpdate{
-		BufferEnabled: true,
 		AssetType:     krakenWsAssetType,
 		ExchangeName:  k.Name,
 		CurrencyPair:  channelData.Pair,
+		SortingEnabled: true,
+		BufferEnabled: true,
 	}
 	var highestLastUpdate time.Time
 	// Ask data is not always sent

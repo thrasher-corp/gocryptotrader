@@ -387,14 +387,15 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		}
 
 		err := b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-			Bids:         bids,
-			Asks:         asks,
-			CurrencyPair: currencyPair,
-			UpdateTime:   time.Now(),
-			ExchangeName: b.Name,
-			AssetType:    assetType,
-			UpdateByIDs:  true,
-			Action:       action,
+			Bids:           bids,
+			Asks:           asks,
+			CurrencyPair:   currencyPair,
+			UpdateTime:     time.Now(),
+			ExchangeName:   b.Name,
+			AssetType:      assetType,
+			UpdateByIDs:    true,
+			Action:         action,
+			BufferEnabled:  true,
 		})
 		if err != nil {
 			return err

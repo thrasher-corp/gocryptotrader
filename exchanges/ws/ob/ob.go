@@ -6,9 +6,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-
 	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -46,7 +45,7 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpda
 	}
 	if orderbookUpdate.BufferEnabled {
 		// Reset the buffer
-		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = []WebsocketOrderbookUpdate{}
+		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = nil
 	}
 	return nil
 }
@@ -59,21 +58,25 @@ func (w *WebsocketOrderbookLocal) ProcessBufferUpdate(orderbookUpdate *Websocket
 		w.buffer[orderbookUpdate.CurrencyPair] = make(map[string][]WebsocketOrderbookUpdate)
 	}
 	if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) <= wsOrderbookBufferLimit {
-		log.Debugf("%v adding to ob buffer %v %v %v/%v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType, len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]), wsOrderbookBufferLimit)
 		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = append(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], *orderbookUpdate)
+		if w.Verbose {
+			log.Debugf("%v added to ob buffer %v %v %v/%v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType, len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]), wsOrderbookBufferLimit)
+		}
 		if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) < wsOrderbookBufferLimit {
 			return false
 		}
 	}
-	// sort by last updated to ensure each update is in order
-	if orderbookUpdate.OrderByUpdateIDs {
-		sort.Slice(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
-			return w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateID < w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateID
-		})
-	} else {
-		sort.Slice(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
-			return w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateTime.Before(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateTime)
-		})
+	if orderbookUpdate.SortingEnabled {
+		// sort by last updated to ensure each update is in order
+		if orderbookUpdate.OrderByUpdateIDs {
+			sort.Slice(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
+				return w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateID < w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateID
+			})
+		} else {
+			sort.Slice(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
+				return w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateTime.Before(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateTime)
+			})
+		}
 	}
 	for i := 0; i < len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]); i++ {
 		w.ProcessObUpdate(&w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i])
@@ -137,11 +140,8 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(base *WebsocketOrderbookUpda
 	wg.Done()
 }
 
-// updateByIDAndAction studies the thing,
-// understands its true purpose,
-// reflects on how it impacts the world around us.
-//
-// Then fucking does it
+// updateByIDAndAction will receive an action to execute against the orderbook
+// it will then match by IDs instead of price to perform the action
 func (w *WebsocketOrderbookLocal) updateByIDAndAction(orderbookUpdate *WebsocketOrderbookUpdate) {
 	switch orderbookUpdate.Action {
 	case "update":

@@ -93,13 +93,14 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 	currencyPair := currency.NewPairFromString(wsdp.Pair)
 
 	return b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-		Bids:          updateBid,
-		Asks:          updateAsk,
-		CurrencyPair:  currencyPair,
-		UpdateTime:    updatedTime,
-		ExchangeName:  b.GetName(),
-		AssetType:     "SPOT",
-		BufferEnabled: true,
+		Bids:           updateBid,
+		Asks:           updateAsk,
+		CurrencyPair:   currencyPair,
+		UpdateTime:     updatedTime,
+		ExchangeName:   b.GetName(),
+		AssetType:      "SPOT",
+		SortingEnabled: true,
+		BufferEnabled:  true,
 	})
 }
 

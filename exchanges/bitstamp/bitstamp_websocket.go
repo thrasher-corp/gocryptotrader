@@ -200,12 +200,13 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		}
 	}
 	err := b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-		Bids:         bids,
-		Asks:         asks,
-		CurrencyPair: p,
-		UpdateTime:   time.Now(),
-		ExchangeName: b.Name,
-		AssetType:    "SPOT",
+		Bids:          bids,
+		Asks:          asks,
+		CurrencyPair:  p,
+		UpdateTime:    time.Now(),
+		ExchangeName:  b.Name,
+		AssetType:     "SPOT",
+		BufferEnabled: true,
 	})
 	if err != nil {
 		return err

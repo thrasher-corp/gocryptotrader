@@ -11,14 +11,16 @@ import (
 // WebsocketOrderbookLocal defines a local cache of orderbooks for amending,
 // appending and deleting changes and updates the main store in ob.go
 type WebsocketOrderbookLocal struct {
-	ob     map[currency.Pair]map[string]*orderbook.Base
-	buffer map[currency.Pair]map[string][]WebsocketOrderbookUpdate
-	m      sync.Mutex
+	ob      map[currency.Pair]map[string]*orderbook.Base
+	buffer  map[currency.Pair]map[string][]WebsocketOrderbookUpdate
+	m       sync.Mutex
+	Verbose bool
 }
 
 // WebsocketOrderbookUpdate contains cool info on how to update the websocket ob yeah man
 type WebsocketOrderbookUpdate struct {
 	BufferEnabled    bool
+	SortingEnabled   bool
 	OrderByUpdateIDs bool  // When timestamps arent provided, an id can help sort
 	UpdateByIDs      bool  // Use the update IDs to match ob entries
 	UpdateID         int64 // Used when no time is provided
