@@ -506,23 +506,24 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book []W
 	}
 
 	for i := 0; i < len(book); i++ {
-		if book[i].Count > 0 {
+		switch {
+		case book[i].Count > 0:
 			if book[i].Amount > 0 {
-				//update bid
+				// update bid
 				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{Amount: book[i].Amount, Price: book[i].Price})
 			} else if book[i].Amount < 0 {
-				//update ask
+				// update ask
 				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: book[i].Amount * -1, Price: book[i].Price})
 			}
-		} else if book[i].Count == 0 {
+		case book[i].Count == 0:
 			if book[i].Amount == 1 {
-				//delete bid
+				// delete bid
 				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{Amount: 0, Price: book[i].Price})
 			} else if book[i].Amount == -1 {
-				//delete ask
+				// delete ask
 				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: 0, Price: book[i].Price})
 			}
-		} else {
+		default:
 			// unhandled
 		}
 	}

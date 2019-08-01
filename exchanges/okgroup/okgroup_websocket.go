@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -487,50 +488,39 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		BufferEnabled: false,
 		AssetType:     "SPOT",
 		CurrencyPair:  instrument,
+		UpdateTime:    wsEventData.Timestamp,
 	}
-	update.Asks = o.WsUpdateOrderbookEntry(wsEventData.Asks)
-	update.Bids = o.WsUpdateOrderbookEntry(wsEventData.Bids)
-	/*checksum := o.CalculateUpdateOrderbookChecksum(&internalOrderbook)
-	if checksum == wsEventData.Checksum {
-		if o.Verbose {
-			log.Debug("Orderbook valid")
-		}
-		update.UpdateTime = wsEventData.Timestamp
-		if o.Verbose {
-			log.Debug("Internalising orderbook")
-		}
-	*/
+	update.Asks = o.AppendWsOrderbookItems(wsEventData.Asks)
+	update.Bids = o.AppendWsOrderbookItems(wsEventData.Bids)
 	err := o.Websocket.Orderbook.Update(&update)
 	if err != nil {
 		log.Error(err)
 	}
-	o.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
-		Exchange: o.GetName(),
-		Asset:    o.GetAssetTypeFromTableName(tableName),
-		Pair:     instrument,
-	}
-	/*
-		} else {
-			if o.Verbose {
-				log.Debug("Orderbook invalid")
-			}
-			return fmt.Errorf("channel: %v. Orderbook update for %v checksum invalid. Received %v Calculated %v", tableName, instrument, wsEventData.Checksum, checksum)
-		}*/
-	return nil
-}
+	updatedOb := o.Websocket.Orderbook.GetOrderbook(instrument, "SPOT")
+	sort.Slice(updatedOb.Asks, func(i, j int) bool {
+		return updatedOb.Asks[i].Price < updatedOb.Asks[j].Price
+	})
+	sort.Slice(updatedOb.Bids, func(i, j int) bool {
+		return updatedOb.Bids[i].Price > updatedOb.Bids[j].Price
+	})
+	checksum := o.CalculateUpdateOrderbookChecksum(updatedOb)
+	if checksum == wsEventData.Checksum {
+		if o.Verbose {
+			log.Debug("Orderbook valid")
+		}
+		o.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+			Exchange: o.GetName(),
+			Asset:    o.GetAssetTypeFromTableName(tableName),
+			Pair:     instrument,
+		}
 
-// WsUpdateOrderbookEntry takes WS bid or ask data and merges it with existing orderbook bid or ask data
-func (o *OKGroup) WsUpdateOrderbookEntry(wsEntries [][]interface{}) []orderbook.Item {
-	var response []orderbook.Item
-	for j := range wsEntries {
-		wsEntryPrice, _ := strconv.ParseFloat(wsEntries[j][0].(string), 64)
-		wsEntryAmount, _ := strconv.ParseFloat(wsEntries[j][1].(string), 64)
-		response = append(response, orderbook.Item{
-			Amount: wsEntryAmount,
-			Price:  wsEntryPrice,
-		})
+	} else {
+		if o.Verbose {
+			log.Debug("Orderbook invalid")
+		}
+		return fmt.Errorf("channel: %v. Orderbook update for %v checksum invalid. Received %v Calculated %v", tableName, instrument, wsEventData.Checksum, checksum)
 	}
-	return response
+	return nil
 }
 
 // CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data
