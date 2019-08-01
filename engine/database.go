@@ -96,7 +96,7 @@ func (a *databaseManager) run() {
 	log.Debugln(log.DatabaseMgr, "database manager started.")
 	Bot.ServicesWG.Add(1)
 
-	t := time.NewTicker(time.Second * 5)
+	t := time.NewTicker(time.Second * 30)
 	a.running.Store(true)
 
 	defer func() {
