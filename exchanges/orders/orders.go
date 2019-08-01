@@ -30,7 +30,6 @@ func NewOrder(exchangeName string, amount, price float64) int {
 	order.Amount = amount
 	order.Price = price
 	Orders = append(Orders, order)
-
 	return order.OrderID
 }
 

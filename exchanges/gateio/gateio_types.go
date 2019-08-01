@@ -73,7 +73,7 @@ type KLineResponse struct {
 	Low       float64
 	Close     float64
 	Volume    float64
-	Amount    float64 `database:"amount"`
+	Amount    float64 `db:"amount"`
 }
 
 // TickerResponse  holds the ticker response data
