@@ -5,8 +5,6 @@ import (
 	"flag"
 	"fmt"
 
-	audit "github.com/thrasher-/gocryptotrader/database/repository/audit"
-
 	"os"
 	"os/signal"
 	"sync"
@@ -389,8 +387,6 @@ func (e *Engine) Start() {
 	if e.Settings.EnableEventManager {
 		go EventManger()
 	}
-
-	audit.Event("test", "test", "test")
 
 	<-e.Shutdown
 	e.Stop()
