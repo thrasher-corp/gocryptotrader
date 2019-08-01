@@ -117,8 +117,8 @@ func (g *Gemini) SetDefaults() {
 	g.SupportsAutoPairUpdating = true
 	g.SupportsRESTTickerBatching = false
 	g.Requester = request.New(g.Name,
-		request.NewRateLimit(time.Minute, geminiAuthRate),
-		request.NewRateLimit(time.Minute, geminiUnauthRate),
+		request.NewRateLimit(time.Second, geminiAuthRate),
+		request.NewRateLimit(time.Second, geminiUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	g.APIUrlDefault = geminiAPIURL
 	g.APIUrl = g.APIUrlDefault

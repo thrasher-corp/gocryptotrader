@@ -135,7 +135,7 @@ func (w *WebsocketConnection) ReadMessage() (monitor.WebsocketResponse, error) {
 	return monitor.WebsocketResponse{Raw: standardMessage, Type: mType}, nil
 }
 
-// parseBinaryResponse parses a websocket binaray response into a usable byte array
+// parseBinaryResponse parses a websocket binary response into a usable byte array
 func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	var standardMessage []byte
 	var err error

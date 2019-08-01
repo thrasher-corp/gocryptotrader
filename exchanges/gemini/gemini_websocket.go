@@ -273,7 +273,6 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 				})
 			}
 		}
-
 		var newOrderBook orderbook.Base
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
@@ -291,27 +290,27 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			Exchange: g.GetName()}
 	} else {
 		var asks, bids []orderbook.Item
-		for _, event := range result.Events {
-			if event.Type == "trade" {
+		for i := 0; i < len(result.Events); i++ {
+			if result.Events[i].Type == "trade" {
 				g.Websocket.DataHandler <- monitor.TradeData{
 					Timestamp:    time.Now(),
 					CurrencyPair: pair,
 					AssetType:    "SPOT",
 					Exchange:     g.Name,
 					EventTime:    result.Timestamp,
-					Price:        event.Price,
-					Amount:       event.Amount,
-					Side:         event.MakerSide,
+					Price:        result.Events[i].Price,
+					Amount:       result.Events[i].Amount,
+					Side:         result.Events[i].MakerSide,
 				}
 			} else {
-				i := orderbook.Item{
-					Amount: event.Remaining,
-					Price:  event.Price,
+				item := orderbook.Item{
+					Amount: result.Events[i].Remaining,
+					Price:  result.Events[i].Price,
 				}
-				if event.Side == "ask" {
-					asks = append(asks, i)
+				if result.Events[i].Side == "ask" {
+					asks = append(asks, item)
 				} else {
-					bids = append(bids, i)
+					bids = append(bids, item)
 				}
 			}
 		}
@@ -319,7 +318,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			Asks:           asks,
 			Bids:           bids,
 			CurrencyPair:   pair,
-			UpdateTime:     time.Unix(result.Timestamp, 0),
+			UpdateTime:     time.Unix(0, result.TimestampMS),
 			ExchangeName:   g.Name,
 			AssetType:      "SPOT",
 			SortingEnabled: true,

@@ -59,9 +59,6 @@ func (w *WebsocketOrderbookLocal) ProcessBufferUpdate(orderbookUpdate *Websocket
 	}
 	if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) <= wsOrderbookBufferLimit {
 		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = append(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], *orderbookUpdate)
-		if w.Verbose {
-			log.Debugf("%v added to ob buffer %v %v %v/%v", orderbookUpdate.ExchangeName, orderbookUpdate.CurrencyPair, orderbookUpdate.AssetType, len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]), wsOrderbookBufferLimit)
-		}
 		if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) < wsOrderbookBufferLimit {
 			return false
 		}
