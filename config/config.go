@@ -1281,7 +1281,7 @@ func (c *Config) CheckLoggerConfig() error {
 	return nil
 }
 
-func (c *Config) CheckDatabaseConfig() error {
+func (c *Config) checkDatabaseConfig() error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -1619,7 +1619,7 @@ func (c *Config) CheckConfig() error {
 		log.Errorf(log.ConfigMgr, "Failed to configure logger, some logging features unavailable: %s\n", err)
 	}
 
-	err = c.CheckDatabaseConfig()
+	err = c.checkDatabaseConfig()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Failed to configure database: %v", err)
 	}

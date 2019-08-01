@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-
 	"os"
 	"os/signal"
 	"sync"

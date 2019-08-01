@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/database"
 )
 
+// Connect establishes a connection pool to the database
 func Connect() (*database.Database, error) {
 	connConfig := pgx.ConnConfig{
 		Host:     database.Conn.Config.Host,

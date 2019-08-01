@@ -10,10 +10,13 @@ import (
 type auditRepo struct {
 }
 
+// Audit returns a new instance of auditRepo
 func Audit() audit.Repository {
 	return &auditRepo{}
 }
 
+// AddEvent writes event to database
+// writes are done using a transaction with a rollback on error
 func (pg *auditRepo) AddEvent(event *models.Event) {
 	if pg == nil {
 		return

@@ -4,6 +4,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/database"
 )
 
+// Setup is any post connection steps to run such as migration etc
 func Setup() (err error) {
 	err = createAuditTable()
 	return
