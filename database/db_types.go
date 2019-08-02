@@ -17,13 +17,12 @@ type Database struct {
 
 // Config holds connection information about the database what the driver type is and if its enabled or not
 type Config struct {
-	Enabled                   *bool  `json:"enabled"`
+	Enabled                   bool   `json:"enabled"`
 	Driver                    string `json:"driver"`
 	drivers.ConnectionDetails `json:"connectionDetails"`
 }
 
 // Conn is a global copy of Database{} struct
-
 var Conn = &Database{}
 
 var (

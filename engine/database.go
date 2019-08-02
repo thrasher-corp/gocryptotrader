@@ -7,15 +7,11 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/database"
-
-	audit "github.com/thrasher-/gocryptotrader/database/repository/audit"
-
 	db "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
-
+	"github.com/thrasher-/gocryptotrader/database/repository/audit"
 	auditPSQL "github.com/thrasher-/gocryptotrader/database/repository/audit/postgres"
 	auditSQLite "github.com/thrasher-/gocryptotrader/database/repository/audit/sqlite"
-
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -41,7 +37,7 @@ func (a *databaseManager) Start() (err error) {
 
 	a.shutdown = make(chan struct{})
 
-	if *Bot.Config.Database.Enabled {
+	if Bot.Config.Database.Enabled {
 		if Bot.Config.Database.Driver == "postgres" {
 			dbConn, err = db.Connect()
 			if err != nil {

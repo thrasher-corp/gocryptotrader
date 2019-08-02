@@ -4,12 +4,10 @@ import (
 	"github.com/thrasher-/gocryptotrader/database"
 	"github.com/thrasher-/gocryptotrader/database/models"
 	"github.com/thrasher-/gocryptotrader/database/repository/audit"
-
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-type auditRepo struct {
-}
+type auditRepo struct{}
 
 // Audit returns a new instance of auditRepo
 func Audit() audit.Repository {

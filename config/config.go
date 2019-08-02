@@ -16,14 +16,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/database"
-
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/common/convert"
 	"github.com/thrasher-/gocryptotrader/connchecker"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/database"
 	"github.com/thrasher-/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -1284,12 +1283,6 @@ func (c *Config) CheckLoggerConfig() error {
 func (c *Config) checkDatabaseConfig() error {
 	m.Lock()
 	defer m.Unlock()
-
-	f := func(f bool) *bool { return &f }(false)
-
-	if c.Database.Enabled == nil {
-		c.Database.Enabled = f
-	}
 
 	if c.Database.Driver == "sqlite" {
 		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")

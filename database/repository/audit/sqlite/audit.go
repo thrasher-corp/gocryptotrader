@@ -7,8 +7,7 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-type auditRepo struct {
-}
+type auditRepo struct{}
 
 // Audit returns a new instance of auditRepo
 func Audit() audit.Repository {

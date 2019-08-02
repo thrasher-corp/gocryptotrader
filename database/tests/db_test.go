@@ -16,10 +16,9 @@ import (
 
 var (
 	tempDir string
-	trueptr = func(b bool) *bool { return &b }(true)
 
 	postgresTestDatabase = database.Config{
-		Enabled:           trueptr,
+		Enabled:           true,
 		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
 			// Host:     "",
