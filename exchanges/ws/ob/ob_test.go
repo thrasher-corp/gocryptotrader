@@ -1,6 +1,7 @@
 package ob
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -41,6 +42,7 @@ func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, b
 	return
 }
 
+// BenchmarkBufferPerformance demonstrates buffer more performant than multi process calls
 func BenchmarkBufferPerformance(b *testing.B) {
 	obl, curr, asks, bids, err := createSnapshot()
 	if err != nil {
@@ -66,6 +68,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 	}
 }
 
+// BenchmarkBufferSortingPerformance benchmark
 func BenchmarkBufferSortingPerformance(b *testing.B) {
 	obl, curr, asks, bids, err := createSnapshot()
 	if err != nil {
@@ -92,6 +95,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	}
 }
 
+// BenchmarkNoBufferPerformance demonstrates orderbook process less performant than buffer
 func BenchmarkNoBufferPerformance(b *testing.B) {
 	obl, curr, asks, bids, err := createSnapshot()
 	if err != nil {
@@ -116,6 +120,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 	}
 }
 
+// TestHittingTheBuffer logic test
 func TestHittingTheBuffer(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()
 	if err != nil {
@@ -146,6 +151,7 @@ func TestHittingTheBuffer(t *testing.T) {
 	}
 }
 
+// TestInsertWithIDs logic test
 func TestInsertWithIDs(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()
 	if err != nil {
@@ -177,6 +183,7 @@ func TestInsertWithIDs(t *testing.T) {
 	}
 }
 
+// TestSortIDs logic test
 func TestSortIDs(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()
 	if err != nil {
@@ -207,6 +214,7 @@ func TestSortIDs(t *testing.T) {
 	}
 }
 
+// TestOutOfOrderIDs logic test
 func TestOutOfOrderIDs(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()
 	if err != nil {
@@ -237,6 +245,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 	}
 }
 
+// TestDeleteWithIDs logic test
 func TestDeleteWithIDs(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()
 	if err != nil {
@@ -267,6 +276,7 @@ func TestDeleteWithIDs(t *testing.T) {
 	}
 }
 
+// TestUpdateWithIDs logic test
 func TestUpdateWithIDs(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()
 	if err != nil {
@@ -298,6 +308,7 @@ func TestUpdateWithIDs(t *testing.T) {
 	}
 }
 
+// TestRunUpdateWithoutSnapshot logic test
 func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
@@ -329,7 +340,8 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	}
 }
 
-func TestRunUpdateWithoutAnyUpdatesLol(t *testing.T) {
+// TestRunUpdateWithoutAnyUpdates logic test
+func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
 	curr := currency.NewPairFromString("BTCUSD")
@@ -348,12 +360,13 @@ func TestRunUpdateWithoutAnyUpdatesLol(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error running update with no snapshot loaded")
 	}
-	if err.Error() != "cannot have bids and ask targets both nil" {
-		t.Fatal(err)
+	if err.Error() != fmt.Sprintf("%v cannot have bids and ask targets both nil", exchangeName) {
+		t.Fatal("expected nil asks and bids error")
 	}
 }
 
-func TestRunSnapshotWithNoDataLmao(t *testing.T) {
+// TestRunSnapshotWithNoData logic test
+func TestRunSnapshotWithNoData(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
 	curr := currency.NewPairFromString("BTCUSD")
@@ -372,6 +385,7 @@ func TestRunSnapshotWithNoDataLmao(t *testing.T) {
 	}
 }
 
+// TestLoadSnapshotWithOverride logic test
 func TestLoadSnapshotWithOverride(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
@@ -400,6 +414,7 @@ func TestLoadSnapshotWithOverride(t *testing.T) {
 	}
 }
 
+// TestInsertWithIDs logic test
 func TestFlushCache(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()
 	if err != nil {
@@ -415,6 +430,7 @@ func TestFlushCache(t *testing.T) {
 
 }
 
+// TestInsertingSnapShots logic test
 func TestInsertingSnapShots(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
@@ -450,9 +466,10 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = currency.NewPairFromString("BTCUSD")
-
-	obl.LoadSnapshot(&snapShot1, exchangeName, false)
-
+	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var snapShot2 orderbook.Base
 	asks = []orderbook.Item{
 		{Price: 51, Amount: 1, ID: 1},
@@ -486,9 +503,10 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.Bids = bids
 	snapShot2.AssetType = spot
 	snapShot2.Pair = currency.NewPairFromString("LTCUSD")
-
-	obl.LoadSnapshot(&snapShot2, exchangeName, false)
-
+	err = obl.LoadSnapshot(&snapShot2, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var snapShot3 orderbook.Base
 	asks = []orderbook.Item{
 		{Price: 511, Amount: 1, ID: 1},
@@ -522,8 +540,10 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.Bids = bids
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
-
-	obl.LoadSnapshot(&snapShot3, exchangeName, false)
+	err = obl.LoadSnapshot(&snapShot3, exchangeName, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if obl.ob[snapShot1.Pair][snapShot1.AssetType].Asks[0] != snapShot1.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v", snapShot1.Asks[0], obl.ob[snapShot1.Pair][snapShot1.AssetType].Asks[0])
 	}

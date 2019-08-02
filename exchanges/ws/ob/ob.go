@@ -8,7 +8,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const wsOrderbookBufferLimit = 5
@@ -21,7 +20,7 @@ const wsOrderbookBufferLimit = 5
 func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpdate) error {
 	if (orderbookUpdate.Bids == nil && orderbookUpdate.Asks == nil) ||
 		(len(orderbookUpdate.Bids) == 0 && len(orderbookUpdate.Asks) == 0) {
-		return errors.New("cannot have bids and ask targets both nil")
+		return fmt.Errorf("%v cannot have bids and ask targets both nil", orderbookUpdate.ExchangeName)
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
