@@ -19,14 +19,14 @@ var (
 	trueptr = func(b bool) *bool { return &b }(true)
 
 	postgresTestDatabase = database.Config{
-		Enabled: trueptr,
-		Driver:  "postgres",
+		Enabled:           trueptr,
+		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Port:     5432,
-			Username: "gct",
-			Password: "test1234",
-			Database: "gct",
+			// Host:     "",
+			// Port:     5432,
+			// Username: "",
+			// Password: "",
+			// Database: "",
 		},
 	}
 )
