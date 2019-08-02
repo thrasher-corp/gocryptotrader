@@ -276,7 +276,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		var newOrderBook orderbook.Base
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
-		newOrderBook.AssetType = "SPOT"
+		newOrderBook.AssetType = orderbook.Spot
 		newOrderBook.Pair = pair
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
 			g.GetName(),
@@ -286,7 +286,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			return
 		}
 		g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    "SPOT",
+			Asset:    orderbook.Spot,
 			Exchange: g.GetName()}
 	} else {
 		var asks, bids []orderbook.Item
@@ -295,7 +295,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 				g.Websocket.DataHandler <- monitor.TradeData{
 					Timestamp:    time.Now(),
 					CurrencyPair: pair,
-					AssetType:    "SPOT",
+					AssetType:    orderbook.Spot,
 					Exchange:     g.Name,
 					EventTime:    result.Timestamp,
 					Price:        result.Events[i].Price,
@@ -315,20 +315,20 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			}
 		}
 		err := g.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-			Asks:           asks,
-			Bids:           bids,
-			CurrencyPair:   pair,
-			UpdateTime:     time.Unix(0, result.TimestampMS),
-			ExchangeName:   g.Name,
-			AssetType:      "SPOT",
-			SortingEnabled: true,
-			BufferEnabled:  true,
+			Asks:          asks,
+			Bids:          bids,
+			CurrencyPair:  pair,
+			UpdateTime:    time.Unix(0, result.TimestampMS),
+			ExchangeName:  g.Name,
+			AssetType:     orderbook.Spot,
+			SortBuffer:    true,
+			BufferEnabled: true,
 		})
 		if err != nil {
 			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
 		}
 		g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    "SPOT",
+			Asset:    orderbook.Spot,
 			Exchange: g.GetName()}
 	}
 }

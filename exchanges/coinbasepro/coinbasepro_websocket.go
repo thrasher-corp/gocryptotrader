@@ -90,7 +90,7 @@ func (c *CoinbasePro) WsHandleData() {
 				c.Websocket.DataHandler <- monitor.TickerData{
 					Timestamp:  ticker.Time,
 					Pair:       currency.NewPairFromString(ticker.ProductID),
-					AssetType:  "SPOT",
+					AssetType:  orderbook.Spot,
 					Exchange:   c.GetName(),
 					OpenPrice:  ticker.Open24H,
 					HighPrice:  ticker.High24H,
@@ -210,7 +210,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	}
 
 	pair := currency.NewPairFromString(snapshot.ProductID)
-	base.AssetType = "SPOT"
+	base.AssetType = orderbook.Spot
 	base.Pair = pair
 
 	err := c.Websocket.Orderbook.LoadSnapshot(&base, c.GetName(), false)
@@ -220,7 +220,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 
 	c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Pair:     pair,
-		Asset:    "SPOT",
+		Asset:    orderbook.Spot,
 		Exchange: c.GetName(),
 	}
 
@@ -247,15 +247,19 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	}
 
 	p := currency.NewPairFromString(update.ProductID)
-
-	err := c.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
+	timestamp, err := time.Parse(time.RFC3339, update.Time)
+	if err != nil {
+		return err
+	}
+	err = c.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
 		Bids:          bids,
 		Asks:          asks,
 		CurrencyPair:  p,
-		UpdateTime:    time.Now(),
+		UpdateTime:    timestamp,
 		ExchangeName:  c.Name,
-		AssetType:     "SPOT",
+		AssetType:     orderbook.Spot,
 		BufferEnabled: true,
+		SortBuffer:    true,
 	})
 	if err != nil {
 		return err
@@ -263,7 +267,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 
 	c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Pair:     p,
-		Asset:    "SPOT",
+		Asset:    orderbook.Spot,
 		Exchange: c.GetName(),
 	}
 

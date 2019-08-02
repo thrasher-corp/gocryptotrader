@@ -95,7 +95,7 @@ func (b *BTSE) WsHandleData() {
 				b.Websocket.DataHandler <- monitor.TickerData{
 					Timestamp: time.Now(),
 					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
-					AssetType: "SPOT",
+					AssetType: orderbook.Spot,
 					Exchange:  b.GetName(),
 					OpenPrice: price,
 				}
@@ -155,19 +155,19 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	}
 
 	p := currency.NewPairDelimiter(snapshot.ProductID, "-")
-	base.AssetType = "SPOT"
+	base.AssetType = orderbook.Spot
 	base.Pair = p
 	base.LastUpdated = time.Now()
 	base.ExchangeName = b.Name
 
-	err := base.Process()
+	err := b.Websocket.Orderbook.LoadSnapshot(&base, b.Name, true)
 	if err != nil {
 		return err
 	}
 
 	b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 		Pair:     p,
-		Asset:    "SPOT",
+		Asset:    orderbook.Spot,
 		Exchange: b.GetName(),
 	}
 

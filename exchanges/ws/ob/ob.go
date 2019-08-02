@@ -31,12 +31,12 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpda
 			orderbookUpdate.AssetType)
 	}
 	if orderbookUpdate.BufferEnabled {
-		overBufferLimit := w.ProcessBufferUpdate(orderbookUpdate)
+		overBufferLimit := w.processBufferUpdate(orderbookUpdate)
 		if !overBufferLimit {
 			return nil
 		}
 	} else {
-		w.ProcessObUpdate(orderbookUpdate)
+		w.processObUpdate(orderbookUpdate)
 	}
 	err := w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType].Process()
 	if err != nil {
@@ -49,7 +49,7 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpda
 	return nil
 }
 
-func (w *WebsocketOrderbookLocal) ProcessBufferUpdate(orderbookUpdate *WebsocketOrderbookUpdate) bool {
+func (w *WebsocketOrderbookLocal) processBufferUpdate(orderbookUpdate *WebsocketOrderbookUpdate) bool {
 	if w.buffer == nil {
 		w.buffer = make(map[currency.Pair]map[string][]WebsocketOrderbookUpdate)
 	}
@@ -62,9 +62,9 @@ func (w *WebsocketOrderbookLocal) ProcessBufferUpdate(orderbookUpdate *Websocket
 			return false
 		}
 	}
-	if orderbookUpdate.SortingEnabled {
+	if orderbookUpdate.SortBuffer {
 		// sort by last updated to ensure each update is in order
-		if orderbookUpdate.OrderByUpdateIDs {
+		if orderbookUpdate.SortBufferByUpdateIDs {
 			sort.Slice(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
 				return w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateID < w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateID
 			})
@@ -75,13 +75,13 @@ func (w *WebsocketOrderbookLocal) ProcessBufferUpdate(orderbookUpdate *Websocket
 		}
 	}
 	for i := 0; i < len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]); i++ {
-		w.ProcessObUpdate(&w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i])
+		w.processObUpdate(&w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i])
 	}
 	return true
 }
 
-func (w *WebsocketOrderbookLocal) ProcessObUpdate(orderbookUpdate *WebsocketOrderbookUpdate) {
-	if orderbookUpdate.UpdateByIDs {
+func (w *WebsocketOrderbookLocal) processObUpdate(orderbookUpdate *WebsocketOrderbookUpdate) {
+	if orderbookUpdate.UpdateEntriesByID {
 		w.updateByIDAndAction(orderbookUpdate)
 	} else {
 		var wg sync.WaitGroup
@@ -111,6 +111,9 @@ func (w *WebsocketOrderbookLocal) updateAsksByPrice(base *WebsocketOrderbookUpda
 			w.ob[base.CurrencyPair][base.AssetType].Asks = append(w.ob[base.CurrencyPair][base.AssetType].Asks, base.Asks[j])
 		}
 	}
+	sort.Slice(w.ob[base.CurrencyPair][base.AssetType].Asks, func(i, j int) bool {
+		return w.ob[base.CurrencyPair][base.AssetType].Asks[i].Price < w.ob[base.CurrencyPair][base.AssetType].Asks[j].Price
+	})
 	wg.Done()
 }
 
@@ -133,6 +136,9 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(base *WebsocketOrderbookUpda
 			w.ob[base.CurrencyPair][base.AssetType].Bids = append(w.ob[base.CurrencyPair][base.AssetType].Bids, base.Bids[j])
 		}
 	}
+	sort.Slice(w.ob[base.CurrencyPair][base.AssetType].Bids, func(i, j int) bool {
+		return w.ob[base.CurrencyPair][base.AssetType].Bids[i].Price > w.ob[base.CurrencyPair][base.AssetType].Bids[j].Price
+	})
 	wg.Done()
 }
 
@@ -213,7 +219,6 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exc
 }
 
 // GetOrderbook use sparingly. Modifying anything here will ruin hash calculation and cause problems
-// Use it to calculate a hash
 func (w *WebsocketOrderbookLocal) GetOrderbook(p currency.Pair, assetType string) *orderbook.Base {
 	w.m.Lock()
 	defer w.m.Unlock()

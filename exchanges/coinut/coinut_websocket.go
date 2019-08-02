@@ -139,7 +139,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		c.Websocket.DataHandler <- monitor.TickerData{
 			Timestamp:  time.Unix(0, ticker.Timestamp),
 			Exchange:   c.GetName(),
-			AssetType:  "SPOT",
+			AssetType:  orderbook.Spot,
 			HighPrice:  ticker.HighestBuy,
 			LowPrice:   ticker.LowestSell,
 			ClosePrice: ticker.Last,
@@ -161,7 +161,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		currencyPair := instrumentListByCode[orderbooksnapshot.InstID]
 		c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 			Exchange: c.GetName(),
-			Asset:    "SPOT",
+			Asset:    orderbook.Spot,
 			Pair:     currency.NewPairFromString(currencyPair),
 		}
 	case "inst_order_book_update":
@@ -179,7 +179,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		currencyPair := instrumentListByCode[orderbookUpdate.InstID]
 		c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 			Exchange: c.GetName(),
-			Asset:    "SPOT",
+			Asset:    orderbook.Spot,
 			Pair:     currency.NewPairFromString(currencyPair),
 		}
 	case "inst_trade":
@@ -201,7 +201,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		c.Websocket.DataHandler <- monitor.TradeData{
 			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: currency.NewPairFromString(currencyPair),
-			AssetType:    "SPOT",
+			AssetType:    orderbook.Spot,
 			Exchange:     c.GetName(),
 			Price:        tradeUpdate.Price,
 			Side:         tradeUpdate.Side,
@@ -230,7 +230,7 @@ func (c *COINUT) GetNonce() int64 {
 func (c *COINUT) WsSetInstrumentList() error {
 	request := wsRequest{
 		Request: "inst_list",
-		SecType: "SPOT",
+		SecType: orderbook.Spot,
 		Nonce:   c.WebsocketConn.GenerateMessageID(false),
 	}
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(request.Nonce, request)
@@ -274,7 +274,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = currency.NewPairFromString(instrumentListByCode[ob.InstID])
-	newOrderBook.AssetType = "SPOT"
+	newOrderBook.AssetType = orderbook.Spot
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook, c.GetName(), false)
 }
@@ -283,13 +283,13 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 	p := currency.NewPairFromString(instrumentListByCode[update.InstID])
 	bufferUpdate := &ob.WebsocketOrderbookUpdate{
-		CurrencyPair:   p,
-		UpdateID:       update.TransID,
-		ExchangeName:   c.Name,
-		AssetType:      "SPOT",
-		UpdateByIDs:    true,
-		SortingEnabled: true,
-		BufferEnabled:  true,
+		CurrencyPair:      p,
+		UpdateID:          update.TransID,
+		ExchangeName:      c.Name,
+		AssetType:         orderbook.Spot,
+		UpdateEntriesByID: true,
+		SortBuffer:        true,
+		BufferEnabled:     true,
 	}
 	if strings.EqualFold(update.Side, "buy") {
 		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}

@@ -205,7 +205,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		CurrencyPair:  p,
 		UpdateTime:    time.Now(),
 		ExchangeName:  b.Name,
-		AssetType:     "SPOT",
+		AssetType:     orderbook.Spot,
 		BufferEnabled: true,
 	})
 	if err != nil {

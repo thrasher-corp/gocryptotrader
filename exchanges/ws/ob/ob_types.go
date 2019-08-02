@@ -18,16 +18,16 @@ type WebsocketOrderbookLocal struct {
 
 // WebsocketOrderbookUpdate contains cool info on how to update the websocket ob yeah man
 type WebsocketOrderbookUpdate struct {
-	BufferEnabled    bool
-	SortingEnabled   bool
-	OrderByUpdateIDs bool  // When timestamps arent provided, an id can help sort
-	UpdateByIDs      bool  // Use the update IDs to match ob entries
-	UpdateID         int64 // Used when no time is provided
-	UpdateTime       time.Time
-	ExchangeName     string
-	AssetType        string
-	Action           string
-	Bids             []orderbook.Item
-	Asks             []orderbook.Item
-	CurrencyPair     currency.Pair
+	BufferEnabled         bool
+	SortBuffer            bool
+	SortBufferByUpdateIDs bool  // When timestamps arent provided, an id can help sort
+	UpdateEntriesByID     bool  // Use the update IDs to match ob entries
+	UpdateID              int64 // Used when no time is provided
+	UpdateTime            time.Time
+	ExchangeName          string
+	AssetType             string
+	Action                string // Used in conjunction with UpdateEntriesByID
+	Bids                  []orderbook.Item
+	Asks                  []orderbook.Item
+	CurrencyPair          currency.Pair
 }

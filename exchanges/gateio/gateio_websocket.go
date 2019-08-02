@@ -138,7 +138,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- monitor.TickerData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(c),
-					AssetType:  "SPOT",
+					AssetType:  orderbook.Spot,
 					Exchange:   g.GetName(),
 					ClosePrice: ticker.Close,
 					Quantity:   ticker.BaseVolume,
@@ -166,7 +166,7 @@ func (g *Gateio) WsHandleData() {
 					g.Websocket.DataHandler <- monitor.TradeData{
 						Timestamp:    time.Now(),
 						CurrencyPair: currency.NewPairFromString(c),
-						AssetType:    "SPOT",
+						AssetType:    orderbook.Spot,
 						Exchange:     g.GetName(),
 						Price:        trade.Price,
 						Amount:       trade.Amount,
@@ -234,7 +234,7 @@ func (g *Gateio) WsHandleData() {
 					var newOrderBook orderbook.Base
 					newOrderBook.Asks = asks
 					newOrderBook.Bids = bids
-					newOrderBook.AssetType = "SPOT"
+					newOrderBook.AssetType = orderbook.Spot
 					newOrderBook.Pair = currency.NewPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
@@ -251,7 +251,7 @@ func (g *Gateio) WsHandleData() {
 							CurrencyPair:  currency.NewPairFromString(c),
 							UpdateTime:    time.Now(),
 							ExchangeName:  g.Name,
-							AssetType:     "SPOT",
+							AssetType:     orderbook.Spot,
 							BufferEnabled: true,
 						})
 					if err != nil {
@@ -261,7 +261,7 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 					Pair:     currency.NewPairFromString(c),
-					Asset:    "SPOT",
+					Asset:    orderbook.Spot,
 					Exchange: g.GetName(),
 				}
 
@@ -282,7 +282,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- monitor.KlineData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(data[7].(string)),
-					AssetType:  "SPOT",
+					AssetType:  orderbook.Spot,
 					Exchange:   g.GetName(),
 					OpenPrice:  open,
 					ClosePrice: closePrice,

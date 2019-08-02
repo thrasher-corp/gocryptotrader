@@ -40,6 +40,7 @@ const (
 	krakenWsSpread             = "spread"
 	krakenWsOrderbook          = "book"
 	// Only supported asset type
+	krakenWsAssetType    = orderbook.Spot
 	orderbookBufferLimit = 3
 	krakenWsRateLimit    = 50
 )
@@ -393,7 +394,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obD
 		AssetType:     krakenWsAssetType,
 		ExchangeName:  k.Name,
 		CurrencyPair:  channelData.Pair,
-		SortingEnabled: true,
+		SortBuffer:    true,
 		BufferEnabled: true,
 	}
 	var highestLastUpdate time.Time

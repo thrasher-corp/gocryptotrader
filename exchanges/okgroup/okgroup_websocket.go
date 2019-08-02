@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -307,7 +306,7 @@ func (o *OKGroup) GetWsChannelWithoutOrderType(table string) string {
 }
 
 // GetAssetTypeFromTableName gets the asset type from the table name
-// eg "spot/ticker:BTCUSD" results in "SPOT"
+// eg "spot/ticker:BTCUSD" results in orderbook.Spot
 func (o *OKGroup) GetAssetTypeFromTableName(table string) string {
 	assetIndex := strings.Index(table, "/")
 	return strings.ToUpper(table[:assetIndex])
@@ -485,7 +484,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, tableName string) error {
 	update := ob.WebsocketOrderbookUpdate{
 		ExchangeName: o.Name,
-		AssetType:    "SPOT",
+		AssetType:    orderbook.Spot,
 		CurrencyPair: instrument,
 		UpdateTime:   wsEventData.Timestamp,
 	}
@@ -495,13 +494,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 	if err != nil {
 		log.Error(err)
 	}
-	updatedOb := o.Websocket.Orderbook.GetOrderbook(instrument, "SPOT")
-	sort.Slice(updatedOb.Asks, func(i, j int) bool {
-		return updatedOb.Asks[i].Price < updatedOb.Asks[j].Price
-	})
-	sort.Slice(updatedOb.Bids, func(i, j int) bool {
-		return updatedOb.Bids[i].Price > updatedOb.Bids[j].Price
-	})
+	updatedOb := o.Websocket.Orderbook.GetOrderbook(instrument, orderbook.Spot)
 	checksum := o.CalculateUpdateOrderbookChecksum(updatedOb)
 	if checksum == wsEventData.Checksum {
 		if o.Verbose {

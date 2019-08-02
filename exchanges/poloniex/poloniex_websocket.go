@@ -153,7 +153,7 @@ func (p *Poloniex) WsHandleData() {
 
 								p.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 									Exchange: p.GetName(),
-									Asset:    "SPOT",
+									Asset:    orderbook.Spot,
 									Pair:     currency.NewPairFromString(currencyPair),
 								}
 							case "o":
@@ -166,7 +166,7 @@ func (p *Poloniex) WsHandleData() {
 
 								p.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 									Exchange: p.GetName(),
-									Asset:    "SPOT",
+									Asset:    orderbook.Spot,
 									Pair:     currency.NewPairFromString(currencyPair),
 								}
 							case "t":
@@ -220,7 +220,7 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) {
 	p.Websocket.DataHandler <- monitor.TickerData{
 		Timestamp: time.Now(),
 		Exchange:  p.GetName(),
-		AssetType: "SPOT",
+		AssetType: orderbook.Spot,
 		LowPrice:  t.LowestAsk,
 		HighPrice: t.HighestBid,
 	}
@@ -324,7 +324,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.AssetType = "SPOT"
+	newOrderBook.AssetType = orderbook.Spot
 	newOrderBook.Pair = currency.NewPairFromString(symbol)
 
 	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook, p.GetName(), false)
@@ -344,11 +344,11 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 		return err
 	}
 	update := &ob.WebsocketOrderbookUpdate{
-		CurrencyPair:   cP,
-		UpdateTime:     time.Now(),
-		ExchangeName:   p.Name,
-		AssetType:      "SPOT",
-		BufferEnabled:  true,
+		CurrencyPair:  cP,
+		UpdateTime:    time.Now(),
+		ExchangeName:  p.Name,
+		AssetType:     orderbook.Spot,
+		BufferEnabled: true,
 	}
 	if sideCheck == 0 {
 		update.Bids = []orderbook.Item{{Price: price, Amount: volume}}

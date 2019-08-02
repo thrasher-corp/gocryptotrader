@@ -248,7 +248,7 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 
 							err := b.WsInsertSnapshot(curr,
-								"SPOT",
+								orderbook.Spot,
 								newOrderbook)
 
 							if err != nil {
@@ -261,7 +261,7 @@ func (b *Bitfinex) WsDataHandler() {
 								Count:  int(chanData[2].(float64)),
 								Amount: chanData[3].(float64)})
 							err := b.WsUpdateOrderbook(curr,
-								"SPOT",
+								orderbook.Spot,
 								newOrderbook)
 
 							if err != nil {
@@ -277,7 +277,7 @@ func (b *Bitfinex) WsDataHandler() {
 							LowPrice:   chanData[10].(float64),
 							Pair:       currency.NewPairFromString(chanInfo.Pair),
 							Exchange:   b.GetName(),
-							AssetType:  "SPOT",
+							AssetType:  orderbook.Spot,
 						}
 
 					case "account":
@@ -446,7 +446,7 @@ func (b *Bitfinex) WsDataHandler() {
 								Price:        trades[0].Price,
 								Amount:       newAmount,
 								Exchange:     b.GetName(),
-								AssetType:    "SPOT",
+								AssetType:    orderbook.Spot,
 								Side:         side,
 							}
 						}

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
@@ -217,7 +218,7 @@ func TestSetAssetTypes(t *testing.T) {
 	}
 
 	b.Name = defaultTestExchange
-	b.AssetTypes = []string{"SPOT"}
+	b.AssetTypes = []string{orderbook.Spot}
 	err = b.SetAssetTypes()
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes. Error %s", err)
@@ -255,7 +256,7 @@ func TestSetAssetTypes(t *testing.T) {
 
 func TestGetAssetTypes(t *testing.T) {
 	testExchange := Base{
-		AssetTypes: []string{"SPOT", "Binary", "Futures"},
+		AssetTypes: []string{orderbook.Spot, "Binary", "Futures"},
 	}
 
 	aT := testExchange.GetAssetTypes()

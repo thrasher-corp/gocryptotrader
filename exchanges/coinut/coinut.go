@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
@@ -155,7 +156,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 func (c *COINUT) GetInstruments() (Instruments, error) {
 	var result Instruments
 	params := make(map[string]interface{})
-	params["sec_type"] = "SPOT"
+	params["sec_type"] = orderbook.Spot
 
 	return result, c.SendHTTPRequest(coinutInstruments, params, false, &result)
 }

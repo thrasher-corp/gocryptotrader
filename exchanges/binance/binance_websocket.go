@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -23,86 +22,6 @@ import (
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443"
 )
-
-var m sync.Mutex
-
-// SeedLocalCache seeds depth data
-func (b *Binance) SeedLocalCache(p currency.Pair) error {
-	var newOrderBook orderbook.Base
-
-	formattedPair := exchange.FormatExchangeCurrency(b.Name, p)
-
-	orderbookNew, err := b.GetOrderBook(
-		OrderBookDataRequestParams{
-			Symbol: formattedPair.String(),
-			Limit:  1000,
-		})
-
-	if err != nil {
-		return err
-	}
-
-	for _, bids := range orderbookNew.Bids {
-		newOrderBook.Bids = append(newOrderBook.Bids,
-			orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
-	}
-	for _, Asks := range orderbookNew.Asks {
-		newOrderBook.Asks = append(newOrderBook.Asks,
-			orderbook.Item{Amount: Asks.Quantity, Price: Asks.Price})
-	}
-
-	newOrderBook.LastUpdated = time.Unix(orderbookNew.LastUpdateID, 0)
-	newOrderBook.Pair = currency.NewPairFromString(formattedPair.String())
-	newOrderBook.AssetType = ticker.Spot
-
-	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
-}
-
-// UpdateLocalCache updates and returns the most recent iteration of the orderbook
-func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
-	m.Lock()
-	var updateBid, updateAsk []orderbook.Item
-
-	for _, bidsToUpdate := range wsdp.UpdateBids {
-		var priceToBeUpdated orderbook.Item
-		for i, bids := range bidsToUpdate.([]interface{}) {
-			switch i {
-			case 0:
-				priceToBeUpdated.Price, _ = strconv.ParseFloat(bids.(string), 64)
-			case 1:
-				priceToBeUpdated.Amount, _ = strconv.ParseFloat(bids.(string), 64)
-			}
-		}
-		updateBid = append(updateBid, priceToBeUpdated)
-	}
-
-	for _, asksToUpdate := range wsdp.UpdateAsks {
-		var priceToBeUpdated orderbook.Item
-		for i, asks := range asksToUpdate.([]interface{}) {
-			switch i {
-			case 0:
-				priceToBeUpdated.Price, _ = strconv.ParseFloat(asks.(string), 64)
-			case 1:
-				priceToBeUpdated.Amount, _ = strconv.ParseFloat(asks.(string), 64)
-			}
-		}
-		updateAsk = append(updateAsk, priceToBeUpdated)
-	}
-
-	updatedTime := time.Unix(wsdp.Timestamp, 0)
-	currencyPair := currency.NewPairFromString(wsdp.Pair)
-
-	return b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-		Bids:           updateBid,
-		Asks:           updateAsk,
-		CurrencyPair:   currencyPair,
-		UpdateTime:     updatedTime,
-		ExchangeName:   b.GetName(),
-		AssetType:      "SPOT",
-		SortingEnabled: true,
-		BufferEnabled:  true,
-	})
-}
 
 // WSConnect intiates a websocket connection
 func (b *Binance) WSConnect() error {
@@ -158,11 +77,9 @@ func (b *Binance) WSConnect() error {
 // WsHandleData handles websocket data from WsReadData
 func (b *Binance) WsHandleData() {
 	b.Websocket.Wg.Add(1)
-
 	defer func() {
 		b.Websocket.Wg.Done()
 	}()
-
 	for {
 		select {
 		case <-b.Websocket.ShutdownC:
@@ -217,7 +134,7 @@ func (b *Binance) WsHandleData() {
 					Price:        price,
 					Amount:       amount,
 					Exchange:     b.GetName(),
-					AssetType:    "SPOT",
+					AssetType:    orderbook.Spot,
 					Side:         trade.EventType,
 				}
 				continue
@@ -292,11 +209,83 @@ func (b *Binance) WsHandleData() {
 				currencyPair := currency.NewPairFromString(depth.Pair)
 				b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
 					Pair:     currencyPair,
-					Asset:    "SPOT",
+					Asset:    orderbook.Spot,
 					Exchange: b.GetName(),
 				}
 				continue
 			}
 		}
 	}
+}
+
+// SeedLocalCache seeds depth data
+func (b *Binance) SeedLocalCache(p currency.Pair) error {
+	var newOrderBook orderbook.Base
+	formattedPair := exchange.FormatExchangeCurrency(b.Name, p)
+	orderbookNew, err := b.GetOrderBook(
+		OrderBookDataRequestParams{
+			Symbol: formattedPair.String(),
+			Limit:  1000,
+		})
+	if err != nil {
+		return err
+	}
+
+	for _, bids := range orderbookNew.Bids {
+		newOrderBook.Bids = append(newOrderBook.Bids,
+			orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
+	}
+	for _, Asks := range orderbookNew.Asks {
+		newOrderBook.Asks = append(newOrderBook.Asks,
+			orderbook.Item{Amount: Asks.Quantity, Price: Asks.Price})
+	}
+
+	newOrderBook.LastUpdated = time.Unix(orderbookNew.LastUpdateID, 0)
+	newOrderBook.Pair = currency.NewPairFromString(formattedPair.String())
+	newOrderBook.AssetType = ticker.Spot
+
+	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+}
+
+// UpdateLocalCache updates and returns the most recent iteration of the orderbook
+func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
+	var updateBid, updateAsk []orderbook.Item
+	for _, bidsToUpdate := range wsdp.UpdateBids {
+		var priceToBeUpdated orderbook.Item
+		for i, bids := range bidsToUpdate.([]interface{}) {
+			switch i {
+			case 0:
+				priceToBeUpdated.Price, _ = strconv.ParseFloat(bids.(string), 64)
+			case 1:
+				priceToBeUpdated.Amount, _ = strconv.ParseFloat(bids.(string), 64)
+			}
+		}
+		updateBid = append(updateBid, priceToBeUpdated)
+	}
+
+	for _, asksToUpdate := range wsdp.UpdateAsks {
+		var priceToBeUpdated orderbook.Item
+		for i, asks := range asksToUpdate.([]interface{}) {
+			switch i {
+			case 0:
+				priceToBeUpdated.Price, _ = strconv.ParseFloat(asks.(string), 64)
+			case 1:
+				priceToBeUpdated.Amount, _ = strconv.ParseFloat(asks.(string), 64)
+			}
+		}
+		updateAsk = append(updateAsk, priceToBeUpdated)
+	}
+	currencyPair := currency.NewPairFromString(wsdp.Pair)
+
+	return b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
+		Bids:              updateBid,
+		Asks:              updateAsk,
+		CurrencyPair:      currencyPair,
+		UpdateEntriesByID: true,
+		UpdateID:          wsdp.LastUpdateID,
+		ExchangeName:      b.GetName(),
+		AssetType:         orderbook.Spot,
+		SortBuffer:        true,
+		BufferEnabled:     true,
+	})
 }
