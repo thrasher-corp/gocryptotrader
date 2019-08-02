@@ -18,11 +18,11 @@ func Audit() audit.Repository {
 
 // AddEvent writes event to database
 // writes are done using a transaction with a rollback on error
-func (pg *auditRepo) AddEvent(event *models.Event) {
+func (pg *auditRepo) AddEvent(event *models.AuditEvent) {
 	if pg == nil {
 		return
 	}
-	query := `INSERT INTO audit (type, identifier, message) VALUES($1, $2, $3)`
+	query := `INSERT INTO audit_event (type, identifier, message) VALUES($1, $2, $3)`
 	tx, err := database.Conn.SQL.Begin()
 	if err != nil {
 		return

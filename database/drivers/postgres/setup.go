@@ -10,7 +10,7 @@ func Setup() (err error) {
 
 func createAuditTable() error {
 	query := `
-CREATE TABLE IF NOT EXISTS audit
+CREATE TABLE IF NOT EXISTS audit_event
 (
     id bigserial  PRIMARY KEY NOT NULL,
     Type       varchar(255)  NOT NULL,

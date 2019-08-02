@@ -19,14 +19,14 @@ var (
 	trueptr = func(b bool) *bool { return &b }(true)
 
 	postgresTestDatabase = database.Config{
-		Enabled:           trueptr,
-		Driver:            "postgres",
+		Enabled: trueptr,
+		Driver:  "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
-			//Host:     "",
-			//Port:     5432,
-			//Username: "",
-			//Password: "",
-			//Database: "",
+			Host:     "localhost",
+			Port:     5432,
+			Username: "gct",
+			Password: "test1234",
+			Database: "gct",
 		},
 	}
 )
@@ -34,7 +34,6 @@ var (
 func TestMain(m *testing.M) {
 	var err error
 	tempDir, err = ioutil.TempDir("", "gct-temp")
-
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
@@ -67,7 +66,10 @@ func TestDatabaseConnect(t *testing.T) {
 		{
 			"SQliteNoDatabase",
 			database.Config{
-				ConnectionDetails: drivers.ConnectionDetails{Host: "local"},
+				Driver: "sqlite",
+				ConnectionDetails: drivers.ConnectionDetails{
+					Host: "localhost",
+				},
 			},
 			database.ErrNoDatabaseProvided,
 		},
@@ -88,15 +90,16 @@ func TestDatabaseConnect(t *testing.T) {
 
 			dbConn, err := connectToDatabase(t, &test.config)
 
-			switch v := test.output.(type) {
-
-			case error:
-				if v != test.output.(error) {
-					t.Fatal(err)
+			if err != nil {
+				switch v := test.output.(type) {
+				case error:
+					if v.Error() != err.Error() {
+						t.Fatal(err)
+					}
+					return
+				default:
+					break
 				}
-				return
-			default:
-				break
 			}
 
 			if dbConn != nil {

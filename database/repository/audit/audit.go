@@ -7,7 +7,7 @@ import (
 
 // Repository that is required for each driver type to implement
 type Repository interface {
-	AddEvent(event *models.Event)
+	AddEvent(event *models.AuditEvent)
 }
 
 var (
@@ -25,7 +25,7 @@ func Event(msgType, identifier, message string) {
 		return
 	}
 
-	tempEvent := models.Event{
+	tempEvent := models.AuditEvent{
 		Type:       msgType,
 		Identifier: identifier,
 		Message:    message}
