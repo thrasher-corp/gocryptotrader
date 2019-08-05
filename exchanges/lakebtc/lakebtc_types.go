@@ -1,5 +1,7 @@
 package lakebtc
 
+import pusher "github.com/toorop/go-pusher"
+
 // Ticker holds ticker information
 type Ticker struct {
 	Last   float64
@@ -111,4 +113,31 @@ type Withdraw struct {
 	ExternalAccountID int64   `json:"external_account_id,string"`
 	At                int64   `json:"at"`
 	Error             string  `json:"error"`
+}
+
+// WebsocketConn defines a pusher websocket connection
+type WebsocketConn struct {
+	Client    *pusher.Client
+	Ticker    chan *pusher.Event
+	Orderbook chan *pusher.Event
+	Trade     chan *pusher.Event
+}
+
+// WsOrderbookUpdate contains orderbook data from websocket
+type WsOrderbookUpdate struct {
+	Asks [][]string `json:"asks"`
+	Bids [][]string `json:"bids"`
+}
+
+// WsTrades contains trade data from websocket
+type WsTrades struct {
+	Trades []WsTrade `json:"trades"`
+}
+
+// WsTrade contains individual trade details from websocket
+type WsTrade struct {
+	Type   string  `json:"type"`
+	Date   int64   `json:"date"`
+	Price  float64 `json:"price,string"`
+	Amount float64 `json:"amount,string"`
 }

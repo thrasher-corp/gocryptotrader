@@ -41,6 +41,7 @@ const (
 // LakeBTC is the overarching type across the LakeBTC package
 type LakeBTC struct {
 	exchange.Base
+	WebsocketConn WebsocketConn
 }
 
 // SetDefaults sets LakeBTC defaults
@@ -67,6 +68,9 @@ func (l *LakeBTC) SetDefaults() {
 	l.APIUrlDefault = lakeBTCAPIURL
 	l.APIUrl = l.APIUrlDefault
 	l.Websocket = monitor.New()
+	l.Websocket.Functionality = monitor.WebsocketOrderbookSupported |
+		monitor.WebsocketTradeDataSupported |
+		monitor.WebsocketSubscribeSupported
 }
 
 // Setup sets exchange configuration profile
@@ -102,6 +106,18 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = l.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.Websocket.Setup(l.WsConnect,
+			l.Subscribe,
+			nil,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			lakeBTCWSURL,
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -268,8 +268,7 @@ func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (l *LakeBTC) GetWebsocket() (*monitor.Websocket, error) {
-	// Documents are too vague to implement
-	return nil, common.ErrFunctionNotSupported
+	return l.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
