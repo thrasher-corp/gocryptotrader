@@ -11,7 +11,7 @@ tenets:
   # Overwrite one tenet with custom logic
   # - import: codelingo/effective-go/comment-first-word-when-empty
   - name: comment-first-word-when-empty
-    flows:
+    actions:
       codelingo/review:
         comment: |
           Every exported function in a program should have a doc comment. The first sentence should be a summary that starts with the name ({{funcName}}) being declared.
@@ -34,7 +34,7 @@ tenets:
           name as funcName
           public == "true"
   - name:  missing-stop-ticker
-    flows:
+    actions:
       codelingo/review:
         comment: Add `defer {{varName}}.Stop()` to stop the ticker and release associated resources.
     query: |
