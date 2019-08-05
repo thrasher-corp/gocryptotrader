@@ -16,7 +16,7 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Start starts the OKEX go routine
+// Start starts the Binance go routine
 func (b *Binance) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -25,7 +25,7 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 	}()
 }
 
-// Run implements the OKEX wrapper
+// Run implements the Binance wrapper
 func (b *Binance) Run() {
 	if b.Verbose {
 		log.Debugf("%s Websocket: %s. (url: %s).\n%s polling delay: %ds.\n%s %d currencies enabled: %s.\n",
