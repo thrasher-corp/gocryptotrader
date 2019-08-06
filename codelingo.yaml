@@ -8,31 +8,7 @@ tenets:
   - import: codelingo/effective-go/unnecessary-else
   - import: codelingo/code-review-comments/declare-empty-slice 
   - import: codelingo/effective-go/defer-close-file
-  # Overwrite one tenet with custom logic
-  # - import: codelingo/effective-go/comment-first-word-when-empty
-  - name: comment-first-word-when-empty
-    actions:
-      codelingo/review:
-        comment: |
-          Every exported function in a program should have a doc comment. The first sentence should be a summary that starts with the name ({{funcName}}) being declared.
-          From [effective go](https://golang.org/doc/effective_go.html#commentary).
-      codelingo/rewrite:
-        place: holder
-    query: |
-      import codelingo/ast/go
-      @review comment
-      @rewrite --prepend --line "// {{funcName}} is a function."
-      go.func_decl(depth = any):
-        # Customisation to exclude test packages
-        exclude:
-          go.ident:
-            name as funcname
-            regex(/_test/, funcname)
-        exclude:
-          go.comment_group
-        go.ident:
-          name as funcName
-          public == "true"
+  - import: codelingo/effective-go/comment-first-word-when-empty
   - name:  missing-stop-ticker
     actions:
       codelingo/review:
