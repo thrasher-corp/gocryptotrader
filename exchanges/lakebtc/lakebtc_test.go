@@ -13,6 +13,7 @@ import (
 )
 
 var l LakeBTC
+var setupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
@@ -22,22 +23,27 @@ const (
 )
 
 func TestSetDefaults(t *testing.T) {
-	l.SetDefaults()
+	if !setupRan {
+		l.SetDefaults()
+	}
 }
 
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
-	if err != nil {
-		t.Error("Test Failed - LakeBTC Setup() init error")
+	if !setupRan {
+		cfg := config.GetConfig()
+		cfg.LoadConfig("../../testdata/configtest.json")
+		lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
+		if err != nil {
+			t.Error("Test Failed - LakeBTC Setup() init error")
+		}
+		lakebtcConfig.AuthenticatedAPISupport = true
+		lakebtcConfig.APIKey = apiKey
+		lakebtcConfig.APISecret = apiSecret
+		lakebtcConfig.Websocket = true
+		l.Setup(&lakebtcConfig)
+		l.WebsocketURL = lakeBTCWSURL
+		setupRan = true
 	}
-	lakebtcConfig.AuthenticatedAPISupport = true
-	lakebtcConfig.APIKey = apiKey
-	lakebtcConfig.APISecret = apiSecret
-	lakebtcConfig.Websocket = true
-	l.Setup(&lakebtcConfig)
-	l.WebsocketURL = lakeBTCWSURL
 }
 
 func TestGetTradablePairs(t *testing.T) {
@@ -465,21 +471,12 @@ func TestWsConn(t *testing.T) {
 	}
 }
 
-// TestWsOrderbookProcessing logic test
-func TestWsOrderbookProcessing(t *testing.T) {
-	TestSetDefaults(t)
-	TestSetup(t)
-	json := `{"asks":[["11905.66","0.0019"],["11905.73","0.0015"],["11906.43","0.0013"],["11906.62","0.0019"],["11907.25","11.087"],["11907.66","0.0006"],["11907.73","0.3113"],["11907.84","0.0006"],["11908.37","0.0016"],["11908.86","10.3786"],["11909.54","4.2955"],["11910.15","0.0012"],["11910.56","13.5505"],["11911.06","0.0011"],["11911.37","0.0023"]],"bids":[["11905.55","0.0171"],["11904.43","0.0225"],["11903.31","0.0223"],["11902.2","0.0027"],["11901.92","1.002"],["11901.6","0.0015"],["11901.49","0.0012"],["11901.08","0.0227"],["11900.93","0.0009"],["11900.53","1.662"],["11900.08","0.001"],["11900.01","3.6745"],["11899.96","0.003"],["11899.91","0.0006"],["11899.44","0.0013"]]}`
-	err := l.processOrderbook(json, "market-btcusd-global")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 // TestWsTradeProcessing logic test
 func TestWsTradeProcessing(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
+	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	json := `{"trades":[{"type":"sell","date":1564985787,"price":"11913.02","amount":"0.49"}]}`
 	err := l.processTrades(json, "market-btcusd-global")
 	if err != nil {
@@ -505,5 +502,18 @@ func TestGetCurrencyFromChannel(t *testing.T) {
 	result := l.getCurrencyFromChannel(fmt.Sprintf("%v%v%v", marketSubstring, curr, globalSubstring))
 	if curr != result {
 		t.Errorf("currency result is not equal. Expected  %v", curr)
+	}
+}
+
+// TestWsOrderbookProcessing logic test
+func TestWsOrderbookProcessing(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	json := `{"asks":[["11905.66","0.0019"],["11905.73","0.0015"],["11906.43","0.0013"],["11906.62","0.0019"],["11907.25","11.087"],["11907.66","0.0006"],["11907.73","0.3113"],["11907.84","0.0006"],["11908.37","0.0016"],["11908.86","10.3786"],["11909.54","4.2955"],["11910.15","0.0012"],["11910.56","13.5505"],["11911.06","0.0011"],["11911.37","0.0023"]],"bids":[["11905.55","0.0171"],["11904.43","0.0225"],["11903.31","0.0223"],["11902.2","0.0027"],["11901.92","1.002"],["11901.6","0.0015"],["11901.49","0.0012"],["11901.08","0.0227"],["11900.93","0.0009"],["11900.53","1.662"],["11900.08","0.001"],["11900.01","3.6745"],["11899.96","0.003"],["11899.91","0.0006"],["11899.44","0.0013"]]}`
+	err := l.processOrderbook(json, "market-btcusd-global")
+	if err != nil {
+		t.Error(err)
 	}
 }

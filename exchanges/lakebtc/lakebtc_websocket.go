@@ -135,6 +135,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 	if err != nil {
 		return err
 	}
+	l.Websocket.TrafficAlert <- struct{}{}
 	curr := l.getCurrencyFromChannel(channel)
 	for i := 0; i < len(tradeData.Trades); i++ {
 		l.Websocket.DataHandler <- monitor.TradeData{
@@ -200,7 +201,6 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 			Price:  price,
 		})
 	}
-	log.Debug(book)
 	err = l.Websocket.Orderbook.LoadSnapshot(&book, book.ExchangeName, true)
 	if err != nil {
 		return err
