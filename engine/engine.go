@@ -292,10 +292,6 @@ func (e *Engine) Start() {
 
 	log.Debugln(log.Global, "Setting up exchanges..")
 	SetupExchanges()
-	if len(e.Exchanges) == 0 {
-		log.Errorln(log.Global, "No exchanges were able to be loaded. Exiting")
-		os.Exit(1)
-	}
 
 	if e.Settings.EnableCommsRelayer {
 		if err := e.CommsManager.Start(); err != nil {
