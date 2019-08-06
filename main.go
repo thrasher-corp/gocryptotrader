@@ -37,11 +37,11 @@ type Bot struct {
 	dataDir             string
 	connectivity        *connchecker.Checker
 	verbosity           bool
-	CoinMarketCap       bool
-	FxCurrencyConverter bool
-	FxCurrencyLayer     bool
-	FxFixer             bool
-	FxOpenExchangeRates bool
+	coinMarketCap       bool
+	fxCurrencyConverter bool
+	fxCurrencyLayer     bool
+	fxFixer             bool
+	fxOpenExchangeRates bool
 	sync.Mutex
 }
 
@@ -95,11 +95,11 @@ func ActivateFlags() {
 	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.BoolVar(&bot.dryRun, "dryrun", false, "dry runs bot, doesn't save config file")
 	flag.BoolVar(&bot.verbosity, "verbose", false, "increases logging verbosity for GoCryptoTrader")
-	flag.BoolVar(&bot.CoinMarketCap, "c", false, "overrides config and runs currency analaysis")
-	flag.BoolVar(&bot.FxCurrencyConverter, "fxa", false, "overrides config and sets up foreign exchange Currency Converter")
-	flag.BoolVar(&bot.FxCurrencyLayer, "fxb", false, "overrides config and sets up foreign exchange Currency Layer")
-	flag.BoolVar(&bot.FxFixer, "fxc", false, "overrides config and sets up foreign exchange Fixer.io")
-	flag.BoolVar(&bot.FxOpenExchangeRates, "fxd", false, "overrides config and sets up foreign exchange Open Exchange Rates")
+	flag.BoolVar(&bot.coinMarketCap, "c", false, "overrides config and runs currency analaysis")
+	flag.BoolVar(&bot.fxCurrencyConverter, "fxa", false, "overrides config and sets up foreign exchange Currency Converter")
+	flag.BoolVar(&bot.fxCurrencyLayer, "fxb", false, "overrides config and sets up foreign exchange Currency Layer")
+	flag.BoolVar(&bot.fxFixer, "fxc", false, "overrides config and sets up foreign exchange Fixer.io")
+	flag.BoolVar(&bot.fxOpenExchangeRates, "fxd", false, "overrides config and sets up foreign exchange Open Exchange Rates")
 
 	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 
@@ -318,11 +318,11 @@ func ActivateStorageUpdater() {
 	}
 
 	err := currency.RunStorageUpdater(currency.BotOverrides{
-		Coinmarketcap:       bot.CoinMarketCap,
-		FxCurrencyConverter: bot.FxCurrencyConverter,
-		FxCurrencyLayer:     bot.FxCurrencyLayer,
-		FxFixer:             bot.FxFixer,
-		FxOpenExchangeRates: bot.FxOpenExchangeRates,
+		Coinmarketcap:       bot.coinMarketCap,
+		FxCurrencyConverter: bot.fxCurrencyConverter,
+		FxCurrencyLayer:     bot.fxCurrencyLayer,
+		FxFixer:             bot.fxFixer,
+		FxOpenExchangeRates: bot.fxOpenExchangeRates,
 	},
 		&currency.MainConfiguration{
 			ForexProviders:         newFxSettings,
