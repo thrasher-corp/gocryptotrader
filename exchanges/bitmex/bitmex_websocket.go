@@ -379,7 +379,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			var bids, asks []orderbook.Item
 
 			for _, orderbookItem := range data {
-				if orderbookItem.Side == exchange.SellOrderSide.ToString() {
+				if strings.EqualFold(orderbookItem.Side, exchange.SellOrderSide.ToString()) {
 					asks = append(asks, orderbook.Item{
 						Price:  orderbookItem.Price,
 						Amount: float64(orderbookItem.Size),
