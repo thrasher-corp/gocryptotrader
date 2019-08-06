@@ -255,4 +255,7 @@ func SetupExchanges() {
 		)
 	}
 	wg.Wait()
+	if len(bot.exchanges) == 0 {
+		log.Fatalf("No exchanges were able to be loaded. Exiting")
+	}
 }
