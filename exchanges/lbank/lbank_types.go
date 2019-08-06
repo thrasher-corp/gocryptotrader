@@ -49,25 +49,29 @@ type KlineResponse struct {
 
 // InfoResponse stores info
 type InfoResponse struct {
-	Freeze map[string]float64 `json:"freeze,string"`
-	Asset  map[string]float64 `json:"asset,string"`
-	Free   map[string]float64 `json:"free,string"`
+	ErrCapture `json:",omitempty"`
+	Freeze     map[string]float64 `json:"freeze,string"`
+	Asset      map[string]float64 `json:"asset,string"`
+	Free       map[string]float64 `json:"free,string"`
 }
 
 // CreateOrderResponse stores the result of the Order and
 type CreateOrderResponse struct {
-	OrderID string `json:"order_id"`
+	ErrCapture `json:",omitempty"`
+	OrderID    string `json:"order_id"`
 }
 
 // RemoveOrderResponse stores the result when an order is cancelled
 type RemoveOrderResponse struct {
-	OrderID string `json:"order_id"`
-	Success string `json:"success"`
-	Error   string `json:"error"`
+	ErrCapture `json:",omitempty"`
+	Err        string `json:"error"`
+	OrderID    string `json:"order_id"`
+	Success    string `json:"success"`
 }
 
 // OrderResponse stores the data related to the given OrderIDs
 type OrderResponse struct {
+	ErrCapture `json:",omitempty"`
 	Symbol     string  `json:"symbol"`
 	Amount     float64 `json:"amount"`
 	CreateTime int64   `json:"create_time"`
@@ -81,28 +85,27 @@ type OrderResponse struct {
 
 // QueryOrderResponse stores the data from queries
 type QueryOrderResponse struct {
-	Result bool            `json:"result,string"`
-	Orders []OrderResponse `json:"orders"`
+	ErrCapture `json:",omitempty"`
+	Orders     []OrderResponse `json:"orders"`
 }
 
 // OrderHistory stores data for past orders
 type OrderHistory struct {
 	Result      bool            `json:"result,string"`
 	Total       string          `json:"total"`
-	PageLength  int64           `json:"page_length"`
+	PageLength  uint8           `json:"page_length"`
 	Orders      json.RawMessage `json:"orders"`
-	CurrentPage int64           `json:"current_page"`
+	CurrentPage uint8           `json:"current_page"`
 	ErrorCode   int64           `json:"error_code"`
 }
 
 // OrderHistoryResponse stores past orders
 type OrderHistoryResponse struct {
-	Result      bool            `json:"result,string"`
+	ErrCapture  `json:",omitempty"`
 	Total       string          `json:"total"`
-	PageLength  int64           `json:"page_length"`
+	PageLength  uint8           `json:"page_length"`
 	Orders      []OrderResponse `json:"orders"`
-	CurrentPage int64           `json:"current_page"`
-	ErrorCode   int64           `json:"error_code"`
+	CurrentPage uint8           `json:"current_page"`
 }
 
 // PairInfoResponse stores information about trading pairs
@@ -111,7 +114,6 @@ type PairInfoResponse struct {
 	PriceAccuracy    string `json:"priceAccuracy"`
 	QuantityAccuracy string `json:"quantityAccuracy"`
 	Symbol           string `json:"symbol"`
-	ErrorCode        int64  `json:"error_code"`
 }
 
 // TransactionTemp stores details about transactions
@@ -129,17 +131,17 @@ type TransactionTemp struct {
 
 // TransactionHistoryResp stores details about past transactions
 type TransactionHistoryResp struct {
+	ErrCapture  `json:",omitempty"`
 	Transaction []TransactionTemp `json:"transaction"`
 }
 
 // OpenOrderResponse stores information about the opening orders
 type OpenOrderResponse struct {
-	PageLength int64           `json:"page_length"`
-	PageNumber int64           `json:"page_number"`
+	ErrCapture `json:",omitempty"`
+	PageLength uint8           `json:"page_length"`
+	PageNumber uint8           `json:"page_number"`
 	Total      string          `json:"total"`
-	Result     bool            `json:"result,string"`
 	Orders     json.RawMessage `json:"orders"`
-	ErrorCode  int64           `json:"error_code"`
 }
 
 // ExchangeRateResponse stores information about USD-RMB rate
@@ -157,38 +159,37 @@ type WithdrawConfigResponse struct {
 
 // WithdrawResponse stores info about something
 type WithdrawResponse struct {
-	Result     bool    `json:"result,string"`
+	ErrCapture `json:",omitempty"`
 	WithdrawID string  `json:"withdrawId"`
 	Fee        float64 `json:"fee"`
-	ErrorCode  int64   `json:"error_code"`
 }
 
 // RevokeWithdrawResponse stores info about something
 type RevokeWithdrawResponse struct {
-	Result     bool   `json:"result,string"`
+	ErrCapture `json:",omitempty"`
 	WithdrawID string `json:"string"`
-	ErrorCode  int64  `json:"error_code"`
 }
 
 // ListDataResponse contains some of withdrawal data
 type ListDataResponse struct {
-	Amount    float64 `json:"amount"`
-	AssetCode string  `json:"assetCode"`
-	Address   string  `json:"address"`
-	Fee       float64 `json:"fee"`
-	ID        int64   `json:"id"`
-	Time      int64   `json:"time"`
-	TXHash    string  `json:"txhash"`
-	Status    string  `json:"status"`
+	ErrCapture `json:",omitempty"`
+	Amount     float64 `json:"amount"`
+	AssetCode  string  `json:"assetCode"`
+	Address    string  `json:"address"`
+	Fee        float64 `json:"fee"`
+	ID         int64   `json:"id"`
+	Time       int64   `json:"time"`
+	TXHash     string  `json:"txhash"`
+	Status     string  `json:"status"`
 }
 
 // WithdrawalResponse stores data for withdrawals
 type WithdrawalResponse struct {
+	ErrCapture `json:",omitempty"`
 	TotalPages int64              `json:"totalPages"`
 	PageSize   int64              `json:"pageSize"`
 	PageNo     int64              `json:"pageNo"`
 	List       []ListDataResponse `json:"list"`
-	ErrorCode  int64              `json:"error_code"`
 }
 
 // ErrCapture helps with error info

@@ -232,7 +232,16 @@ func (l *Lbank) GetKlines(symbol, size, klineType, time string) ([]KlineResponse
 func (l *Lbank) GetUserInfo() (InfoResponse, error) {
 	var resp InfoResponse
 	path := fmt.Sprintf("%s/v%s/%s?", l.APIUrl, lbankAPIVersion, lbankUserInfo)
-	return resp, l.SendAuthHTTPRequest("POST", path, nil, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, nil, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // CreateOrder creates an order
@@ -254,7 +263,16 @@ func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (CreateOrd
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	path := fmt.Sprintf("%s/v%s/%s?", l.APIUrl, lbankAPIVersion, lbankPlaceOrder)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // RemoveOrder cancels a given order
@@ -264,7 +282,16 @@ func (l *Lbank) RemoveOrder(pair, orderID string) (RemoveOrderResponse, error) {
 	params.Set("symbol", pair)
 	params.Set("order_id", orderID)
 	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankCancelOrder)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // QueryOrder finds out information about orders (can pass up to 3 comma separated values to this)
@@ -274,7 +301,16 @@ func (l *Lbank) QueryOrder(pair, orderIDs string) (QueryOrderResponse, error) {
 	params.Set("symbol", pair)
 	params.Set("order_id", orderIDs)
 	path := fmt.Sprintf("%s/v%s/%s?", l.APIUrl, lbankAPIVersion, lbankQueryOrder)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // QueryOrderHistory finds order info in the past 2 days
@@ -292,7 +328,6 @@ func (l *Lbank) QueryOrderHistory(pair, pageNumber, pageLength string) (OrderHis
 
 	var rt OrderHistoryResponse
 	rt.CurrentPage = resp.CurrentPage
-	rt.ErrorCode = resp.ErrorCode
 	rt.PageLength = resp.PageLength
 	rt.Result = resp.Result
 	rt.Total = resp.Total
@@ -328,7 +363,16 @@ func (l *Lbank) OrderTransactionDetails(symbol, orderID string) (TransactionHist
 	params.Set("symbol", symbol)
 	params.Set("order_id", orderID)
 	path := fmt.Sprintf("%s/v%s/%s?", lbankAPIURL, lbankAPIVersion, lbankOrderTransactionDetails)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // TransactionHistory stores info about transactions
@@ -343,18 +387,36 @@ func (l *Lbank) TransactionHistory(symbol, transactiontype, startdate, enddate, 
 	params.Set("direct", direct)
 	params.Set("size", size)
 	path := fmt.Sprintf("%s/v%s/%s?", lbankAPIURL, lbankAPIVersion, lbankPastTransactions)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // GetOpenOrders gets opening orders
-func (l *Lbank) GetOpenOrders(pair string, pageNumber, pageLength int64) (OpenOrderResponse, error) {
+func (l *Lbank) GetOpenOrders(pair, pageNumber, pageLength string) (OpenOrderResponse, error) {
 	var resp OpenOrderResponse
 	params := url.Values{}
 	params.Set("symbol", pair)
-	params.Set("current_page", strconv.FormatInt(pageNumber, 10))
-	params.Set("page_length", strconv.FormatInt(pageLength, 10))
+	params.Set("current_page", pageNumber)
+	params.Set("page_length", pageLength)
 	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankOpeningOrders)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // USD2RMBRate finds USD-CNY Rate
@@ -387,7 +449,16 @@ func (l *Lbank) Withdraw(account, assetCode, amount, memo, mark string) (Withdra
 		params.Set("mark", mark)
 	}
 	path := fmt.Sprintf("%s/v%s/%s", lbankAPIURL, lbankAPIVersion, lbankWithdraw)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // RevokeWithdraw cancels the withdrawal given the withdrawalID
@@ -398,7 +469,16 @@ func (l *Lbank) RevokeWithdraw(withdrawID string) (RevokeWithdrawResponse, error
 		params.Set("withdrawId", withdrawID)
 	}
 	path := fmt.Sprintf("%s/v%s/%s?", lbankAPIURL, lbankAPIVersion, lbankRevokeWithdraw)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // GetWithdrawalRecords gets withdrawal records
@@ -410,35 +490,30 @@ func (l *Lbank) GetWithdrawalRecords(assetCode, status, pageNo, pageSize string)
 	params.Set("pageNo", pageNo)
 	params.Set("pageSize", pageSize)
 	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankWithdrawalRecords)
-	return resp, l.SendAuthHTTPRequest("POST", path, params, &resp)
+	err := l.SendAuthHTTPRequest("POST", path, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Error != 0 {
+		return resp, ErrorCapture(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // ErrorCapture captures errors
-func ErrorCapture(intermediary json.RawMessage) error {
-	var capErr ErrCapture
-	err := json.Unmarshal(intermediary, &capErr)
-	if err == nil && capErr.Error != 0 {
-		msg, ok := errorCodes[capErr.Error]
-		if !ok {
-			return fmt.Errorf("undefined code please check api docs for error code definition: %v", capErr.Error)
-		}
-		return errors.New(msg)
+func ErrorCapture(code int64) error {
+	msg, ok := errorCodes[code]
+	if !ok {
+		return fmt.Errorf("undefined code please check api docs for error code definition: %v", code)
 	}
-	return nil
+	return errors.New(msg)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
-	var intermediary json.RawMessage
-	err := l.SendPayload(http.MethodGet, path, nil, nil, &intermediary, false, false, l.Verbose, l.HTTPDebugging)
-	if err != nil {
-		return err
-	}
-	err = ErrorCapture(intermediary)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(intermediary, result)
+	return l.SendPayload(http.MethodGet, path, nil, nil, &result, false, false, l.Verbose, l.HTTPDebugging)
 }
 
 func (l *Lbank) loadPrivKey() error {
@@ -497,15 +572,13 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	var intermediary json.RawMessage
-	err = l.SendPayload(method, endpoint, headers, bytes.NewBufferString(payload), &intermediary, true, false, l.Verbose, l.HTTPDebugging)
-	if err != nil {
-		return err
-	}
-
-	err = ErrorCapture(intermediary)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(intermediary, result)
+	return l.SendPayload(method,
+		endpoint,
+		headers,
+		bytes.NewBufferString(payload),
+		&result,
+		true,
+		false,
+		l.Verbose,
+		l.HTTPDebugging)
 }

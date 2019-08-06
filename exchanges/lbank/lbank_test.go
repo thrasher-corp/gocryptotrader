@@ -228,7 +228,7 @@ func TestGetOpenOrders(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.GetOpenOrders(cp.Lower().String(), 1, 50)
+	_, err := l.GetOpenOrders(cp.Lower().String(), "1", "50")
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
