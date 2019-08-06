@@ -71,7 +71,7 @@ func GetTotalMarketCryptocurrencies() ([]Code, error) {
 	return storage.GetTotalMarketCryptocurrencies()
 }
 
-// RunStorageUpdater  runs a new foreign exchange updater instance
+// RunStorageUpdater runs a new foreign exchange updater instance
 func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string, v bool) error {
 	return storage.RunUpdater(o, m, filepath, v)
 }

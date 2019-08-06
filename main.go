@@ -27,15 +27,21 @@ import (
 // Bot contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
 type Bot struct {
-	config       *config.Config
-	portfolio    *portfolio.Base
-	exchanges    []exchange.IBotExchange
-	comms        *communications.Communications
-	shutdown     chan bool
-	dryRun       bool
-	configFile   string
-	dataDir      string
-	connectivity *connchecker.Checker
+	config              *config.Config
+	portfolio           *portfolio.Base
+	exchanges           []exchange.IBotExchange
+	comms               *communications.Communications
+	shutdown            chan bool
+	dryRun              bool
+	configFile          string
+	dataDir             string
+	connectivity        *connchecker.Checker
+	verbosity           bool
+	CoinMarketCap       bool
+	FxCurrencyConverter bool
+	FxCurrencyLayer     bool
+	FxFixer             bool
+	FxOpenExchangeRates bool
 	sync.Mutex
 }
 
@@ -51,26 +57,51 @@ const banner = `
 var bot Bot
 
 func main() {
-	bot.shutdown = make(chan bool)
+	// Activate and setup Bots requirements. Note order is important.
+	ActivateShutdownChan()
 	HandleInterrupt()
+	PrintBanner()
+	ActivateFlags()
+	PrintVersion()
+	LoadConfigFile()
+	CreateDataDir()
+	ActivateLogger()
+	ActivateNTP()
+	ActivateConnectivityMonitor()
+	AdjustGoMaxProcs()
+	ActivateHTTPClient()
+	ActivateCommunicationMediums()
+	SetupExchanges()
+	ActivateStorageUpdater()
+	PrintBotSummary()
+	ActivatePortfolioWatcher()
+	ActivateWebServer()
 
+	go TickerUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
+	go WebsocketRoutine(bot.verbosity)
+
+	<-bot.shutdown
+	Shutdown()
+}
+
+// ActivateFlags Sets up all the cli flags
+func ActivateFlags() {
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Handle flags
 	flag.StringVar(&bot.configFile, "config", defaultPath, "config file to load")
 	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
-	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
-	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
-	verbosity := flag.Bool("verbose", false, "increases logging verbosity for GoCryptoTrader")
+	flag.BoolVar(&bot.dryRun, "dryrun", false, "dry runs bot, doesn't save config file")
+	flag.BoolVar(&bot.verbosity, "verbose", false, "increases logging verbosity for GoCryptoTrader")
+	flag.BoolVar(&bot.CoinMarketCap, "c", false, "overrides config and runs currency analaysis")
+	flag.BoolVar(&bot.FxCurrencyConverter, "fxa", false, "overrides config and sets up foreign exchange Currency Converter")
+	flag.BoolVar(&bot.FxCurrencyLayer, "fxb", false, "overrides config and sets up foreign exchange Currency Layer")
+	flag.BoolVar(&bot.FxFixer, "fxc", false, "overrides config and sets up foreign exchange Fixer.io")
+	flag.BoolVar(&bot.FxOpenExchangeRates, "fxd", false, "overrides config and sets up foreign exchange Open Exchange Rates")
 
-	Coinmarketcap := flag.Bool("c", false, "overrides config and runs currency analaysis")
-	FxCurrencyConverter := flag.Bool("fxa", false, "overrides config and sets up foreign exchange Currency Converter")
-	FxCurrencyLayer := flag.Bool("fxb", false, "overrides config and sets up foreign exchange Currency Layer")
-	FxFixer := flag.Bool("fxc", false, "overrides config and sets up foreign exchange Fixer.io")
-	FxOpenExchangeRates := flag.Bool("fxd", false, "overrides config and sets up foreign exchange Open Exchange Rates")
+	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 
 	flag.Parse()
 
@@ -78,99 +109,6 @@ func main() {
 		fmt.Print(BuildVersion(true))
 		os.Exit(0)
 	}
-
-	if *dryrun {
-		bot.dryRun = true
-	}
-
-	fmt.Println(banner)
-	fmt.Println(BuildVersion(false))
-
-	bot.config = &config.Cfg
-	log.Debugf("Loading config file %s..\n", bot.configFile)
-	err = bot.config.LoadConfig(bot.configFile)
-	if err != nil {
-		log.Fatalf("Failed to load config. Err: %s", err)
-	}
-
-	err = common.CreateDir(bot.dataDir)
-	if err != nil {
-		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
-	}
-	log.Debugf("Using data directory: %s.\n", bot.dataDir)
-
-	err = bot.config.CheckLoggerConfig()
-	if err != nil {
-		log.Errorf("Failed to configure logger reason: %s", err)
-	}
-
-	err = log.SetupLogger()
-	if err != nil {
-		log.Errorf("Failed to setup logger reason: %s", err)
-	}
-
-	ActivateNTP()
-	ActivateConnectivityMonitor()
-	AdjustGoMaxProcs()
-
-	log.Debugf("Bot '%s' started.\n", bot.config.Name)
-	log.Debugf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
-
-	log.Debugf("Available Exchanges: %d. Enabled Exchanges: %d.\n",
-		len(bot.config.Exchanges),
-		bot.config.CountEnabledExchanges())
-
-	common.HTTPClient = common.NewHTTPClientWithTimeout(bot.config.GlobalHTTPTimeout)
-	log.Debugf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
-
-	SetupExchanges()
-
-	log.Debugf("Starting communication mediums..")
-	cfg := bot.config.GetCommunicationsConfig()
-	bot.comms = communications.NewComm(&cfg)
-	bot.comms.GetEnabledCommunicationMediums()
-
-	var newFxSettings []currency.FXSettings
-	for _, d := range bot.config.Currency.ForexProviders {
-		newFxSettings = append(newFxSettings, currency.FXSettings(d))
-	}
-
-	err = currency.RunStorageUpdater(currency.BotOverrides{
-		Coinmarketcap:       *Coinmarketcap,
-		FxCurrencyConverter: *FxCurrencyConverter,
-		FxCurrencyLayer:     *FxCurrencyLayer,
-		FxFixer:             *FxFixer,
-		FxOpenExchangeRates: *FxOpenExchangeRates,
-	},
-		&currency.MainConfiguration{
-			ForexProviders:         newFxSettings,
-			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider),
-			Cryptocurrencies:       bot.config.Currency.Cryptocurrencies,
-			FiatDisplayCurrency:    bot.config.Currency.FiatDisplayCurrency,
-			CurrencyDelay:          bot.config.Currency.CurrencyFileUpdateDuration,
-			FxRateDelay:            bot.config.Currency.ForeignExchangeUpdateDuration,
-		},
-		bot.dataDir,
-		*verbosity)
-	if err != nil {
-		log.Fatalf("currency updater system failed to start %v", err)
-
-	}
-
-	bot.portfolio = &portfolio.Portfolio
-	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
-	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
-
-	ActivateWebServer()
-
-	go portfolio.StartPortfolioWatcher()
-
-	go TickerUpdaterRoutine()
-	go OrderbookUpdaterRoutine()
-	go WebsocketRoutine(*verbosity)
-
-	<-bot.shutdown
-	Shutdown()
 }
 
 // ActivateWebServer Sets up a local web server
@@ -292,4 +230,111 @@ func Shutdown() {
 
 	log.CloseLogFile()
 	os.Exit(0)
+}
+
+// PrintBanner Prints banner to stdout
+func PrintBanner() {
+	fmt.Print(banner)
+}
+
+// PrintVersion Print the version to stdout
+func PrintVersion() {
+	fmt.Println(BuildVersion(false))
+}
+
+// LoadConfigFile loads the config
+func LoadConfigFile() {
+	bot.config = &config.Cfg
+	log.Debugf("Loading config file %s..\n", bot.configFile)
+	err := bot.config.LoadConfig(bot.configFile)
+	if err != nil {
+		log.Fatalf("Failed to load config. Err: %s", err)
+	}
+}
+
+// ActivateShutdownChan initialises a global shutdown channel
+func ActivateShutdownChan() {
+	bot.shutdown = make(chan bool)
+}
+
+// CreateDataDir creates the data directory
+func CreateDataDir() {
+	err := common.CreateDir(bot.dataDir)
+	if err != nil {
+		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
+	}
+	log.Debugf("Using data directory: %s.\n", bot.dataDir)
+}
+
+// ActivateLogger check the config and setups the logger
+func ActivateLogger() {
+	err := bot.config.CheckLoggerConfig()
+	if err != nil {
+		log.Errorf("Failed to configure logger reason: %s", err)
+	}
+
+	err = log.SetupLogger()
+	if err != nil {
+		log.Errorf("Failed to setup logger reason: %s", err)
+	}
+}
+
+// PrintBotSummary prints any summary information out to stdout
+func PrintBotSummary() {
+	log.Debugf("Bot '%s' started.\n", bot.config.Name)
+	log.Debugf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
+
+	log.Debugf("Available Exchanges: %d. Enabled Exchanges: %d.\n",
+		len(bot.config.Exchanges),
+		bot.config.CountEnabledExchanges())
+}
+
+func ActivatePortfolioWatcher() {
+	bot.portfolio = &portfolio.Portfolio
+	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
+	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
+	go portfolio.StartPortfolioWatcher()
+}
+
+// ActivateHTTPClient sets up a global HTTPClient
+func ActivateHTTPClient() {
+	common.HTTPClient = common.NewHTTPClientWithTimeout(bot.config.GlobalHTTPTimeout)
+	log.Debugf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
+}
+
+// ActivateCommunicationMediums
+func ActivateCommunicationMediums() {
+	log.Debugf("Starting communication mediums..")
+	cfg := bot.config.GetCommunicationsConfig()
+	bot.comms = communications.NewComm(&cfg)
+	bot.comms.GetEnabledCommunicationMediums()
+}
+
+//
+func ActivateStorageUpdater() {
+	var newFxSettings []currency.FXSettings
+	for _, d := range bot.config.Currency.ForexProviders {
+		newFxSettings = append(newFxSettings, currency.FXSettings(d))
+	}
+
+	err := currency.RunStorageUpdater(currency.BotOverrides{
+		Coinmarketcap:       bot.CoinMarketCap,
+		FxCurrencyConverter: bot.FxCurrencyConverter,
+		FxCurrencyLayer:     bot.FxCurrencyLayer,
+		FxFixer:             bot.FxFixer,
+		FxOpenExchangeRates: bot.FxOpenExchangeRates,
+	},
+		&currency.MainConfiguration{
+			ForexProviders:         newFxSettings,
+			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider),
+			Cryptocurrencies:       bot.config.Currency.Cryptocurrencies,
+			FiatDisplayCurrency:    bot.config.Currency.FiatDisplayCurrency,
+			CurrencyDelay:          bot.config.Currency.CurrencyFileUpdateDuration,
+			FxRateDelay:            bot.config.Currency.ForeignExchangeUpdateDuration,
+		},
+		bot.dataDir,
+		bot.verbosity)
+	if err != nil {
+		log.Fatalf("currency updater system failed to start %v", err)
+	}
 }
