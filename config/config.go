@@ -26,18 +26,20 @@ import (
 
 // Constants declared here are filename strings and test strings
 const (
-	FXProviderFixer                        = "fixer"
-	EncryptedConfigFile                    = "config.dat"
-	ConfigFile                             = "config.json"
-	ConfigTestFile                         = "../testdata/configtest.json"
-	configFileEncryptionPrompt             = 0
-	configFileEncryptionEnabled            = 1
-	configFileEncryptionDisabled           = -1
-	configPairsLastUpdatedWarningThreshold = 30 // 30 days
-	configDefaultHTTPTimeout               = time.Second * 15
-	configMaxAuthFailres                   = 3
-	defaultNTPAllowedDifference            = 50000000
-	defaultNTPAllowedNegativeDifference    = 50000000
+	FXProviderFixer                            = "fixer"
+	EncryptedConfigFile                        = "config.dat"
+	ConfigFile                                 = "config.json"
+	ConfigTestFile                             = "../testdata/configtest.json"
+	configFileEncryptionPrompt                 = 0
+	configFileEncryptionEnabled                = 1
+	configFileEncryptionDisabled               = -1
+	configPairsLastUpdatedWarningThreshold     = 30 // 30 days
+	configDefaultHTTPTimeout                   = time.Second * 15
+	configDefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	configDefaultWebsocketResponseMaxLimit     = time.Second * 7
+	configMaxAuthFailres                       = 3
+	defaultNTPAllowedDifference                = 50000000
+	defaultNTPAllowedNegativeDifference        = 50000000
 )
 
 // Constants here hold some messages
@@ -157,6 +159,8 @@ type ExchangeConfig struct {
 	UseSandbox                       bool                      `json:"useSandbox"`
 	RESTPollingDelay                 time.Duration             `json:"restPollingDelay"`
 	HTTPTimeout                      time.Duration             `json:"httpTimeout"`
+	WebsocketResponseCheckTimeout    time.Duration             `json:"websocketResponseCheckTimeout"`
+	WebsocketResponseMaxLimit        time.Duration             `json:"websocketResponseMaxLimit"`
 	HTTPUserAgent                    string                    `json:"httpUserAgent"`
 	HTTPDebugging                    bool                      `json:"httpDebugging"`
 	AuthenticatedAPISupport          bool                      `json:"authenticatedApiSupport"`
@@ -822,6 +826,16 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if c.Exchanges[i].HTTPTimeout <= 0 {
 				log.Warnf("Exchange %s HTTP Timeout value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultHTTPTimeout)
 				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
+			}
+
+			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
+				log.Warnf("Exchange %s Websocket response check timeout value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultWebsocketResponseCheckTimeout)
+				c.Exchanges[i].WebsocketResponseCheckTimeout = configDefaultWebsocketResponseCheckTimeout
+			}
+
+			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
+				log.Warnf("Exchange %s Websocket response max limit value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultWebsocketResponseMaxLimit)
+				c.Exchanges[i].WebsocketResponseMaxLimit = configDefaultWebsocketResponseMaxLimit
 			}
 
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)

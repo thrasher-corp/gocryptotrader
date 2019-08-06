@@ -1574,9 +1574,11 @@ func TestSendWsMessages(t *testing.T) {
 	}
 	var ok bool
 	o.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: o.Name,
-		URL:          o.Websocket.GetWebsocketURL(),
-		Verbose:      o.Verbose,
+		ExchangeName:         o.Name,
+		URL:                  o.Websocket.GetWebsocketURL(),
+		Verbose:              o.Verbose,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	var dialer websocket.Dialer
 	err := o.WebsocketConn.Dial(&dialer, http.Header{})

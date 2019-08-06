@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// WebsocketConnection contains all the datas needed to send a message to a WS
+// WebsocketConnection contains all the data needed to send a message to a WS
 type WebsocketConnection struct {
 	sync.Mutex
 	Verbose      bool
@@ -19,8 +19,7 @@ type WebsocketConnection struct {
 	Connection   *websocket.Conn
 	Shutdown     chan struct{}
 	// These are the request IDs and the corresponding response JSON
-	IDResponses map[int64][]byte
+	IDResponses          map[int64][]byte
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
 }
-
-var noResponseFoundTimeout = 20 * time.Millisecond
-var waitForResponseTimer = 7 * time.Second

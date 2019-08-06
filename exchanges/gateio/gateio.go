@@ -136,6 +136,15 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		g.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         g.Name,
+			URL:                  g.Websocket.GetWebsocketURL(),
+			ProxyURL:             g.Websocket.GetProxyAddress(),
+			Verbose:              g.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            gateioWebsocketRateLimit,
+		}
 	}
 }
 

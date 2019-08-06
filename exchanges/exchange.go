@@ -261,6 +261,8 @@ type Base struct {
 	Enabled                                    bool
 	Verbose                                    bool
 	RESTPollingDelay                           time.Duration
+	WebsocketResponseCheckTimeout              time.Duration
+	WebsocketResponseMaxLimit                  time.Duration
 	AuthenticatedAPISupport                    bool
 	AuthenticatedWebsocketAPISupport           bool
 	APIWithdrawPermissions                     uint32

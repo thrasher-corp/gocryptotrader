@@ -182,6 +182,8 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		responseCheckTimeout = exch.WebsocketResponseCheckTimeout
+		responseMaxLimit = exch.WebsocketResponseMaxLimit
 	}
 }
 

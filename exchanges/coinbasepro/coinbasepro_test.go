@@ -589,9 +589,11 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	c.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: c.Name,
-		URL:          c.Websocket.GetWebsocketURL(),
-		Verbose:      c.Verbose,
+		ExchangeName:         c.Name,
+		URL:                  c.Websocket.GetWebsocketURL(),
+		Verbose:              c.Verbose,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	var dialer websocket.Dialer
 	err := c.WebsocketConn.Dial(&dialer, http.Header{})

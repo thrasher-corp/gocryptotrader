@@ -52,9 +52,11 @@ func setupWsAuth(t *testing.T) {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	z.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: z.Name,
-		URL:          zbWebsocketAPI,
-		Verbose:      z.Verbose,
+		ExchangeName:         z.Name,
+		URL:                  zbWebsocketAPI,
+		Verbose:              z.Verbose,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	var dialer websocket.Dialer
 	err := z.WebsocketConn.Dial(&dialer, http.Header{})

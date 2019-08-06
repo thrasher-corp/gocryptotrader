@@ -151,6 +151,15 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		o.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         o.Name,
+			URL:                  o.Websocket.GetWebsocketURL(),
+			ProxyURL:             o.Websocket.GetProxyAddress(),
+			Verbose:              o.Verbose,
+			RateLimit:            okGroupWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
 	}
 }
 

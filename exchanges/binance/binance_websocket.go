@@ -159,13 +159,7 @@ func (b *Binance) WSConnect() error {
 		}
 	}
 
-	b.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: b.Name,
-		URL:          wsurl,
-		ProxyURL:     b.Websocket.GetProxyAddress(),
-		Verbose:      b.Verbose,
-	}
-
+	b.WebsocketConn.URL = wsurl
 	err = b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",

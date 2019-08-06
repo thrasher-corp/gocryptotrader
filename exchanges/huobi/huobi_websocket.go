@@ -53,20 +53,6 @@ func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-	h.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: h.Name,
-		URL:          wsMarketURL,
-		ProxyURL:     h.Websocket.GetProxyAddress(),
-		Verbose:      h.Verbose,
-		RateLimit:    rateLimit,
-	}
-	h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: h.Name,
-		URL:          wsAccountsOrdersURL,
-		ProxyURL:     h.Websocket.GetProxyAddress(),
-		Verbose:      h.Verbose,
-		RateLimit:    rateLimit,
-	}
 	var dialer websocket.Dialer
 	err := h.wsDial(&dialer)
 	if err != nil {

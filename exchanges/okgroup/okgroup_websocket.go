@@ -22,9 +22,6 @@ import (
 
 // List of all websocket channels to subscribe to
 const (
-	// If a checksum fails, then resubscribing to the channel fails, fatal after these attempts
-	okGroupWsResubscribeFailureLimit   = 3
-	okGroupWsResubscribeDelayInSeconds = 3
 	// Orderbook events
 	okGroupWsOrderbookUpdate  = "update"
 	okGroupWsOrderbookPartial = "partial"
@@ -151,12 +148,6 @@ var defaultSubscribedChannels = []string{okGroupWsSpotDepth, okGroupWsSpotCandle
 func (o *OKGroup) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
-	}
-	o.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: o.Name,
-		URL:          o.Websocket.GetWebsocketURL(),
-		Verbose:      o.Verbose,
-		RateLimit:    okGroupWsRateLimit,
 	}
 	var dialer websocket.Dialer
 	err := o.WebsocketConn.Dial(&dialer, http.Header{})

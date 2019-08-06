@@ -148,6 +148,14 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		c.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         c.Name,
+			URL:                  c.Websocket.GetWebsocketURL(),
+			ProxyURL:             c.Websocket.GetProxyAddress(),
+			Verbose:              c.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
 	}
 }
 

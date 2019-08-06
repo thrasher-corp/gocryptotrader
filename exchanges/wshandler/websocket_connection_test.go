@@ -52,9 +52,11 @@ type testResponse struct {
 // TestMain setup test
 func TestMain(m *testing.M) {
 	wc = &WebsocketConnection{
-		ExchangeName: "test",
-		Verbose:      true,
-		URL:          returnResponseURL,
+		ExchangeName:         "test",
+		Verbose:              true,
+		URL:                  returnResponseURL,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	os.Exit(m.Run())
 }
@@ -62,9 +64,9 @@ func TestMain(m *testing.M) {
 // TestDial logic test
 func TestDial(t *testing.T) {
 	var testCases = []testStruct{
-		{Error: nil, WC: WebsocketConnection{ExchangeName: "test1", Verbose: true, URL: websocketTestURL, RateLimit: 10}},
-		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: ""}},
-		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL}},
+		{Error: nil, WC: WebsocketConnection{ExchangeName: "test1", Verbose: true, URL: websocketTestURL, RateLimit: 10, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: "", ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
 	}
 	for i := 0; i < len(testCases); i++ {
 		testData := &testCases[i]
@@ -86,9 +88,9 @@ func TestDial(t *testing.T) {
 // TestSendMessage logic test
 func TestSendMessage(t *testing.T) {
 	var testCases = []testStruct{
-		{Error: nil, WC: WebsocketConnection{ExchangeName: "test1", Verbose: true, URL: websocketTestURL, RateLimit: 10}},
-		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: ""}},
-		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL}},
+		{Error: nil, WC: WebsocketConnection{ExchangeName: "test1", Verbose: true, URL: websocketTestURL, RateLimit: 10, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: "", ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
 	}
 	for i := 0; i < len(testCases); i++ {
 		testData := &testCases[i]

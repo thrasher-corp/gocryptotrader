@@ -35,12 +35,6 @@ func (p *Poloniex) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
-	p.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: p.Name,
-		URL:          p.Websocket.GetWebsocketURL(),
-		Verbose:      p.Verbose,
-	}
 	var dialer websocket.Dialer
 	err := p.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {

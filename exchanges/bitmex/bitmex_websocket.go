@@ -68,12 +68,6 @@ func (b *Bitmex) WsConnector() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
-	b.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: b.Name,
-		URL:          b.Websocket.GetWebsocketURL(),
-		Verbose:      b.Verbose,
-	}
 	var dialer websocket.Dialer
 	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {

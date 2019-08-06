@@ -760,9 +760,11 @@ func setupWsTests(t *testing.T) {
 	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	k.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: k.Name,
-		URL:          krakenWSURL,
-		Verbose:      k.Verbose,
+		ExchangeName:         k.Name,
+		URL:                  krakenWSURL,
+		Verbose:              k.Verbose,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	var dialer websocket.Dialer
 	err := k.WebsocketConn.Dial(&dialer, http.Header{})

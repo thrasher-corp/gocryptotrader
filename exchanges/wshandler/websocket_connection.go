@@ -91,7 +91,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 // If the timer expires, it will return without
 func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 	defer wg.Done()
-	timer := time.NewTimer(waitForResponseTimer)
+	timer := time.NewTimer(w.ResponseMaxLimit)
 	for {
 		select {
 		case <-timer.C:
@@ -105,7 +105,7 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 				}
 			}
 			w.Unlock()
-			time.Sleep(noResponseFoundTimeout)
+			time.Sleep(w.ResponseCheckTimeout)
 		}
 	}
 }
@@ -157,7 +157,10 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	} else {
 		reader := flate.NewReader(bytes.NewReader(resp))
 		standardMessage, err = ioutil.ReadAll(reader)
-		reader.Close()
+		if err != nil {
+			return standardMessage, err
+		}
+		err = reader.Close()
 		if err != nil {
 			return standardMessage, err
 		}

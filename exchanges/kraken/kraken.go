@@ -150,6 +150,15 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		k.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         k.Name,
+			URL:                  k.Websocket.GetWebsocketURL(),
+			ProxyURL:             k.Websocket.GetProxyAddress(),
+			Verbose:              k.Verbose,
+			RateLimit:            krakenWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
 	}
 }
 

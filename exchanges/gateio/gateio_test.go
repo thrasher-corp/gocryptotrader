@@ -505,10 +505,12 @@ func TestWsGetBalance(t *testing.T) {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	g.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: g.Name,
-		URL:          gateioWebsocketEndpoint,
-		Verbose:      g.Verbose,
-		RateLimit:    gateioWebsocketRateLimit,
+		ExchangeName:         g.Name,
+		URL:                  gateioWebsocketEndpoint,
+		Verbose:              g.Verbose,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	var dialer websocket.Dialer
 	err := g.WebsocketConn.Dial(&dialer, http.Header{})
@@ -539,10 +541,12 @@ func TestWsGetOrderInfo(t *testing.T) {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	g.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: g.Name,
-		URL:          gateioWebsocketEndpoint,
-		Verbose:      g.Verbose,
-		RateLimit:    gateioWebsocketRateLimit,
+		ExchangeName:         g.Name,
+		URL:                  gateioWebsocketEndpoint,
+		Verbose:              g.Verbose,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	var dialer websocket.Dialer
 	err := g.WebsocketConn.Dial(&dialer, http.Header{})
@@ -575,10 +579,12 @@ func setupWSTestAuth(t *testing.T) {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	g.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: g.Name,
-		URL:          gateioWebsocketEndpoint,
-		Verbose:      g.Verbose,
-		RateLimit:    gateioWebsocketRateLimit,
+		ExchangeName:         g.Name,
+		URL:                  gateioWebsocketEndpoint,
+		Verbose:              g.Verbose,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	var dialer websocket.Dialer
 	err := g.WebsocketConn.Dial(&dialer, http.Header{})

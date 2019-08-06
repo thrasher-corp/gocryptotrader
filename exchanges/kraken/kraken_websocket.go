@@ -40,9 +40,8 @@ const (
 	krakenWsSpread             = "spread"
 	krakenWsOrderbook          = "book"
 	// Only supported asset type
-	krakenWsAssetType    = "SPOT"
 	orderbookBufferLimit = 3
-	krakenWsRateLimit    = 50 * time.Millisecond
+	krakenWsRateLimit    = 50
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
@@ -67,13 +66,7 @@ func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
 	var dialer websocket.Dialer
-	k.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: k.Name,
-		URL:          k.Websocket.GetWebsocketURL(),
-		Verbose:      k.Verbose,
-	}
 	err := k.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -286,7 +279,7 @@ func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data interf
 	k.Websocket.DataHandler <- wshandler.TickerData{
 		Timestamp:  time.Now(),
 		Exchange:   k.Name,
-		AssetType:  krakenWsAssetType,
+		AssetType:  orderbook.Spot,
 		Pair:       channelData.Pair,
 		ClosePrice: closePrice,
 		OpenPrice:  openPrice,
@@ -329,7 +322,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data interfa
 		amount, _ := strconv.ParseFloat(trade[1].(string), 64)
 
 		k.Websocket.DataHandler <- wshandler.TradeData{
-			AssetType:    krakenWsAssetType,
+			AssetType:    orderbook.Spot,
 			CurrencyPair: channelData.Pair,
 			EventTime:    time.Now().Unix(),
 			Exchange:     k.Name,
@@ -372,7 +365,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, obData map[string]interface{}) {
 	ob := orderbook.Base{
 		Pair:      channelData.Pair,
-		AssetType: krakenWsAssetType,
+		AssetType: orderbook.Spot,
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is timestamped per entry
 	// Using the highest last update time, we can attempt to respect both within a reasonable degree
@@ -422,7 +415,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 
 	k.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: k.Name,
-		Asset:    krakenWsAssetType,
+		Asset:    orderbook.Spot,
 		Pair:     channelData.Pair,
 	}
 
@@ -434,7 +427,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 
 func (k *Kraken) wsProcessOrderBookBuffer(channelData *WebsocketChannelData, obData map[string]interface{}) {
 	ob := orderbook.Base{
-		AssetType:    krakenWsAssetType,
+		AssetType:    orderbook.Spot,
 		ExchangeName: k.Name,
 		Pair:         channelData.Pair,
 	}
@@ -545,7 +538,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData) err
 
 	k.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: k.Name,
-		Asset:    krakenWsAssetType,
+		Asset:    orderbook.Spot,
 		Pair:     channelData.Pair,
 	}
 	// Reset the buffer
@@ -680,7 +673,7 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interf
 	volume, _ := strconv.ParseFloat(candleData[7].(string), 64)
 
 	k.Websocket.DataHandler <- wshandler.KlineData{
-		AssetType: krakenWsAssetType,
+		AssetType: orderbook.Spot,
 		Pair:      channelData.Pair,
 		Timestamp: time.Now(),
 		Exchange:  k.Name,

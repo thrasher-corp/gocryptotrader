@@ -28,6 +28,8 @@ const (
 
 // Instantiates a communications channel between websocket connections
 var comms = make(chan ReadData, 1)
+var responseMaxLimit time.Duration
+var responseCheckTimeout time.Duration
 
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
@@ -64,9 +66,11 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			c.String(),
 			val.Encode())
 		connection := &wshandler.WebsocketConnection{
-			ExchangeName: g.Name,
-			URL:          endpoint,
-			Verbose:      g.Verbose,
+			ExchangeName:         g.Name,
+			URL:                  endpoint,
+			Verbose:              g.Verbose,
+			ResponseCheckTimeout: responseCheckTimeout,
+			ResponseMaxLimit:     responseMaxLimit,
 		}
 		err := connection.Dial(dialer, http.Header{})
 		if err != nil {

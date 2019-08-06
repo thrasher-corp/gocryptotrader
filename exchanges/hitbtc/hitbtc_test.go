@@ -400,9 +400,11 @@ func setupWsAuth(t *testing.T) {
 	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	h.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: h.Name,
-		URL:          hitbtcWebsocketAddress,
-		Verbose:      h.Verbose,
+		ExchangeName:         h.Name,
+		URL:                  hitbtcWebsocketAddress,
+		Verbose:              h.Verbose,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
 	}
 	var dialer websocket.Dialer
 	err := h.WebsocketConn.Dial(&dialer, http.Header{})

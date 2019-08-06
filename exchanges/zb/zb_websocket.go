@@ -27,12 +27,6 @@ func (z *ZB) WsConnect() error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-	z.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: z.Name,
-		URL:          z.Websocket.GetWebsocketURL(),
-		Verbose:      z.Verbose,
-		RateLimit:    zbWebsocketRateLimit,
-	}
 	var dialer websocket.Dialer
 	err := z.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {

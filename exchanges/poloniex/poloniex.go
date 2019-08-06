@@ -145,6 +145,14 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		p.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         p.Name,
+			URL:                  p.Websocket.GetWebsocketURL(),
+			ProxyURL:             p.Websocket.GetProxyAddress(),
+			Verbose:              p.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
 	}
 }
 

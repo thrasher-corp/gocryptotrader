@@ -137,6 +137,15 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		z.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         z.Name,
+			URL:                  z.Websocket.GetWebsocketURL(),
+			ProxyURL:             z.Websocket.GetProxyAddress(),
+			Verbose:              z.Verbose,
+			RateLimit:            zbWebsocketRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
 	}
 }
 

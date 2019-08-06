@@ -28,14 +28,6 @@ func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
-	g.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName: g.Name,
-		URL:          g.Websocket.GetWebsocketURL(),
-		ProxyURL:     g.Websocket.GetProxyAddress(),
-		Verbose:      g.Verbose,
-		RateLimit:    gateioWebsocketRateLimit,
-	}
 	var dialer websocket.Dialer
 	err := g.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
