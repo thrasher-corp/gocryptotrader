@@ -214,7 +214,7 @@ func TestGetAccountBalance(t *testing.T) {
 func TestGetAggregatedBalance(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
 
