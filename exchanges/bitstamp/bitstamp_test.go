@@ -60,7 +60,7 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || areTestAPIKeysSet() && err != nil {
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || (areTestAPIKeysSet() && err != nil) {
 		t.Error(err)
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f",
 			float64(0),
@@ -71,7 +71,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || areTestAPIKeysSet() && err != nil {
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || (areTestAPIKeysSet() && err != nil) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f",
 			float64(0),
 			resp)
@@ -81,7 +81,7 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || areTestAPIKeysSet() && err != nil {
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || (areTestAPIKeysSet() && err != nil) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f",
 			float64(0),
 			resp)
@@ -91,7 +91,7 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || areTestAPIKeysSet() && err != nil {
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || (areTestAPIKeysSet() && err != nil) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f",
 			float64(0),
 			resp)

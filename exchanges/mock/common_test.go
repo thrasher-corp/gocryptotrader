@@ -16,71 +16,69 @@ func TestMatchURLVals(t *testing.T) {
 	nonceVal1.Add("nonce", "012349723587")
 	nonceVal2.Add("nonce", "9327373874")
 
-	// Expected false values
-	var expected bool
-	receieved := MatchURLVals(testVal, emptyVal)
-	if receieved != expected {
+	var expected = false
+	received := MatchURLVals(testVal, emptyVal)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 
-	receieved = MatchURLVals(emptyVal, testVal)
-	if receieved != expected {
+	received = MatchURLVals(emptyVal, testVal)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 
-	receieved = MatchURLVals(testVal, testVal2)
-	if receieved != expected {
+	received = MatchURLVals(testVal, testVal2)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 
-	receieved = MatchURLVals(testVal2, testVal)
-	if receieved != expected {
+	received = MatchURLVals(testVal2, testVal)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 
-	receieved = MatchURLVals(testVal, testVal3)
-	if receieved != expected {
+	received = MatchURLVals(testVal, testVal3)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 
-	receieved = MatchURLVals(nonceVal1, testVal2)
-	if receieved != expected {
+	received = MatchURLVals(nonceVal1, testVal2)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 
-	// Expected true values
 	expected = true
-	receieved = MatchURLVals(emptyVal, emptyVal)
-	if receieved != expected {
+	received = MatchURLVals(emptyVal, emptyVal)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 
-	receieved = MatchURLVals(testVal, testVal)
-	if receieved != expected {
+	received = MatchURLVals(testVal, testVal)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 
-	receieved = MatchURLVals(nonceVal1, nonceVal2)
-	if receieved != expected {
+	received = MatchURLVals(nonceVal1, nonceVal2)
+	if received != expected {
 		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
 			expected,
-			receieved)
+			received)
 	}
 }
 

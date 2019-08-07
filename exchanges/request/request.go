@@ -280,8 +280,6 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		log.Debug(body)
 	}
 
-	newbody := fmt.Sprintf("%v", body)
-
 	var timeoutError error
 	for i := 0; i < r.timeoutRetryAttempts+1; i++ {
 		resp, err := r.HTTPClient.Do(req)
@@ -339,7 +337,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 
 		if httpRecord {
 			// This dumps resp for future mocking implementations
-			err = mock.HTTPRecord(newbody, resp, mock.DefaultDirectory, r.Name, contents, true)
+			err = mock.HTTPRecord(fmt.Sprintf("%v", body), resp, mock.DefaultDirectory, r.Name, contents, true)
 			if err != nil {
 				return err
 			}
