@@ -69,6 +69,8 @@ func (b *BTSE) SetDefaults() {
 		wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketSubscribeSupported |
 		wshandler.WebsocketUnsubscribeSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

@@ -87,6 +87,8 @@ func (h *HitBTC) SetDefaults() {
 		wshandler.WebsocketSubmitOrderSupported |
 		wshandler.WebsocketCancelOrderSupported |
 		wshandler.WebsocketMessageCorrelationSupported
+	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user exchange configuration settings

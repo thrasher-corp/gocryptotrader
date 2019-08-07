@@ -55,8 +55,8 @@ func setupWsAuth(t *testing.T) {
 		ExchangeName:         z.Name,
 		URL:                  zbWebsocketAPI,
 		Verbose:              z.Verbose,
-		ResponseMaxLimit:     7000000000,
-		ResponseCheckTimeout: 30000000,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
 	err := z.WebsocketConn.Dial(&dialer, http.Header{})

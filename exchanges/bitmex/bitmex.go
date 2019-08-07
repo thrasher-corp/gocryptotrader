@@ -141,6 +141,8 @@ func (b *Bitmex) SetDefaults() {
 		wshandler.WebsocketAuthenticatedEndpointsSupported |
 		wshandler.WebsocketAccountDataSupported |
 		wshandler.WebsocketDeadMansSwitchSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

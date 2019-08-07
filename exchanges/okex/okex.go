@@ -85,6 +85,8 @@ func (o *OKEX) SetDefaults() {
 		wshandler.WebsocketUnsubscribeSupported |
 		wshandler.WebsocketAuthenticatedEndpointsSupported |
 		wshandler.WebsocketMessageCorrelationSupported
+	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 
 }
 

@@ -812,8 +812,8 @@ func TestSendWsMessages(t *testing.T) {
 		ExchangeName:         o.Name,
 		URL:                  o.Websocket.GetWebsocketURL(),
 		Verbose:              o.Verbose,
-		ResponseMaxLimit:     7000000000,
-		ResponseCheckTimeout: 30000000,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
 	err := o.WebsocketConn.Dial(&dialer, http.Header{})

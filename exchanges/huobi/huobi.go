@@ -103,6 +103,8 @@ func (h *HUOBI) SetDefaults() {
 		wshandler.WebsocketAuthenticatedEndpointsSupported |
 		wshandler.WebsocketAccountDataSupported |
 		wshandler.WebsocketMessageCorrelationSupported
+	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user configuration

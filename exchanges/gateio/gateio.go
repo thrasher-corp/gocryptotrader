@@ -83,6 +83,8 @@ func (g *Gateio) SetDefaults() {
 		wshandler.WebsocketUnsubscribeSupported |
 		wshandler.WebsocketAuthenticatedEndpointsSupported |
 		wshandler.WebsocketMessageCorrelationSupported
+	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user configuration

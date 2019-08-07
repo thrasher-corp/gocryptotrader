@@ -968,8 +968,8 @@ func TestWsAuth(t *testing.T) {
 		ExchangeName:         b.Name,
 		URL:                  b.Websocket.GetWebsocketURL(),
 		Verbose:              b.Verbose,
-		ResponseMaxLimit:     7000000000,
-		ResponseCheckTimeout: 30000000,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
 	err := b.WebsocketConn.Dial(&dialer, http.Header{})

@@ -118,6 +118,8 @@ func (b *Bitfinex) SetDefaults() {
 		wshandler.WebsocketSubscribeSupported |
 		wshandler.WebsocketUnsubscribeSupported |
 		wshandler.WebsocketAuthenticatedEndpointsSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -178,6 +180,8 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
+		b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+		b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	}
 }
 

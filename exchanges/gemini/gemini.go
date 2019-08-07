@@ -126,6 +126,8 @@ func (g *Gemini) SetDefaults() {
 		wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketAuthenticatedEndpointsSupported |
 		wshandler.WebsocketSequenceNumberSupported
+	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets exchange configuration parameters

@@ -99,6 +99,8 @@ func (b *Binance) SetDefaults() {
 		wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketKlineSupported |
 		wshandler.WebsocketOrderbookSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

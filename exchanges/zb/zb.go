@@ -84,6 +84,8 @@ func (z *ZB) SetDefaults() {
 		wshandler.WebsocketCancelOrderSupported |
 		wshandler.WebsocketSubmitOrderSupported |
 		wshandler.WebsocketMessageCorrelationSupported
+	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user configuration

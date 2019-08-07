@@ -763,8 +763,8 @@ func setupWsTests(t *testing.T) {
 		ExchangeName:         k.Name,
 		URL:                  krakenWSURL,
 		Verbose:              k.Verbose,
-		ResponseMaxLimit:     7000000000,
-		ResponseCheckTimeout: 30000000,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
 	err := k.WebsocketConn.Dial(&dialer, http.Header{})

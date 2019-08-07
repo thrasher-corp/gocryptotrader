@@ -93,6 +93,8 @@ func (c *CoinbasePro) SetDefaults() {
 		wshandler.WebsocketUnsubscribeSupported |
 		wshandler.WebsocketAuthenticatedEndpointsSupported |
 		wshandler.WebsocketSequenceNumberSupported
+	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup initialises the exchange parameters with the current configuration

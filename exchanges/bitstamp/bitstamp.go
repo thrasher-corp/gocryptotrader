@@ -92,6 +92,8 @@ func (b *Bitstamp) SetDefaults() {
 		wshandler.WebsocketTradeDataSupported |
 		wshandler.WebsocketSubscribeSupported |
 		wshandler.WebsocketUnsubscribeSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets configuration values to bitstamp

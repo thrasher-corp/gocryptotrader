@@ -28,6 +28,10 @@ const (
 	ErrExchangeNotFound = "exchange not found in dataset"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
+	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
+	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
+	DefaultWebsocketResponseMaxLimit = time.Second * 7
 )
 
 // FeeType custom type for calculating fees based on method

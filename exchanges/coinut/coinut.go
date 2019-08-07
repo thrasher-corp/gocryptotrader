@@ -84,6 +84,8 @@ func (c *COINUT) SetDefaults() {
 		wshandler.WebsocketSubmitOrderSupported |
 		wshandler.WebsocketCancelOrderSupported |
 		wshandler.WebsocketMessageCorrelationSupported
+	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets the current exchange configuration

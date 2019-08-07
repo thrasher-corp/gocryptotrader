@@ -62,15 +62,15 @@ func setupWsTests(t *testing.T) {
 		ExchangeName:         h.Name,
 		URL:                  wsAccountsOrdersURL,
 		Verbose:              h.Verbose,
-		ResponseMaxLimit:     7000000000,
-		ResponseCheckTimeout: 30000000,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	h.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         h.Name,
 		URL:                  HuobiHadaxSocketIOAddress,
 		Verbose:              h.Verbose,
-		ResponseMaxLimit:     7000000000,
-		ResponseCheckTimeout: 30000000,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
 	err := h.wsAuthenticatedDial(&dialer)

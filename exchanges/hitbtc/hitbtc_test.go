@@ -403,8 +403,8 @@ func setupWsAuth(t *testing.T) {
 		ExchangeName:         h.Name,
 		URL:                  hitbtcWebsocketAddress,
 		Verbose:              h.Verbose,
-		ResponseMaxLimit:     7000000000,
-		ResponseCheckTimeout: 30000000,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
 	err := h.WebsocketConn.Dial(&dialer, http.Header{})

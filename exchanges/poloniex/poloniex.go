@@ -93,6 +93,8 @@ func (p *Poloniex) SetDefaults() {
 		wshandler.WebsocketSubscribeSupported |
 		wshandler.WebsocketUnsubscribeSupported |
 		wshandler.WebsocketAuthenticatedEndpointsSupported
+	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user exchange configuration settings

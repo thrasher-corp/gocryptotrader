@@ -98,6 +98,8 @@ func (k *Kraken) SetDefaults() {
 		wshandler.WebsocketSubscribeSupported |
 		wshandler.WebsocketUnsubscribeSupported |
 		wshandler.WebsocketMessageCorrelationSupported
+	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 
 }
 
