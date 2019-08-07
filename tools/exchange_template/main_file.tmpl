@@ -48,6 +48,8 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	{{.Variable}}.APIUrlDefault = {{.Name}}APIURL
 	{{.Variable}}.APIUrl = {{.Variable}}.APIUrlDefault
 	{{.Variable}}.Websocket = wshandler.New()
+	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -96,6 +98,14 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) {
 		//	exch.WebsocketURL)
 		// if err != nil {
 		// 	log.Fatal(err)
+		// }
+		// {{.Variable}}.WebsocketConn = &wshandler.WebsocketConnection{
+		// 		ExchangeName:         {{.Variable}}.Name,
+		// 		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
+		// 		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
+		// 		Verbose:              {{.Variable}}.Verbose,
+		// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		// }
 	}
 }
