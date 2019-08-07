@@ -7,16 +7,15 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -48,9 +47,8 @@ const (
 
 // Gateio is the overarching type across this package
 type Gateio struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
-	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -76,14 +74,17 @@ func (g *Gateio) SetDefaults() {
 	g.APIUrl = g.APIUrlDefault
 	g.APIUrlSecondaryDefault = gateioMarketURL
 	g.APIUrlSecondary = g.APIUrlSecondaryDefault
-	g.WebsocketInit()
-	g.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+	g.Websocket = wshandler.New()
+	g.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user configuration
@@ -125,16 +126,26 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.WebsocketSetup(g.WsConnect,
+		err = g.Websocket.Setup(g.WsConnect,
 			g.Subscribe,
 			g.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			gateioWebsocketEndpoint,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
+		}
+		g.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         g.Name,
+			URL:                  g.Websocket.GetWebsocketURL(),
+			ProxyURL:             g.Websocket.GetProxyAddress(),
+			Verbose:              g.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            gateioWebsocketRateLimit,
 		}
 	}
 }

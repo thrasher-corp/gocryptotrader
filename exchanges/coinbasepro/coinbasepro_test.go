@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 var c CoinbasePro
@@ -585,20 +586,24 @@ func TestWsAuth(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
 	if !c.Websocket.IsEnabled() && !c.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var err error
+	c.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         c.Name,
+		URL:                  c.Websocket.GetWebsocketURL(),
+		Verbose:              c.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
 	var dialer websocket.Dialer
-	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go c.WsHandleData()
-	defer c.WebsocketConn.Close()
-	err = c.Subscribe(exchange.WebsocketChannelSubscription{
+	err = c.Subscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "user",
 		Currency: currency.NewPairFromString("BTC-USD"),
 	})

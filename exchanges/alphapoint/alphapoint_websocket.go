@@ -15,9 +15,9 @@ const (
 // WebsocketClient starts a new webstocket connection
 func (a *Alphapoint) WebsocketClient() {
 	for a.Enabled {
-		var Dialer websocket.Dialer
+		var dialer websocket.Dialer
 		var err error
-		a.WebsocketConn, _, err = Dialer.Dial(a.WebsocketURL, http.Header{})
+		a.WebsocketConn, _, err = dialer.Dial(a.WebsocketURL, http.Header{})
 
 		if err != nil {
 			log.Errorf("%s Unable to connect to Websocket. Error: %s\n", a.Name, err)

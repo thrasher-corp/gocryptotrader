@@ -7,16 +7,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -54,8 +53,7 @@ const (
 // HitBTC is the overarching type across the hitbtc package
 type HitBTC struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // SetDefaults sets default settings for hitbtc
@@ -80,14 +78,17 @@ func (h *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = apiURL
 	h.APIUrl = h.APIUrlDefault
-	h.WebsocketInit()
-	h.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketSubmitOrderSupported |
-		exchange.WebsocketCancelOrderSupported
+	h.Websocket = wshandler.New()
+	h.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketSubmitOrderSupported |
+		wshandler.WebsocketCancelOrderSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user exchange configuration settings
@@ -128,16 +129,26 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.WebsocketSetup(h.WsConnect,
+		err = h.Websocket.Setup(h.WsConnect,
 			h.Subscribe,
 			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			hitbtcWebsocketAddress,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
+		}
+		h.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         h.Name,
+			URL:                  h.Websocket.GetWebsocketURL(),
+			ProxyURL:             h.Websocket.GetProxyAddress(),
+			Verbose:              h.Verbose,
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
 	}
 }

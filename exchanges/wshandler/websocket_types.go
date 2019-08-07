@@ -1,4 +1,4 @@
-package exchange
+package wshandler
 
 import (
 	"sync"
@@ -24,6 +24,9 @@ const (
 	WebsocketSubmitOrderSupported
 	WebsocketCancelOrderSupported
 	WebsocketWithdrawSupported
+	WebsocketMessageCorrelationSupported
+	WebsocketSequenceNumberSupported
+	WebsocketDeadMansSwitchSupported
 
 	WebsocketTickerSupportedText                 = "TICKER STREAMING SUPPORTED"
 	WebsocketOrderbookSupportedText              = "ORDERBOOK STREAMING SUPPORTED"
@@ -40,6 +43,9 @@ const (
 	WebsocketSubmitOrderSupportedText            = "WEBSOCKET SUBMIT ORDER SUPPORTED"
 	WebsocketCancelOrderSupportedText            = "WEBSOCKET CANCEL ORDER SUPPORTED"
 	WebsocketWithdrawSupportedText               = "WEBSOCKET WITHDRAW SUPPORTED"
+	WebsocketMessageCorrelationSupportedText     = "WEBSOCKET MESSAGE CORRELATION SUPPORTED"
+	WebsocketSequenceNumberSupportedText         = "WEBSOCKET SEQUENCE NUMBER SUPPORTED"
+	WebsocketDeadMansSwitchSupportedText         = "WEBSOCKET DEAD MANS SWITCH SUPPORTED"
 
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
@@ -75,11 +81,10 @@ type Websocket struct {
 	noConnectionChecks       int
 	reconnectionChecks       int
 	noConnectionCheckLimit   int
-	// Subscriptions stuff
-	subscribedChannels  []WebsocketChannelSubscription
-	channelsToSubscribe []WebsocketChannelSubscription
-	channelSubscriber   func(channelToSubscribe WebsocketChannelSubscription) error
-	channelUnsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error
+	subscribedChannels       []WebsocketChannelSubscription
+	channelsToSubscribe      []WebsocketChannelSubscription
+	channelSubscriber        func(channelToSubscribe WebsocketChannelSubscription) error
+	channelUnsubscriber      func(channelToUnsubscribe WebsocketChannelSubscription) error
 	// Connected denotes a channel switch for diversion of request flow
 	Connected chan struct{}
 	// Disconnected denotes a channel switch for diversion of request flow
@@ -87,11 +92,9 @@ type Websocket struct {
 	// DataHandler pipes websocket data to an exchange websocket data handler
 	DataHandler chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
-	ShutdownC                 chan struct{}
-	ShutdownConnectionMonitor chan struct{}
+	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks
 	Orderbook WebsocketOrderbookLocal
-
 	// Wg defines a wait group for websocket routines for cleanly shutting down
 	// routines
 	Wg sync.WaitGroup

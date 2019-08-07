@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -74,7 +75,7 @@ func (b *BTCMarkets) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = btcMarketsAPIURL
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
+	b.Websocket = wshandler.New()
 }
 
 // Setup takes in an exchange configuration and sets all parameters

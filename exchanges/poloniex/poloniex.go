@@ -8,16 +8,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -62,8 +61,7 @@ const (
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // SetDefaults sets default settings for poloniex
@@ -88,13 +86,15 @@ func (p *Poloniex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	p.APIUrlDefault = poloniexAPIURL
 	p.APIUrl = p.APIUrlDefault
-	p.WebsocketInit()
-	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+	p.Websocket = wshandler.New()
+	p.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported
+	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user exchange configuration settings
@@ -135,16 +135,25 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.WebsocketSetup(p.WsConnect,
+		err = p.Websocket.Setup(p.WsConnect,
 			p.Subscribe,
 			p.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			poloniexWebsocketAddress,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
+		}
+		p.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         p.Name,
+			URL:                  p.Websocket.GetWebsocketURL(),
+			ProxyURL:             p.Websocket.GetProxyAddress(),
+			Verbose:              p.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
 	}
 }

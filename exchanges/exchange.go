@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -27,6 +28,10 @@ const (
 	ErrExchangeNotFound = "exchange not found in dataset"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
+	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
+	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
+	DefaultWebsocketResponseMaxLimit = time.Second * 7
 )
 
 // FeeType custom type for calculating fees based on method
@@ -260,6 +265,8 @@ type Base struct {
 	Enabled                                    bool
 	Verbose                                    bool
 	RESTPollingDelay                           time.Duration
+	WebsocketResponseCheckTimeout              time.Duration
+	WebsocketResponseMaxLimit                  time.Duration
 	AuthenticatedAPISupport                    bool
 	AuthenticatedWebsocketAPISupport           bool
 	APIWithdrawPermissions                     uint32
@@ -283,7 +290,7 @@ type Base struct {
 	APIUrlSecondaryDefault                     string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
-	Websocket                                  *Websocket
+	Websocket                                  *wshandler.Websocket
 	*request.Requester
 }
 
@@ -326,11 +333,11 @@ type IBotExchange interface {
 	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
-	GetWebsocket() (*Websocket, error)
-	SubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
+	GetWebsocket() (*wshandler.Websocket, error)
+	SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
 	AuthenticateWebsocket() error
-	GetSubscriptions() ([]WebsocketChannelSubscription, error)
+	GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the

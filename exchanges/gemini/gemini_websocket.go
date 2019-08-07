@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -27,11 +28,13 @@ const (
 
 // Instantiates a communications channel between websocket connections
 var comms = make(chan ReadData, 1)
+var responseMaxLimit time.Duration
+var responseCheckTimeout time.Duration
 
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -62,11 +65,18 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			geminiWsMarketData,
 			c.String(),
 			val.Encode())
-		conn, conStatus, err := dialer.Dial(endpoint, http.Header{})
-		if err != nil {
-			return fmt.Errorf("%v %v %v Error: %v", endpoint, conStatus, conStatus.StatusCode, err)
+		connection := &wshandler.WebsocketConnection{
+			ExchangeName:         g.Name,
+			URL:                  endpoint,
+			Verbose:              g.Verbose,
+			ResponseCheckTimeout: responseCheckTimeout,
+			ResponseMaxLimit:     responseMaxLimit,
 		}
-		go g.WsReadData(conn, c)
+		err := connection.Dial(dialer, http.Header{})
+		if err != nil {
+			return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
+		}
+		go g.WsReadData(connection, c)
 		if len(enabledCurrencies)-1 == i {
 			return nil
 		}
@@ -99,17 +109,22 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("X-GEMINI-SIGNATURE", common.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	conn, conStatus, err := dialer.Dial(endpoint, headers)
-	if err != nil {
-		return fmt.Errorf("%v %v %v Error: %v", endpoint, conStatus, conStatus.StatusCode, err)
+	g.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName: g.Name,
+		URL:          endpoint,
+		Verbose:      g.Verbose,
 	}
-	go g.WsReadData(conn, currency.Pair{})
+	err = g.AuthenticatedWebsocketConn.Dial(dialer, headers)
+	if err != nil {
+		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
+	}
+	go g.WsReadData(g.AuthenticatedWebsocketConn, currency.Pair{})
 	return nil
 }
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
-func (g *Gemini) WsReadData(ws *websocket.Conn, c currency.Pair) {
+func (g *Gemini) WsReadData(ws *wshandler.WebsocketConnection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
@@ -117,13 +132,13 @@ func (g *Gemini) WsReadData(ws *websocket.Conn, c currency.Pair) {
 		case <-g.Websocket.ShutdownC:
 			return
 		default:
-			_, resp, err := ws.ReadMessage()
+			resp, err := ws.ReadMessage()
 			if err != nil {
 				g.Websocket.DataHandler <- err
 				return
 			}
 			g.Websocket.TrafficAlert <- struct{}{}
-			comms <- ReadData{Raw: resp, Currency: c}
+			comms <- ReadData{Raw: resp.Raw, Currency: c}
 		}
 	}
 }
@@ -271,13 +286,13 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			return
 		}
 
-		g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: pair,
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    "SPOT",
 			Exchange: g.GetName()}
 	} else {
 		for _, event := range result.Events {
 			if event.Type == "trade" {
-				g.Websocket.DataHandler <- exchange.TradeData{
+				g.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Now(),
 					CurrencyPair: pair,
 					AssetType:    "SPOT",
@@ -316,7 +331,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			}
 		}
 
-		g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: pair,
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    "SPOT",
 			Exchange: g.GetName()}
 	}

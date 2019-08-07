@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -56,37 +56,36 @@ func setupWsTests(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
 	if !h.Websocket.IsEnabled() && !h.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var err error
-	var dialer websocket.Dialer
 	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go h.WsHandleData()
-	err = h.wsAuthenticatedDial(&dialer)
+	h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         h.Name,
+		URL:                  wsAccountsOrdersURL,
+		Verbose:              h.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	h.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         h.Name,
+		URL:                  wsMarketURL,
+		Verbose:              h.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	var dialer websocket.Dialer
+	err := h.wsAuthenticatedDial(&dialer)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	err = h.wsLogin()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case response := <-h.Websocket.DataHandler:
-		switch respType := response.(type) {
-		case WsAuthenticatedDataResponse:
-			if respType.ErrorCode > 0 {
-				t.Error(respType)
-			}
-		case error:
-			t.Error(respType)
-		}
-	case <-timer.C:
-		t.Error("Websocket did not receive a response")
-	}
-	timer.Stop()
+
 	wsSetupRan = true
 }
 
@@ -656,46 +655,36 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsGetAccountsList connects to WS, logs in, gets account list
 func TestWsGetAccountsList(t *testing.T) {
 	setupWsTests(t)
-	h.wsGetAccountsList(currency.NewPairFromString("ethbtc"))
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case response := <-h.Websocket.DataHandler:
-		switch respType := response.(type) {
-		case WsAuthenticatedAccountsListResponse:
-			if respType.ErrorCode > 0 {
-				t.Error(respType)
-			}
-		case error:
-			t.Error(respType)
-		}
-	case <-timer.C:
-		t.Error("Websocket did not receive a response")
+	resp, err := h.wsGetAccountsList(currency.NewPairFromString("ethbtc"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	timer.Stop()
+	if resp.ErrorCode > 0 {
+		t.Error(resp.ErrorMessage)
+	}
 }
 
 // TestWsGetOrderList connects to WS, logs in, gets order list
 func TestWsGetOrderList(t *testing.T) {
 	setupWsTests(t)
-	h.wsGetOrdersList(1, currency.NewPairFromString("ethbtc"))
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case <-h.Websocket.DataHandler:
-	case <-timer.C:
-		t.Error("Websocket did not receive a response")
+	resp, err := h.wsGetOrdersList(1, currency.NewPairFromString("ethbtc"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	timer.Stop()
+	if resp.ErrorCode > 0 {
+		t.Error(resp.ErrorMessage)
+	}
 }
 
 // TestWsGetOrderDetails connects to WS, logs in, gets order details
 func TestWsGetOrderDetails(t *testing.T) {
 	setupWsTests(t)
-	h.wsGetOrderDetails("123")
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case <-h.Websocket.DataHandler:
-	case <-timer.C:
-		t.Error("Websocket did not receive a response")
+	orderID := "123"
+	resp, err := h.wsGetOrderDetails(orderID)
+	if err != nil {
+		t.Fatal(err)
 	}
-	timer.Stop()
+	if resp.ErrorCode > 0 && (orderID == "123" && resp.ErrorCode != 10022) {
+		t.Error(resp.ErrorMessage)
+	}
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -66,34 +66,21 @@ var (
 // WsConnector initiates a new websocket connection
 func (b *Bitmex) WsConnector() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
 	var dialer websocket.Dialer
-	var err error
-
-	if b.Websocket.GetProxyAddress() != "" {
-		var proxy *url.URL
-		proxy, err = url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(), nil)
+	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	_, p, err := b.WebsocketConn.ReadMessage()
+	p, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
 		return err
 	}
-
+	b.Websocket.TrafficAlert <- struct{}{}
 	var welcomeResp WebsocketWelcome
-	err = common.JSONDecode(p, &welcomeResp)
+	err = common.JSONDecode(p.Raw, &welcomeResp)
 	if err != nil {
 		return err
 	}
@@ -116,19 +103,6 @@ func (b *Bitmex) WsConnector() error {
 	return nil
 }
 
-func (b *Bitmex) wsReadData() (exchange.WebsocketResponse, error) {
-	_, resp, err := b.WebsocketConn.ReadMessage()
-	if err != nil {
-		return exchange.WebsocketResponse{}, err
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-
-	return exchange.WebsocketResponse{
-		Raw: resp,
-	}, nil
-}
-
 // wsHandleIncomingData services incoming data from the websocket connection
 func (b *Bitmex) wsHandleIncomingData() {
 	b.Websocket.Wg.Add(1)
@@ -143,12 +117,12 @@ func (b *Bitmex) wsHandleIncomingData() {
 			return
 
 		default:
-			resp, err := b.wsReadData()
+			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
-
+			b.Websocket.TrafficAlert <- struct{}{}
 			message := string(resp.Raw)
 			if common.StringContains(message, "pong") {
 				pongChan <- 1
@@ -156,7 +130,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			if common.StringContains(message, "ping") {
-				err = b.wsSend("pong")
+				err = b.WebsocketConn.SendMessage("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -255,7 +229,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 						}
 
 						// TODO: update this to support multiple asset types
-						b.Websocket.DataHandler <- exchange.TradeData{
+						b.Websocket.DataHandler <- wshandler.TradeData{
 							Timestamp:    timestamp,
 							Price:        trade.Price,
 							Amount:       float64(trade.Size),
@@ -405,7 +379,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 					err)
 			}
 			snapshotloaded[currencyPair][assetType] = true
-			b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 				Pair:     currencyPair,
 				Asset:    assetType,
 				Exchange: b.GetName(),
@@ -440,7 +414,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 				return err
 			}
 
-			b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 				Pair:     currencyPair,
 				Asset:    assetType,
 				Exchange: b.GetName(),
@@ -454,7 +428,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 func (b *Bitmex) GenerateDefaultSubscriptions() {
 	contracts := b.GetEnabledCurrencies()
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
-	subscriptions := []exchange.WebsocketChannelSubscription{
+	subscriptions := []wshandler.WebsocketChannelSubscription{
 		{
 			Channel: bitmexWSAnnouncement,
 		},
@@ -462,7 +436,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 
 	for i := range channels {
 		for j := range contracts {
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
 				Currency: contracts[j],
 			})
@@ -480,7 +454,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
 	}
-	subscriptions := []exchange.WebsocketChannelSubscription{
+	subscriptions := []wshandler.WebsocketChannelSubscription{
 		{
 			Channel: bitmexWSAffiliate,
 		},
@@ -502,7 +476,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	}
 	for i := range channels {
 		for j := range contracts {
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
 				Currency: contracts[j],
 			})
@@ -512,21 +486,21 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *Bitmex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
-	return b.wsSend(subscriber)
+	return b.WebsocketConn.SendMessage(subscriber)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *Bitmex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "unsubscribe"
 	subscriber.Arguments = append(subscriber.Arguments,
 		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
-	return b.wsSend(subscriber)
+	return b.WebsocketConn.SendMessage(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription
@@ -545,20 +519,10 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
 		signature)
-	err := b.wsSend(sendAuth)
+	err := b.WebsocketConn.SendMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	return nil
-}
-
-// WsSend sends data to the websocket server
-func (b *Bitmex) wsSend(data interface{}) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v", b.Name, data)
-	}
-	return b.WebsocketConn.WriteJSON(data)
 }

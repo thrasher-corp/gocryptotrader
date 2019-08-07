@@ -10,20 +10,20 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 
 	// Valid string list that is required by the exchange
 	validLimits    []int
@@ -93,12 +93,14 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
+	b.Websocket = wshandler.New()
 	b.WebsocketURL = binanceDefaultWebsocketURL
-	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketTickerSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported
+	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -138,16 +140,26 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.WebsocketSetup(b.WSConnect,
+		err = b.Websocket.Setup(b.WSConnect,
 			nil,
 			nil,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			binanceDefaultWebsocketURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		b.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         b.Name,
+			URL:                  b.Websocket.GetWebsocketURL(),
+			ProxyURL:             b.Websocket.GetProxyAddress(),
+			Verbose:              b.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
 	}
 }

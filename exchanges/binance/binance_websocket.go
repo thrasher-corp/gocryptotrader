@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +15,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 )
 
 const (
@@ -70,7 +70,7 @@ func (b *Binance) UpdateLocalCache(ob *WebsocketDepthStream) error {
 	ID, ok := lastUpdateID[ob.Pair]
 	if !ok {
 		m.Unlock()
-		return errors.New("binance_websocket.go - Unable to find lastUpdateID")
+		return fmt.Errorf("%v - Unable to find lastUpdateID", b.Name)
 	}
 
 	if ob.LastUpdateID+1 <= ID || ID >= ob.LastUpdateID+1 {
@@ -124,10 +124,10 @@ func (b *Binance) UpdateLocalCache(ob *WebsocketDepthStream) error {
 // WSConnect intiates a websocket connection
 func (b *Binance) WSConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
-	var Dialer websocket.Dialer
+	var dialer websocket.Dialer
 	var err error
 
 	tick := strings.ToLower(
@@ -152,18 +152,6 @@ func (b *Binance) WSConnect() error {
 		kline +
 		"/" +
 		depth
-
-	if b.Websocket.GetProxyAddress() != "" {
-		var u *url.URL
-		u, err = url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return fmt.Errorf("binance_websocket.go - Unable to connect to parse proxy address. Error: %s",
-				err)
-		}
-
-		Dialer.Proxy = http.ProxyURL(u)
-	}
-
 	for _, ePair := range b.GetEnabledCurrencies() {
 		err = b.SeedLocalCache(ePair)
 		if err != nil {
@@ -171,27 +159,17 @@ func (b *Binance) WSConnect() error {
 		}
 	}
 
-	b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
+	b.WebsocketConn.URL = wsurl
+	err = b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("binance_websocket.go - Unable to connect to Websocket. Error: %s",
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
+			b.Name,
 			err)
 	}
 
 	go b.WsHandleData()
 
 	return nil
-}
-
-// WSReadData reads from the websocket connection and returns the response
-func (b *Binance) WSReadData() (exchange.WebsocketResponse, error) {
-	msgType, resp, err := b.WebsocketConn.ReadMessage()
-
-	if err != nil {
-		return exchange.WebsocketResponse{}, err
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Type: msgType, Raw: resp}, nil
 }
 
 // WsHandleData handles websocket data from WsReadData
@@ -208,134 +186,133 @@ func (b *Binance) WsHandleData() {
 			return
 
 		default:
-			read, err := b.WSReadData()
+			read, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
-
-			if read.Type == websocket.TextMessage {
-				multiStreamData := MultiStreamData{}
-				err = common.JSONDecode(read.Raw, &multiStreamData)
+			b.Websocket.TrafficAlert <- struct{}{}
+			var multiStreamData MultiStreamData
+			err = common.JSONDecode(read.Raw, &multiStreamData)
+			if err != nil {
+				b.Websocket.DataHandler <- fmt.Errorf("%v - Could not load multi stream data: %s",
+					b.Name,
+					read.Raw)
+				continue
+			}
+			streamType := strings.Split(multiStreamData.Stream, "@")
+			switch streamType[1] {
+			case "trade":
+				trade := TradeStream{}
+				err := common.JSONDecode(multiStreamData.Data, &trade)
 				if err != nil {
-					b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not load multi stream data: %s",
-						string(read.Raw))
+					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not unmarshal trade data: %s",
+						b.Name,
+						err)
 					continue
 				}
-				streamType := strings.Split(multiStreamData.Stream, "@")
-				switch streamType[1] {
-				case "trade":
-					trade := TradeStream{}
 
-					err := common.JSONDecode(multiStreamData.Data, &trade)
-					if err != nil {
-						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not unmarshal trade data: %s",
-							err)
-						continue
-					}
-
-					price, err := strconv.ParseFloat(trade.Price, 64)
-					if err != nil {
-						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - price conversion error: %s",
-							err)
-						continue
-					}
-
-					amount, err := strconv.ParseFloat(trade.Quantity, 64)
-					if err != nil {
-						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - amount conversion error: %s",
-							err)
-						continue
-					}
-
-					b.Websocket.DataHandler <- exchange.TradeData{
-						CurrencyPair: currency.NewPairFromString(trade.Symbol),
-						Timestamp:    time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
-						Price:        price,
-						Amount:       amount,
-						Exchange:     b.GetName(),
-						AssetType:    "SPOT",
-						Side:         trade.EventType,
-					}
-					continue
-				case "ticker":
-					t := TickerStream{}
-
-					err := common.JSONDecode(multiStreamData.Data, &t)
-					if err != nil {
-						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not convert to a TickerStream structure %s",
-							err.Error())
-						continue
-					}
-
-					var wsTicker exchange.TickerData
-
-					wsTicker.Timestamp = time.Unix(t.EventTime/1000, 0)
-					wsTicker.Pair = currency.NewPairFromString(t.Symbol)
-					wsTicker.AssetType = ticker.Spot
-					wsTicker.Exchange = b.GetName()
-					wsTicker.ClosePrice, _ = strconv.ParseFloat(t.CurrDayClose, 64)
-					wsTicker.Quantity, _ = strconv.ParseFloat(t.TotalTradedVolume, 64)
-					wsTicker.OpenPrice, _ = strconv.ParseFloat(t.OpenPrice, 64)
-					wsTicker.HighPrice, _ = strconv.ParseFloat(t.HighPrice, 64)
-					wsTicker.LowPrice, _ = strconv.ParseFloat(t.LowPrice, 64)
-
-					b.Websocket.DataHandler <- wsTicker
-
-					continue
-				case "kline":
-					kline := KlineStream{}
-
-					err := common.JSONDecode(multiStreamData.Data, &kline)
-					if err != nil {
-						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not convert to a KlineStream structure %s",
-							err)
-						continue
-					}
-
-					var wsKline exchange.KlineData
-
-					wsKline.Timestamp = time.Unix(0, kline.EventTime)
-					wsKline.Pair = currency.NewPairFromString(kline.Symbol)
-					wsKline.AssetType = ticker.Spot
-					wsKline.Exchange = b.GetName()
-					wsKline.StartTime = time.Unix(0, kline.Kline.StartTime)
-					wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime)
-					wsKline.Interval = kline.Kline.Interval
-					wsKline.OpenPrice, _ = strconv.ParseFloat(kline.Kline.OpenPrice, 64)
-					wsKline.ClosePrice, _ = strconv.ParseFloat(kline.Kline.ClosePrice, 64)
-					wsKline.HighPrice, _ = strconv.ParseFloat(kline.Kline.HighPrice, 64)
-					wsKline.LowPrice, _ = strconv.ParseFloat(kline.Kline.LowPrice, 64)
-					wsKline.Volume, _ = strconv.ParseFloat(kline.Kline.Volume, 64)
-
-					b.Websocket.DataHandler <- wsKline
-					continue
-				case "depth":
-					depth := WebsocketDepthStream{}
-
-					err := common.JSONDecode(multiStreamData.Data, &depth)
-					if err != nil {
-						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not convert to depthStream structure %s",
-							err)
-						continue
-					}
-
-					err = b.UpdateLocalCache(&depth)
-					if err != nil {
-						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - UpdateLocalCache error: %s",
-							err)
-						continue
-					}
-
-					currencyPair := currency.NewPairFromString(depth.Pair)
-
-					b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-						Pair:     currencyPair,
-						Asset:    "SPOT",
-						Exchange: b.GetName(),
-					}
+				price, err := strconv.ParseFloat(trade.Price, 64)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - price conversion error: %s",
+						b.Name,
+						err)
 					continue
 				}
+
+				amount, err := strconv.ParseFloat(trade.Quantity, 64)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - amount conversion error: %s",
+						b.Name,
+						err)
+					continue
+				}
+
+				b.Websocket.DataHandler <- wshandler.TradeData{
+					CurrencyPair: currency.NewPairFromString(trade.Symbol),
+					Timestamp:    time.Unix(0, trade.TimeStamp),
+					Price:        price,
+					Amount:       amount,
+					Exchange:     b.GetName(),
+					AssetType:    "SPOT",
+					Side:         trade.EventType,
+				}
+				continue
+			case "ticker":
+				t := TickerStream{}
+				err := common.JSONDecode(multiStreamData.Data, &t)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
+						b.Name,
+						err.Error())
+					continue
+				}
+
+				var wsTicker wshandler.TickerData
+
+				wsTicker.Timestamp = time.Unix(t.EventTime/1000, 0)
+				wsTicker.Pair = currency.NewPairFromString(t.Symbol)
+				wsTicker.AssetType = ticker.Spot
+				wsTicker.Exchange = b.GetName()
+				wsTicker.ClosePrice, _ = strconv.ParseFloat(t.CurrDayClose, 64)
+				wsTicker.Quantity, _ = strconv.ParseFloat(t.TotalTradedVolume, 64)
+				wsTicker.OpenPrice, _ = strconv.ParseFloat(t.OpenPrice, 64)
+				wsTicker.HighPrice, _ = strconv.ParseFloat(t.HighPrice, 64)
+				wsTicker.LowPrice, _ = strconv.ParseFloat(t.LowPrice, 64)
+
+				b.Websocket.DataHandler <- wsTicker
+
+				continue
+			case "kline":
+				kline := KlineStream{}
+				err := common.JSONDecode(multiStreamData.Data, &kline)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
+						b.Name,
+						err)
+					continue
+				}
+
+				var wsKline wshandler.KlineData
+				wsKline.Timestamp = time.Unix(0, kline.EventTime)
+				wsKline.Pair = currency.NewPairFromString(kline.Symbol)
+				wsKline.AssetType = ticker.Spot
+				wsKline.Exchange = b.GetName()
+				wsKline.StartTime = time.Unix(0, kline.Kline.StartTime)
+				wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime)
+				wsKline.Interval = kline.Kline.Interval
+				wsKline.OpenPrice, _ = strconv.ParseFloat(kline.Kline.OpenPrice, 64)
+				wsKline.ClosePrice, _ = strconv.ParseFloat(kline.Kline.ClosePrice, 64)
+				wsKline.HighPrice, _ = strconv.ParseFloat(kline.Kline.HighPrice, 64)
+				wsKline.LowPrice, _ = strconv.ParseFloat(kline.Kline.LowPrice, 64)
+				wsKline.Volume, _ = strconv.ParseFloat(kline.Kline.Volume, 64)
+				b.Websocket.DataHandler <- wsKline
+				continue
+			case "depth":
+				depth := WebsocketDepthStream{}
+				err := common.JSONDecode(multiStreamData.Data, &depth)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not convert to depthStream structure %s",
+						b.Name,
+						err)
+					continue
+				}
+
+				err = b.UpdateLocalCache(&depth)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - UpdateLocalCache error: %s",
+						b.Name,
+						err)
+					continue
+				}
+
+				currencyPair := currency.NewPairFromString(depth.Pair)
+				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+					Pair:     currencyPair,
+					Asset:    "SPOT",
+					Exchange: b.GetName(),
+				}
+				continue
 			}
 		}
 	}

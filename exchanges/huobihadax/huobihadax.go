@@ -8,16 +8,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -63,10 +62,9 @@ const (
 
 // HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
-	WebsocketConn              *websocket.Conn
-	AuthenticatedWebsocketConn *websocket.Conn
+	WebsocketConn              *wshandler.WebsocketConnection
+	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
-	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -91,14 +89,18 @@ func (h *HUOBIHADAX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobihadaxAPIURL
 	h.APIUrl = h.APIUrlDefault
-	h.WebsocketInit()
-	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketAccountDataSupported
+	h.Websocket = wshandler.New()
+	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketAccountDataSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+
 }
 
 // Setup sets user configuration
@@ -140,16 +142,35 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.WebsocketSetup(h.WsConnect,
+		err = h.Websocket.Setup(h.WsConnect,
 			h.Subscribe,
 			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			HuobiHadaxSocketIOAddress,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
+		}
+		h.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         h.Name,
+			URL:                  HuobiHadaxSocketIOAddress,
+			ProxyURL:             h.Websocket.GetProxyAddress(),
+			Verbose:              h.Verbose,
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         h.Name,
+			URL:                  wsAccountsOrdersURL,
+			ProxyURL:             h.Websocket.GetProxyAddress(),
+			Verbose:              h.Verbose,
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
 	}
 }

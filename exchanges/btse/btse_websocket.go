@@ -2,9 +2,7 @@ package btse
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -12,8 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -24,44 +22,18 @@ const (
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
 	var dialer websocket.Dialer
-
-	if b.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return fmt.Errorf("%s websocket error - proxy address %s",
-				b.Name, err)
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	var err error
-	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%s websocket error - unable to connect %s",
-			b.Name, err)
+		return err
 	}
 
 	go b.WsHandleData()
 	b.GenerateDefaultSubscriptions()
 
 	return nil
-}
-
-// WsReadData reads data from the websocket connection
-func (b *BTSE) WsReadData() (exchange.WebsocketResponse, error) {
-	_, resp, err := b.WebsocketConn.ReadMessage()
-	if err != nil {
-		return exchange.WebsocketResponse{}, err
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles read data from websocket connection
@@ -78,11 +50,12 @@ func (b *BTSE) WsHandleData() {
 			return
 
 		default:
-			resp, err := b.WsReadData()
+			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
+			b.Websocket.TrafficAlert <- struct{}{}
 
 			type MsgType struct {
 				Type      string `json:"type"`
@@ -118,7 +91,7 @@ func (b *BTSE) WsHandleData() {
 					continue
 				}
 
-				b.Websocket.DataHandler <- exchange.TickerData{
+				b.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp: time.Now(),
 					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
 					AssetType: "SPOT",
@@ -191,7 +164,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 		return err
 	}
 
-	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    "SPOT",
 		Exchange: b.GetName(),
@@ -204,10 +177,10 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 func (b *BTSE) GenerateDefaultSubscriptions() {
 	var channels = []string{"snapshot", "ticker"}
 	enabledCurrencies := b.GetEnabledCurrencies()
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -217,7 +190,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := websocketSubscribe{
 		Type: "subscribe",
 		Channels: []websocketChannel{
@@ -227,11 +200,11 @@ func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscriptio
 			},
 		},
 	}
-	return b.wsSend(subscribe)
+	return b.WebsocketConn.SendMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := websocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []websocketChannel{
@@ -241,19 +214,5 @@ func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscript
 			},
 		},
 	}
-	return b.wsSend(subscribe)
-}
-
-// WsSend sends data to the websocket server
-func (b *BTSE) wsSend(data interface{}) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v", b.Name, data)
-	}
-	json, err := common.JSONEncode(data)
-	if err != nil {
-		return err
-	}
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return b.WebsocketConn.SendMessage(subscribe)
 }

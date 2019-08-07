@@ -12,6 +12,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -282,7 +283,7 @@ func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *exch
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
+func (c *CoinbasePro) GetWebsocket() (*wshandler.Websocket, error) {
 	return c.Websocket, nil
 }
 
@@ -385,20 +386,20 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (c *CoinbasePro) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	c.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	c.Websocket.UnsubscribeToChannels(channels)
+func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	c.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (c *CoinbasePro) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (c *CoinbasePro) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return c.Websocket.GetSubscriptions(), nil
 }
 

@@ -6,16 +6,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -86,9 +85,8 @@ const (
 // depending on some factors (e.g. servers load, endpoint, etc.).
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn         *websocket.Conn
+	WebsocketConn         *wshandler.WebsocketConnection
 	WebsocketSubdChannels map[int]WebsocketChanInfo
-	wsRequestMtx          sync.Mutex
 }
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -113,13 +111,15 @@ func (b *Bitfinex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bitfinexAPIURLBase
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
-	b.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+	b.Websocket = wshandler.New()
+	b.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -160,17 +160,28 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.WebsocketSetup(b.WsConnect,
+		err = b.Websocket.Setup(b.WsConnect,
 			b.Subscribe,
 			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			bitfinexWebsocket,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         b.Name,
+			URL:                  b.Websocket.GetWebsocketURL(),
+			ProxyURL:             b.Websocket.GetProxyAddress(),
+			Verbose:              b.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+		b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	}
 }
 

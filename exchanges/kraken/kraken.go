@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -58,7 +58,7 @@ const (
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
-	WebsocketConn      *websocket.Conn
+	WebsocketConn      *wshandler.WebsocketConnection
 	CryptoFee, FiatFee float64
 	wsRequestMtx       sync.Mutex
 }
@@ -89,14 +89,17 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
-	k.WebsocketInit()
+	k.Websocket = wshandler.New()
 	k.WebsocketURL = krakenWSURL
-	k.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+	k.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 
 }
 
@@ -137,16 +140,26 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = k.WebsocketSetup(k.WsConnect,
+		err = k.Websocket.Setup(k.WsConnect,
 			k.Subscribe,
 			k.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			krakenWSURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
+		}
+		k.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         k.Name,
+			URL:                  k.Websocket.GetWebsocketURL(),
+			ProxyURL:             k.Websocket.GetProxyAddress(),
+			Verbose:              k.Verbose,
+			RateLimit:            krakenWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
 	}
 }

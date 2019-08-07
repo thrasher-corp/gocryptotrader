@@ -175,7 +175,7 @@ func (s *Slack) NewConnection() error {
 // WebsocketConnect creates a websocket dialer amd initiates a websocket
 // connection
 func (s *Slack) WebsocketConnect() error {
-	var Dialer websocket.Dialer
+	var dialer websocket.Dialer
 	var err error
 
 	websocketURL := s.Details.URL
@@ -183,7 +183,7 @@ func (s *Slack) WebsocketConnect() error {
 		websocketURL = s.ReconnectURL
 	}
 
-	s.WebsocketConn, _, err = Dialer.Dial(websocketURL, http.Header{})
+	s.WebsocketConn, _, err = dialer.Dial(websocketURL, http.Header{})
 	if err != nil {
 		return err
 	}

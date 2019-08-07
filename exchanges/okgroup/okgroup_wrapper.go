@@ -11,6 +11,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -414,7 +415,7 @@ func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
+func (o *OKGroup) GetWebsocket() (*wshandler.Websocket, error) {
 	return o.Websocket, nil
 }
 
@@ -434,20 +435,20 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (o *OKGroup) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (o *OKGroup) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	o.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	o.Websocket.UnsubscribeToChannels(channels)
+func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	o.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (o *OKGroup) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (o *OKGroup) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return o.Websocket.GetSubscriptions(), nil
 }
 

@@ -8,17 +8,15 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
-
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -48,9 +46,8 @@ const (
 // 47.91.169.147 api.zb.com
 // 47.52.55.212 trade.zb.com
 type ZB struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
-	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -77,15 +74,18 @@ func (z *ZB) SetDefaults() {
 	z.APIUrl = z.APIUrlDefault
 	z.APIUrlSecondaryDefault = zbMarketURL
 	z.APIUrlSecondary = z.APIUrlSecondaryDefault
-	z.WebsocketInit()
-	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketAccountDataSupported |
-		exchange.WebsocketCancelOrderSupported |
-		exchange.WebsocketSubmitOrderSupported
+	z.Websocket = wshandler.New()
+	z.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketAccountDataSupported |
+		wshandler.WebsocketCancelOrderSupported |
+		wshandler.WebsocketSubmitOrderSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user configuration
@@ -127,16 +127,26 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = z.WebsocketSetup(z.WsConnect,
+		err = z.Websocket.Setup(z.WsConnect,
 			z.Subscribe,
 			nil,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			zbWebsocketAPI,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
+		}
+		z.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         z.Name,
+			URL:                  z.Websocket.GetWebsocketURL(),
+			ProxyURL:             z.Websocket.GetProxyAddress(),
+			Verbose:              z.Verbose,
+			RateLimit:            zbWebsocketRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
 	}
 }

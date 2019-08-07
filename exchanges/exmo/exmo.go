@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -73,7 +74,7 @@ func (e *EXMO) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	e.APIUrlDefault = exmoAPIURL
 	e.APIUrl = e.APIUrlDefault
-	e.WebsocketInit()
+	e.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

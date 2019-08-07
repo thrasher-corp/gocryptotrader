@@ -2,14 +2,15 @@
 package {{.Name}}
 
 import (
-	"log"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // {{.CapitalName}} is the overarching type across this package
@@ -46,7 +47,9 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	{{.Variable}}.APIUrlDefault = {{.Name}}APIURL
 	{{.Variable}}.APIUrl = {{.Variable}}.APIUrlDefault
-	{{.Variable}}.WebsocketInit()
+	{{.Variable}}.Websocket = wshandler.New()
+	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -95,6 +98,14 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) {
 		//	exch.WebsocketURL)
 		// if err != nil {
 		// 	log.Fatal(err)
+		// }
+		// {{.Variable}}.WebsocketConn = &wshandler.WebsocketConnection{
+		// 		ExchangeName:         {{.Variable}}.Name,
+		// 		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
+		// 		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
+		// 		Verbose:              {{.Variable}}.Verbose,
+		// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		// }
 	}
 }

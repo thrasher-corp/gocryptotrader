@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -355,7 +356,7 @@ func (g *Gateio) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (g *Gateio) GetWebsocket() (*exchange.Websocket, error) {
+func (g *Gateio) GetWebsocket() (*wshandler.Websocket, error) {
 	return g.Websocket, nil
 }
 
@@ -448,24 +449,25 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (g *Gateio) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (g *Gateio) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	g.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (g *Gateio) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	g.Websocket.UnsubscribeToChannels(channels)
+func (g *Gateio) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	g.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (g *Gateio) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (g *Gateio) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return g.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (g *Gateio) AuthenticateWebsocket() error {
-	return g.wsServerSignIn()
+	_, err := g.wsServerSignIn()
+	return err
 }

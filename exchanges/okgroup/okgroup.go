@@ -10,14 +10,13 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/go-querystring/query"
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -87,8 +86,7 @@ var errMissValue = errors.New("warning - resp value is missing from exchange")
 type OKGroup struct {
 	exchange.Base
 	ExchangeName  string
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks
@@ -141,16 +139,26 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = o.WebsocketSetup(o.WsConnect,
+		err = o.Websocket.Setup(o.WsConnect,
 			o.Subscribe,
 			o.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			o.WebsocketURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
+		}
+		o.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         o.Name,
+			URL:                  o.Websocket.GetWebsocketURL(),
+			ProxyURL:             o.Websocket.GetProxyAddress(),
+			Verbose:              o.Verbose,
+			RateLimit:            okGroupWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
 	}
 }

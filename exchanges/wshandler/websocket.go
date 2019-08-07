@@ -1,4 +1,4 @@
-package exchange
+package wshandler
 
 import (
 	"errors"
@@ -13,9 +13,9 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// WebsocketInit initialises the websocket struct
-func (e *Base) WebsocketInit() {
-	e.Websocket = &Websocket{
+// New initialises the websocket struct
+func New() *Websocket {
+	return &Websocket{
 		defaultURL: "",
 		enabled:    false,
 		proxyAddr:  "",
@@ -24,37 +24,38 @@ func (e *Base) WebsocketInit() {
 	}
 }
 
-// WebsocketSetup sets main variables for websocket connection
-func (e *Base) WebsocketSetup(connector func() error,
+// Setup sets main variables for websocket connection
+func (w *Websocket) Setup(connector func() error,
 	subscriber func(channelToSubscribe WebsocketChannelSubscription) error,
 	unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error,
 	exchangeName string,
 	wsEnabled,
 	verbose bool,
 	defaultURL,
-	runningURL string) error {
+	runningURL string,
+	authenticatedWebsocketAPISupport bool) error {
 
-	e.Websocket.DataHandler = make(chan interface{}, 1)
-	e.Websocket.Connected = make(chan struct{}, 1)
-	e.Websocket.Disconnected = make(chan struct{}, 1)
-	e.Websocket.TrafficAlert = make(chan struct{}, 1)
-	e.Websocket.verbose = verbose
+	w.DataHandler = make(chan interface{}, 1)
+	w.Connected = make(chan struct{}, 1)
+	w.Disconnected = make(chan struct{}, 1)
+	w.TrafficAlert = make(chan struct{}, 1)
+	w.verbose = verbose
 
-	e.Websocket.SetChannelSubscriber(subscriber)
-	e.Websocket.SetChannelUnsubscriber(unsubscriber)
-	err := e.Websocket.SetWsStatusAndConnection(wsEnabled)
+	w.SetChannelSubscriber(subscriber)
+	w.SetChannelUnsubscriber(unsubscriber)
+	err := w.SetWsStatusAndConnection(wsEnabled)
 	if err != nil {
 		return err
 	}
-	e.Websocket.SetDefaultURL(defaultURL)
-	e.Websocket.SetConnector(connector)
-	e.Websocket.SetWebsocketURL(runningURL)
-	e.Websocket.SetExchangeName(exchangeName)
-	e.Websocket.SetCanUseAuthenticatedEndpoints(e.AuthenticatedWebsocketAPISupport)
+	w.SetDefaultURL(defaultURL)
+	w.SetConnector(connector)
+	w.SetWebsocketURL(runningURL)
+	w.SetExchangeName(exchangeName)
+	w.SetCanUseAuthenticatedEndpoints(authenticatedWebsocketAPISupport)
 
-	e.Websocket.init = false
-	e.Websocket.noConnectionCheckLimit = 5
-	e.Websocket.reconnectionLimit = 10
+	w.init = false
+	w.noConnectionCheckLimit = 5
+	w.reconnectionLimit = 10
 
 	return nil
 }
@@ -269,9 +270,6 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 				w.connected = true
 			}
 			w.m.Unlock()
-			if w.verbose {
-				log.Debugf("%v received a traffic alert", w.exchangeName)
-			}
 			trafficTimer.Reset(WebsocketTrafficLimitTime)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set
@@ -689,6 +687,15 @@ func (w *Websocket) FormatFunctionality() string {
 			case WebsocketWithdrawSupported:
 				functionality = append(functionality, WebsocketWithdrawSupportedText)
 
+			case WebsocketMessageCorrelationSupported:
+				functionality = append(functionality, WebsocketMessageCorrelationSupportedText)
+
+			case WebsocketSequenceNumberSupported:
+				functionality = append(functionality, WebsocketSequenceNumberSupportedText)
+
+			case WebsocketDeadMansSwitchSupported:
+				functionality = append(functionality, WebsocketDeadMansSwitchSupportedText)
+
 			default:
 				functionality = append(functionality,
 					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
@@ -808,6 +815,13 @@ func (w *Websocket) unsubscribeToChannels() error {
 	return nil
 }
 
+// RemoveSubscribedChannels removes supplied channels from channelsToSubscribe
+func (w *Websocket) RemoveSubscribedChannels(channels []WebsocketChannelSubscription) {
+	for i := range channels {
+		w.removeChannelToSubscribe(channels[i])
+	}
+}
+
 // removeChannelToSubscribe removes an entry from w.channelsToSubscribe
 // so an unsubscribe event can be triggered
 func (w *Websocket) removeChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
@@ -865,13 +879,6 @@ func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription)
 		}
 	}
 	w.noConnectionChecks = 0
-}
-
-// UnsubscribeToChannels removes supplied channels from channelsToSubscribe
-func (w *Websocket) UnsubscribeToChannels(channels []WebsocketChannelSubscription) {
-	for i := range channels {
-		w.removeChannelToSubscribe(channels[i])
-	}
 }
 
 // Equal two WebsocketChannelSubscription to determine equality

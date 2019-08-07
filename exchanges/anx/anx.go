@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wshandler"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -72,7 +73,7 @@ func (a *ANX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	a.APIUrlDefault = anxAPIURL
 	a.APIUrl = a.APIUrlDefault
-	a.WebsocketInit()
+	a.Websocket = wshandler.New()
 }
 
 // Setup is run on startup to setup exchange with config values
