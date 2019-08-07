@@ -151,7 +151,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		o.WebsocketConn = &wshandler.WebsocketConnection{
+		o.WebsocketConn = &connection.WebsocketConnection{
 			ExchangeName:         o.Name,
 			URL:                  o.Websocket.GetWebsocketURL(),
 			ProxyURL:             o.Websocket.GetProxyAddress(),

@@ -142,7 +142,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		h.WebsocketConn = &wshandler.WebsocketConnection{
+		h.WebsocketConn = &connection.WebsocketConnection{
 			ExchangeName:         h.Name,
 			URL:                  h.Websocket.GetWebsocketURL(),
 			ProxyURL:             h.Websocket.GetProxyAddress(),

@@ -113,9 +113,11 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("Cache-Control", "no-cache")
 
 	g.AuthenticatedWebsocketConn = &connection.WebsocketConnection{
-		ExchangeName: g.Name,
-		URL:          endpoint,
-		Verbose:      g.Verbose,
+		ExchangeName:         g.Name,
+		URL:                  endpoint,
+		Verbose:              g.Verbose,
+		ResponseCheckTimeout: responseCheckTimeout,
+		ResponseMaxLimit:     responseMaxLimit,
 	}
 	err = g.AuthenticatedWebsocketConn.Dial(dialer, headers)
 	if err != nil {

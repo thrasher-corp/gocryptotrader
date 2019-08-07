@@ -173,7 +173,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.WebsocketConn = &wshandler.WebsocketConnection{
+		b.WebsocketConn = &connection.WebsocketConnection{
 			ExchangeName:         b.Name,
 			URL:                  b.Websocket.GetWebsocketURL(),
 			ProxyURL:             b.Websocket.GetProxyAddress(),

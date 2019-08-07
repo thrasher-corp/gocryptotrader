@@ -139,7 +139,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		g.WebsocketConn = &wshandler.WebsocketConnection{
+		g.WebsocketConn = &connection.WebsocketConnection{
 			ExchangeName:         g.Name,
 			URL:                  g.Websocket.GetWebsocketURL(),
 			ProxyURL:             g.Websocket.GetProxyAddress(),

@@ -14,10 +14,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
-)
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob")
 
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443"

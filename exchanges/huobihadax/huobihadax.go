@@ -155,7 +155,7 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		h.WebsocketConn = &wshandler.WebsocketConnection{
+		h.WebsocketConn = &connection.WebsocketConnection{
 			ExchangeName:         h.Name,
 			URL:                  HuobiHadaxSocketIOAddress,
 			ProxyURL:             h.Websocket.GetProxyAddress(),
@@ -164,7 +164,7 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
-		h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		h.AuthenticatedWebsocketConn = &connection.WebsocketConnection{
 			ExchangeName:         h.Name,
 			URL:                  wsAccountsOrdersURL,
 			ProxyURL:             h.Websocket.GetProxyAddress(),
