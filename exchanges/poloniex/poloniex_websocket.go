@@ -342,12 +342,12 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 	}
 	update := &ob.WebsocketOrderbookUpdate{
 		CurrencyPair:          cP,
-		UpdateTime:            time.Now(),
 		ExchangeName:          p.Name,
 		AssetType:             orderbook.Spot,
 		BufferEnabled:         true,
 		UpdateID:              sequenceNumber,
 		SortBufferByUpdateIDs: true,
+		SortBuffer:            true,
 	}
 	if sideCheck == 0 {
 		update.Bids = []orderbook.Item{{Price: price, Amount: volume}}

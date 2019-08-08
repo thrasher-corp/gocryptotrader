@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -199,13 +198,15 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		}
 	}
 	err := b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-		Bids:          bids,
-		Asks:          asks,
-		CurrencyPair:  p,
-		UpdateTime:    time.Now(),
-		ExchangeName:  b.Name,
-		AssetType:     orderbook.Spot,
-		BufferEnabled: true,
+		Bids:              bids,
+		Asks:              asks,
+		CurrencyPair:      p,
+		UpdateID:          update.Timestamp,
+		ExchangeName:      b.Name,
+		AssetType:         orderbook.Spot,
+		BufferEnabled:     true,
+		SortBufferByUpdateIDs: true,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err
