@@ -1,6 +1,6 @@
 package bitmex
 
-import exchange "github.com/thrasher-/gocryptotrader/exchanges"
+import exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 
 // RequestError allows for a general error capture from requests
 type RequestError struct {

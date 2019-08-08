@@ -1,5 +1,5 @@
 FROM golang:1.12 as build
-WORKDIR /go/src/github.com/thrasher-/gocryptotrader
+WORKDIR /go/src/github.com/thrasher-corp/gocryptotrader
 COPY . .
 RUN GO111MODULE=on go mod vendor
 RUN mv -vn config_example.json config.json \
@@ -9,6 +9,6 @@ RUN mv -vn config_example.json config.json \
 FROM alpine:latest
 RUN apk update && apk add --no-cache ca-certificates
 COPY --from=build /go/bin/gocryptotrader /app/
-COPY --from=build /go/src/github.com/thrasher-/gocryptotrader/config.json /app/
+COPY --from=build /go/src/github.com/thrasher-corp/gocryptotrader/config.json /app/
 EXPOSE 9050
 CMD ["/app/gocryptotrader"]

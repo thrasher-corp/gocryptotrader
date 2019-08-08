@@ -3,7 +3,7 @@ package exchangerates
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 )
 
 var e ExchangeRates

@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // const declarations consist of endpoints

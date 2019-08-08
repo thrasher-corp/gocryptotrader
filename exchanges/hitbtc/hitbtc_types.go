@@ -3,7 +3,7 @@ package hitbtc
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // Ticker holds ticker information

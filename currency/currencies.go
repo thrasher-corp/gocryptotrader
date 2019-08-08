@@ -1,6 +1,6 @@
 package currency
 
-import "github.com/thrasher-/gocryptotrader/common"
+import "github.com/thrasher-corp/gocryptotrader/common"
 
 // NewCurrenciesFromStringArray returns a Currencies object from strings
 func NewCurrenciesFromStringArray(currencies []string) Currencies {

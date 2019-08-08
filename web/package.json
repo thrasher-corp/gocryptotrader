@@ -2,7 +2,7 @@
   "name": "gocryptotrader-web",
   "version": "0.4.1",
   "description": "Front-end interface for GoCryptoTrader",
-  "homepage": "https://github.com/thrasher-/gocryptotrader",
+  "homepage": "https://github.com/thrasher-corp/gocryptotrader",
   "author": {
     "name": "Scott",
     "email": "scott@gloriousedge.com",
