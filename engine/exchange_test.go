@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -132,4 +133,9 @@ func TestUnloadExchange(t *testing.T) {
 	}
 
 	CleanupTest(t)
+}
+
+func ExampleHello() {
+	fmt.Println("hello")
+	// Output: Goodbyte
 }
