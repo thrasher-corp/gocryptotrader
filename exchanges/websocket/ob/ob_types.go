@@ -16,11 +16,11 @@ type WebsocketOrderbookLocal struct {
 	m      sync.Mutex
 }
 
-// WebsocketOrderbookUpdate contains cool info on how to update the websocket ob yeah man
+// WebsocketOrderbookUpdate stores orderbook updates and dictates what features to use when processing
 type WebsocketOrderbookUpdate struct {
 	BufferEnabled         bool
 	SortBuffer            bool
-	SortBufferByUpdateIDs bool  // When timestamps arent provided, an id can help sort
+	SortBufferByUpdateIDs bool  // When timestamps aren't provided, an id can help sort
 	UpdateEntriesByID     bool  // Use the update IDs to match ob entries
 	UpdateID              int64 // Used when no time is provided
 	UpdateTime            time.Time

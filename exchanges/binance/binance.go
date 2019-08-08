@@ -10,15 +10,14 @@ import (
 	"strconv"
 	"time"
 
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 

@@ -16,8 +16,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
 )
 
 // Please supply you own test keys here for due diligence testing.

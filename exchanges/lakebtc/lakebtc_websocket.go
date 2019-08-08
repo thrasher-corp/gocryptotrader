@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/ws/monitor"
+	"github.com/thrasher-/gocryptotrader/exchanges/websocket/monitor"
 	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/toorop/go-pusher"
 )
@@ -89,11 +89,7 @@ func (l *LakeBTC) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscript
 // wsHandleIncomingData services incoming data from the websocket connection
 func (l *LakeBTC) wsHandleIncomingData() {
 	l.Websocket.Wg.Add(1)
-
-	defer func() {
-		l.Websocket.Wg.Done()
-	}()
-
+	defer l.Websocket.Wg.Done()
 	for {
 		select {
 		case <-l.Websocket.ShutdownC:
@@ -102,12 +98,14 @@ func (l *LakeBTC) wsHandleIncomingData() {
 			if l.Verbose {
 				log.Debugf("%v Websocket message received: %v", l.Name, data)
 			}
+			l.Websocket.TrafficAlert <- struct{}{}
 			err := l.processTicker(data.Data)
 			if err != nil {
 				l.Websocket.DataHandler <- err
 				return
 			}
 		case data := <-l.WebsocketConn.Trade:
+			l.Websocket.TrafficAlert <- struct{}{}
 			if l.Verbose {
 				log.Debugf("%v Websocket message received: %v", l.Name, data)
 			}
@@ -117,6 +115,7 @@ func (l *LakeBTC) wsHandleIncomingData() {
 				return
 			}
 		case data := <-l.WebsocketConn.Orderbook:
+			l.Websocket.TrafficAlert <- struct{}{}
 			if l.Verbose {
 				log.Debugf("%v Websocket message received: %v", l.Name, data)
 			}
@@ -135,7 +134,6 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 	if err != nil {
 		return err
 	}
-	l.Websocket.TrafficAlert <- struct{}{}
 	curr := l.getCurrencyFromChannel(channel)
 	for i := 0; i < len(tradeData.Trades); i++ {
 		l.Websocket.DataHandler <- monitor.TradeData{
@@ -159,7 +157,6 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 	if err != nil {
 		return err
 	}
-	l.Websocket.TrafficAlert <- struct{}{}
 	book := orderbook.Base{
 		Pair:         l.getCurrencyFromChannel(channel),
 		LastUpdated:  time.Now(),
@@ -201,11 +198,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 			Price:  price,
 		})
 	}
-	err = l.Websocket.Orderbook.LoadSnapshot(&book, book.ExchangeName, true)
-	if err != nil {
-		return err
-	}
-	return nil
+	return l.Websocket.Orderbook.LoadSnapshot(&book, book.ExchangeName, true)
 }
 
 func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {
@@ -221,7 +214,6 @@ func (l *LakeBTC) processTicker(ticker string) error {
 		l.Websocket.DataHandler <- err
 		return err
 	}
-	l.Websocket.TrafficAlert <- struct{}{}
 	for k, v := range tUpdate {
 		tickerData := v.(map[string]interface{})
 		if tickerData[highString] == nil || tickerData[lowString] == nil || tickerData[volumeString] == nil {

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ws/ob"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/ob"
 )
 
 // Websocket functionality list and state consts
