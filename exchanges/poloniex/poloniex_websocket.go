@@ -156,7 +156,7 @@ func (p *Poloniex) WsHandleData() {
 								}
 							case "o":
 								currencyPair := CurrencyPairID[chanID]
-								err := p.WsProcessOrderbookUpdate(dataL3, currencyPair)
+								err := p.WsProcessOrderbookUpdate(int64(data[1].(float64)), dataL3, currencyPair)
 								if err != nil {
 									p.Websocket.DataHandler <- err
 									continue
@@ -328,25 +328,26 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook, p.GetName(), false)
 }
 
-// WsProcessOrderbookUpdate processses new orderbook updates
-func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string) error {
+// WsProcessOrderbookUpdate processes new orderbook updates
+func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []interface{}, symbol string) error {
 	sideCheck := target[1].(float64)
 	cP := currency.NewPairFromString(symbol)
 	price, err := strconv.ParseFloat(target[2].(string), 64)
 	if err != nil {
 		return err
 	}
-
 	volume, err := strconv.ParseFloat(target[3].(string), 64)
 	if err != nil {
 		return err
 	}
 	update := &ob.WebsocketOrderbookUpdate{
-		CurrencyPair:  cP,
-		UpdateTime:    time.Now(),
-		ExchangeName:  p.Name,
-		AssetType:     orderbook.Spot,
-		BufferEnabled: true,
+		CurrencyPair:          cP,
+		UpdateTime:            time.Now(),
+		ExchangeName:          p.Name,
+		AssetType:             orderbook.Spot,
+		BufferEnabled:         true,
+		UpdateID:              sequenceNumber,
+		SortBufferByUpdateIDs: true,
 	}
 	if sideCheck == 0 {
 		update.Bids = []orderbook.Item{{Price: price, Amount: volume}}
