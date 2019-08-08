@@ -828,6 +828,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawCur
 	return &gctrpc.WithdrawResponse{}, common.ErrNotYetImplemented
 }
 
+// GetLoggerDetails returns a loggers details
 func (s *RPCServer) GetLoggerDetails(ctx context.Context, r *gctrpc.GetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
 	levels, err := log.Level(r.Logger)
 	if err != nil {
@@ -842,6 +843,7 @@ func (s *RPCServer) GetLoggerDetails(ctx context.Context, r *gctrpc.GetLoggerDet
 	}, nil
 }
 
+// SetLoggerDetails sets a loggers details
 func (s *RPCServer) SetLoggerDetails(ctx context.Context, r *gctrpc.SetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
 	levels, err := log.SetLevel(r.Logger, r.Level)
 	if err != nil {
