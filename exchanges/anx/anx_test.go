@@ -3,16 +3,9 @@ package anx
 import (
 	"testing"
 
-<<<<<<< HEAD
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-=======
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
->>>>>>> Adds mock testing for ANX
 )
 
 // Please supply your own keys here for due diligence testing
