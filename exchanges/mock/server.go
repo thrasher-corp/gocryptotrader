@@ -183,21 +183,21 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 		var err error
 		if json.Valid([]byte(data)) {
 			something := make(map[string]interface{})
-			err := json.Unmarshal([]byte(data), &something)
+			err = json.Unmarshal([]byte(data), &something)
 			if err != nil {
 				return nil, err
 			}
 
 			for k, v := range something {
-				switch v.(type) {
+				switch val := v.(type) {
 				case string:
-					mockVals.Add(k, v.(string))
+					mockVals.Add(k, val)
 				case bool:
-					mockVals.Add(k, strconv.FormatBool(v.(bool)))
+					mockVals.Add(k, strconv.FormatBool(val))
 				case map[string]interface{}, []interface{}, nil:
-					mockVals.Add(k, fmt.Sprintf("%v", v))
+					mockVals.Add(k, fmt.Sprintf("%v", val))
 				default:
-					log.Println(reflect.TypeOf(v))
+					log.Println(reflect.TypeOf(val))
 					log.Fatal("unhandled type please add as needed")
 				}
 			}

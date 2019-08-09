@@ -338,13 +338,13 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		if httpRecord {
 			var bodyCopy []byte
 			if req.GetBody != nil {
-				dt, err := req.GetBody()
-				if err != nil {
-					return err
+				dt, bodyErr := req.GetBody()
+				if bodyErr != nil {
+					return bodyErr
 				}
-				bodyCopy, err = ioutil.ReadAll(dt)
-				if err != nil {
-					return err
+				bodyCopy, bodyErr = ioutil.ReadAll(dt)
+				if bodyErr != nil {
+					return bodyErr
 				}
 			}
 			// This dumps resp for future mocking implementations

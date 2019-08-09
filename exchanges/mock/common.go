@@ -52,18 +52,17 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 	}
 
 	for k, v := range intermediary {
-		switch v.(type) {
+		switch val := v.(type) {
 		case string:
-			vals.Add(k, v.(string))
+			vals.Add(k, val)
 		case bool:
-			vals.Add(k, strconv.FormatBool(v.(bool)))
+			vals.Add(k, strconv.FormatBool(val))
 		case map[string]interface{}, []interface{}, nil:
-			vals.Add(k, fmt.Sprintf("%v", v))
+			vals.Add(k, fmt.Sprintf("%v", val))
 		default:
-			log.Println(reflect.TypeOf(v))
+			log.Println(reflect.TypeOf(val))
 			return vals, errors.New("unhandled conversion type, please add as needed")
 		}
-
 	}
 
 	return vals, nil
