@@ -9,15 +9,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -88,9 +89,14 @@ func (g *Gemini) SetDefaults() {
 
 	g.API.Endpoints.URLDefault = geminiAPIURL
 	g.API.Endpoints.URL = g.API.Endpoints.URLDefault
-	g.WebsocketInit()
-	g.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
+	g.API.Endpoints.WebsocketURL = geminiWebsocketEndpoint
+	g.Websocket = wshandler.New()
+	g.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketSequenceNumberSupported
+	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets exchange configuration parameters
@@ -109,14 +115,28 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		g.API.Endpoints.URL = geminiSandboxAPIURL
 	}
 
-	return g.WebsocketSetup(g.WsConnect,
+	err = g.Websocket.Setup(g.WsConnect,
 		nil,
 		nil,
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
 		geminiWebsocketEndpoint,
-		exch.API.Endpoints.WebsocketURL)
+		exch.API.Endpoints.WebsocketURL,
+		exch.API.AuthenticatedWebsocketSupport)
+	if err != nil {
+		return err
+	}
+
+	g.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         g.Name,
+		URL:                  g.Websocket.GetWebsocketURL(),
+		ProxyURL:             g.Websocket.GetProxyAddress(),
+		Verbose:              g.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+	return nil
 }
 
 // Start starts the Gemini go routine
@@ -366,7 +386,7 @@ func (g *Gemini) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (g *Gemini) GetWebsocket() (*exchange.Websocket, error) {
+func (g *Gemini) GetWebsocket() (*wshandler.Websocket, error) {
 	return g.Websocket, nil
 }
 
@@ -471,18 +491,18 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (g *Gemini) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (g *Gemini) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (g *Gemini) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (g *Gemini) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (g *Gemini) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (g *Gemini) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

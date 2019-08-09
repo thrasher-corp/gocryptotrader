@@ -8,15 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -88,12 +89,17 @@ func (h *HUOBIHADAX) SetDefaults() {
 
 	h.API.Endpoints.URLDefault = huobihadaxAPIURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
-	h.WebsocketInit()
-	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+	h.Websocket = wshandler.New()
+	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketAccountDataSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user configuration
@@ -108,14 +114,38 @@ func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return h.WebsocketSetup(h.WsConnect,
+	err = h.Websocket.Setup(h.WsConnect,
 		h.Subscribe,
 		h.Unsubscribe,
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
 		HuobiHadaxSocketIOAddress,
-		exch.API.Endpoints.WebsocketURL)
+		exch.API.Endpoints.WebsocketURL,
+		exch.API.AuthenticatedWebsocketSupport)
+	if err != nil {
+		return err
+	}
+
+	h.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         h.Name,
+		URL:                  HuobiHadaxSocketIOAddress,
+		ProxyURL:             h.Websocket.GetProxyAddress(),
+		Verbose:              h.Verbose,
+		RateLimit:            rateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+	h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         h.Name,
+		URL:                  wsAccountsOrdersURL,
+		ProxyURL:             h.Websocket.GetProxyAddress(),
+		Verbose:              h.Verbose,
+		RateLimit:            rateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+	return nil
 }
 
 // Start starts the HUOBIHADAX go routine
@@ -459,7 +489,7 @@ func (h *HUOBIHADAX) WithdrawFiatFundsToInternationalBank(withdrawRequest *excha
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (h *HUOBIHADAX) GetWebsocket() (*exchange.Websocket, error) {
+func (h *HUOBIHADAX) GetWebsocket() (*wshandler.Websocket, error) {
 	return h.Websocket, nil
 }
 
@@ -566,20 +596,20 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (h *HUOBIHADAX) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (h *HUOBIHADAX) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	h.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (h *HUOBIHADAX) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	h.Websocket.UnsubscribeToChannels(channels)
+func (h *HUOBIHADAX) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	h.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (h *HUOBIHADAX) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (h *HUOBIHADAX) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return h.Websocket.GetSubscriptions(), nil
 }
 

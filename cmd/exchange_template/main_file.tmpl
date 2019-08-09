@@ -2,14 +2,15 @@
 package {{.Name}}
 
 import (
-	"log"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // {{.CapitalName}} is the overarching type across this package
@@ -45,7 +46,9 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
 	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
-	{{.Variable}}.WebsocketInit()
+	{{.Variable}}.Websocket = wshandler.New()
+	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -86,13 +89,21 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 		}
 
 		// If the exchange supports websocket, update the below block 
-		// err = {{.Variable}}.WebsocketSetup({{.Variable}}.WsConnect,
+		// err = {{.Variable}}.Websocket.Setup({{.Variable}}.WsConnect,
 		//	exch.Name,
 		//	exch.Features.Enabled.Websocket,
 		//	{{.Name}}Websocket,
 		//	exch.Features.Enabled.WebsocketURL)
 		// if err != nil {
 		// 	log.Fatal(err)
+		// }
+		// {{.Variable}}.WebsocketConn = &wshandler.WebsocketConnection{
+		// 		ExchangeName:         {{.Variable}}.Name,
+		// 		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
+		// 		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
+		// 		Verbose:              {{.Variable}}.Verbose,
+		// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		// }
 	}
 }

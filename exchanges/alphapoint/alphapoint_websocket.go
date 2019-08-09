@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -15,9 +15,9 @@ const (
 // WebsocketClient starts a new webstocket connection
 func (a *Alphapoint) WebsocketClient() {
 	for a.Enabled {
-		var Dialer websocket.Dialer
+		var dialer websocket.Dialer
 		var err error
-		a.WebsocketConn, _, err = Dialer.Dial(a.API.Endpoints.WebsocketURL, http.Header{})
+		a.WebsocketConn, _, err = dialer.Dial(a.API.Endpoints.WebsocketURL, http.Header{})
 
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s Unable to connect to Websocket. Error: %s\n", a.Name, err)

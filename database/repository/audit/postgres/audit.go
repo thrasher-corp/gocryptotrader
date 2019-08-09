@@ -1,10 +1,10 @@
 package audit
 
 import (
-	"github.com/thrasher-/gocryptotrader/database"
-	"github.com/thrasher-/gocryptotrader/database/models"
-	"github.com/thrasher-/gocryptotrader/database/repository/audit"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/models"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 type auditRepo struct{}

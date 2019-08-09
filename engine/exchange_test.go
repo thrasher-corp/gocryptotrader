@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 var testSetup = false

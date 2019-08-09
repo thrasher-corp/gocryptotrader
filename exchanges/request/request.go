@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead,

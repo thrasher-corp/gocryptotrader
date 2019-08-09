@@ -3,7 +3,7 @@ package orderbook
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 func testSetup() Base {

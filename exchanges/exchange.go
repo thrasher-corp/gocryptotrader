@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -22,6 +22,10 @@ const (
 	WarningAuthenticatedRequestWithoutCredentialsSet = "exchange %s authenticated HTTP request called but not supported due to unset/default API keys"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
+	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
+	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
+	DefaultWebsocketResponseMaxLimit = time.Second * 7
 )
 
 func (e *Base) checkAndInitRequester() {

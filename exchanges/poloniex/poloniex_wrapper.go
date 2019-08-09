@@ -7,15 +7,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -88,12 +89,15 @@ func (p *Poloniex) SetDefaults() {
 	p.API.Endpoints.URLDefault = poloniexAPIURL
 	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
 	p.API.Endpoints.WebsocketURL = poloniexWebsocketAddress
-	p.WebsocketInit()
-	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+	p.Websocket = wshandler.New()
+	p.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported
+	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user exchange configuration settings
@@ -108,14 +112,28 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return p.WebsocketSetup(p.WsConnect,
+	err = p.Websocket.Setup(p.WsConnect,
 		p.Subscribe,
 		p.Unsubscribe,
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
 		poloniexWebsocketAddress,
-		exch.API.Endpoints.WebsocketURL)
+		exch.API.Endpoints.WebsocketURL,
+		exch.API.AuthenticatedWebsocketSupport)
+	if err != nil {
+		return err
+	}
+
+	p.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         p.Name,
+		URL:                  p.Websocket.GetWebsocketURL(),
+		ProxyURL:             p.Websocket.GetProxyAddress(),
+		Verbose:              p.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+	return nil
 }
 
 // Start starts the Poloniex go routine
@@ -424,7 +442,7 @@ func (p *Poloniex) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchang
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (p *Poloniex) GetWebsocket() (*exchange.Websocket, error) {
+func (p *Poloniex) GetWebsocket() (*wshandler.Websocket, error) {
 	return p.Websocket, nil
 }
 
@@ -519,20 +537,20 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (p *Poloniex) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (p *Poloniex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	p.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	p.Websocket.UnsubscribeToChannels(channels)
+func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	p.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (p *Poloniex) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (p *Poloniex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return p.Websocket.GetSubscriptions(), nil
 }
 

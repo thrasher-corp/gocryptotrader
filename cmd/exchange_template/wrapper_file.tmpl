@@ -4,12 +4,12 @@ package {{.Name}}
 import (
 	"sync"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency/pair"
+	"github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Start starts the {{.CapitalName}} go routine
@@ -187,20 +187,20 @@ func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuil
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	{{.Variable}}.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	{{.Variable}}.Websocket.UnubscribeToChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/gofrs/uuid"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Vars for common.go operations

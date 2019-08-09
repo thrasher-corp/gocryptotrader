@@ -1,8 +1,8 @@
 package audit
 
 import (
-	"github.com/thrasher-/gocryptotrader/database"
-	"github.com/thrasher-/gocryptotrader/database/models"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/models"
 )
 
 // Repository that is required for each driver type to implement

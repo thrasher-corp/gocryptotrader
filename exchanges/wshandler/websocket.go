@@ -1,4 +1,4 @@
-package exchange
+package wshandler
 
 import (
 	"errors"
@@ -7,16 +7,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-// WebsocketInit initialises the websocket struct
-func (e *Base) WebsocketInit() {
-	e.Websocket = &Websocket{
+// New initialises the websocket struct
+func New() *Websocket {
+	return &Websocket{
 		defaultURL: "",
 		enabled:    false,
 		proxyAddr:  "",
@@ -25,37 +26,38 @@ func (e *Base) WebsocketInit() {
 	}
 }
 
-// WebsocketSetup sets main variables for websocket connection
-func (e *Base) WebsocketSetup(connector func() error,
+// Setup sets main variables for websocket connection
+func (w *Websocket) Setup(connector func() error,
 	subscriber func(channelToSubscribe WebsocketChannelSubscription) error,
 	unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error,
 	exchangeName string,
 	wsEnabled,
 	verbose bool,
 	defaultURL,
-	runningURL string) error {
+	runningURL string,
+	authenticatedWebsocketAPISupport bool) error {
 
-	e.Websocket.DataHandler = make(chan interface{}, 1)
-	e.Websocket.Connected = make(chan struct{}, 1)
-	e.Websocket.Disconnected = make(chan struct{}, 1)
-	e.Websocket.TrafficAlert = make(chan struct{}, 1)
-	e.Websocket.verbose = verbose
+	w.DataHandler = make(chan interface{}, 1)
+	w.Connected = make(chan struct{}, 1)
+	w.Disconnected = make(chan struct{}, 1)
+	w.TrafficAlert = make(chan struct{}, 1)
+	w.verbose = verbose
 
-	e.Websocket.SetChannelSubscriber(subscriber)
-	e.Websocket.SetChannelUnsubscriber(unsubscriber)
-	err := e.Websocket.SetWsStatusAndConnection(wsEnabled)
+	w.SetChannelSubscriber(subscriber)
+	w.SetChannelUnsubscriber(unsubscriber)
+	err := w.SetWsStatusAndConnection(wsEnabled)
 	if err != nil {
 		return err
 	}
-	e.Websocket.SetDefaultURL(defaultURL)
-	e.Websocket.SetConnector(connector)
-	e.Websocket.SetWebsocketURL(runningURL)
-	e.Websocket.SetExchangeName(exchangeName)
-	e.Websocket.SetCanUseAuthenticatedEndpoints(e.API.AuthenticatedWebsocketSupport)
+	w.SetDefaultURL(defaultURL)
+	w.SetConnector(connector)
+	w.SetWebsocketURL(runningURL)
+	w.SetExchangeName(exchangeName)
+	w.SetCanUseAuthenticatedEndpoints(authenticatedWebsocketAPISupport)
 
-	e.Websocket.init = false
-	e.Websocket.noConnectionCheckLimit = 5
-	e.Websocket.reconnectionLimit = 10
+	w.init = false
+	w.noConnectionCheckLimit = 5
+	w.reconnectionLimit = 10
 
 	return nil
 }
@@ -138,18 +140,18 @@ func (w *Websocket) wsConnectionMonitor() {
 // Will reconnect on disconnect
 func (w *Websocket) checkConnection() error {
 	if w.verbose {
-		log.Debugf(log.ExchangeSys, "%v checking connection", w.exchangeName)
+		log.Debugf(log.WebsocketMgr, "%v checking connection", w.exchangeName)
 	}
 	switch {
 	case !w.IsConnected() && !w.IsConnecting():
 		w.m.Lock()
 		defer w.m.Unlock()
 		if w.verbose {
-			log.Debugf(log.ExchangeSys, "%v no connection. Attempt %v/%v", w.exchangeName, w.noConnectionChecks, w.noConnectionCheckLimit)
+			log.Debugf(log.WebsocketMgr, "%v no connection. Attempt %v/%v", w.exchangeName, w.noConnectionChecks, w.noConnectionCheckLimit)
 		}
 		if w.noConnectionChecks >= w.noConnectionCheckLimit {
 			if w.verbose {
-				log.Debugf(log.ExchangeSys, "%v resetting connection", w.exchangeName)
+				log.Debugf(log.WebsocketMgr, "%v resetting connection", w.exchangeName)
 			}
 			w.connecting = true
 			go w.WebsocketReset()
@@ -163,7 +165,7 @@ func (w *Websocket) checkConnection() error {
 				w.reconnectionLimit*int(connectionMonitorDelay.Seconds()))
 		}
 		if w.verbose {
-			log.Debugf(log.ExchangeSys, "%v Busy reconnecting", w.exchangeName)
+			log.Debugf(log.WebsocketMgr, "%v Busy reconnecting", w.exchangeName)
 		}
 		w.reconnectionChecks++
 	default:
@@ -200,7 +202,7 @@ func (w *Websocket) Shutdown() error {
 	}
 
 	if w.verbose {
-		log.Debugf(log.ExchangeSys, "%v shutting down websocket channels", w.exchangeName)
+		log.Debugf(log.WebsocketMgr, "%v shutting down websocket channels", w.exchangeName)
 	}
 	timer := time.NewTimer(15 * time.Second)
 	c := make(chan struct{}, 1)
@@ -209,7 +211,7 @@ func (w *Websocket) Shutdown() error {
 		close(w.ShutdownC)
 		w.Wg.Wait()
 		if w.verbose {
-			log.Debugf(log.ExchangeSys, "%v completed websocket channel shutdown", w.exchangeName)
+			log.Debugf(log.WebsocketMgr, "%v completed websocket channel shutdown", w.exchangeName)
 		}
 		c <- struct{}{}
 	}(c)
@@ -229,7 +231,7 @@ func (w *Websocket) WebsocketReset() error {
 	err := w.Shutdown()
 	if err != nil {
 		// does not return here to allow connection to be made if already shut down
-		log.Errorf(log.ExchangeSys, "%v shutdown error: %v", w.exchangeName, err)
+		log.Errorf(log.WebsocketMgr, "%v shutdown error: %v", w.exchangeName, err)
 	}
 	log.Infof(log.WebsocketMgr, "%v reconnecting to websocket", w.exchangeName)
 	w.m.Lock()
@@ -237,7 +239,7 @@ func (w *Websocket) WebsocketReset() error {
 	w.m.Unlock()
 	err = w.Connect()
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v connection error: %v", w.exchangeName, err)
+		log.Errorf(log.WebsocketMgr, "%v connection error: %v", w.exchangeName, err)
 	}
 	return err
 }
@@ -260,7 +262,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 		select {
 		case <-w.ShutdownC: // Returns on shutdown channel close
 			if w.verbose {
-				log.Debugf(log.ExchangeSys, "%v trafficMonitor shutdown message received", w.exchangeName)
+				log.Debugf(log.WebsocketMgr, "%v trafficMonitor shutdown message received", w.exchangeName)
 			}
 			return
 		case <-w.TrafficAlert: // Resets timer on traffic
@@ -270,14 +272,11 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 				w.connected = true
 			}
 			w.m.Unlock()
-			if w.verbose {
-				log.Debugf(log.ExchangeSys, "%v received a traffic alert", w.exchangeName)
-			}
 			trafficTimer.Reset(WebsocketTrafficLimitTime)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set
 			if w.verbose {
-				log.Debugf(log.ExchangeSys, "%v has not received a traffic alert in 5 seconds.", w.exchangeName)
+				log.Debugf(log.WebsocketMgr, "%v has not received a traffic alert in 5 seconds.", w.exchangeName)
 			}
 			w.m.Lock()
 			if w.connected {
@@ -296,7 +295,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 
 			case <-newtimer.C: // If secondary timer runs state timeout is sent to the data handler
 				if w.verbose {
-					log.Debugf(log.ExchangeSys, "%v has not received a traffic alert in 15 seconds, exiting", w.exchangeName)
+					log.Debugf(log.WebsocketMgr, "%v has not received a traffic alert in 15 seconds, exiting", w.exchangeName)
 				}
 				w.DataHandler <- fmt.Errorf("trafficMonitor %v", WebsocketStateTimeout)
 				return
@@ -308,7 +307,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 					// If not connected dive rt traffic from REST to websocket
 					w.Connected <- struct{}{}
 					if w.verbose {
-						log.Debugf(log.ExchangeSys, "%v has received a traffic alert. Setting status to connected", w.exchangeName)
+						log.Debugf(log.WebsocketMgr, "%v has received a traffic alert. Setting status to connected", w.exchangeName)
 					}
 					w.connected = true
 				}
@@ -690,6 +689,15 @@ func (w *Websocket) FormatFunctionality() string {
 			case WebsocketWithdrawSupported:
 				functionality = append(functionality, WebsocketWithdrawSupportedText)
 
+			case WebsocketMessageCorrelationSupported:
+				functionality = append(functionality, WebsocketMessageCorrelationSupportedText)
+
+			case WebsocketSequenceNumberSupported:
+				functionality = append(functionality, WebsocketSequenceNumberSupportedText)
+
+			case WebsocketDeadMansSwitchSupported:
+				functionality = append(functionality, WebsocketDeadMansSwitchSupportedText)
+
 			default:
 				functionality = append(functionality,
 					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
@@ -722,7 +730,7 @@ func (w *Websocket) manageSubscriptions() error {
 	w.Wg.Add(1)
 	defer func() {
 		if w.verbose {
-			log.Debugf(log.ExchangeSys, "%v ManageSubscriptions exiting", w.exchangeName)
+			log.Debugf(log.WebsocketMgr, "%v ManageSubscriptions exiting", w.exchangeName)
 		}
 		w.Wg.Done()
 	}()
@@ -731,13 +739,13 @@ func (w *Websocket) manageSubscriptions() error {
 		case <-w.ShutdownC:
 			w.subscribedChannels = []WebsocketChannelSubscription{}
 			if w.verbose {
-				log.Debugf(log.ExchangeSys, "%v shutdown manageSubscriptions", w.exchangeName)
+				log.Debugf(log.WebsocketMgr, "%v shutdown manageSubscriptions", w.exchangeName)
 			}
 			return nil
 		default:
 			time.Sleep(manageSubscriptionsDelay)
 			if w.verbose {
-				log.Debugf(log.ExchangeSys, "%v checking subscriptions", w.exchangeName)
+				log.Debugf(log.WebsocketMgr, "%v checking subscriptions", w.exchangeName)
 			}
 			// Subscribe to channels Pending a subscription
 			if w.SupportsFunctionality(WebsocketSubscribeSupported) {
@@ -771,7 +779,7 @@ func (w *Websocket) subscribeToChannels() error {
 		}
 		if !channelIsSubscribed {
 			if w.verbose {
-				log.Debugf(log.ExchangeSys, "%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
+				log.Debugf(log.WebsocketMgr, "%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
 			}
 			err := w.channelSubscriber(w.channelsToSubscribe[i])
 			if err != nil {
@@ -807,6 +815,13 @@ func (w *Websocket) unsubscribeToChannels() error {
 	w.subscribedChannels = append(w.channelsToSubscribe[:0:0], w.channelsToSubscribe...) //nolint:gocritic
 
 	return nil
+}
+
+// RemoveSubscribedChannels removes supplied channels from channelsToSubscribe
+func (w *Websocket) RemoveSubscribedChannels(channels []WebsocketChannelSubscription) {
+	for i := range channels {
+		w.removeChannelToSubscribe(channels[i])
+	}
 }
 
 // removeChannelToSubscribe removes an entry from w.channelsToSubscribe
@@ -866,13 +881,6 @@ func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription)
 		}
 	}
 	w.noConnectionChecks = 0
-}
-
-// UnsubscribeToChannels removes supplied channels from channelsToSubscribe
-func (w *Websocket) UnsubscribeToChannels(channels []WebsocketChannelSubscription) {
-	for i := range channels {
-		w.removeChannelToSubscribe(channels[i])
-	}
 }
 
 // Equal two WebsocketChannelSubscription to determine equality

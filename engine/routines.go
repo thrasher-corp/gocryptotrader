@@ -7,14 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 func printCurrencyFormat(price float64) string {
@@ -319,7 +320,7 @@ var wg sync.WaitGroup
 
 // Websocketshutdown shuts down the exchange routines and then shuts down
 // governing routines
-func Websocketshutdown(ws *exchange.Websocket) error {
+func Websocketshutdown(ws *wshandler.Websocket) error {
 	err := ws.Shutdown() // shutdown routines on the exchange
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "routines.go error - failed to shutdown %s\n", err)
@@ -345,7 +346,7 @@ func Websocketshutdown(ws *exchange.Websocket) error {
 
 // streamDiversion is a diversion switch from websocket to REST or other
 // alternative feed
-func streamDiversion(ws *exchange.Websocket) {
+func streamDiversion(ws *wshandler.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -370,7 +371,7 @@ func streamDiversion(ws *exchange.Websocket) {
 
 // WebsocketDataHandler handles websocket data coming from a websocket feed
 // associated with an exchange
-func WebsocketDataHandler(ws *exchange.Websocket) {
+func WebsocketDataHandler(ws *wshandler.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -385,9 +386,9 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 			switch d := data.(type) {
 			case string:
 				switch d {
-				case exchange.WebsocketNotEnabled:
+				case wshandler.WebsocketNotEnabled:
 					if Bot.Settings.Verbose {
-						log.Warnf(log.WebsocketMgr, "routines.go warning - exchange %s weboscket not enabled\n",
+						log.Warnf(log.WebsocketMgr, "routines.go warning - exchange %s websocket not enabled\n",
 							ws.GetName())
 					}
 
@@ -404,13 +405,13 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 					log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
 				}
 
-			case exchange.TradeData:
+			case wshandler.TradeData:
 				// Trade Data
 				// if Bot.Settings.Verbose {
 				//	log.Println("Websocket trades Updated:   ", data.(exchange.TradeData))
 				// }
 
-			case exchange.TickerData:
+			case wshandler.TickerData:
 				// Ticker data
 				// if Bot.Settings.Verbose {
 				//	log.Println("Websocket Ticker Updated:   ", data.(exchange.TickerData))
@@ -430,14 +431,14 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 				}
 				ticker.ProcessTicker(ws.GetName(), &tickerNew, d.AssetType)
 				printTickerSummary(&tickerNew, tickerNew.Pair, d.AssetType, ws.GetName(), nil)
-			case exchange.KlineData:
+			case wshandler.KlineData:
 				// Kline data
 				if Bot.Settings.Verbose {
 					log.Infof(log.WebsocketMgr, "Websocket Kline Updated:   %v\n", d)
 				}
-			case exchange.WebsocketOrderbookUpdate:
+			case wshandler.WebsocketOrderbookUpdate:
 				// Orderbook data
-				result := data.(exchange.WebsocketOrderbookUpdate)
+				result := data.(wshandler.WebsocketOrderbookUpdate)
 				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
 						result.Pair, result.Asset, SyncItemOrderbook, nil)

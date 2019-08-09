@@ -3,8 +3,8 @@ package zb
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 // OrderbookResponse holds the orderbook data for a symbol

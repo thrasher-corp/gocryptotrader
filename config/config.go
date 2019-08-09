@@ -16,31 +16,33 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/common/convert"
-	"github.com/thrasher-/gocryptotrader/connchecker"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-/gocryptotrader/database"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/connchecker"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Constants declared here are filename strings and test strings
 const (
-	FXProviderFixer                        = "fixer"
-	EncryptedConfigFile                    = "config.dat"
-	ConfigFile                             = "config.json"
-	ConfigTestFile                         = "../testdata/configtest.json"
-	configFileEncryptionPrompt             = 0
-	configFileEncryptionEnabled            = 1
-	configFileEncryptionDisabled           = -1
-	configPairsLastUpdatedWarningThreshold = 30 // 30 days
-	configDefaultHTTPTimeout               = time.Second * 15
-	defaultNTPAllowedDifference            = 50000000
-	defaultNTPAllowedNegativeDifference    = 50000000
-	configMaxAuthFailures                  = 3
+	FXProviderFixer                            = "fixer"
+	EncryptedConfigFile                        = "config.dat"
+	ConfigFile                                 = "config.json"
+	ConfigTestFile                             = "../testdata/configtest.json"
+	configFileEncryptionPrompt                 = 0
+	configFileEncryptionEnabled                = 1
+	configFileEncryptionDisabled               = -1
+	configPairsLastUpdatedWarningThreshold     = 30 // 30 days
+	configDefaultHTTPTimeout                   = time.Second * 15
+	configDefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	configDefaultWebsocketResponseMaxLimit     = time.Second * 7
+	configMaxAuthFailures                      = 3
+	defaultNTPAllowedDifference                = 50000000
+	defaultNTPAllowedNegativeDifference        = 50000000
 
 	DefaultAPIKey      = "Key"
 	DefaultAPISecret   = "Secret"
@@ -1009,6 +1011,18 @@ func (c *Config) CheckExchangeConfigValues() error {
 					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter unauthenticated rate set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
 					c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Rate = 0
 				}
+			}
+
+			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
+				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response check timeout value not set, defaulting to %v.",
+					c.Exchanges[i].Name, configDefaultWebsocketResponseCheckTimeout)
+				c.Exchanges[i].WebsocketResponseCheckTimeout = configDefaultWebsocketResponseCheckTimeout
+			}
+
+			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
+				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response max limit value not set, defaulting to %v.",
+					c.Exchanges[i].Name, configDefaultWebsocketResponseMaxLimit)
+				c.Exchanges[i].WebsocketResponseMaxLimit = configDefaultWebsocketResponseMaxLimit
 			}
 
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)

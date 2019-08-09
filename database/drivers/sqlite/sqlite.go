@@ -6,7 +6,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	// import sqlite3 driver
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/thrasher-/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
 // Connect creates a connection to the entered database

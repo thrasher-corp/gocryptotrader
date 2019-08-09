@@ -6,10 +6,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/communications/base"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // vars for the fund manager package

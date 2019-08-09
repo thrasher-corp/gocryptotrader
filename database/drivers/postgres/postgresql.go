@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
-	"github.com/thrasher-/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
 // Connect establishes a connection pool to the database

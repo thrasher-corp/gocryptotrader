@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 var p Poloniex
@@ -439,22 +440,26 @@ func TestWsHandleAccountData(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	TestSetup(t)
 	if !p.Websocket.IsEnabled() && !p.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var err error
+	p.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         p.Name,
+		URL:                  p.Websocket.GetWebsocketURL(),
+		Verbose:              p.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
 	var dialer websocket.Dialer
-	p.WebsocketConn, _, err = dialer.Dial(p.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := p.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go p.WsHandleData()
-	defer p.WebsocketConn.Close()
 	err = p.wsSendAuthorisedCommand("subscribe")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {

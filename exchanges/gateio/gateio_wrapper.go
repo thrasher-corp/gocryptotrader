@@ -8,15 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -90,13 +91,17 @@ func (g *Gateio) SetDefaults() {
 	g.API.Endpoints.URLSecondaryDefault = gateioMarketURL
 	g.API.Endpoints.URLSecondary = g.API.Endpoints.URLSecondaryDefault
 	g.API.Endpoints.WebsocketURL = gateioWebsocketEndpoint
-	g.WebsocketInit()
-	g.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+	g.Websocket = wshandler.New()
+	g.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup sets user configuration
@@ -111,14 +116,29 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return g.WebsocketSetup(g.WsConnect,
+	err = g.Websocket.Setup(g.WsConnect,
 		g.Subscribe,
 		g.Unsubscribe,
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
 		gateioWebsocketEndpoint,
-		exch.API.Endpoints.WebsocketURL)
+		exch.API.Endpoints.WebsocketURL,
+		exch.API.AuthenticatedWebsocketSupport)
+	if err != nil {
+		return err
+	}
+
+	g.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         g.Name,
+		URL:                  g.Websocket.GetWebsocketURL(),
+		ProxyURL:             g.Websocket.GetProxyAddress(),
+		Verbose:              g.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            gateioWebsocketRateLimit,
+	}
+	return nil
 }
 
 // Start starts the GateIO go routine
@@ -473,7 +493,7 @@ func (g *Gateio) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (g *Gateio) GetWebsocket() (*exchange.Websocket, error) {
+func (g *Gateio) GetWebsocket() (*wshandler.Websocket, error) {
 	return g.Websocket, nil
 }
 
@@ -564,24 +584,25 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (g *Gateio) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (g *Gateio) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	g.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (g *Gateio) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	g.Websocket.UnsubscribeToChannels(channels)
+func (g *Gateio) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	g.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (g *Gateio) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (g *Gateio) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return g.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (g *Gateio) AuthenticateWebsocket() error {
-	return g.wsServerSignIn()
+	_, err := g.wsServerSignIn()
+	return err
 }

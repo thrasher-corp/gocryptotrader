@@ -6,13 +6,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/database"
-	db "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
-	dbsqlite3 "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
-	"github.com/thrasher-/gocryptotrader/database/repository/audit"
-	auditPSQL "github.com/thrasher-/gocryptotrader/database/repository/audit/postgres"
-	auditSQLite "github.com/thrasher-/gocryptotrader/database/repository/audit/sqlite"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
+	auditSQLite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var (

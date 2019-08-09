@@ -1,6 +1,6 @@
 package anx
 
-import "github.com/thrasher-/gocryptotrader/currency"
+import "github.com/thrasher-corp/gocryptotrader/currency"
 
 // List of strings
 const (

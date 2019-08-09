@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/thrasher-/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
 // Database holds a pointer to sql connection, DataPath which is used for file based databases

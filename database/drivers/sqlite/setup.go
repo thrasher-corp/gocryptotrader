@@ -1,6 +1,6 @@
 package sqlite
 
-import "github.com/thrasher-/gocryptotrader/database"
+import "github.com/thrasher-corp/gocryptotrader/database"
 
 // Setup is any post connection steps to run such as migration etc
 func Setup() (err error) {
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS audit_event
     Type       varchar(255),
     Identifier varchar(255),
     Message    text,
-    created_at timestamp default CURRENT_TIMESTAMP   
+    created_at timestamp default CURRENT_TIMESTAMP
 );`
 	_, err := database.Conn.SQL.Exec(query)
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // TimeInterval Interval represents interval enum.
@@ -22,14 +22,6 @@ var (
 	TimeIntervalFourHours      = TimeInterval(4 * 60 * 60)
 	TimeIntervalSixHours       = TimeInterval(6 * 60 * 60)
 	TimeIntervalDay            = TimeInterval(60 * 60 * 24)
-)
-
-// IDs for requests
-const (
-	IDGeneric    = 0000
-	IDSignIn     = 1010
-	IDBalance    = 2000
-	IDOrderQuery = 3001
 )
 
 // MarketInfoResponse holds the market info data
@@ -466,4 +458,33 @@ type WebSocketOrderQueryRecords struct {
 	Type         int     `json:"type"`
 	FilledAmount string  `json:"filledAmount"`
 	FilledTotal  string  `json:"filledTotal"`
+}
+
+// WebsocketAuthenticationResponse contains the result of a login request
+type WebsocketAuthenticationResponse struct {
+	Error  string `json:"error"`
+	Result struct {
+		Status string `json:"status"`
+	} `json:"result"`
+	ID int64 `json:"id"`
+}
+
+// wsGetBalanceRequest
+type wsGetBalanceRequest struct {
+	ID     int64    `json:"id"`
+	Method string   `json:"method"`
+	Params []string `json:"params,omitempty"`
+}
+
+// WsGetBalanceResponse stores WS GetBalance response
+type WsGetBalanceResponse struct {
+	Error  interface{}                                `json:"error"`
+	Result map[currency.Code]WsGetBalanceResponseData `json:"result,omitempty"`
+	ID     int64                                      `json:"id"`
+}
+
+// WsGetBalanceResponseData contains currency data
+type WsGetBalanceResponseData struct {
+	Available float64 `json:"available,string"`
+	Freeze    float64 `json:"freeze,string"`
 }

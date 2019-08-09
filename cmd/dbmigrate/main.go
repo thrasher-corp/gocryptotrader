@@ -7,14 +7,14 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/database"
-	db "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
-	dbsqlite3 "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
-	"github.com/thrasher-/gocryptotrader/database/repository/audit"
-	auditPSQL "github.com/thrasher-/gocryptotrader/database/repository/audit/postgres"
-	auditSQLite "github.com/thrasher-/gocryptotrader/database/repository/audit/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
+	auditSQLite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
 )
 
 var (

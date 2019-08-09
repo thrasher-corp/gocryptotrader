@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/database"
-	"github.com/thrasher-/gocryptotrader/database/drivers"
-	dbpsql "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
-	dbsqlite "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbsqlite "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 )
 
 var (

@@ -3,11 +3,11 @@ package config
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-/gocryptotrader/database"
-	log "github.com/thrasher-/gocryptotrader/logger"
-	"github.com/thrasher-/gocryptotrader/portfolio"
+"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // Config is the overarching object that holds all the information for
@@ -47,20 +47,22 @@ type ConnectionMonitorConfig struct {
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
 type ExchangeConfig struct {
-	Name            string                 `json:"name"`
-	Enabled         bool                   `json:"enabled"`
-	Verbose         bool                   `json:"verbose"`
-	UseSandbox      bool                   `json:"useSandbox,omitempty"`
-	HTTPTimeout     time.Duration          `json:"httpTimeout"`
-	HTTPUserAgent   string                 `json:"httpUserAgent,omitempty"`
-	HTTPDebugging   bool                   `json:"httpDebugging,omitempty"`
-	HTTPRateLimiter *HTTPRateLimitConfig   `json:"httpRateLimiter,omitempty"`
-	ProxyAddress    string                 `json:"proxyAddress,omitempty"`
-	BaseCurrencies  currency.Currencies    `json:"baseCurrencies"`
-	CurrencyPairs   *currency.PairsManager `json:"currencyPairs"`
-	API             APIConfig              `json:"api"`
-	Features        *FeaturesConfig        `json:"features"`
-	BankAccounts    []BankAccount          `json:"bankAccounts,omitempty"`
+	Name                          string                 `json:"name"`
+	Enabled                       bool                   `json:"enabled"`
+	Verbose                       bool                   `json:"verbose"`
+	UseSandbox                    bool                   `json:"useSandbox,omitempty"`
+	HTTPTimeout                   time.Duration          `json:"httpTimeout"`
+	HTTPUserAgent                 string                 `json:"httpUserAgent,omitempty"`
+	HTTPDebugging                 bool                   `json:"httpDebugging,omitempty"`
+	HTTPRateLimiter               *HTTPRateLimitConfig   `json:"httpRateLimiter,omitempty"`
+	WebsocketResponseCheckTimeout time.Duration          `json:"websocketResponseCheckTimeout"`
+	WebsocketResponseMaxLimit     time.Duration          `json:"websocketResponseMaxLimit"`
+	ProxyAddress                  string                 `json:"proxyAddress,omitempty"`
+	BaseCurrencies                currency.Currencies    `json:"baseCurrencies"`
+	CurrencyPairs                 *currency.PairsManager `json:"currencyPairs"`
+	API                           APIConfig              `json:"api"`
+	Features                      *FeaturesConfig        `json:"features"`
+	BankAccounts                  []BankAccount          `json:"bankAccounts,omitempty"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`

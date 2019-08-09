@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	log "github.com/thrasher-/gocryptotrader/logger"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // ConversionRates defines protected conversion rate map for concurrent updating

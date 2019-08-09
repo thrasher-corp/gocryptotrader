@@ -1,7 +1,7 @@
 package huobihadax
 
 import (
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // Response stores the Huobi response information
@@ -340,6 +340,7 @@ type WsAuthenticationRequest struct {
 	SignatureVersion string `json:"SignatureVersion"`
 	Timestamp        string `json:"Timestamp"`
 	Signature        string `json:"Signature"`
+	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
 // WsMessage defines read data from the websocket connection
@@ -357,6 +358,7 @@ type WsAuthenticatedSubscriptionRequest struct {
 	Timestamp        string `json:"Timestamp"`
 	Signature        string `json:"Signature"`
 	Topic            string `json:"topic"`
+	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedAccountsListRequest request for account list authenticated connection
@@ -369,6 +371,7 @@ type WsAuthenticatedAccountsListRequest struct {
 	Signature        string        `json:"Signature"`
 	Topic            string        `json:"topic"`
 	Symbol           currency.Pair `json:"symbol"`
+	ClientID         int64         `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedOrderDetailsRequest request for order details authenticated connection
@@ -381,6 +384,7 @@ type WsAuthenticatedOrderDetailsRequest struct {
 	Signature        string `json:"Signature"`
 	Topic            string `json:"topic"`
 	OrderID          string `json:"order-id"`
+	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedOrdersListRequest request for orderslist authenticated connection
@@ -395,6 +399,7 @@ type WsAuthenticatedOrdersListRequest struct {
 	States           string        `json:"states"`
 	AccountID        int64         `json:"account-id"`
 	Symbol           currency.Pair `json:"symbol"`
+	ClientID         int64         `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedDataResponse response from authenticated connection
@@ -405,7 +410,7 @@ type WsAuthenticatedDataResponse struct {
 	ErrorCode    int64  `json:"err-code,omitempty"`
 	ErrorMessage string `json:"err-msg,omitempty"`
 	Ping         int64  `json:"ping,omitempty"`
-	CID          string `json:"cid,omitempty"`
+	ClientID     int64  `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedAccountsResponse response from Accounts authenticated subscription
@@ -522,4 +527,9 @@ type WsAuthenticatedOrdersListResponseData struct {
 type WsAuthenticatedOrderDetailResponse struct {
 	WsAuthenticatedDataResponse
 	Data WsAuthenticatedOrdersListResponseData `json:"data"`
+}
+
+// WsPong sent for pong messages
+type WsPong struct {
+	Pong int64 `json:"pong"`
 }

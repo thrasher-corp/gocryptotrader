@@ -1,4 +1,4 @@
-package exchange
+package wshandler
 
 import (
 	"fmt"
@@ -6,57 +6,52 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-var wsTest Base
+var ws *Websocket
 
 func TestWebsocketInit(t *testing.T) {
-	if wsTest.Websocket != nil {
-		t.Error("test failed - WebsocketInit() error")
-	}
-
-	wsTest.WebsocketInit()
-
-	if wsTest.Websocket == nil {
-		t.Error("test failed - WebsocketInit() error")
+	ws = New()
+	if ws == nil {
+		t.Error("test failed - Websocket New() error")
 	}
 }
 
 func TestWebsocket(t *testing.T) {
-	if err := wsTest.Websocket.SetProxyAddress("testProxy"); err != nil {
+	if err := ws.SetProxyAddress("testProxy"); err != nil {
 		t.Error("test failed - SetProxyAddress", err)
 	}
 
-	wsTest.WebsocketSetup(func() error { return nil },
+	ws.Setup(func() error { return nil },
 		func(test WebsocketChannelSubscription) error { return nil },
 		func(test WebsocketChannelSubscription) error { return nil },
 		"testName",
 		true,
 		false,
 		"testDefaultURL",
-		"testRunningURL")
+		"testRunningURL",
+		false)
 
 	// Test variable setting and retreival
-	if wsTest.Websocket.GetName() != "testName" {
+	if ws.GetName() != "testName" {
 		t.Error("test failed - WebsocketSetup")
 	}
 
-	if !wsTest.Websocket.IsEnabled() {
+	if !ws.IsEnabled() {
 		t.Error("test failed - WebsocketSetup")
 	}
 
-	if wsTest.Websocket.GetProxyAddress() != "testProxy" {
+	if ws.GetProxyAddress() != "testProxy" {
 		t.Error("test failed - WebsocketSetup")
 	}
 
-	if wsTest.Websocket.GetDefaultURL() != "testDefaultURL" {
+	if ws.GetDefaultURL() != "testDefaultURL" {
 		t.Error("test failed - WebsocketSetup")
 	}
 
-	if wsTest.Websocket.GetWebsocketURL() != "testRunningURL" {
+	if ws.GetWebsocketURL() != "testRunningURL" {
 		t.Error("test failed - WebsocketSetup")
 	}
 
@@ -70,53 +65,53 @@ func TestWebsocket(t *testing.T) {
 				return
 			}
 			select {
-			case <-wsTest.Websocket.Connected:
+			case <-ws.Connected:
 				count++
-			case <-wsTest.Websocket.Disconnected:
+			case <-ws.Disconnected:
 				count++
 			}
 		}
 	}()
 	// -- Not connected shutdown
-	err := wsTest.Websocket.Shutdown()
+	err := ws.Shutdown()
 	if err == nil {
 		t.Fatal("test failed - should not be connected to able to shut down")
 	}
-	wsTest.Websocket.Wg.Wait()
+	ws.Wg.Wait()
 	// -- Normal connect
-	err = wsTest.Websocket.Connect()
+	err = ws.Connect()
 	if err != nil {
 		t.Fatal("test failed - WebsocketSetup", err)
 	}
 
 	// -- Already connected connect
-	err = wsTest.Websocket.Connect()
+	err = ws.Connect()
 	if err == nil {
 		t.Fatal("test failed - should not connect, already connected")
 	}
 
-	wsTest.Websocket.SetWebsocketURL("")
+	ws.SetWebsocketURL("")
 
 	// -- Set true when already true
-	err = wsTest.Websocket.SetWsStatusAndConnection(true)
+	err = ws.SetWsStatusAndConnection(true)
 	if err == nil {
 		t.Fatal("test failed - setting enabled should not work")
 	}
 
 	// -- Set false normal
-	err = wsTest.Websocket.SetWsStatusAndConnection(false)
+	err = ws.SetWsStatusAndConnection(false)
 	if err != nil {
 		t.Fatal("test failed - setting enabled should not work")
 	}
 
 	// -- Set true normal
-	err = wsTest.Websocket.SetWsStatusAndConnection(true)
+	err = ws.SetWsStatusAndConnection(true)
 	if err != nil {
 		t.Fatal("test failed - setting enabled should not work")
 	}
 
 	// -- Normal shutdown
-	err = wsTest.Websocket.Shutdown()
+	err = ws.Shutdown()
 	if err != nil {
 		t.Fatal("test failed - WebsocketSetup", err)
 	}
@@ -161,10 +156,10 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = asset.Spot
+	snapShot1.AssetType = "SPOT"
 	snapShot1.Pair = currency.NewPairFromString("BTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(&snapShot1, "ExchangeTest", false)
+	ws.Orderbook.LoadSnapshot(&snapShot1, "ExchangeTest", false)
 
 	var snapShot2 orderbook.Base
 	asks = []orderbook.Item{
@@ -197,10 +192,10 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot2.Asks = asks
 	snapShot2.Bids = bids
-	snapShot2.AssetType = asset.Spot
+	snapShot2.AssetType = "SPOT"
 	snapShot2.Pair = currency.NewPairFromString("LTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(&snapShot2, "ExchangeTest", false)
+	ws.Orderbook.LoadSnapshot(&snapShot2, "ExchangeTest", false)
 
 	var snapShot3 orderbook.Base
 	asks = []orderbook.Item{
@@ -236,9 +231,9 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(&snapShot3, "ExchangeTest", false)
+	ws.Orderbook.LoadSnapshot(&snapShot3, "ExchangeTest", false)
 
-	if len(wsTest.Websocket.Orderbook.ob) != 3 {
+	if len(ws.Orderbook.ob) != 3 {
 		t.Error("test failed - inserting orderbook data")
 	}
 }
@@ -260,18 +255,18 @@ func TestUpdate(t *testing.T) {
 		{Price: 1337, Amount: 100}, // Append
 		{Price: 1336, Amount: 0},   // Ghost delete
 	}
-	err := wsTest.Websocket.Orderbook.Update(bidTargets,
+	err := ws.Orderbook.Update(bidTargets,
 		askTargets,
 		LTCUSDPAIR,
 		time.Now(),
 		"ExchangeTest",
-		asset.Spot)
+		"SPOT")
 
 	if err != nil {
 		t.Error("test failed - OrderbookUpdate error", err)
 	}
 
-	err = wsTest.Websocket.Orderbook.Update(bidTargets,
+	err = ws.Orderbook.Update(bidTargets,
 		askTargets,
 		LTCUSDPAIR,
 		time.Now(),
@@ -296,12 +291,12 @@ func TestUpdate(t *testing.T) {
 		{Price: 1336, Amount: 0},   // Ghost delete
 	}
 
-	err = wsTest.Websocket.Orderbook.Update(bidTargets,
+	err = ws.Orderbook.Update(bidTargets,
 		askTargets,
 		BTCUSDPAIR,
 		time.Now(),
 		"ExchangeTest",
-		asset.Spot)
+		"SPOT")
 
 	if err != nil {
 		t.Error("test failed - OrderbookUpdate error", err)
@@ -389,7 +384,7 @@ func TestSubscriptionWithExistingEntry(t *testing.T) {
 	w.SetChannelSubscriber(placeholderSubscriber)
 	w.subscribeToChannels()
 	if len(w.subscribedChannels) != 1 {
-		t.Errorf("Subscription should not have occurred")
+		t.Errorf("Subscription should not have occured")
 	}
 }
 
@@ -410,7 +405,7 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 	w.SetChannelUnsubscriber(placeholderSubscriber)
 	w.unsubscribeToChannels()
 	if len(w.subscribedChannels) != 1 {
-		t.Errorf("Unsubscription should not have occurred")
+		t.Errorf("Unsubscription should not have occured")
 	}
 }
 

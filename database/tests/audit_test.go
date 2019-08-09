@@ -6,13 +6,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/database"
-	"github.com/thrasher-/gocryptotrader/database/drivers"
-	dbpsql "github.com/thrasher-/gocryptotrader/database/drivers/postgres"
-	dbsqlite "github.com/thrasher-/gocryptotrader/database/drivers/sqlite"
-	"github.com/thrasher-/gocryptotrader/database/repository/audit"
-	auditPSQL "github.com/thrasher-/gocryptotrader/database/repository/audit/postgres"
-	auditSQlite "github.com/thrasher-/gocryptotrader/database/repository/audit/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbsqlite "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
+	auditSQlite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
 )
 
 func TestAudit(t *testing.T) {

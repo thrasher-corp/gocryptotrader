@@ -7,10 +7,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Vars for the websocket client
@@ -86,8 +86,8 @@ func main() {
 		common.ExtractPort(listenAddr))
 	log.Printf("Connecting to websocket host: %s", wsHost)
 
-	var Dialer websocket.Dialer
-	WSConn, _, err = Dialer.Dial(wsHost, http.Header{})
+	var dialer websocket.Dialer
+	WSConn, _, err = dialer.Dial(wsHost, http.Header{})
 	if err != nil {
 		log.Println("Unable to connect to websocket server")
 		return

@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
