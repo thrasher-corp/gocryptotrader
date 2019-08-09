@@ -1,6 +1,6 @@
 package huobi
 
-import "github.com/thrasher-/gocryptotrader/currency"
+import "github.com/thrasher-corp/gocryptotrader/currency"
 
 // Response stores the Huobi response information
 type Response struct {

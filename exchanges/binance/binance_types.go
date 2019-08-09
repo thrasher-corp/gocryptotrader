@@ -3,7 +3,7 @@ package binance
 import (
 	"encoding/json"
 
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // Response holds basic binance api response data

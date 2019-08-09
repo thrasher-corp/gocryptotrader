@@ -3,7 +3,7 @@ package zb
 import (
 	"encoding/json"
 
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // Subscription defines an initial subscription type to be sent

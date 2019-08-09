@@ -1,6 +1,6 @@
 package kraken
 
-import "github.com/thrasher-/gocryptotrader/currency"
+import "github.com/thrasher-corp/gocryptotrader/currency"
 
 // TimeResponse type
 type TimeResponse struct {

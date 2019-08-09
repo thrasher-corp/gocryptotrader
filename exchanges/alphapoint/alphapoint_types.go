@@ -1,6 +1,6 @@
 package alphapoint
 
-import exchange "github.com/thrasher-/gocryptotrader/exchanges"
+import exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 
 // Response contains general responses from the exchange
 type Response struct {

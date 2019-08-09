@@ -1,8 +1,8 @@
 package coinut
 
 import (
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 // GenericResponse is the generic response you will get from coinut
