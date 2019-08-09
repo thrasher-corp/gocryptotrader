@@ -16,8 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -59,7 +58,7 @@ const (
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
-	WebsocketConn      *connection.WebsocketConnection
+	WebsocketConn      *wshandler.WebsocketConnection
 	CryptoFee, FiatFee float64
 	wsRequestMtx       sync.Mutex
 }
@@ -90,18 +89,18 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
-	k.Websocket = monitor.New()
+	k.Websocket = wshandler.New()
 	k.WebsocketURL = krakenWSURL
-	k.Websocket.Functionality = monitor.WebsocketTickerSupported |
-		monitor.WebsocketTradeDataSupported |
-		monitor.WebsocketKlineSupported |
-		monitor.WebsocketOrderbookSupported |
-		monitor.WebsocketSubscribeSupported |
-		monitor.WebsocketUnsubscribeSupported |
-		monitor.WebsocketMessageCorrelationSupported
+	k.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketMessageCorrelationSupported
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-
+	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets current exchange configuration
@@ -153,7 +152,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		k.WebsocketConn = &connection.WebsocketConnection{
+		k.WebsocketConn = &wshandler.WebsocketConnection{
 			ExchangeName:         k.Name,
 			URL:                  k.Websocket.GetWebsocketURL(),
 			ProxyURL:             k.Websocket.GetProxyAddress(),
@@ -162,6 +161,13 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
+		k.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			false,
+			false,
+			exch.Name)
 	}
 }
 

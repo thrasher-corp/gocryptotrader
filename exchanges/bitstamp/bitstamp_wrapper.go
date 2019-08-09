@@ -13,7 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -306,7 +306,7 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchang
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitstamp) GetWebsocket() (*monitor.Websocket, error) {
+func (b *Bitstamp) GetWebsocket() (*wshandler.Websocket, error) {
 	return b.Websocket, nil
 }
 
@@ -406,20 +406,20 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitstamp) SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
+func (b *Bitstamp) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	b.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitstamp) UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
+func (b *Bitstamp) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	b.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Bitstamp) GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error) {
+func (b *Bitstamp) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 

@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -135,7 +135,7 @@ func (l *LocalBitcoins) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = localbitcoinsAPIURL
 	l.APIUrl = l.APIUrlDefault
-	l.Websocket = monitor.New()
+	l.Websocket = wshandler.New()
 }
 
 // Setup sets exchange configuration parameters

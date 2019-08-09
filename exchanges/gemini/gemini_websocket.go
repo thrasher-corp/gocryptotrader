@@ -14,9 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/ob"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -36,7 +35,7 @@ var responseCheckTimeout time.Duration
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -67,7 +66,7 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			geminiWsMarketData,
 			c.String(),
 			val.Encode())
-		connection := &connection.WebsocketConnection{
+		connection := &wshandler.WebsocketConnection{
 			ExchangeName:         g.Name,
 			URL:                  endpoint,
 			Verbose:              g.Verbose,
@@ -111,7 +110,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("X-GEMINI-SIGNATURE", common.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	g.AuthenticatedWebsocketConn = &connection.WebsocketConnection{
+	g.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         g.Name,
 		URL:                  endpoint,
 		Verbose:              g.Verbose,
@@ -128,7 +127,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
-func (g *Gemini) WsReadData(ws *connection.WebsocketConnection, c currency.Pair) {
+func (g *Gemini) WsReadData(ws *wshandler.WebsocketConnection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
@@ -257,20 +256,20 @@ func (g *Gemini) WsHandleData() {
 func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pair) {
 	if result.Timestamp == 0 && result.TimestampMS == 0 {
 		var bids, asks []orderbook.Item
-		for _, event := range result.Events {
-			if event.Reason != "initial" {
+		for i := range result.Events {
+			if result.Events[i].Reason != "initial" {
 				g.Websocket.DataHandler <- errors.New("gemini_websocket.go orderbook should be snapshot only")
 				continue
 			}
-			if event.Side == "ask" {
+			if result.Events[i].Side == "ask" {
 				asks = append(asks, orderbook.Item{
-					Amount: event.Remaining,
-					Price:  event.Price,
+					Amount: result.Events[i].Remaining,
+					Price:  result.Events[i].Price,
 				})
 			} else {
 				bids = append(bids, orderbook.Item{
-					Amount: event.Remaining,
-					Price:  event.Price,
+					Amount: result.Events[i].Remaining,
+					Price:  result.Events[i].Price,
 				})
 			}
 		}
@@ -280,20 +279,19 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		newOrderBook.AssetType = orderbook.Spot
 		newOrderBook.Pair = pair
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-			g.GetName(),
 			false)
 		if err != nil {
 			g.Websocket.DataHandler <- err
 			return
 		}
-		g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: pair,
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    orderbook.Spot,
 			Exchange: g.GetName()}
 	} else {
 		var asks, bids []orderbook.Item
 		for i := 0; i < len(result.Events); i++ {
 			if result.Events[i].Type == "trade" {
-				g.Websocket.DataHandler <- monitor.TradeData{
+				g.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Now(),
 					CurrencyPair: pair,
 					AssetType:    orderbook.Spot,
@@ -315,20 +313,17 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 				}
 			}
 		}
-		err := g.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-			Asks:          asks,
-			Bids:          bids,
-			CurrencyPair:  pair,
-			UpdateTime:    time.Unix(0, result.TimestampMS),
-			ExchangeName:  g.Name,
-			AssetType:     orderbook.Spot,
-			SortBuffer:    true,
-			BufferEnabled: true,
+		err := g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+			Asks:         asks,
+			Bids:         bids,
+			CurrencyPair: pair,
+			UpdateTime:   time.Unix(0, result.TimestampMS),
+			AssetType:    orderbook.Spot,
 		})
 		if err != nil {
 			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
 		}
-		g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{Pair: pair,
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    orderbook.Spot,
 			Exchange: g.GetName()}
 	}

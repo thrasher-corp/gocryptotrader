@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -25,7 +25,7 @@ const (
 // WsConnect initiates a websocket connection
 func (z *ZB) WsConnect() error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := z.WebsocketConn.Dial(&dialer, http.Header{})
@@ -92,7 +92,7 @@ func (z *ZB) WsHandleData() {
 					continue
 				}
 
-				z.Websocket.DataHandler <- monitor.TickerData{
+				z.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp:  time.Unix(0, ticker.Date),
 					Pair:       currency.NewPairFromString(cPair[0]),
 					AssetType:  orderbook.Spot,
@@ -111,8 +111,8 @@ func (z *ZB) WsHandleData() {
 				}
 
 				var asks []orderbook.Item
-				for _, askDepth := range depth.Asks {
-					ask := askDepth.([]interface{})
+				for i := range depth.Asks {
+					ask := depth.Asks[i].([]interface{})
 					asks = append(asks, orderbook.Item{
 						Amount: ask[1].(float64),
 						Price:  ask[0].(float64),
@@ -120,8 +120,8 @@ func (z *ZB) WsHandleData() {
 				}
 
 				var bids []orderbook.Item
-				for _, bidDepth := range depth.Bids {
-					bid := bidDepth.([]interface{})
+				for i := range depth.Bids {
+					bid := depth.Bids[i].([]interface{})
 					bids = append(bids, orderbook.Item{
 						Amount: bid[1].(float64),
 						Price:  bid[0].(float64),
@@ -137,14 +137,13 @@ func (z *ZB) WsHandleData() {
 				newOrderBook.Pair = cPair
 
 				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-					z.GetName(),
 					true)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
 				}
 
-				z.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+				z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     cPair,
 					Asset:    orderbook.Spot,
 					Exchange: z.GetName(),
@@ -164,7 +163,7 @@ func (z *ZB) WsHandleData() {
 				t := trades.Data[len(trades.Data)-1]
 				channelInfo := common.SplitStrings(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
-				z.Websocket.DataHandler <- monitor.TradeData{
+				z.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Unix(0, t.Date),
 					CurrencyPair: cPair,
 					AssetType:    orderbook.Spot,
@@ -218,9 +217,9 @@ var wsErrCodes = map[int64]string{
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
-	var subscriptions []monitor.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	// Tickerdata is its own channel
-	subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
@@ -228,7 +227,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
 				Currency: enabledCurrencies[j].Lower(),
 			})
@@ -238,7 +237,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (z *ZB) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
 		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,

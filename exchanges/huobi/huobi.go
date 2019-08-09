@@ -22,8 +22,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -69,8 +68,8 @@ const (
 type HUOBI struct {
 	exchange.Base
 	AccountID                  string
-	WebsocketConn              *connection.WebsocketConnection
-	AuthenticatedWebsocketConn *connection.WebsocketConnection
+	WebsocketConn              *wshandler.WebsocketConnection
+	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 }
 
 // SetDefaults sets default values for the exchange
@@ -95,17 +94,18 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobiAPIURL
 	h.APIUrl = h.APIUrlDefault
-	h.Websocket = monitor.New()
-	h.Websocket.Functionality = monitor.WebsocketKlineSupported |
-		monitor.WebsocketOrderbookSupported |
-		monitor.WebsocketTradeDataSupported |
-		monitor.WebsocketSubscribeSupported |
-		monitor.WebsocketUnsubscribeSupported |
-		monitor.WebsocketAuthenticatedEndpointsSupported |
-		monitor.WebsocketAccountDataSupported |
-		monitor.WebsocketMessageCorrelationSupported
+	h.Websocket = wshandler.New()
+	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketAccountDataSupported |
+		wshandler.WebsocketMessageCorrelationSupported
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user configuration
@@ -160,7 +160,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		h.WebsocketConn = &connection.WebsocketConnection{
+		h.WebsocketConn = &wshandler.WebsocketConnection{
 			ExchangeName:         h.Name,
 			URL:                  wsMarketURL,
 			ProxyURL:             h.Websocket.GetProxyAddress(),
@@ -169,7 +169,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
-		h.AuthenticatedWebsocketConn = &connection.WebsocketConnection{
+		h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
 			ExchangeName:         h.Name,
 			URL:                  wsAccountsOrdersURL,
 			ProxyURL:             h.Websocket.GetProxyAddress(),
@@ -178,6 +178,13 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
+		h.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			false,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 

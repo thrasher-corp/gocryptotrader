@@ -11,8 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 var h HitBTC
@@ -396,11 +395,11 @@ func setupWsAuth(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
 	if !h.Websocket.IsEnabled() && !h.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(monitor.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	h.WebsocketConn = &connection.WebsocketConnection{
+	h.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         h.Name,
 		URL:                  hitbtcWebsocketAddress,
 		Verbose:              h.Verbose,

@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -32,6 +32,8 @@ const (
 	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
 	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
+	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
+	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
 // FeeType custom type for calculating fees based on method
@@ -267,6 +269,7 @@ type Base struct {
 	RESTPollingDelay                           time.Duration
 	WebsocketResponseCheckTimeout              time.Duration
 	WebsocketResponseMaxLimit                  time.Duration
+	WebsocketOrderbookBufferLimit              int64
 	AuthenticatedAPISupport                    bool
 	AuthenticatedWebsocketAPISupport           bool
 	APIWithdrawPermissions                     uint32
@@ -290,7 +293,7 @@ type Base struct {
 	APIUrlSecondaryDefault                     string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
-	Websocket                                  *monitor.Websocket
+	Websocket                                  *wshandler.Websocket
 	*request.Requester
 }
 
@@ -333,11 +336,11 @@ type IBotExchange interface {
 	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
-	GetWebsocket() (*monitor.Websocket, error)
-	SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error
+	GetWebsocket() (*wshandler.Websocket, error)
+	SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
 	AuthenticateWebsocket() error
-	GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error)
+	GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the

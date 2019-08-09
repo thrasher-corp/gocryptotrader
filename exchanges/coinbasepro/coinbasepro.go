@@ -16,8 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -61,7 +60,7 @@ const (
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
-	WebsocketConn *connection.WebsocketConnection
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // SetDefaults sets default values for the exchange
@@ -87,15 +86,16 @@ func (c *CoinbasePro) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.APIUrlDefault = coinbaseproAPIURL
 	c.APIUrl = c.APIUrlDefault
-	c.Websocket = monitor.New()
-	c.Websocket.Functionality = monitor.WebsocketTickerSupported |
-		monitor.WebsocketOrderbookSupported |
-		monitor.WebsocketSubscribeSupported |
-		monitor.WebsocketUnsubscribeSupported |
-		monitor.WebsocketAuthenticatedEndpointsSupported |
-		monitor.WebsocketSequenceNumberSupported
+	c.Websocket = wshandler.New()
+	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketSequenceNumberSupported
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup initialises the exchange parameters with the current configuration
@@ -151,7 +151,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		c.WebsocketConn = &connection.WebsocketConnection{
+		c.WebsocketConn = &wshandler.WebsocketConnection{
 			ExchangeName:         c.Name,
 			URL:                  c.Websocket.GetWebsocketURL(),
 			ProxyURL:             c.Websocket.GetProxyAddress(),
@@ -159,6 +159,13 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
+		c.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			false,
+			false,
+			exch.Name)
 	}
 }
 

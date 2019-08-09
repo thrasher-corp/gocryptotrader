@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/websocket/monitor"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/toorop/go-pusher"
 )
 
@@ -29,7 +29,7 @@ const (
 // WsConnect initiates a new websocket connection
 func (l *LakeBTC) WsConnect() error {
 	if !l.Websocket.IsEnabled() || !l.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var err error
 	l.WebsocketConn.Client, err = pusher.NewCustomClient(strings.ToLower(l.Name), lakeBTCWSURL, wssSchem)
@@ -68,12 +68,12 @@ func (l *LakeBTC) listenToEndpoints() error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (l *LakeBTC) GenerateDefaultSubscriptions() {
-	var subscriptions []monitor.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies := l.GetEnabledCurrencies()
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = ""
 		channel := fmt.Sprintf("%v%v%v", marketSubstring, enabledCurrencies[j].Lower(), globalSubstring)
-		subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 			Channel:  channel,
 			Currency: enabledCurrencies[j],
 		})
@@ -82,7 +82,7 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (l *LakeBTC) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (l *LakeBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	return l.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
 }
 
@@ -136,7 +136,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 	}
 	curr := l.getCurrencyFromChannel(channel)
 	for i := 0; i < len(tradeData.Trades); i++ {
-		l.Websocket.DataHandler <- monitor.TradeData{
+		l.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
 			CurrencyPair: curr,
 			AssetType:    orderbook.Spot,
@@ -198,7 +198,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 			Price:  price,
 		})
 	}
-	return l.Websocket.Orderbook.LoadSnapshot(&book, book.ExchangeName, true)
+	return l.Websocket.Orderbook.LoadSnapshot(&book, true)
 }
 
 func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {
@@ -234,7 +234,7 @@ func (l *LakeBTC) processTicker(ticker string) error {
 			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'volume' %v", l.Name, tickerData)
 			continue
 		}
-		l.Websocket.DataHandler <- monitor.TickerData{
+		l.Websocket.DataHandler <- wshandler.TickerData{
 			Timestamp: time.Now(),
 			Pair:      currency.NewPairFromString(k),
 			AssetType: orderbook.Spot,

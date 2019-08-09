@@ -11,7 +11,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // GetAccountInfo retrieves balances for all enabled currencies on the
@@ -225,7 +225,7 @@ func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(withdrawRequest *excha
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (a *Alphapoint) GetWebsocket() (*monitor.Websocket, error) {
+func (a *Alphapoint) GetWebsocket() (*wshandler.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -321,18 +321,18 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (a *Alphapoint) SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
+func (a *Alphapoint) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (a *Alphapoint) UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
+func (a *Alphapoint) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (a *Alphapoint) GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error) {
+func (a *Alphapoint) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

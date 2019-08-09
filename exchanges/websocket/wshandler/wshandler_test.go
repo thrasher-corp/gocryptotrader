@@ -1,11 +1,11 @@
-package monitor
+package wshandler
 
 import (
 	"fmt"
 	"strings"
 	"testing"
 	"time"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 var ws *Websocket

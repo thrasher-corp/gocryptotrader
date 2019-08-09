@@ -13,8 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/ob"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -67,7 +67,7 @@ var (
 // WsConnector initiates a new websocket connection
 func (b *Bitmex) WsConnector() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := b.WebsocketConn.Dial(&dialer, http.Header{})
@@ -221,23 +221,22 @@ func (b *Bitmex) wsHandleIncomingData() {
 						continue
 					}
 
-					for _, trade := range trades.Data {
+					for i := range trades.Data {
 						var timestamp time.Time
-						timestamp, err = time.Parse(time.RFC3339, trade.Timestamp)
+						timestamp, err = time.Parse(time.RFC3339, trades.Data[i].Timestamp)
 						if err != nil {
 							b.Websocket.DataHandler <- err
 							continue
 						}
-
 						// TODO: update this to support multiple asset types
-						b.Websocket.DataHandler <- monitor.TradeData{
+						b.Websocket.DataHandler <- wshandler.TradeData{
 							Timestamp:    timestamp,
-							Price:        trade.Price,
-							Amount:       float64(trade.Size),
-							CurrencyPair: currency.NewPairFromString(trade.Symbol),
+							Price:        trades.Data[i].Price,
+							Amount:       float64(trades.Data[i].Size),
+							CurrencyPair: currency.NewPairFromString(trades.Data[i].Symbol),
 							Exchange:     b.GetName(),
 							AssetType:    "CONTRACT",
-							Side:         trade.Side,
+							Side:         trades.Data[i].Side,
 						}
 					}
 
@@ -337,17 +336,17 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 	case bitmexActionInitialData:
 		var newOrderBook orderbook.Base
 		var bids, asks []orderbook.Item
-		for _, orderbookItem := range data {
-			if strings.EqualFold(orderbookItem.Side, exchange.SellOrderSide.ToString()) {
+		for i := range data {
+			if strings.EqualFold(data[i].Side, exchange.SellOrderSide.ToString()) {
 				asks = append(asks, orderbook.Item{
-					Price:  orderbookItem.Price,
-					Amount: float64(orderbookItem.Size),
+					Price:  data[i].Price,
+					Amount: float64(data[i].Size),
 				})
 				continue
 			}
 			bids = append(bids, orderbook.Item{
-				Price:  orderbookItem.Price,
-				Amount: float64(orderbookItem.Size),
+				Price:  data[i].Price,
+				Amount: float64(data[i].Size),
 			})
 		}
 
@@ -359,48 +358,45 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		newOrderBook.Bids = bids
 		newOrderBook.AssetType = assetType
 		newOrderBook.Pair = currencyPair
-		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
 		if err != nil {
 			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 				err)
 		}
-		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     currencyPair,
 			Asset:    assetType,
 			Exchange: b.GetName(),
 		}
 	default:
 		var asks, bids []orderbook.Item
-		for _, orderbookItem := range data {
-			if strings.EqualFold(orderbookItem.Side, "Sell") {
+		for i := range data {
+			if strings.EqualFold(data[i].Side, "Sell") {
 				asks = append(asks, orderbook.Item{
-					Price:  orderbookItem.Price,
-					Amount: float64(orderbookItem.Size),
+					Price:  data[i].Price,
+					Amount: float64(data[i].Size),
 				})
 				continue
 			}
 			bids = append(bids, orderbook.Item{
-				Price:  orderbookItem.Price,
-				Amount: float64(orderbookItem.Size),
+				Price:  data[i].Price,
+				Amount: float64(data[i].Size),
 			})
 		}
 
-		err := b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-			Bids:              bids,
-			Asks:              asks,
-			CurrencyPair:      currencyPair,
-			UpdateTime:        time.Now(),
-			ExchangeName:      b.Name,
-			AssetType:         assetType,
-			UpdateEntriesByID: true,
-			Action:            action,
-			BufferEnabled:     true,
+		err := b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: currencyPair,
+			UpdateTime:   time.Now(),
+			AssetType:    assetType,
+			Action:       action,
 		})
 		if err != nil {
 			return err
 		}
 
-		b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     currencyPair,
 			Asset:    assetType,
 			Exchange: b.GetName(),
@@ -413,7 +409,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 func (b *Bitmex) GenerateDefaultSubscriptions() {
 	contracts := b.GetEnabledCurrencies()
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
-	subscriptions := []monitor.WebsocketChannelSubscription{
+	subscriptions := []wshandler.WebsocketChannelSubscription{
 		{
 			Channel: bitmexWSAnnouncement,
 		},
@@ -421,7 +417,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 
 	for i := range channels {
 		for j := range contracts {
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
 				Currency: contracts[j],
 			})
@@ -439,7 +435,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
 	}
-	subscriptions := []monitor.WebsocketChannelSubscription{
+	subscriptions := []wshandler.WebsocketChannelSubscription{
 		{
 			Channel: bitmexWSAffiliate,
 		},
@@ -461,7 +457,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	}
 	for i := range channels {
 		for j := range contracts {
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
 				Currency: contracts[j],
 			})
@@ -471,7 +467,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (b *Bitmex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
@@ -479,7 +475,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscripti
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (b *Bitmex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "unsubscribe"
 	subscriber.Arguments = append(subscriber.Arguments,

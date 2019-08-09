@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/ob"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
 
 const coinutWebsocketURL = "wss://wsapi.coinut.com"
@@ -33,7 +33,7 @@ var populatedList bool
 // WsConnect intiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := c.WebsocketConn.Dial(&dialer, http.Header{})
@@ -135,7 +135,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
-		c.Websocket.DataHandler <- monitor.TickerData{
+		c.Websocket.DataHandler <- wshandler.TickerData{
 			Timestamp:  time.Unix(0, ticker.Timestamp),
 			Exchange:   c.GetName(),
 			AssetType:  orderbook.Spot,
@@ -158,7 +158,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[orderbooksnapshot.InstID]
-		c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Exchange: c.GetName(),
 			Asset:    orderbook.Spot,
 			Pair:     currency.NewPairFromString(currencyPair),
@@ -176,7 +176,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[orderbookUpdate.InstID]
-		c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Exchange: c.GetName(),
 			Asset:    orderbook.Spot,
 			Pair:     currency.NewPairFromString(currencyPair),
@@ -197,7 +197,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := instrumentListByCode[tradeUpdate.InstID]
-		c.Websocket.DataHandler <- monitor.TradeData{
+		c.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: currency.NewPairFromString(currencyPair),
 			AssetType:    orderbook.Spot,
@@ -254,18 +254,18 @@ func (c *COINUT) WsSetInstrumentList() error {
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
 func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var bids []orderbook.Item
-	for _, bid := range ob.Buy {
+	for i := range ob.Buy {
 		bids = append(bids, orderbook.Item{
-			Amount: bid.Volume,
-			Price:  bid.Price,
+			Amount: ob.Buy[i].Volume,
+			Price:  ob.Buy[i].Price,
 		})
 	}
 
 	var asks []orderbook.Item
-	for _, ask := range ob.Sell {
+	for i := range ob.Sell {
 		asks = append(asks, orderbook.Item{
-			Amount: ask.Volume,
-			Price:  ask.Price,
+			Amount: ob.Sell[i].Volume,
+			Price:  ob.Sell[i].Price,
 		})
 	}
 
@@ -275,20 +275,16 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	newOrderBook.Pair = currency.NewPairFromString(instrumentListByCode[ob.InstID])
 	newOrderBook.AssetType = orderbook.Spot
 
-	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook, c.GetName(), false)
+	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
 }
 
 // WsProcessOrderbookUpdate process an orderbook update
 func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 	p := currency.NewPairFromString(instrumentListByCode[update.InstID])
-	bufferUpdate := &ob.WebsocketOrderbookUpdate{
-		CurrencyPair:      p,
-		UpdateID:          update.TransID,
-		ExchangeName:      c.Name,
-		AssetType:         orderbook.Spot,
-		UpdateEntriesByID: true,
-		SortBuffer:        true,
-		BufferEnabled:     true,
+	bufferUpdate := &wsorderbook.WebsocketOrderbookUpdate{
+		CurrencyPair: p,
+		UpdateID:     update.TransID,
+		AssetType:    orderbook.Spot,
 	}
 	if strings.EqualFold(update.Side, "buy") {
 		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
@@ -301,11 +297,11 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() {
 	var channels = []string{"inst_tick", "inst_order_book"}
-	var subscriptions []monitor.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies := c.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -315,7 +311,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request:   channelToSubscribe.Channel,
 		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],
@@ -326,7 +322,7 @@ func (c *COINUT) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscripti
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request:   channelToSubscribe.Channel,
 		InstID:    instrumentListByString[channelToSubscribe.Currency.String()],

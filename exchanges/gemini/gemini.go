@@ -14,8 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -68,7 +67,7 @@ var (
 // AddSession, if sandbox test is needed append a new session with with the same
 // API keys and change the IsSandbox variable to true.
 type Gemini struct {
-	AuthenticatedWebsocketConn *connection.WebsocketConnection
+	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
 	Role              string
 	RequiresHeartBeat bool
@@ -122,13 +121,14 @@ func (g *Gemini) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	g.APIUrlDefault = geminiAPIURL
 	g.APIUrl = g.APIUrlDefault
-	g.Websocket = monitor.New()
-	g.Websocket.Functionality = monitor.WebsocketOrderbookSupported |
-		monitor.WebsocketTradeDataSupported |
-		monitor.WebsocketAuthenticatedEndpointsSupported |
-		monitor.WebsocketSequenceNumberSupported
+	g.Websocket = wshandler.New()
+	g.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketSequenceNumberSupported
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets exchange configuration parameters
@@ -187,6 +187,13 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) {
 		}
 		responseCheckTimeout = exch.WebsocketResponseCheckTimeout
 		responseMaxLimit = exch.WebsocketResponseMaxLimit
+		g.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			false,
+			false,
+			exch.Name)
 	}
 }
 

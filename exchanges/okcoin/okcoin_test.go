@@ -15,8 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -807,10 +806,10 @@ func TestGetMarginTransactionDetails(t *testing.T) {
 func TestSendWsMessages(t *testing.T) {
 	TestSetDefaults(t)
 	if !o.Websocket.IsEnabled() && !o.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(monitor.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	var ok bool
-	o.WebsocketConn = &connection.WebsocketConnection{
+	o.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         o.Name,
 		URL:                  o.Websocket.GetWebsocketURL(),
 		Verbose:              o.Verbose,
@@ -827,7 +826,7 @@ func TestSendWsMessages(t *testing.T) {
 	go o.WsHandleData(&wg)
 	wg.Wait()
 
-	subscription := monitor.WebsocketChannelSubscription{
+	subscription := wshandler.WebsocketChannelSubscription{
 		Channel: "badChannel",
 	}
 	o.Subscribe(subscription)

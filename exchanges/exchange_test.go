@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 const (
@@ -81,7 +81,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 
 	newBase := Base{Name: "Testicles", Requester: requester}
 
-	newBase.Websocket = monitor.New()
+	newBase.Websocket = wshandler.New()
 
 	err := newBase.SetClientProxyAddress(":invalid")
 	if err == nil {

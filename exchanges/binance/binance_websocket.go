@@ -14,8 +14,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/ob"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 // WSConnect intiates a websocket connection
 func (b *Binance) WSConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -127,7 +127,7 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				b.Websocket.DataHandler <- monitor.TradeData{
+				b.Websocket.DataHandler <- wshandler.TradeData{
 					CurrencyPair: currency.NewPairFromString(trade.Symbol),
 					Timestamp:    time.Unix(0, trade.TimeStamp),
 					Price:        price,
@@ -147,7 +147,7 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				var wsTicker monitor.TickerData
+				var wsTicker wshandler.TickerData
 
 				wsTicker.Timestamp = time.Unix(t.EventTime/1000, 0)
 				wsTicker.Pair = currency.NewPairFromString(t.Symbol)
@@ -172,7 +172,7 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				var wsKline monitor.KlineData
+				var wsKline wshandler.KlineData
 				wsKline.Timestamp = time.Unix(0, kline.EventTime)
 				wsKline.Pair = currency.NewPairFromString(kline.Symbol)
 				wsKline.AssetType = ticker.Spot
@@ -206,7 +206,7 @@ func (b *Binance) WsHandleData() {
 				}
 
 				currencyPair := currency.NewPairFromString(depth.Pair)
-				b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     currencyPair,
 					Asset:    orderbook.Spot,
 					Exchange: b.GetName(),
@@ -230,28 +230,28 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 		return err
 	}
 
-	for _, bids := range orderbookNew.Bids {
+	for i := range orderbookNew.Bids {
 		newOrderBook.Bids = append(newOrderBook.Bids,
-			orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
+			orderbook.Item{Amount: orderbookNew.Bids[i].Quantity, Price: orderbookNew.Bids[i].Price})
 	}
-	for _, Asks := range orderbookNew.Asks {
+	for i := range orderbookNew.Asks {
 		newOrderBook.Asks = append(newOrderBook.Asks,
-			orderbook.Item{Amount: Asks.Quantity, Price: Asks.Price})
+			orderbook.Item{Amount: orderbookNew.Asks[i].Quantity, Price: orderbookNew.Asks[i].Price})
 	}
 
 	newOrderBook.LastUpdated = time.Unix(orderbookNew.LastUpdateID, 0)
 	newOrderBook.Pair = currency.NewPairFromString(formattedPair.String())
 	newOrderBook.AssetType = ticker.Spot
 
-	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
 }
 
 // UpdateLocalCache updates and returns the most recent iteration of the orderbook
 func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 	var updateBid, updateAsk []orderbook.Item
-	for _, bidsToUpdate := range wsdp.UpdateBids {
+	for i := range wsdp.UpdateBids {
 		var priceToBeUpdated orderbook.Item
-		for i, bids := range bidsToUpdate.([]interface{}) {
+		for i, bids := range wsdp.UpdateBids[i].([]interface{}) {
 			switch i {
 			case 0:
 				priceToBeUpdated.Price, _ = strconv.ParseFloat(bids.(string), 64)
@@ -262,9 +262,9 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 		updateBid = append(updateBid, priceToBeUpdated)
 	}
 
-	for _, asksToUpdate := range wsdp.UpdateAsks {
+	for i := range wsdp.UpdateAsks {
 		var priceToBeUpdated orderbook.Item
-		for i, asks := range asksToUpdate.([]interface{}) {
+		for i, asks := range wsdp.UpdateAsks[i].([]interface{}) {
 			switch i {
 			case 0:
 				priceToBeUpdated.Price, _ = strconv.ParseFloat(asks.(string), 64)
@@ -276,15 +276,11 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 	}
 	currencyPair := currency.NewPairFromString(wsdp.Pair)
 
-	return b.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-		Bids:              updateBid,
-		Asks:              updateAsk,
-		CurrencyPair:      currencyPair,
-		UpdateEntriesByID: true,
-		UpdateID:          wsdp.LastUpdateID,
-		ExchangeName:      b.GetName(),
-		AssetType:         orderbook.Spot,
-		SortBuffer:        true,
-		BufferEnabled:     true,
+	return b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		Bids:         updateBid,
+		Asks:         updateAsk,
+		CurrencyPair: currencyPair,
+		UpdateID:     wsdp.LastUpdateID,
+		AssetType:    orderbook.Spot,
 	})
 }

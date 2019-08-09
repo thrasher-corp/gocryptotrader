@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 var l LakeBTC
@@ -461,7 +461,7 @@ func TestWsConn(t *testing.T) {
 	TestSetDefaults(t)
 	TestSetup(t)
 	if !l.Websocket.IsEnabled() {
-		t.Skip(monitor.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()

@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/ob"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
 
 const (
@@ -23,7 +23,7 @@ const (
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := c.WebsocketConn.Dial(&dialer, http.Header{})
@@ -86,7 +86,7 @@ func (c *CoinbasePro) WsHandleData() {
 					continue
 				}
 
-				c.Websocket.DataHandler <- monitor.TickerData{
+				c.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp:  ticker.Time,
 					Pair:       currency.NewPairFromString(ticker.ProductID),
 					AssetType:  orderbook.Spot,
@@ -178,13 +178,13 @@ func (c *CoinbasePro) WsHandleData() {
 // ProcessSnapshot processes the initial orderbook snap shot
 func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
 	var base orderbook.Base
-	for _, bid := range snapshot.Bids {
-		price, err := strconv.ParseFloat(bid[0].(string), 64)
+	for i := range snapshot.Bids {
+		price, err := strconv.ParseFloat(snapshot.Bids[i][0].(string), 64)
 		if err != nil {
 			return err
 		}
 
-		amount, err := strconv.ParseFloat(bid[1].(string), 64)
+		amount, err := strconv.ParseFloat(snapshot.Bids[i][1].(string), 64)
 		if err != nil {
 			return err
 		}
@@ -193,13 +193,13 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	for _, ask := range snapshot.Asks {
-		price, err := strconv.ParseFloat(ask[0].(string), 64)
+	for i := range snapshot.Asks {
+		price, err := strconv.ParseFloat(snapshot.Asks[i][0].(string), 64)
 		if err != nil {
 			return err
 		}
 
-		amount, err := strconv.ParseFloat(ask[1].(string), 64)
+		amount, err := strconv.ParseFloat(snapshot.Asks[i][1].(string), 64)
 		if err != nil {
 			return err
 		}
@@ -212,12 +212,12 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	base.AssetType = orderbook.Spot
 	base.Pair = pair
 
-	err := c.Websocket.Orderbook.LoadSnapshot(&base, c.GetName(), false)
+	err := c.Websocket.Orderbook.LoadSnapshot(&base, false)
 	if err != nil {
 		return err
 	}
 
-	c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     pair,
 		Asset:    orderbook.Spot,
 		Exchange: c.GetName(),
@@ -230,11 +230,11 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	var asks, bids []orderbook.Item
 
-	for _, data := range update.Changes {
-		price, _ := strconv.ParseFloat(data[1].(string), 64)
-		volume, _ := strconv.ParseFloat(data[2].(string), 64)
+	for i := range update.Changes {
+		price, _ := strconv.ParseFloat(update.Changes[i][1].(string), 64)
+		volume, _ := strconv.ParseFloat(update.Changes[i][2].(string), 64)
 
-		if data[0].(string) == "buy" {
+		if update.Changes[i][0].(string) == "buy" {
 			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
 		} else {
 			asks = append(asks, orderbook.Item{Price: price, Amount: volume})
@@ -250,21 +250,18 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	if err != nil {
 		return err
 	}
-	err = c.Websocket.Orderbook.Update(&ob.WebsocketOrderbookUpdate{
-		Bids:          bids,
-		Asks:          asks,
-		CurrencyPair:  p,
-		UpdateTime:    timestamp,
-		ExchangeName:  c.Name,
-		AssetType:     orderbook.Spot,
-		BufferEnabled: true,
-		SortBuffer:    true,
+	err = c.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: p,
+		UpdateTime:   timestamp,
+		AssetType:    orderbook.Spot,
 	})
 	if err != nil {
 		return err
 	}
 
-	c.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    orderbook.Spot,
 		Exchange: c.GetName(),
@@ -277,14 +274,14 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	var channels = []string{"heartbeat", "level2", "ticker", "user"}
 	enabledCurrencies := c.GetEnabledCurrencies()
-	var subscriptions []monitor.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") && !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 			continue
 		}
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -294,7 +291,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 		Channels: []WsChannels{
@@ -319,7 +316,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe monitor.WebsocketChannelSubsc
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []WsChannels{

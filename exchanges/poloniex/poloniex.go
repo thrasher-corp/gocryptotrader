@@ -16,8 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -62,7 +61,7 @@ const (
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
-	WebsocketConn *connection.WebsocketConnection
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // SetDefaults sets default settings for poloniex
@@ -87,15 +86,16 @@ func (p *Poloniex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	p.APIUrlDefault = poloniexAPIURL
 	p.APIUrl = p.APIUrlDefault
-	p.Websocket = monitor.New()
-	p.Websocket.Functionality = monitor.WebsocketTradeDataSupported |
-		monitor.WebsocketOrderbookSupported |
-		monitor.WebsocketTickerSupported |
-		monitor.WebsocketSubscribeSupported |
-		monitor.WebsocketUnsubscribeSupported |
-		monitor.WebsocketAuthenticatedEndpointsSupported
+	p.Websocket = wshandler.New()
+	p.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user exchange configuration settings
@@ -148,7 +148,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		p.WebsocketConn = &connection.WebsocketConnection{
+		p.WebsocketConn = &wshandler.WebsocketConnection{
 			ExchangeName:         p.Name,
 			URL:                  p.Websocket.GetWebsocketURL(),
 			ProxyURL:             p.Websocket.GetProxyAddress(),
@@ -156,6 +156,13 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
+		p.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			true,
+			false,
+			exch.Name)
 	}
 }
 

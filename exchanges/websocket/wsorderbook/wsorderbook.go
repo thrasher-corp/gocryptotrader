@@ -1,36 +1,43 @@
-package ob
+package wsorderbook
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
 
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-const wsOrderbookBufferLimit = 5
+// Setup sets private variables
+func (w *WebsocketOrderbookLocal) Setup(obBufferLimit int, bufferEnabled, sortBuffer, sortBufferByUpdateIDs, updateEntriesByID bool, exchangeName string) {
+	w.obBufferLimit = obBufferLimit
+	w.bufferEnabled = bufferEnabled
+	w.sortBuffer = sortBuffer
+	w.sortBufferByUpdateIDs = sortBufferByUpdateIDs
+	w.updateEntriesByID = updateEntriesByID
+	w.exchangeName = exchangeName
+}
 
 // Update updates a local cache using bid targets and ask targets then updates
-// main cache in ob.go
+// main orderbook
 // Volume == 0; deletion at price target
 // Price target not found; append of price target
 // Price target found; amend volume of price target
 func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpdate) error {
 	if (orderbookUpdate.Bids == nil && orderbookUpdate.Asks == nil) ||
 		(len(orderbookUpdate.Bids) == 0 && len(orderbookUpdate.Asks) == 0) {
-		return fmt.Errorf("%v cannot have bids and ask targets both nil", orderbookUpdate.ExchangeName)
+		return fmt.Errorf("%v cannot have bids and ask targets both nil", w.exchangeName)
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
 	if _, ok := w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]; !ok {
 		return fmt.Errorf("ob.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
-			orderbookUpdate.ExchangeName,
+			w.exchangeName,
 			orderbookUpdate.CurrencyPair.String(),
 			orderbookUpdate.AssetType)
 	}
-	if orderbookUpdate.BufferEnabled {
+	if w.bufferEnabled {
 		overBufferLimit := w.processBufferUpdate(orderbookUpdate)
 		if !overBufferLimit {
 			return nil
@@ -42,7 +49,7 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpda
 	if err != nil {
 		return err
 	}
-	if orderbookUpdate.BufferEnabled {
+	if w.bufferEnabled {
 		// Reset the buffer
 		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = nil
 	}
@@ -56,15 +63,15 @@ func (w *WebsocketOrderbookLocal) processBufferUpdate(orderbookUpdate *Websocket
 	if w.buffer[orderbookUpdate.CurrencyPair] == nil {
 		w.buffer[orderbookUpdate.CurrencyPair] = make(map[string][]WebsocketOrderbookUpdate)
 	}
-	if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) <= wsOrderbookBufferLimit {
+	if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) <= w.obBufferLimit {
 		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = append(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], *orderbookUpdate)
-		if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) < wsOrderbookBufferLimit {
+		if len(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]) < w.obBufferLimit {
 			return false
 		}
 	}
-	if orderbookUpdate.SortBuffer {
+	if w.sortBuffer {
 		// sort by last updated to ensure each update is in order
-		if orderbookUpdate.SortBufferByUpdateIDs {
+		if w.sortBufferByUpdateIDs {
 			sort.Slice(w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType], func(i, j int) bool {
 				return w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][i].UpdateID < w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType][j].UpdateID
 			})
@@ -81,7 +88,7 @@ func (w *WebsocketOrderbookLocal) processBufferUpdate(orderbookUpdate *Websocket
 }
 
 func (w *WebsocketOrderbookLocal) processObUpdate(orderbookUpdate *WebsocketOrderbookUpdate) {
-	if orderbookUpdate.UpdateEntriesByID {
+	if w.updateEntriesByID {
 		w.updateByIDAndAction(orderbookUpdate)
 	} else {
 		var wg sync.WaitGroup
@@ -190,12 +197,12 @@ func (w *WebsocketOrderbookLocal) updateByIDAndAction(orderbookUpdate *Websocket
 	}
 }
 
-// LoadSnapshot loads initial snapshot of ob data, overite allows full
+// LoadSnapshot loads initial snapshot of ob data, overwrite allows full
 // ob to be completely rewritten because the exchange is a doing a full
 // update not an incremental one
-func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exchName string, overwrite bool) error {
+func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, overwrite bool) error {
 	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
-		return errors.New("snapshot ask and bids are nil")
+		return fmt.Errorf("%v snapshot ask and bids are nil", w.exchangeName)
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
@@ -212,7 +219,7 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exc
 			w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
 			return newOrderbook.Process()
 		}
-		return errors.New("snapshot instance already found")
+		return fmt.Errorf("%v snapshot instance already found", w.exchangeName)
 	}
 	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
 	return newOrderbook.Process()

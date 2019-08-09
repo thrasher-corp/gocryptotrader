@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/ob"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -55,7 +55,7 @@ var defaultSubscribedChannels = []string{krakenWsTicker, krakenWsTrade, krakenWs
 // WsConnect initiates a websocket connection
 func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := k.WebsocketConn.Dial(&dialer, http.Header{})
@@ -251,7 +251,7 @@ func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data interf
 	lowPrice, _ := strconv.ParseFloat(lowData[0].(string), 64)
 	quantity, _ := strconv.ParseFloat(volumeData[0].(string), 64)
 
-	k.Websocket.DataHandler <- monitor.TickerData{
+	k.Websocket.DataHandler <- wshandler.TickerData{
 		Timestamp:  time.Now(),
 		Exchange:   k.Name,
 		AssetType:  orderbook.Spot,
@@ -296,7 +296,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data interfa
 		price, _ := strconv.ParseFloat(trade[0].(string), 64)
 		amount, _ := strconv.ParseFloat(trade[1].(string), 64)
 
-		k.Websocket.DataHandler <- monitor.TradeData{
+		k.Websocket.DataHandler <- wshandler.TradeData{
 			AssetType:    orderbook.Spot,
 			CurrencyPair: channelData.Pair,
 			EventTime:    time.Now().Unix(),
@@ -323,7 +323,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data inte
 			defer k.wsRequestMtx.Unlock()
 			err := k.wsProcessOrderBookUpdate(channelData, obData)
 			if err != nil {
-				subscriptionToRemove := monitor.WebsocketChannelSubscription{
+				subscriptionToRemove := wshandler.WebsocketChannelSubscription{
 					Channel:  krakenWsOrderbook,
 					Currency: channelData.Pair,
 				}
@@ -375,12 +375,12 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 		}
 	}
 	base.LastUpdated = highestLastUpdate
-	err := k.Websocket.Orderbook.LoadSnapshot(&base, k.Name, true)
+	err := k.Websocket.Orderbook.LoadSnapshot(&base, true)
 	if err != nil {
 		k.Websocket.DataHandler <- err
 		return
 	}
-	k.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+	k.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: k.Name,
 		Asset:    orderbook.Spot,
 		Pair:     channelData.Pair,
@@ -389,12 +389,9 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obData map[string]interface{}) error {
-	update := ob.WebsocketOrderbookUpdate{
-		AssetType:     krakenWsAssetType,
-		ExchangeName:  k.Name,
-		CurrencyPair:  channelData.Pair,
-		SortBuffer:    true,
-		BufferEnabled: true,
+	update := wsorderbook.WebsocketOrderbookUpdate{
+		AssetType:    krakenWsAssetType,
+		CurrencyPair: channelData.Pair,
 	}
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
@@ -441,7 +438,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obD
 		k.Websocket.DataHandler <- err
 		return err
 	}
-	k.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+	k.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: k.Name,
 		Asset:    orderbook.Spot,
 		Pair:     channelData.Pair,
@@ -462,7 +459,7 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interf
 	closePrice, _ := strconv.ParseFloat(candleData[5].(string), 64)
 	volume, _ := strconv.ParseFloat(candleData[7].(string), 64)
 
-	k.Websocket.DataHandler <- monitor.KlineData{
+	k.Websocket.DataHandler <- wshandler.KlineData{
 		AssetType: orderbook.Spot,
 		Pair:      channelData.Pair,
 		Timestamp: time.Now(),
@@ -482,11 +479,11 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interf
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateDefaultSubscriptions() {
 	enabledCurrencies := k.GetEnabledCurrencies()
-	var subscriptions []monitor.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "/"
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -496,7 +493,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (k *Kraken) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (k *Kraken) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsSubscribe,
 		Pairs: []string{channelToSubscribe.Currency.String()},
@@ -510,7 +507,7 @@ func (k *Kraken) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscripti
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (k *Kraken) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (k *Kraken) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsUnsubscribe,
 		Pairs: []string{channelToSubscribe.Currency.String()},

@@ -16,7 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -66,7 +66,7 @@ func (i *ItBit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	i.APIUrlDefault = itbitAPIURL
 	i.APIUrl = i.APIUrlDefault
-	i.Websocket = monitor.New()
+	i.Websocket = wshandler.New()
 }
 
 // Setup sets the exchange parameters from exchange config

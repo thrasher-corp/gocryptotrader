@@ -1,4 +1,4 @@
-package ob
+package wsorderbook
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 var itemArray = [][]orderbook.Item{
@@ -38,7 +38,7 @@ func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, b
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
 	obl = &WebsocketOrderbookLocal{}
-	err = obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	err = obl.LoadSnapshot(&snapShot1, false)
 	return
 }
 
@@ -48,14 +48,14 @@ func BenchmarkBufferPerformance(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	obl.exchangeName = exchangeName
+	obl.sortBuffer = true
 	update := &WebsocketOrderbookUpdate{
 		Bids:         bids,
 		Asks:         asks,
 		CurrencyPair: curr,
 		UpdateTime:   time.Now(),
-		ExchangeName: exchangeName,
 		AssetType:    spot,
-		SortBuffer:   true,
 	}
 	for i := 0; i < b.N; i++ {
 		randomIndex := rand.Intn(5)
@@ -74,15 +74,16 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	obl.exchangeName = exchangeName
+	obl.sortBuffer = true
+	obl.bufferEnabled = true
+	obl.obBufferLimit = 5
 	update := &WebsocketOrderbookUpdate{
-		Bids:          bids,
-		Asks:          asks,
-		CurrencyPair:  curr,
-		UpdateTime:    time.Now(),
-		ExchangeName:  exchangeName,
-		AssetType:     spot,
-		BufferEnabled: true,
-		SortBuffer:    true,
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: curr,
+		UpdateTime:   time.Now(),
+		AssetType:    spot,
 	}
 	for i := 0; i < b.N; i++ {
 		randomIndex := rand.Intn(5)
@@ -101,12 +102,12 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	obl.exchangeName = exchangeName
 	update := &WebsocketOrderbookUpdate{
 		Bids:         bids,
 		Asks:         asks,
 		CurrencyPair: curr,
 		UpdateTime:   time.Now(),
-		ExchangeName: exchangeName,
 		AssetType:    spot,
 	}
 	for i := 0; i < b.N; i++ {
@@ -126,17 +127,18 @@ func TestHittingTheBuffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	obl.exchangeName = exchangeName
+	obl.bufferEnabled = true
+	obl.obBufferLimit = 5
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:          bids,
-			Asks:          asks,
-			CurrencyPair:  curr,
-			UpdateTime:    time.Now(),
-			ExchangeName:  exchangeName,
-			AssetType:     spot,
-			BufferEnabled: true,
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			UpdateTime:   time.Now(),
+			AssetType:    spot,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -157,19 +159,20 @@ func TestInsertWithIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	obl.exchangeName = exchangeName
+	obl.bufferEnabled = true
+	obl.updateEntriesByID = true
+	obl.obBufferLimit = 5
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:              bids,
-			Asks:              asks,
-			CurrencyPair:      curr,
-			UpdateTime:        time.Now(),
-			ExchangeName:      exchangeName,
-			AssetType:         spot,
-			Action:            "insert",
-			UpdateEntriesByID: true,
-			BufferEnabled:     true,
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			UpdateTime:   time.Now(),
+			AssetType:    spot,
+			Action:       "insert",
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -189,19 +192,20 @@ func TestSortIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	obl.exchangeName = exchangeName
+	obl.bufferEnabled = true
+	obl.sortBufferByUpdateIDs = true
+	obl.sortBuffer = true
+	obl.obBufferLimit = 5
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:                  bids,
-			Asks:                  asks,
-			CurrencyPair:          curr,
-			UpdateID:              int64(i),
-			ExchangeName:          exchangeName,
-			AssetType:             spot,
-			SortBufferByUpdateIDs: true,
-			BufferEnabled:         true,
-			SortBuffer:            true,
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			UpdateID:     int64(i),
+			AssetType:    spot,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -221,18 +225,18 @@ func TestDeleteWithIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	obl.exchangeName = exchangeName
+	obl.updateEntriesByID = true
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:              bids,
-			Asks:              asks,
-			CurrencyPair:      curr,
-			UpdateTime:        time.Now(),
-			ExchangeName:      exchangeName,
-			AssetType:         spot,
-			Action:            "delete",
-			UpdateEntriesByID: true,
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			UpdateTime:   time.Now(),
+			AssetType:    spot,
+			Action:       "delete",
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -252,18 +256,18 @@ func TestUpdateWithIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	obl.exchangeName = exchangeName
+	obl.updateEntriesByID = true
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:              bids,
-			Asks:              asks,
-			CurrencyPair:      curr,
-			UpdateTime:        time.Now(),
-			ExchangeName:      exchangeName,
-			AssetType:         spot,
-			Action:            "update",
-			UpdateEntriesByID: true,
+			Bids:         bids,
+			Asks:         asks,
+			CurrencyPair: curr,
+			UpdateTime:   time.Now(),
+			AssetType:    spot,
+			Action:       "update",
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -288,16 +292,17 @@ func TestOutOfOrderIDs(t *testing.T) {
 	if itemArray[0][0].Price != 1000 {
 		t.Errorf("expected sorted price to be 3000, received: %v", itemArray[1][0].Price)
 	}
+	obl.exchangeName = exchangeName
+	obl.bufferEnabled = true
+	obl.sortBuffer = true
+	obl.obBufferLimit = 5
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Asks:          asks,
-			CurrencyPair:  curr,
-			UpdateID:      outOFOrderIDs[i],
-			ExchangeName:  exchangeName,
-			AssetType:     spot,
-			BufferEnabled: true,
-			SortBuffer:    true,
+			Asks:         asks,
+			CurrencyPair: curr,
+			UpdateID:     outOFOrderIDs[i],
+			AssetType:    spot,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -325,12 +330,12 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
+	obl.exchangeName = exchangeName
 	err := obl.Update(&WebsocketOrderbookUpdate{
 		Bids:         bids,
 		Asks:         asks,
 		CurrencyPair: curr,
 		UpdateTime:   time.Now(),
-		ExchangeName: exchangeName,
 		AssetType:    spot,
 	})
 	if err == nil {
@@ -350,12 +355,12 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	snapShot1.Bids = []orderbook.Item{}
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
+	obl.exchangeName = exchangeName
 	err := obl.Update(&WebsocketOrderbookUpdate{
 		Bids:         snapShot1.Asks,
 		Asks:         snapShot1.Bids,
 		CurrencyPair: curr,
 		UpdateTime:   time.Now(),
-		ExchangeName: exchangeName,
 		AssetType:    spot,
 	})
 	if err == nil {
@@ -376,7 +381,6 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
 	err := obl.LoadSnapshot(&snapShot1,
-		exchangeName,
 		false)
 	if err == nil {
 		t.Fatal("expected an error loading a snapshot")
@@ -401,15 +405,15 @@ func TestLoadSnapshotWithOverride(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
-	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	err := obl.LoadSnapshot(&snapShot1, false)
 	if err != nil {
 		t.Error(err)
 	}
-	err = obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	err = obl.LoadSnapshot(&snapShot1, false)
 	if err == nil {
 		t.Error("expected error: 'snapshot instance already found'")
 	}
-	err = obl.LoadSnapshot(&snapShot1, exchangeName, true)
+	err = obl.LoadSnapshot(&snapShot1, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -467,7 +471,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = spot
 	snapShot1.Pair = currency.NewPairFromString("BTCUSD")
-	err := obl.LoadSnapshot(&snapShot1, exchangeName, false)
+	err := obl.LoadSnapshot(&snapShot1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -504,7 +508,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.Bids = bids
 	snapShot2.AssetType = spot
 	snapShot2.Pair = currency.NewPairFromString("LTCUSD")
-	err = obl.LoadSnapshot(&snapShot2, exchangeName, false)
+	err = obl.LoadSnapshot(&snapShot2, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,7 +545,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.Bids = bids
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
-	err = obl.LoadSnapshot(&snapShot3, exchangeName, false)
+	err = obl.LoadSnapshot(&snapShot3, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,5 +568,13 @@ func TestGetOrderbook(t *testing.T) {
 	ob := obl.GetOrderbook(curr, spot)
 	if obl.ob[curr][spot] != ob {
 		t.Error("Failed to get orderbook")
+	}
+}
+
+func TestSetup(t *testing.T) {
+	w := WebsocketOrderbookLocal{}
+	w.Setup(1, true, true, true, true, "hi")
+	if w.obBufferLimit != 1 || !w.bufferEnabled || !w.sortBuffer || !w.sortBufferByUpdateIDs || !w.updateEntriesByID || w.exchangeName != "hi" {
+		t.Errorf("Setup incorrectly loaded %v", w)
 	}
 }

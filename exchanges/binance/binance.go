@@ -16,15 +16,14 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
-	WebsocketConn *connection.WebsocketConnection
+	WebsocketConn *wshandler.WebsocketConnection
 
 	// Valid string list that is required by the exchange
 	validLimits    []int
@@ -94,14 +93,15 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
-	b.Websocket = monitor.New()
+	b.Websocket = wshandler.New()
 	b.WebsocketURL = binanceDefaultWebsocketURL
-	b.Websocket.Functionality = monitor.WebsocketTradeDataSupported |
-		monitor.WebsocketTickerSupported |
-		monitor.WebsocketKlineSupported |
-		monitor.WebsocketOrderbookSupported
+	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -153,7 +153,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.WebsocketConn = &connection.WebsocketConnection{
+		b.WebsocketConn = &wshandler.WebsocketConnection{
 			ExchangeName:         b.Name,
 			URL:                  b.Websocket.GetWebsocketURL(),
 			ProxyURL:             b.Websocket.GetProxyAddress(),
@@ -161,6 +161,13 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		}
+		b.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			true,
+			false,
+			exch.Name)
 	}
 }
 

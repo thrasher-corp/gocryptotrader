@@ -13,8 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/ob"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -27,7 +27,7 @@ const (
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := g.WebsocketConn.Dial(&dialer, http.Header{})
@@ -133,7 +133,7 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
-				g.Websocket.DataHandler <- monitor.TickerData{
+				g.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(c),
 					AssetType:  orderbook.Spot,
@@ -160,15 +160,15 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
-				for _, trade := range trades {
-					g.Websocket.DataHandler <- monitor.TradeData{
+				for i := range trades {
+					g.Websocket.DataHandler <- wshandler.TradeData{
 						Timestamp:    time.Now(),
 						CurrencyPair: currency.NewPairFromString(c),
 						AssetType:    orderbook.Spot,
 						Exchange:     g.GetName(),
-						Price:        trade.Price,
-						Amount:       trade.Amount,
-						Side:         trade.Type,
+						Price:        trades[i].Price,
+						Amount:       trades[i].Amount,
+						Side:         trades[i].Type,
 					}
 				}
 
@@ -197,9 +197,9 @@ func (g *Gateio) WsHandleData() {
 				var asks, bids []orderbook.Item
 
 				askData, askOk := data["asks"]
-				for _, ask := range askData {
-					amount, _ := strconv.ParseFloat(ask[1], 64)
-					price, _ := strconv.ParseFloat(ask[0], 64)
+				for i := range askData {
+					amount, _ := strconv.ParseFloat(askData[i][1], 64)
+					price, _ := strconv.ParseFloat(askData[i][0], 64)
 					asks = append(asks, orderbook.Item{
 						Amount: amount,
 						Price:  price,
@@ -207,9 +207,9 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				bidData, bidOk := data["bids"]
-				for _, bid := range bidData {
-					amount, _ := strconv.ParseFloat(bid[1], 64)
-					price, _ := strconv.ParseFloat(bid[0], 64)
+				for i := range bidData {
+					amount, _ := strconv.ParseFloat(bidData[i][1], 64)
+					price, _ := strconv.ParseFloat(bidData[i][0], 64)
 					bids = append(bids, orderbook.Item{
 						Amount: amount,
 						Price:  price,
@@ -236,28 +236,25 @@ func (g *Gateio) WsHandleData() {
 					newOrderBook.Pair = currency.NewPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-						g.GetName(),
 						false)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}
 				} else {
 					err = g.Websocket.Orderbook.Update(
-						&ob.WebsocketOrderbookUpdate{
-							Asks:          asks,
-							Bids:          bids,
-							CurrencyPair:  currency.NewPairFromString(c),
-							UpdateTime:    time.Now(),
-							ExchangeName:  g.Name,
-							AssetType:     orderbook.Spot,
-							BufferEnabled: true,
+						&wsorderbook.WebsocketOrderbookUpdate{
+							Asks:         asks,
+							Bids:         bids,
+							CurrencyPair: currency.NewPairFromString(c),
+							UpdateTime:   time.Now(),
+							AssetType:    orderbook.Spot,
 						})
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}
 				}
 
-				g.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+				g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     currency.NewPairFromString(c),
 					Asset:    orderbook.Spot,
 					Exchange: g.GetName(),
@@ -277,7 +274,7 @@ func (g *Gateio) WsHandleData() {
 				low, _ := strconv.ParseFloat(data[4].(string), 64)
 				volume, _ := strconv.ParseFloat(data[5].(string), 64)
 
-				g.Websocket.DataHandler <- monitor.KlineData{
+				g.Websocket.DataHandler <- wshandler.KlineData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(data[7].(string)),
 					AssetType:  orderbook.Spot,
@@ -299,11 +296,11 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 		return
 	}
 	var channels = []string{"balance.subscribe", "order.subscribe"}
-	var subscriptions []monitor.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -315,7 +312,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
-	var subscriptions []monitor.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies := g.GetEnabledCurrencies()
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -326,7 +323,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 			} else if strings.EqualFold(channels[i], "kline.subscribe") {
 				params["interval"] = 1800
 			}
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 				Params:   params,
@@ -337,10 +334,10 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gateio) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	params := []interface{}{channelToSubscribe.Currency.String()}
-	for _, paramValue := range channelToSubscribe.Params {
-		params = append(params, paramValue)
+	for i := range channelToSubscribe.Params {
+		params = append(params, channelToSubscribe.Params[i])
 	}
 
 	subscribe := WebsocketRequest{
@@ -365,7 +362,7 @@ func (g *Gateio) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscripti
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (g *Gateio) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	subscribe := WebsocketRequest{
 		ID:     g.WebsocketConn.GenerateMessageID(true),

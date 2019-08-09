@@ -11,8 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 var p Poloniex
@@ -445,9 +444,9 @@ func TestWsHandleAccountData(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	TestSetup(t)
 	if !p.Websocket.IsEnabled() && !p.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(monitor.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	p.WebsocketConn = &connection.WebsocketConnection{
+	p.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         p.Name,
 		URL:                  p.Websocket.GetWebsocketURL(),
 		Verbose:              p.Verbose,

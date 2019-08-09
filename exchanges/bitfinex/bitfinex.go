@@ -14,8 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -86,7 +85,7 @@ const (
 // depending on some factors (e.g. servers load, endpoint, etc.).
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn         *connection.WebsocketConnection
+	WebsocketConn         *wshandler.WebsocketConnection
 	WebsocketSubdChannels map[int]WebsocketChanInfo
 }
 
@@ -112,15 +111,16 @@ func (b *Bitfinex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bitfinexAPIURLBase
 	b.APIUrl = b.APIUrlDefault
-	b.Websocket = monitor.New()
-	b.Websocket.Functionality = monitor.WebsocketTickerSupported |
-		monitor.WebsocketTradeDataSupported |
-		monitor.WebsocketOrderbookSupported |
-		monitor.WebsocketSubscribeSupported |
-		monitor.WebsocketUnsubscribeSupported |
-		monitor.WebsocketAuthenticatedEndpointsSupported
+	b.Websocket = wshandler.New()
+	b.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -173,7 +173,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.WebsocketConn = &connection.WebsocketConnection{
+		b.WebsocketConn = &wshandler.WebsocketConnection{
 			ExchangeName:         b.Name,
 			URL:                  b.Websocket.GetWebsocketURL(),
 			ProxyURL:             b.Websocket.GetProxyAddress(),
@@ -183,6 +183,13 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 		}
 		b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 		b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+		b.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 

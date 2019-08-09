@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -22,7 +22,7 @@ const (
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(monitor.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := b.WebsocketConn.Dial(&dialer, http.Header{})
@@ -91,7 +91,7 @@ func (b *BTSE) WsHandleData() {
 					continue
 				}
 
-				b.Websocket.DataHandler <- monitor.TickerData{
+				b.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp: time.Now(),
 					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
 					AssetType: orderbook.Spot,
@@ -119,14 +119,14 @@ func (b *BTSE) WsHandleData() {
 // ProcessSnapshot processes the initial orderbook snap shot
 func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	var base orderbook.Base
-	for _, bid := range snapshot.Bids {
-		p := strings.Replace(bid[0].(string), ",", "", -1)
+	for i := range snapshot.Bids {
+		p := strings.Replace(snapshot.Bids[i][0].(string), ",", "", -1)
 		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			return err
 		}
 
-		a := strings.Replace(bid[1].(string), ",", "", -1)
+		a := strings.Replace(snapshot.Bids[i][1].(string), ",", "", -1)
 		amount, err := strconv.ParseFloat(a, 64)
 		if err != nil {
 			return err
@@ -136,14 +136,14 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	for _, ask := range snapshot.Asks {
-		p := strings.Replace(ask[0].(string), ",", "", -1)
+	for i := range snapshot.Asks {
+		p := strings.Replace(snapshot.Asks[i][0].(string), ",", "", -1)
 		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			return err
 		}
 
-		a := strings.Replace(ask[1].(string), ",", "", -1)
+		a := strings.Replace(snapshot.Asks[i][1].(string), ",", "", -1)
 		amount, err := strconv.ParseFloat(a, 64)
 		if err != nil {
 			return err
@@ -159,12 +159,12 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	base.LastUpdated = time.Now()
 	base.ExchangeName = b.Name
 
-	err := b.Websocket.Orderbook.LoadSnapshot(&base, b.Name, true)
+	err := b.Websocket.Orderbook.LoadSnapshot(&base, true)
 	if err != nil {
 		return err
 	}
 
-	b.Websocket.DataHandler <- monitor.WebsocketOrderbookUpdate{
+	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    orderbook.Spot,
 		Exchange: b.GetName(),
@@ -177,10 +177,10 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 func (b *BTSE) GenerateDefaultSubscriptions() {
 	var channels = []string{"snapshot", "ticker"}
 	enabledCurrencies := b.GetEnabledCurrencies()
-	var subscriptions []monitor.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, monitor.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -190,7 +190,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := websocketSubscribe{
 		Type: "subscribe",
 		Channels: []websocketChannel{
@@ -204,7 +204,7 @@ func (b *BTSE) Subscribe(channelToSubscribe monitor.WebsocketChannelSubscription
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelToSubscribe monitor.WebsocketChannelSubscription) error {
+func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := websocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []websocketChannel{

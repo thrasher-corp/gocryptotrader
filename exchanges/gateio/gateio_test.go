@@ -10,8 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/connection"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/monitor"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -503,9 +502,9 @@ func TestWsGetBalance(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(monitor.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	g.WebsocketConn = &connection.WebsocketConnection{
+	g.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         g.Name,
 		URL:                  gateioWebsocketEndpoint,
 		Verbose:              g.Verbose,
@@ -539,9 +538,9 @@ func TestWsGetOrderInfo(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(monitor.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	g.WebsocketConn = &connection.WebsocketConnection{
+	g.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         g.Name,
 		URL:                  gateioWebsocketEndpoint,
 		Verbose:              g.Verbose,
@@ -577,9 +576,9 @@ func setupWSTestAuth(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport {
-		t.Skip(monitor.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	g.WebsocketConn = &connection.WebsocketConnection{
+	g.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         g.Name,
 		URL:                  gateioWebsocketEndpoint,
 		Verbose:              g.Verbose,
@@ -601,7 +600,7 @@ func setupWSTestAuth(t *testing.T) {
 // TestWsSubscribe dials websocket, sends a subscribe request.
 func TestWsSubscribe(t *testing.T) {
 	setupWSTestAuth(t)
-	err := g.Subscribe(monitor.WebsocketChannelSubscription{
+	err := g.Subscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
 	})
@@ -613,7 +612,7 @@ func TestWsSubscribe(t *testing.T) {
 // TestWsUnsubscribe dials websocket, sends an unsubscribe request.
 func TestWsUnsubscribe(t *testing.T) {
 	setupWSTestAuth(t)
-	err := g.Unsubscribe(monitor.WebsocketChannelSubscription{
+	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
 	})
