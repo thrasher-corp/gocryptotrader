@@ -7,15 +7,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -89,11 +90,15 @@ func (c *CoinbasePro) SetDefaults() {
 	c.API.Endpoints.URLDefault = coinbaseproAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
 	c.API.Endpoints.WebsocketURL = coinbaseproWebsocketURL
-	c.WebsocketInit()
-	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+	c.Websocket = wshandler.New()
+	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketSequenceNumberSupported
+	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup initialises the exchange parameters with the current configuration
@@ -108,14 +113,28 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return c.WebsocketSetup(c.WsConnect,
+	err = c.Websocket.Setup(c.WsConnect,
 		c.Subscribe,
 		c.Unsubscribe,
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
 		coinbaseproWebsocketURL,
-		exch.API.Endpoints.WebsocketURL)
+		exch.API.Endpoints.WebsocketURL,
+		exch.API.AuthenticatedWebsocketSupport)
+	if err != nil {
+		return err
+	}
+
+	c.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         c.Name,
+		URL:                  c.Websocket.GetWebsocketURL(),
+		ProxyURL:             c.Websocket.GetProxyAddress(),
+		Verbose:              c.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+	return nil
 }
 
 // Start starts the coinbasepro go routine
@@ -401,7 +420,7 @@ func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *exch
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
+func (c *CoinbasePro) GetWebsocket() (*wshandler.Websocket, error) {
 	return c.Websocket, nil
 }
 
@@ -502,20 +521,20 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (c *CoinbasePro) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	c.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	c.Websocket.UnsubscribeToChannels(channels)
+func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	c.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (c *CoinbasePro) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (c *CoinbasePro) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return c.Websocket.GetSubscriptions(), nil
 }
 

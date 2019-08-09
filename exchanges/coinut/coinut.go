@@ -7,15 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 
-	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -46,9 +45,8 @@ const (
 // COINUT is the overarching type across the coinut package
 type COINUT struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	InstrumentMap map[string]int
-	wsRequestMtx  sync.Mutex
 }
 
 // GetInstruments returns instruments

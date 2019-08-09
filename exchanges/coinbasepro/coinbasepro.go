@@ -8,14 +8,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 
-	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -58,8 +57,7 @@ const (
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // GetProducts returns supported currency pairs on the exchange with specific

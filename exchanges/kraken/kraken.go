@@ -9,11 +9,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -54,7 +54,7 @@ const (
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	wsRequestMtx  sync.Mutex
 }
 

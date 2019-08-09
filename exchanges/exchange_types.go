@@ -3,9 +3,10 @@ package exchange
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 // Endpoint authentication types
@@ -299,18 +300,20 @@ type API struct {
 
 // Base stores the individual exchange information
 type Base struct {
-	Name           string
-	Enabled        bool
-	Verbose        bool
-	LoadedByConfig bool
-	API            API
-	BaseCurrencies currency.Currencies
-	CurrencyPairs  currency.PairsManager
-	Features       Features
-	HTTPTimeout    time.Duration
-	HTTPUserAgent  string
-	HTTPDebugging  bool
-	Websocket      *Websocket
+	Name                          string
+	Enabled                       bool
+	Verbose                       bool
+	LoadedByConfig                bool
+	API                           API
+	BaseCurrencies                currency.Currencies
+	CurrencyPairs                 currency.PairsManager
+	Features                      Features
+	HTTPTimeout                   time.Duration
+	HTTPUserAgent                 string
+	HTTPDebugging                 bool
+	WebsocketResponseCheckTimeout time.Duration
+	WebsocketResponseMaxLimit     time.Duration
+	Websocket                     *wshandler.Websocket
 	*request.Requester
 	Config *config.ExchangeConfig
 }

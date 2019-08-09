@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	log "github.com/thrasher-/gocryptotrader/logger"
-	"github.com/thrasher-/gocryptotrader/ntpclient"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/ntpclient"
 )
 
 const (
@@ -631,7 +631,6 @@ func TestUpdateExchangeConfig(t *testing.T) {
 // TestCheckExchangeConfigValues logic test
 func TestCheckExchangeConfigValues(t *testing.T) {
 	checkExchangeConfigValues := Config{}
-
 	err := checkExchangeConfigValues.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf(
@@ -646,8 +645,24 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
+	checkExchangeConfigValues.Exchanges[0].WebsocketResponseMaxLimit = 0
+	checkExchangeConfigValues.Exchanges[0].WebsocketResponseCheckTimeout = 0
 	checkExchangeConfigValues.Exchanges[0].HTTPTimeout = 0
-	checkExchangeConfigValues.CheckExchangeConfigValues()
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err != nil {
+		t.Errorf("Test failed. checkExchangeConfigValues.CheckExchangeConfigValues: %s",
+			err.Error(),
+		)
+	}
+
+	if checkExchangeConfigValues.Exchanges[0].WebsocketResponseMaxLimit == 0 {
+		t.Fatalf("Test failed. Expected exchange %s to have updated WebsocketResponseMaxLimit value", checkExchangeConfigValues.Exchanges[0].Name)
+	}
+
+	if checkExchangeConfigValues.Exchanges[0].WebsocketResponseCheckTimeout == 0 {
+		t.Fatalf("Test failed. Expected exchange %s to have updated WebsocketResponseCheckTimeout value", checkExchangeConfigValues.Exchanges[0].Name)
+	}
+
 	if checkExchangeConfigValues.Exchanges[0].HTTPTimeout == 0 {
 		t.Fatalf("Test failed. Expected exchange %s to have updated HTTPTimeout value", checkExchangeConfigValues.Exchanges[0].Name)
 	}

@@ -2,17 +2,21 @@ package kraken
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 var k Kraken
+var wsSetupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
@@ -751,5 +755,44 @@ func TestOrderBookOutOfOrder(t *testing.T) {
 	err = k.wsProcessOrderBookUpdate(&channelData)
 	if !strings.Contains(err.Error(), "orderbook update out of order") {
 		t.Error("Expected out of order orderbook error")
+	}
+}
+
+func setupWsTests(t *testing.T) {
+	if wsSetupRan {
+		return
+	}
+	TestSetDefaults(t)
+	TestSetup(t)
+	if !k.Websocket.IsEnabled() && !k.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	k.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         k.Name,
+		URL:                  krakenWSURL,
+		Verbose:              k.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	var dialer websocket.Dialer
+	err := k.WebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go k.WsHandleData()
+	wsSetupRan = true
+}
+
+// TestWebsocketSubscribe tests returning a message with an id
+func TestWebsocketSubscribe(t *testing.T) {
+	setupWsTests(t)
+	err := k.Subscribe(wshandler.WebsocketChannelSubscription{
+		Channel:  defaultSubscribedChannels[0],
+		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }

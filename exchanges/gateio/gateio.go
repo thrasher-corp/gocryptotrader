@@ -7,14 +7,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
-	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/common/convert"
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 const (
@@ -45,9 +44,8 @@ const (
 
 // Gateio is the overarching type across this package
 type Gateio struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
-	wsRequestMtx sync.Mutex
 }
 
 // GetSymbols returns all supported symbols

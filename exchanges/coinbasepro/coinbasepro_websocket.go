@@ -4,18 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 const (
@@ -25,43 +24,18 @@ const (
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
 	var dialer websocket.Dialer
-
-	if c.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(c.Websocket.GetProxyAddress())
-		if err != nil {
-			return fmt.Errorf("coinbasepro_websocket.go error - proxy address %s",
-				err)
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	var err error
-	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("coinbasepro_websocket.go error - unable to connect to websocket %s",
-			err)
+		return err
 	}
 
 	c.GenerateDefaultSubscriptions()
 	go c.WsHandleData()
 
 	return nil
-}
-
-// WsReadData reads data from the websocket connection
-func (c *CoinbasePro) WsReadData() (exchange.WebsocketResponse, error) {
-	_, resp, err := c.WebsocketConn.ReadMessage()
-	if err != nil {
-		return exchange.WebsocketResponse{}, err
-	}
-	c.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles read data from websocket connection
@@ -77,11 +51,13 @@ func (c *CoinbasePro) WsHandleData() {
 		case <-c.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := c.WsReadData()
+			resp, err := c.WebsocketConn.ReadMessage()
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				return
 			}
+			c.Websocket.TrafficAlert <- struct{}{}
+
 			type MsgType struct {
 				Type      string `json:"type"`
 				Sequence  int64  `json:"sequence"`
@@ -111,7 +87,7 @@ func (c *CoinbasePro) WsHandleData() {
 					continue
 				}
 
-				c.Websocket.DataHandler <- exchange.TickerData{
+				c.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp:  ticker.Time,
 					Pair:       currency.NewPairFromString(ticker.ProductID),
 					AssetType:  asset.Spot,
@@ -243,7 +219,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		return err
 	}
 
-	c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    asset.Spot,
 		Exchange: c.GetName(),
@@ -278,7 +254,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 		return err
 	}
 
-	c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    asset.Spot,
 		Exchange: c.GetName(),
@@ -291,14 +267,14 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	var channels = []string{"heartbeat", "level2", "ticker", "user"}
 	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") && !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 			continue
 		}
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "-"
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -308,7 +284,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 		Channels: []WsChannels{
@@ -330,11 +306,11 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe exchange.WebsocketChannelSubs
 		subscribe.Passphrase = c.API.Credentials.ClientID
 		subscribe.Timestamp = n
 	}
-	return c.wsSend(subscribe)
+	return c.WebsocketConn.SendMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []WsChannels{
@@ -346,19 +322,5 @@ func (c *CoinbasePro) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSu
 			},
 		},
 	}
-	return c.wsSend(subscribe)
-}
-
-// WsSend sends data to the websocket server
-func (c *CoinbasePro) wsSend(data interface{}) error {
-	c.wsRequestMtx.Lock()
-	defer c.wsRequestMtx.Unlock()
-	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "%v sending message to websocket %v", c.Name, data)
-	}
-	json, err := common.JSONEncode(data)
-	if err != nil {
-		return err
-	}
-	return c.WebsocketConn.WriteMessage(websocket.TextMessage, json)
+	return c.WebsocketConn.SendMessage(subscribe)
 }

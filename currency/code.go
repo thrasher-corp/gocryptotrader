@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Bitmasks const for currency rolls

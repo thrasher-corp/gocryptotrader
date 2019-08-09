@@ -10,15 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	log "github.com/thrasher-/gocryptotrader/logger"
-	"github.com/thrasher-/gocryptotrader/portfolio"
-	"github.com/thrasher-/gocryptotrader/utils"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
 // Engine contains configuration, portfolio, exchange & ticker data and is the

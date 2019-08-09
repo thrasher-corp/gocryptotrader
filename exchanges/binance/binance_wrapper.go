@@ -8,15 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -89,12 +90,14 @@ func (b *Binance) SetDefaults() {
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.WebsocketInit()
+	b.Websocket = wshandler.New()
 	b.API.Endpoints.WebsocketURL = binanceDefaultWebsocketURL
-	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketTickerSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported
+	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -109,14 +112,28 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return b.WebsocketSetup(b.WSConnect,
+	err = b.Websocket.Setup(b.WSConnect,
 		nil,
 		nil,
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
 		binanceDefaultWebsocketURL,
-		exch.API.Endpoints.WebsocketURL)
+		exch.API.Endpoints.WebsocketURL,
+		exch.API.AuthenticatedWebsocketSupport)
+	if err != nil {
+		return err
+	}
+
+	b.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         b.Name,
+		URL:                  b.Websocket.GetWebsocketURL(),
+		ProxyURL:             b.Websocket.GetProxyAddress(),
+		Verbose:              b.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+	return nil
 }
 
 // Start starts the Binance go routine
@@ -436,7 +453,7 @@ func (b *Binance) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Binance) GetWebsocket() (*exchange.Websocket, error) {
+func (b *Binance) GetWebsocket() (*wshandler.Websocket, error) {
 	return b.Websocket, nil
 }
 
@@ -534,18 +551,18 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Binance) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Binance) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Binance) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Binance) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Binance) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (b *Binance) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 

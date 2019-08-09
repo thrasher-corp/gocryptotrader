@@ -3,11 +3,12 @@ package exchange
 import (
 	"sync"
 
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 // IBotExchange enforces standard functions for all exchanges supported in
@@ -57,11 +58,11 @@ type IBotExchange interface {
 	SupportsWebsocket() bool
 	SupportsREST() bool
 	IsWebsocketEnabled() bool
-	GetWebsocket() (*Websocket, error)
-	SubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
-	GetDefaultConfig() (*config.ExchangeConfig, error)
-	GetSubscriptions() ([]WebsocketChannelSubscription, error)
+	GetWebsocket() (*wshandler.Websocket, error)
+	SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
 	AuthenticateWebsocket() error
+	GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error)
+	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base
 }

@@ -3,7 +3,7 @@ package currency
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestPairsUpper(t *testing.T) {

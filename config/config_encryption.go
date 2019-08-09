@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	gctcrypto "github.com/thrasher-/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -191,7 +191,7 @@ func getScryptDK(key, salt []byte) ([]byte, error) {
 
 func makeNewSessionDK(key []byte) ([]byte, error) {
 	var err error
-	storedSalt, err = gctcrypto.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
+	storedSalt, err = crypto.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/pquerna/otp/totp"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 func containsOTP(cfg *config.Config) bool {

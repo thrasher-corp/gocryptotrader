@@ -6,14 +6,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 // GetDefaultConfig returns a default exchange config for Alphapoint
@@ -57,8 +58,6 @@ func (a *Alphapoint) SetDefaults() {
 		request.NewRateLimit(time.Minute*10, alphapointAuthRate),
 		request.NewRateLimit(time.Minute*10, alphapointUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	a.WebsocketInit()
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -288,7 +287,7 @@ func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(withdrawRequest *excha
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (a *Alphapoint) GetWebsocket() (*exchange.Websocket, error) {
+func (a *Alphapoint) GetWebsocket() (*wshandler.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -382,18 +381,18 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (a *Alphapoint) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (a *Alphapoint) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (a *Alphapoint) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (a *Alphapoint) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (a *Alphapoint) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (a *Alphapoint) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
-	"github.com/thrasher-/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -1562,25 +1563,27 @@ func TestGetETTSettlementPriceHistory(t *testing.T) {
 func TestSendWsMessages(t *testing.T) {
 	TestSetDefaults(t)
 	if !o.Websocket.IsEnabled() && !o.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	var ok bool
+	o.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         o.Name,
+		URL:                  o.Websocket.GetWebsocketURL(),
+		Verbose:              o.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
-	var err error
-	var ok bool
-	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := o.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		t.Fatalf("%s Unable to connect to Websocket. Error: %s",
-			o.Name,
-			err)
+		t.Fatal(err)
 	}
-	defer o.WebsocketConn.Close()
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go o.WsHandleData(&wg)
 	wg.Wait()
 
-	subscription := exchange.WebsocketChannelSubscription{
+	subscription := wshandler.WebsocketChannelSubscription{
 		Channel: "badChannel",
 	}
 	o.Subscribe(subscription)

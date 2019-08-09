@@ -1,7 +1,7 @@
 package currency
 
 import (
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // GetAssetTypes returns a list of stored asset types

@@ -3,7 +3,7 @@ package currency
 import (
 	"strings"
 
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // NewCurrenciesFromStringArray returns a Currencies object from strings

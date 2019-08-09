@@ -7,12 +7,11 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 
-	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
 )
 
 const (
@@ -48,8 +47,7 @@ const (
 // HitBTC is the overarching type across the hitbtc package
 type HitBTC struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // Public Market Data

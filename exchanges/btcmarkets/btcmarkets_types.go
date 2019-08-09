@@ -1,6 +1,6 @@
 package btcmarkets
 
-import "github.com/thrasher-/gocryptotrader/currency"
+import "github.com/thrasher-corp/gocryptotrader/currency"
 
 // Response is the genralized response type
 type Response struct {

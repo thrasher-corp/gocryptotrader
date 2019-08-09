@@ -4,13 +4,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -92,13 +93,17 @@ func (o *OKCoin) SetDefaults() {
 	o.API.Endpoints.URL = okCoinAPIURL
 	o.API.Endpoints.WebsocketURL = okCoinWebsocketURL
 	o.APIVersion = okCoinAPIVersion
-	o.WebsocketInit()
-	o.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
+	o.Websocket = wshandler.New()
+	o.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Start starts the OKGroup go routine

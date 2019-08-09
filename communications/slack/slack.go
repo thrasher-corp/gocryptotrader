@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/communications/base"
-	"github.com/thrasher-/gocryptotrader/config"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // const declares main slack url and commands that will be supported on client
@@ -186,7 +186,7 @@ func (s *Slack) NewConnection() error {
 // WebsocketConnect creates a websocket dialer amd initiates a websocket
 // connection
 func (s *Slack) WebsocketConnect() error {
-	var Dialer websocket.Dialer
+	var dialer websocket.Dialer
 	var err error
 
 	websocketURL := s.Details.URL
@@ -194,7 +194,7 @@ func (s *Slack) WebsocketConnect() error {
 		websocketURL = s.ReconnectURL
 	}
 
-	s.WebsocketConn, _, err = Dialer.Dial(websocketURL, http.Header{})
+	s.WebsocketConn, _, err = dialer.Dial(websocketURL, http.Header{})
 	if err != nil {
 		return err
 	}

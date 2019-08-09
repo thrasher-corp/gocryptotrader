@@ -3,7 +3,7 @@ package asset
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestString(t *testing.T) {

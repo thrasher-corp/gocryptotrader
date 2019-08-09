@@ -8,15 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -371,7 +372,7 @@ func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (l *LakeBTC) GetWebsocket() (*exchange.Websocket, error) {
+func (l *LakeBTC) GetWebsocket() (*wshandler.Websocket, error) {
 	// Documents are too vague to implement
 	return nil, common.ErrFunctionNotSupported
 }
@@ -457,18 +458,18 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (l *LakeBTC) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (l *LakeBTC) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (l *LakeBTC) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (l *LakeBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

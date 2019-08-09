@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/thrasher-/gocryptotrader/config"
-	log "github.com/thrasher-/gocryptotrader/logger"
-	"github.com/thrasher-/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // RESTfulJSONResponse outputs a JSON response of the response interface

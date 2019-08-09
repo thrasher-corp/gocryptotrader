@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
-	"github.com/thrasher-/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 var (

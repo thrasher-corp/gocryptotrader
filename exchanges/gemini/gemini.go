@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/common/crypto"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -64,7 +64,8 @@ var (
 // AddSession, if sandbox test is needed append a new session with with the same
 // API keys and change the IsSandbox variable to true.
 type Gemini struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn              *wshandler.WebsocketConnection
+	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
 	Role              string
 	RequiresHeartBeat bool
@@ -92,7 +93,6 @@ func AddSession(g *Gemini, sessionID int, apiKey, apiSecret, role string, needsH
 	}
 
 	Session[sessionID] = g
-
 	return nil
 }
 
@@ -105,7 +105,6 @@ func (g *Gemini) GetSymbols() ([]string, error) {
 
 // GetTicker returns information about recent trading activity for the symbol
 func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
-
 	type TickerResponse struct {
 		Ask     float64 `json:"ask,string"`
 		Bid     float64 `json:"bid,string"`
@@ -130,7 +129,6 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 	ticker.Ask = resp.Ask
 	ticker.Bid = resp.Bid
 	ticker.Last = resp.Last
-
 	ticker.Volume.Currency, _ = strconv.ParseFloat(resp.Volume[currencyPair[0:3]].(string), 64)
 
 	if strings.Contains(currencyPair, "USD") {

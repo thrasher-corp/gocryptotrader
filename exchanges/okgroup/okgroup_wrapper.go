@@ -5,14 +5,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
@@ -31,14 +32,29 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return o.WebsocketSetup(o.WsConnect,
+	err = o.Websocket.Setup(o.WsConnect,
 		o.Subscribe,
 		o.Unsubscribe,
 		exch.Name,
 		exch.Features.Enabled.Websocket,
 		exch.Verbose,
 		o.API.Endpoints.WebsocketURL,
-		exch.API.Endpoints.WebsocketURL)
+		exch.API.Endpoints.WebsocketURL,
+		exch.API.AuthenticatedWebsocketSupport)
+	if err != nil {
+		return err
+	}
+
+	o.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         o.Name,
+		URL:                  o.Websocket.GetWebsocketURL(),
+		ProxyURL:             o.Websocket.GetProxyAddress(),
+		Verbose:              o.Verbose,
+		RateLimit:            okGroupWsRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -415,7 +431,7 @@ func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
+func (o *OKGroup) GetWebsocket() (*wshandler.Websocket, error) {
 	return o.Websocket, nil
 }
 
@@ -435,20 +451,20 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (o *OKGroup) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (o *OKGroup) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	o.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	o.Websocket.UnsubscribeToChannels(channels)
+func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	o.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (o *OKGroup) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (o *OKGroup) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return o.Websocket.GetSubscriptions(), nil
 }
 
