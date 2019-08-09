@@ -33,8 +33,7 @@ test_script:
   - ps: >-
       if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {
           go test -race ./... -tags=mock_test_off
-      } 
-      if($env:APPVEYOR_SCHEDULED_BUILD -eq 'false') {
+      }else {
           go test -race ./...
       }
   
