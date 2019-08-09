@@ -6,6 +6,7 @@ package bitstamp
 
 import (
 	"os"
+	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -13,7 +14,7 @@ import (
 
 var mockTests = false
 
-func TestMain(m *testing.m) {
+func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
 	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
