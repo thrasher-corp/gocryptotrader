@@ -83,7 +83,7 @@ func (a *ANX) Setup(exch *config.ExchangeConfig) {
 	} else {
 		a.Enabled = true
 		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
 		a.SetHTTPClientTimeout(exch.HTTPTimeout)
 		a.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		a.RESTPollingDelay = exch.RESTPollingDelay
@@ -248,9 +248,13 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 // CancelOrderByIDs cancels orders, requires already knowing order IDs
 // There is no existing API call to retrieve orderIds
 func (a *ANX) CancelOrderByIDs(orderIds []string) (OrderCancelResponse, error) {
+	var response OrderCancelResponse
+	if len(orderIds) == 0 {
+		return response, errors.New("no order ids found")
+	}
+
 	req := make(map[string]interface{})
 	req["orderIds"] = orderIds
-	var response OrderCancelResponse
 
 	err := a.SendAuthenticatedHTTPRequest(anxOrderCancel, req, &response)
 	if response.ResultCode != "OK" {
@@ -266,7 +270,7 @@ func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
 	req["activeOnly"] = isActiveOrdersOnly
 
 	type OrderListResponse struct {
-		Timestamp      int64           `json:"timestamp"`
+		Timestamp      int64           `json:"timestamp,string"`
 		ResultCode     string          `json:"resultCode"`
 		Count          int64           `json:"count"`
 		OrderResponses []OrderResponse `json:"orders"`
@@ -278,7 +282,6 @@ func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return nil, errors.New(response.ResultCode)
 	}
 
@@ -304,7 +307,6 @@ func (a *ANX) OrderInfo(orderID string) (OrderResponse, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return OrderResponse{}, errors.New(response.ResultCode)
 	}
 	return response.Order, nil
@@ -324,7 +326,7 @@ func (a *ANX) Send(currency, address, otp, amount string) (string, error) {
 	type SendResponse struct {
 		TransactionID string `json:"transactionId"`
 		ResultCode    string `json:"resultCode"`
-		Timestamp     int64  `json:"timestamp"`
+		Timestamp     int64  `json:"timestamp,string"`
 	}
 	var response SendResponse
 
@@ -335,7 +337,6 @@ func (a *ANX) Send(currency, address, otp, amount string) (string, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 	return response.TransactionID, nil
@@ -361,7 +362,6 @@ func (a *ANX) CreateNewSubAccount(currency, name string) (string, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 	return response.SubAccount, nil
@@ -380,7 +380,7 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (
 		Address    string `json:"address"`
 		SubAccount string `json:"subAccount"`
 		ResultCode string `json:"resultCode"`
-		Timestamp  int64  `json:"timestamp"`
+		Timestamp  int64  `json:"timestamp,string"`
 	}
 	var response AddressResponse
 
@@ -395,7 +395,6 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 

@@ -20,6 +20,8 @@ const (
 	canManipulateRealOrders = false
 )
 
+var p Poloniex
+
 func areTestAPIKeysSet() bool {
 	if p.APIKey != "" && p.APIKey != "Key" &&
 		p.APISecret != "" && p.APISecret != "Secret" {
@@ -29,7 +31,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestGetTicker(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := p.GetTicker()
 	if err != nil {
 		t.Error("Test Failed - Poloniex GetTicker() error", err)
@@ -37,7 +39,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetVolume(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := p.GetVolume()
 	if err != nil {
 		t.Error("Test faild - Poloniex GetVolume() error")
@@ -45,7 +47,7 @@ func TestGetVolume(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := p.GetOrderbook("BTC_XMR", 50)
 	if err != nil {
 		t.Error("Test faild - Poloniex GetOrderbook() error", err)
@@ -53,7 +55,7 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetTradeHistory(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := p.GetTradeHistory("BTC_XMR", "", "")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetTradeHistory() error", err)
@@ -61,7 +63,7 @@ func TestGetTradeHistory(t *testing.T) {
 }
 
 func TestGetChartData(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := p.GetChartData("BTC_XMR", "1405699200", "1405699400", "300")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetChartData() error", err)
@@ -69,7 +71,7 @@ func TestGetChartData(t *testing.T) {
 }
 
 func TestGetCurrencies(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := p.GetCurrencies()
 	if err != nil {
 		t.Error("Test faild - Poloniex GetCurrencies() error", err)
@@ -77,7 +79,7 @@ func TestGetCurrencies(t *testing.T) {
 }
 
 func TestGetLoanOrders(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := p.GetLoanOrders("BTC")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetLoanOrders() error", err)
@@ -99,7 +101,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	var feeBuilder = setFeeBuilder()
 	p.GetFeeByType(feeBuilder)
@@ -119,7 +121,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 
 	if areTestAPIKeysSet() || mockTests {
@@ -198,7 +200,7 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText +
 		" & " +
 		exchange.NoFiatWithdrawalsText
@@ -213,8 +215,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
@@ -231,8 +232,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
@@ -252,8 +252,7 @@ func TestGetOrderHistory(t *testing.T) {
 // ----------------------------------------------------------------------------------------------------------------------------
 
 func TestSubmitOrder(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -281,8 +280,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -306,8 +304,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -336,8 +333,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -354,8 +350,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:      0,
 		Currency:    currency.LTC,
@@ -379,8 +374,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -394,8 +388,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -409,8 +402,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	TestSetup(t)
-
+	t.Parallel()
 	_, err := p.GetDepositAddress(currency.DASH, "")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
@@ -423,7 +415,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestWsHandleAccountData(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	jsons := []string{
 		`[["n",225,807230187,0,"1000.00000000","0.10000000","2018-11-07 16:42:42"],["b",267,"e","-0.10000000"]]`,
@@ -443,7 +435,7 @@ func TestWsHandleAccountData(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 // Will receive a message only on failure
 func TestWsAuth(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	if !p.Websocket.IsEnabled() && !p.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}

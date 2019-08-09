@@ -277,7 +277,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 			log.Debugf("%s exchange request header [%s]: %s", r.Name, k, d)
 		}
 
-		log.Debug(body)
+		log.Debugf("%s exchange request Body: %s", r.Name, body)
 	}
 
 	var timeoutError error
@@ -336,8 +336,19 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		}
 
 		if httpRecord {
+			var bodyCopy []byte
+			if req.GetBody != nil {
+				dt, err := req.GetBody()
+				if err != nil {
+					return err
+				}
+				bodyCopy, err = ioutil.ReadAll(dt)
+				if err != nil {
+					return err
+				}
+			}
 			// This dumps resp for future mocking implementations
-			err = mock.HTTPRecord(fmt.Sprintf("%v", body), resp, mock.DefaultDirectory, r.Name, contents, true)
+			err = mock.HTTPRecord(string(bodyCopy), resp, mock.DefaultDirectory, r.Name, contents, verbose)
 			if err != nil {
 				return err
 			}

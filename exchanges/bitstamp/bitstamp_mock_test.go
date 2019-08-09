@@ -5,46 +5,40 @@
 package bitstamp
 
 import (
-	"log"
-	"sync"
+	"os"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges/mock"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-var b Bitstamp
-
-var isSetup bool
 var mockTests = true
-var mtx sync.Mutex
 
-func TestSetup(t *testing.T) {
-	t.Parallel()
-
-	mtx.Lock()
-	if !isSetup {
-		serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/bitstamp/bitstamp.json", t)
-		if err != nil {
-			log.Fatal("Test Failed - Mock server error", err)
-		}
-		cfg := config.GetConfig()
-		cfg.LoadConfig("../../testdata/configtest.json")
-		bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
-		if err != nil {
-			t.Error("Test Failed - Bitstamp Setup() init error")
-		}
-		bitstampConfig.AuthenticatedAPISupport = true
-		bitstampConfig.APIKey = apiKey
-		bitstampConfig.APISecret = apiSecret
-		bitstampConfig.ClientID = customerID
-		b.SetDefaults()
-		b.Setup(&bitstampConfig)
-		b.APIUrl = serverDetails + "/api"
-		log.Printf("Mock testing framework in use for %s @ %s",
-			b.GetName(),
-			b.APIUrl)
-		isSetup = true
+func TestMain(m *testing.M) {
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
+	if err != nil {
+		log.Error("Test Failed - Bitstamp Setup() init error", err)
+		os.Exit(1)
 	}
-	mtx.Unlock()
+	bitstampConfig.AuthenticatedAPISupport = true
+	bitstampConfig.APIKey = apiKey
+	bitstampConfig.APISecret = apiSecret
+	bitstampConfig.ClientID = customerID
+	b.SetDefaults()
+	b.Setup(&bitstampConfig)
+
+	serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/bitstamp/bitstamp.json")
+	if err != nil {
+		log.Warn("Test Failed - Mock server error", err)
+	} else {
+		b.APIUrl = serverDetails + "/api"
+	}
+
+	log.Debugf("Mock testing framework in use for %s @ %s",
+		b.GetName(),
+		b.APIUrl)
+	os.Exit(m.Run())
 }

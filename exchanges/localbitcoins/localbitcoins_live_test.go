@@ -5,39 +5,30 @@
 package localbitcoins
 
 import (
-	"log"
-	"sync"
+	"os"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-var l LocalBitcoins
-
-var isSetup bool
 var mockTests = false
-var mtx sync.Mutex
 
-func TestSetup(t *testing.T) {
-	t.Parallel()
-
-	mtx.Lock()
-	if !isSetup {
-		cfg := config.GetConfig()
-		cfg.LoadConfig("../../testdata/configtest.json")
-		localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
-		if err != nil {
-			t.Error("Test Failed - LocalBitcoins Setup() init error")
-		}
-		localbitcoinsConfig.AuthenticatedAPISupport = true
-		localbitcoinsConfig.APIKey = apiKey
-		localbitcoinsConfig.APISecret = apiSecret
-		l.SetDefaults()
-		l.Setup(&localbitcoinsConfig)
-		log.Printf("Live testing framework in use for %s @ %s",
-			l.GetName(),
-			l.APIUrl)
-		isSetup = true
+func TestMain(m *testing.M) {
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
+	if err != nil {
+		log.Error("Test Failed - LocalBitcoins Setup() init error", err)
+		os.Exit(1)
 	}
-	mtx.Unlock()
+	localbitcoinsConfig.AuthenticatedAPISupport = true
+	localbitcoinsConfig.APIKey = apiKey
+	localbitcoinsConfig.APISecret = apiSecret
+	l.SetDefaults()
+	l.Setup(&localbitcoinsConfig)
+	log.Debugf("Live testing framework in use for %s @ %s",
+		l.GetName(),
+		l.APIUrl)
+	os.Exit(m.Run())
 }

@@ -16,8 +16,10 @@ const (
 	canManipulateRealOrders = false
 )
 
+var l LocalBitcoins
+
 func TestGetTicker(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	_, err := l.GetTicker()
 	if err != nil {
@@ -26,7 +28,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetTradableCurrencies(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	_, err := l.GetTradableCurrencies()
 	if err != nil {
@@ -35,7 +37,7 @@ func TestGetTradableCurrencies(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	_, err := l.GetAccountInformation("", true)
 	switch {
@@ -49,7 +51,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestGetads(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	_, err := l.Getads("")
 	switch {
@@ -63,7 +65,7 @@ func TestGetads(t *testing.T) {
 }
 
 func TestEditAd(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	var edit AdEdit
 	err := l.EditAd(&edit, "1337")
@@ -92,7 +94,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	l.GetFeeByType(feeBuilder)
 	if apiKey == "" || apiSecret == "" {
@@ -107,7 +109,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
 	if resp, err := l.GetFee(feeBuilder); resp != float64(0) || err != nil {
@@ -183,7 +185,7 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	expectedResult := exchange.AutoWithdrawCryptoText +
 		" & " +
@@ -198,7 +200,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
@@ -216,7 +218,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
@@ -244,7 +246,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
@@ -267,7 +269,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
@@ -292,7 +294,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
@@ -321,7 +323,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	_, err := l.ModifyOrder(&exchange.ModifyOrder{})
 	if err != common.ErrFunctionNotSupported {
@@ -330,7 +332,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:      100,
@@ -355,7 +357,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 	_, err := l.WithdrawFiatFunds(&withdrawFiatRequest)
@@ -367,7 +369,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 	_, err := l.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
@@ -379,7 +381,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 
 	_, err := l.GetDepositAddress(currency.BTC, "")
 	switch {

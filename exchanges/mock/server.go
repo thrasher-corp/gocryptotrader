@@ -3,11 +3,13 @@ package mock
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"testing"
+	"reflect"
+	"strconv"
 )
 
 // DefaultDirectory defines the main mock directory
@@ -28,12 +30,7 @@ type VCRMock struct {
 
 // NewVCRServer starts a new VCR server for replaying HTTP requests for testing
 // purposes and returns the server connection details
-func NewVCRServer(path string, t *testing.T) (string, error) {
-	if t == nil {
-		return "",
-			errors.New("this service needs to be utilised in a testing environment")
-	}
-
+func NewVCRServer(path string) (string, error) {
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -182,9 +179,33 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			data = mockData[i].BodyParams
 		}
 
-		mockVals, err := url.ParseQuery(data)
-		if err != nil {
-			return nil, err
+		var mockVals = url.Values{}
+		var err error
+		if json.Valid([]byte(data)) {
+			something := make(map[string]interface{})
+			err := json.Unmarshal([]byte(data), &something)
+			if err != nil {
+				return nil, err
+			}
+
+			for k, v := range something {
+				switch v.(type) {
+				case string:
+					mockVals.Add(k, v.(string))
+				case bool:
+					mockVals.Add(k, strconv.FormatBool(v.(bool)))
+				case map[string]interface{}, []interface{}, nil:
+					mockVals.Add(k, fmt.Sprintf("%v", v))
+				default:
+					log.Println(reflect.TypeOf(v))
+					log.Fatal("unhandled type please add as needed")
+				}
+			}
+		} else {
+			mockVals, err = url.ParseQuery(data)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		if MatchURLVals(mockVals, requestVals) {

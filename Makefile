@@ -4,6 +4,7 @@ LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.16.0
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
+CRON = $(TRAVIS_EVENT_TYPE)
 
 get:
 	GO111MODULE=on go get $(GCTPKG)
@@ -16,7 +17,11 @@ linter:
 check: linter test
 
 test:
+ifeq ($(CRON), cron)
+	go test -race -tags=mock_test_off -coverprofile=coverage.txt -covermode=atomic  ./...
+else
 	go test -race -coverprofile=coverage.txt -covermode=atomic  ./...
+endif
 
 build:
 	GO111MODULE=on go build $(LDFLAGS)

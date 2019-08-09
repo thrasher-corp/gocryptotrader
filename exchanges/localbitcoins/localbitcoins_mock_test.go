@@ -5,45 +5,39 @@
 package localbitcoins
 
 import (
-	"log"
-	"sync"
+	"os"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges/mock"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-var l LocalBitcoins
-
-var isSetup bool
 var mockTests = true
-var mtx sync.Mutex
 
-func TestSetup(t *testing.T) {
-	t.Parallel()
-
-	mtx.Lock()
-	if !isSetup {
-		serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/localbitcoins/localbitcoins.json", t)
-		if err != nil {
-			t.Fatal("Test Failed - Mock server error", err)
-		}
-		cfg := config.GetConfig()
-		cfg.LoadConfig("../../testdata/configtest.json")
-		localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
-		if err != nil {
-			t.Error("Test Failed - Localbitcoins Setup() init error")
-		}
-		localbitcoinsConfig.AuthenticatedAPISupport = true
-		localbitcoinsConfig.APIKey = apiKey
-		localbitcoinsConfig.APISecret = apiSecret
-		l.SetDefaults()
-		l.Setup(&localbitcoinsConfig)
-		l.APIUrl = serverDetails
-		log.Printf("Mock testing framework in use for %s @ %s",
-			l.GetName(),
-			l.APIUrl)
-		isSetup = true
+func TestMain(m *testing.M) {
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
+	if err != nil {
+		log.Error("Test Failed - Localbitcoins Setup() init error", err)
+		os.Exit(1)
 	}
-	mtx.Unlock()
+	localbitcoinsConfig.AuthenticatedAPISupport = true
+	localbitcoinsConfig.APIKey = apiKey
+	localbitcoinsConfig.APISecret = apiSecret
+	l.SetDefaults()
+	l.Setup(&localbitcoinsConfig)
+
+	serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/localbitcoins/localbitcoins.json")
+	if err != nil {
+		log.Warn("Test Failed - Mock server error", err)
+	} else {
+		l.APIUrl = serverDetails
+	}
+
+	log.Printf("Mock testing framework in use for %s @ %s",
+		l.GetName(),
+		l.APIUrl)
+	os.Exit(m.Run())
 }

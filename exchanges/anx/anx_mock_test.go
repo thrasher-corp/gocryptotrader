@@ -2,7 +2,7 @@
 
 // This will build if build tag mock_test_off is not parsed and will try to mock
 // all tests in _test.go
-package poloniex
+package anx
 
 import (
 	"os"
@@ -18,26 +18,26 @@ var mockTests = true
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
+	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
-		log.Error("Test Failed - Poloniex Setup() init error")
+		log.Error("Test Failed - Mock server error", err)
 		os.Exit(1)
 	}
-	poloniexConfig.AuthenticatedAPISupport = true
-	poloniexConfig.APIKey = apiKey
-	poloniexConfig.APISecret = apiSecret
-	p.SetDefaults()
-	p.Setup(&poloniexConfig)
+	anxConfig.AuthenticatedAPISupport = true
+	anxConfig.APIKey = apiKey
+	anxConfig.APISecret = apiSecret
+	a.SetDefaults()
+	a.Setup(&anxConfig)
 
-	serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/poloniex/poloniex.json")
+	serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/anx/anx.json")
 	if err != nil {
 		log.Warn("Test Failed - Mock server error", err)
 	} else {
-		p.APIUrl = serverDetails
+		a.APIUrl = serverDetails + "/"
 	}
 
 	log.Debugf("Mock testing framework in use for %s @ %s",
-		p.GetName(),
-		p.APIUrl)
+		a.GetName(),
+		a.APIUrl)
 	os.Exit(m.Run())
 }

@@ -12,6 +12,7 @@
   "real_name",
   "receiver_name",
   "account_number",
-  "username"
+  "username",
+  "login"
  ]
 }

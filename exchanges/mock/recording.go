@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // HTTPResponse defines expected response from the end point including request
@@ -138,6 +138,7 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 
 					jCType := strings.Join(cType, "")
 
+					var found bool
 					switch jCType {
 					case applicationURLEncoded:
 						respQueryVals, urlErr := url.ParseQuery(body)
@@ -154,6 +155,7 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 							// if found will delete instance and overwrite with new
 							// data
 							mockResponses = append(mockResponses[:i], mockResponses[i+1:]...)
+							found = true
 						}
 
 					case applicationJSON:
@@ -171,10 +173,14 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 							// if found will delete instance and overwrite with new
 							// data
 							mockResponses = append(mockResponses[:i], mockResponses[i+1:]...)
+							found = true
 						}
 
 					default:
 						return fmt.Errorf("unhandled content type %s", jCType)
+					}
+					if found {
+						break
 					}
 				}
 
@@ -296,19 +302,25 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 			}
 		case Slice:
 			slice := val.([]interface{})
-			if _, ok := slice[0].(map[string]interface{}); ok {
-				var cleanSlice []interface{}
-				for i := range slice {
-					cleanMap, sErr := CheckJSON(slice[i], excluded)
-					if sErr != nil {
-						return nil, sErr
+			if len(slice) < 1 {
+				// Empty slice found
+				context[key] = slice
+			} else {
+				if _, ok := slice[0].(map[string]interface{}); ok {
+					var cleanSlice []interface{}
+					for i := range slice {
+						cleanMap, sErr := CheckJSON(slice[i], excluded)
+						if sErr != nil {
+							return nil, sErr
+						}
+						cleanSlice = append(cleanSlice, cleanMap)
 					}
-					cleanSlice = append(cleanSlice, cleanMap)
+					context[key] = cleanSlice
+				} else if IsExcluded(key, excluded.Variables) {
+					context[key] = nil // Zero val slice
 				}
-				context[key] = cleanSlice
-			} else if IsExcluded(key, excluded.Variables) {
-				context[key] = nil // Zero val slice
 			}
+
 		case Bool, Invalid: // Skip these bad boys for now
 		default:
 			// Recursively check map data

@@ -109,8 +109,8 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	_, err = DeriveURLValsFromJSONMap(payload)
-	if err == nil {
-		t.Error("Test Failed - DeriveURLValsFromJSON expected an error")
+	if err != nil {
+		t.Error("Test Failed - DeriveURLValsFromJSON error", err)
 	}
 
 	test2 := map[string]string{

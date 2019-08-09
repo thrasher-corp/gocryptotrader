@@ -5,39 +5,30 @@
 package binance
 
 import (
-	"log"
-	"sync"
+	"os"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-var b Binance
-
-var isSetup bool
 var mockTests = false
-var mtx sync.Mutex
 
-func TestSetup(t *testing.T) {
-	t.Parallel()
-
-	mtx.Lock()
-	if !isSetup {
-		cfg := config.GetConfig()
-		cfg.LoadConfig("../../testdata/configtest.json")
-		binanceConfig, err := cfg.GetExchangeConfig("Binance")
-		if err != nil {
-			t.Error("Test Failed - Binance Setup() init error")
-		}
-		binanceConfig.AuthenticatedAPISupport = true
-		binanceConfig.APIKey = apiKey
-		binanceConfig.APISecret = apiSecret
-		b.SetDefaults()
-		b.Setup(&binanceConfig)
-		log.Printf("Live testing framework in use for %s @ %s",
-			b.GetName(),
-			b.APIUrl)
-		isSetup = true
+func TestMain(m *testing.M) {
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	binanceConfig, err := cfg.GetExchangeConfig("Binance")
+	if err != nil {
+		log.Error("Test Failed - Binance Setup() init error", err)
+		os.Exit(1)
 	}
-	mtx.Unlock()
+	binanceConfig.AuthenticatedAPISupport = true
+	binanceConfig.APIKey = apiKey
+	binanceConfig.APISecret = apiSecret
+	b.SetDefaults()
+	b.Setup(&binanceConfig)
+	log.Debugf("Live testing framework in use for %s @ %s",
+		b.GetName(),
+		b.APIUrl)
+	os.Exit(m.Run())
 }

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 type responsePayload struct {
@@ -22,12 +22,7 @@ const queryString = "currency=btc&command=getprice"
 const testFile = "test.json"
 
 func TestNewVCRServer(t *testing.T) {
-	_, err := NewVCRServer("", nil)
-	if err == nil {
-		t.Error("Test Failed - NewVCRServer error cannot be nil")
-	}
-
-	_, err = NewVCRServer("", t)
+	_, err := NewVCRServer("")
 	if err == nil {
 		t.Error("Test Failed - NewVCRServer error cannot be nil")
 	}
@@ -58,7 +53,7 @@ func TestNewVCRServer(t *testing.T) {
 		t.Fatal("Test Failed - marshal error", err)
 	}
 
-	deets, err := NewVCRServer(testFile, t)
+	deets, err := NewVCRServer(testFile)
 	if err != nil {
 		t.Error("Test Failed - NewVCRServer error", err)
 	}

@@ -5,40 +5,30 @@
 package bitstamp
 
 import (
-	"log"
-	"sync"
-	"testing"
+	"os"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-var b Bitstamp
-
-var isSetup bool
 var mockTests = false
-var mtx sync.Mutex
 
-func TestSetup(t *testing.T) {
-	t.Parallel()
-
-	mtx.Lock()
-	if !isSetup {
-		cfg := config.GetConfig()
-		cfg.LoadConfig("../../testdata/configtest.json")
-		bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
-		if err != nil {
-			t.Error("Test Failed - Poloniex Setup() init error")
-		}
-		bitstampConfig.AuthenticatedAPISupport = true
-		bitstampConfig.APIKey = apiKey
-		bitstampConfig.APISecret = apiSecret
-		bitstampConfig.ClientID = customerID
-		b.SetDefaults()
-		b.Setup(&bitstampConfig)
-		log.Printf("Live testing framework in use for %s @ %s",
-			b.GetName(),
-			b.APIUrl)
-		isSetup = true
+func TestMain(m *testing.m) {
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
+	if err != nil {
+		log.Error("Test Failed - Poloniex Setup() init error", err)
+		os.Exit(1)
 	}
-	mtx.Unlock()
+	bitstampConfig.AuthenticatedAPISupport = true
+	bitstampConfig.APIKey = apiKey
+	bitstampConfig.APISecret = apiSecret
+	bitstampConfig.ClientID = customerID
+	b.SetDefaults()
+	b.Setup(&bitstampConfig)
+	log.Debugf("Live testing framework in use for %s @ %s",
+		b.GetName(),
+		b.APIUrl)
+	os.Exit(m.Run())
 }
