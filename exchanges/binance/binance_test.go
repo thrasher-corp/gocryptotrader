@@ -11,7 +11,7 @@ import (
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/binance"
+	"github.com/idoall/gocryptotrader/exchanges/binance"
 )
 
 // Please supply your own keys here for due diligence testing
