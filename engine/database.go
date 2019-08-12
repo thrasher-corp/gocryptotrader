@@ -22,7 +22,6 @@ var (
 
 type databaseManager struct {
 	running   atomic.Value
-	connected atomic.Value
 	shutdown  chan struct{}
 }
 

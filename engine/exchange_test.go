@@ -135,7 +135,3 @@ func TestUnloadExchange(t *testing.T) {
 	CleanupTest(t)
 }
 
-func ExampleHello() {
-	fmt.Println("hello")
-	// Output: Goodbyte
-}

@@ -44,6 +44,10 @@ func (m *Migrator) loadMigration(migration string) error {
 
 	b, err := ioutil.ReadAll(file)
 
+	if err != nil {
+		return err
+	}
+
 	up := bytes.Split(b, []byte("-- up"))
 	down := strings.Split(string(up[1]), "-- down")
 
@@ -136,7 +140,7 @@ func (m *Migrator) checkVersionTableExists() error {
 func (m *Migrator) checkConvert(input string) string {
 
 	if m.Conn.Config.Driver != "sqlite" {
-		return input
+		return inputs
 	}
 
 	// Common PSQL -> SQLITE conversion
