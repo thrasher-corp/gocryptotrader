@@ -304,7 +304,7 @@ func (o *OKGroup) GetWsChannelWithoutOrderType(table string) string {
 }
 
 // GetAssetTypeFromTableName gets the asset type from the table name
-// eg "spot/ticker:BTCUSD" results in orderbook.Spot
+// eg "spot/ticker:BTCUSD" results in "SPOT"
 func (o *OKGroup) GetAssetTypeFromTableName(table string) string {
 	assetIndex := strings.Index(table, "/")
 	return strings.ToUpper(table[:assetIndex])
