@@ -1,19 +1,17 @@
 package migrations
 
 import (
-	"io"
-
-	"github.com/jmoiron/sqlx"
+	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
 type Migration struct {
-	Sequence int64
+	Sequence int
 	Name     string
-	UpSQL    io.Reader
-	DownSQL  io.Reader
+	UpSQL    []byte
+	DownSQL  []byte
 }
 
 type Migrator struct {
-	conn       *sqlx.Conn
+	Conn       *database.Database
 	Migrations []Migration
 }

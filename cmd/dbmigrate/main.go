@@ -15,6 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
 	auditSQLite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
+
+
+	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
 )
 
 var (
@@ -34,11 +37,6 @@ func openDbConnection(driver string) (err error) {
 		dbConn.SQL.SetMaxIdleConns(1)
 		dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
-		err = db.Setup()
-		if err != nil {
-			return err
-		}
-
 		audit.Audit = auditPSQL.Audit()
 	} else if driver == "sqlite" {
 		dbConn, err = dbsqlite3.Connect()
@@ -47,10 +45,6 @@ func openDbConnection(driver string) (err error) {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
 
-		err = dbsqlite3.Setup()
-		if err != nil {
-			return err
-		}
 		audit.Audit = auditSQLite.Audit()
 	}
 	return nil
@@ -60,6 +54,12 @@ func main() {
 	fmt.Println("Gocrytotrader database migration tool")
 	fmt.Println("© 2019 Thrasher Corporation")
 	fmt.Println()
+
+
+	temp := mg.Migrator{}
+
+	_ = temp.LoadMigrations()
+
 
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
@@ -87,6 +87,14 @@ func main() {
 	}
 
 	fmt.Printf("Connected to: %s\n", conf.Database.Host)
+
+	temp.Conn = dbConn
+
+	err = temp.RunMigration()
+
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	if dbConn.SQL != nil {
 		err = dbConn.SQL.Close()
