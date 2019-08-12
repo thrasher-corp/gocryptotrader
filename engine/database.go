@@ -48,11 +48,6 @@ func (a *databaseManager) Start() (err error) {
 			dbConn.SQL.SetMaxIdleConns(1)
 			dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
-			//err = db.Setup()
-			//if err != nil {
-			//	return err
-			//}
-
 			audit.Audit = auditPSQL.Audit()
 		} else if Bot.Config.Database.Driver == "sqlite" {
 			dbConn, err = dbsqlite3.Connect()
@@ -61,10 +56,6 @@ func (a *databaseManager) Start() (err error) {
 				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 			}
 
-			//err = dbsqlite3.Setup()
-			//if err != nil {
-			//	return err
-			//}
 			audit.Audit = auditSQLite.Audit()
 		}
 		go a.run()

@@ -3,6 +3,7 @@ package migrations
 import (
 	"bytes"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,13 +17,16 @@ func (m *Migrator) LoadMigrations() error {
 	migration, err := filepath.Glob("./database/migration/migrations/*.sql")
 
 	if err != nil {
-		fmt.Printf("Failed to load migrations: %v", err)
+		return errors.New("failed to load migrations")
 	}
 
 	sort.Strings(migration)
 
 	for x := range migration {
-		_ = m.LoadMigration(migration[x])
+		err = m.LoadMigration(migration[x])
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -83,13 +87,11 @@ func (m *Migrator) RunMigration() (err error) {
 		err = m.txBegin(tx, m.Migrations[y].UpSQL)
 
 		if err != nil {
-			fmt.Println(err)
 			return tx.Rollback()
 		}
 
 		_, err = tx.Exec("update version set version=$1", m.Migrations[y].Sequence)
 		if err != nil {
-			fmt.Println(err)
 			return tx.Rollback()
 		}
 	}
@@ -97,7 +99,6 @@ func (m *Migrator) RunMigration() (err error) {
 	err = tx.Commit()
 
 	if err != nil {
-		fmt.Println(err)
 		return tx.Rollback()
 	}
 
@@ -109,7 +110,6 @@ func (m *Migrator) txBegin(tx *sql.Tx, input []byte) error {
 	_, err := tx.Exec(fmt.Sprintf("%s", input))
 
 	if err != nil {
-		fmt.Println(err)
 		return tx.Rollback()
 	}
 
@@ -118,7 +118,7 @@ func (m *Migrator) txBegin(tx *sql.Tx, input []byte) error {
 
 func (m *Migrator) GetCurrentVersion() (v int, err error) {
 	err = m.Conn.SQL.QueryRow("select version from version").Scan(&v)
-	return v, err
+	return
 }
 
 func (m *Migrator) checkVersionTableExists() error {

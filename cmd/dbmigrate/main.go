@@ -58,8 +58,13 @@ func main() {
 
 	temp := mg.Migrator{}
 
-	_ = temp.LoadMigrations()
+	err := temp.LoadMigrations()
 
+
+	if err != nil {
+		fmt.Println("Failed to load migrations")
+		os.Exit(0)
+	}
 
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
