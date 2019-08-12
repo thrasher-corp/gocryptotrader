@@ -22,6 +22,7 @@ var (
 
 type databaseManager struct {
 	running  atomic.Value
+	connected atomic.Value
 	shutdown chan struct{}
 }
 
@@ -59,6 +60,7 @@ func (a *databaseManager) Start() (err error) {
 
 			audit.Audit = auditSQLite.Audit()
 		}
+		dbConn.Connected = true
 
 		mLogger := mg.MLogger{}
 		migrations := mg.Migrator{
@@ -68,13 +70,11 @@ func (a *databaseManager) Start() (err error) {
 		migrations.Conn = dbConn
 
 		err := migrations.LoadMigrations()
-
 		if err != nil {
 			return err
 		}
 
 		err = migrations.RunMigration()
-
 		if err != nil {
 			return err
 		}
@@ -127,8 +127,18 @@ func (a *databaseManager) run() {
 }
 
 func (a *databaseManager) checkConnection() {
+	dbConn.Mu.Lock()
 	err := dbConn.SQL.Ping()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "database connection error: %v", err)
+		dbConn.Connected = false
+		return
 	}
+
+	if !dbConn.Connected {
+		log.Info(log.DatabaseMgr, "database connection reestablished")
+		dbConn.Connected = true
+	}
+
+	dbConn.Mu.Lock()
 }
