@@ -7,13 +7,13 @@ import (
 type MLogger struct{}
 
 func (t MLogger) Printf(format string, v ...interface{}) {
-	log.Infof(log.DatabaseMgr, format, v)
+	log.Infof(log.DatabaseMgr, format, v...)
 }
 
 func (t MLogger) Println(v ...interface{}) {
-	log.Infoln(log.DatabaseMgr, v)
+	log.Infoln(log.DatabaseMgr, v...)
 }
 
 func (t MLogger) Errorf(format string, v ...interface{}) {
-	log.Errorf(log.DatabaseMgr, format, v)
+	log.Errorf(log.DatabaseMgr, format, v...)
 }

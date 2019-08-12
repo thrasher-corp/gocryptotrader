@@ -51,17 +51,16 @@ func openDbConnection(driver string) (err error) {
 type tmpLogger struct{}
 
 func (t tmpLogger) Printf(format string, v ...interface{}) {
-	fmt.Printf(format, v)
+	fmt.Printf(format, v...)
 }
 
 func (t tmpLogger) Println(v ...interface{}) {
-	fmt.Println(v)
+	fmt.Println(v...)
 }
 
 func (t tmpLogger) Errorf(format string, v ...interface{}) {
-	fmt.Printf(format, v)
+	fmt.Printf(format, v...)
 }
-
 
 func main() {
 	fmt.Println("Gocrytotrader database migration tool")
@@ -74,7 +73,6 @@ func main() {
 		Log: tempLogger,
 	}
 
-
 	err := temp.LoadMigrations()
 
 	if err != nil {
@@ -84,7 +82,7 @@ func main() {
 
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
-			temp.Log.Println(err)
+		temp.Log.Println(err)
 		os.Exit(1)
 	}
 

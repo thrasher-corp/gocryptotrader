@@ -45,7 +45,7 @@ func (m *Migrator) loadMigration(migration string) error {
 	b, err := ioutil.ReadAll(file)
 
 	up := bytes.Split(b, []byte("-- up"))
-	down := strings.Split(string(up[1]),"-- down")
+	down := strings.Split(string(up[1]), "-- down")
 
 	temp := Migration{
 		Sequence: seq,
@@ -70,7 +70,6 @@ func (m *Migrator) RunMigration() (err error) {
 	m.Log.Printf("Current database version: %v\n", v)
 
 	latestSeq := m.Migrations[len(m.Migrations)-1].Sequence
-
 
 	if v == latestSeq {
 		m.Log.Println("no migrations to be run")
@@ -100,7 +99,7 @@ func (m *Migrator) RunMigration() (err error) {
 	}
 
 	m.Log.Println("Migration completed")
-	return
+	return nil
 }
 
 func (m *Migrator) txBegin(tx *sql.Tx, input string) error {
@@ -133,7 +132,6 @@ func (m *Migrator) checkVersionTableExists() error {
 
 	return nil
 }
-
 
 func (m *Migrator) checkConvert(input string) string {
 

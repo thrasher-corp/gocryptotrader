@@ -19,7 +19,6 @@ func TestAudit(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config database.Config
-		setup  func() error
 		audit  audit.Repository
 		runner func(t *testing.T)
 		output interface{}
@@ -30,7 +29,6 @@ func TestAudit(t *testing.T) {
 				Driver:            "sqlite",
 				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
 			},
-			dbsqlite.Setup,
 			auditSQlite.Audit(),
 			writeAudit,
 			nil,
@@ -38,7 +36,6 @@ func TestAudit(t *testing.T) {
 		{
 			"Postgres",
 			postgresTestDatabase,
-			dbpsql.Setup,
 			auditPSQL.Audit(),
 			writeAudit,
 			nil,

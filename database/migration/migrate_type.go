@@ -14,10 +14,10 @@ type Migration struct {
 type Migrator struct {
 	Conn       *database.Database
 	Migrations []Migration
-	Log Logger
+	Log        Logger
 }
 
-type Logger interface{
+type Logger interface {
 	Printf(format string, v ...interface{})
 	Println(v ...interface{})
 	Errorf(format string, v ...interface{})
