@@ -8,3 +8,4 @@ CREATE TABLE IF NOT EXISTS audit_event
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 -- down
+DROP TABLE audit_event;

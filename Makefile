@@ -40,3 +40,6 @@ profile_heap:
 .PHONY: profile_cpu
 profile_cpu:
 	go tool pprof -http "localhost:$(GCTPROFILERLISTENPORT)" 'http://localhost:$(GCTLISTENPORT)/debug/pprof/profile'
+
+db_migrate:
+	go run ./cmd/dbmigrate

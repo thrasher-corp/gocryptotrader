@@ -12,12 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
+	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
 	auditSQLite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
-
-
-	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
 )
 
 var (
@@ -50,25 +48,43 @@ func openDbConnection(driver string) (err error) {
 	return nil
 }
 
+type tmpLogger struct{}
+
+func (t tmpLogger) Printf(format string, v ...interface{}) {
+	fmt.Printf(format, v)
+}
+
+func (t tmpLogger) Println(v ...interface{}) {
+	fmt.Println(v)
+}
+
+func (t tmpLogger) Errorf(format string, v ...interface{}) {
+	fmt.Printf(format, v)
+}
+
+
 func main() {
 	fmt.Println("Gocrytotrader database migration tool")
 	fmt.Println("© 2019 Thrasher Corporation")
 	fmt.Println()
 
+	tempLogger := tmpLogger{}
 
-	temp := mg.Migrator{}
+	temp := mg.Migrator{
+		Log: tempLogger,
+	}
+
 
 	err := temp.LoadMigrations()
 
-
 	if err != nil {
-		fmt.Println("Failed to load migrations")
+		temp.Log.Println("Failed to load migrations")
 		os.Exit(0)
 	}
 
 	defaultPath, err := config.GetFilePath("")
 	if err != nil {
-		fmt.Println(err)
+			temp.Log.Println(err)
 		os.Exit(1)
 	}
 
@@ -81,30 +97,31 @@ func main() {
 	err = conf.LoadConfig(configFile)
 
 	if err != nil {
-		fmt.Println(err)
+		temp.Log.Println(err)
 		os.Exit(0)
 	}
 
 	err = openDbConnection(conf.Database.Driver)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(0)
+		temp.Log.Println(err)
+		os.Exit(1)
 	}
 
-	fmt.Printf("Connected to: %s\n", conf.Database.Host)
+	temp.Log.Printf("Connected to: %s\n", conf.Database.Host)
 
 	temp.Conn = dbConn
 
 	err = temp.RunMigration()
 
 	if err != nil {
-		fmt.Println(err)
+		temp.Log.Println(err)
+		os.Exit(1)
 	}
 
 	if dbConn.SQL != nil {
 		err = dbConn.SQL.Close()
 		if err != nil {
-			fmt.Println(err)
+			temp.Log.Println(err)
 		}
 	}
 
