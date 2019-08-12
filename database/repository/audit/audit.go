@@ -13,7 +13,7 @@ type Repository interface {
 }
 
 var (
-	Audit Repository // Global Audit repository
+	Audit  Repository // Global Audit repository
 	events []*models.AuditEvent
 )
 
@@ -40,7 +40,7 @@ func poolEvents(event *models.AuditEvent) {
 	events = append(events, event)
 
 	if !database.Conn.Connected {
-		log.Warnln(log.DatabaseMgr, "connection to database interrupted pooling database write", )
+		log.Warnln(log.DatabaseMgr, "connection to database interrupted pooling database writes")
 		return
 	}
 

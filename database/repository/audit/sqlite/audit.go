@@ -41,7 +41,7 @@ func (pg *auditRepo) AddEvent(event *models.AuditEvent) {
 
 // AddEventTx writes multiple event to database
 // writes are done using a transaction with a rollback on error
-func (pg  *auditRepo) AddEventTx(event []*models.AuditEvent) {
+func (pg *auditRepo) AddEventTx(event []*models.AuditEvent) {
 	if pg == nil {
 		return
 	}

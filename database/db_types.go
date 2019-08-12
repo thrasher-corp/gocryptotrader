@@ -16,7 +16,7 @@ type Database struct {
 	SQL      *sqlx.DB
 
 	Connected bool
-	Mu sync.RWMutex
+	Mu        sync.RWMutex
 }
 
 // Config holds connection information about the database what the driver type is and if its enabled or not
@@ -32,4 +32,3 @@ var Conn = &Database{}
 var (
 	ErrNoDatabaseProvided = errors.New("no database provided")
 )
-
