@@ -8,8 +8,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
-	dbsqlite "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
 	auditSQlite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
@@ -52,13 +50,6 @@ func TestAudit(t *testing.T) {
 			}
 
 			dbConn, err := connectToDatabase(t, &test.config)
-
-			if test.setup != nil {
-				err = test.setup()
-				if err != nil {
-					t.Fatal(err)
-				}
-			}
 
 			if test.audit != nil {
 				audit.Audit = test.audit
