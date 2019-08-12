@@ -380,12 +380,14 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	snapShot1.Bids = []orderbook.Item{}
 	snapShot1.AssetType = spot
 	snapShot1.Pair = curr
+	snapShot1.ExchangeName = "test"
+	obl.exchangeName = "test"
 	err := obl.LoadSnapshot(&snapShot1,
 		false)
 	if err == nil {
 		t.Fatal("expected an error loading a snapshot")
 	}
-	if err.Error() != "snapshot ask and bids are nil" {
+	if err.Error() != "test snapshot ask and bids are nil" {
 		t.Fatal(err)
 	}
 }
