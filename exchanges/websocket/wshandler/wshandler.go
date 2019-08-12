@@ -204,7 +204,6 @@ func (w *Websocket) Shutdown() error {
 	if !w.connected && w.ShutdownC == nil {
 		return fmt.Errorf("%v cannot shutdown a disconnected websocket", w.exchangeName)
 	}
-
 	if w.verbose {
 		log.Debugf("%v shutting down websocket channels", w.exchangeName)
 	}
@@ -231,11 +230,11 @@ func (w *Websocket) Shutdown() error {
 }
 
 // WebsocketReset sends the shutdown command, waits for channel/func closure and then reconnects
-func (w *Websocket) WebsocketReset() error {
+func (w *Websocket) WebsocketReset() {
 	err := w.Shutdown()
 	if err != nil {
 		// does not return here to allow connection to be made if already shut down
-		log.Errorf("%v shutdown error: %v", w.exchangeName, err)
+		w.DataHandler <- fmt.Errorf("%v shutdown error: %v", w.exchangeName, err)
 	}
 	log.Infof("%v reconnecting to websocket", w.exchangeName)
 	w.m.Lock()
@@ -243,9 +242,8 @@ func (w *Websocket) WebsocketReset() error {
 	w.m.Unlock()
 	err = w.Connect()
 	if err != nil {
-		log.Errorf("%v connection error: %v", w.exchangeName, err)
+		w.DataHandler <- fmt.Errorf("%v connection error: %v", w.exchangeName, err)
 	}
-	return err
 }
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
@@ -516,9 +514,10 @@ func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscrib
 }
 
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
-func (w *Websocket) manageSubscriptions() error {
+func (w *Websocket) manageSubscriptions() {
 	if !w.SupportsFunctionality(WebsocketSubscribeSupported) && !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
-		return fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+		w.DataHandler <- fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+		return
 	}
 	w.Wg.Add(1)
 	defer func() {
@@ -534,7 +533,7 @@ func (w *Websocket) manageSubscriptions() error {
 			if w.verbose {
 				log.Debugf("%v shutdown manageSubscriptions", w.exchangeName)
 			}
-			return nil
+			return
 		default:
 			time.Sleep(manageSubscriptionsDelay)
 			if w.verbose {

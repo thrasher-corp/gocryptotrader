@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 var ws *Websocket
@@ -225,17 +224,6 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 	w.unsubscribeToChannels()
 	if len(w.subscribedChannels) != 1 {
 		t.Errorf("Unsubscription should not have occured")
-	}
-}
-
-// TestManageSubscriptionsWithoutFunctionality logic test
-func TestManageSubscriptionsWithoutFunctionality(t *testing.T) {
-	w := Websocket{
-		ShutdownC: make(chan struct{}, 1),
-	}
-	err := w.manageSubscriptions()
-	if err == nil {
-		t.Error("Requires functionality to work")
 	}
 }
 
