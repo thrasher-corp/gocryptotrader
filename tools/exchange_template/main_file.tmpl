@@ -47,7 +47,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	{{.Variable}}.APIUrlDefault = {{.Name}}APIURL
 	{{.Variable}}.APIUrl = {{.Variable}}.APIUrlDefault
-	{{.Variable}}.Websocket = wshandler.New()
+	{{.Variable}}.Websocket = monitor.New()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }

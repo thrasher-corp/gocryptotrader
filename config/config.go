@@ -37,6 +37,7 @@ const (
 	configDefaultHTTPTimeout                   = time.Second * 15
 	configDefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
 	configDefaultWebsocketResponseMaxLimit     = time.Second * 7
+	configDefaultWebsocketOrderbookBufferLimit = 5
 	configMaxAuthFailres                       = 3
 	defaultNTPAllowedDifference                = 50000000
 	defaultNTPAllowedNegativeDifference        = 50000000
@@ -161,6 +162,7 @@ type ExchangeConfig struct {
 	HTTPTimeout                      time.Duration             `json:"httpTimeout"`
 	WebsocketResponseCheckTimeout    time.Duration             `json:"websocketResponseCheckTimeout"`
 	WebsocketResponseMaxLimit        time.Duration             `json:"websocketResponseMaxLimit"`
+	WebsocketOrderbookBufferLimit    int                       `json:"websocketOrderbookBufferLimit"`
 	HTTPUserAgent                    string                    `json:"httpUserAgent"`
 	HTTPDebugging                    bool                      `json:"httpDebugging"`
 	AuthenticatedAPISupport          bool                      `json:"authenticatedApiSupport"`
@@ -837,7 +839,10 @@ func (c *Config) CheckExchangeConfigValues() error {
 				log.Warnf("Exchange %s Websocket response max limit value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultWebsocketResponseMaxLimit)
 				c.Exchanges[i].WebsocketResponseMaxLimit = configDefaultWebsocketResponseMaxLimit
 			}
-
+			if c.Exchanges[i].WebsocketOrderbookBufferLimit <= 0 {
+				log.Warnf("Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultWebsocketOrderbookBufferLimit)
+				c.Exchanges[i].WebsocketOrderbookBufferLimit = configDefaultWebsocketOrderbookBufferLimit
+			}
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
 				log.Errorf("Exchange %s: CheckPairConsistency error: %s", c.Exchanges[i].Name, err)

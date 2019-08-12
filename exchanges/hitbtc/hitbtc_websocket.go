@@ -13,7 +13,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -114,7 +115,7 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 		}
 		h.Websocket.DataHandler <- wshandler.TickerData{
 			Exchange:  h.GetName(),
-			AssetType: "SPOT",
+			AssetType: orderbook.Spot,
 			Pair:      currency.NewPairFromString(ticker.Params.Symbol),
 			Quantity:  ticker.Params.Volume,
 			Timestamp: ts,
@@ -225,13 +226,13 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	}
 
 	var bids []orderbook.Item
-	for _, bid := range ob.Params.Bid {
-		bids = append(bids, orderbook.Item{Amount: bid.Size, Price: bid.Price})
+	for i := range ob.Params.Bid {
+		bids = append(bids, orderbook.Item{Amount: ob.Params.Bid[i].Size, Price: ob.Params.Bid[i].Price})
 	}
 
 	var asks []orderbook.Item
-	for _, ask := range ob.Params.Ask {
-		asks = append(asks, orderbook.Item{Amount: ask.Size, Price: ask.Price})
+	for i := range ob.Params.Ask {
+		asks = append(asks, orderbook.Item{Amount: ob.Params.Ask[i].Size, Price: ob.Params.Ask[i].Price})
 	}
 
 	p := currency.NewPairFromString(ob.Params.Symbol)
@@ -239,17 +240,17 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.AssetType = "SPOT"
+	newOrderBook.AssetType = orderbook.Spot
 	newOrderBook.Pair = p
 
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, h.GetName(), false)
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
 	if err != nil {
 		return err
 	}
 
 	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
-		Asset:    "SPOT",
+		Asset:    orderbook.Spot,
 		Pair:     p,
 	}
 
@@ -257,30 +258,35 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 }
 
 // WsProcessOrderbookUpdate updates a local cache
-func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
-	if len(ob.Params.Bid) == 0 && len(ob.Params.Ask) == 0 {
+func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
+	if len(update.Params.Bid) == 0 && len(update.Params.Ask) == 0 {
 		return errors.New("hitbtc_websocket.go error - no data")
 	}
 
 	var bids, asks []orderbook.Item
-	for _, bid := range ob.Params.Bid {
-		bids = append(bids, orderbook.Item{Price: bid.Price, Amount: bid.Size})
+	for i := range update.Params.Bid {
+		bids = append(bids, orderbook.Item{Price: update.Params.Bid[i].Price, Amount: update.Params.Bid[i].Size})
 	}
 
-	for _, ask := range ob.Params.Ask {
-		asks = append(asks, orderbook.Item{Price: ask.Price, Amount: ask.Size})
+	for i := range update.Params.Ask {
+		asks = append(asks, orderbook.Item{Price: update.Params.Ask[i].Price, Amount: update.Params.Ask[i].Size})
 	}
 
-	p := currency.NewPairFromString(ob.Params.Symbol)
-
-	err := h.Websocket.Orderbook.Update(bids, asks, p, time.Now(), h.GetName(), "SPOT")
+	p := currency.NewPairFromString(update.Params.Symbol)
+	err := h.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		Asks:         asks,
+		Bids:         bids,
+		CurrencyPair: p,
+		UpdateID:     update.Params.Sequence,
+		AssetType:    orderbook.Spot,
+	})
 	if err != nil {
 		return err
 	}
 
 	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
-		Asset:    "SPOT",
+		Asset:    orderbook.Spot,
 		Pair:     p,
 	}
 	return nil

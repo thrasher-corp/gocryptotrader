@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -182,7 +183,11 @@ func (b *Bitfinex) WsDataHandler() {
 
 			if stream.Type == websocket.TextMessage {
 				var result interface{}
-				common.JSONDecode(stream.Raw, &result)
+				err = common.JSONDecode(stream.Raw, &result)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					return
+				}
 				switch reflect.TypeOf(result).String() {
 				case "map[string]interface {}":
 					eventData := result.(map[string]interface{})
@@ -229,45 +234,40 @@ func (b *Bitfinex) WsDataHandler() {
 					switch chanInfo.Channel {
 					case "book":
 						var newOrderbook []WebsocketBook
+						curr := currency.NewPairFromString(chanInfo.Pair)
 						switch len(chanData) {
 						case 2:
 							data := chanData[1].([]interface{})
-							for _, x := range data {
-								y := x.([]interface{})
+							for i := range data {
+								y := data[i].([]interface{})
 								newOrderbook = append(newOrderbook, WebsocketBook{
 									Price:  y[0].(float64),
 									Count:  int(y[1].(float64)),
 									Amount: y[2].(float64)})
 							}
 
-						case 4:
-							newOrderbook = append(newOrderbook, WebsocketBook{
-								Price:  chanData[1].(float64),
-								Count:  int(chanData[2].(float64)),
-								Amount: chanData[3].(float64)})
-						}
-
-						if len(newOrderbook) > 1 {
-							err := b.WsInsertSnapshot(currency.NewPairFromString(chanInfo.Pair),
-								"SPOT",
+							err := b.WsInsertSnapshot(curr,
+								orderbook.Spot,
 								newOrderbook)
 
 							if err != nil {
 								b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go inserting snapshot error: %s",
 									err)
 							}
-							continue
+						case 4:
+							newOrderbook = append(newOrderbook, WebsocketBook{
+								Price:  chanData[1].(float64),
+								Count:  int(chanData[2].(float64)),
+								Amount: chanData[3].(float64)})
+							err := b.WsUpdateOrderbook(curr,
+								orderbook.Spot,
+								newOrderbook)
+
+							if err != nil {
+								b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go updating orderbook error: %s",
+									err)
+							}
 						}
-
-						err := b.WsUpdateOrderbook(currency.NewPairFromString(chanInfo.Pair),
-							"SPOT",
-							newOrderbook[0])
-
-						if err != nil {
-							b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go updating orderbook error: %s",
-								err)
-						}
-
 					case "ticker":
 						b.Websocket.DataHandler <- wshandler.TickerData{
 							Quantity:   chanData[8].(float64),
@@ -276,7 +276,7 @@ func (b *Bitfinex) WsDataHandler() {
 							LowPrice:   chanData[10].(float64),
 							Pair:       currency.NewPairFromString(chanInfo.Pair),
 							Exchange:   b.GetName(),
-							AssetType:  "SPOT",
+							AssetType:  orderbook.Spot,
 						}
 
 					case "account":
@@ -284,8 +284,8 @@ func (b *Bitfinex) WsDataHandler() {
 						case bitfinexWebsocketPositionSnapshot:
 							var positionSnapshot []WebsocketPosition
 							data := chanData[2].([]interface{})
-							for _, x := range data {
-								y := x.([]interface{})
+							for i := range data {
+								y := data[i].([]interface{})
 								positionSnapshot = append(positionSnapshot,
 									WebsocketPosition{
 										Pair:              y[0].(string),
@@ -317,8 +317,8 @@ func (b *Bitfinex) WsDataHandler() {
 						case bitfinexWebsocketWalletSnapshot:
 							data := chanData[2].([]interface{})
 							var walletSnapshot []WebsocketWallet
-							for _, x := range data {
-								y := x.([]interface{})
+							for i := range data {
+								y := data[i].([]interface{})
 								walletSnapshot = append(walletSnapshot,
 									WebsocketWallet{
 										Name:              y[0].(string),
@@ -342,8 +342,8 @@ func (b *Bitfinex) WsDataHandler() {
 						case bitfinexWebsocketOrderSnapshot:
 							var orderSnapshot []WebsocketOrder
 							data := chanData[2].([]interface{})
-							for _, x := range data {
-								y := x.([]interface{})
+							for i := range data {
+								y := data[i].([]interface{})
 								orderSnapshot = append(orderSnapshot,
 									WebsocketOrder{
 										OrderID:    int64(y[0].(float64)),
@@ -406,8 +406,8 @@ func (b *Bitfinex) WsDataHandler() {
 						switch len(chanData) {
 						case 2:
 							data := chanData[1].([]interface{})
-							for _, x := range data {
-								y := x.([]interface{})
+							for i := range data {
+								y := data[i].([]interface{})
 								if _, ok := y[0].(string); ok {
 									continue
 								}
@@ -445,7 +445,7 @@ func (b *Bitfinex) WsDataHandler() {
 								Price:        trades[0].Price,
 								Amount:       newAmount,
 								Exchange:     b.GetName(),
-								AssetType:    "SPOT",
+								AssetType:    orderbook.Spot,
 								Side:         side,
 							}
 						}
@@ -462,31 +462,26 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 	if len(books) == 0 {
 		return errors.New("bitfinex.go error - no orderbooks submitted")
 	}
-
 	var bid, ask []orderbook.Item
-	for _, book := range books {
-		if book.Amount >= 0 {
-			bid = append(bid, orderbook.Item{Amount: book.Amount, Price: book.Price})
+	for i := range books {
+		if books[i].Amount >= 0 {
+			bid = append(bid, orderbook.Item{Amount: books[i].Amount, Price: books[i].Price})
 		} else {
-			ask = append(ask, orderbook.Item{Amount: book.Amount * -1, Price: book.Price})
+			ask = append(ask, orderbook.Item{Amount: books[i].Amount * -1, Price: books[i].Price})
 		}
 	}
-
 	if len(bid) == 0 && len(ask) == 0 {
 		return errors.New("bitfinex.go error - no orderbooks in item lists")
 	}
-
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = ask
 	newOrderBook.AssetType = assetType
 	newOrderBook.Bids = bid
 	newOrderBook.Pair = p
-
-	err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+	err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
 	if err != nil {
 		return fmt.Errorf("bitfinex.go error - %s", err)
 	}
-
 	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
 		Asset:    assetType,
 		Exchange: b.GetName()}
@@ -495,80 +490,36 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book WebsocketBook) error {
+func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book []WebsocketBook) error {
+	orderbookUpdate := wsorderbook.WebsocketOrderbookUpdate{
+		Asks:         []orderbook.Item{},
+		Bids:         []orderbook.Item{},
+		AssetType:    assetType,
+		CurrencyPair: p,
+	}
 
-	if book.Count > 0 {
-		if book.Amount > 0 {
-			// Update/add bid
-			newBidPrice := orderbook.Item{Price: book.Price, Amount: book.Amount}
-			err := b.Websocket.Orderbook.Update([]orderbook.Item{newBidPrice},
-				nil,
-				p,
-				time.Now(),
-				b.GetName(),
-				assetType)
-
-			if err != nil {
-				return err
+	for i := 0; i < len(book); i++ {
+		switch {
+		case book[i].Count > 0:
+			if book[i].Amount > 0 {
+				// update bid
+				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{Amount: book[i].Amount, Price: book[i].Price})
+			} else if book[i].Amount < 0 {
+				// update ask
+				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: book[i].Amount * -1, Price: book[i].Price})
 			}
-
-			b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
-				Asset:    assetType,
-				Exchange: b.GetName()}
-
-			return nil
+		case book[i].Count == 0:
+			if book[i].Amount == 1 {
+				// delete bid
+				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{Amount: 0, Price: book[i].Price})
+			} else if book[i].Amount == -1 {
+				// delete ask
+				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: 0, Price: book[i].Price})
+			}
 		}
-
-		// Update/add ask
-		newAskPrice := orderbook.Item{Price: book.Price, Amount: book.Amount * -1}
-		err := b.Websocket.Orderbook.Update(nil,
-			[]orderbook.Item{newAskPrice},
-			p,
-			time.Now(),
-			b.GetName(),
-			assetType)
-
-		if err != nil {
-			return err
-		}
-
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
-			Asset:    assetType,
-			Exchange: b.GetName()}
-
-		return nil
 	}
-
-	if book.Amount == 1 {
-		// Remove bid
-		bidPriceRemove := orderbook.Item{Price: book.Price, Amount: 0}
-		err := b.Websocket.Orderbook.Update([]orderbook.Item{bidPriceRemove},
-			nil,
-			p,
-			time.Now(),
-			b.GetName(),
-			assetType)
-
-		if err != nil {
-			return err
-		}
-
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
-			Asset:    assetType,
-			Exchange: b.GetName()}
-
-		return nil
-	}
-
-	// Remove from ask
-	askPriceRemove := orderbook.Item{Price: book.Price, Amount: 0}
-	err := b.Websocket.Orderbook.Update(nil,
-		[]orderbook.Item{askPriceRemove},
-		p,
-		time.Now(),
-		b.GetName(),
-		assetType)
-
+	orderbookUpdate.UpdateTime = time.Now()
+	err := b.Websocket.Orderbook.Update(&orderbookUpdate)
 	if err != nil {
 		return err
 	}

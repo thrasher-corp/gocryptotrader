@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -156,22 +156,21 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 	return b.WebsocketConn.SendMessage(req)
 }
 
-func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {
-	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
+func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair, assetType string) error {
+	if len(update.Asks) == 0 && len(update.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
 	}
 
 	var asks, bids []orderbook.Item
-
-	if len(ob.Asks) > 0 {
-		for _, ask := range ob.Asks {
-			target, err := strconv.ParseFloat(ask[0], 64)
+	if len(update.Asks) > 0 {
+		for i := range update.Asks {
+			target, err := strconv.ParseFloat(update.Asks[i][0], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
 			}
 
-			amount, err := strconv.ParseFloat(ask[1], 64)
+			amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -181,15 +180,15 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 		}
 	}
 
-	if len(ob.Bids) > 0 {
-		for _, bid := range ob.Bids {
-			target, err := strconv.ParseFloat(bid[0], 64)
+	if len(update.Bids) > 0 {
+		for i := range update.Bids {
+			target, err := strconv.ParseFloat(update.Bids[i][0], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
 			}
 
-			amount, err := strconv.ParseFloat(bid[1], 64)
+			amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -198,8 +197,13 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 			bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 		}
 	}
-
-	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), assetType)
+	err := b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: p,
+		UpdateID:     update.Timestamp,
+		AssetType:    orderbook.Spot,
+	})
 	if err != nil {
 		return err
 	}
@@ -224,17 +228,17 @@ func (b *Bitstamp) seedOrderBook() error {
 		var newOrderBook orderbook.Base
 		var asks, bids []orderbook.Item
 
-		for _, ask := range orderbookSeed.Asks {
+		for i := range orderbookSeed.Asks {
 			var item orderbook.Item
-			item.Amount = ask.Amount
-			item.Price = ask.Price
+			item.Amount = orderbookSeed.Asks[i].Amount
+			item.Price = orderbookSeed.Asks[i].Price
 			asks = append(asks, item)
 		}
 
-		for _, bid := range orderbookSeed.Bids {
+		for i := range orderbookSeed.Bids {
 			var item orderbook.Item
-			item.Amount = bid.Amount
-			item.Price = bid.Price
+			item.Amount = orderbookSeed.Bids[i].Amount
+			item.Price = orderbookSeed.Bids[i].Price
 			bids = append(bids, item)
 		}
 
@@ -243,7 +247,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = ticker.Spot
 
-		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
 		if err != nil {
 			return err
 		}

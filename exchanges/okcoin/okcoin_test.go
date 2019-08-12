@@ -13,8 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -849,7 +850,7 @@ func TestSendWsMessages(t *testing.T) {
 func TestGetAssetTypeFromTableName(t *testing.T) {
 	str := "spot/candle300s:BTC-USDT"
 	spot := o.GetAssetTypeFromTableName(str)
-	if spot != "SPOT" {
+	if spot != orderbook.Spot {
 		t.Errorf("Error, expected 'SPOT', received: '%v'", spot)
 	}
 }

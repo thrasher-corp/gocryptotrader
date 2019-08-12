@@ -14,7 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -41,6 +41,7 @@ const (
 // LakeBTC is the overarching type across the LakeBTC package
 type LakeBTC struct {
 	exchange.Base
+	WebsocketConn
 }
 
 // SetDefaults sets LakeBTC defaults
@@ -67,6 +68,10 @@ func (l *LakeBTC) SetDefaults() {
 	l.APIUrlDefault = lakeBTCAPIURL
 	l.APIUrl = l.APIUrlDefault
 	l.Websocket = wshandler.New()
+	l.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketSubscribeSupported
+	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets exchange configuration profile
@@ -105,6 +110,25 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = l.Websocket.Setup(l.WsConnect,
+			l.Subscribe,
+			nil,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			lakeBTCWSURL,
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
+		if err != nil {
+			log.Fatal(err)
+		}
+		l.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			false,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 

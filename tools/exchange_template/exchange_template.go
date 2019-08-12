@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 const (
@@ -120,7 +121,7 @@ func main() {
 	newExchConfig.RESTPollingDelay = 10
 	newExchConfig.APIKey = "Key"
 	newExchConfig.APISecret = "Secret"
-	newExchConfig.AssetTypes = "SPOT"
+	newExchConfig.AssetTypes = orderbook.Spot
 
 	configTestFile.Exchanges = append(configTestFile.Exchanges, newExchConfig)
 	// TODO sorting function so exchanges are in alphabetical order - low priority

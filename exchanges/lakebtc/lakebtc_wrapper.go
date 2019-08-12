@@ -13,7 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -268,8 +268,7 @@ func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (l *LakeBTC) GetWebsocket() (*wshandler.Websocket, error) {
-	// Documents are too vague to implement
-	return nil, common.ErrFunctionNotSupported
+	return l.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

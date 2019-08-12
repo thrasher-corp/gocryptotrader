@@ -12,7 +12,7 @@ const (
 	WebsocketResponseExtendedTimeout = (15 * time.Second)
 	// WebsocketChannelOverrideCapacity used in websocket testing
 	// Defines channel capacity as defaults size can block tests
-	WebsocketChannelOverrideCapacity = 10
+	WebsocketChannelOverrideCapacity = 20
 )
 
 // GetWebsocketInterfaceChannelOverride returns a new interface based channel

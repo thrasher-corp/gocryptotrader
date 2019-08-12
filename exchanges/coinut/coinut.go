@@ -12,9 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -86,6 +87,7 @@ func (c *COINUT) SetDefaults() {
 		wshandler.WebsocketMessageCorrelationSupported
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets the current exchange configuration
@@ -147,6 +149,13 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 			RateLimit:            coinutWebsocketRateLimit,
 		}
+		c.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			true,
+			false,
+			exch.Name)
 	}
 }
 
@@ -154,7 +163,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 func (c *COINUT) GetInstruments() (Instruments, error) {
 	var result Instruments
 	params := make(map[string]interface{})
-	params["sec_type"] = "SPOT"
+	params["sec_type"] = orderbook.Spot
 
 	return result, c.SendHTTPRequest(coinutInstruments, params, false, &result)
 }

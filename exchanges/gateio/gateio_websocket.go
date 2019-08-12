@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -135,7 +136,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- wshandler.TickerData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(c),
-					AssetType:  "SPOT",
+					AssetType:  orderbook.Spot,
 					Exchange:   g.GetName(),
 					ClosePrice: ticker.Close,
 					Quantity:   ticker.BaseVolume,
@@ -159,15 +160,15 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
-				for _, trade := range trades {
+				for i := range trades {
 					g.Websocket.DataHandler <- wshandler.TradeData{
 						Timestamp:    time.Now(),
 						CurrencyPair: currency.NewPairFromString(c),
-						AssetType:    "SPOT",
+						AssetType:    orderbook.Spot,
 						Exchange:     g.GetName(),
-						Price:        trade.Price,
-						Amount:       trade.Amount,
-						Side:         trade.Type,
+						Price:        trades[i].Price,
+						Amount:       trades[i].Amount,
+						Side:         trades[i].Type,
 					}
 				}
 
@@ -196,9 +197,9 @@ func (g *Gateio) WsHandleData() {
 				var asks, bids []orderbook.Item
 
 				askData, askOk := data["asks"]
-				for _, ask := range askData {
-					amount, _ := strconv.ParseFloat(ask[1], 64)
-					price, _ := strconv.ParseFloat(ask[0], 64)
+				for i := range askData {
+					amount, _ := strconv.ParseFloat(askData[i][1], 64)
+					price, _ := strconv.ParseFloat(askData[i][0], 64)
 					asks = append(asks, orderbook.Item{
 						Amount: amount,
 						Price:  price,
@@ -206,9 +207,9 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				bidData, bidOk := data["bids"]
-				for _, bid := range bidData {
-					amount, _ := strconv.ParseFloat(bid[1], 64)
-					price, _ := strconv.ParseFloat(bid[0], 64)
+				for i := range bidData {
+					amount, _ := strconv.ParseFloat(bidData[i][1], 64)
+					price, _ := strconv.ParseFloat(bidData[i][0], 64)
 					bids = append(bids, orderbook.Item{
 						Amount: amount,
 						Price:  price,
@@ -231,22 +232,23 @@ func (g *Gateio) WsHandleData() {
 					var newOrderBook orderbook.Base
 					newOrderBook.Asks = asks
 					newOrderBook.Bids = bids
-					newOrderBook.AssetType = "SPOT"
+					newOrderBook.AssetType = orderbook.Spot
 					newOrderBook.Pair = currency.NewPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-						g.GetName(),
 						false)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}
 				} else {
-					err = g.Websocket.Orderbook.Update(asks,
-						bids,
-						currency.NewPairFromString(c),
-						time.Now(),
-						g.GetName(),
-						"SPOT")
+					err = g.Websocket.Orderbook.Update(
+						&wsorderbook.WebsocketOrderbookUpdate{
+							Asks:         asks,
+							Bids:         bids,
+							CurrencyPair: currency.NewPairFromString(c),
+							UpdateTime:   time.Now(),
+							AssetType:    orderbook.Spot,
+						})
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}
@@ -254,7 +256,7 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     currency.NewPairFromString(c),
-					Asset:    "SPOT",
+					Asset:    orderbook.Spot,
 					Exchange: g.GetName(),
 				}
 
@@ -275,7 +277,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- wshandler.KlineData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(data[7].(string)),
-					AssetType:  "SPOT",
+					AssetType:  orderbook.Spot,
 					Exchange:   g.GetName(),
 					OpenPrice:  open,
 					ClosePrice: closePrice,
@@ -334,8 +336,8 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	params := []interface{}{channelToSubscribe.Currency.String()}
-	for _, paramValue := range channelToSubscribe.Params {
-		params = append(params, paramValue)
+	for i := range channelToSubscribe.Params {
+		params = append(params, channelToSubscribe.Params[i])
 	}
 
 	subscribe := WebsocketRequest{
