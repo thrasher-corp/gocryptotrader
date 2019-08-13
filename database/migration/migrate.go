@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,10 +17,17 @@ import (
 
 // LoadMigrations will load all migrations in the ./database/migration/migrations folder
 func (m *Migrator) LoadMigrations() error {
-	migration, err := filepath.Glob("./database/migration/migrations/*.sql")
-
+	err := m.checkMigrationDir()
+	if err != nil {
+		return err
+	}
+	migration, err := filepath.Glob(common.GetDefaultDataDir(runtime.GOOS) + "/database/migrations/*.sql")
 	if err != nil {
 		return errors.New("failed to load migrations")
+	}
+
+	if len(migration) == 0 {
+		return errors.New("no migration files found")
 	}
 
 	sort.Strings(migration)
@@ -35,25 +45,29 @@ func (m *Migrator) LoadMigrations() error {
 func (m *Migrator) loadMigration(migration string) error {
 	file, err := os.Open(migration)
 	if err != nil {
-		m.Log.Println(err)
+		return err
 	}
-	fileData := strings.Split(file.Name(), "/")
 
-	fileSeq := strings.Split(fileData[3], "_")
+	fileData := strings.Trim(file.Name(), common.GetDefaultDataDir(runtime.GOOS) + "/database/migrations")
+	//fileData = strings.Split(fileData, "/")
+	fileSeq := strings.Split(fileData, "_")
 	seq, _ := strconv.Atoi(fileSeq[0])
 
 	b, err := ioutil.ReadAll(file)
-
 	if err != nil {
 		return err
 	}
 
 	up := bytes.Split(b, []byte("-- up"))
+
+	if len(up) == 1 {
+		return fmt.Errorf("invalid migration file %v", file.Name())
+	}
+
 	down := strings.Split(string(up[1]), "-- down")
 
 	temp := Migration{
 		Sequence: seq,
-		Name:     fileData[3],
 		UpSQL:    down[0],
 		DownSQL:  down[1],
 	}
@@ -65,12 +79,10 @@ func (m *Migrator) loadMigration(migration string) error {
 
 // RunMigration attempts to run current migrations against a database
 func (m *Migrator) RunMigration() (err error) {
-	err = m.checkVersionTableExists()
+	v, err := m.getCurrentVersion()
 	if err != nil {
 		return
 	}
-
-	v, _ := m.getCurrentVersion()
 	m.Log.Printf("Current database version: %v\n", v)
 
 	latestSeq := m.Migrations[len(m.Migrations)-1].Sequence
@@ -103,19 +115,24 @@ func (m *Migrator) RunMigration() (err error) {
 	}
 
 	m.Log.Println("Migration completed")
+	m.Log.Printf("New database version: %v\n", latestSeq)
 	return nil
 }
 
 func (m *Migrator) txBegin(tx *sql.Tx, input string) error {
 	_, err := tx.Exec(input)
 	if err != nil {
+		m.Log.Errorf("%v", err)
 		return tx.Rollback()
 	}
-
 	return nil
 }
 
 func (m *Migrator) getCurrentVersion() (v int, err error) {
+	err = m.checkVersionTableExists()
+	if err != nil {
+		return
+	}
 	err = m.Conn.SQL.QueryRow("select version from version").Scan(&v)
 	return
 }
@@ -133,14 +150,12 @@ func (m *Migrator) checkVersionTableExists() error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (m *Migrator) checkConvert(input string) string {
-
 	if m.Conn.Config.Driver != "sqlite" {
-		return inputs
+		return input
 	}
 
 	// Common PSQL -> SQLITE conversion
@@ -152,4 +167,33 @@ func (m *Migrator) checkConvert(input string) string {
 		"now()", "CURRENT_TIMESTAMP")
 
 	return r.Replace(input)
+}
+
+func (m *Migrator)  checkMigrationDir() error {
+	dir := common.GetDefaultDataDir(runtime.GOOS) + "/database/migrations"
+
+	_, err := os.Stat(dir)
+	if !os.IsNotExist(err) {
+		return nil
+	}
+
+	m.Log.Printf("migration directory does not exist.. creating. %v", dir)
+	err = os.MkdirAll(dir, 0770)
+
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(dir + "/1565657999_create_audit_event_table.sql")
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(defaultAuditMigration)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

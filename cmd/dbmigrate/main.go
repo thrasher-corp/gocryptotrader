@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -19,10 +20,15 @@ import (
 )
 
 var (
-	dbConn         *database.Database
-	configFile     string
-	defaultDataDir string
+	dbConn          *database.Database
+	configFile      string
+	defaultDataDir  string
+	createMigration string
 )
+
+var defaultMigration = []byte(`-- up
+-- down
+`)
 
 func openDbConnection(driver string) (err error) {
 	if driver == "postgres" {
@@ -50,14 +56,20 @@ func openDbConnection(driver string) (err error) {
 
 type tmpLogger struct{}
 
+//Printf implantation of migration Logger interface
+// Passes directly to Printf from fmt package
 func (t tmpLogger) Printf(format string, v ...interface{}) {
 	fmt.Printf(format, v...)
 }
 
+//Println implantation of migration Logger interface
+// Passes directly to Println from fmt package
 func (t tmpLogger) Println(v ...interface{}) {
 	fmt.Println(v...)
 }
 
+//Errorf implantation of migration Logger interface
+// Passes directly to Printf from fmt package
 func (t tmpLogger) Errorf(format string, v ...interface{}) {
 	fmt.Printf(format, v...)
 }
@@ -67,33 +79,43 @@ func main() {
 	fmt.Println("© 2019 Thrasher Corporation")
 	fmt.Println()
 
+	defaultPath, err := config.GetFilePath("")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
+	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
+	flag.StringVar(&createMigration, "create", "", "create a new empty migration file")
+
+	flag.Parse()
+
+	if createMigration != "" {
+		err := newMigrationFile(createMigration)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("Migration created successfully")
+		os.Exit(0)
+	}
+
 	tempLogger := tmpLogger{}
 
 	temp := mg.Migrator{
 		Log: tempLogger,
 	}
 
-	err := temp.LoadMigrations()
-
+	err = temp.LoadMigrations()
 	if err != nil {
-		temp.Log.Println("Failed to load migrations")
+		temp.Log.Println(err)
 		os.Exit(0)
 	}
 
-	defaultPath, err := config.GetFilePath("")
-	if err != nil {
-		temp.Log.Println(err)
-		os.Exit(1)
-	}
-
-	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
-	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
-
-	flag.Parse()
-
 	conf := config.GetConfig()
-	err = conf.LoadConfig(configFile)
 
+	err = conf.LoadConfig(configFile)
 	if err != nil {
 		temp.Log.Println(err)
 		os.Exit(0)
@@ -122,5 +144,23 @@ func main() {
 			temp.Log.Println(err)
 		}
 	}
+}
 
+func newMigrationFile(filename string) error {
+	curTime := strconv.FormatInt(time.Now().Unix(), 10)
+	path := defaultDataDir + "/database/migrations/" + curTime + "_" + filename + ".sql"
+	fmt.Printf("Creating new empty migration: %v\n", path)
+	f, err := os.Create(path)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(defaultMigration)
+
+	if err != nil {
+		return err
+	}
+
+	return f.Close()
 }
