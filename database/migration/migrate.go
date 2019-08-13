@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // LoadMigrations will load all migrations in the ./database/migration/migrations folder

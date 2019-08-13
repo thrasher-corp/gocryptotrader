@@ -92,7 +92,7 @@ func main() {
 	flag.Parse()
 
 	if createMigration != "" {
-		err := newMigrationFile(createMigration)
+		err = newMigrationFile(createMigration)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
