@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"os"
 	"runtime"
 	"strconv"
@@ -75,8 +76,8 @@ func (t tmpLogger) Errorf(format string, v ...interface{}) {
 }
 
 func main() {
-	fmt.Println("Gocrytotrader database migration tool")
-	fmt.Println("© 2019 Thrasher Corporation")
+	fmt.Println("GoCryptoTrader database migration tool")
+	fmt.Println(core.Copyright)
 	fmt.Println()
 
 	defaultPath, err := config.GetFilePath("")

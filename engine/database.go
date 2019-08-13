@@ -126,18 +126,17 @@ func (a *databaseManager) run() {
 }
 
 func (a *databaseManager) checkConnection() {
-	dbConn.Mu.Lock()
 	err := dbConn.SQL.Ping()
 	if err != nil {
+		dbConn.Mu.Lock()
 		log.Errorf(log.DatabaseMgr, "database connection error: %v", err)
 		dbConn.Connected = false
 		return
 	}
 
 	if !dbConn.Connected {
+		dbConn.Mu.Lock()
 		log.Info(log.DatabaseMgr, "database connection reestablished")
 		dbConn.Connected = true
 	}
-
-	dbConn.Mu.Lock()
 }

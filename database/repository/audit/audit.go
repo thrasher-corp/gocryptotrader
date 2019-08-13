@@ -8,7 +8,6 @@ import (
 
 // Repository that is required for each driver type to implement
 type Repository interface {
-	AddEvent(event *models.AuditEvent)
 	AddEventTx(event []*models.AuditEvent)
 }
 
@@ -37,13 +36,14 @@ func Event(msgType, identifier, message string) {
 
 func poolEvents(event *models.AuditEvent) {
 	database.Conn.Mu.Lock()
-	events = append(events, event)
 
+	database.Conn.Mu.RLocker()
 	if !database.Conn.Connected {
+
 		log.Warnln(log.DatabaseMgr, "connection to database interrupted pooling database writes")
 		return
 	}
-
+	events = append(events, event)
 	Audit.AddEventTx(events)
 	events = nil
 	database.Conn.Mu.Unlock()
