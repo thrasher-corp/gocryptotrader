@@ -23,7 +23,6 @@ type Logger interface {
 	Errorf(format string, v ...interface{})
 }
 
-
 var defaultAuditMigration = []byte(`-- up
 CREATE TABLE IF NOT EXISTS audit_event
 (
@@ -36,4 +35,3 @@ CREATE TABLE IF NOT EXISTS audit_event
 -- down
 DROP TABLE audit_event;
 `)
-

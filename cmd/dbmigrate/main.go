@@ -56,19 +56,19 @@ func openDbConnection(driver string) (err error) {
 
 type tmpLogger struct{}
 
-//Printf implantation of migration Logger interface
+// Printf implantation of migration Logger interface
 // Passes directly to Printf from fmt package
 func (t tmpLogger) Printf(format string, v ...interface{}) {
 	fmt.Printf(format, v...)
 }
 
-//Println implantation of migration Logger interface
+// Println implantation of migration Logger interface
 // Passes directly to Println from fmt package
 func (t tmpLogger) Println(v ...interface{}) {
 	fmt.Println(v...)
 }
 
-//Errorf implantation of migration Logger interface
+// Errorf implantation of migration Logger interface
 // Passes directly to Printf from fmt package
 func (t tmpLogger) Errorf(format string, v ...interface{}) {
 	fmt.Printf(format, v...)

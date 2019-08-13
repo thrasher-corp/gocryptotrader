@@ -21,8 +21,8 @@ var (
 )
 
 type databaseManager struct {
-	running   atomic.Value
-	shutdown  chan struct{}
+	running  atomic.Value
+	shutdown chan struct{}
 }
 
 func (a *databaseManager) Started() bool {

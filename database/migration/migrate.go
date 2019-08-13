@@ -48,8 +48,7 @@ func (m *Migrator) loadMigration(migration string) error {
 		return err
 	}
 
-	fileData := strings.Trim(file.Name(), common.GetDefaultDataDir(runtime.GOOS) + "/database/migrations")
-	//fileData = strings.Split(fileData, "/")
+	fileData := strings.Trim(file.Name(), common.GetDefaultDataDir(runtime.GOOS)+"/database/migrations")
 	fileSeq := strings.Split(fileData, "_")
 	seq, _ := strconv.Atoi(fileSeq[0])
 
@@ -169,7 +168,7 @@ func (m *Migrator) checkConvert(input string) string {
 	return r.Replace(input)
 }
 
-func (m *Migrator)  checkMigrationDir() error {
+func (m *Migrator) checkMigrationDir() error {
 	dir := common.GetDefaultDataDir(runtime.GOOS) + "/database/migrations"
 
 	_, err := os.Stat(dir)

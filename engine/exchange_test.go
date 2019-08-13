@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -134,4 +133,3 @@ func TestUnloadExchange(t *testing.T) {
 
 	CleanupTest(t)
 }
-
