@@ -186,7 +186,7 @@ func TestQueryOrderHistory(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.QueryOrderHistory(cp.Lower().String(), "1", "50")
+	_, err := l.QueryOrderHistory(cp.Lower().String(), "1", "100")
 	if err != nil {
 		t.Errorf("test failed: %v", err)
 	}
@@ -351,9 +351,8 @@ func TestGetAllOpenOrderID(t *testing.T) {
 }
 
 func TestGetFeeByType(t *testing.T) {
-
 	TestSetup(t)
-	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.USDT.String(), "_")
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	var input exchange.FeeBuilder
 	input.Amount = 2
 	input.FeeType = exchange.CryptocurrencyWithdrawalFee
@@ -362,7 +361,25 @@ func TestGetFeeByType(t *testing.T) {
 	if err != nil {
 		t.Errorf("test failed. couldnt get fee: %v", err)
 	}
-	if a != 0.01 {
-		t.Errorf("testGetFeeByType failed. Expected: 0.0001, Received: %v", a)
+	if a != 0.0005 {
+		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	TestSetup(t)
+	_, err := l.GetAccountInfo()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	TestSetup(t)
+	var input exchange.GetOrdersRequest
+	input.OrderSide = exchange.BuyOrderSide
+	_, err := l.GetOrderHistory(&input)
+	if err != nil {
+		t.Error(err)
 	}
 }

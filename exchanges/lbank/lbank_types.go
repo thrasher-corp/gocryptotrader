@@ -49,10 +49,15 @@ type KlineResponse struct {
 
 // InfoResponse stores info
 type InfoResponse struct {
+	Freeze map[string]string `json:"freeze"`
+	Asset  map[string]string `json:"asset"`
+	Free   map[string]string `json:"Free"`
+}
+
+// InfoFinalResponse stores info
+type InfoFinalResponse struct {
 	ErrCapture `json:",omitempty"`
-	Freeze     map[string]float64 `json:"freeze,string"`
-	Asset      map[string]float64 `json:"asset,string"`
-	Free       map[string]float64 `json:"free,string"`
+	Info       InfoResponse `json:"info"`
 }
 
 // CreateOrderResponse stores the result of the Order and
@@ -71,10 +76,9 @@ type RemoveOrderResponse struct {
 
 // OrderResponse stores the data related to the given OrderIDs
 type OrderResponse struct {
-	ErrCapture `json:",omitempty"`
 	Symbol     string  `json:"symbol"`
 	Amount     float64 `json:"amount"`
-	CreateTime int64   `json:"create_time"`
+	CreateTime int64   `json:"created_time"`
 	Price      float64 `json:"price"`
 	AvgPrice   float64 `json:"avg_price"`
 	Type       string  `json:"type"`
@@ -86,7 +90,13 @@ type OrderResponse struct {
 // QueryOrderResponse stores the data from queries
 type QueryOrderResponse struct {
 	ErrCapture `json:",omitempty"`
-	Orders     []OrderResponse `json:"orders"`
+	Orders     json.RawMessage `json:"orders"`
+}
+
+// QueryOrderFinalResponse stores data from queries
+type QueryOrderFinalResponse struct {
+	ErrCapture
+	Orders []OrderResponse
 }
 
 // OrderHistory stores data for past orders
@@ -102,10 +112,17 @@ type OrderHistory struct {
 // OrderHistoryResponse stores past orders
 type OrderHistoryResponse struct {
 	ErrCapture  `json:",omitempty"`
-	Total       string          `json:"total"`
 	PageLength  uint8           `json:"page_length"`
-	Orders      []OrderResponse `json:"orders"`
+	Orders      json.RawMessage `json:"orders"`
 	CurrentPage uint8           `json:"current_page"`
+}
+
+// OrderHistoryFinalResponse stores past orders
+type OrderHistoryFinalResponse struct {
+	ErrCapture
+	PageLength  uint8
+	Orders      []OrderResponse
+	CurrentPage uint8
 }
 
 // PairInfoResponse stores information about trading pairs
@@ -142,6 +159,15 @@ type OpenOrderResponse struct {
 	PageNumber uint8           `json:"page_number"`
 	Total      string          `json:"total"`
 	Orders     json.RawMessage `json:"orders"`
+}
+
+// OpenOrderFinalResponse stores the unmarshalled value of OpenOrderResponse
+type OpenOrderFinalResponse struct {
+	ErrCapture
+	PageLength uint8
+	PageNumber uint8
+	Total      string
+	Orders     []OrderResponse
 }
 
 // ExchangeRateResponse stores information about USD-RMB rate

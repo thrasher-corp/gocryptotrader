@@ -1,8 +1,6 @@
 package lbank
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -120,23 +118,31 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
 func (l *Lbank) GetAccountInfo() (exchange.AccountInfo, error) {
+
 	var info exchange.AccountInfo
 	data, err := l.GetUserInfo()
 	if err != nil {
 		return info, err
 	}
-
 	var account exchange.Account
-	for key, val := range data.Asset {
+	for key, val := range data.Info.Asset {
 		c := currency.NewCode(key)
-		hold, ok := data.Freeze[key]
+		hold, ok := data.Info.Freeze[key]
 		if !ok {
 			return info, fmt.Errorf("hold data not found with %s", key)
 		}
+		totalVal, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return info, err
+		}
+		totalHold, err := strconv.ParseFloat(hold, 64)
+		if err != nil {
+			return info, err
+		}
 		account.Currencies = append(account.Currencies,
 			exchange.AccountCurrencyInfo{CurrencyName: c,
-				TotalValue: val,
-				Hold:       hold})
+				TotalValue: totalVal,
+				Hold:       totalHold})
 	}
 
 	info.Accounts = append(info.Accounts, account)
@@ -165,6 +171,7 @@ func (l *Lbank) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange
 	if err != nil {
 		return resp, err
 	}
+	resp.IsOrderPlaced = true
 	resp.OrderID = tempResp.OrderID
 	return resp, nil
 }
@@ -266,16 +273,16 @@ func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 			switch {
 			case z == -1:
 				resp.Status = "cancelled"
-			case z == 1:
+			case z == 0:
 				resp.Status = "on trading"
-			case z == 2:
+			case z == 1:
 				resp.Status = "filled partially"
-			case z == 3:
+			case z == 2:
 				resp.Status = "Filled totally"
 			case z == 4:
 				resp.Status = "Cancelling"
 			default:
-				return resp, fmt.Errorf("invalid order status: %v", tempResp.Orders[0].Status)
+				resp.Status = "Invalid Order Status"
 			}
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
@@ -286,7 +293,7 @@ func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 				Amount:        tempResp.Orders[0].Amount,
 				PurchasePrice: tempResp.Orders[0].Price})
 			if err != nil {
-				return resp, err
+				resp.Fee = lbankFeeNotFound
 			}
 		}
 	}
@@ -357,7 +364,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			case z == 4:
 				resp.Status = "Cancelling"
 			default:
-				return finalResp, fmt.Errorf("invalid order status: %v", tempResp.Orders[0].Status)
+				resp.Status = "Invalid Order Status"
 			}
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
@@ -369,7 +376,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 				Amount:        tempResp.Orders[0].Amount,
 				PurchasePrice: tempResp.Orders[0].Price})
 			if err != nil {
-				return finalResp, err
+				resp.Fee = lbankFeeNotFound
 			}
 			for y := int(0); y < len(getOrdersRequest.Currencies); y++ {
 				if getOrdersRequest.Currencies[y].String() != key {
@@ -393,14 +400,27 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var finalResp []exchange.OrderDetail
 	var resp exchange.OrderDetail
-	for a := range getOrdersRequest.Currencies {
-		p := exchange.FormatExchangeCurrency(l.Name, getOrdersRequest.Currencies[a])
+	var tempCurr currency.Pairs
+	var err error
+	var x int
+	if len(getOrdersRequest.Currencies) == 0 {
+		tempCurr = l.GetEnabledCurrencies()
+		if err != nil {
+			return finalResp, err
+		}
+	} else {
+		for x < len(getOrdersRequest.Currencies) {
+			tempCurr = getOrdersRequest.Currencies
+		}
+	}
+	for a := range tempCurr {
+		p := exchange.FormatExchangeCurrency(l.Name, tempCurr[a])
 		b := int64(1)
 		tempResp, err := l.QueryOrderHistory(p.String(), strconv.FormatInt(b, 10), "200")
 		if err != nil {
 			return finalResp, err
 		}
-		for tempResp.PageLength == 200 {
+		for len(tempResp.Orders) != 0 {
 			tempResp, err = l.QueryOrderHistory(p.String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
 				return finalResp, err
@@ -426,7 +446,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 				case z == 4:
 					resp.Status = "Cancelling"
 				default:
-					return finalResp, fmt.Errorf("invalid order status: %v", tempResp.Orders[x].Status)
+					resp.Status = "Invalid Order Status"
 				}
 				resp.Price = tempResp.Orders[x].Price
 				resp.Amount = tempResp.Orders[x].Amount
@@ -438,7 +458,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 					Amount:        tempResp.Orders[x].Amount,
 					PurchasePrice: tempResp.Orders[x].Price})
 				if err != nil {
-					return finalResp, err
+					resp.Fee = lbankFeeNotFound
 				}
 				finalResp = append(finalResp, resp)
 				b++
@@ -459,7 +479,14 @@ func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return resp, err
 		}
-		resp, err = strconv.ParseFloat(withdrawalFee[0].Fee, 64)
+		var tempFee string
+		temp := strings.Split(withdrawalFee[0].Fee, ":\"")
+		if len(temp) > 1 {
+			tempFee = strings.TrimRight(temp[1], ",\"type")
+		} else {
+			tempFee = temp[0]
+		}
+		resp, err = strconv.ParseFloat(tempFee, 64)
 		if err != nil {
 			return resp, err
 		}
@@ -478,24 +505,23 @@ func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
 		if err != nil {
 			return resp, err
 		}
-		tempData := tempResp.PageLength
-		for tempData == 200 {
+		tempData := len(tempResp.Orders)
+		for tempData != 0 {
 			tempResp, err = l.GetOpenOrders(p.String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
 				return resp, err
 			}
 
-			var totalOrders []OrderResponse
-			_ = json.Unmarshal(tempResp.Orders, &totalOrders)
-
-			if len(totalOrders) == 0 {
-				return resp, errors.New("openorderresponse received is empty")
+			if len(tempResp.Orders) == 0 {
+				return resp, nil
 			}
 
-			for c := uint8(0); c < tempData; c++ {
-				resp[p.String()] = append(resp[p.String()], totalOrders[c].OrderID)
-				b++
+			for c := 0; c < tempData; c++ {
+				resp[p.String()] = append(resp[p.String()], tempResp.Orders[c].OrderID)
+
 			}
+			tempData = len(tempResp.Orders)
+			b++
 		}
 	}
 	return resp, nil
