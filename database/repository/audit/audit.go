@@ -36,7 +36,7 @@ func Event(msgType, identifier, message string) {
 }
 
 func poolEvents(event *models.AuditEvent) {
-	database.Conn.Mu.RLock()
+	database.Conn.Mu.Lock()
 	events = append(events, event)
 
 	if !database.Conn.Connected {
@@ -46,5 +46,5 @@ func poolEvents(event *models.AuditEvent) {
 
 	Audit.AddEventTx(events)
 	events = nil
-	database.Conn.Mu.RUnlock()
+	database.Conn.Mu.Unlock()
 }

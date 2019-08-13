@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
 	auditSQlite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
@@ -50,6 +51,23 @@ func TestAudit(t *testing.T) {
 			}
 
 			dbConn, err := connectToDatabase(t, &test.config)
+
+			mLogger := mg.MLogger{}
+			migrations := mg.Migrator{
+				Log: mLogger,
+			}
+
+			migrations.Conn = dbConn
+
+			err = migrations.LoadMigrations()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = migrations.RunMigration()
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			if test.audit != nil {
 				audit.Audit = test.audit

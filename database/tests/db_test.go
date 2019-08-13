@@ -126,6 +126,7 @@ func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Da
 			return
 		}
 	}
+	database.Conn.Connected = true
 	return
 }
 
