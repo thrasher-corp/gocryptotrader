@@ -401,13 +401,9 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	var finalResp []exchange.OrderDetail
 	var resp exchange.OrderDetail
 	var tempCurr currency.Pairs
-	var err error
 	var x int
 	if len(getOrdersRequest.Currencies) == 0 {
 		tempCurr = l.GetEnabledCurrencies()
-		if err != nil {
-			return finalResp, err
-		}
 	} else {
 		for x < len(getOrdersRequest.Currencies) {
 			tempCurr = getOrdersRequest.Currencies

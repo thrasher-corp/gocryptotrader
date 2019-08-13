@@ -29,7 +29,6 @@ import (
 type Lbank struct {
 	exchange.Base
 	privateKey    *rsa.PrivateKey
-	privKeyLoaded bool
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
