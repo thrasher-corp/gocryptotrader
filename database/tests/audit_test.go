@@ -52,6 +52,10 @@ func TestAudit(t *testing.T) {
 
 			dbConn, err := connectToDatabase(t, &test.config)
 
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			mLogger := mg.MLogger{}
 			migrations := mg.Migrator{
 				Log: mLogger,
