@@ -368,6 +368,9 @@ func TestGetFeeByType(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := l.GetAccountInfo()
 	if err != nil {
 		t.Error(err)
@@ -376,6 +379,9 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	var input exchange.GetOrdersRequest
 	input.OrderSide = exchange.BuyOrderSide
 	_, err := l.GetOrderHistory(&input)
