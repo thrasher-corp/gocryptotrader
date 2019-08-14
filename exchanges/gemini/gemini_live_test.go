@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -28,8 +29,6 @@ func TestMain(m *testing.M) {
 	g.SetDefaults()
 	g.Setup(&geminiConfig)
 	g.APIUrl = geminiSandboxAPIURL
-	log.Debugf("Live testing framework in use for %s @ %s",
-		g.GetName(),
-		g.APIUrl)
+	log.Debugf(sharedtestvalues.LiveTesting, g.GetName(), g.APIUrl)
 	os.Exit(m.Run())
 }

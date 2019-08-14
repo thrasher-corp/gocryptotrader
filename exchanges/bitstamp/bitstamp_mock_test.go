@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -37,8 +38,6 @@ func TestMain(m *testing.M) {
 		b.APIUrl = serverDetails + "/api"
 	}
 
-	log.Debugf("Mock testing framework in use for %s @ %s",
-		b.GetName(),
-		b.APIUrl)
+	log.Debugf(sharedtestvalues.MockTesting, b.GetName(), b.APIUrl)
 	os.Exit(m.Run())
 }

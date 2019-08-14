@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -27,8 +28,6 @@ func TestMain(m *testing.M) {
 	anxConfig.APISecret = apiSecret
 	a.SetDefaults()
 	a.Setup(&anxConfig)
-	log.Debugf("Live testing framework in use for %s @ %s",
-		a.GetName(),
-		a.APIUrl)
+	log.Debugf(sharedtestvalues.LiveTesting, a.GetName(), a.APIUrl)
 	os.Exit(m.Run())
 }
