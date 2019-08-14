@@ -3,7 +3,8 @@
   "Key",
   "X-Mbx-Apikey",
   "Rest-Key",
-  "Apiauth-Key"
+  "Apiauth-Key",
+  "X-Gemini-Apikey"
  ],
  "variables": [
   "bsb",

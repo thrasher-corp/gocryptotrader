@@ -82,7 +82,8 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 		return err
 	}
 
-	if res.Request.Header.Get(contentType) == applicationURLEncoded {
+	switch res.Request.Header.Get(contentType) {
+	case applicationURLEncoded:
 		vals, urlErr := url.ParseQuery(body)
 		if urlErr != nil {
 			return urlErr
@@ -92,7 +93,17 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 		if urlErr != nil {
 			return urlErr
 		}
-	} else {
+
+	case textPlain:
+		payload := res.Request.Header.Get("X-Gemini-Payload")
+		j, dErr := common.Base64Decode(payload)
+		if dErr != nil {
+			return dErr
+		}
+
+		httpResponse.BodyParams = string(j)
+
+	default:
 		httpResponse.BodyParams = body
 	}
 
@@ -137,7 +148,6 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 					}
 
 					jCType := strings.Join(cType, "")
-
 					var found bool
 					switch jCType {
 					case applicationURLEncoded:
@@ -158,7 +168,7 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 							found = true
 						}
 
-					case applicationJSON:
+					case applicationJSON, textPlain:
 						reqVals, jErr := DeriveURLValsFromJSONMap([]byte(body))
 						if jErr != nil {
 							return jErr
@@ -270,6 +280,20 @@ const (
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 	var context map[string]interface{}
+
+	switch dataType := data.(type) {
+	case []interface{}:
+		var sData []interface{}
+		for i := range dataType {
+			checkedData, err := CheckJSON(dataType[i], excluded)
+			if err != nil {
+				return nil, err
+			}
+
+			sData = append(sData, checkedData)
+		}
+		return sData, nil
+	}
 
 	conv, err := json.Marshal(data)
 	if err != nil {

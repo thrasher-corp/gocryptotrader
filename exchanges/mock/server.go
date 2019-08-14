@@ -10,6 +10,9 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // DefaultDirectory defines the main mock directory
@@ -20,6 +23,7 @@ const (
 	contentType           = "Content-Type"
 	applicationURLEncoded = "application/x-www-form-urlencoded"
 	applicationJSON       = "application/json"
+	textPlain             = "text/plain"
 )
 
 // VCRMock defines the main mock JSON file and attributes
@@ -130,6 +134,32 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse) {
 				MessageWriteJSON(w, http.StatusOK, payload)
 				return
 
+			case textPlain:
+				headerData, ok := r.Header["X-Gemini-Payload"]
+				if !ok {
+					log.Fatal("Mock Test Failure - Cannot find header in request")
+				}
+
+				base64data := strings.Join(headerData, "")
+
+				jsonThings, err := common.Base64Decode(base64data)
+				if err != nil {
+					log.Fatal("Mock Test Failure - ", err)
+				}
+
+				reqVals, err := DeriveURLValsFromJSONMap(jsonThings)
+				if err != nil {
+					log.Fatalf("Mock Test Failure - %v", err)
+				}
+
+				payload, err := MatchAndGetResponse(httpResponses, reqVals, false)
+				if err != nil {
+					log.Fatal("Mock Test Failure - MatchAndGetResponse error ", err)
+				}
+
+				MessageWriteJSON(w, http.StatusOK, payload)
+				return
+
 			default:
 				log.Fatalf("Mock Test Failure - Unhandled content type %v",
 					r.Header.Get(contentType))
@@ -194,6 +224,8 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 					mockVals.Add(k, val)
 				case bool:
 					mockVals.Add(k, strconv.FormatBool(val))
+				case float64:
+					mockVals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
 				case map[string]interface{}, []interface{}, nil:
 					mockVals.Add(k, fmt.Sprintf("%v", val))
 				default:
