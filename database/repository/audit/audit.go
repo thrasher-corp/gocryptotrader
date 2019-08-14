@@ -13,16 +13,17 @@ type Repository interface {
 }
 
 var (
-	Audit  Repository // Global Audit repository
+	Audit Repository // Global Audit repository
 
 )
 
 type eventPool struct {
-	events []*models.AuditEvent
+	events  []*models.AuditEvent
 	eventMu sync.Mutex
 }
 
 var ep eventPool
+
 // Event allows you to call audit.Event() as long as the audit repository package without the need to include each driver
 func Event(msgType, identifier, message string) {
 	if database.Conn.SQL == nil {
