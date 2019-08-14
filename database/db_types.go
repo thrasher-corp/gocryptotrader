@@ -32,3 +32,5 @@ var Conn = &Database{}
 var (
 	ErrNoDatabaseProvided = errors.New("no database provided")
 )
+
+var SupportedDrivers = []string{"sqlite", "postgres"}

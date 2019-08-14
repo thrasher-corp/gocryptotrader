@@ -36,15 +36,15 @@ func Event(msgType, identifier, message string) {
 
 func poolEvents(event *models.AuditEvent) {
 	database.Conn.Mu.Lock()
+	defer database.Conn.Mu.Unlock()
 
-	database.Conn.Mu.RLocker()
+	events = append(events, event)
+
 	if !database.Conn.Connected {
-
 		log.Warnln(log.DatabaseMgr, "connection to database interrupted pooling database writes")
 		return
 	}
-	events = append(events, event)
+
 	Audit.AddEventTx(events)
 	events = nil
-	database.Conn.Mu.Unlock()
 }

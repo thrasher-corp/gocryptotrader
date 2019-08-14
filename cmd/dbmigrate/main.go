@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/core"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
@@ -110,7 +111,7 @@ func main() {
 
 	err = temp.LoadMigrations()
 	if err != nil {
-		temp.Log.Println(err)
+		fmt.Println(err)
 		os.Exit(0)
 	}
 
@@ -118,38 +119,38 @@ func main() {
 
 	err = conf.LoadConfig(configFile)
 	if err != nil {
-		temp.Log.Println(err)
+		fmt.Println(err)
 		os.Exit(0)
 	}
 
 	err = openDbConnection(conf.Database.Driver)
 	if err != nil {
-		temp.Log.Println(err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	temp.Log.Printf("Connected to: %s\n", conf.Database.Host)
+	fmt.Printf("Connected to: %s\n", conf.Database.Host)
 
 	temp.Conn = dbConn
 
 	err = temp.RunMigration()
 
 	if err != nil {
-		temp.Log.Println(err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	if dbConn.SQL != nil {
 		err = dbConn.SQL.Close()
 		if err != nil {
-			temp.Log.Println(err)
+			fmt.Println(err)
 		}
 	}
 }
 
 func newMigrationFile(filename string) error {
 	curTime := strconv.FormatInt(time.Now().Unix(), 10)
-	path := defaultDataDir + "/database/migrations/" + curTime + "_" + filename + ".sql"
+	path := filepath.Join(defaultDataDir, "/database/migrations", curTime+filename+".sql")
 	fmt.Printf("Creating new empty migration: %v\n", path)
 	f, err := os.Create(path)
 

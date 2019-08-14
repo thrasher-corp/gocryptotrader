@@ -1,8 +1,6 @@
 package audit
 
 import (
-	"fmt"
-
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
@@ -15,7 +13,6 @@ type auditRepo struct{}
 func Audit() audit.Repository {
 	return &auditRepo{}
 }
-
 
 // AddEventTx writes multiple event to database
 // writes are done using a transaction with a rollback on error
@@ -36,16 +33,20 @@ func (pg *auditRepo) AddEventTx(event []*models.AuditEvent) {
 		_, err = tx.Exec(query, &event[x].Type, &event[x].Identifier, &event[x].Message)
 
 		if err != nil {
-			_ = tx.Rollback()
-			log.Errorf(log.Global, "Failed to write audit event: %v\n", err)
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.Global, "Tx Rollback has failed: %v", err)
+			}
 			return
 		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		_ = tx.Rollback()
-		log.Errorf(log.Global, "Failed to write audit event: %v\n", err)
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.Global, "Tx Rollback has failed: %v", err)
+		}
 		return
 	}
 

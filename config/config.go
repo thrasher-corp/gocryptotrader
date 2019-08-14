@@ -1298,6 +1298,11 @@ func (c *Config) checkDatabaseConfig() error {
 	m.Lock()
 	defer m.Unlock()
 
+	if !common.StringDataCompare(database.SupportedDrivers, c.Database.Driver) {
+		c.Database.Enabled = false
+		return fmt.Errorf("unsupported database driver %v database disabled", c.Database.Driver)
+	}
+
 	if c.Database.Driver == "sqlite" {
 		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
 		err := common.CreateDir(databaseDir)
@@ -1306,6 +1311,7 @@ func (c *Config) checkDatabaseConfig() error {
 		}
 		database.Conn.DataPath = databaseDir
 	}
+
 	database.Conn.Config = &c.Database
 
 	return nil
