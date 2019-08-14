@@ -40,10 +40,10 @@ func TestMain(m *testing.M) {
 
 	t := m.Run()
 
-	err = os.RemoveAll(tempDir)
-	if err != nil {
-		fmt.Printf("Failed to remove temp db file: %v", err)
-	}
+	//err = os.RemoveAll(tempDir)
+	//if err != nil {
+	//	fmt.Printf("Failed to remove temp db file: %v", err)
+	//}
 
 	os.Exit(t)
 }
