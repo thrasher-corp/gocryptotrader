@@ -74,6 +74,7 @@ func TestGetCurrencyPairs(t *testing.T) {
 
 func TestGetMarketDepths(t *testing.T) {
 	TestSetup(t)
+	l.Verbose = true
 	_, err := l.GetMarketDepths("btc_usdt", "60", "1")
 	if err != nil {
 		t.Errorf("GetMarketDepth failed: %v", err)
@@ -81,10 +82,6 @@ func TestGetMarketDepths(t *testing.T) {
 	a, _ := l.GetMarketDepths("btc_usdt", "60", "0")
 	if len(a.Asks) != 60 {
 		t.Errorf("length requested doesnt match the output")
-	}
-	_, err = l.GetMarketDepths("btc_usdt", "61", "0")
-	if err == nil {
-		t.Errorf("size is greater than the maximum allowed")
 	}
 }
 

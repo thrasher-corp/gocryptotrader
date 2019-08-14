@@ -23,9 +23,10 @@ type TickerResponse struct {
 
 // MarketDepthResponse stores arrays for asks, bids and a timestamp for a currecy pair
 type MarketDepthResponse struct {
-	Asks      [][]float64 `json:"asks"`
-	Bids      [][]float64 `json:"bids"`
-	Timestamp int64       `json:"timestamp"`
+	ErrCapture `json:",omitempty"`
+	Asks       [][]float64 `json:"asks"`
+	Bids       [][]float64 `json:"bids"`
+	Timestamp  int64       `json:"timestamp"`
 }
 
 // TradeResponse stores date_ms, amount, price, type, tid for a currency pair
