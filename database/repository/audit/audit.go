@@ -1,10 +1,11 @@
 package audit
 
 import (
+	"sync"
+
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"sync"
 )
 
 // Repository that is required for each driver type to implement
