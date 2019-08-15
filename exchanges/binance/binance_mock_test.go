@@ -14,6 +14,8 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
+const mockfile = "../../testdata/http_mock/binance/binance.json"
+
 var mockTests = true
 
 func TestMain(m *testing.M) {
@@ -30,12 +32,14 @@ func TestMain(m *testing.M) {
 	b.SetDefaults()
 	b.Setup(&binanceConfig)
 
-	serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/binance/binance.json")
+	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Warn("Test Failed - mock server error", err)
-	} else {
-		b.APIUrl = serverDetails
+		log.Errorf("Test Failed - Mock server error %s", err)
+		os.Exit(1)
 	}
+
+	b.HTTPClient = newClient
+	b.APIUrl = serverDetails
 
 	log.Debugf(sharedtestvalues.MockTesting, b.GetName(), b.APIUrl)
 	os.Exit(m.Run())

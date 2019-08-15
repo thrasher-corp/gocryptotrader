@@ -27,9 +27,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### How to enable
 
-+ Mock testing is enabled by default in some exchanges to disable and run live endpoint testing parse -tags=mock_test_off as a go test param.
++ Mock testing is enabled by default in some exchanges; to disable and run live endpoint testing parse -tags=mock_test_off as a go test param.
 
-+ To record a live endpoint create two files for an exchange
++ To record a live endpoint create two files for an exchange.
 
 ### file one - your_current_exchange_name_live_test.go
 
@@ -88,6 +88,8 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
+const mockfile = "../../testdata/http_mock/your_current_exchange_name/your_current_exchange_name.json"
+
 var mockTests = true
 
 func TestMain(m *testing.M) {
@@ -104,12 +106,14 @@ func TestMain(m *testing.M) {
 	l.SetDefaults()
 	l.Setup(&your_current_exchange_nameConfig)
 
-	serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/your_current_exchange_name/your_current_exchange_name.json")
+	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Warn("Test Failed - Mock server error", err)
-	} else {
-		l.APIUrl = serverDetails
+		log.Errorf("Test Failed - Mock server error %s", err)
+		os.Exit(1)
 	}
+
+	g.HTTPClient = newClient
+	g.APIUrl = serverDetails
 
 	log.Printf(sharedtestvalues.MockTesting, l.GetName(), l.APIUrl)
 	os.Exit(m.Run())
@@ -133,7 +137,7 @@ func TestDummyTest(t *testing.T) {
 ```
 
 + After this is completed it should populate a new mocktest.json file for you with the relavent payloads in testdata
-+ To check if the recording was successful, comment out recording and apiurl changes
++ To check if the recording was successful, comment out recording and apiurl changes, then re-run test.
 
 ```go
 var s SomeExchange
@@ -149,8 +153,6 @@ func TestDummyTest(t *testing.T) {
 ```
 
 + The payload should be the same.
-
-
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

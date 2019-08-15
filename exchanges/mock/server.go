@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -19,7 +20,6 @@ import (
 const DefaultDirectory = "../../testdata/http_mock/"
 
 const (
-	defaultHost           = ":3000"
 	contentType           = "Content-Type"
 	applicationURLEncoded = "application/x-www-form-urlencoded"
 	applicationJSON       = "application/json"
@@ -28,41 +28,77 @@ const (
 
 // VCRMock defines the main mock JSON file and attributes
 type VCRMock struct {
-	Host   string                               `json:"host"`
 	Routes map[string]map[string][]HTTPResponse `json:"routes"`
 }
 
 // NewVCRServer starts a new VCR server for replaying HTTP requests for testing
 // purposes and returns the server connection details
-func NewVCRServer(path string) (string, error) {
+func NewVCRServer(path string) (string, *http.Client, error) {
+	if path == "" {
+		return "", nil, errors.New("no path to json mock file found")
+	}
+
+	var mockFile VCRMock
+
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", err
+		pathing := common.SplitStrings(path, "/")
+		dirPathing := pathing[:len(pathing)-1]
+		dir := common.JoinStrings(dirPathing, "/")
+		err = common.CreateDir(dir)
+		if err != nil {
+			return "", nil, err
+		}
+
+		data, err := json.MarshalIndent(mockFile, "", " ")
+		if err != nil {
+			return "", nil, err
+		}
+
+		err = common.WriteFile(path, data)
+		if err != nil {
+			return "", nil, err
+		}
+		contents = data
+	}
+
+	if !json.Valid(contents) {
+		return "",
+			nil,
+			fmt.Errorf("contents of file %s are not valid JSON", path)
 	}
 
 	// Get mocking data for the specific service
-	var mockFile VCRMock
 	err = json.Unmarshal(contents, &mockFile)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	// range over routes and assign responses to explicit paths and http methods
-	for pattern, mockResponses := range mockFile.Routes {
-		RegisterHandler(pattern, mockResponses)
+	newMux := http.NewServeMux()
+	// Range over routes and assign responses to explicit paths and http
+	// methods
+	if len(mockFile.Routes) != 0 {
+		for pattern, mockResponses := range mockFile.Routes {
+			RegisterHandler(pattern, mockResponses, newMux)
+		}
+	} else {
+		newMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			err := json.NewEncoder(w).Encode("There is no mock data available in file please record a new HTTP response. Please follow README.md in the mock package.")
+			if err != nil {
+				panic(err)
+			}
+		})
 	}
+	tlsServer := httptest.NewTLSServer(newMux)
 
-	go func() {
-		log.Fatal(http.ListenAndServe(mockFile.Host, nil))
-	}()
-
-	return "http://localhost" + mockFile.Host, nil
+	return tlsServer.URL, tlsServer.Client(), nil
 }
 
 // RegisterHandler registers a generalised mock response logic for specific
 // routes
-func RegisterHandler(pattern string, mock map[string][]HTTPResponse) {
-	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.ServeMux) {
+	mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		httpResponses, ok := mock[r.Method]
 		if !ok {
 			log.Fatalf("Mock Test Failure - Method %s not present in mock file",

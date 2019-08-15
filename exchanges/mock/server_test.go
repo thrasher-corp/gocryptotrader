@@ -22,14 +22,13 @@ const queryString = "currency=btc&command=getprice"
 const testFile = "test.json"
 
 func TestNewVCRServer(t *testing.T) {
-	_, err := NewVCRServer("")
+	_, _, err := NewVCRServer("")
 	if err == nil {
 		t.Error("Test Failed - NewVCRServer error cannot be nil")
 	}
 
 	// Set up mock data
 	test1 := VCRMock{}
-	test1.Host = ":3500"
 	test1.Routes = make(map[string]map[string][]HTTPResponse)
 	test1.Routes["/test"] = make(map[string][]HTTPResponse)
 
@@ -53,10 +52,12 @@ func TestNewVCRServer(t *testing.T) {
 		t.Fatal("Test Failed - marshal error", err)
 	}
 
-	deets, err := NewVCRServer(testFile)
+	deets, client, err := NewVCRServer(testFile)
 	if err != nil {
 		t.Error("Test Failed - NewVCRServer error", err)
 	}
+
+	common.HTTPClient = client // Set common package global HTTP Client
 
 	_, err = common.SendHTTPRequest(http.MethodGet,
 		"http://localhost:300/somethingElse?"+queryString,

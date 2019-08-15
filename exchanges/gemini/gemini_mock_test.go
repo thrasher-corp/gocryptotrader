@@ -14,6 +14,8 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
+const mockFile = "../../testdata/http_mock/gemini/gemini.json"
+
 var mockTests = true
 
 func TestMain(m *testing.M) {
@@ -30,12 +32,14 @@ func TestMain(m *testing.M) {
 	g.SetDefaults()
 	g.Setup(&geminiConfig)
 
-	serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/gemini/gemini.json")
+	serverDetails, newClient, err := mock.NewVCRServer(mockFile)
 	if err != nil {
-		log.Warnf("Test Failed - Mock server error %s", err)
-	} else {
-		g.APIUrl = serverDetails
+		log.Errorf("Test Failed - Mock server error %s", err)
+		os.Exit(1)
 	}
+
+	g.HTTPClient = newClient
+	g.APIUrl = serverDetails
 
 	log.Debugf(sharedtestvalues.MockTesting, g.GetName(), g.APIUrl)
 	os.Exit(m.Run())

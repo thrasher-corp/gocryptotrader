@@ -28,7 +28,7 @@ type HTTPResponse struct {
 
 // HTTPRecord will record the request and response to a default JSON file for
 // mocking purposes
-func HTTPRecord(body string, res *http.Response, path, service string, respContents []byte, verbose bool) error {
+func HTTPRecord(res *http.Response, service string, respContents []byte, verbose bool) error {
 	if res == nil {
 		return errors.New("http.Response cannot be nil")
 	}
@@ -42,29 +42,21 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 	}
 
 	if service == "" {
-		return errors.New("service not supplied cannot create file")
+		return errors.New("service not supplied cannot access correct mock file")
 	}
 	service = strings.ToLower(service)
 
-	common.CreateDir(path)
+	fileout := filepath.Join(DefaultDirectory, service, service+".json")
 
-	serviceDir := filepath.Join(path, service)
-	common.CreateDir(serviceDir)
-
-	fileout := filepath.Join(serviceDir, service+".json")
-
-	contents, _ := common.ReadFile(fileout)
-
-	var m VCRMock
-	if len(contents) != 0 {
-		err := json.Unmarshal(contents, &m)
-		if err != nil {
-			return err
-		}
+	contents, err := common.ReadFile(fileout)
+	if err != nil {
+		return err
 	}
 
-	if m.Host == "" {
-		m.Host = defaultHost
+	var m VCRMock
+	err = json.Unmarshal(contents, &m)
+	if err != nil {
+		return err
 	}
 
 	if m.Routes == nil {
@@ -80,6 +72,19 @@ func HTTPRecord(body string, res *http.Response, path, service string, respConte
 	err = json.Unmarshal(cleanedContents, &httpResponse.Data)
 	if err != nil {
 		return err
+	}
+
+	var body string
+	if res.Request.GetBody != nil {
+		bodycopy, bodyErr := res.Request.GetBody()
+		if bodyErr != nil {
+			return bodyErr
+		}
+		payload, bodyErr := ioutil.ReadAll(bodycopy)
+		if bodyErr != nil {
+			return bodyErr
+		}
+		body = string(payload)
 	}
 
 	switch res.Request.Header.Get(contentType) {

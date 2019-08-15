@@ -14,8 +14,8 @@ const (
 	// Defines channel capacity as defaults size can block tests
 	WebsocketChannelOverrideCapacity = 20
 
-	MockTesting = "Mock testing framework in use for %s @ %s on REST endpoints only"
-	LiveTesting = "Mock testing bypassed; live testing of REST endpoints in use for %s @ %s"
+	MockTesting = "Mock testing framework in use for %s exchange @ %s on REST endpoints only"
+	LiveTesting = "Mock testing bypassed; live testing of REST endpoints in use for %s exchange @ %s"
 )
 
 // GetWebsocketInterfaceChannelOverride returns a new interface based channel

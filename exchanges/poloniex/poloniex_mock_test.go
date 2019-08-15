@@ -14,6 +14,8 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
+const mockfile = "../../testdata/http_mock/poloniex/poloniex.json"
+
 var mockTests = true
 
 func TestMain(m *testing.M) {
@@ -30,12 +32,14 @@ func TestMain(m *testing.M) {
 	p.SetDefaults()
 	p.Setup(&poloniexConfig)
 
-	serverDetails, err := mock.NewVCRServer("../../testdata/http_mock/poloniex/poloniex.json")
+	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Warn("Test Failed - Mock server error", err)
-	} else {
-		p.APIUrl = serverDetails
+		log.Errorf("Test Failed - Mock server error %s", err)
+		os.Exit(1)
 	}
+
+	p.HTTPClient = newClient
+	p.APIUrl = serverDetails
 
 	log.Debugf(sharedtestvalues.MockTesting, p.GetName(), p.APIUrl)
 	os.Exit(m.Run())

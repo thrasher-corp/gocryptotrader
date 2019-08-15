@@ -336,19 +336,8 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		}
 
 		if httpRecord {
-			var bodyCopy []byte
-			if req.GetBody != nil {
-				dt, bodyErr := req.GetBody()
-				if bodyErr != nil {
-					return bodyErr
-				}
-				bodyCopy, bodyErr = ioutil.ReadAll(dt)
-				if bodyErr != nil {
-					return bodyErr
-				}
-			}
 			// This dumps http responses for future mocking implementations
-			err = mock.HTTPRecord(string(bodyCopy), resp, mock.DefaultDirectory, r.Name, contents, verbose)
+			err = mock.HTTPRecord(resp, r.Name, contents, verbose)
 			if err != nil {
 				return err
 			}
