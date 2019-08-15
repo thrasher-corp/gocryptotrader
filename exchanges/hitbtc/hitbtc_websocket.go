@@ -119,11 +119,11 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			Exchange:  h.GetName(),
 			AssetType: asset.Spot,
 			Pair:      currency.NewPairFromString(ticker.Params.Symbol),
-			Quantity:  ticker.Params.Volume,
+			Volume:    ticker.Params.Volume,
 			Timestamp: ts,
-			OpenPrice: ticker.Params.Open,
-			HighPrice: ticker.Params.High,
-			LowPrice:  ticker.Params.Low,
+			Open:      ticker.Params.Open,
+			High:      ticker.Params.High,
+			Low:       ticker.Params.Low,
 		}
 	case "snapshotOrderbook":
 		var obSnapshot WsOrderbook

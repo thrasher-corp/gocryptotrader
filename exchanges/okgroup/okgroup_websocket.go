@@ -361,13 +361,13 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
 		o.Websocket.DataHandler <- wshandler.TickerData{
-			Timestamp:  response.Data[i].Timestamp,
-			Exchange:   o.GetName(),
-			AssetType:  o.GetAssetTypeFromTableName(response.Table),
-			HighPrice:  response.Data[i].High24H,
-			LowPrice:   response.Data[i].Low24H,
-			ClosePrice: response.Data[i].Last,
-			Pair:       instrument,
+			Timestamp: response.Data[i].Timestamp,
+			Exchange:  o.GetName(),
+			AssetType: o.GetAssetTypeFromTableName(response.Table),
+			High:      response.Data[i].High24H,
+			Low:       response.Data[i].Low24H,
+			Close:     response.Data[i].Last,
+			Pair:      instrument,
 		}
 	}
 }

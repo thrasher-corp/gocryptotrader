@@ -167,29 +167,29 @@ type KlineStream struct {
 
 // TickerStream holds the ticker stream data
 type TickerStream struct {
-	EventType              string `json:"e"`
-	EventTime              int64  `json:"E"`
-	Symbol                 string `json:"s"`
-	PriceChange            string `json:"p"`
-	PriceChangePercent     string `json:"P"`
-	WeightedAvgPrice       string `json:"w"`
-	PrevDayClose           string `json:"x"`
-	CurrDayClose           string `json:"c"`
-	CloseTradeQuantity     string `json:"Q"`
-	BestBidPrice           string `json:"b"`
-	BestBidQuantity        string `json:"B"`
-	BestAskPrice           string `json:"a"`
-	BestAskQuantity        string `json:"A"`
-	OpenPrice              string `json:"o"`
-	HighPrice              string `json:"h"`
-	LowPrice               string `json:"l"`
-	TotalTradedVolume      string `json:"v"`
-	TotalTradedQuoteVolume string `json:"q"`
-	OpenTime               int64  `json:"O"`
-	CloseTime              int64  `json:"C"`
-	FirstTradeID           int64  `json:"F"`
-	LastTradeID            int64  `json:"L"`
-	NumberOfTrades         int64  `json:"n"`
+	EventType              string        `json:"e"`
+	EventTime              int64         `json:"E"`
+	Symbol                 currency.Pair `json:"s"`
+	PriceChange            float64       `json:"p,string"`
+	PriceChangePercent     float64       `json:"P,string"`
+	WeightedAvgPrice       float64       `json:"w,string"`
+	PrevDayClose           float64       `json:"x,string"`
+	CurrDayClose           float64       `json:"c,string"`
+	CloseTradeQuantity     float64       `json:"Q,string"`
+	BestBidPrice           float64       `json:"b,string"`
+	BestBidQuantity        float64       `json:"B,string"`
+	BestAskPrice           float64       `json:"a,string"`
+	BestAskQuantity        float64       `json:"A,string"`
+	OpenPrice              float64       `json:"o,string"`
+	HighPrice              float64       `json:"h,string"`
+	LowPrice               float64       `json:"l,string"`
+	TotalTradedVolume      float64       `json:"v,string"`
+	TotalTradedQuoteVolume float64       `json:"q,string"`
+	OpenTime               int64         `json:"O"`
+	CloseTime              int64         `json:"C"`
+	FirstTradeID           int64         `json:"F"`
+	LastTradeID            int64         `json:"L"`
+	NumberOfTrades         int64         `json:"n"`
 }
 
 // HistoricalTrade holds recent trade data

@@ -219,14 +219,14 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) {
 	t.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
 
 	p.Websocket.DataHandler <- wshandler.TickerData{
-		Timestamp:  time.Now(),
-		Pair:       currency.NewPairDelimiter(currencyPair, "_"),
-		Exchange:   p.GetName(),
-		AssetType:  asset.Spot,
-		ClosePrice: t.LastPrice,
-		LowPrice:   t.LowestAsk,
-		HighPrice:  t.HighestBid,
-		Quantity:   t.QuoteCurrencyVolume24H,
+		Timestamp: time.Now(),
+		Pair:      currency.NewPairDelimiter(currencyPair, "_"),
+		Exchange:  p.GetName(),
+		AssetType: asset.Spot,
+		Close:     t.LastPrice,
+		Low:       t.LowestAsk,
+		High:      t.HighestBid,
+		Volume:    t.QuoteCurrencyVolume24H,
 	}
 }
 

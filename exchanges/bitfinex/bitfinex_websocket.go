@@ -271,13 +271,15 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 					case "ticker":
 						b.Websocket.DataHandler <- wshandler.TickerData{
-							Quantity:   chanData[8].(float64),
-							ClosePrice: chanData[7].(float64),
-							HighPrice:  chanData[9].(float64),
-							LowPrice:   chanData[10].(float64),
-							Pair:       currency.NewPairFromString(chanInfo.Pair),
-							Exchange:   b.GetName(),
-							AssetType:  asset.Spot,
+							Bid:       chanData[1].(float64),
+							Ask:       chanData[3].(float64),
+							Close:     chanData[7].(float64),
+							Volume:    chanData[8].(float64),
+							High:      chanData[9].(float64),
+							Low:       chanData[10].(float64),
+							Pair:      currency.NewPairFromString(chanInfo.Pair),
+							Exchange:  b.GetName(),
+							AssetType: asset.Spot,
 						}
 
 					case "account":

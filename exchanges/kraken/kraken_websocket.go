@@ -253,15 +253,15 @@ func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data interf
 	quantity, _ := strconv.ParseFloat(volumeData[0].(string), 64)
 
 	k.Websocket.DataHandler <- wshandler.TickerData{
-		Timestamp:  time.Now(),
-		Exchange:   k.Name,
-		AssetType:  asset.Spot,
-		Pair:       channelData.Pair,
-		ClosePrice: closePrice,
-		OpenPrice:  openPrice,
-		HighPrice:  highPrice,
-		LowPrice:   lowPrice,
-		Quantity:   quantity,
+		Timestamp: time.Now(),
+		Exchange:  k.Name,
+		AssetType: asset.Spot,
+		Pair:      channelData.Pair,
+		Close:     closePrice,
+		Open:      openPrice,
+		High:      highPrice,
+		Low:       lowPrice,
+		Volume:    quantity,
 	}
 }
 

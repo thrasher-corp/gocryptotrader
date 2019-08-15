@@ -94,12 +94,12 @@ func (b *BTSE) WsHandleData() {
 				}
 
 				b.Websocket.DataHandler <- wshandler.TickerData{
-					Timestamp:  time.Now(),
-					Pair:       currency.NewPairDelimiter(t.ProductID, "-"),
-					AssetType:  asset.Spot,
-					Exchange:   b.GetName(),
-					ClosePrice: price,
-					Quantity:   t.LastSize,
+					Timestamp: time.Now(),
+					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
+					AssetType: asset.Spot,
+					Exchange:  b.GetName(),
+					Close:     price,
+					Volume:    t.LastSize,
 				}
 			case "snapshot":
 				snapshot := websocketOrderbookSnapshot{}

@@ -89,15 +89,15 @@ func (c *CoinbasePro) WsHandleData() {
 				}
 
 				c.Websocket.DataHandler <- wshandler.TickerData{
-					Timestamp:  ticker.Time,
-					Pair:       currency.NewPairFromString(ticker.ProductID),
-					AssetType:  asset.Spot,
-					Exchange:   c.GetName(),
-					OpenPrice:  ticker.Open24H,
-					HighPrice:  ticker.High24H,
-					LowPrice:   ticker.Low24H,
-					ClosePrice: ticker.Price,
-					Quantity:   ticker.Volume24H,
+					Timestamp: ticker.Time,
+					Pair:      currency.NewPairFromString(ticker.ProductID),
+					AssetType: asset.Spot,
+					Exchange:  c.GetName(),
+					Open:      ticker.Open24H,
+					High:      ticker.High24H,
+					Low:       ticker.Low24H,
+					Close:     ticker.Price,
+					Volume:    ticker.Volume24H,
 				}
 
 			case "snapshot":
