@@ -210,23 +210,24 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) {
 	t.PercentageChange, _ = strconv.ParseFloat(tickerData[4].(string), 64)
 	t.BaseCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[5].(string), 64)
 	t.QuoteCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[6].(string), 64)
-	isFrozen := false
 	if tickerData[7].(float64) == 1 {
-		isFrozen = true
+		t.IsFrozen = true
 	}
-	t.IsFrozen = isFrozen
 	t.HighestTradeIn24H, _ = strconv.ParseFloat(tickerData[8].(string), 64)
 	t.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
 
 	p.Websocket.DataHandler <- wshandler.TickerData{
-		Timestamp: time.Now(),
-		Pair:      currency.NewPairDelimiter(currencyPair, "_"),
-		Exchange:  p.GetName(),
-		AssetType: asset.Spot,
-		Close:     t.LastPrice,
-		Low:       t.LowestAsk,
-		High:      t.HighestBid,
-		Volume:    t.QuoteCurrencyVolume24H,
+		Exchange:    p.GetName(),
+		Volume:      t.BaseCurrencyVolume24H,
+		QuoteVolume: t.QuoteCurrencyVolume24H,
+		High:        t.HighestBid,
+		Low:         t.LowestAsk,
+		Bid:         t.HighestBid,
+		Ask:         t.LowestAsk,
+		Last:        t.LastPrice,
+		Timestamp:   time.Now(),
+		AssetType:   asset.Spot,
+		Pair:        currency.NewPairDelimiter(currencyPair, "_"),
 	}
 }
 
@@ -362,7 +363,6 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	// Tickerdata is its own channel
 	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 		Channel: fmt.Sprintf("%v", wsTickerDataID),
 	})
