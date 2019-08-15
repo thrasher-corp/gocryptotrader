@@ -241,6 +241,8 @@ func getSubscriptionChannelData(id int64) WebsocketChannelData {
 // wsProcessTickers converts ticker data and sends it to the datahandler
 func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data interface{}) {
 	tickerData := data.(map[string]interface{})
+	askData := tickerData["a"].([]interface{})
+	bidData := tickerData["b"].([]interface{})
 	closeData := tickerData["c"].([]interface{})
 	openData := tickerData["o"].([]interface{})
 	lowData := tickerData["l"].([]interface{})
@@ -251,17 +253,21 @@ func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data interf
 	highPrice, _ := strconv.ParseFloat(highData[0].(string), 64)
 	lowPrice, _ := strconv.ParseFloat(lowData[0].(string), 64)
 	quantity, _ := strconv.ParseFloat(volumeData[0].(string), 64)
+	ask, _ := strconv.ParseFloat(askData[0].(string), 64)
+	bid, _ := strconv.ParseFloat(bidData[0].(string), 64)
 
 	k.Websocket.DataHandler <- wshandler.TickerData{
-		Timestamp: time.Now(),
 		Exchange:  k.Name,
-		AssetType: asset.Spot,
-		Pair:      channelData.Pair,
-		Close:     closePrice,
 		Open:      openPrice,
+		Close:     closePrice,
+		Volume:    quantity,
 		High:      highPrice,
 		Low:       lowPrice,
-		Volume:    quantity,
+		Bid:       bid,
+		Ask:       ask,
+		Timestamp: time.Now(),
+		AssetType: asset.Spot,
+		Pair:      channelData.Pair,
 	}
 }
 

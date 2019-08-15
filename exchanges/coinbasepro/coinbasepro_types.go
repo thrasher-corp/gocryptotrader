@@ -1,6 +1,10 @@
 package coinbasepro
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // Product holds product information
 type Product struct {
@@ -435,21 +439,21 @@ type WebsocketHeartBeat struct {
 
 // WebsocketTicker defines ticker websocket response
 type WebsocketTicker struct {
-	Type      string    `json:"type"`
-	Sequence  int64     `json:"sequence"`
-	ProductID string    `json:"product_id"`
-	Price     float64   `json:"price,string"`
-	Open24H   float64   `json:"open_24h,string"`
-	Volume24H float64   `json:"volumen_24h,string"`
-	Low24H    float64   `json:"low_24h,string"`
-	High24H   float64   `json:"high_24h,string"`
-	Volume30D float64   `json:"volume_30d,string"`
-	BestBid   float64   `json:"best_bid,string"`
-	BestAsk   float64   `json:"best_ask,string"`
-	Side      string    `json:"side"`
-	Time      time.Time `json:"time,string"`
-	TradeID   int64     `json:"trade_id"`
-	LastSize  float64   `json:"last_size,string"`
+	Type      string        `json:"type"`
+	Sequence  int64         `json:"sequence"`
+	ProductID currency.Pair `json:"product_id"`
+	Price     float64       `json:"price,string"`
+	Open24H   float64       `json:"open_24h,string"`
+	Volume24H float64       `json:"volumen_24h,string"`
+	Low24H    float64       `json:"low_24h,string"`
+	High24H   float64       `json:"high_24h,string"`
+	Volume30D float64       `json:"volume_30d,string"`
+	BestBid   float64       `json:"best_bid,string"`
+	BestAsk   float64       `json:"best_ask,string"`
+	Side      string        `json:"side"`
+	Time      time.Time     `json:"time,string"`
+	TradeID   int64         `json:"trade_id"`
+	LastSize  float64       `json:"last_size,string"`
 }
 
 // WebsocketOrderbookSnapshot defines a snapshot response

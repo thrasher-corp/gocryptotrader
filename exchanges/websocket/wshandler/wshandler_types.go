@@ -144,18 +144,19 @@ type TradeData struct {
 
 // TickerData defines ticker feed
 type TickerData struct {
-	Exchange  string
-	Open      float64
-	Close     float64
-	Volume    float64
-	High      float64
-	Low       float64
-	Bid       float64
-	Ask       float64
-	Last      float64
-	Timestamp time.Time
-	AssetType asset.Item
-	Pair      currency.Pair
+	Exchange    string
+	Open        float64
+	Close       float64
+	Volume      float64
+	QuoteVolume float64
+	High        float64
+	Low         float64
+	Bid         float64
+	Ask         float64
+	Last        float64
+	Timestamp   time.Time
+	AssetType   asset.Item
+	Pair        currency.Pair
 }
 
 // KlineData defines kline feed

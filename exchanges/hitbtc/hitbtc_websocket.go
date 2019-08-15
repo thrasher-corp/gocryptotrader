@@ -116,14 +116,18 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			return
 		}
 		h.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:  h.GetName(),
-			AssetType: asset.Spot,
-			Pair:      currency.NewPairFromString(ticker.Params.Symbol),
-			Volume:    ticker.Params.Volume,
-			Timestamp: ts,
-			Open:      ticker.Params.Open,
-			High:      ticker.Params.High,
-			Low:       ticker.Params.Low,
+			Exchange:    h.GetName(),
+			Open:        ticker.Params.Open,
+			Volume:      ticker.Params.Volume,
+			QuoteVolume: ticker.Params.VolumeQuote,
+			High:        ticker.Params.High,
+			Low:         ticker.Params.Low,
+			Bid:         ticker.Params.Bid,
+			Ask:         ticker.Params.Ask,
+			Last:        ticker.Params.Last,
+			Timestamp:   ts,
+			AssetType:   asset.Spot,
+			Pair:        ticker.Params.Symbol,
 		}
 	case "snapshotOrderbook":
 		var obSnapshot WsOrderbook

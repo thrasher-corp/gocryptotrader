@@ -336,16 +336,16 @@ type params struct {
 // WsTicker defines websocket ticker feed return params
 type WsTicker struct {
 	Params struct {
-		Ask         float64 `json:"ask,string"`
-		Bid         float64 `json:"bid,string"`
-		Last        float64 `json:"last,string"`
-		Open        float64 `json:"open,string"`
-		Low         float64 `json:"low,string"`
-		High        float64 `json:"high,string"`
-		Volume      float64 `json:"volume,string"`
-		VolumeQuote float64 `json:"volumeQuote,string"`
-		Timestamp   string  `json:"timestamp"`
-		Symbol      string  `json:"symbol"`
+		Ask         float64       `json:"ask,string"`
+		Bid         float64       `json:"bid,string"`
+		Last        float64       `json:"last,string"`
+		Open        float64       `json:"open,string"`
+		Low         float64       `json:"low,string"`
+		High        float64       `json:"high,string"`
+		Volume      float64       `json:"volume,string"`
+		VolumeQuote float64       `json:"volumeQuote,string"`
+		Timestamp   string        `json:"timestamp"`
+		Symbol      currency.Pair `json:"symbol"`
 	} `json:"params"`
 }
 

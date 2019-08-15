@@ -34,6 +34,7 @@ type Price struct {
 	Bid         float64       `json:"Bid"`
 	Ask         float64       `json:"Ask"`
 	Volume      float64       `json:"Volume"`
+	QuoteVolume float64       `json:"QuoteVolume"`
 	PriceATH    float64       `json:"PriceATH"`
 	Open        float64       `json:"Open"`
 	Close       float64       `json:"Close"`

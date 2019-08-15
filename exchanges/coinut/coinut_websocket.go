@@ -139,14 +139,14 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 		currencyPair := instrumentListByCode[ticker.InstID]
 		c.Websocket.DataHandler <- wshandler.TickerData{
-			Timestamp: time.Unix(0, ticker.Timestamp),
-			Pair:      currency.NewPairFromString(currencyPair),
 			Exchange:  c.GetName(),
-			AssetType: asset.Spot,
+			Volume:    ticker.Volume,
 			High:      ticker.HighestBuy,
 			Low:       ticker.LowestSell,
-			Close:     ticker.Last,
-			Volume:    ticker.Volume,
+			Last:      ticker.Last,
+			Timestamp: time.Unix(0, ticker.Timestamp),
+			AssetType: asset.Spot,
+			Pair:      currency.NewPairFromString(currencyPair),
 		}
 
 	case "inst_order_book":

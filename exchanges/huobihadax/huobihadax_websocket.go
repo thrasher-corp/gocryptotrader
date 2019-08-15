@@ -226,6 +226,25 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 	}
 
 	switch {
+	case strings.Contains(init.Channel, "tick"):
+		var ticker WsTick
+		err := common.JSONDecode(resp.Raw, &ticker)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+		data := strings.Split(ticker.Channel, ".")
+		h.Websocket.DataHandler <- wshandler.TickerData{
+			Exchange:  h.GetName(),
+			Open:      ticker.Tick.Open,
+			Close:     ticker.Tick.Close,
+			Volume:    ticker.Tick.Vol,
+			High:      ticker.Tick.High,
+			Low:       ticker.Tick.Low,
+			Timestamp: time.Unix(0, ticker.Timestamp),
+			AssetType: asset.Spot,
+			Pair:      currency.NewPairFromString(data[1]),
+		}
 	case strings.Contains(init.Channel, "depth"):
 		var depth WsDepth
 		err := common.JSONDecode(resp.Raw, &depth)

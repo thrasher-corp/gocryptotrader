@@ -1340,12 +1340,14 @@ type WebsocketDataWrapper struct {
 
 // WebsocketTickerData contains formatted data for ticker related websocket responses
 type WebsocketTickerData struct {
-	High24H   float64 `json:"high_24h,string,omitempty"`
-	Last      float64 `json:"last,string,omitempty"`
-	BestBid   float64 `json:"best_bid,string,omitempty"`
-	BestAsk   float64 `json:"best_ask,string,omitempty"`
-	Low24H    float64 `json:"low_24h,string,omitempty"`
-	Volume24H float64 `json:"volume_24h,string,omitempty"`
+	BaseVolume24h  float64 `json:"base_volume_24h,string,omitempty"`
+	BestAsk        float64 `json:"best_ask,string,omitempty"`
+	BestBid        float64 `json:"best_bid,string,omitempty"`
+	High24h        float64 `json:"high_24h,string,omitempty"`
+	Last           float64 `json:"last,string,omitempty"`
+	Low24h         float64 `json:"low_24h,string,omitempty"`
+	Open24h        float64 `json:"open_24h,string,omitempty"`
+	QuoteVolume24h float64 `json:"quote_volume_24h,string,omitempty"`
 }
 
 // WebsocketTradeResponse contains formatted data for trade related websocket responses

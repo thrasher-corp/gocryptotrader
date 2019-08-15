@@ -25,6 +25,22 @@ type KlineItem struct {
 	Count  int     `json:"count"`
 }
 
+type WsTick struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+	Tick      struct {
+		Amount float64 `json:"amount"`
+		Close  float64 `json:"close"`
+		Count  float64 `json:"count"`
+		High   float64 `json:"high"`
+		ID     float64 `json:"id"`
+		Low    float64 `json:"low"`
+		Open   float64 `json:"open"`
+		Ts     float64 `json:"ts"`
+		Vol    float64 `json:"vol"`
+	} `json:"tick"`
+}
+
 // DetailMerged stores the ticker detail merged data
 type DetailMerged struct {
 	Detail
