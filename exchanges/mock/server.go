@@ -50,9 +50,9 @@ func NewVCRServer(path string) (string, *http.Client, error) {
 			return "", nil, err
 		}
 
-		data, err := json.MarshalIndent(mockFile, "", " ")
-		if err != nil {
-			return "", nil, err
+		data, jErr := json.MarshalIndent(mockFile, "", " ")
+		if jErr != nil {
+			return "", nil, jErr
 		}
 
 		err = common.WriteFile(path, data)

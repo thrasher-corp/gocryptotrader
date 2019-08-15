@@ -285,12 +285,10 @@ const (
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 	var context map[string]interface{}
-
-	switch dataType := data.(type) {
-	case []interface{}:
+	if reflect.TypeOf(data).String() == "[]interface {}" {
 		var sData []interface{}
-		for i := range dataType {
-			checkedData, err := CheckJSON(dataType[i], excluded)
+		for i := range data.([]interface{}) {
+			checkedData, err := CheckJSON(data.([]interface{})[i], excluded)
 			if err != nil {
 				return nil, err
 			}
