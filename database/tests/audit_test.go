@@ -46,6 +46,8 @@ func TestAudit(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
+			mg.MigrationDir = "../migration/migrations"
+
 			if !checkValidConfig(t, &test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}

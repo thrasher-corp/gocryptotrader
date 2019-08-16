@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,7 +16,15 @@ import (
 
 // LoadMigrations will load all migrations in the ./database/migration/migrations folder
 func (m *Migrator) LoadMigrations() error {
-	migration, err := filepath.Glob(MigrationFolder + "*.sql")
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "migrationdir" {
+			MigrationDir = flag.Lookup("migrationdir").Value.String()
+		}
+	})
+
+	m.Log.Printf("Using migration folder %s\n", MigrationDir)
+
+	migration, err := filepath.Glob(MigrationDir + "/*.sql")
 
 	if err != nil {
 		return errors.New("failed to load migrations")
@@ -42,7 +51,7 @@ func (m *Migrator) loadMigration(migration string) error {
 		return err
 	}
 
-	fileData := strings.Trim(file.Name(), MigrationFolder)
+	fileData := strings.Trim(file.Name(), MigrationDir)
 	fileSeq := strings.Split(fileData, "_")
 	seq, _ := strconv.Atoi(fileSeq[0])
 

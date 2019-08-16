@@ -23,6 +23,7 @@ var (
 	configFile      string
 	defaultDataDir  string
 	createMigration string
+	migrationDir    string
 )
 
 var defaultMigration = []byte(`-- up
@@ -84,6 +85,7 @@ func main() {
 	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.StringVar(&createMigration, "create", "", "create a new empty migration file")
+	flag.StringVar(&migrationDir, "migrationdir", mg.MigrationDir, "override migration folder")
 
 	flag.Parse()
 
@@ -144,7 +146,7 @@ func main() {
 
 func newMigrationFile(filename string) error {
 	curTime := strconv.FormatInt(time.Now().Unix(), 10)
-	path := filepath.Join(mg.MigrationFolder, curTime+"_"+filename+".sql")
+	path := filepath.Join(mg.MigrationDir, curTime+"_"+filename+".sql")
 	fmt.Printf("Creating new empty migration: %v\n", path)
 	f, err := os.Create(path)
 

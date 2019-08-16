@@ -5,7 +5,8 @@ import (
 )
 
 var (
-	MigrationFolder = "./database/migration/migrations/"
+	// MigrationDir Default folder to look for migrations to apply
+	MigrationDir = "./database/migration/migrations"
 )
 
 // Migration holds all information passes from a migration file
