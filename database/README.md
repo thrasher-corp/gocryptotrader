@@ -26,7 +26,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## How to use
 
-#####To Manually migrate to the latest database you can run the "dbmigrate" helper in the cmd folder
+##### To Manually migrate to the latest database you can run the "dbmigrate" helper in the cmd folder
 
 This will parse and run all migration files in your $GoCryptoTrader/database/migrations
 
@@ -40,7 +40,7 @@ A Makefile command has also been added for this
 make db_migrate
 ```
 
-#####To create a new migrate file you can also run the same command with the -create "migration name" flag
+##### To create a new migrate file you can also run the same command with the -create "migration name" flag
 
 ```sh
 go run ./cmd/dbmigrate -create "alter some table"
