@@ -45,6 +45,8 @@ func Event(msgType, identifier, message string) {
 
 func (e *eventPool) poolEvents(event *models.AuditEvent) {
 	e.eventMu.Lock()
+	defer e.eventMu.Unlock()
+
 	e.events = append(e.events, event)
 
 	database.Conn.Mu.RLock()
@@ -57,5 +59,5 @@ func (e *eventPool) poolEvents(event *models.AuditEvent) {
 
 	Audit.AddEventTx(e.events)
 	e.events = nil
-	e.eventMu.Unlock()
+
 }

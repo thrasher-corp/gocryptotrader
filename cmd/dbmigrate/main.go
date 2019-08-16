@@ -16,9 +16,6 @@ import (
 	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
-	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
-	auditSQLite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
 )
 
 var (
@@ -43,15 +40,12 @@ func openDbConnection(driver string) (err error) {
 		dbConn.SQL.SetMaxIdleConns(1)
 		dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
-		audit.Audit = auditPSQL.Audit()
 	} else if driver == "sqlite" {
 		dbConn, err = dbsqlite3.Connect()
 
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
-
-		audit.Audit = auditSQLite.Audit()
 	}
 	return nil
 }
@@ -150,7 +144,7 @@ func main() {
 
 func newMigrationFile(filename string) error {
 	curTime := strconv.FormatInt(time.Now().Unix(), 10)
-	path := filepath.Join(defaultDataDir, "/database/migrations", curTime+filename+".sql")
+	path := filepath.Join(mg.MigrationFolder, curTime+"_"+filename+".sql")
 	fmt.Printf("Creating new empty migration: %v\n", path)
 	f, err := os.Create(path)
 

@@ -8,21 +8,15 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // LoadMigrations will load all migrations in the ./database/migration/migrations folder
 func (m *Migrator) LoadMigrations() error {
-	err := m.checkMigrationDir()
-	if err != nil {
-		return err
-	}
-	migration, err := filepath.Glob(common.GetDefaultDataDir(runtime.GOOS) + "/database/migrations/*.sql")
+	migration, err := filepath.Glob(MigrationFolder + "*.sql")
+
 	if err != nil {
 		return errors.New("failed to load migrations")
 	}
@@ -39,7 +33,6 @@ func (m *Migrator) LoadMigrations() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -49,7 +42,7 @@ func (m *Migrator) loadMigration(migration string) error {
 		return err
 	}
 
-	fileData := strings.Trim(file.Name(), common.GetDefaultDataDir(runtime.GOOS)+"/database/migrations")
+	fileData := strings.Trim(file.Name(), MigrationFolder)
 	fileSeq := strings.Split(fileData, "_")
 	seq, _ := strconv.Atoi(fileSeq[0])
 
@@ -167,33 +160,4 @@ func (m *Migrator) checkConvert(input string) string {
 		"now()", "CURRENT_TIMESTAMP")
 
 	return r.Replace(input)
-}
-
-func (m *Migrator) checkMigrationDir() error {
-	dir := common.GetDefaultDataDir(runtime.GOOS) + "/database/migrations"
-
-	_, err := os.Stat(dir)
-	if !os.IsNotExist(err) {
-		return nil
-	}
-
-	m.Log.Printf("migration directory does not exist.. creating. %v", dir)
-	err = os.MkdirAll(dir, 0770)
-
-	if err != nil {
-		return err
-	}
-
-	f, err := os.Create(dir + "/1565657999_create_audit_event_table.sql")
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write(defaultAuditMigration)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

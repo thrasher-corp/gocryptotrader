@@ -30,7 +30,9 @@ type Config struct {
 var Conn = &Database{}
 
 var (
+	// ErrNoDatabaseProvided error to display when no database is provided
 	ErrNoDatabaseProvided = errors.New("no database provided")
-)
 
-var SupportedDrivers = []string{"sqlite", "postgres"}
+	// SupportedDrivers slice of supported database driver types
+	SupportedDrivers = []string{"sqlite", "postgres"}
+)

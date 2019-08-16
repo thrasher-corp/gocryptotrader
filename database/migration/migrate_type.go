@@ -4,6 +4,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
+var (
+	MigrationFolder = "./database/migration/migrations/"
+)
+
+// Migration holds all information passes from a migration file
+// Includes: Sequence(version), SQL queries to run on up & down
 type Migration struct {
 	Sequence int
 	Name     string
@@ -11,27 +17,18 @@ type Migration struct {
 	DownSQL  string
 }
 
+// Migrator holds pointer to database struct slice of Migrations and logger
 type Migrator struct {
 	Conn       *database.Database
 	Migrations []Migration
 	Log        Logger
 }
 
+// Logger interface implementation
+// Allows you to BYO Logging/Printing
+
 type Logger interface {
 	Printf(format string, v ...interface{})
 	Println(v ...interface{})
 	Errorf(format string, v ...interface{})
 }
-
-var defaultAuditMigration = []byte(`-- up
-CREATE TABLE IF NOT EXISTS audit_event
-(
-    id bigserial  PRIMARY KEY NOT NULL,
-    Type       varchar(255)  NOT NULL,
-    Identifier varchar(255)  NOT NULL,
-    Message    text          NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT now()
-);
--- down
-DROP TABLE audit_event;
-`)
