@@ -89,6 +89,10 @@ func (m *Migrator) RunMigration() (err error) {
 
 	latestSeq := m.Migrations[len(m.Migrations)-1].Sequence
 
+	if v > latestSeq {
+		return errors.New("current database version is greater than latest migration halting further migrations")
+	}
+
 	if v == latestSeq {
 		m.Log.Println("no migrations to be run")
 		return
@@ -99,7 +103,11 @@ func (m *Migrator) RunMigration() (err error) {
 		return
 	}
 
-	for y := v; y < len(m.Migrations); y++ {
+	for y := 0; y < len(m.Migrations); y++ {
+		if m.Migrations[y].Sequence <= v {
+			continue
+		}
+
 		err = m.txBegin(tx, m.checkConvert(m.Migrations[y].UpSQL))
 		if err != nil {
 			return tx.Rollback()
