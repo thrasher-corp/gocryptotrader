@@ -146,7 +146,11 @@ func main() {
 
 func newMigrationFile(filename string) error {
 	curTime := strconv.FormatInt(time.Now().Unix(), 10)
-	path := filepath.Join(mg.MigrationDir, curTime+"_"+filename+".sql")
+	path := filepath.Join(migrationDir, curTime+"_"+filename+".sql")
+	err := common.CreateDir(migrationDir)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("Creating new empty migration: %v\n", path)
 	f, err := os.Create(path)
 
