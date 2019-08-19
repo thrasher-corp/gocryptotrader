@@ -1,12 +1,14 @@
 package migrations
 
 import (
+	"path/filepath"
+
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
 var (
 	// MigrationDir Default folder to look for migrations to apply
-	MigrationDir = "./database/migration/migrations"
+	MigrationDir = filepath.Join("./database", "migration", "migrations")
 )
 
 // Migration holds all information passes from a migration file

@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestAudit(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			mg.MigrationDir = "../migration/migrations"
+			mg.MigrationDir = filepath.Join("../migration", "migrations")
 
 			if !checkValidConfig(t, &test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
