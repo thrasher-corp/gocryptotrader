@@ -21,11 +21,12 @@ var (
 		Enabled:           true,
 		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
-			// Host:     "",
-			// Port:     5432,
-			// Username: "",
-			// Password: "",
-			// Database: "",
+			//Host:     "",
+			//Port:     5432,
+			//Username: "",
+			//Password: "",
+			//Database: "",
+			//SSLMode:  "",
 		},
 	}
 )

@@ -7,4 +7,5 @@ type ConnectionDetails struct {
 	Username string
 	Password string
 	Database string
+	SSLMode  string
 }

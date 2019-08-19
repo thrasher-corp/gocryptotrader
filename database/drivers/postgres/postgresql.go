@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx"
@@ -11,12 +12,17 @@ import (
 
 // Connect establishes a connection pool to the database
 func Connect() (*database.Database, error) {
-	connConfig := pgx.ConnConfig{
-		Host:     database.Conn.Config.Host,
-		Port:     database.Conn.Config.Port,
-		User:     database.Conn.Config.Username,
-		Password: database.Conn.Config.Password,
-		Database: database.Conn.Config.Database,
+	configDSN := fmt.Sprintf("host=%s port=%d user=%s password=%s database=%s sslmode=%s",
+		database.Conn.Config.Host,
+		database.Conn.Config.Port,
+		database.Conn.Config.Username,
+		database.Conn.Config.Password,
+		database.Conn.Config.Database,
+		database.Conn.Config.SSLMode)
+
+	connConfig, err := pgx.ParseDSN(configDSN)
+	if err != nil {
+		return nil, err
 	}
 
 	connPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
