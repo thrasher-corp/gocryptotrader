@@ -340,7 +340,7 @@ func TestGetAllOpenOrderID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.GetAllOpenOrderID()
+	_, err := l.getAllOpenOrderID()
 	if err != nil {
 		t.Errorf("test failed: %v", err)
 	}

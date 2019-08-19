@@ -190,7 +190,7 @@ func (l *Lbank) CancelOrder(order *exchange.OrderCancellation) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
-	orderIDs, err := l.GetAllOpenOrderID()
+	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {
 		return resp, nil
 	}
@@ -247,7 +247,7 @@ func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.Ca
 // GetOrderInfo returns information on a current open order
 func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	var resp exchange.OrderDetail
-	orderIDs, err := l.GetAllOpenOrderID()
+	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {
 		return resp, err
 	}
@@ -332,7 +332,7 @@ func (l *Lbank) GetWebsocket() (*wshandler.Websocket, error) {
 func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var finalResp []exchange.OrderDetail
 	var resp exchange.OrderDetail
-	tempData, err := l.GetAllOpenOrderID()
+	tempData, err := l.getAllOpenOrderID()
 	if err != nil {
 		return finalResp, err
 	}
@@ -489,8 +489,8 @@ func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return resp, nil
 }
 
-// GetAllOpenOrderID returns map[string][]string -> map[currencypair][]orderIDs
-func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
+// GetAllOpenOrderID returns all open orders by currency pairs
+func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 	allPairs := l.GetEnabledCurrencies()
 	resp := make(map[string][]string)
 	for a := range allPairs {
@@ -512,7 +512,7 @@ func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
 			}
 
 			for c := 0; c < tempData; c++ {
-				resp[p.String()] = append(resp[exchange.FormatExchangeCurrency(l.Name, p).String()], tempResp.Orders[c].OrderID)
+				resp[exchange.FormatExchangeCurrency(l.Name, p).String()] = append(resp[exchange.FormatExchangeCurrency(l.Name, p).String()], tempResp.Orders[c].OrderID)
 
 			}
 			tempData = len(tempResp.Orders)

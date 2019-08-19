@@ -184,14 +184,14 @@ type WithdrawConfigResponse struct {
 	Fee         string `json:"fee"`
 }
 
-// WithdrawResponse stores info about something
+// WithdrawResponse stores info about the withdrawal
 type WithdrawResponse struct {
 	ErrCapture `json:",omitempty"`
 	WithdrawID string  `json:"withdrawId"`
 	Fee        float64 `json:"fee"`
 }
 
-// RevokeWithdrawResponse stores info about something
+// RevokeWithdrawResponse stores info about the revoked withdrawal
 type RevokeWithdrawResponse struct {
 	ErrCapture `json:",omitempty"`
 	WithdrawID string `json:"string"`

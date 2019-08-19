@@ -305,6 +305,7 @@ func (l *Lbank) RemoveOrder(pair, orderID string) (RemoveOrderResponse, error) {
 }
 
 // QueryOrder finds out information about orders (can pass up to 3 comma separated values to this)
+// Lbank returns an empty string as their []OrderResponse instead of returning an empty array, so when len(tempResp.Orders) > 2 its not empty and should be unmarshalled separately
 func (l *Lbank) QueryOrder(pair, orderIDs string) (QueryOrderFinalResponse, error) {
 	var resp QueryOrderFinalResponse
 	var tempResp QueryOrderResponse
@@ -339,6 +340,7 @@ func (l *Lbank) QueryOrder(pair, orderIDs string) (QueryOrderFinalResponse, erro
 }
 
 // QueryOrderHistory finds order info in the past 2 days
+// Lbank returns an empty string as their []OrderResponse instead of returning an empty array, so when len(tempResp.Orders) > 2 its not empty and should be unmarshalled separately
 func (l *Lbank) QueryOrderHistory(pair, pageNumber, pageLength string) (OrderHistoryFinalResponse, error) {
 	var resp OrderHistoryFinalResponse
 	var tempResp OrderHistoryResponse
@@ -398,13 +400,13 @@ func (l *Lbank) OrderTransactionDetails(symbol, orderID string) (TransactionHist
 }
 
 // TransactionHistory stores info about transactions
-func (l *Lbank) TransactionHistory(symbol, transactiontype, startdate, enddate, from, direct, size string) (TransactionHistoryResp, error) {
+func (l *Lbank) TransactionHistory(symbol, transactionType, startDate, endDate, from, direct, size string) (TransactionHistoryResp, error) {
 	var resp TransactionHistoryResp
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("type", transactiontype)
-	params.Set("start_date", startdate)
-	params.Set("end_date", enddate)
+	params.Set("type", transactionType)
+	params.Set("start_date", startDate)
+	params.Set("end_date", endDate)
 	params.Set("from", from)
 	params.Set("direct", direct)
 	params.Set("size", size)
@@ -422,6 +424,7 @@ func (l *Lbank) TransactionHistory(symbol, transactiontype, startdate, enddate, 
 }
 
 // GetOpenOrders gets opening orders
+// Lbank returns an empty string as their []OrderResponse instead of returning an empty array, so when len(tempResp.Orders) > 2 its not empty and should be unmarshalled separately
 func (l *Lbank) GetOpenOrders(pair, pageNumber, pageLength string) (OpenOrderFinalResponse, error) {
 	var resp OpenOrderFinalResponse
 	var tempResp OpenOrderResponse
