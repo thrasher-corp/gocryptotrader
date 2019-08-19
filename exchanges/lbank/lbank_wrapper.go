@@ -71,7 +71,7 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, e
 
 // GetTickerPrice returns the ticker for a currency pair
 func (l *Lbank) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(l.GetName(), exchange.FormatExchangeCurrency(l.Name, p), assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
 	}
@@ -90,7 +90,7 @@ func (l *Lbank) GetOrderbookEx(currency currency.Pair, assetType string) (orderb
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	a, err := l.GetMarketDepths(p.String(), "60", "1")
+	a, err := l.GetMarketDepths(exchange.FormatExchangeCurrency(l.Name, p).String(), "60", "1")
 	if err != nil {
 		return orderBook, err
 	}
