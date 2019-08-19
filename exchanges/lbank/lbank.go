@@ -70,6 +70,8 @@ func (l *Lbank) SetDefaults() {
 	l.RequestCurrencyPairFormat.Delimiter = "_"
 	l.ConfigCurrencyPairFormat.Delimiter = "_"
 	l.AssetTypes = []string{ticker.Spot}
+	l.SupportsAutoPairUpdating = true
+	l.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.NoFiatWithdrawals
 	l.Requester = request.New(l.Name,
 		request.NewRateLimit(time.Second, lbankAuthRateLimit),
 		request.NewRateLimit(time.Second, lbankUnAuthRateLimit),
@@ -140,7 +142,6 @@ func (l *Lbank) GetTicker(symbol string) (TickerResponse, error) {
 func (l *Lbank) GetCurrencyPairs() ([]string, error) {
 	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion,
 		lbankCurrencyPairs)
-
 	var result []string
 	return result, l.SendHTTPRequest(path, &result)
 }

@@ -12,7 +12,7 @@ An exchange interface wrapper for the GoCryptoTrader application.
 ## Current Lbank Exchange Features
 
 + REST Support 
-+ Websocket Support 
++ Websocket Support is currently not supported
 
 + Can be used as a package
 

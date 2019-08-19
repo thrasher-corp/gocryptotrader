@@ -74,7 +74,6 @@ func TestGetCurrencyPairs(t *testing.T) {
 
 func TestGetMarketDepths(t *testing.T) {
 	TestSetup(t)
-	l.Verbose = true
 	_, err := l.GetMarketDepths("btc_usdt", "60", "1")
 	if err != nil {
 		t.Errorf("GetMarketDepth failed: %v", err)

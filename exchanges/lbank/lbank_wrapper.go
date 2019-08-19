@@ -51,7 +51,7 @@ func (l *Lbank) Run() {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *Lbank) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tickerInfo, err := l.GetTicker(p.String())
+	tickerInfo, err := l.GetTicker(exchange.FormatExchangeCurrency(l.Name, p).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -118,7 +118,6 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
 func (l *Lbank) GetAccountInfo() (exchange.AccountInfo, error) {
-
 	var info exchange.AccountInfo
 	data, err := l.GetUserInfo()
 	if err != nil {
@@ -164,7 +163,7 @@ func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType string) ([]exchang
 // SubmitOrder submits a new order
 func (l *Lbank) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var resp exchange.SubmitOrderResponse
-	if side != "BUY" && side != "SELL" {
+	if side != exchange.BuyOrderSide && side != exchange.SellOrderSide {
 		return resp, fmt.Errorf("%s orderside is not supported by the exchange", side)
 	}
 	tempResp, err := l.CreateOrder(p.String(), side.ToString(), amount, price)
@@ -287,7 +286,7 @@ func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
-			resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
+			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
 				FeeType:       exchange.CryptocurrencyTradeFee,
 				Amount:        tempResp.Orders[0].Amount,
@@ -370,7 +369,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.OrderDate = time.Unix(tempResp.Orders[0].CreateTime, 9)
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
-			resp.RemainingAmount = tempResp.Orders[0].Price - tempResp.Orders[0].DealAmount
+			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
 				FeeType:       exchange.CryptocurrencyTradeFee,
 				Amount:        tempResp.Orders[0].Amount,
