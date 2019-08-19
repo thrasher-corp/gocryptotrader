@@ -60,6 +60,7 @@ func (a *databaseManager) Start() (err error) {
 			audit.Audit = auditSQLite.Audit()
 		}
 		dbConn.Connected = true
+		log.Debugf(log.DatabaseMgr, "connection established to %v using %v", dbConn.Config.Host, dbConn.Config.Driver)
 
 		mLogger := mg.MLogger{}
 		migrations := mg.Migrator{
@@ -103,7 +104,7 @@ func (a *databaseManager) run() {
 	log.Debugln(log.DatabaseMgr, "database manager started.")
 	Bot.ServicesWG.Add(1)
 
-	t := time.NewTicker(time.Second * 30)
+	t := time.NewTicker(time.Second * 2)
 	a.running.Store(true)
 
 	defer func() {

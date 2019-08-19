@@ -14,8 +14,8 @@ type Repository interface {
 }
 
 var (
-	Audit Repository // Global Audit repository
-
+	// Audit repository initialise copy of Audit Repository
+	Audit Repository
 )
 
 type eventPool struct {
@@ -59,5 +59,4 @@ func (e *eventPool) poolEvents(event *models.AuditEvent) {
 
 	Audit.AddEventTx(e.events)
 	e.events = nil
-
 }
