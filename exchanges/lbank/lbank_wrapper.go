@@ -166,7 +166,7 @@ func (l *Lbank) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange
 	if side != exchange.BuyOrderSide && side != exchange.SellOrderSide {
 		return resp, fmt.Errorf("%s orderside is not supported by the exchange", side)
 	}
-	tempResp, err := l.CreateOrder(p.String(), side.ToString(), amount, price)
+	tempResp, err := l.CreateOrder(exchange.FormatExchangeCurrency(l.Name, p).String(), side.ToString(), amount, price)
 	if err != nil {
 		return resp, err
 	}
@@ -183,7 +183,7 @@ func (l *Lbank) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (l *Lbank) CancelOrder(order *exchange.OrderCancellation) error {
-	_, err := l.RemoveOrder(order.CurrencyPair.Lower().String(), order.OrderID)
+	_, err := l.RemoveOrder(exchange.FormatExchangeCurrency(l.Name, order.CurrencyPair).String(), order.OrderID)
 	return err
 }
 
@@ -411,12 +411,12 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	for a := range tempCurr {
 		p := exchange.FormatExchangeCurrency(l.Name, tempCurr[a])
 		b := int64(1)
-		tempResp, err := l.QueryOrderHistory(p.String(), strconv.FormatInt(b, 10), "200")
+		tempResp, err := l.QueryOrderHistory(exchange.FormatExchangeCurrency(l.Name, p).String(), strconv.FormatInt(b, 10), "200")
 		if err != nil {
 			return finalResp, err
 		}
 		for len(tempResp.Orders) != 0 {
-			tempResp, err = l.QueryOrderHistory(p.String(), strconv.FormatInt(b, 10), "200")
+			tempResp, err = l.QueryOrderHistory(exchange.FormatExchangeCurrency(l.Name, p).String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
 				return finalResp, err
 			}
@@ -496,13 +496,13 @@ func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
 	for a := range allPairs {
 		p := exchange.FormatExchangeCurrency(l.Name, allPairs[a])
 		b := int64(1)
-		tempResp, err := l.GetOpenOrders(p.String(), strconv.FormatInt(b, 10), "200")
+		tempResp, err := l.GetOpenOrders(exchange.FormatExchangeCurrency(l.Name, p).String(), strconv.FormatInt(b, 10), "200")
 		if err != nil {
 			return resp, err
 		}
 		tempData := len(tempResp.Orders)
 		for tempData != 0 {
-			tempResp, err = l.GetOpenOrders(p.String(), strconv.FormatInt(b, 10), "200")
+			tempResp, err = l.GetOpenOrders(exchange.FormatExchangeCurrency(l.Name, p).String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
 				return resp, err
 			}
@@ -512,7 +512,7 @@ func (l *Lbank) GetAllOpenOrderID() (map[string][]string, error) {
 			}
 
 			for c := 0; c < tempData; c++ {
-				resp[p.String()] = append(resp[p.String()], tempResp.Orders[c].OrderID)
+				resp[p.String()] = append(resp[exchange.FormatExchangeCurrency(l.Name, p).String()], tempResp.Orders[c].OrderID)
 
 			}
 			tempData = len(tempResp.Orders)
