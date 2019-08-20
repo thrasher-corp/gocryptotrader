@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -143,19 +144,27 @@ func (b *Bithumb) GetTradablePairs() ([]string, error) {
 //
 // symbol e.g. "btc"
 func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
-	response := Ticker{}
-	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicTicker, common.StringToUpper(symbol))
+	type Response struct {
+		ActionStatus
+		Data Ticker `json:"data"`
+	}
+
+	response := Response{}
+	path := fmt.Sprintf("%s%s%s",
+		b.APIUrl,
+		publicTicker,
+		strings.ToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
-		return response, err
+		return response.Data, err
 	}
 
-	if response.Status != noError {
-		return response, errors.New(response.Message)
+	if response.Status != "0000" {
+		return response.Data, errors.New(response.Message)
 	}
 
-	return response, nil
+	return response.Data, nil
 }
 
 // GetAllTickers returns all ticker information
@@ -173,32 +182,41 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 		return nil, err
 	}
 
-	if response.Status != noError {
+	if response.Status != "0000" {
 		return nil, errors.New(response.Message)
 	}
 
 	result := make(map[string]Ticker)
 	for k, v := range response.Data {
-		if k == "date" {
+		data, ok := v.(map[string]interface{})
+		if !ok {
 			continue
 		}
 
-		if reflect.TypeOf(v).String() != "map[string]interface {}" {
-			continue
-		}
+		openingPrice, _ := data["opening_price"].(string)
+		closingPrice, _ := data["closing_price"].(string)
+		minPrice, _ := data["min_price"].(string)
+		maxPrice, _ := data["max_price"].(string)
+		unitsTraded, _ := data["units_traded"].(string)
+		accTradeValue, _ := data["acc_trade_value"].(string)
+		prevClosingPrice, _ := data["prev_closing_price"].(string)
+		unitsTraded24hr, _ := data["units_traded_24H"].(string)
+		accTradeValue24hr, _ := data["acc_trade_value_24H"].(string)
+		fluctateRate24hr, _ := data["fluctate_rate_24H"].(string)
 
-		data := v.(map[string]interface{})
 		var t Ticker
-		t.AveragePrice, _ = strconv.ParseFloat(data["average_price"].(string), 64)
-		t.BuyPrice, _ = strconv.ParseFloat(data["buy_price"].(string), 64)
-		t.ClosingPrice, _ = strconv.ParseFloat(data["closing_price"].(string), 64)
-		t.MaxPrice, _ = strconv.ParseFloat(data["max_price"].(string), 64)
-		t.MinPrice, _ = strconv.ParseFloat(data["min_price"].(string), 64)
-		t.OpeningPrice, _ = strconv.ParseFloat(data["opening_price"].(string), 64)
-		t.SellPrice, _ = strconv.ParseFloat(data["sell_price"].(string), 64)
-		t.UnitsTraded, _ = strconv.ParseFloat(data["units_traded"].(string), 64)
-		t.Volume1Day, _ = strconv.ParseFloat(data["volume_1day"].(string), 64)
-		t.Volume7Day, _ = strconv.ParseFloat(data["volume_7day"].(string), 64)
+		t.OpeningPrice, _ = strconv.ParseFloat(openingPrice, 64)
+		t.ClosingPrice, _ = strconv.ParseFloat(closingPrice, 64)
+		t.MinPrice, _ = strconv.ParseFloat(minPrice, 64)
+		t.MaxPrice, _ = strconv.ParseFloat(maxPrice, 64)
+		t.UnitsTraded, _ = strconv.ParseFloat(unitsTraded, 64)
+		t.AccumulatedTradeValue, _ = strconv.ParseFloat(accTradeValue, 64)
+		t.PreviousClosingPrice, _ = strconv.ParseFloat(prevClosingPrice, 64)
+		t.UnitsTraded24Hr, _ = strconv.ParseFloat(unitsTraded24hr, 64)
+		t.AccumulatedTradeValue24hr, _ = strconv.ParseFloat(accTradeValue24hr, 64)
+		t.Fluctate24Hr, _ = data["fluctate_24H"].(string)
+		t.FluctateRate24hr, _ = strconv.ParseFloat(fluctateRate24hr, 64)
+
 		result[k] = t
 
 	}
