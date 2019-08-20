@@ -1,5 +1,4 @@
 {
- "host": ":3001",
  "routes": {
   "/api/v1/aggTrades": {
    "GET": [

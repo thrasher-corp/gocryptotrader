@@ -1,5 +1,4 @@
 {
- "host": ":3000",
  "routes": {
   "/api/2/BTCUSD/money/depth/full": {
    "GET": [

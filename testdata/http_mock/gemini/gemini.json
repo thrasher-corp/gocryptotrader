@@ -1,5 +1,4 @@
 {
- "host": ":3000",
  "routes": {
   "/v1/auction/btcusd": {
    "GET": [

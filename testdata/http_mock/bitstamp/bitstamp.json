@@ -1,5 +1,4 @@
 {
- "host": ":3002",
  "routes": {
   "/api/bitcoin_deposit_address/": {
    "POST": [
