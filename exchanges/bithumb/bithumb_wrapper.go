@@ -78,11 +78,9 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 		currency := x.Base.String()
 		var tp ticker.Price
 		tp.Pair = x
-		tp.Ask = tickers[currency].SellPrice
-		tp.Bid = tickers[currency].BuyPrice
 		tp.Low = tickers[currency].MinPrice
 		tp.Last = tickers[currency].ClosingPrice
-		tp.Volume = tickers[currency].Volume1Day
+		tp.Volume = tickers[currency].UnitsTraded24Hr
 		tp.High = tickers[currency].MaxPrice
 
 		err = ticker.ProcessTicker(b.Name, &tp, assetType)
