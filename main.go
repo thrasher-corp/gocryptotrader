@@ -110,7 +110,6 @@ func main() {
 	}
 
 	ActivateNTP()
-
 	ActivateConnectivityMonitor()
 	AdjustGoMaxProcs()
 
