@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
-		log.Error("Test Failed - Poloniex Setup() init error", err)
+		log.Error("Test Failed - Bitstamp Setup() init error", err)
 		os.Exit(1)
 	}
 	bitstampConfig.AuthenticatedAPISupport = true

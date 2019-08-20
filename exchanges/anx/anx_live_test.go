@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
-		log.Error("Test Failed - Poloniex Setup() init error", err)
+		log.Error("Test Failed - ANX Setup() init error", err)
 		os.Exit(1)
 	}
 	anxConfig.AuthenticatedAPISupport = true

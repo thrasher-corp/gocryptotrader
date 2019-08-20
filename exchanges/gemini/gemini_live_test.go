@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
-		log.Error("Test Failed - Poloniex Setup() init error", err)
+		log.Error("Test Failed - Gemini Setup() init error", err)
 		os.Exit(1)
 	}
 	geminiConfig.AuthenticatedAPISupport = true
