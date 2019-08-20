@@ -88,7 +88,7 @@ func TestDatabaseConnect(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := connectToDatabase(t, &test.config)
+			_, err := connectToDatabase(t, &test.config)
 
 			if err != nil {
 				switch v := test.output.(type) {
@@ -99,13 +99,6 @@ func TestDatabaseConnect(t *testing.T) {
 					return
 				default:
 					break
-				}
-			}
-
-			if dbConn != nil {
-				err := dbConn.SQL.Close()
-				if err != nil {
-					t.Error("Failed to close database")
 				}
 			}
 		})
@@ -128,15 +121,6 @@ func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Da
 		}
 	}
 	database.Conn.Connected = true
-	return
-}
-
-func closeDatabase(t *testing.T, conn *database.Database) (err error) {
-	t.Helper()
-
-	if conn != nil {
-		err = conn.SQL.Close()
-	}
 	return
 }
 

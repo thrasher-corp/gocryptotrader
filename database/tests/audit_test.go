@@ -94,11 +94,6 @@ func TestAudit(t *testing.T) {
 			default:
 				break
 			}
-
-			err = closeDatabase(t, dbConn)
-			if err != nil {
-				t.Error("Failed to close database")
-			}
 		})
 	}
 }
