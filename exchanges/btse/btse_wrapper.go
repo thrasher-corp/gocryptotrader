@@ -39,16 +39,19 @@ func (b *BTSE) Run() {
 	} else {
 		var currencies []string
 		for _, m := range *markets {
-			currencies = append(currencies, m.ID)
+			if m.Status != "active" {
+				continue
+			}
+			currencies = append(currencies, m.Symbol)
 		}
 		err = b.UpdateCurrencies(currency.NewPairsFromStrings(currencies),
 			false,
 			false)
 		if err != nil {
-			log.Errorf("%s Failed to update available currencies.\n", b.Name)
+			log.Errorf("%s Failed to update available currencies. Error: %s\n",
+				b.Name, err)
 		}
 	}
-
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
