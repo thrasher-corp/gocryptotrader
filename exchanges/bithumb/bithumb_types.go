@@ -27,9 +27,9 @@ type TickerResponse struct {
 
 // TickersResponse holds the standard ticker response
 type TickersResponse struct {
-	Status  string            `json:"status"`
-	Data    map[string]Ticker `json:"data"`
-	Message string            `json:"message"`
+	Status  string                 `json:"status"`
+	Data    map[string]interface{} `json:"data"`
+	Message string                 `json:"message"`
 }
 
 // Orderbook holds full range of order book information

@@ -144,12 +144,7 @@ func (b *Bithumb) GetTradablePairs() ([]string, error) {
 //
 // symbol e.g. "btc"
 func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
-	type Response struct {
-		ActionStatus
-		Data Ticker `json:"data"`
-	}
-
-	response := Response{}
+	var response TickerResponse
 	path := fmt.Sprintf("%s%s%s",
 		b.APIUrl,
 		publicTicker,
@@ -160,7 +155,7 @@ func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 		return response.Data, err
 	}
 
-	if response.Status != "0000" {
+	if response.Status != noError {
 		return response.Data, errors.New(response.Message)
 	}
 
@@ -169,12 +164,7 @@ func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 
 // GetAllTickers returns all ticker information
 func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
-	type Response struct {
-		ActionStatus
-		Data map[string]interface{}
-	}
-
-	response := Response{}
+	var response TickersResponse
 	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicTicker, "all")
 
 	err := b.SendHTTPRequest(path, &response)
@@ -182,7 +172,7 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 		return nil, err
 	}
 
-	if response.Status != "0000" {
+	if response.Status != noError {
 		return nil, errors.New(response.Message)
 	}
 
@@ -218,7 +208,6 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 		t.FluctateRate24hr, _ = strconv.ParseFloat(fluctateRate24hr, 64)
 
 		result[k] = t
-
 	}
 	return result, nil
 }
@@ -614,7 +603,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 
 	err = common.JSONDecode(intermediary, &errCapture)
 	if err == nil {
-		if errCapture.Status != "" && errCapture.Status != "0000" {
+		if errCapture.Status != "" && errCapture.Status != noError {
 			return fmt.Errorf("sendAuthenticatedAPIRequest error code: %s message:%s",
 				errCapture.Status,
 				errCode[errCapture.Status])
