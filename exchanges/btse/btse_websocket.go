@@ -62,7 +62,7 @@ func (b *BTSE) WsHandleData() {
 				ProductID string `json:"product_id"`
 			}
 
-			if strings.Contains(string(resp.Raw), "connect success") {
+			if strings.Contains(string(resp.Raw), "Connected. Welcome to BTSE!") {
 				if b.Verbose {
 					log.Debugf("%s websocket client successfully connected to %s",
 						b.Name, b.Websocket.GetWebsocketURL())

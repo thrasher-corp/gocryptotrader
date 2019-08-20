@@ -1,8 +1,10 @@
 package btse
 
+import "time"
+
 // Market stores market data
 type Market struct {
-	ID                  string  `json:"id"`
+	Symbol              string  `json:"symbol"`
 	BaseCurrency        string  `json:"base_currency"`
 	QuoteCurrency       string  `json:"quote_currency"`
 	BaseMinSize         float64 `json:"base_min_size"`
@@ -51,8 +53,8 @@ type MarketStatistics struct {
 
 // ServerTime stores the server time data
 type ServerTime struct {
-	ISO   string  `json:"iso"`
-	Epoch float64 `json:"epoch"`
+	ISO   time.Time `json:"iso"`
+	Epoch string    `json:"epoch"`
 }
 
 // CurrencyBalance stores the account info data
