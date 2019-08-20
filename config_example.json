@@ -10,7 +10,8 @@
    "Port": 0,
    "Username": "",
    "Password": "",
-   "Database": ""
+   "Database": "",
+   "SSLMode": ""
   }
  },
  "logging": {
