@@ -53,6 +53,7 @@ func TestDatabaseConnect(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config database.Config
+		closer func(t *testing.T, dbConn *database.Database) error
 		output interface{}
 	}{
 		{
@@ -61,6 +62,7 @@ func TestDatabaseConnect(t *testing.T) {
 				Driver:            "sqlite",
 				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
 			},
+			closeDatabase,
 			nil,
 		},
 		{
@@ -71,6 +73,7 @@ func TestDatabaseConnect(t *testing.T) {
 					Host: "localhost",
 				},
 			},
+			nil,
 			database.ErrNoDatabaseProvided,
 		},
 		{
@@ -83,13 +86,11 @@ func TestDatabaseConnect(t *testing.T) {
 	for _, tests := range testCases {
 		test := tests
 		t.Run(test.name, func(t *testing.T) {
-
 			if !checkValidConfig(t, &test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			_, err := connectToDatabase(t, &test.config)
-
+			dbConn, err := connectToDatabase(t, &test.config)
 			if err != nil {
 				switch v := test.output.(type) {
 				case error:
@@ -99,6 +100,13 @@ func TestDatabaseConnect(t *testing.T) {
 					return
 				default:
 					break
+				}
+			}
+
+			if test.closer != nil {
+				err = test.closer(t, dbConn)
+				if err != nil {
+					t.Log(err)
 				}
 			}
 		})
@@ -122,6 +130,15 @@ func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Da
 	}
 	database.Conn.Connected = true
 	return
+}
+
+func closeDatabase(t *testing.T, conn *database.Database) (err error) {
+	t.Helper()
+
+	if conn != nil {
+		return conn.SQL.Close()
+	}
+	return nil
 }
 
 func checkValidConfig(t *testing.T, config *drivers.ConnectionDetails) bool {

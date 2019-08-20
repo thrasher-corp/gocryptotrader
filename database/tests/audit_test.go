@@ -21,6 +21,7 @@ func TestAudit(t *testing.T) {
 		config database.Config
 		audit  audit.Repository
 		runner func(t *testing.T)
+		closer func(t *testing.T, dbConn *database.Database) error
 		output interface{}
 	}{
 		{
@@ -31,6 +32,7 @@ func TestAudit(t *testing.T) {
 			},
 			auditSQlite.Audit(),
 			writeAudit,
+			closeDatabase,
 			nil,
 		},
 		{
@@ -38,6 +40,7 @@ func TestAudit(t *testing.T) {
 			postgresTestDatabase,
 			auditPSQL.Audit(),
 			writeAudit,
+			nil,
 			nil,
 		},
 	}
@@ -93,6 +96,13 @@ func TestAudit(t *testing.T) {
 				return
 			default:
 				break
+			}
+
+			if test.closer != nil {
+				err = test.closer(t, dbConn)
+				if err != nil {
+					t.Log(err)
+				}
 			}
 		})
 	}
