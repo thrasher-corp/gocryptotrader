@@ -384,7 +384,7 @@ func TestSubscriptionWithExistingEntry(t *testing.T) {
 	w.SetChannelSubscriber(placeholderSubscriber)
 	w.subscribeToChannels()
 	if len(w.subscribedChannels) != 1 {
-		t.Errorf("Subscription should not have occured")
+		t.Errorf("Subscription should not have occurred")
 	}
 }
 
@@ -405,7 +405,7 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 	w.SetChannelUnsubscriber(placeholderSubscriber)
 	w.unsubscribeToChannels()
 	if len(w.subscribedChannels) != 1 {
-		t.Errorf("Unsubscription should not have occured")
+		t.Errorf("Unsubscription should not have occurred")
 	}
 }
 

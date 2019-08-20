@@ -146,7 +146,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 
 	err = SuperDuperConversionSystem.Update(nil)
 	if err == nil {
-		t.Fatal("Test Failed - Update() error cannnot be nil")
+		t.Fatal("Test Failed - Update() error cannot be nil")
 	}
 
 	if !SuperDuperConversionSystem.HasData() {

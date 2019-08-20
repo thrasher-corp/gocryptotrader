@@ -1,10 +1,10 @@
-{{define "cmd documentation" -}} 
+{{define "cmd documentation" -}}
 {{template "header" .}}
 ## Current Features for {{.Name}}
 
 #### This tool allows for the generation of new documentation through templating
 
-From the `gocryptotrader/cmd/documentation/` folder, using the go command: **go run documentation.go** this will auto-generate and regenerate documentation  across the **GoCryptoTrader** code base. 
+From the `gocryptotrader/cmd/documentation/` folder, using the go command: **go run documentation.go** this will auto-generate and regenerate documentation  across the **GoCryptoTrader** code base.
 >Using the -v command will, ie **go run documentation.go -v** put the tool into verbose mode allowing you to see what is happening with a little more depth.
 
 Be aware, this tool will:
@@ -18,7 +18,7 @@ Be aware, this tool will:
 
 ```json
 {
-"githubRepo": "https://api.github.com/repos/thrasher-/gocryptotrader", This is your current repo
+"githubRepo": "https://api.github.com/repos/thrasher-corp/gocryptotrader", This is your current repo
 "exclusionList": { This allows for excluded directories and files
 "Files": null,
 "Directories": [
@@ -37,7 +37,7 @@ Be aware, this tool will:
 >place a new template **example_file.tmpl** located in the current gocryptotrader/cmd/documentation/ folder; when the documentation tool finishes it will give you the define template associated name e.g. ``Template not found for path ../../cmd/documentation create new template with \{\{define "cmd documentation" -\}\} TEMPLATE HERE \{\{end}}`` so you can replace the below example with ``\{\{define "cmd documentation" -}}``
 
 ```
-\{\{\define "example_definition_created_by_documentation_tool" -}} 
+\{\{\define "example_definition_created_by_documentation_tool" -}}
 \{\{\template "header" .}}
 ## Current Features for {{.Name}}
 

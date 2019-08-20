@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -1293,6 +1294,29 @@ func (c *Config) CheckLoggerConfig() error {
 	return nil
 }
 
+func (c *Config) checkDatabaseConfig() error {
+	m.Lock()
+	defer m.Unlock()
+
+	if !common.StringDataCompare(database.SupportedDrivers, c.Database.Driver) {
+		c.Database.Enabled = false
+		return fmt.Errorf("unsupported database driver %v database disabled", c.Database.Driver)
+	}
+
+	if c.Database.Driver == "sqlite" {
+		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
+		err := common.CreateDir(databaseDir)
+		if err != nil {
+			return err
+		}
+		database.Conn.DataPath = databaseDir
+	}
+
+	database.Conn.Config = &c.Database
+
+	return nil
+}
+
 // CheckNTPConfig checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
 func (c *Config) CheckNTPConfig() {
 	m.Lock()
@@ -1606,6 +1630,11 @@ func (c *Config) CheckConfig() error {
 	err := c.CheckLoggerConfig()
 	if err != nil {
 		log.Errorf(log.ConfigMgr, "Failed to configure logger, some logging features unavailable: %s\n", err)
+	}
+
+	err = c.checkDatabaseConfig()
+	if err != nil {
+		log.Errorf(log.DatabaseMgr, "Failed to configure database: %v", err)
 	}
 
 	err = c.CheckExchangeConfigValues()

@@ -4,10 +4,11 @@ import "time"
 
 // Settings stores engine params
 type Settings struct {
-	ConfigFile string
-	DataDir    string
-	LogFile    string
-	GoMaxProcs int
+	ConfigFile   string
+	DataDir      string
+	MigrationDir string
+	LogFile      string
+	GoMaxProcs   int
 
 	// Core Settings
 	EnableDryRun                bool
@@ -27,6 +28,7 @@ type Settings struct {
 	EnableEventManager          bool
 	EnableOrderManager          bool
 	EnableConnectivityMonitor   bool
+	EnableDatabaseManager       bool
 	EnableNTPClient             bool
 	EnableWebsocketRoutine      bool
 	EventManagerDelay           time.Duration

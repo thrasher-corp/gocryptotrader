@@ -30,6 +30,7 @@ type Engine struct {
 	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
+	DatabaseManager             databaseManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
@@ -110,6 +111,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableAllPairs = s.EnableAllPairs
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
+	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
 
 	// TO-DO: FIXME
 	if flag.Lookup("grpc") != nil {
@@ -257,6 +259,12 @@ func (e *Engine) Start() {
 	if e == nil {
 		log.Errorln(log.Global, "Engine instance is nil")
 		os.Exit(1)
+	}
+
+	if e.Settings.EnableDatabaseManager {
+		if err := e.DatabaseManager.Start(); err != nil {
+			log.Errorf(log.Global, "Database manager unable to start: %v", err)
+		}
 	}
 
 	// Sets up internet connectivity monitor
@@ -417,6 +425,12 @@ func (e *Engine) Stop() {
 		}
 	}
 
+	if e.DatabaseManager.Started() {
+		if err := e.DatabaseManager.Stop(); err != nil {
+			log.Errorf(log.Global, "Database manager unable to stop. Error: %v", err)
+		}
+	}
+
 	if !e.Settings.EnableDryRun {
 		err := e.Config.SaveConfig(e.Settings.ConfigFile)
 		if err != nil {
@@ -425,6 +439,7 @@ func (e *Engine) Stop() {
 			log.Debugln(log.Global, "Config file saved successfully.")
 		}
 	}
+
 	// Wait for services to gracefully shutdown
 	e.ServicesWG.Wait()
 	log.Debugln(log.Global, "Exiting.")
