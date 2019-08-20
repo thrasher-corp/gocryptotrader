@@ -28,7 +28,7 @@ type HTTPResponse struct {
 
 // HTTPRecord will record the request and response to a default JSON file for
 // mocking purposes
-func HTTPRecord(res *http.Response, service string, respContents []byte, verbose bool) error {
+func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 	if res == nil {
 		return errors.New("http.Response cannot be nil")
 	}

@@ -337,7 +337,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 
 		if httpRecord {
 			// This dumps http responses for future mocking implementations
-			err = mock.HTTPRecord(resp, r.Name, contents, verbose)
+			err = mock.HTTPRecord(resp, r.Name, contents)
 			if err != nil {
 				return fmt.Errorf("mock recording failure %s", err)
 			}
