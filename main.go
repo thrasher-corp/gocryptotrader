@@ -110,6 +110,7 @@ func main() {
 	}
 
 	ActivateNTP()
+
 	ActivateConnectivityMonitor()
 	AdjustGoMaxProcs()
 
@@ -223,7 +224,7 @@ func ActivateNTP() {
 			configNTPNegativeTime := (*bot.config.NTPClient.AllowedNegativeDifference - (*bot.config.NTPClient.AllowedNegativeDifference * 2))
 			if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
 				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
-				if bot.config.NTPClient.Level == 0 {
+				if *bot.config.Logging.Enabled == true && bot.config.NTPClient.Level == 0 {
 					disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
 					if errNTP != nil {
 						log.Errorf("failed to disable ntp time check reason: %v", errNTP)
