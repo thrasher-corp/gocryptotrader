@@ -178,36 +178,15 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 
 	result := make(map[string]Ticker)
 	for k, v := range response.Data {
-		data, ok := v.(map[string]interface{})
-		if !ok {
+		if k == "date" {
 			continue
 		}
-
-		openingPrice, _ := data["opening_price"].(string)
-		closingPrice, _ := data["closing_price"].(string)
-		minPrice, _ := data["min_price"].(string)
-		maxPrice, _ := data["max_price"].(string)
-		unitsTraded, _ := data["units_traded"].(string)
-		accTradeValue, _ := data["acc_trade_value"].(string)
-		prevClosingPrice, _ := data["prev_closing_price"].(string)
-		unitsTraded24hr, _ := data["units_traded_24H"].(string)
-		accTradeValue24hr, _ := data["acc_trade_value_24H"].(string)
-		fluctateRate24hr, _ := data["fluctate_rate_24H"].(string)
-
-		var t Ticker
-		t.OpeningPrice, _ = strconv.ParseFloat(openingPrice, 64)
-		t.ClosingPrice, _ = strconv.ParseFloat(closingPrice, 64)
-		t.MinPrice, _ = strconv.ParseFloat(minPrice, 64)
-		t.MaxPrice, _ = strconv.ParseFloat(maxPrice, 64)
-		t.UnitsTraded, _ = strconv.ParseFloat(unitsTraded, 64)
-		t.AccumulatedTradeValue, _ = strconv.ParseFloat(accTradeValue, 64)
-		t.PreviousClosingPrice, _ = strconv.ParseFloat(prevClosingPrice, 64)
-		t.UnitsTraded24Hr, _ = strconv.ParseFloat(unitsTraded24hr, 64)
-		t.AccumulatedTradeValue24hr, _ = strconv.ParseFloat(accTradeValue24hr, 64)
-		t.Fluctate24Hr, _ = data["fluctate_24H"].(string)
-		t.FluctateRate24hr, _ = strconv.ParseFloat(fluctateRate24hr, 64)
-
-		result[k] = t
+		var newTicker Ticker
+		err := common.JSONDecode(v, &newTicker)
+		if err != nil {
+			return nil, err
+		}
+		result[k] = newTicker
 	}
 	return result, nil
 }

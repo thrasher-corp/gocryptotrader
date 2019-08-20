@@ -1,6 +1,10 @@
 package bithumb
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"encoding/json"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // Ticker holds ticker data
 type Ticker struct {
@@ -27,9 +31,9 @@ type TickerResponse struct {
 
 // TickersResponse holds the standard ticker response
 type TickersResponse struct {
-	Status  string                 `json:"status"`
-	Data    map[string]interface{} `json:"data"`
-	Message string                 `json:"message"`
+	Status  string                     `json:"status"`
+	Data    map[string]json.RawMessage `json:"data"`
+	Message string                     `json:"message"`
 }
 
 // Orderbook holds full range of order book information
