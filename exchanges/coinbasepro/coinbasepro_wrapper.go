@@ -233,17 +233,18 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (ticke
 		return ticker.Price{}, err
 	}
 
-	stats, err := c.GetStats(c.FormatExchangeCurrency(p, assetType).String())
-
 	if err != nil {
 		return ticker.Price{}, err
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Volume = stats.Volume
-	tickerPrice.Last = tick.Price
-	tickerPrice.High = stats.High
-	tickerPrice.Low = stats.Low
+	tickerPrice = ticker.Price{
+		Last:        tick.Size,
+		Bid:         tick.Bid,
+		Ask:         tick.Ask,
+		Volume:      tick.Volume,
+		Pair:        p,
+		LastUpdated: tick.Time,
+	}
 
 	err = ticker.ProcessTicker(c.GetName(), &tickerPrice, assetType)
 	if err != nil {

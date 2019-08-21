@@ -284,7 +284,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	}
 
 	tickerPrice.Pair = p
-	tickerPrice.Volume = tick.Volume
+	tickerPrice.Volume = tick.Volume24
 	tickerPrice.Last = tick.Last
 	tickerPrice.High = tick.HighestBuy
 	tickerPrice.Low = tick.LowestSell

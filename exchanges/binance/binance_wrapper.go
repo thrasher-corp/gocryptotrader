@@ -229,13 +229,18 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 			if tick[y].Symbol != curr.String() {
 				continue
 			}
-			tickerPrice.Pair = x
-			tickerPrice.Ask = tick[y].AskPrice
-			tickerPrice.Bid = tick[y].BidPrice
-			tickerPrice.High = tick[y].HighPrice
-			tickerPrice.Last = tick[y].LastPrice
-			tickerPrice.Low = tick[y].LowPrice
-			tickerPrice.Volume = tick[y].Volume
+			tickerPrice := ticker.Price{
+				Last:        tick[y].LastPrice,
+				High:        tick[y].HighPrice,
+				Low:         tick[y].LowPrice,
+				Bid:         tick[y].BidPrice,
+				Ask:         tick[y].AskPrice,
+				Volume:      tick[y].Volume,
+				QuoteVolume: tick[y].QuoteVolume,
+				Open:        tick[y].OpenPrice,
+				Close:       tick[y].PrevClosePrice,
+				Pair:        x,
+			}
 			ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 		}
 	}

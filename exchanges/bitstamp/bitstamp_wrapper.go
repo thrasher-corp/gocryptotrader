@@ -206,15 +206,19 @@ func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 	tick, err := b.GetTicker(p.String(), false)
 	if err != nil {
 		return tickerPrice, err
-
 	}
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Ask
-	tickerPrice.Bid = tick.Bid
-	tickerPrice.Low = tick.Low
-	tickerPrice.Last = tick.Last
-	tickerPrice.Volume = tick.Volume
-	tickerPrice.High = tick.High
+
+	tickerPrice = ticker.Price{
+		Last:        tick.Last,
+		High:        tick.High,
+		Low:         tick.Low,
+		Bid:         tick.Bid,
+		Ask:         tick.Ask,
+		Volume:      tick.Volume,
+		Open:        tick.Open,
+		Pair:        p,
+		LastUpdated: time.Unix(tick.Timestamp, 0),
+	}
 
 	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 	if err != nil {

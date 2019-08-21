@@ -193,35 +193,23 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	enabledPairs := b.GetEnabledPairs(assetType)
-
-	var pairs []string
-	for x := range enabledPairs {
-		pairs = append(pairs, "t"+enabledPairs[x].String())
-	}
-
-	tickerNew, err := b.GetTickersV2(strings.Join(pairs, ","))
+	tickerNew, err := b.GetTickersV2(b.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	for x := range tickerNew {
-		newP := currency.NewPairFromStrings(tickerNew[x].Symbol[1:4],
-			tickerNew[x].Symbol[4:])
-
-		var tick ticker.Price
-		tick.Pair = newP
-		tick.Ask = tickerNew[x].Ask
-		tick.Bid = tickerNew[x].Bid
-		tick.Low = tickerNew[x].Low
-		tick.Last = tickerNew[x].Last
-		tick.Volume = tickerNew[x].Volume
-		tick.High = tickerNew[x].High
-
-		err = ticker.ProcessTicker(b.Name, &tick, assetType)
-		if err != nil {
-			return tickerPrice, err
-		}
+	tick := ticker.Price{
+		Last:        tickerNew[0].Last,
+		High:        tickerNew[0].High,
+		Low:         tickerNew[0].Low,
+		Bid:         tickerNew[0].Bid,
+		Ask:         tickerNew[0].Ask,
+		Volume:      tickerNew[0].Volume,
+		Pair:        p,
+		LastUpdated: tickerNew[0].Timestamp,
+	}
+	err = ticker.ProcessTicker(b.Name, &tick, assetType)
+	if err != nil {
+		return tickerPrice, err
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }

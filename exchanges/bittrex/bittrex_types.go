@@ -1,6 +1,9 @@
 package bittrex
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Response is the generalised response type for Bittrex
 type Response struct {
@@ -56,20 +59,20 @@ type MarketSummary struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 	Result  []struct {
-		MarketName        string  `json:"MarketName"`
-		High              float64 `json:"High"`
-		Low               float64 `json:"Low"`
-		Volume            float64 `json:"Volume"`
-		Last              float64 `json:"Last"`
-		BaseVolume        float64 `json:"BaseVolume"`
-		TimeStamp         string  `json:"TimeStamp"`
-		Bid               float64 `json:"Bid"`
-		Ask               float64 `json:"Ask"`
-		OpenBuyOrders     int     `json:"OpenBuyOrders"`
-		OpenSellOrders    int     `json:"OpenSellOrders"`
-		PrevDay           float64 `json:"PrevDay"`
-		Created           string  `json:"Created"`
-		DisplayMarketName string  `json:"DisplayMarketName"`
+		MarketName        string    `json:"MarketName"`
+		High              float64   `json:"High"`
+		Low               float64   `json:"Low"`
+		Volume            float64   `json:"Volume"`
+		Last              float64   `json:"Last"`
+		BaseVolume        float64   `json:"BaseVolume"`
+		TimeStamp         time.Time `json:"TimeStamp,string"`
+		Bid               float64   `json:"Bid"`
+		Ask               float64   `json:"Ask"`
+		OpenBuyOrders     int       `json:"OpenBuyOrders"`
+		OpenSellOrders    int       `json:"OpenSellOrders"`
+		PrevDay           float64   `json:"PrevDay"`
+		Created           string    `json:"Created"`
+		DisplayMarketName string    `json:"DisplayMarketName"`
 	} `json:"result"`
 }
 

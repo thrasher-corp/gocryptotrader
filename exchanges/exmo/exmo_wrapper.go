@@ -156,32 +156,26 @@ func (e *EXMO) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType), assetType)
+	result, err := e.GetTicker()
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	result, err := e.GetTicker(pairsCollated)
-	if err != nil {
+	if _, ok := result[p]; !ok {
 		return tickerPrice, err
 	}
 
-	for _, x := range e.GetEnabledPairs(assetType) {
-		currency := e.FormatExchangeCurrency(x, assetType).String()
-		var tickerPrice ticker.Price
-		tickerPrice.Pair = x
-		tickerPrice.Last = result[currency].Last
-		tickerPrice.Ask = result[currency].Sell
-		tickerPrice.High = result[currency].High
-		tickerPrice.Bid = result[currency].Buy
-		tickerPrice.Last = result[currency].Last
-		tickerPrice.Low = result[currency].Low
-		tickerPrice.Volume = result[currency].Volume
-
-		err = ticker.ProcessTicker(e.Name, &tickerPrice, assetType)
-		if err != nil {
-			return tickerPrice, err
-		}
+	tickerPrice = ticker.Price{
+		Pair:   p,
+		Last:   result[p].Last,
+		Ask:    result[p].Sell,
+		High:   result[p].High,
+		Bid:    result[p].Buy,
+		Low:    result[p].Low,
+		Volume: result[p].Volume,
+	}
+	err = ticker.ProcessTicker(e.Name, &tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
 	}
 	return ticker.GetTicker(e.Name, p, assetType)
 }

@@ -196,27 +196,28 @@ func (b *Bittrex) GetAccountInfo() (exchange.AccountInfo, error) {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := b.GetMarketSummaries()
+	tick, err := b.GetMarketSummary(p.String())
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	for _, x := range b.GetEnabledPairs(assetType) {
-		curr := b.FormatExchangeCurrency(x, assetType)
-		for y := range tick.Result {
-			if tick.Result[y].MarketName != curr.String() {
-				continue
-			}
-			tickerPrice.Pair = x
-			tickerPrice.High = tick.Result[y].High
-			tickerPrice.Low = tick.Result[y].Low
-			tickerPrice.Ask = tick.Result[y].Ask
-			tickerPrice.Bid = tick.Result[y].Bid
-			tickerPrice.Last = tick.Result[y].Last
-			tickerPrice.Volume = tick.Result[y].Volume
-			ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
-		}
+	tickerPrice = ticker.Price{
+		Last:        tick.Result[0].Last,
+		High:        tick.Result[0].High,
+		Low:         tick.Result[0].Low,
+		Bid:         tick.Result[0].Bid,
+		Ask:         tick.Result[0].Ask,
+		Volume:      tick.Result[0].BaseVolume,
+		QuoteVolume: tick.Result[0].Volume,
+		Close:       tick.Result[0].PrevDay,
+		Pair:        p,
+		LastUpdated: tick.Result[0].TimeStamp,
 	}
+	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 

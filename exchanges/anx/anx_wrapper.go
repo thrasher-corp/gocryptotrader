@@ -2,7 +2,6 @@ package anx
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -187,60 +186,15 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 		return tickerPrice, err
 	}
 
-	tickerPrice.Pair = p
-
-	if tick.Data.Sell.Value != "" {
-		tickerPrice.Ask, err = strconv.ParseFloat(tick.Data.Sell.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Ask = 0
-	}
-
-	if tick.Data.Buy.Value != "" {
-		tickerPrice.Bid, err = strconv.ParseFloat(tick.Data.Buy.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Bid = 0
-	}
-
-	if tick.Data.Low.Value != "" {
-		tickerPrice.Low, err = strconv.ParseFloat(tick.Data.Low.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Low = 0
-	}
-
-	if tick.Data.Last.Value != "" {
-		tickerPrice.Last, err = strconv.ParseFloat(tick.Data.Last.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Last = 0
-	}
-
-	if tick.Data.Vol.Value != "" {
-		tickerPrice.Volume, err = strconv.ParseFloat(tick.Data.Vol.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Volume = 0
-	}
-
-	if tick.Data.High.Value != "" {
-		tickerPrice.High, err = strconv.ParseFloat(tick.Data.High.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.High = 0
+	tickerPrice = ticker.Price{
+		Last:        tick.Data.Last.Value,
+		High:        tick.Data.High.Value,
+		Low:         tick.Data.Low.Value,
+		Bid:         tick.Data.Buy.Value,
+		Ask:         tick.Data.Sell.Value,
+		Volume:      tick.Data.Vol.Value,
+		Pair:        p,
+		LastUpdated: time.Unix(0, tick.Data.UpdateTime),
 	}
 
 	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)

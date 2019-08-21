@@ -197,13 +197,13 @@ func (b *Bitmex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]string, error) {
+func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]currency.Pair, error) {
 	marketInfo, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		return nil, err
 	}
 
-	var products []string
+	var products []currency.Pair
 	for x := range marketInfo {
 		products = append(products, marketInfo[x].Symbol)
 	}
@@ -260,10 +260,10 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	currency := b.FormatExchangeCurrency(p, assetType)
+	curr := b.FormatExchangeCurrency(p, assetType)
 
-	tick, err := b.GetTrade(&GenericRequestParams{
-		Symbol:  currency.String(),
+	tick, err := b.GetActiveInstruments(&GenericRequestParams{
+		Symbol:  curr.String(),
 		Reverse: true,
 		Count:   1})
 	if err != nil {
@@ -274,9 +274,17 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 		return tickerPrice, fmt.Errorf("%s REST error: no ticker return", b.Name)
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Last = tick[0].Price
-	tickerPrice.Volume = float64(tick[0].Size)
+	tickerPrice = ticker.Price{
+		Last:        tick[0].LastPrice,
+		High:        tick[0].HighPrice,
+		Low:         tick[0].LowPrice,
+		Bid:         tick[0].BidPrice,
+		Ask:         tick[0].AskPrice,
+		Volume:      tick[0].Volume24h,
+		Close:       tick[0].PrevClosePrice,
+		Pair:        tick[0].Symbol,
+		LastUpdated: tick[0].Timestamp,
+	}
 	return tickerPrice, ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 }
 

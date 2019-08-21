@@ -171,10 +171,17 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.BestAsk
-	tickerPrice.Bid = tick.BestBID
-	tickerPrice.Last = tick.LastPrice
+
+	tickerPrice = ticker.Price{
+		Last:        tick.LastPrice,
+		High:        tick.High24h,
+		Low:         tick.Low24h,
+		Bid:         tick.BestBid,
+		Ask:         tick.BestAsk,
+		Volume:      tick.Volume24h,
+		Pair:        p,
+		LastUpdated: time.Unix(tick.Timestamp, 0),
+	}
 
 	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 	if err != nil {
