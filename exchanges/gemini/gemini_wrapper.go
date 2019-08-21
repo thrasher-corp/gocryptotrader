@@ -222,12 +222,15 @@ func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Ask
-	tickerPrice.Bid = tick.Bid
-	tickerPrice.Last = tick.Last
-	tickerPrice.Volume = tick.Volume.USD
-
+	tickerPrice = ticker.Price{
+		High:  tick.High,
+		Low:   tick.Low,
+		Bid:   tick.Bid,
+		Ask:   tick.Ask,
+		Open:  tick.Open,
+		Close: tick.Close,
+		Pair:  p,
+	}
 	err = ticker.ProcessTicker(g.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err

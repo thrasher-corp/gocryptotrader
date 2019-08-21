@@ -97,6 +97,13 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	}
 }
 
+func TestGetTicker(t *testing.T) {
+	_, err := h.GetTicker("")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	h.SetDefaults()
 	TestSetup(t)

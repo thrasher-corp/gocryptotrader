@@ -72,7 +72,7 @@ func (h *HUOBI) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
-				TickerBatching:  false,
+				TickerBatching:  true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -248,28 +248,31 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := h.GetMarketDetailMerged(h.FormatExchangeCurrency(p, assetType).String())
+	if !h.Features.Supports.RESTCapabilities.TickerBatching {
+		return tickerPrice, common.ErrFunctionNotSupported
+	}
+	tickers, err := h.GetTickers()
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	tickerPrice.Pair = p
-	tickerPrice.Low = tick.Low
-	tickerPrice.Last = tick.Close
-	tickerPrice.Volume = tick.Volume
-	tickerPrice.High = tick.High
-
-	if len(tick.Ask) > 0 {
-		tickerPrice.Ask = tick.Ask[0]
-	}
-
-	if len(tick.Bid) > 0 {
-		tickerPrice.Bid = tick.Bid[0]
-	}
-
-	err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
-	if err != nil {
-		return tickerPrice, err
+	pairs := h.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for j := range tickers.Data {
+			if pairs[i].Equal(tickers.Data[j].Symbol) {
+				tickerPrice := ticker.Price{
+					High:   tickers.Data[j].High,
+					Low:    tickers.Data[j].Low,
+					Volume: tickers.Data[j].Vol,
+					Open:   tickers.Data[j].Open,
+					Close:  tickers.Data[j].Close,
+					Pair:   tickers.Data[j].Symbol,
+				}
+				err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
+				if err != nil {
+					return tickerPrice, err
+				}
+			}
+		}
 	}
 
 	return ticker.GetTicker(h.Name, p, assetType)

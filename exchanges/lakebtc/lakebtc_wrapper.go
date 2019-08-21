@@ -186,21 +186,26 @@ func (l *LakeBTC) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tick, err := l.GetTicker()
+	var tickerPrice ticker.Price
+	if !l.Features.Supports.RESTCapabilities.TickerBatching {
+		return tickerPrice, common.ErrFunctionNotSupported
+	}
+	ticks, err := l.GetTicker()
 	if err != nil {
 		return ticker.Price{}, err
 	}
 
-	for _, x := range l.GetEnabledPairs(assetType) {
-		currency := l.FormatExchangeCurrency(x, assetType).String()
+	pairs := l.GetEnabledPairs(assetType)
+	for i := range pairs {
+		currency := l.FormatExchangeCurrency(pairs[i], assetType).String()
 		var tickerPrice ticker.Price
-		tickerPrice.Pair = x
-		tickerPrice.Ask = tick[currency].Ask
-		tickerPrice.Bid = tick[currency].Bid
-		tickerPrice.Volume = tick[currency].Volume
-		tickerPrice.High = tick[currency].High
-		tickerPrice.Low = tick[currency].Low
-		tickerPrice.Last = tick[currency].Last
+		tickerPrice.Pair = pairs[i]
+		tickerPrice.Ask = ticks[currency].Ask
+		tickerPrice.Bid = ticks[currency].Bid
+		tickerPrice.Volume = ticks[currency].Volume
+		tickerPrice.High = ticks[currency].High
+		tickerPrice.Low = ticks[currency].Low
+		tickerPrice.Last = ticks[currency].Last
 
 		err = ticker.ProcessTicker(l.GetName(), &tickerPrice, assetType)
 		if err != nil {

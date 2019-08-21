@@ -154,25 +154,23 @@ func (b *Bithumb) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-
-	tickers, err := b.GetAllTickers()
+	tick, err := b.GetTicker(b.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	for _, x := range b.GetEnabledPairs(assetType) {
-		currency := x.Base.String()
-		var tp ticker.Price
-		tp.Pair = x
-		tp.Low = tickers[currency].MinPrice
-		tp.Last = tickers[currency].ClosingPrice
-		tp.Volume = tickers[currency].UnitsTraded24Hr
-		tp.High = tickers[currency].MaxPrice
-
-		err = ticker.ProcessTicker(b.Name, &tp, assetType)
-		if err != nil {
-			return tickerPrice, err
-		}
+	tickerPrice = ticker.Price{
+		High:   tick.MaxPrice,
+		Low:    tick.MinPrice,
+		Bid:    tick.BuyPrice,
+		Ask:    tick.SellPrice,
+		Volume: tick.Volume1Day,
+		Open:   tick.OpeningPrice,
+		Close:  tick.ClosingPrice,
+		Pair:   p,
+	}
+	err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }

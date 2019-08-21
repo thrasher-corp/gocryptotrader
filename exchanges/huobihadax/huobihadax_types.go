@@ -41,6 +41,23 @@ type WsTick struct {
 	} `json:"tick"`
 }
 
+// Tickers contain all tickers
+type Tickers struct {
+	Data []Ticker `json:"data"`
+}
+
+// Ticker latest ticker data
+type Ticker struct {
+	Amount float64       `json:"amount"`
+	Close  float64       `json:"close"`
+	Count  int64         `json:"count"`
+	High   float64       `json:"high"`
+	Low    float64       `json:"low"`
+	Open   float64       `json:"open"`
+	Symbol currency.Pair `json:"symbol"`
+	Vol    float64       `json:"vol"`
+}
+
 // DetailMerged stores the ticker detail merged data
 type DetailMerged struct {
 	Detail

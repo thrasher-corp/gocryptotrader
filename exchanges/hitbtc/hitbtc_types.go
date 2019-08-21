@@ -6,32 +6,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-// Ticker holds ticker information
-type Ticker struct {
-	Last        float64
-	Ask         float64
-	Bid         float64
-	Timestamp   time.Time
-	Volume      float64
-	VolumeQuote float64
-	Symbol      string
-	High        float64
-	Low         float64
-	Open        float64
-}
-
 // TickerResponse is the response type
 type TickerResponse struct {
-	Last        string    `json:"last"`             // Last trade price
-	Ask         string    `json:"ask"`              // Best ask price
-	Bid         string    `json:"bid"`              // Best bid price
-	Timestamp   time.Time `json:"timestamp,string"` // Last update or refresh ticker timestamp
-	Volume      string    `json:"volume"`           // Total trading amount within 24 hours in base currency
-	VolumeQuote string    `json:"volumeQuote"`      // Total trading amount within 24 hours in quote currency
-	Symbol      string    `json:"symbol"`
-	High        string    `json:"high"` // Highest trade price within 24 hours
-	Low         string    `json:"low"`  // Lowest trade price within 24 hours
-	Open        string    `json:"open"` // Last trade price 24 hours ago
+	Ask         float64       `json:"ask,string"`
+	Bid         float64       `json:"bid,string"`
+	High        float64       `json:"high,string"`
+	Last        float64       `json:"last,string"`
+	Low         float64       `json:"low,string"`
+	Open        float64       `json:"open,string"`
+	Volume      float64       `json:"volume,string"`
+	VolumeQuote float64       `json:"volumeQuote,string"`
+	Symbol      currency.Pair `json:"symbol"`
+	Timestamp   time.Time     `json:"timestamp"`
 }
 
 // Symbol holds symbol data

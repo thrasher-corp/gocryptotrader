@@ -160,10 +160,11 @@ func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType asset.Item) (tic
 		return tickerPrice, err
 	}
 
-	for _, x := range l.GetEnabledPairs(assetType) {
-		currency := x.Quote.String()
+	pairs := l.GetEnabledPairs(assetType)
+	for i := range pairs {
+		currency := pairs[i].Quote.String()
 		var tp ticker.Price
-		tp.Pair = x
+		tp.Pair = pairs[i]
 		tp.Last = tick[currency].Avg24h
 		tp.Volume = tick[currency].VolumeBTC
 

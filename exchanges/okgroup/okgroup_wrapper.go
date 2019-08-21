@@ -72,14 +72,16 @@ func (o *OKGroup) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerDat
 		return
 	}
 	tickerData = ticker.Price{
-		Ask:         resp.BestAsk,
-		Bid:         resp.BestBid,
-		High:        resp.High24h,
 		Last:        resp.Last,
-		LastUpdated: resp.Timestamp,
+		High:        resp.High24h,
 		Low:         resp.Low24h,
-		Pair:        o.FormatExchangeCurrency(p, assetType),
+		Bid:         resp.BestBid,
+		Ask:         resp.BestAsk,
 		Volume:      resp.BaseVolume24h,
+		QuoteVolume: resp.QuoteVolume24h,
+		Open:        resp.Open24h,
+		Pair:        o.FormatExchangeCurrency(p, assetType),
+		LastUpdated: resp.Timestamp,
 	}
 
 	err = ticker.ProcessTicker(o.Name, &tickerData, assetType)

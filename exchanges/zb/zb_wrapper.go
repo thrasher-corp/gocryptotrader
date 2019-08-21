@@ -212,7 +212,6 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 		tp.Last = result[currency].Last
 		tp.Ask = result[currency].Sell
 		tp.Bid = result[currency].Buy
-		tp.Last = result[currency].Last
 		tp.Low = result[currency].Low
 		tp.Volume = result[currency].Vol
 

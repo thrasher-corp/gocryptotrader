@@ -50,7 +50,7 @@ type Ticker struct {
 }
 
 // Tickers stores a map of tickers
-type Tickers map[string]Ticker
+type Tickers map[currency.Pair]Ticker
 
 // TickerResponse holds ticker information before its put into the Ticker struct
 type TickerResponse struct {

@@ -229,6 +229,9 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
+	if !k.Features.Supports.RESTCapabilities.TickerBatching {
+		return tickerPrice, common.ErrFunctionNotSupported
+	}
 	pairs := k.GetEnabledPairs(assetType)
 	pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
 	if err != nil {
@@ -239,21 +242,23 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 		return tickerPrice, err
 	}
 
-	for _, x := range pairs {
-		for y, z := range tickers {
-			if !strings.Contains(y, x.Base.Upper().String()) ||
-				!strings.Contains(y, x.Quote.Upper().String()) {
-				continue
+	for i := range pairs {
+		for curr, v := range tickers {
+			pairs[i].Equal(curr)
+			tickerPrice = ticker.Price{
+				Last:   v.Last,
+				High:   v.High,
+				Low:    v.Low,
+				Bid:    v.Bid,
+				Ask:    v.Ask,
+				Volume: v.Volume,
+				Open:   v.Open,
+				Pair:   pairs[i],
 			}
-			var tp ticker.Price
-			tp.Pair = x
-			tp.Last = z.Last
-			tp.Ask = z.Ask
-			tp.Bid = z.Bid
-			tp.High = z.High
-			tp.Low = z.Low
-			tp.Volume = z.Volume
-			ticker.ProcessTicker(k.GetName(), &tp, assetType)
+			err = ticker.ProcessTicker(k.Name, &tickerPrice, assetType)
+			if err != nil {
+				return tickerPrice, err
+			}
 		}
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)

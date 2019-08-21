@@ -215,6 +215,13 @@ func TestGetCurrencies(t *testing.T) {
 	}
 }
 
+func TestGetTicker(t *testing.T) {
+	tickers, err := h.GetTickers()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetTimestamp(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetTimestamp()
