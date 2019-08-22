@@ -85,7 +85,6 @@ have multiple deposit accounts for different FIAT deposit currencies.
   "websocketResponseCheckTimeout": 30000000,
   "websocketResponseMaxLimit": 7000000000,
   "httpTimeout": 15000000000,
-  "AuthenticatedAPISupport": false,
   "APIKey": "Key",
   "APISecret": "Secret",
   "AvailablePairs": "ATENC_GBP,ATENC_NZD,BTC_AUD,BTC_SGD,LTC_BTC,START_GBP,...",
