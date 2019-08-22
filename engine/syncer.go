@@ -356,10 +356,6 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 									var result ticker.Price
 									var err error
 
-									// This is a bit obtuse, we protect it with a sync timeout
-									// But if it supports batching, it can be handled outside of a for loop on each currency
-									// It would be better to have its own area where it batch tickers
-									// And then at this point, all thats happening is fetching the existing
 									if supportsRESTTickerBatching {
 										e.mux.Lock()
 										batchLastDone, ok := e.tickerBatchLastRequested[exchangeName]

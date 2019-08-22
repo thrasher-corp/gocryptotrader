@@ -197,15 +197,15 @@ func (b *Bitmex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]currency.Pair, error) {
+func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	marketInfo, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		return nil, err
 	}
 
-	var products []currency.Pair
+	var products []string
 	for x := range marketInfo {
-		products = append(products, marketInfo[x].Symbol)
+		products = append(products, b.FormatExchangeCurrency(marketInfo[x].Symbol, asset).String())
 	}
 
 	return products, nil

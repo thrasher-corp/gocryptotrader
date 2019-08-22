@@ -233,10 +233,6 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (ticke
 		return ticker.Price{}, err
 	}
 
-	if err != nil {
-		return ticker.Price{}, err
-	}
-
 	tickerPrice = ticker.Price{
 		Last:        tick.Size,
 		Bid:         tick.Bid,
