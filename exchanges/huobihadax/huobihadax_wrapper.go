@@ -221,7 +221,9 @@ func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker
 	pairs := h.GetEnabledPairs(assetType)
 	for i := range pairs {
 		for j := range tickers.Data {
-			if pairs[i].Equal(tickers.Data[j].Symbol) {
+			if !pairs[i].Equal(tickers.Data[j].Symbol) {
+				continue
+			}
 				tickerPrice := ticker.Price{
 					High:   tickers.Data[j].High,
 					Low:    tickers.Data[j].Low,

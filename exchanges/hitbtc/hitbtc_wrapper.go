@@ -226,23 +226,24 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) 
 	pairs := h.GetEnabledPairs(assetType)
 	for i := range pairs {
 		for j := range tick {
-			if tick[j].Symbol.Equal(pairs[i]) {
-				tickerPrice := ticker.Price{
-					Last:        tick[j].Last,
-					High:        tick[j].High,
-					Low:         tick[j].Low,
-					Bid:         tick[j].Bid,
-					Ask:         tick[j].Ask,
-					Volume:      tick[j].Volume,
-					QuoteVolume: tick[j].VolumeQuote,
-					Open:        tick[j].Open,
-					Pair:        pairs[j],
-					LastUpdated: tick[j].Timestamp,
-				}
-				err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
-				if err != nil {
-					return tickerPrice, err
-				}
+			if !tick[j].Symbol.Equal(pairs[i]) {
+				continue
+			}
+			tickerPrice := ticker.Price{
+				Last:        tick[j].Last,
+				High:        tick[j].High,
+				Low:         tick[j].Low,
+				Bid:         tick[j].Bid,
+				Ask:         tick[j].Ask,
+				Volume:      tick[j].Volume,
+				QuoteVolume: tick[j].VolumeQuote,
+				Open:        tick[j].Open,
+				Pair:        pairs[j],
+				LastUpdated: tick[j].Timestamp,
+			}
+			err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
+			if err != nil {
+				return tickerPrice, err
 			}
 		}
 	}

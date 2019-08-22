@@ -196,26 +196,33 @@ func (b *Bittrex) GetAccountInfo() (exchange.AccountInfo, error) {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := b.GetMarketSummary(p.String())
+	ticks, err := b.GetMarketSummaries()
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	tickerPrice = ticker.Price{
-		Last:        tick.Result[0].Last,
-		High:        tick.Result[0].High,
-		Low:         tick.Result[0].Low,
-		Bid:         tick.Result[0].Bid,
-		Ask:         tick.Result[0].Ask,
-		Volume:      tick.Result[0].BaseVolume,
-		QuoteVolume: tick.Result[0].Volume,
-		Close:       tick.Result[0].PrevDay,
-		Pair:        p,
-		LastUpdated: tick.Result[0].TimeStamp,
-	}
-	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
-	if err != nil {
-		return tickerPrice, err
+	pairs := b.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for j := range ticks.Result {
+			if !strings.EqualFold(ticks.Result[j].MarketName, b.FormatExchangeCurrency(pairs[i], assetType).String()) {
+				continue
+			}
+			tickerPrice = ticker.Price{
+				Last:        ticks.Result[j].Last,
+				High:        ticks.Result[j].High,
+				Low:         ticks.Result[j].Low,
+				Bid:         ticks.Result[j].Bid,
+				Ask:         ticks.Result[j].Ask,
+				Volume:      ticks.Result[j].BaseVolume,
+				QuoteVolume: ticks.Result[j].Volume,
+				Close:       ticks.Result[j].PrevDay,
+				Pair:        pairs[i],
+				LastUpdated: ticks.Result[j].TimeStamp,
+			}
+			err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
+			if err != nil {
+				return tickerPrice, err
+			}
+		}
 	}
 
 	return ticker.GetTicker(b.Name, p, assetType)

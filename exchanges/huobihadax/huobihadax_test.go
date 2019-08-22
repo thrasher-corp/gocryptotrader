@@ -216,7 +216,7 @@ func TestGetCurrencies(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	tickers, err := h.GetTickers()
+	_, err := h.GetTickers()
 	if err != nil {
 		t.Error(err)
 	}

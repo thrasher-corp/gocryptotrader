@@ -258,19 +258,20 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 	pairs := h.GetEnabledPairs(assetType)
 	for i := range pairs {
 		for j := range tickers.Data {
-			if pairs[i].Equal(tickers.Data[j].Symbol) {
-				tickerPrice := ticker.Price{
-					High:   tickers.Data[j].High,
-					Low:    tickers.Data[j].Low,
-					Volume: tickers.Data[j].Vol,
-					Open:   tickers.Data[j].Open,
-					Close:  tickers.Data[j].Close,
-					Pair:   tickers.Data[j].Symbol,
-				}
-				err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
-				if err != nil {
-					return tickerPrice, err
-				}
+			if !pairs[i].Equal(tickers.Data[j].Symbol) {
+				continue
+			}
+			tickerPrice := ticker.Price{
+				High:   tickers.Data[j].High,
+				Low:    tickers.Data[j].Low,
+				Volume: tickers.Data[j].Vol,
+				Open:   tickers.Data[j].Open,
+				Close:  tickers.Data[j].Close,
+				Pair:   tickers.Data[j].Symbol,
+			}
+			err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
+			if err != nil {
+				return tickerPrice, err
 			}
 		}
 	}

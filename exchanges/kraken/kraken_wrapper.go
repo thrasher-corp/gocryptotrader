@@ -244,7 +244,9 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 
 	for i := range pairs {
 		for curr, v := range tickers {
-			pairs[i].Equal(curr)
+			if !pairs[i].Equal(curr) {
+				continue
+			}
 			tickerPrice = ticker.Price{
 				Last:   v.Last,
 				High:   v.High,

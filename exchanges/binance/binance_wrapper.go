@@ -222,26 +222,28 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	for y := range tick {
-		if !tick[y].Symbol.Equal(p) {
-			continue
-		}
-		tickerPrice := ticker.Price{
-			Last:        tick[y].LastPrice,
-			High:        tick[y].HighPrice,
-			Low:         tick[y].LowPrice,
-			Bid:         tick[y].BidPrice,
-			Ask:         tick[y].AskPrice,
-			Volume:      tick[y].Volume,
-			QuoteVolume: tick[y].QuoteVolume,
-			Open:        tick[y].OpenPrice,
-			Close:       tick[y].PrevClosePrice,
-			Pair:        p,
-		}
-		err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
-		if err != nil {
-			return tickerPrice, err
+	pairs := b.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for y := range tick {
+			if !tick[y].Symbol.Equal(pairs[i]) {
+				continue
+			}
+			tickerPrice := ticker.Price{
+				Last:        tick[y].LastPrice,
+				High:        tick[y].HighPrice,
+				Low:         tick[y].LowPrice,
+				Bid:         tick[y].BidPrice,
+				Ask:         tick[y].AskPrice,
+				Volume:      tick[y].Volume,
+				QuoteVolume: tick[y].QuoteVolume,
+				Open:        tick[y].OpenPrice,
+				Close:       tick[y].PrevClosePrice,
+				Pair:        pairs[i],
+			}
+			err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+			if err != nil {
+				return tickerPrice, err
+			}
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)

@@ -163,6 +163,9 @@ func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType asset.Item) (tic
 	pairs := l.GetEnabledPairs(assetType)
 	for i := range pairs {
 		currency := pairs[i].Quote.String()
+		if _, ok := tick[currency]; !ok {
+			continue
+		}
 		var tp ticker.Price
 		tp.Pair = pairs[i]
 		tp.Last = tick[currency].Avg24h

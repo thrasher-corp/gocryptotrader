@@ -193,10 +193,16 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tickerNew, err := b.GetTickersV2(b.FormatExchangeCurrency(p, assetType).String())
+	enabledPairs := b.GetEnabledPairs(assetType)
+	var pairs []string
+	for x := range enabledPairs {
+		pairs = append(pairs, "t"+enabledPairs[x].String())
+	}
+	tickerNew, err := b.GetTickersV2(strings.Join(pairs, ","))
 	if err != nil {
 		return tickerPrice, err
 	}
+
 	tick := ticker.Price{
 		Last:        tickerNew[0].Last,
 		High:        tickerNew[0].High,
