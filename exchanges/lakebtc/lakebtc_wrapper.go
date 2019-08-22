@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -68,7 +68,7 @@ func (l *LakeBTC) SetDefaults() {
 	l.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
-			Websocket: false,
+			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
 				TickerBatching:  true,
@@ -88,6 +88,14 @@ func (l *LakeBTC) SetDefaults() {
 
 	l.API.Endpoints.URLDefault = lakeBTCAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
+	l.Websocket = wshandler.New()
+	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
+	l.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketSubscribeSupported
+	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	l.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets exchange configuration profile
@@ -97,7 +105,32 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	return l.SetupDefaults(exch)
+	err := l.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	err = l.Websocket.Setup(l.WsConnect,
+		l.Subscribe,
+		nil,
+		exch.Name,
+		exch.Features.Enabled.Websocket,
+		exch.Verbose,
+		lakeBTCWSURL,
+		exch.API.Endpoints.WebsocketURL,
+		exch.API.AuthenticatedWebsocketSupport)
+	if err != nil {
+		return err
+	}
+
+	l.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		false,
+		false,
+		false,
+		false,
+		exch.Name)
+	return nil
 }
 
 // Start starts the LakeBTC go routine
@@ -373,8 +406,7 @@ func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (l *LakeBTC) GetWebsocket() (*wshandler.Websocket, error) {
-	// Documents are too vague to implement
-	return nil, common.ErrFunctionNotSupported
+	return l.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

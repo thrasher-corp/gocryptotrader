@@ -43,7 +43,7 @@ func (n *ntpManager) Start() (err error) {
 	}()
 
 	log.Debugln(log.TimeMgr, "NTP manager starting...")
-	if Bot.Config.NTPClient.Level == 0 {
+	if Bot.Config.NTPClient.Level == 0 && *Bot.Config.Logging.Enabled {
 		// Initial NTP check (prompts user on how we should proceed)
 		n.inititalCheck = true
 

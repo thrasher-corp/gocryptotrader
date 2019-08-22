@@ -212,7 +212,7 @@ type WsMarketUpdateResponse struct {
 
 // Event defines orderbook and trade data
 type Event struct {
-	Type      string  `json:"change"`
+	Type      string  `json:"type"`
 	Reason    string  `json:"reason"`
 	Price     float64 `json:"price,string"`
 	Delta     float64 `json:"delta,string"`

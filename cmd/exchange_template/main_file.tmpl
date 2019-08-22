@@ -9,7 +9,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -46,7 +46,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
 	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
-	{{.Variable}}.Websocket = wshandler.New()
+	{{.Variable}}.Websocket = monitor.New()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }

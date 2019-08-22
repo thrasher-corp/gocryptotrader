@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -93,6 +93,7 @@ func (b *BTSE) SetDefaults() {
 		wshandler.WebsocketUnsubscribeSupported
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 
 }
 
@@ -129,6 +130,14 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
+
+	b.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		false,
+		false,
+		false,
+		false,
+		exch.Name)
 	return nil
 }
 
@@ -166,7 +175,10 @@ func (b *BTSE) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for _, m := range *markets {
-		pairs = append(pairs, m.ID)
+		if m.Status != "active" {
+			continue
+		}
+		pairs = append(pairs, m.Symbol)
 	}
 
 	return pairs, nil

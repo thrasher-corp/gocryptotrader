@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Endpoint authentication types
@@ -313,6 +313,7 @@ type Base struct {
 	HTTPDebugging                 bool
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
+	WebsocketOrderbookBufferLimit int64
 	Websocket                     *wshandler.Websocket
 	*request.Requester
 	Config *config.ExchangeConfig

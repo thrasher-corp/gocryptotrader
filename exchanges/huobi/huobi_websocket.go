@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -245,7 +245,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		h.Websocket.DataHandler <- wshandler.KlineData{
 			Timestamp:  time.Unix(0, kline.Timestamp),
 			Exchange:   h.GetName(),
-			AssetType:  "SPOT",
+			AssetType:  asset.Spot,
 			Pair:       currency.NewPairFromString(data[1]),
 			OpenPrice:  kline.Tick.Open,
 			ClosePrice: kline.Tick.Close,
@@ -271,33 +271,27 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 }
 
 // WsProcessOrderbook processes new orderbook data
-func (h *HUOBI) WsProcessOrderbook(ob *WsDepth, symbol string) error {
-	var bids []orderbook.Item
-	for _, data := range ob.Tick.Bids {
-		bidLevel := data.([]interface{})
+func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
+	p := currency.NewPairFromString(symbol)
+	var bids, asks []orderbook.Item
+	for i := 0; i < len(update.Tick.Bids); i++ {
+		bidLevel := update.Tick.Bids[i].([]interface{})
 		bids = append(bids, orderbook.Item{Price: bidLevel[0].(float64),
 			Amount: bidLevel[0].(float64)})
 	}
-
-	var asks []orderbook.Item
-	for _, data := range ob.Tick.Asks {
-		askLevel := data.([]interface{})
+	for i := 0; i < len(update.Tick.Asks); i++ {
+		askLevel := update.Tick.Asks[i].([]interface{})
 		asks = append(asks, orderbook.Item{Price: askLevel[0].(float64),
 			Amount: askLevel[0].(float64)})
 	}
-
-	p := currency.NewPairFromString(symbol)
-
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = p
-
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, h.GetName(), false)
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, true)
 	if err != nil {
 		return err
 	}
-
 	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Exchange: h.GetName(),

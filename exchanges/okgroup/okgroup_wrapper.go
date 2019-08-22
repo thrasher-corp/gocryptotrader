@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -54,6 +54,14 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
+
+	o.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		false,
+		false,
+		false,
+		false,
+		exch.Name)
 	return nil
 }
 

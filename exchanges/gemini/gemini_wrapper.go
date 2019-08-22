@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -97,6 +97,7 @@ func (g *Gemini) SetDefaults() {
 		wshandler.WebsocketSequenceNumberSupported
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets exchange configuration parameters
@@ -136,6 +137,14 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
+
+	g.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		true,
+		true,
+		false,
+		false,
+		exch.Name)
 	return nil
 }
 

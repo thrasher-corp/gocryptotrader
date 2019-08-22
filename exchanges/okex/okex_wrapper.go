@@ -11,7 +11,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -104,6 +104,7 @@ func (o *OKEX) SetDefaults() {
 		wshandler.WebsocketMessageCorrelationSupported
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Start starts the OKGroup go routine

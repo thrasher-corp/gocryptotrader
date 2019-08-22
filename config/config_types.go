@@ -57,6 +57,7 @@ type ExchangeConfig struct {
 	HTTPRateLimiter               *HTTPRateLimitConfig   `json:"httpRateLimiter,omitempty"`
 	WebsocketResponseCheckTimeout time.Duration          `json:"websocketResponseCheckTimeout"`
 	WebsocketResponseMaxLimit     time.Duration          `json:"websocketResponseMaxLimit"`
+	WebsocketOrderbookBufferLimit int                    `json:"websocketOrderbookBufferLimit"`
 	ProxyAddress                  string                 `json:"proxyAddress,omitempty"`
 	BaseCurrencies                currency.Currencies    `json:"baseCurrencies"`
 	CurrencyPairs                 *currency.PairsManager `json:"currencyPairs"`

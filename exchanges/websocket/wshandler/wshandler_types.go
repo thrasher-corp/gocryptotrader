@@ -4,9 +4,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
 
 // Websocket functionality list and state consts
@@ -95,7 +96,7 @@ type Websocket struct {
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks
-	Orderbook WebsocketOrderbookLocal
+	Orderbook wsorderbook.WebsocketOrderbookLocal
 	// Wg defines a wait group for websocket routines for cleanly shutting down
 	// routines
 	Wg sync.WaitGroup
@@ -112,14 +113,6 @@ type WebsocketChannelSubscription struct {
 	Channel  string
 	Currency currency.Pair
 	Params   map[string]interface{}
-}
-
-// WebsocketOrderbookLocal defines a local cache of orderbooks for amending,
-// appending and deleting changes and updates the main store in orderbook.go
-type WebsocketOrderbookLocal struct {
-	ob          []*orderbook.Base
-	lastUpdated time.Time
-	m           sync.Mutex
 }
 
 // WebsocketResponse defines generalised data from the websocket connection
@@ -184,4 +177,21 @@ type WebsocketPositionUpdated struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 	Exchange  string
+}
+
+// WebsocketConnection contains all the data needed to send a message to a WS
+type WebsocketConnection struct {
+	sync.Mutex
+	Verbose      bool
+	RateLimit    float64
+	ExchangeName string
+	URL          string
+	ProxyURL     string
+	Wg           sync.WaitGroup
+	Connection   *websocket.Conn
+	Shutdown     chan struct{}
+	// These are the request IDs and the corresponding response JSON
+	IDResponses          map[int64][]byte
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
 }

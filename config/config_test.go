@@ -647,6 +647,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 
 	checkExchangeConfigValues.Exchanges[0].WebsocketResponseMaxLimit = 0
 	checkExchangeConfigValues.Exchanges[0].WebsocketResponseCheckTimeout = 0
+	checkExchangeConfigValues.Exchanges[0].WebsocketOrderbookBufferLimit = 0
 	checkExchangeConfigValues.Exchanges[0].HTTPTimeout = 0
 	err = checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err != nil {
@@ -659,8 +660,8 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Fatalf("Test failed. Expected exchange %s to have updated WebsocketResponseMaxLimit value", checkExchangeConfigValues.Exchanges[0].Name)
 	}
 
-	if checkExchangeConfigValues.Exchanges[0].WebsocketResponseCheckTimeout == 0 {
-		t.Fatalf("Test failed. Expected exchange %s to have updated WebsocketResponseCheckTimeout value", checkExchangeConfigValues.Exchanges[0].Name)
+	if checkExchangeConfigValues.Exchanges[0].WebsocketOrderbookBufferLimit == 0 {
+		t.Fatalf("Test failed. Expected exchange %s to have updated WebsocketOrderbookBufferLimit value", checkExchangeConfigValues.Exchanges[0].Name)
 	}
 
 	if checkExchangeConfigValues.Exchanges[0].HTTPTimeout == 0 {

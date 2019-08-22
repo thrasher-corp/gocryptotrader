@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -99,6 +99,7 @@ func (c *COINUT) SetDefaults() {
 		wshandler.WebsocketMessageCorrelationSupported
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets the current exchange configuration
@@ -134,6 +135,14 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
+
+	c.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		true,
+		true,
+		true,
+		false,
+		exch.Name)
 	return nil
 }
 

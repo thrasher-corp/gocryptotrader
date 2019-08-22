@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -101,6 +101,7 @@ func (h *HUOBI) SetDefaults() {
 		wshandler.WebsocketMessageCorrelationSupported
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user configuration
@@ -149,6 +150,14 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
+
+	h.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		false,
+		false,
+		false,
+		false,
+		exch.Name)
 	return nil
 }
 

@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -64,7 +64,7 @@ func (b *BTSE) WsHandleData() {
 				ProductID string `json:"product_id"`
 			}
 
-			if strings.Contains(string(resp.Raw), "Welcome to BTSE") {
+			if strings.Contains(string(resp.Raw), "Connected. Welcome to BTSE!") {
 				if b.Verbose {
 					log.Debugf(log.ExchangeSys, "%s websocket client successfully connected to %s",
 						b.Name, b.Websocket.GetWebsocketURL())
@@ -122,14 +122,14 @@ func (b *BTSE) WsHandleData() {
 // ProcessSnapshot processes the initial orderbook snap shot
 func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	var base orderbook.Base
-	for _, bid := range snapshot.Bids {
-		p := strings.Replace(bid[0].(string), ",", "", -1)
+	for i := range snapshot.Bids {
+		p := strings.Replace(snapshot.Bids[i][0].(string), ",", "", -1)
 		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			return err
 		}
 
-		a := strings.Replace(bid[1].(string), ",", "", -1)
+		a := strings.Replace(snapshot.Bids[i][1].(string), ",", "", -1)
 		amount, err := strconv.ParseFloat(a, 64)
 		if err != nil {
 			return err
@@ -139,14 +139,14 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	for _, ask := range snapshot.Asks {
-		p := strings.Replace(ask[0].(string), ",", "", -1)
+	for i := range snapshot.Asks {
+		p := strings.Replace(snapshot.Asks[i][0].(string), ",", "", -1)
 		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			return err
 		}
 
-		a := strings.Replace(ask[1].(string), ",", "", -1)
+		a := strings.Replace(snapshot.Asks[i][1].(string), ",", "", -1)
 		amount, err := strconv.ParseFloat(a, 64)
 		if err != nil {
 			return err
@@ -162,7 +162,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	base.LastUpdated = time.Now()
 	base.ExchangeName = b.Name
 
-	err := base.Process()
+	err := b.Websocket.Orderbook.LoadSnapshot(&base, true)
 	if err != nil {
 		return err
 	}

@@ -1,17 +1,21 @@
 package wshandler
 
 import (
+	"bytes"
+	"compress/flate"
+	"compress/gzip"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -97,15 +101,15 @@ func (w *Websocket) Connect() error {
 	go w.trafficMonitor(&anotherWG)
 	anotherWG.Wait()
 	if !w.connectionMonitorRunning {
-		go w.wsConnectionMonitor()
+		go w.connectionMonitor()
 	}
 	go w.manageSubscriptions()
 
 	return nil
 }
 
-// WsConnectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) wsConnectionMonitor() {
+// connectionMonitor ensures that the WS keeps connecting
+func (w *Websocket) connectionMonitor() {
 	w.m.Lock()
 	w.connectionMonitorRunning = true
 	w.m.Unlock()
@@ -118,13 +122,14 @@ func (w *Websocket) wsConnectionMonitor() {
 		w.m.Lock()
 		if !w.enabled {
 			w.m.Unlock()
-			w.DataHandler <- fmt.Errorf("%v WsConnectionMonitor: websocket disabled, shutting down", w.exchangeName)
+			w.DataHandler <- fmt.Errorf("%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)
 			err := w.Shutdown()
 			if err != nil {
 				log.Error(log.WebsocketMgr, err)
 			}
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v WsConnectionMonitor exiting", w.exchangeName)
+				log.Debugf(log.WebsocketMgr, "%v connectionMonitor exiting",
+					w.exchangeName)
 			}
 			return
 		}
@@ -200,7 +205,6 @@ func (w *Websocket) Shutdown() error {
 	if !w.connected && w.ShutdownC == nil {
 		return fmt.Errorf("%v cannot shutdown a disconnected websocket", w.exchangeName)
 	}
-
 	if w.verbose {
 		log.Debugf(log.WebsocketMgr, "%v shutting down websocket channels", w.exchangeName)
 	}
@@ -227,11 +231,11 @@ func (w *Websocket) Shutdown() error {
 }
 
 // WebsocketReset sends the shutdown command, waits for channel/func closure and then reconnects
-func (w *Websocket) WebsocketReset() error {
+func (w *Websocket) WebsocketReset() {
 	err := w.Shutdown()
 	if err != nil {
 		// does not return here to allow connection to be made if already shut down
-		log.Errorf(log.WebsocketMgr, "%v shutdown error: %v", w.exchangeName, err)
+		w.DataHandler <- fmt.Errorf("%v shutdown error: %v", w.exchangeName, err)
 	}
 	log.Infof(log.WebsocketMgr, "%v reconnecting to websocket", w.exchangeName)
 	w.m.Lock()
@@ -239,9 +243,8 @@ func (w *Websocket) WebsocketReset() error {
 	w.m.Unlock()
 	err = w.Connect()
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%v connection error: %v", w.exchangeName, err)
+		w.DataHandler <- fmt.Errorf("%v connection error: %v", w.exchangeName, err)
 	}
-	return err
 }
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
@@ -345,7 +348,6 @@ func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
 			enabled)
 	}
 	w.enabled = enabled
-
 	if !w.init {
 		if enabled {
 			if w.connected {
@@ -419,216 +421,6 @@ func (w *Websocket) SetExchangeName(exchName string) {
 // GetName returns exchange name
 func (w *Websocket) GetName() string {
 	return w.exchangeName
-}
-
-// Update updates a local cache using bid targets and ask targets then updates
-// main cache in orderbook.go
-// Volume == 0; deletion at price target
-// Price target not found; append of price target
-// Price target found; amend volume of price target
-func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item,
-	p currency.Pair,
-	updated time.Time,
-	exchName string, assetType asset.Item) error {
-	if bidTargets == nil && askTargets == nil {
-		return errors.New("exchange.go websocket orderbook cache Update() error - cannot have bids and ask targets both nil")
-	}
-
-	if w.lastUpdated.After(updated) {
-		return errors.New("exchange.go WebsocketOrderbookLocal Update() - update is before last update time")
-	}
-
-	w.m.Lock()
-	defer w.m.Unlock()
-
-	var orderbookAddress *orderbook.Base
-	for i := range w.ob {
-		if w.ob[i].Pair == p && w.ob[i].AssetType == assetType {
-			orderbookAddress = w.ob[i]
-		}
-	}
-
-	if orderbookAddress == nil {
-		return fmt.Errorf("exchange.go WebsocketOrderbookLocal Update() - orderbook.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
-			exchName,
-			p.String(),
-			assetType)
-	}
-
-	if len(orderbookAddress.Asks) == 0 || len(orderbookAddress.Bids) == 0 {
-		return errors.New("exchange.go websocket orderbook cache Update() error - snapshot incorrectly loaded")
-	}
-
-	if orderbookAddress.Pair == (currency.Pair{}) {
-		return fmt.Errorf("exchange.go websocket orderbook cache Update() error - snapshot not found %v",
-			p)
-	}
-
-	for x := range bidTargets {
-		// bid targets
-		func() {
-			for y := range orderbookAddress.Bids {
-				if orderbookAddress.Bids[y].Price == bidTargets[x].Price {
-					if bidTargets[x].Amount == 0 {
-						// Delete
-						orderbookAddress.Bids = append(orderbookAddress.Bids[:y],
-							orderbookAddress.Bids[y+1:]...)
-						return
-					}
-					// Amend
-					orderbookAddress.Bids[y].Amount = bidTargets[x].Amount
-					return
-				}
-			}
-
-			if bidTargets[x].Amount == 0 {
-				// Makes sure we dont append things we missed
-				return
-			}
-
-			// Append
-			orderbookAddress.Bids = append(orderbookAddress.Bids, orderbook.Item{
-				Price:  bidTargets[x].Price,
-				Amount: bidTargets[x].Amount,
-			})
-		}()
-		// bid targets
-	}
-
-	for x := range askTargets {
-		func() {
-			for y := range orderbookAddress.Asks {
-				if orderbookAddress.Asks[y].Price == askTargets[x].Price {
-					if askTargets[x].Amount == 0 {
-						// Delete
-						orderbookAddress.Asks = append(orderbookAddress.Asks[:y],
-							orderbookAddress.Asks[y+1:]...)
-						return
-					}
-					// Amend
-					orderbookAddress.Asks[y].Amount = askTargets[x].Amount
-					return
-				}
-			}
-
-			if askTargets[x].Amount == 0 {
-				// Makes sure we dont append things we missed
-				return
-			}
-
-			// Append
-			orderbookAddress.Asks = append(orderbookAddress.Asks, orderbook.Item{
-				Price:  askTargets[x].Price,
-				Amount: askTargets[x].Amount,
-			})
-		}()
-	}
-
-	return orderbookAddress.Process()
-
-}
-
-// LoadSnapshot loads initial snapshot of orderbook data, overite allows full
-// orderbook to be completely rewritten because the exchange is a doing a full
-// update not an incremental one
-func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, exchName string, overwrite bool) error {
-	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
-		return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - snapshot ask and bids are nil")
-	}
-
-	w.m.Lock()
-	defer w.m.Unlock()
-
-	for i := range w.ob {
-		if w.ob[i].Pair.Equal(newOrderbook.Pair) && w.ob[i].AssetType == newOrderbook.AssetType {
-			if overwrite {
-				w.ob[i] = newOrderbook
-				return newOrderbook.Process()
-			}
-			return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - Snapshot instance already found")
-		}
-	}
-
-	w.ob = append(w.ob, newOrderbook)
-	return newOrderbook.Process()
-}
-
-// UpdateUsingID updates orderbooks using specified ID
-func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbook.Item,
-	p currency.Pair,
-	exchName string, assetType asset.Item, action string) error {
-	w.m.Lock()
-	defer w.m.Unlock()
-
-	var orderbookAddress *orderbook.Base
-	for i := range w.ob {
-		if w.ob[i].Pair == p && w.ob[i].AssetType == assetType {
-			orderbookAddress = w.ob[i]
-		}
-	}
-
-	if orderbookAddress == nil {
-		return fmt.Errorf("exchange.go WebsocketOrderbookLocal Update() - orderbook.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
-			exchName,
-			assetType,
-			p.String())
-	}
-
-	switch action {
-	case "update":
-		for _, target := range bidTargets {
-			for i := range orderbookAddress.Bids {
-				if orderbookAddress.Bids[i].ID == target.ID {
-					orderbookAddress.Bids[i].Amount = target.Amount
-					break
-				}
-			}
-		}
-
-		for _, target := range askTargets {
-			for i := range orderbookAddress.Asks {
-				if orderbookAddress.Asks[i].ID == target.ID {
-					orderbookAddress.Asks[i].Amount = target.Amount
-					break
-				}
-			}
-		}
-
-	case "delete":
-		for _, target := range bidTargets {
-			for i := range orderbookAddress.Bids {
-				if orderbookAddress.Bids[i].ID == target.ID {
-					orderbookAddress.Bids = append(orderbookAddress.Bids[:i],
-						orderbookAddress.Bids[i+1:]...)
-					break
-				}
-			}
-		}
-
-		for _, target := range askTargets {
-			for i := range orderbookAddress.Asks {
-				if orderbookAddress.Asks[i].ID == target.ID {
-					orderbookAddress.Asks = append(orderbookAddress.Asks[:i],
-						orderbookAddress.Asks[i+1:]...)
-					break
-				}
-			}
-		}
-
-	case "insert":
-		orderbookAddress.Bids = append(orderbookAddress.Bids, bidTargets...)
-		orderbookAddress.Asks = append(orderbookAddress.Asks, askTargets...)
-	}
-
-	return orderbookAddress.Process()
-}
-
-// FlushCache flushes w.ob data to be garbage collected and refreshed when a
-// connection is lost and reconnected
-func (w *WebsocketOrderbookLocal) FlushCache() {
-	w.m.Lock()
-	w.ob = nil
-	w.m.Unlock()
 }
 
 // GetFunctionality returns a functionality bitmask for the websocket
@@ -723,9 +515,10 @@ func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscrib
 }
 
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
-func (w *Websocket) manageSubscriptions() error {
+func (w *Websocket) manageSubscriptions() {
 	if !w.SupportsFunctionality(WebsocketSubscribeSupported) && !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
-		return fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+		w.DataHandler <- fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+		return
 	}
 	w.Wg.Add(1)
 	defer func() {
@@ -741,7 +534,7 @@ func (w *Websocket) manageSubscriptions() error {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v shutdown manageSubscriptions", w.exchangeName)
 			}
-			return nil
+			return
 		default:
 			time.Sleep(manageSubscriptionsDelay)
 			if w.verbose {
@@ -909,4 +702,165 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
 	return w.canUseAuthenticatedEndpoints
+}
+
+// AddResponseWithID adds data to IDResponses with locks and a nil check
+func (w *WebsocketConnection) AddResponseWithID(id int64, data []byte) {
+	w.Lock()
+	defer w.Unlock()
+	if w.IDResponses == nil {
+		w.IDResponses = make(map[int64][]byte)
+	}
+	w.IDResponses[id] = data
+}
+
+// Dial sets proxy urls and then connects to the websocket
+func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
+	if w.ProxyURL != "" {
+		proxy, err := url.Parse(w.ProxyURL)
+		if err != nil {
+			return err
+		}
+		dialer.Proxy = http.ProxyURL(proxy)
+	}
+
+	var err error
+	var conStatus *http.Response
+	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
+	if err != nil {
+		if conStatus != nil {
+			return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
+		}
+		return fmt.Errorf("%v Error: %v", w.URL, err)
+	}
+	return nil
+}
+
+// SendMessage the one true message request. Sends message to WS
+func (w *WebsocketConnection) SendMessage(data interface{}) error {
+	w.Lock()
+	defer w.Unlock()
+	json, err := common.JSONEncode(data)
+	if err != nil {
+		return err
+	}
+	if w.Verbose {
+		log.Debugf(log.WebsocketMgr,
+			"%v sending message to websocket %v", w.ExchangeName, string(json))
+	}
+	if w.RateLimit > 0 {
+		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
+	}
+	return w.Connection.WriteMessage(websocket.TextMessage, json)
+}
+
+// SendMessageReturnResponse will send a WS message to the connection
+// It will then run a goroutine to await a JSON response
+// If there is no response it will return an error
+func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interface{}) ([]byte, error) {
+	err := w.SendMessage(request)
+	if err != nil {
+		return nil, err
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go w.WaitForResult(id, &wg)
+	defer func() {
+		delete(w.IDResponses, id)
+	}()
+	wg.Wait()
+	if _, ok := w.IDResponses[id]; !ok {
+		return nil, fmt.Errorf("timeout waiting for response with ID %v", id)
+	}
+
+	return w.IDResponses[id], nil
+}
+
+// WaitForResult will keep checking w.IDResponses for a response ID
+// If the timer expires, it will return without
+func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	timer := time.NewTimer(w.ResponseMaxLimit)
+	for {
+		select {
+		case <-timer.C:
+			return
+		default:
+			w.Lock()
+			for k := range w.IDResponses {
+				if k == id {
+					w.Unlock()
+					return
+				}
+			}
+			w.Unlock()
+			time.Sleep(w.ResponseCheckTimeout)
+		}
+	}
+}
+
+// ReadMessage reads messages, can handle text, gzip and binary
+func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
+	mType, resp, err := w.Connection.ReadMessage()
+	if err != nil {
+		return WebsocketResponse{}, err
+	}
+	var standardMessage []byte
+	switch mType {
+	case websocket.TextMessage:
+		standardMessage = resp
+	case websocket.BinaryMessage:
+		standardMessage, err = w.parseBinaryResponse(resp)
+		if err != nil {
+			return WebsocketResponse{}, err
+		}
+	}
+	if w.Verbose {
+		log.Debugf(log.WebsocketMgr, "%v Websocket message received: %v",
+			w.ExchangeName,
+			string(standardMessage))
+	}
+	return WebsocketResponse{Raw: standardMessage, Type: mType}, nil
+}
+
+// parseBinaryResponse parses a websocket binary response into a usable byte array
+func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
+	var standardMessage []byte
+	var err error
+	// Detect GZIP
+	if resp[0] == 31 && resp[1] == 139 {
+		b := bytes.NewReader(resp)
+		var gReader *gzip.Reader
+		gReader, err = gzip.NewReader(b)
+		if err != nil {
+			return standardMessage, err
+		}
+		standardMessage, err = ioutil.ReadAll(gReader)
+		if err != nil {
+			return standardMessage, err
+		}
+		err = gReader.Close()
+		if err != nil {
+			return standardMessage, err
+		}
+	} else {
+		reader := flate.NewReader(bytes.NewReader(resp))
+		standardMessage, err = ioutil.ReadAll(reader)
+		if err != nil {
+			return standardMessage, err
+		}
+		err = reader.Close()
+		if err != nil {
+			return standardMessage, err
+		}
+	}
+	return standardMessage, nil
+}
+
+// GenerateMessageID Creates a messageID to checkout
+func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
+	if useNano {
+		return time.Now().UnixNano()
+	}
+	return time.Now().Unix()
 }

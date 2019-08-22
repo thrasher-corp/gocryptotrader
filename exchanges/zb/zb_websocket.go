@@ -15,7 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -114,8 +114,8 @@ func (z *ZB) WsHandleData() {
 				}
 
 				var asks []orderbook.Item
-				for _, askDepth := range depth.Asks {
-					ask := askDepth.([]interface{})
+				for i := range depth.Asks {
+					ask := depth.Asks[i].([]interface{})
 					asks = append(asks, orderbook.Item{
 						Amount: ask[1].(float64),
 						Price:  ask[0].(float64),
@@ -123,8 +123,8 @@ func (z *ZB) WsHandleData() {
 				}
 
 				var bids []orderbook.Item
-				for _, bidDepth := range depth.Bids {
-					bid := bidDepth.([]interface{})
+				for i := range depth.Bids {
+					bid := depth.Bids[i].([]interface{})
 					bids = append(bids, orderbook.Item{
 						Amount: bid[1].(float64),
 						Price:  bid[0].(float64),
@@ -140,7 +140,6 @@ func (z *ZB) WsHandleData() {
 				newOrderBook.Pair = cPair
 
 				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-					z.GetName(),
 					true)
 				if err != nil {
 					z.Websocket.DataHandler <- err

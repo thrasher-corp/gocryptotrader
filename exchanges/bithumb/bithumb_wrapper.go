@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -164,11 +164,9 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 		currency := x.Base.String()
 		var tp ticker.Price
 		tp.Pair = x
-		tp.Ask = tickers[currency].SellPrice
-		tp.Bid = tickers[currency].BuyPrice
 		tp.Low = tickers[currency].MinPrice
 		tp.Last = tickers[currency].ClosingPrice
-		tp.Volume = tickers[currency].Volume1Day
+		tp.Volume = tickers[currency].UnitsTraded24Hr
 		tp.High = tickers[currency].MaxPrice
 
 		err = ticker.ProcessTicker(b.Name, &tp, assetType)

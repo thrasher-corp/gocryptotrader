@@ -39,7 +39,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Hadax | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
-| LakeBTC | Yes | No | NA |
+| LakeBTC | Yes | Yes | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | OKEX | Yes | Yes | No |

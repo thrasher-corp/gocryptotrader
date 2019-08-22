@@ -1,6 +1,7 @@
 package lakebtc
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -8,9 +9,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 var l LakeBTC
+var setupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
@@ -20,21 +24,27 @@ const (
 )
 
 func TestSetDefaults(t *testing.T) {
-	l.SetDefaults()
+	if !setupRan {
+		l.SetDefaults()
+	}
 }
 
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
-	if err != nil {
-		t.Error("Test Failed - LakeBTC Setup() init error")
+	if !setupRan {
+		cfg := config.GetConfig()
+		cfg.LoadConfig("../../testdata/configtest.json")
+		lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
+		if err != nil {
+			t.Error("Test Failed - LakeBTC Setup() init error")
+		}
+		lakebtcConfig.API.AuthenticatedSupport = true
+		lakebtcConfig.API.Credentials.Key = apiKey
+		lakebtcConfig.API.Credentials.Secret = apiSecret
+		lakebtcConfig.Features.Enabled.Websocket = true
+		l.Setup(lakebtcConfig)
+		l.API.Endpoints.WebsocketURL = lakeBTCWSURL
+		setupRan = true
 	}
-	lakebtcConfig.API.AuthenticatedSupport = true
-	lakebtcConfig.API.Credentials.Key = apiKey
-	lakebtcConfig.API.Credentials.Secret = apiSecret
-
-	l.Setup(lakebtcConfig)
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -446,5 +456,67 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}
+	}
+}
+
+// TestWsConn websocket connection test
+func TestWsConn(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	if !l.Websocket.IsEnabled() {
+		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	err := l.WsConnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestWsTradeProcessing logic test
+func TestWsTradeProcessing(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	json := `{"trades":[{"type":"sell","date":1564985787,"price":"11913.02","amount":"0.49"}]}`
+	err := l.processTrades(json, "market-btcusd-global")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsTickerProcessing logic test
+func TestWsTickerProcessing(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	json := `{"btcusd":{"low":"10990.05","high":"11966.24","last":"11903.29","volume":"1803.967079","sell":"11912.39","buy":"11902.2"},"btceur":{"low":"9886.87","high":"10732.72","last":"10691.44","volume":"87.994478","sell":"10711.62","buy":"10691.44"},"btchkd":{"low":null,"high":null,"last":"51776.98","volume":null,"sell":"93307.37","buy":"93177.56"},"btcjpy":{"low":"1176039.0","high":"1272246.0","last":"1265680.0","volume":"129.021421","sell":"1266764.0","buy":"1265680.0"},"btcgbp":{"low":"9157.12","high":"9953.43","last":"9941.28","volume":"10.4997","sell":"10007.89","buy":"9941.28"},"btcaud":{"low":"16102.57","high":"17594.22","last":"17548.16","volume":"7.338316","sell":"17616.67","buy":"17549.69"},"btccad":{"low":"14541.69","high":"15834.87","last":"15763.54","volume":"30.480309","sell":"15793.45","buy":"15756.13"},"btcsgd":{"low":"15133.82","high":"16501.62","last":"16455.53","volume":"4.044026","sell":"16484.37","buy":"16462.18"},"btcchf":{"low":"10800.58","high":"11526.24","last":"11526.24","volume":"0.1765","sell":"11675.34","buy":"11632.02"},"btcnzd":{"low":null,"high":null,"last":"8340.98","volume":null,"sell":"18315.49","buy":"18221.37"},"btcngn":{"low":null,"high":null,"last":"600000.0","volume":null,"sell":null,"buy":null},"eurusd":{"low":"1.1088","high":"1.1138","last":"1.1125","volume":"2680.105249","sell":"1.1142","buy":"1.1121"},"gbpusd":{"low":"1.1934","high":"1.1958","last":"1.1934","volume":"1493.923823","sell":"1.1979","buy":"1.1903"},"usdjpy":{"low":"105.26","high":"107.25","last":"106.33","volume":"114490.2179","sell":"106.34","buy":"106.27"},"usdhkd":{"low":null,"high":null,"last":"7.851","volume":null,"sell":"7.8328","buy":"7.8286"},"usdcad":{"low":"1.3225","high":"1.3272","last":"1.3255","volume":"11033.9877","sell":"1.3258","buy":"1.3238"},"usdsgd":{"low":"1.3776","high":"1.3839","last":"1.3838","volume":"2523.75","sell":"1.3838","buy":"1.3819"},"audusd":{"low":"0.6764","high":"0.6853","last":"0.6771","volume":"5442.608321","sell":"0.6782","buy":"0.6762"},"nzdusd":{"low":null,"high":null,"last":"0.6758","volume":null,"sell":"0.6532","buy":"0.6504"},"usdchf":{"low":"0.9838","high":"0.9838","last":"0.9838","volume":"108.3352","sell":"0.9801","buy":"0.9773"},"usdngn":{"low":null,"high":null,"last":"200.0","volume":null,"sell":null,"buy":null},"ethbtc":{"low":"0.0205","high":"0.025","last":"0.0205","volume":null,"sell":"0.03","buy":"0.0194"},"ltcbtc":{"low":null,"high":null,"last":"0.0114","volume":null,"sell":"0.009","buy":"0.0073"},"bchbtc":{"low":null,"high":null,"last":"0.0544","volume":null,"sell":"0.0322","buy":"0.0274"},"xrpbtc":{"low":"0.000042","high":"0.000042","last":"0.000042","volume":null,"sell":"0.000037","buy":"0.000022"},"baceth":{"low":"0.000035","high":"0.000035","last":"0.000035","volume":null,"sell":"0.0015","buy":null}}`
+	err := l.processTicker(json)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCurrencyFromChannel(t *testing.T) {
+	curr := currency.NewPair(currency.LTC, currency.BTC)
+	result := l.getCurrencyFromChannel(fmt.Sprintf("%v%v%v", marketSubstring, curr, globalSubstring))
+	if curr != result {
+		t.Errorf("currency result is not equal. Expected  %v", curr)
+	}
+}
+
+// TestWsOrderbookProcessing logic test
+func TestWsOrderbookProcessing(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	json := `{"asks":[["11905.66","0.0019"],["11905.73","0.0015"],["11906.43","0.0013"],["11906.62","0.0019"],["11907.25","11.087"],["11907.66","0.0006"],["11907.73","0.3113"],["11907.84","0.0006"],["11908.37","0.0016"],["11908.86","10.3786"],["11909.54","4.2955"],["11910.15","0.0012"],["11910.56","13.5505"],["11911.06","0.0011"],["11911.37","0.0023"]],"bids":[["11905.55","0.0171"],["11904.43","0.0225"],["11903.31","0.0223"],["11902.2","0.0027"],["11901.92","1.002"],["11901.6","0.0015"],["11901.49","0.0012"],["11901.08","0.0227"],["11900.93","0.0009"],["11900.53","1.662"],["11900.08","0.001"],["11900.01","3.6745"],["11899.96","0.003"],["11899.91","0.0006"],["11899.44","0.0013"]]}`
+	err := l.processOrderbook(json, "market-btcusd-global")
+	if err != nil {
+		t.Error(err)
 	}
 }

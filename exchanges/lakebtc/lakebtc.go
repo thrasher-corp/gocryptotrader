@@ -37,6 +37,7 @@ const (
 // LakeBTC is the overarching type across the LakeBTC package
 type LakeBTC struct {
 	exchange.Base
+	WebsocketConn
 }
 
 // GetTicker returns the current ticker from lakeBTC

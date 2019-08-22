@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -103,6 +103,7 @@ func (k *Kraken) SetDefaults() {
 		wshandler.WebsocketMessageCorrelationSupported
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets current exchange configuration
@@ -139,6 +140,14 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
+
+	k.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		true,
+		true,
+		false,
+		false,
+		exch.Name)
 	return nil
 }
 

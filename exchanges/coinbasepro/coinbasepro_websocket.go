@@ -14,7 +14,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
 
 const (
@@ -179,13 +180,13 @@ func (c *CoinbasePro) WsHandleData() {
 // ProcessSnapshot processes the initial orderbook snap shot
 func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
 	var base orderbook.Base
-	for _, bid := range snapshot.Bids {
-		price, err := strconv.ParseFloat(bid[0].(string), 64)
+	for i := range snapshot.Bids {
+		price, err := strconv.ParseFloat(snapshot.Bids[i][0].(string), 64)
 		if err != nil {
 			return err
 		}
 
-		amount, err := strconv.ParseFloat(bid[1].(string), 64)
+		amount, err := strconv.ParseFloat(snapshot.Bids[i][1].(string), 64)
 		if err != nil {
 			return err
 		}
@@ -194,13 +195,13 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	for _, ask := range snapshot.Asks {
-		price, err := strconv.ParseFloat(ask[0].(string), 64)
+	for i := range snapshot.Asks {
+		price, err := strconv.ParseFloat(snapshot.Asks[i][0].(string), 64)
 		if err != nil {
 			return err
 		}
 
-		amount, err := strconv.ParseFloat(ask[1].(string), 64)
+		amount, err := strconv.ParseFloat(snapshot.Asks[i][1].(string), 64)
 		if err != nil {
 			return err
 		}
@@ -209,18 +210,17 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	p := currency.NewPairFromString(snapshot.ProductID)
+	pair := currency.NewPairFromString(snapshot.ProductID)
 	base.AssetType = asset.Spot
-	base.Pair = p
-	base.LastUpdated = time.Now()
+	base.Pair = pair
 
-	err := c.Websocket.Orderbook.LoadSnapshot(&base, c.GetName(), false)
+	err := c.Websocket.Orderbook.LoadSnapshot(&base, false)
 	if err != nil {
 		return err
 	}
 
 	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
+		Pair:     pair,
 		Asset:    asset.Spot,
 		Exchange: c.GetName(),
 	}
@@ -230,26 +230,35 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 
 // ProcessUpdate updates the orderbook local cache
 func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
-	var Asks, Bids []orderbook.Item
+	var asks, bids []orderbook.Item
 
-	for _, data := range update.Changes {
-		price, _ := strconv.ParseFloat(data[1].(string), 64)
-		volume, _ := strconv.ParseFloat(data[2].(string), 64)
+	for i := range update.Changes {
+		price, _ := strconv.ParseFloat(update.Changes[i][1].(string), 64)
+		volume, _ := strconv.ParseFloat(update.Changes[i][2].(string), 64)
 
-		if data[0].(string) == exchange.BuyOrderSide.ToLower().ToString() {
-			Bids = append(Bids, orderbook.Item{Price: price, Amount: volume})
+		if update.Changes[i][0].(string) == exchange.BuyOrderSide.ToLower().ToString() {
+			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
 		} else {
-			Asks = append(Asks, orderbook.Item{Price: price, Amount: volume})
+			asks = append(asks, orderbook.Item{Price: price, Amount: volume})
 		}
 	}
 
-	if len(Asks) == 0 && len(Bids) == 0 {
-		return errors.New("coibasepro_websocket.go error - no data in websocket update")
+	if len(asks) == 0 && len(bids) == 0 {
+		return errors.New("coinbasepro_websocket.go error - no data in websocket update")
 	}
 
 	p := currency.NewPairFromString(update.ProductID)
-
-	err := c.Websocket.Orderbook.Update(Bids, Asks, p, time.Now(), c.GetName(), asset.Spot)
+	timestamp, err := time.Parse(time.RFC3339, update.Time)
+	if err != nil {
+		return err
+	}
+	err = c.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: p,
+		UpdateTime:   timestamp,
+		AssetType:    asset.Spot,
+	})
 	if err != nil {
 		return err
 	}
