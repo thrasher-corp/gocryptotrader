@@ -22,6 +22,8 @@ const (
 	canManipulateRealOrders = false
 )
 
+const testCurrency = "btcusd"
+
 var g Gemini
 
 func TestGetSymbols(t *testing.T) {
@@ -46,7 +48,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetOrderbook("btcusd", url.Values{})
+	_, err := g.GetOrderbook(testCurrency, url.Values{})
 	if err != nil {
 		t.Error("Test Failed - GetOrderbook() error", err)
 	}
@@ -54,7 +56,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTrades("btcusd", url.Values{})
+	_, err := g.GetTrades(testCurrency, url.Values{})
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
 	}
@@ -72,7 +74,7 @@ func TestGetNotionalVolume(t *testing.T) {
 
 func TestGetAuction(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAuction("btcusd")
+	_, err := g.GetAuction(testCurrency)
 	if err != nil {
 		t.Error("Test Failed - GetAuction() error", err)
 	}
@@ -80,7 +82,7 @@ func TestGetAuction(t *testing.T) {
 
 func TestGetAuctionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAuctionHistory("btcusd", url.Values{})
+	_, err := g.GetAuctionHistory(testCurrency, url.Values{})
 	if err != nil {
 		t.Error("Test Failed - GetAuctionHistory() error", err)
 	}
@@ -88,7 +90,7 @@ func TestGetAuctionHistory(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.NewOrder("btcusd", 1, 9000, "buy", "exchange limit")
+	_, err := g.NewOrder(testCurrency, 1, 9000, "buy", "exchange limit")
 	if err != nil && mockTests {
 		t.Error("Test Failed - NewOrder() error", err)
 	} else if err == nil && !mockTests {
@@ -138,7 +140,7 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTradeHistory("btcusd", 0)
+	_, err := g.GetTradeHistory(testCurrency, 0)
 	if err != nil && mockTests {
 		t.Error("Test Failed - GetTradeHistory() error", err)
 	} else if err == nil && !mockTests {

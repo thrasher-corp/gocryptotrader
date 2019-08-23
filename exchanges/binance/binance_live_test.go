@@ -5,12 +5,12 @@
 package binance
 
 import (
+	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var mockTests = false
@@ -20,14 +20,13 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	binanceConfig, err := cfg.GetExchangeConfig("Binance")
 	if err != nil {
-		log.Error("Test Failed - Binance Setup() init error", err)
-		os.Exit(1)
+		log.Fatal("Test Failed - Binance Setup() init error", err)
 	}
 	binanceConfig.AuthenticatedAPISupport = true
 	binanceConfig.APIKey = apiKey
 	binanceConfig.APISecret = apiSecret
 	b.SetDefaults()
 	b.Setup(&binanceConfig)
-	log.Debugf(sharedtestvalues.LiveTesting, b.GetName(), b.APIUrl)
+	log.Printf(sharedtestvalues.LiveTesting, b.GetName(), b.APIUrl)
 	os.Exit(m.Run())
 }

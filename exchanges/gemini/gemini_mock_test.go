@@ -5,13 +5,13 @@
 package gemini
 
 import (
+	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const mockFile = "../../testdata/http_mock/gemini/gemini.json"
@@ -23,8 +23,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
-		log.Error("Test Failed - Mock server error", err)
-		os.Exit(1)
+		log.Fatal("Test Failed - Mock server error", err)
 	}
 	geminiConfig.AuthenticatedAPISupport = true
 	geminiConfig.APIKey = apiKey
@@ -34,13 +33,12 @@ func TestMain(m *testing.M) {
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockFile)
 	if err != nil {
-		log.Errorf("Test Failed - Mock server error %s", err)
-		os.Exit(1)
+		log.Fatalf("Test Failed - Mock server error %s", err)
 	}
 
 	g.HTTPClient = newClient
 	g.APIUrl = serverDetails
 
-	log.Debugf(sharedtestvalues.MockTesting, g.GetName(), g.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, g.GetName(), g.APIUrl)
 	os.Exit(m.Run())
 }

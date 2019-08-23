@@ -5,13 +5,13 @@
 package binance
 
 import (
+	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const mockfile = "../../testdata/http_mock/binance/binance.json"
@@ -23,8 +23,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	binanceConfig, err := cfg.GetExchangeConfig("Binance")
 	if err != nil {
-		log.Error("Test Failed - Binance Setup() init error", err)
-		os.Exit(1)
+		log.Fatal("Test Failed - Binance Setup() init error", err)
 	}
 	binanceConfig.AuthenticatedAPISupport = true
 	binanceConfig.APIKey = apiKey
@@ -34,13 +33,12 @@ func TestMain(m *testing.M) {
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Errorf("Test Failed - Mock server error %s", err)
-		os.Exit(1)
+		log.Fatalf("Test Failed - Mock server error %s", err)
 	}
 
 	b.HTTPClient = newClient
 	b.APIUrl = serverDetails
 
-	log.Debugf(sharedtestvalues.MockTesting, b.GetName(), b.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, b.GetName(), b.APIUrl)
 	os.Exit(m.Run())
 }

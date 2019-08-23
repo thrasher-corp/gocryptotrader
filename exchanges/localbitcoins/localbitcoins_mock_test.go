@@ -5,13 +5,13 @@
 package localbitcoins
 
 import (
+	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const mockfile = "../../testdata/http_mock/localbitcoins/localbitcoins.json"
@@ -23,8 +23,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
 	if err != nil {
-		log.Error("Test Failed - Localbitcoins Setup() init error", err)
-		os.Exit(1)
+		log.Fatal("Test Failed - Localbitcoins Setup() init error", err)
 	}
 	localbitcoinsConfig.AuthenticatedAPISupport = true
 	localbitcoinsConfig.APIKey = apiKey
@@ -34,8 +33,7 @@ func TestMain(m *testing.M) {
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Errorf("Test Failed - Mock server error %s", err)
-		os.Exit(1)
+		log.Fatalf("Test Failed - Mock server error %s", err)
 	}
 
 	l.HTTPClient = newClient

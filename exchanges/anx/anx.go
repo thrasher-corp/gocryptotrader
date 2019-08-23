@@ -250,7 +250,7 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 func (a *ANX) CancelOrderByIDs(orderIds []string) (OrderCancelResponse, error) {
 	var response OrderCancelResponse
 	if len(orderIds) == 0 {
-		return response, errors.New("no order ids found")
+		return response, errors.New("no order ids provided")
 	}
 
 	req := make(map[string]interface{})

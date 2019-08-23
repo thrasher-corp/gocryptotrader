@@ -5,12 +5,12 @@
 package gemini
 
 import (
+	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var mockTests = false
@@ -20,8 +20,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
-		log.Error("Test Failed - Gemini Setup() init error", err)
-		os.Exit(1)
+		log.Fatal("Test Failed - Gemini Setup() init error", err)
 	}
 	geminiConfig.AuthenticatedAPISupport = true
 	geminiConfig.APIKey = apiKey
@@ -29,6 +28,6 @@ func TestMain(m *testing.M) {
 	g.SetDefaults()
 	g.Setup(&geminiConfig)
 	g.APIUrl = geminiSandboxAPIURL
-	log.Debugf(sharedtestvalues.LiveTesting, g.GetName(), g.APIUrl)
+	log.Printf(sharedtestvalues.LiveTesting, g.GetName(), g.APIUrl)
 	os.Exit(m.Run())
 }

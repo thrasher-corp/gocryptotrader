@@ -5,12 +5,12 @@
 package anx
 
 import (
+	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var mockTests = false
@@ -20,14 +20,13 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
-		log.Error("Test Failed - ANX Setup() init error", err)
-		os.Exit(1)
+		log.Fatalf("Test Failed - ANX Setup() init error", err)
 	}
 	anxConfig.AuthenticatedAPISupport = true
 	anxConfig.APIKey = apiKey
 	anxConfig.APISecret = apiSecret
 	a.SetDefaults()
 	a.Setup(&anxConfig)
-	log.Debugf(sharedtestvalues.LiveTesting, a.GetName(), a.APIUrl)
+	log.Printf(sharedtestvalues.LiveTesting, a.GetName(), a.APIUrl)
 	os.Exit(m.Run())
 }

@@ -5,12 +5,12 @@
 package bitstamp
 
 import (
+	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var mockTests = false
@@ -20,8 +20,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
-		log.Error("Test Failed - Bitstamp Setup() init error", err)
-		os.Exit(1)
+		log.Fatal("Test Failed - Bitstamp Setup() init error", err)
 	}
 	bitstampConfig.AuthenticatedAPISupport = true
 	bitstampConfig.APIKey = apiKey
@@ -29,6 +28,6 @@ func TestMain(m *testing.M) {
 	bitstampConfig.ClientID = customerID
 	b.SetDefaults()
 	b.Setup(&bitstampConfig)
-	log.Debugf(sharedtestvalues.LiveTesting, b.GetName(), b.APIUrl)
+	log.Printf(sharedtestvalues.LiveTesting, b.GetName(), b.APIUrl)
 	os.Exit(m.Run())
 }
