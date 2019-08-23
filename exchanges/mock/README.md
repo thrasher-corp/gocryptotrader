@@ -5,7 +5,7 @@
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/localbitcoins)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/mock)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
@@ -43,10 +43,10 @@ package your_current_exchange_name
 import (
 	"os"
 	"testing"
+	"log"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var mockTests = false
@@ -56,15 +56,14 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
 	if err != nil {
-		log.Error("Test Failed - your_current_exchange_name Setup() init error", err)
-		os.Exit(1)
+		log.Fatal("Test Failed - your_current_exchange_name Setup() init error", err)
 	}
 	your_current_exchange_nameConfig.AuthenticatedAPISupport = true
 	your_current_exchange_nameConfig.APIKey = apiKey
 	your_current_exchange_nameConfig.APISecret = apiSecret
 	l.SetDefaults()
 	l.Setup(&your_current_exchange_nameConfig)
-	log.Debugf(sharedtestvalues.LiveTesting, l.GetName(), l.APIUrl)
+	log.Printf(sharedtestvalues.LiveTesting, l.GetName(), l.APIUrl)
 	os.Exit(m.Run())
 }
 ```
@@ -81,11 +80,11 @@ package your_current_exchange_name
 import (
 	"os"
 	"testing"
+	"log"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const mockfile = "../../testdata/http_mock/your_current_exchange_name/your_current_exchange_name.json"
@@ -97,8 +96,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
 	if err != nil {
-		log.Error("Test Failed - your_current_exchange_name Setup() init error", err)
-		os.Exit(1)
+		log.Fatal("Test Failed - your_current_exchange_name Setup() init error", err)
 	}
 	your_current_exchange_nameConfig.AuthenticatedAPISupport = true
 	your_current_exchange_nameConfig.APIKey = apiKey
@@ -108,8 +106,7 @@ func TestMain(m *testing.M) {
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Errorf("Test Failed - Mock server error %s", err)
-		os.Exit(1)
+		log.Fatalf("Test Failed - Mock server error %s", err)
 	}
 
 	g.HTTPClient = newClient
