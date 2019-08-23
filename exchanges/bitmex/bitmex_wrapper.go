@@ -204,7 +204,7 @@ func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var products []string
 	for x := range marketInfo {
-		products = append(products, b.FormatExchangeCurrency(marketInfo[x].Symbol, asset).String())
+		products = append(products, marketInfo[x].Symbol.String())
 	}
 
 	return products, nil
@@ -258,6 +258,7 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+	log.Debug(log.Ticker, assetType.String())
 	var tickerPrice ticker.Price
 	tick, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {

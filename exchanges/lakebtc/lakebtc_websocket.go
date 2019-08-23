@@ -239,13 +239,12 @@ func (l *LakeBTC) processTicker(ticker string) error {
 			continue
 		}
 		l.Websocket.DataHandler <- wshandler.TickerData{
-			Timestamp: time.Now(),
-			Pair:      currency.NewPairFromString(k),
-			AssetType: asset.Spot,
 			Exchange:  l.GetName(),
-			Quantity:  vol,
-			HighPrice: high,
-			LowPrice:  low,
+			Volume:    vol,
+			High:      high,
+			Low:       low,
+			AssetType: asset.Spot,
+			Pair:      currency.NewPairFromString(k),
 		}
 	}
 	return nil

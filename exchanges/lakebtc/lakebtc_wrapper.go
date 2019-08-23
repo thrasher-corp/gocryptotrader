@@ -186,7 +186,6 @@ func (l *LakeBTC) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
 	ticks, err := l.GetTicker()
 	if err != nil {
 		return ticker.Price{}, err

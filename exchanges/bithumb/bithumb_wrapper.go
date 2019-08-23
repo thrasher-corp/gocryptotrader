@@ -167,9 +167,7 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 		tp := ticker.Price{
 			High:   tickers[curr].MaxPrice,
 			Low:    tickers[curr].MinPrice,
-			Bid:    tickers[curr].BuyPrice,
-			Ask:    tickers[curr].SellPrice,
-			Volume: tickers[curr].Volume1Day,
+			Volume: tickers[curr].UnitsTraded24Hr,
 			Open:   tickers[curr].OpeningPrice,
 			Close:  tickers[curr].ClosingPrice,
 			Pair:   pairs[i],
