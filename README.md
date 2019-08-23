@@ -161,6 +161,9 @@ Binaries will be published once the codebase reaches a stable condition.
 | starit | https://github.com/starit | 1 |
 | Jimexist | https://github.com/Jimexist | 1 |
 | lookfirst | https://github.com/lookfirst | 1 |
-
+| mattkanwisher | https://github.com/mattkanwisher | 1 |
+| mKurrels | https://github.com/mKurrels | 1 |
+| m1kola | https://github.com/m1kola | 1 |
+| cavapoo2 | https://github.com/cavapoo2 | 1 |
 
 
