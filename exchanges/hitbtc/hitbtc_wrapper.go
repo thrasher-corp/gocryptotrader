@@ -215,10 +215,6 @@ func (h *HitBTC) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	if !h.Features.Supports.RESTCapabilities.TickerBatching {
-		return tickerPrice, common.ErrFunctionNotSupported
-	}
-
 	tick, err := h.GetTicker("")
 	if err != nil {
 		return tickerPrice, err

@@ -211,9 +211,6 @@ func (h *HUOBIHADAX) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	if !h.Features.Supports.RESTCapabilities.TickerBatching {
-		return tickerPrice, common.ErrFunctionNotSupported
-	}
 	tickers, err := h.GetTickers()
 	if err != nil {
 		return tickerPrice, err
