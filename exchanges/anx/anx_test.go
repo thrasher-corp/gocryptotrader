@@ -373,7 +373,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestUpdateOrderbook(t *testing.T) {
-	a.SetDefaults()
+	t.Parallel()
 	q := currency.Pair{
 		Delimiter: "_",
 		Base:      currency.BTC,
