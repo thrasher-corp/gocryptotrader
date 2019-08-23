@@ -60,6 +60,7 @@ func (a *ANX) SetDefaults() {
 	}
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
+	a.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
 	a.CurrencyPairs = currency.PairsManager{
 		AssetTypes: asset.Items{
@@ -464,7 +465,7 @@ func (a *ANX) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if !a.AllowAuthenticatedRequest() && // Todo check connection status
+	if (!a.AllowAuthenticatedRequest() || a.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

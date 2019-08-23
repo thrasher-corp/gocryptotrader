@@ -457,7 +457,7 @@ func (p *Poloniex) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (p *Poloniex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if !p.AllowAuthenticatedRequest() && // Todo check connection status
+	if (!p.AllowAuthenticatedRequest() || p.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

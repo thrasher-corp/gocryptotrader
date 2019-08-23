@@ -1108,6 +1108,48 @@
    ]
   },
   {
+    "name": "LBank",
+    "enabled": true,
+    "verbose": false,
+    "websocket": false,
+    "useSandbox": false,
+    "restPollingDelay": 10,
+    "httpTimeout": 15000000000,
+    "httpUserAgent": "",
+    "httpDebugging": false,
+    "authenticatedApiSupport": false,
+    "apiKey": "Key",
+    "apiSecret": "Secret",
+    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+    "proxyAddress": "",
+    "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
+    "availablePairs": "fbc_usdt,hds_usdt,galt_usdt,dxn_usdt,iog_usdt,ioex_usdt,vollar_usdt,oath_usdt,bloc_usdt,btc_lbcn,eth_lbcn,usdt_lbcn,btc_usdt,eth_usdt,eth_btc,abbc_btc,bzky_eth,onot_eth,kisc_eth,bxa_usdt,atp_usdt,mat_usdt,sky_btc,sky_lbcn,rnt_usdt,vena_usdt,grin_usdt,ida_usdt,pnt_usdt,bsv_btc,bsv_usdt,opx_usdt,tena_eth,seer_lbcn,vet_lbcn,vtho_btc,vnx_lbcn,vnx_btc,amo_eth,ubex_btc,eos_btc,ubex_usdt,tns_lbcn,tns_btc,ali_eth,sdc_eth,sait_eth,artcn_usdt,dax_btc,dax_eth,dali_usdt,vet_usdt,ten_usdt,bch_usdt,neo_usdt,qtum_usdt,zec_usdt,vet_btc,pai_btc,pnt_btc,bch_btc,ltc_btc,neo_btc,dash_btc,etc_btc,qtum_btc,zec_btc,sc_btc,bts_btc,cpx_btc,xwc_btc,fil6_btc,fil12_btc,fil36_btc,eos_usdt,ut_eth,ela_eth,vet_eth,vtho_eth,pai_eth,bfdt_eth,her_eth,ptt_eth,tac_eth,idhub_eth,ssc_eth,skm_eth,iic_eth,ply_eth,ext_eth,eos_eth,yoyow_eth,trx_eth,qtum_eth,zec_eth,bts_eth,btm_eth,mith_eth,nas_eth,man_eth,dbc_eth,bto_eth,ddd_eth,cpx_eth,cs_eth,iht_eth,tky_eth,ocn_eth,dct_eth,zpt_eth,eko_eth,mda_eth,pst_eth,xwc_eth,put_eth,pnt_eth,aac_eth,fil6_eth,fil12_eth,fil36_eth,uip_eth,seer_eth,bsb_eth,cdc_eth,grams_eth,ddmx_eth,eai_eth,inc_eth,bnb_usdt,ht_usdt,bot_eth,kbc_btc,kbc_usdt,mai_usdt,phv_usdt,hnb_usdt,gt_usdt,b91_usdt,voken_usdt,cye_usdt,brc_usdt,btc_ausd",
+    "enabledPairs": "btc_usdt",
+    "baseCurrencies": "USD",
+    "assetTypes": "SPOT",
+    "supportsAutoPairUpdates": true,
+    "configCurrencyPairFormat": {
+        "uppercase": false,
+        "delimiter": "_"
+       },
+       "requestCurrencyPairFormat": {
+        "uppercase": false,
+        "delimiter": "_"
+       },
+    "bankAccounts": [
+     {
+      "bankName": "",
+      "bankAddress": "",
+      "accountName": "",
+      "accountNumber": "",
+      "swiftCode": "",
+      "iban": "",
+      "supportedCurrencies": ""
+     }
+    ]
+   },
+  {
    "name": "LocalBitcoins",
    "enabled": true,
    "verbose": false,

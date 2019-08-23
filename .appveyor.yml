@@ -30,7 +30,12 @@ test_script:
   # test back-end
   - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.16.0
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
-  - go test -race ./...
+  - ps: >-
+      if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {
+          go test -race ./... -tags=mock_test_off
+      }else {
+          go test -race ./...
+      }
   
   # test front-end
   - node --version

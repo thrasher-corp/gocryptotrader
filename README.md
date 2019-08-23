@@ -39,7 +39,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Hadax | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
-| LakeBTC | Yes | Yes | NA |
+| Lbank | Yes | No | NA |
+| LakeBTC | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | OKEX | Yes | Yes | No |
@@ -129,10 +130,11 @@ Binaries will be published once the codebase reaches a stable condition.
 ### A very special thank you to all who have contributed to this program:
 
 |User|Github|Contribution Amount|
-|--|--|--|| thrasher- | https://github.com/thrasher- | 540 |
-| shazbert | https://github.com/shazbert | 173 |
-| gloriousCode | https://github.com/gloriousCode | 150 |
-| xtda | https://github.com/xtda | 17 |
+|--|--|--|
+| thrasher- | https://github.com/thrasher- | 543 |
+| shazbert | https://github.com/shazbert | 174 |
+| gloriousCode | https://github.com/gloriousCode | 154 |
+| xtda | https://github.com/xtda | 18 |
 | ermalguni | https://github.com/ermalguni | 14 |
 | vadimzhukck | https://github.com/vadimzhukck | 10 |
 | 140am | https://github.com/140am | 8 |
@@ -154,10 +156,13 @@ Binaries will be published once the codebase reaches a stable condition.
 | CodeLingoTeam | https://github.com/CodeLingoTeam | 1 |
 | Daanikus | https://github.com/Daanikus | 1 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
+| DirectX | https://github.com/DirectX | 1 |
 | frankzougc | https://github.com/frankzougc | 1 |
 | starit | https://github.com/starit | 1 |
 | Jimexist | https://github.com/Jimexist | 1 |
 | lookfirst | https://github.com/lookfirst | 1 |
+| mattkanwisher | https://github.com/mattkanwisher | 1 |
+| mKurrels | https://github.com/mKurrels | 1 |
+| m1kola | https://github.com/m1kola | 1 |
+| cavapoo2 | https://github.com/cavapoo2 | 1 |
 | zeldrinn | https://github.com/zeldrinn | 1 |
-
-

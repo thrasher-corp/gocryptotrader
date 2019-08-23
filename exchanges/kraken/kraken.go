@@ -846,7 +846,16 @@ func GetError(apiErrors []string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
 func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
-	return k.SendPayload(http.MethodGet, path, nil, nil, result, false, false, k.Verbose, k.HTTPDebugging)
+	return k.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		k.Verbose,
+		k.HTTPDebugging,
+		k.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -883,7 +892,8 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 		true,
 		true,
 		k.Verbose,
-		k.HTTPDebugging)
+		k.HTTPDebugging,
+		k.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

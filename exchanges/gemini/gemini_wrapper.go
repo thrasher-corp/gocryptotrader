@@ -305,11 +305,16 @@ func (g *Gemini) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOr
 		return submitOrderResponse, err
 	}
 
-	response, err := g.NewOrder(order.Pair.String(),
+	if order.OrderType != exchange.LimitOrderType {
+		return submitOrderResponse, errors.New("only limit orders are enabled through this exchange")
+	}
+
+	response, err := g.NewOrder(
+		g.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
 		order.Amount,
 		order.Price,
 		order.OrderSide.ToString(),
-		order.OrderType.ToString())
+		"exchange limit")
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}
@@ -401,7 +406,7 @@ func (g *Gemini) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (g *Gemini) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if !g.AllowAuthenticatedRequest() && // Todo check connection status
+	if (!g.AllowAuthenticatedRequest() || g.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

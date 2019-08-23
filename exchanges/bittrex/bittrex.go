@@ -427,7 +427,16 @@ func (b *Bittrex) GetDepositHistory(currency string) (WithdrawalHistory, error) 
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bittrex) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -448,7 +457,16 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	headers := make(map[string]string)
 	headers["apisign"] = crypto.HexEncodeToString(hmac)
 
-	return b.SendPayload(http.MethodGet, rawQuery, headers, nil, result, true, true, b.Verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		rawQuery,
+		headers,
+		nil,
+		result,
+		true,
+		true,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

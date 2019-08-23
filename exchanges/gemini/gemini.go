@@ -53,11 +53,6 @@ const (
 	geminiRoleFundManager = "fundmanager"
 )
 
-var (
-	// Session manager
-	Session map[int]*Gemini
-)
-
 // Gemini is the overarching type across the Gemini package, create multiple
 // instances with differing APIkeys for segregation of roles for authenticated
 // requests & sessions by appending new sessions to the Session map using
@@ -69,31 +64,6 @@ type Gemini struct {
 	exchange.Base
 	Role              string
 	RequiresHeartBeat bool
-}
-
-// AddSession adds a new session to the gemini base
-func AddSession(g *Gemini, sessionID int, apiKey, apiSecret, role string, needsHeartbeat, isSandbox bool) error {
-	if Session == nil {
-		Session = make(map[int]*Gemini)
-	}
-
-	_, ok := Session[sessionID]
-	if ok {
-		return errors.New("sessionID already being used")
-	}
-
-	g.API.Credentials.Key = apiKey
-	g.API.Credentials.Secret = apiSecret
-	g.Role = role
-	g.RequiresHeartBeat = needsHeartbeat
-	g.API.Endpoints.URL = geminiAPIURL
-
-	if isSandbox {
-		g.API.Endpoints.URL = geminiSandboxAPIURL
-	}
-
-	Session[sessionID] = g
-	return nil
 }
 
 // GetSymbols returns all available symbols for trading
@@ -155,9 +125,15 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 // params - limit_bids or limit_asks [OPTIONAL] default 50, 0 returns all Values
 // Type is an integer ie "params.Set("limit_asks", 30)"
 func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiOrderbook, currencyPair), params)
-	orderbook := Orderbook{}
+	path := common.EncodeURLValues(
+		fmt.Sprintf("%s/v%s/%s/%s",
+			g.API.Endpoints.URL,
+			geminiAPIVersion,
+			geminiOrderbook,
+			currencyPair),
+		params)
 
+	var orderbook Orderbook
 	return orderbook, g.SendHTTPRequest(path, &orderbook)
 }
 
@@ -202,20 +178,9 @@ func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]Au
 	return auctionHist, g.SendHTTPRequest(path, &auctionHist)
 }
 
-func (g *Gemini) isCorrectSession() error {
-	if g.Role != geminiRoleTrader {
-		return errors.New("incorrect role for APIKEY cannot use this function")
-	}
-	return nil
-}
-
 // NewOrder Only limit orders are supported through the API at present.
 // returns order ID if successful
 func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType string) (int64, error) {
-	if err := g.isCorrectSession(); err != nil {
-		return 0, err
-	}
-
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
@@ -300,6 +265,7 @@ func (g *Gemini) GetOrders() ([]Order, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	switch r := response.(type) {
 	case orders:
 		return r.orders, nil
@@ -317,7 +283,7 @@ func (g *Gemini) GetTradeHistory(currencyPair string, timestamp int64) ([]TradeH
 	req := make(map[string]interface{})
 	req["symbol"] = currencyPair
 
-	if timestamp != 0 {
+	if timestamp > 0 {
 		req["timestamp"] = timestamp
 	}
 
@@ -406,7 +372,16 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose, g.HTTPDebugging)
+	return g.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		g.Verbose,
+		g.HTTPDebugging,
+		g.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
@@ -416,7 +391,6 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
 	}
 
-	headers := make(map[string]string)
 	req := make(map[string]interface{})
 	req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
 	req["nonce"] = g.Requester.GetNonce(true).String()
@@ -437,6 +411,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 	hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
 
+	headers := make(map[string]string)
 	headers["Content-Length"] = "0"
 	headers["Content-Type"] = "text/plain"
 	headers["X-GEMINI-APIKEY"] = g.API.Credentials.Key
@@ -444,8 +419,16 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	headers["X-GEMINI-SIGNATURE"] = crypto.HexEncodeToString(hmac)
 	headers["Cache-Control"] = "no-cache"
 
-	return g.SendPayload(method, g.API.Endpoints.URL+"/v1/"+path, headers,
-		strings.NewReader(""), result, true, false, g.Verbose, g.HTTPDebugging)
+	return g.SendPayload(method,
+		g.API.Endpoints.URL+"/v1/"+path,
+		headers,
+		nil,
+		result,
+		true,
+		false,
+		g.Verbose,
+		g.HTTPDebugging,
+		g.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -481,9 +464,9 @@ func getOfflineTradeFee(price, amount float64) float64 {
 func calculateTradingFee(notionVolume *NotionalVolume, purchasePrice, amount float64, isMaker bool) float64 {
 	var volumeFee float64
 	if isMaker {
-		volumeFee = (float64(notionVolume.MakerFee) / 100)
+		volumeFee = (float64(notionVolume.APIMakerFeeBPS) / 10000)
 	} else {
-		volumeFee = (float64(notionVolume.TakerFee) / 100)
+		volumeFee = (float64(notionVolume.APITakerFeeBPS) / 10000)
 	}
 
 	return volumeFee * amount * purchasePrice

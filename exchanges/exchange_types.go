@@ -304,12 +304,14 @@ type Base struct {
 	Enabled                       bool
 	Verbose                       bool
 	LoadedByConfig                bool
+	SkipAuthCheck                 bool
 	API                           API
 	BaseCurrencies                currency.Currencies
 	CurrencyPairs                 currency.PairsManager
 	Features                      Features
 	HTTPTimeout                   time.Duration
 	HTTPUserAgent                 string
+	HTTPRecording                 bool
 	HTTPDebugging                 bool
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration

@@ -462,6 +462,11 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 // AllowAuthenticatedRequest checks to see if the required fields have been set before sending an authenticated
 // API request
 func (e *Base) AllowAuthenticatedRequest() bool {
+	// Skip auth check
+	if e.SkipAuthCheck {
+		return true
+	}
+
 	// Individual package usage, allow request if API credentials are valid a
 	// and without needing to set AuthenticatedSupport to true
 	if !e.LoadedByConfig && !e.ValidateAPICredentials() {

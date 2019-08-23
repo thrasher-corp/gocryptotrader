@@ -380,8 +380,10 @@ func (l *LocalBitcoins) GetDepositAddress(cryptocurrency currency.Code, _ string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	_, err := l.WalletSend(withdrawRequest.Address, withdrawRequest.Amount, withdrawRequest.PIN)
-	return "", err
+	return "",
+		l.WalletSend(withdrawRequest.Address,
+			withdrawRequest.Amount,
+			withdrawRequest.PIN)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -403,7 +405,7 @@ func (l *LocalBitcoins) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (l *LocalBitcoins) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if !l.AllowAuthenticatedRequest() && // Todo check connection status
+	if (!l.AllowAuthenticatedRequest() || l.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
