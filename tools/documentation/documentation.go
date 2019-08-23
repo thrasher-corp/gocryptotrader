@@ -28,9 +28,6 @@ const (
 	currencyFXCurrencylayerPath     = "..%s..%scurrency%sforexprovider%scurrencylayer%s"
 	currencyFXFixerPath             = "..%s..%scurrency%sforexprovider%sfixer.io%s"
 	currencyFXOpenExchangeRatesPath = "..%s..%scurrency%sforexprovider%sopenexchangerates%s"
-	currencyPairPath                = "..%s..%scurrency%spair%s"
-	currencySymbolPath              = "..%s..%scurrency%ssymbol%s"
-	currencyTranslationPath         = "..%s..%scurrency%stranslation%s"
 	eventsPath                      = "..%s..%sevents%s"
 	exchangesPath                   = "..%s..%sexchanges%s"
 	exchangesNoncePath              = "..%s..%sexchanges%snonce%s"
@@ -67,6 +64,7 @@ const (
 	itbit         = "..%s..%sexchanges%sitbit%s"
 	kraken        = "..%s..%sexchanges%skraken%s"
 	lakebtc       = "..%s..%sexchanges%slakebtc%s"
+	lbank         = "..%s..%sexchanges%slbank%s"
 	localbitcoins = "..%s..%sexchanges%slocalbitcoins%s"
 	okcoin        = "..%s..%sexchanges%sokcoin%s"
 	okex          = "..%s..%sexchanges%sokex%s"
@@ -198,9 +196,6 @@ func addPaths() {
 	codebasePaths["currency forexprovider currencylayer"] = fmt.Sprintf(currencyFXCurrencylayerPath, path, path, path, path, path)
 	codebasePaths["currency forexprovider fixer"] = fmt.Sprintf(currencyFXFixerPath, path, path, path, path, path)
 	codebasePaths["currency forexprovider openexchangerates"] = fmt.Sprintf(currencyFXOpenExchangeRatesPath, path, path, path, path, path)
-	codebasePaths["currency pair"] = fmt.Sprintf(currencyPairPath, path, path, path, path)
-	codebasePaths["currency symbol"] = fmt.Sprintf(currencySymbolPath, path, path, path, path)
-	codebasePaths["currency translation"] = fmt.Sprintf(currencyTranslationPath, path, path, path, path)
 
 	codebasePaths["events"] = fmt.Sprintf(eventsPath, path, path, path)
 
@@ -239,6 +234,7 @@ func addPaths() {
 	codebasePaths["exchanges itbit"] = fmt.Sprintf(itbit, path, path, path, path)
 	codebasePaths["exchanges kraken"] = fmt.Sprintf(kraken, path, path, path, path)
 	codebasePaths["exchanges lakebtc"] = fmt.Sprintf(lakebtc, path, path, path, path)
+	codebasePaths["exchanges lbank"] = fmt.Sprintf(lbank, path, path, path, path)
 	codebasePaths["exchanges localbitcoins"] = fmt.Sprintf(localbitcoins, path, path, path, path)
 	codebasePaths["exchanges okcoin"] = fmt.Sprintf(okcoin, path, path, path, path)
 	codebasePaths["exchanges okex"] = fmt.Sprintf(okex, path, path, path, path)

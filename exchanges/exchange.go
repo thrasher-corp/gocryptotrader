@@ -787,7 +787,6 @@ func (e *Base) UpdateCurrencies(exchangeProducts currency.Pairs, enabled, force 
 				log.Debugf("%s Updating pairs - Removed: %s.\n", e.Name, removedPairs)
 			}
 		}
-
 		if enabled {
 			exch.EnabledPairs = products
 			e.EnabledPairs = products
@@ -829,7 +828,7 @@ type Format struct {
 	OrderSide    map[string]string
 }
 
-// CancelAllOrdersResponse returns the status from attempting to cancel all orders on an exchagne
+// CancelAllOrdersResponse returns the status from attempting to cancel all orders on an exchange
 type CancelAllOrdersResponse struct {
 	OrderStatus map[string]string
 }
@@ -853,7 +852,7 @@ const (
 
 // ToString changes the ordertype to the exchange standard and returns a string
 func (o OrderType) ToString() string {
-	return fmt.Sprintf("%v", o)
+	return string(o)
 }
 
 // OrderSide enforces a standard for OrderSides across the code base
@@ -870,7 +869,7 @@ const (
 
 // ToString changes the ordertype to the exchange standard and returns a string
 func (o OrderSide) ToString() string {
-	return fmt.Sprintf("%v", o)
+	return string(o)
 }
 
 // SetAPIURL sets configuration API URL for an exchange
