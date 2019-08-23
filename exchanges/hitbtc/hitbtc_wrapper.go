@@ -215,7 +215,7 @@ func (h *HitBTC) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := h.GetTicker("")
+	tick, err := h.GetTickers()
 	if err != nil {
 		return tickerPrice, err
 	}

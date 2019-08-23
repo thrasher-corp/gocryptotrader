@@ -116,9 +116,16 @@ func (h *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
 }
 
 // GetTicker returns ticker information
-func (h *HitBTC) GetTicker(symbol string) ([]TickerResponse, error) {
-	var resp []TickerResponse
+func (h *HitBTC) GetTicker(symbol string) (TickerResponse, error) {
+	var resp TickerResponse
 	path := fmt.Sprintf("%s/%s/%s", h.API.Endpoints.URL, apiV2Ticker, symbol)
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// GetTicker returns ticker information
+func (h *HitBTC) GetTickers() ([]TickerResponse, error) {
+	var resp []TickerResponse
+	path := fmt.Sprintf("%s/%s/", h.API.Endpoints.URL, apiV2Ticker)
 	return resp, h.SendHTTPRequest(path, &resp)
 }
 
