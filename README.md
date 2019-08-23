@@ -136,6 +136,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | gloriousCode | https://github.com/gloriousCode | 154 |
 | xtda | https://github.com/xtda | 18 |
 | ermalguni | https://github.com/ermalguni | 14 |
+| xtda | https://github.com/xtda | 11 |
 | vadimzhukck | https://github.com/vadimzhukck | 10 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 8 |
@@ -165,5 +166,4 @@ Binaries will be published once the codebase reaches a stable condition.
 | mKurrels | https://github.com/mKurrels | 1 |
 | m1kola | https://github.com/m1kola | 1 |
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
-
-
+| zeldrinn | https://github.com/zeldrinn | 1 |
