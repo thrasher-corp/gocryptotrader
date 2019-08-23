@@ -229,7 +229,7 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item
 
 		err = ticker.ProcessTicker(p.GetName(), &tp, assetType)
 		if err != nil {
-			return tickerPrice, err
+			log.Error(log.Ticker, err)
 		}
 	}
 	return ticker.GetTicker(p.Name, currencyPair, assetType)

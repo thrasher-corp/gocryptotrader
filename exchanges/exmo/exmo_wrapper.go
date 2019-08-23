@@ -73,7 +73,7 @@ func (e *EXMO) SetDefaults() {
 			Websocket: false,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
-				TickerBatching:  false,
+				TickerBatching:  true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -163,19 +163,26 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 	if _, ok := result[p]; !ok {
 		return tickerPrice, err
 	}
-
-	tickerPrice = ticker.Price{
-		Pair:   p,
-		Last:   result[p].Last,
-		Ask:    result[p].Sell,
-		High:   result[p].High,
-		Bid:    result[p].Buy,
-		Low:    result[p].Low,
-		Volume: result[p].Volume,
-	}
-	err = ticker.ProcessTicker(e.Name, &tickerPrice, assetType)
-	if err != nil {
-		return tickerPrice, err
+	pairs := e.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for j := range result {
+			if !pairs[i].Equal(j) {
+				continue
+			}
+			tickerPrice = ticker.Price{
+				Pair:   j,
+				Last:   result[j].Last,
+				Ask:    result[j].Sell,
+				High:   result[j].High,
+				Bid:    result[j].Buy,
+				Low:    result[j].Low,
+				Volume: result[j].Volume,
+			}
+			err = ticker.ProcessTicker(e.Name, &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
+		}
 	}
 	return ticker.GetTicker(e.Name, p, assetType)
 }

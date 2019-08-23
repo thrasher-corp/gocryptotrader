@@ -216,7 +216,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 			}
 			err = ticker.ProcessTicker(g.Name, &tickerPrice, assetType)
 			if err != nil {
-				return tickerPrice, err
+				log.Error(log.Ticker, err)
 			}
 		}
 	}

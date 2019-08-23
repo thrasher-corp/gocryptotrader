@@ -234,7 +234,7 @@ func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker
 			}
 			err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
 			if err != nil {
-				return tickerPrice, err
+				log.Error(log.Ticker, err)
 			}
 		}
 	}

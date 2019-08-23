@@ -2,7 +2,6 @@ package bitmex
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -93,7 +92,7 @@ func (b *Bitmex) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
-				TickerBatching:  false,
+				TickerBatching:  true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.WithdrawCryptoWithEmail |
@@ -260,32 +259,34 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	curr := b.FormatExchangeCurrency(p, assetType)
-
-	tick, err := b.GetActiveInstruments(&GenericRequestParams{
-		Symbol:  curr.String(),
-		Reverse: true,
-		Count:   1})
+	tick, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	if len(tick) == 0 {
-		return tickerPrice, fmt.Errorf("%s REST error: no ticker return", b.Name)
+	pairs := b.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for j := range tick {
+			if !pairs[i].Equal(tick[j].Symbol) {
+				continue
+			}
+			tickerPrice = ticker.Price{
+				Last:        tick[0].LastPrice,
+				High:        tick[0].HighPrice,
+				Low:         tick[0].LowPrice,
+				Bid:         tick[0].BidPrice,
+				Ask:         tick[0].AskPrice,
+				Volume:      tick[0].Volume24h,
+				Close:       tick[0].PrevClosePrice,
+				Pair:        tick[0].Symbol,
+				LastUpdated: tick[0].Timestamp,
+			}
+			err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
+		}
 	}
-
-	tickerPrice = ticker.Price{
-		Last:        tick[0].LastPrice,
-		High:        tick[0].HighPrice,
-		Low:         tick[0].LowPrice,
-		Bid:         tick[0].BidPrice,
-		Ask:         tick[0].AskPrice,
-		Volume:      tick[0].Volume24h,
-		Close:       tick[0].PrevClosePrice,
-		Pair:        tick[0].Symbol,
-		LastUpdated: tick[0].Timestamp,
-	}
-	return tickerPrice, ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair

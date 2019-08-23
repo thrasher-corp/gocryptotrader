@@ -173,9 +173,9 @@ type TickerStream struct {
 	PriceChange            float64       `json:"p,string"`
 	PriceChangePercent     float64       `json:"P,string"`
 	WeightedAvgPrice       float64       `json:"w,string"`
-	PrevDayClose           float64       `json:"x,string"`
-	CurrDayClose           float64       `json:"c,string"`
-	CloseTradeQuantity     float64       `json:"Q,string"`
+	ClosePrice             float64       `json:"x,string"`
+	LastPrice              float64       `json:"c,string"`
+	LastPriceQuantity      float64       `json:"Q,string"`
 	BestBidPrice           float64       `json:"b,string"`
 	BestBidQuantity        float64       `json:"B,string"`
 	BestAskPrice           float64       `json:"a,string"`

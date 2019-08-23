@@ -220,7 +220,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 
 		err = ticker.ProcessTicker(z.Name, &tp, assetType)
 		if err != nil {
-			return tickerPrice, err
+			log.Error(log.Ticker, err)
 		}
 	}
 

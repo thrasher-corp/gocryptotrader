@@ -242,7 +242,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 			}
 			err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 			if err != nil {
-				return tickerPrice, err
+				log.Error(log.Ticker, err)
 			}
 		}
 	}

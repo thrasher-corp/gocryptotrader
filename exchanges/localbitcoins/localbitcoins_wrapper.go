@@ -173,7 +173,7 @@ func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType asset.Item) (tic
 
 		err = ticker.ProcessTicker(l.GetName(), &tp, assetType)
 		if err != nil {
-			return tickerPrice, err
+			log.Error(log.Ticker, err)
 		}
 	}
 

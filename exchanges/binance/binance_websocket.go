@@ -148,17 +148,19 @@ func (b *Binance) WsHandleData() {
 				}
 
 				b.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:  b.GetName(),
-					Open:      t.OpenPrice,
-					Close:     t.CurrDayClose,
-					Volume:    t.TotalTradedVolume,
-					High:      t.HighPrice,
-					Low:       t.LowPrice,
-					Bid:       t.BestBidPrice,
-					Ask:       t.BestAskPrice,
-					Timestamp: time.Unix(0, t.EventTime),
-					AssetType: asset.Spot,
-					Pair:      t.Symbol,
+					Exchange:    b.GetName(),
+					Open:        t.OpenPrice,
+					Close:       t.ClosePrice,
+					Volume:      t.TotalTradedVolume,
+					QuoteVolume: t.TotalTradedQuoteVolume,
+					High:        t.HighPrice,
+					Low:         t.LowPrice,
+					Bid:         t.BestBidPrice,
+					Ask:         t.BestAskPrice,
+					Last:        t.LastPrice,
+					Timestamp:   time.Unix(0, t.EventTime),
+					AssetType:   asset.Spot,
+					Pair:        t.Symbol,
 				}
 
 				continue

@@ -203,7 +203,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 	pairs := b.GetEnabledPairs(assetType)
 	for i := range pairs {
 		for j := range ticks.Result {
-			if !strings.EqualFold(ticks.Result[j].MarketName, b.FormatExchangeCurrency(pairs[i], assetType).String()) {
+			if !strings.EqualFold(ticks.Result[j].MarketName, pairs[i].String()) {
 				continue
 			}
 			tickerPrice = ticker.Price{
@@ -220,7 +220,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 			}
 			err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 			if err != nil {
-				return tickerPrice, err
+				log.Error(log.Ticker, err)
 			}
 		}
 	}

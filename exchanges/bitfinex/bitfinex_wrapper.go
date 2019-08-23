@@ -202,21 +202,24 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 	if err != nil {
 		return tickerPrice, err
 	}
+	for i := range tickerNew {
+		newP := currency.NewPairFromStrings(tickerNew[i].Symbol[1:4], tickerNew[i].Symbol[4:])
+		tick := ticker.Price{
+			Last:        tickerNew[i].Last,
+			High:        tickerNew[i].High,
+			Low:         tickerNew[i].Low,
+			Bid:         tickerNew[i].Bid,
+			Ask:         tickerNew[i].Ask,
+			Volume:      tickerNew[i].Volume,
+			Pair:        newP,
+			LastUpdated: tickerNew[i].Timestamp,
+		}
+		err = ticker.ProcessTicker(b.Name, &tick, assetType)
+		if err != nil {
+			log.Error(log.Ticker, err)
+		}
+	}
 
-	tick := ticker.Price{
-		Last:        tickerNew[0].Last,
-		High:        tickerNew[0].High,
-		Low:         tickerNew[0].Low,
-		Bid:         tickerNew[0].Bid,
-		Ask:         tickerNew[0].Ask,
-		Volume:      tickerNew[0].Volume,
-		Pair:        p,
-		LastUpdated: tickerNew[0].Timestamp,
-	}
-	err = ticker.ProcessTicker(b.Name, &tick, assetType)
-	if err != nil {
-		return tickerPrice, err
-	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 

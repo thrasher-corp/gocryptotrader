@@ -341,7 +341,7 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err e
 // GetDepositAddress returns a deposit address for a specified currency
 func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (_ string, err error) {
 	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())
-	if err != nil {
+	if err != nil || len(wallet) == 0 {
 		return
 	}
 	return wallet[0].Address, nil

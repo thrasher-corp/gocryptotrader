@@ -212,7 +212,7 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 
 		err = ticker.ProcessTicker(l.GetName(), &tickerPrice, assetType)
 		if err != nil {
-			return tickerPrice, err
+			log.Error(log.Ticker, err)
 		}
 	}
 	return ticker.GetTicker(l.Name, p, assetType)
