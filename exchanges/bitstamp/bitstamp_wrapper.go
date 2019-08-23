@@ -262,8 +262,12 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.Withdra
 	if err != nil {
 		return "", err
 	}
-	if resp.Error != "" {
-		return "", errors.New(resp.Error)
+	if len(resp.Error) != 0 {
+		var details string
+		for _, v := range resp.Error {
+			details += strings.Join(v, "")
+		}
+		return "", errors.New(details)
 	}
 
 	return resp.ID, nil
@@ -280,7 +284,11 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) 
 		return "", err
 	}
 	if resp.Status == errStr {
-		return "", errors.New(resp.Reason)
+		var details string
+		for _, v := range resp.Reason {
+			details += strings.Join(v, "")
+		}
+		return "", errors.New(details)
 	}
 
 	return resp.ID, nil
@@ -299,7 +307,11 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchang
 		return "", err
 	}
 	if resp.Status == errStr {
-		return "", errors.New(resp.Reason)
+		var details string
+		for _, v := range resp.Reason {
+			details += strings.Join(v, "")
+		}
+		return "", errors.New(details)
 	}
 
 	return resp.ID, nil
@@ -387,7 +399,11 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 				quoteCurrency.String(),
 				b.ConfigCurrencyPairFormat.Delimiter)
 		}
-		orderDate := time.Unix(order.Date, 0)
+
+		orderDate, err := time.Parse("2006-01-02 15:04:05", order.Date)
+		if err != nil {
+			return nil, err
+		}
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.OrderID),

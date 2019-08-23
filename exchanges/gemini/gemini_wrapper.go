@@ -161,11 +161,17 @@ func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType string) ([]exchan
 // SubmitOrder submits a new order
 func (g *Gemini) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	p = exchange.FormatExchangeCurrency(g.Name, p)
+
+	if orderType != exchange.LimitOrderType {
+		return submitOrderResponse, errors.New("only limit orders are enabled through this API")
+	}
+
 	response, err := g.NewOrder(p.String(),
 		amount,
 		price,
 		side.ToString(),
-		orderType.ToString())
+		"exchange limit")
 
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)

@@ -895,7 +895,16 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose, h.HTTPDebugging)
+	return h.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		h.Verbose,
+		h.HTTPDebugging,
+		h.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
@@ -972,7 +981,16 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		body = encoded
 	}
 
-	return h.SendPayload(method, urlPath, headers, bytes.NewReader(body), result, true, false, h.Verbose, h.HTTPDebugging)
+	return h.SendPayload(method,
+		urlPath,
+		headers,
+		bytes.NewReader(body),
+		result,
+		true,
+		false,
+		h.Verbose,
+		h.HTTPDebugging,
+		h.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

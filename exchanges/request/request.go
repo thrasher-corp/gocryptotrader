@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -70,6 +71,7 @@ type Job struct {
 	AuthRequest   bool
 	Verbose       bool
 	HTTPDebugging bool
+	Record        bool
 }
 
 // NewRateLimit creates a new RateLimit
@@ -264,13 +266,18 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 }
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose, httpDebug bool) error {
+func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose, httpDebug, httpRecord bool) error {
 	if verbose {
-		log.Debugf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
+		log.Debugf("%s exchange request path: %s requires rate limiter: %v",
+			r.Name,
+			path,
+			r.RequiresRateLimiter())
+
 		for k, d := range req.Header {
 			log.Debugf("%s exchange request header [%s]: %s", r.Name, k, d)
 		}
-		log.Debug(body)
+		log.Debugf("%s exchange request type: %s", r.Name, req.Method)
+		log.Debugf("%s exchange request body: %v", r.Name, body)
 	}
 
 	var timeoutError error
@@ -328,6 +335,14 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 			return err
 		}
 
+		if httpRecord {
+			// This dumps http responses for future mocking implementations
+			err = mock.HTTPRecord(resp, r.Name, contents)
+			if err != nil {
+				return fmt.Errorf("mock recording failure %s", err)
+			}
+		}
+
 		if resp.StatusCode != 200 && resp.StatusCode != 201 && resp.StatusCode != 202 {
 			err = fmt.Errorf("unsuccessful HTTP status code: %d", resp.StatusCode)
 			if verbose {
@@ -371,7 +386,7 @@ func (r *Requester) worker() {
 			if !r.IsRateLimited(x.AuthRequest) {
 				r.IncrementRequests(x.AuthRequest)
 
-				err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDebugging)
+				err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDebugging, x.Record)
 				x.JobResult <- &JobResult{
 					Error:  err,
 					Result: x.Result,
@@ -395,7 +410,7 @@ func (r *Requester) worker() {
 						log.Debugf("%s request. No longer rate limited! Doing request", r.Name)
 					}
 
-					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDebugging)
+					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDebugging, x.Record)
 					x.JobResult <- &JobResult{
 						Error:  err,
 						Result: x.Result,
@@ -408,7 +423,7 @@ func (r *Requester) worker() {
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose, httpDebugging bool) error {
+func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose, httpDebugging, record bool) error {
 	if !nonceEnabled {
 		r.lock()
 	}
@@ -444,7 +459,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 
 	if !r.RequiresRateLimiter() {
 		r.unlock()
-		return r.DoRequest(req, path, body, result, authRequest, verbose, httpDebugging)
+		return r.DoRequest(req, path, body, result, authRequest, verbose, httpDebugging, record)
 	}
 
 	if len(r.Jobs) == maxRequestJobs {
@@ -473,6 +488,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		AuthRequest:   authRequest,
 		Verbose:       verbose,
 		HTTPDebugging: httpDebugging,
+		Record:        record,
 	}
 
 	if verbose {

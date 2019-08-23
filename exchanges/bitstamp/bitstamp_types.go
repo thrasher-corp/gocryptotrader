@@ -77,7 +77,7 @@ type Balances struct {
 
 // UserTransactions holds user transaction information
 type UserTransactions struct {
-	Date    int64   `json:"datetime"`
+	Date    string  `json:"datetime"`
 	TransID int64   `json:"id"`
 	Type    int     `json:"type,string"`
 	USD     float64 `json:"usd"`
@@ -125,15 +125,15 @@ type WithdrawalRequests struct {
 
 // CryptoWithdrawalResponse response from a crypto withdrawal request
 type CryptoWithdrawalResponse struct {
-	ID    string `json:"id"`
-	Error string `json:"error"`
+	ID    string              `json:"id"`
+	Error map[string][]string `json:"error"`
 }
 
 // FIATWithdrawalResponse response from a fiat withdrawal request
 type FIATWithdrawalResponse struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
-	Reason string `json:"reason"`
+	ID     string              `json:"id"`
+	Status string              `json:"status"`
+	Reason map[string][]string `json:"reason"`
 }
 
 // UnconfirmedBTCTransactions holds address information about unconfirmed

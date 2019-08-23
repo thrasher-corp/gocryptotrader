@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -176,7 +177,6 @@ func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		var err error
-
 		b.Balance, err = b.GetBalance()
 		if err != nil {
 			return 0, err
@@ -368,16 +368,15 @@ func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 
 // GetBalance returns full balance of currency held on the exchange
 func (b *Bitstamp) GetBalance() (Balances, error) {
-	balance := Balances{}
-	path := fmt.Sprintf("%s/%s", b.APIUrl, bitstampAPIBalance)
-
-	return balance, b.SendHTTPRequest(path, &balance)
+	var balance Balances
+	return balance,
+		b.SendAuthenticatedHTTPRequest(bitstampAPIBalance, true, nil, &balance)
 }
 
 // GetUserTransactions returns an array of transactions
 func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions, error) {
 	type Response struct {
-		Date    int64       `json:"datetime"`
+		Date    string      `json:"datetime"`
 		TransID int64       `json:"id"`
 		Type    int         `json:"type,string"`
 		USD     interface{} `json:"usd"`
@@ -390,12 +389,18 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 	}
 	var response []Response
 
-	if currencyPair != "" {
-		if err := b.SendAuthenticatedHTTPRequest(bitstampAPIUserTransactions, true, url.Values{}, &response); err != nil {
+	if currencyPair == "" {
+		if err := b.SendAuthenticatedHTTPRequest(bitstampAPIUserTransactions,
+			true,
+			url.Values{},
+			&response); err != nil {
 			return nil, err
 		}
 	} else {
-		if err := b.SendAuthenticatedHTTPRequest(bitstampAPIUserTransactions+"/"+currencyPair, true, url.Values{}, &response); err != nil {
+		if err := b.SendAuthenticatedHTTPRequest(bitstampAPIUserTransactions+"/"+currencyPair,
+			true,
+			url.Values{},
+			&response); err != nil {
 			return nil, err
 		}
 	}
@@ -491,10 +496,11 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, m
 		orderType = bitstampAPISell
 	}
 
-	path := fmt.Sprintf("%s/%s", orderType, common.StringToLower(currencyPair))
-
+	var path string
 	if market {
 		path = fmt.Sprintf("%s/%s/%s", orderType, bitstampAPIMarket, common.StringToLower(currencyPair))
+	} else {
+		path = fmt.Sprintf("%s/%s", orderType, common.StringToLower(currencyPair))
 	}
 
 	return response,
@@ -651,28 +657,41 @@ func (b *Bitstamp) GetUnconfirmedBitcoinDeposits() ([]UnconfirmedBTCTransactions
 // currency - which currency to transfer
 // subaccount - name of account
 // toMain - bool either to or from account
-func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount string, toMain bool) (bool, error) {
+func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount string, toMain bool) error {
 	var req = url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("currency", currency)
+
+	if subAccount == "" {
+		return errors.New("missing subAccount parameter")
+	}
+
 	req.Add("subAccount", subAccount)
 
-	path := bitstampAPITransferToMain
-	if !toMain {
+	var path string
+	if toMain {
+		path = bitstampAPITransferToMain
+	} else {
 		path = bitstampAPITransferFromMain
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(path, true, req, nil)
-	if err != nil {
-		return false, err
-	}
+	var resp interface{}
 
-	return true, nil
+	return b.SendAuthenticatedHTTPRequest(path, true, req, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitstamp) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -706,15 +725,26 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	encodedValues := values.Encode()
-	readerValues := strings.NewReader(encodedValues)
+	readerValues := bytes.NewBufferString(encodedValues)
 
 	interim := json.RawMessage{}
 
 	errCap := struct {
-		Error string `json:"error"`
+		Error  string      `json:"error"`
+		Status string      `json:"status"`
+		Reason interface{} `json:"reason"`
 	}{}
 
-	err := b.SendPayload(http.MethodPost, path, headers, readerValues, &interim, true, true, b.Verbose, b.HTTPDebugging)
+	err := b.SendPayload(http.MethodPost,
+		path,
+		headers,
+		readerValues,
+		&interim,
+		true,
+		true,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 	if err != nil {
 		return err
 	}
@@ -722,6 +752,21 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	if err := common.JSONDecode(interim, &errCap); err == nil {
 		if errCap.Error != "" {
 			return errors.New(errCap.Error)
+		}
+		if data, ok := errCap.Reason.(map[string][]string); ok {
+			var details string
+			for _, v := range data {
+				details += strings.Join(v, "")
+			}
+			return errors.New(details)
+		}
+
+		if data, ok := errCap.Reason.(string); ok {
+			return errors.New(data)
+		}
+
+		if errCap.Status != "" {
+			return errors.New(errCap.Status)
 		}
 	}
 

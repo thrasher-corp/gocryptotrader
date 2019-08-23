@@ -200,7 +200,7 @@ func TestCheckRequest(t *testing.T) {
 
 func TestDoRequest(t *testing.T) {
 	var test = new(Requester)
-	err := test.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false)
+	err := test.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err == nil {
 		t.Fatal("not iniitalised")
 	}
@@ -211,17 +211,17 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	r.Name = "bitfinex"
-	err = r.SendPayload("BLAH", "https://www.google.com", nil, nil, nil, false, false, true, false)
+	err = r.SendPayload("BLAH", "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err == nil {
 		t.Fatal("unexpected values")
 	}
 
-	err = r.SendPayload(http.MethodGet, "", nil, nil, nil, false, false, true, false)
+	err = r.SendPayload(http.MethodGet, "", nil, nil, nil, false, false, true, false, false)
 	if err == nil {
 		t.Fatal("unexpected values")
 	}
 
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false)
+	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err != nil {
 		t.Fatal("unexpected values")
 	}
@@ -233,7 +233,7 @@ func TestDoRequest(t *testing.T) {
 	r.SetRateLimit(false, time.Second, 0)
 	r.SetRateLimit(true, time.Second, 0)
 
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false)
+	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err != nil {
 		t.Fatal("unexpected values")
 	}
@@ -250,7 +250,7 @@ func TestDoRequest(t *testing.T) {
 		t.Fatal("unexepcted values")
 	}
 
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false)
+	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err != nil {
 		t.Fatal("unexpected values")
 	}
@@ -261,27 +261,27 @@ func TestDoRequest(t *testing.T) {
 		t.Fatal("unexepcted values")
 	}
 
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, true, false, true, false)
+	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, true, false, true, false, false)
 	if err != nil {
 		t.Fatal("unexpected values")
 	}
 
 	var result interface{}
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, result, false, false, true, false)
+	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, result, false, false, true, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	headers := make(map[string]string)
 	headers["content-type"] = "content/text"
-	err = r.SendPayload(http.MethodPost, "https://bitfinex.com", headers, nil, result, false, false, true, false)
+	err = r.SendPayload(http.MethodPost, "https://bitfinex.com", headers, nil, result, false, false, true, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	r.StartCycle()
 	r.UnauthLimit.SetRequests(100)
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, result, false, false, false, false)
+	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, result, false, false, false, false, false)
 	if err != nil {
 		t.Fatal("unexpected values")
 	}
@@ -297,7 +297,7 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	r.HTTPClient.Timeout = 1 * time.Second
-	err = r.SendPayload(http.MethodPost, "https://httpstat.us/200?sleep=20000", nil, nil, nil, false, false, true, false)
+	err = r.SendPayload(http.MethodPost, "https://httpstat.us/200?sleep=20000", nil, nil, nil, false, false, true, false, false)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -327,6 +327,6 @@ func BenchmarkRequestLockMech(b *testing.B) {
 	var r = new(Requester)
 	var meep interface{}
 	for n := 0; n < b.N; n++ {
-		r.SendPayload(http.MethodGet, "127.0.0.1", nil, nil, &meep, false, false, false, false)
+		r.SendPayload(http.MethodGet, "127.0.0.1", nil, nil, &meep, false, false, false, false, false)
 	}
 }

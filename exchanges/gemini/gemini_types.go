@@ -145,16 +145,23 @@ type TradeVolume struct {
 	SellTakerCount    float64 `json:"sell_taker_count"`
 }
 
-// NotionalVolume api call for fees
+// NotionalVolume api call for fees, all return fee amounts are in basis points
 type NotionalVolume struct {
-	MakerFee              int64                  `json:"maker_fee_bps"`
-	TakerFee              int64                  `json:"taker_fee_bps"`
-	AuctionFee            int64                  `json:"auction_fee_bps"`
-	ThirtyDayVolume       float64                `json:"notional_30d_volume"`
-	LastedUpdated         int64                  `json:"last_updated_ms"`
-	AccountID             int64                  `json:"account_id"`
-	Date                  string                 `json:"date"`
+	APIAuctionFeeBPS      int64                  `json:"api_auction_fee_bps"`
+	APIMakerFeeBPS        int64                  `json:"api_maker_fee_bps"`
+	APITakerFeeBPS        int64                  `json:"api_taker_fee_bps"`
+	BlockMakerFeeBPS      int64                  `json:"block_maker_fee_bps"`
+	BlockTakerFeeBPS      int64                  `json:"block_taker_fee_bps"`
+	FixAuctionFeeBPS      int64                  `json:"fix_auction_fee_bps"`
+	FixMakerFeeBPS        int64                  `json:"fix_maker_fee_bps"`
+	FixTakerFeeBPS        int64                  `json:"fix_taker_fee_bps"`
 	OneDayNotionalVolumes []OneDayNotionalVolume `json:"notional_1d_volume"`
+	ThirtyDayVolume       float64                `json:"notional_30d_volume"`
+	WebAuctionFeeBPS      int64                  `json:"web_auction_fee_bps"`
+	WebMakerFeeBPS        int64                  `json:"web_maker_fee_bps"`
+	WebTakerFeeBPS        int64                  `json:"web_taker_fee_bps"`
+	LastedUpdated         int64                  `json:"last_updated_ms"`
+	Date                  string                 `json:"date"`
 }
 
 // OneDayNotionalVolume Contains the notioanl volume for a single day

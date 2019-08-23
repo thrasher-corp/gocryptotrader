@@ -314,7 +314,7 @@ type NewOrderResponse struct {
 		Price           float64 `json:"price,string"`
 		Qty             float64 `json:"qty,string"`
 		Commission      float64 `json:"commission,string"`
-		CommissionAsset float64 `json:"commissionAsset,string"`
+		CommissionAsset string  `json:"commissionAsset"`
 	} `json:"fills"`
 }
 
@@ -621,5 +621,5 @@ var WithdrawalFees = map[currency.Code]float64{
 type WithdrawResponse struct {
 	Success bool   `json:"success"`
 	Msg     string `json:"msg"`
-	ID      int64  `json:"id"`
+	ID      string `json:"id"`
 }

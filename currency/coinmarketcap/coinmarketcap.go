@@ -732,6 +732,7 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 		false,
 		false,
 		c.Verbose,
+		false,
 		false)
 }
 

@@ -286,6 +286,7 @@ type Base struct {
 	HTTPTimeout                                time.Duration
 	HTTPUserAgent                              string
 	HTTPDebugging                              bool
+	HTTPRecording                              bool
 	WebsocketURL                               string
 	APIUrl                                     string
 	APIUrlDefault                              string

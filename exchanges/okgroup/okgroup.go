@@ -643,7 +643,15 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 
 	errCap := errCapFormat{}
 	errCap.Result = true
-	err = o.SendPayload(strings.ToUpper(httpMethod), path, headers, bytes.NewBuffer(payload), &intermediary, authenticated, false, o.Verbose, o.HTTPDebugging)
+	err = o.SendPayload(strings.ToUpper(httpMethod),
+		path, headers,
+		bytes.NewBuffer(payload),
+		&intermediary,
+		authenticated,
+		false,
+		o.Verbose,
+		o.HTTPDebugging,
+		o.HTTPRecording)
 	if err != nil {
 		return err
 	}

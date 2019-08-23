@@ -4,12 +4,9 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
-
-var l LocalBitcoins
 
 // Please supply your own APIKEYS here for due diligence testing
 
@@ -19,26 +16,11 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
-	l.SetDefaults()
-}
-
-func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
-	if err != nil {
-		t.Error("Test Failed - LakeBTC Setup() init error")
-	}
-	localbitcoinsConfig.AuthenticatedAPISupport = true
-	localbitcoinsConfig.APIKey = apiKey
-	localbitcoinsConfig.APISecret = apiSecret
-
-	l.Setup(&localbitcoinsConfig)
-}
+var l LocalBitcoins
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
+
 	_, err := l.GetTicker()
 	if err != nil {
 		t.Errorf("Test failed - GetTicker() returned: %s", err)
@@ -47,6 +29,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTradableCurrencies(t *testing.T) {
 	t.Parallel()
+
 	_, err := l.GetTradableCurrencies()
 	if err != nil {
 		t.Errorf("Test failed - GetTradableCurrencies() returned: %s", err)
@@ -55,43 +38,44 @@ func TestGetTradableCurrencies(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
-		t.Skip()
-	}
+
 	_, err := l.GetAccountInformation("", true)
-	if err == nil {
-		t.Error("Test Failed - GetAccountInformation() error", err)
-	}
-	_, err = l.GetAccountInformation("bitcoinbaron", false)
-	if err != nil {
-		t.Error("Test Failed - GetAccountInformation() error", err)
+	switch {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
+		t.Errorf("Could not get AccountInformation: %s", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("Expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Errorf("Could not get AccountInformation: %s", err)
 	}
 }
 
 func TestGetads(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
-		t.Skip()
-	}
+
 	_, err := l.Getads("")
-	if err == nil {
-		t.Error("Test Failed - Getads() - Full list, error", err)
-	}
-	_, err = l.Getads("1337")
-	if err == nil {
-		t.Error("Test Failed - Getads() error", err)
+	switch {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
+		t.Errorf("Could not get ads: %s", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("Expecting an error when no keys are set")
+	case mockTests && err == nil:
+		t.Error("Expecting error until QA pass")
 	}
 }
 
 func TestEditAd(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
-		t.Skip()
-	}
-	edit := AdEdit{}
+
+	var edit AdEdit
 	err := l.EditAd(&edit, "1337")
-	if err == nil {
-		t.Error("Test Failed - EditAd() error", err)
+	switch {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
+		t.Errorf("Could not edit order: %s", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("Expecting an error when no keys are set")
+	case mockTests && err == nil:
+		t.Error("Expecting error until QA pass")
 	}
 }
 
@@ -110,6 +94,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	l.GetFeeByType(feeBuilder)
 	if apiKey == "" || apiSecret == "" {
@@ -124,7 +109,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	l.SetDefaults()
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
 	if resp, err := l.GetFee(feeBuilder); resp != float64(0) || err != nil {
@@ -200,45 +185,53 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	l.SetDefaults()
-	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
+	t.Parallel()
+
+	expectedResult := exchange.AutoWithdrawCryptoText +
+		" & " +
+		exchange.WithdrawFiatViaWebsiteOnlyText
 
 	withdrawPermissions := l.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
-		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+		t.Errorf("Expected: %s, Received: %s",
+			expectedResult,
+			withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := l.GetActiveOrders(&getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get open orders: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
+	switch {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
+		t.Errorf("Could not get active orders: %s", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Errorf("Could not get active orders: %s", err)
 	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := l.GetOrderHistory(&getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
+	switch {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Errorf("Could not get order history: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Errorf("Could not get order history: %s", err)
 	}
 }
 
@@ -253,10 +246,9 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -266,62 +258,62 @@ func TestSubmitOrder(t *testing.T) {
 		Quote:     currency.EUR,
 	}
 	response, err := l.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	switch {
+	case areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) && !mockTests:
 		t.Errorf("Order failed to be placed: %v", err)
-	} else if !areTestAPIKeysSet() && err == nil {
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
+	case mockTests && err == nil:
+		t.Error("Expecting an error until QA pass")
 	}
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	err := l.CancelOrder(orderCancellation)
-	if !areTestAPIKeysSet() && err == nil {
+	switch {
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Errorf("Could not cancel orders: %v", err)
+	case mockTests && err == nil:
+		t.Error("Expecting an error until QA pass")
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
 	var orderCancellation = &exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	resp, err := l.CancelAllOrders(orderCancellation)
-
-	if !areTestAPIKeysSet() && err == nil {
+	switch {
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
+		t.Errorf("Could not cancel orders: %v", err)
+	case mockTests && err != nil:
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
@@ -331,15 +323,17 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	t.Parallel()
+
 	_, err := l.ModifyOrder(&exchange.ModifyOrder{})
-	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+	if err != common.ErrFunctionNotSupported {
+		t.Error("Test failed - ModifyOrder() error", err)
 	}
 }
 
 func TestWithdraw(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
+
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:      100,
 		Currency:    currency.LTC,
@@ -347,61 +341,55 @@ func TestWithdraw(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	_, err := l.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
-	if !areTestAPIKeysSet() && err == nil {
+	switch {
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Errorf("Withdraw failed to be placed: %v", err)
+	case mockTests && err == nil:
+		t.Error("Expecting an error until QA pass")
 	}
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
+	t.Parallel()
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
 	_, err := l.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'",
+			common.ErrFunctionNotSupported,
+			err)
 	}
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
+	t.Parallel()
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
 	_, err := l.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'",
+			common.ErrFunctionNotSupported,
+			err)
 	}
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	if apiKey != "" || apiSecret != "" {
-		_, err := l.GetDepositAddress(currency.BTC, "")
-		if err != nil {
-			t.Error("Test Failed - GetDepositAddress() error", err)
-		}
-	} else {
-		_, err := l.GetDepositAddress(currency.BTC, "")
-		if err == nil {
-			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
-		}
+	t.Parallel()
+
+	_, err := l.GetDepositAddress(currency.BTC, "")
+	switch {
+	case areTestAPIKeysSet() && err != nil && !mockTests:
+		t.Error("Test Failed - GetDepositAddress() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("Test Failed - GetDepositAddress() expecting an error when no APIKeys are set")
+	case mockTests && err != nil:
+		t.Error("Test Failed - GetDepositAddress() error", err)
 	}
 }
