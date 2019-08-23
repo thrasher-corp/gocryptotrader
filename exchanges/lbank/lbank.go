@@ -551,7 +551,16 @@ func ErrorCapture(code int64) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(http.MethodGet, path, nil, nil, &result, false, false, l.Verbose, l.HTTPDebugging)
+	return l.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		&result,
+		false,
+		false,
+		l.Verbose,
+		l.HTTPDebugging,
+		l.HTTPRecording)
 }
 
 func (l *Lbank) loadPrivKey() error {
@@ -618,5 +627,6 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 		true,
 		false,
 		l.Verbose,
-		l.HTTPDebugging)
+		l.HTTPDebugging,
+		l.HTTPRecording)
 }
