@@ -228,7 +228,7 @@ func (h *HUOBI) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range symbols {
-		pairs = append(pairs, symbols[x].BaseCurrency+"-"+symbols[x].QuoteCurrency)
+		pairs = append(pairs, fmt.Sprintf("%v%v%v", symbols[x].BaseCurrency, h.Config.ConfigCurrencyPairFormat.Delimiter, symbols[x].QuoteCurrency))
 	}
 
 	return pairs, nil

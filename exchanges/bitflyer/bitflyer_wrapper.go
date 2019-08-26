@@ -138,7 +138,7 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 	for _, info := range pairs {
 		if info.Alias != "" && assetType == asset.Futures {
 			products = append(products, info.Alias)
-		} else if info.Alias == "" && assetType == asset.Spot && strings.Contains(info.ProductCode, "_") {
+		} else if info.Alias == "" && assetType == asset.Spot && strings.Contains(info.ProductCode, b.Config.ConfigCurrencyPairFormat.Delimiter) {
 			products = append(products, info.ProductCode)
 		}
 	}

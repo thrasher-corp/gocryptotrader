@@ -147,7 +147,7 @@ func (b *BTCMarkets) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range markets {
-		pairs = append(pairs, markets[x].Instrument+"-"+markets[x].Currency)
+		pairs = append(pairs, fmt.Sprintf("%v%v%v", markets[x].Instrument, b.Config.ConfigCurrencyPairFormat.Delimiter, markets[x].Currency))
 	}
 
 	return pairs, nil
