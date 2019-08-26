@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
-		log.Fatalf("Test Failed - ANX Setup() init error", err)
+		log.Fatal("Test Failed - ANX Setup() init error", err)
 	}
 	anxConfig.AuthenticatedAPISupport = true
 	anxConfig.APIKey = apiKey
