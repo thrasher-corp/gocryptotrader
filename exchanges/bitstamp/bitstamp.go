@@ -184,7 +184,8 @@ func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = b.CalculateTradingFee(feeBuilder.Pair.Base,
 			feeBuilder.Pair.Quote,
 			feeBuilder.PurchasePrice,
-			feeBuilder.Amount)
+			feeBuilder.Amount,
+			b.Balance)
 	case exchange.CyptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
@@ -229,20 +230,20 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64) float64 {
+func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
 	var fee float64
 
 	switch base.String() + quote.String() {
 	case currency.BTC.String() + currency.USD.String():
-		fee = b.Balance.BTCUSDFee
+		fee = balances.BTCUSDFee
 	case currency.BTC.String() + currency.EUR.String():
-		fee = b.Balance.BTCEURFee
+		fee = balances.BTCEURFee
 	case currency.XRP.String() + currency.EUR.String():
-		fee = b.Balance.XRPEURFee
+		fee = balances.XRPEURFee
 	case currency.XRP.String() + currency.USD.String():
-		fee = b.Balance.XRPUSDFee
+		fee = balances.XRPUSDFee
 	case currency.EUR.String() + currency.USD.String():
-		fee = b.Balance.EURUSDFee
+		fee = balances.EURUSDFee
 	default:
 		fee = 0
 	}

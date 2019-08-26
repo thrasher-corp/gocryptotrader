@@ -145,21 +145,23 @@ func TestGetFee(t *testing.T) {
 
 func TestCalculateTradingFee(t *testing.T) {
 	t.Parallel()
-	b.Balance.BTCUSDFee = 1
-	b.Balance.BTCEURFee = 0
 
-	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 0, 0); resp != 0 {
+	var newBalance Balances
+	newBalance.BTCUSDFee = 1
+	newBalance.BTCEURFee = 0
+
+	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 0, 0, newBalance); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
 	}
-	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 2, 2); resp != float64(4) {
+	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 2, 2, newBalance); resp != float64(4) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(4), resp)
 	}
-	if resp := b.CalculateTradingFee(currency.BTC, currency.EUR, 2, 2); resp != float64(0) {
+	if resp := b.CalculateTradingFee(currency.BTC, currency.EUR, 2, 2, newBalance); resp != float64(0) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 	}
 
 	dummy1, dummy2 := currency.NewCode(""), currency.NewCode("")
-	if resp := b.CalculateTradingFee(dummy1, dummy2, 0, 0); resp != 0 {
+	if resp := b.CalculateTradingFee(dummy1, dummy2, 0, 0, newBalance); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
 	}
 }
