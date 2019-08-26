@@ -63,7 +63,6 @@ const (
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
-	Balance       Balances
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
@@ -176,15 +175,15 @@ func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		var err error
-		b.Balance, err = b.GetBalance()
+		balance, err := b.GetBalance()
 		if err != nil {
 			return 0, err
 		}
 		fee = b.CalculateTradingFee(feeBuilder.Pair.Base,
 			feeBuilder.Pair.Quote,
 			feeBuilder.PurchasePrice,
-			feeBuilder.Amount)
+			feeBuilder.Amount,
+			balance)
 	case exchange.CyptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
@@ -229,20 +228,20 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64) float64 {
+func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances *Balances) float64 {
 	var fee float64
 
 	switch base.String() + quote.String() {
 	case currency.BTC.String() + currency.USD.String():
-		fee = b.Balance.BTCUSDFee
+		fee = balances.BTCUSDFee
 	case currency.BTC.String() + currency.EUR.String():
-		fee = b.Balance.BTCEURFee
+		fee = balances.BTCEURFee
 	case currency.XRP.String() + currency.EUR.String():
-		fee = b.Balance.XRPEURFee
+		fee = balances.XRPEURFee
 	case currency.XRP.String() + currency.USD.String():
-		fee = b.Balance.XRPUSDFee
+		fee = balances.XRPUSDFee
 	case currency.EUR.String() + currency.USD.String():
-		fee = b.Balance.EURUSDFee
+		fee = balances.EURUSDFee
 	default:
 		fee = 0
 	}
@@ -367,9 +366,9 @@ func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 }
 
 // GetBalance returns full balance of currency held on the exchange
-func (b *Bitstamp) GetBalance() (Balances, error) {
+func (b *Bitstamp) GetBalance() (*Balances, error) {
 	var balance Balances
-	return balance,
+	return &balance,
 		b.SendAuthenticatedHTTPRequest(bitstampAPIBalance, true, nil, &balance)
 }
 
