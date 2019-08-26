@@ -4,13 +4,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -162,8 +162,7 @@ func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, _ error) {
-	switch assetType {
-	case asset.Spot:
+	if assetType == asset.Spot {
 		resp, err := o.GetSpotAllTokenPairsInformation()
 		if err != nil {
 			return
@@ -193,7 +192,6 @@ func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerData
 			}
 		}
 	}
-
 	return ticker.GetTicker(o.GetName(), p, assetType)
 }
 

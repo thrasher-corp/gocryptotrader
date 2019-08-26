@@ -206,6 +206,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 			if !strings.EqualFold(ticks.Result[j].MarketName, pairs[i].String()) {
 				continue
 			}
+			tickerTime, _ := time.Parse(time.RFC3339, ticks.Result[j].TimeStamp)
 			tickerPrice = ticker.Price{
 				Last:        ticks.Result[j].Last,
 				High:        ticks.Result[j].High,
@@ -216,7 +217,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 				QuoteVolume: ticks.Result[j].Volume,
 				Close:       ticks.Result[j].PrevDay,
 				Pair:        pairs[i],
-				LastUpdated: ticks.Result[j].TimeStamp,
+				LastUpdated: tickerTime,
 			}
 			err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 			if err != nil {

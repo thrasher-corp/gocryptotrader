@@ -1267,7 +1267,7 @@
    },
    "requestCurrencyPairFormat": {
     "uppercase": false,
-    "delimiter": "0"
+    "delimiter": "-"
    },
    "bankAccounts": [
     {

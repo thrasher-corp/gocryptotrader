@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -186,33 +186,22 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 	if err != nil {
 		return tickerPrice, err
 	}
+	last, _ := convert.FloatFromString(tick.Data.Last.Value)
+	high, _ := convert.FloatFromString(tick.Data.High.Value)
+	low, _ := convert.FloatFromString(tick.Data.Low.Value)
+	bid, _ := convert.FloatFromString(tick.Data.Buy.Value)
+	ask, _ := convert.FloatFromString(tick.Data.Sell.Value)
+	volume, _ := convert.FloatFromString(tick.Data.Vol.Value)
+
 	tickerPrice = ticker.Price{
+		Last:        last,
+		High:        high,
+		Low:         low,
+		Bid:         bid,
+		Ask:         ask,
+		Volume:      volume,
 		Pair:        p,
 		LastUpdated: time.Unix(0, tick.Data.UpdateTime),
-	}
-	last, _ := convert.FloatFromString(tick.Data.Last.Value)
-	if last > 0 {
-		tickerPrice.Last = last
-	}
-	high, _ := convert.FloatFromString(tick.Data.High.Value)
-	if high > 0 {
-		tickerPrice.High = high
-	}
-	low, _ := convert.FloatFromString(tick.Data.Low.Value)
-	if low > 0 {
-		tickerPrice.Low = low
-	}
-	bid, _ := convert.FloatFromString(tick.Data.Buy.Value)
-	if bid > 0 {
-		tickerPrice.Bid = bid
-	}
-	ask, _ := convert.FloatFromString(tick.Data.Sell.Value)
-	if ask > 0 {
-		tickerPrice.Ask = ask
-	}
-	volume, _ := convert.FloatFromString(tick.Data.Vol.Value)
-	if volume > 0 {
-		tickerPrice.Volume = volume
 	}
 
 	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)
