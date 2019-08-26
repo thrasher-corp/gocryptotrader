@@ -60,9 +60,10 @@ func (k *Kraken) SetDefaults() {
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Separator: ",",
+			Delimiter: "",
 		},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
+			Delimiter: "",
 			Uppercase: true,
 		},
 	}
@@ -167,9 +168,9 @@ func (k *Kraken) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), "-") ||
-		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), "-") {
-		enabledPairs := currency.NewPairsFromStrings([]string{"XBT-USD"})
+	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), k.CurrencyPairs.ConfigFormat.Delimiter) ||
+		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), k.CurrencyPairs.ConfigFormat.Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSD", k.CurrencyPairs.ConfigFormat.Delimiter)})
 		log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
@@ -210,7 +211,7 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
 			v.Quote = v.Quote[1:]
 		}
-		products = append(products, v.Base+"-"+v.Quote)
+		products = append(products, fmt.Sprintf("%v%v%v", v.Base, k.CurrencyPairs.ConfigFormat.Delimiter, v.Quote))
 	}
 	return products, nil
 }
@@ -242,8 +243,16 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	for i := range pairs {
 		for curr, v := range tickers {
 			if !strings.EqualFold(pairs[i].String(), curr) {
-				continue
+				var altCurrency string
+				var ok bool
+				if altCurrency, ok = assetPairMap[curr]; !ok {
+					continue
+				}
+				if !strings.EqualFold(pairs[i].String(), altCurrency) {
+					continue
+				}
 			}
+
 			tickerPrice = ticker.Price{
 				Last:   v.Last,
 				High:   v.High,

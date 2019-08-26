@@ -51,6 +51,8 @@ const (
 	krakenUnauthRate = 0
 )
 
+var assetPairMap map[string]string
+
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
@@ -101,6 +103,12 @@ func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
 
 	if err := k.SendHTTPRequest(path, &response); err != nil {
 		return response.Result, err
+	}
+	for i := range response.Result {
+		if assetPairMap == nil {
+			assetPairMap = make(map[string]string)
+		}
+		assetPairMap[i] = response.Result[i].Altname
 	}
 
 	return response.Result, GetError(response.Error)

@@ -5,13 +5,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -145,7 +145,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 		}
 
 		for x := range prods {
-			pairs = append(pairs, prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency)
+			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency, o.CurrencyPairs.ConfigFormat.Delimiter, prods[x].QuoteCurrency))
 		}
 		return pairs, nil
 	case asset.Futures:
@@ -156,7 +156,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, prods[x].UnderlyingIndex+prods[x].QuoteCurrency+"_"+prods[x].Delivery)
+			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].UnderlyingIndex+prods[x].QuoteCurrency, o.CurrencyPairs.ConfigFormat.Delimiter, prods[x].Delivery))
 		}
 		return pairs, nil
 
@@ -168,11 +168,11 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, prods[x].UnderlyingIndex+"_"+prods[x].QuoteCurrency+"_SWAP")
+			pairs = append(pairs, fmt.Sprintf("%v%v%v%vSWAP", prods[x].UnderlyingIndex, o.CurrencyPairs.ConfigFormat.Delimiter, prods[x].QuoteCurrency, o.CurrencyPairs.ConfigFormat.Delimiter))
 		}
 		return pairs, nil
 	case asset.Index:
-		return []string{"BTC_USD"}, nil
+		return []string{fmt.Sprintf("BTC%vUSD", o.CurrencyPairs.ConfigFormat.Delimiter)}, nil
 	}
 
 	return nil, fmt.Errorf("%s invalid asset type", o.Name)
