@@ -124,6 +124,9 @@ func main() {
 	log.Debugf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
 
 	SetupExchanges()
+	if len(bot.exchanges) == 0 {
+		log.Fatal("No exchanges were able to be loaded. Exiting")
+	}
 
 	log.Debugf("Starting communication mediums..")
 	cfg := bot.config.GetCommunicationsConfig()
