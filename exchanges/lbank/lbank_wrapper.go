@@ -69,6 +69,7 @@ func (l *Lbank) SetDefaults() {
 			REST: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
+				TickerBatching:  true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.NoFiatWithdrawals,
@@ -157,21 +158,30 @@ func (l *Lbank) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tickerInfo, err := l.GetTicker(l.FormatExchangeCurrency(p, assetType).String())
+	tickerInfo, err := l.GetTickers()
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice.Pair = p
-	tickerPrice.Last = tickerInfo.Ticker.Latest
-	tickerPrice.High = tickerInfo.Ticker.High
-	tickerPrice.Volume = tickerInfo.Ticker.Volume
-	tickerPrice.Low = tickerInfo.Ticker.Low
-
-	err = ticker.ProcessTicker(l.GetName(), &tickerPrice, assetType)
-	if err != nil {
-		return tickerPrice, err
+	pairs := l.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for j := range tickerInfo {
+			if !pairs[i].Equal(tickerInfo[j].Symbol) {
+				continue
+			}
+			tickerPrice = ticker.Price{
+				Last:        tickerInfo[j].Ticker.Latest,
+				High:        tickerInfo[j].Ticker.High,
+				Low:         tickerInfo[j].Ticker.Low,
+				Volume:      tickerInfo[j].Ticker.Volume,
+				Pair:        tickerInfo[j].Symbol,
+				LastUpdated: time.Unix(0, tickerInfo[j].Timestamp),
+			}
+			err = ticker.ProcessTicker(l.GetName(), &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
+		}
 	}
-
 	return ticker.GetTicker(l.Name, p, assetType)
 }
 

@@ -2,6 +2,7 @@ package ticker
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -154,11 +155,11 @@ func CreateNewTicker(exchangeName string, tickerNew *Price, tickerType asset.Ite
 // list
 func ProcessTicker(exchangeName string, tickerNew *Price, assetType asset.Item) error {
 	if tickerNew.Pair.IsEmpty() {
-		return errors.New(errPairNotSet)
+		return fmt.Errorf("%v %v", exchangeName, errPairNotSet)
 	}
 
 	if assetType == "" {
-		return errors.New(errAssetTypeNotSet)
+		return fmt.Errorf("%v %v %v", exchangeName, tickerNew.Pair.String(), errAssetTypeNotSet)
 	}
 
 	if tickerNew.LastUpdated.IsZero() {
