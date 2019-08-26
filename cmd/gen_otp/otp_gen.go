@@ -2,12 +2,16 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 )
+
+const defaultSleepTime = time.Second * 30
 
 func containsOTP(cfg *config.Config) bool {
 	for x := range cfg.Exchanges {
@@ -19,39 +23,66 @@ func containsOTP(cfg *config.Config) bool {
 }
 
 func main() {
-	var inFile string
+	var cfgFile, code string
+	var single bool
+	var err error
+
 	defaultCfg, err := config.GetFilePath("")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	flag.StringVar(&inFile, "infile", defaultCfg, "The config input file to process.")
+	flag.StringVar(&cfgFile, "config", defaultCfg, "The config input file to process.")
+	flag.BoolVar(&single, "single", false, "prompt for single use OTP code gen")
 	flag.Parse()
 
 	log.Println("GoCryptoTrader: OTP code generator tool.")
+	log.Println(core.Copyright)
 
+	// Handle single use OTP code gen
+	if single {
+		var input string
+		for {
+			log.Println("Please enter in your OTP secret:")
+			fmt.Scanln(&input)
+			if input != "" {
+				break
+			}
+		}
+
+		for {
+			code, err = totp.GenerateCode(input, time.Now())
+			if err != nil {
+				log.Fatalf("Unable to generate OTP code. Err: %s", err)
+			}
+			log.Printf("OTP code: %s\n", code)
+			time.Sleep(defaultSleepTime)
+		}
+	}
+
+	// Otherwise default to loading the config file and generating OTP codes from it
 	var cfg config.Config
-	err = cfg.LoadConfig(inFile)
+	err = cfg.LoadConfig(cfgFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Loaded config file.")
 
 	if !containsOTP(&cfg) {
-		log.Println("No exchanges with OTP code stored. Exiting.")
+		log.Fatal("No exchanges with OTP code stored. Exiting.")
 	}
 
 	for {
 		for x := range cfg.Exchanges {
 			if cfg.Exchanges[x].API.Credentials.OTPSecret != "" {
-				code, err := totp.GenerateCode(cfg.Exchanges[x].API.Credentials.OTPSecret, time.Now())
+				code, err = totp.GenerateCode(cfg.Exchanges[x].API.Credentials.OTPSecret, time.Now())
 				if err != nil {
-					log.Printf("Exchange %s: Failed to generate OTP code. Err: %s", cfg.Exchanges[x].Name, err)
+					log.Printf("Exchange %s: Failed to generate OTP code. Err: %s\n", cfg.Exchanges[x].Name, err)
 					continue
 				}
-				log.Printf("%s: %s", cfg.Exchanges[x].Name, code)
+				log.Printf("%s: %s\n", cfg.Exchanges[x].Name, code)
 			}
-			time.Sleep(time.Second)
 		}
+		time.Sleep(defaultSleepTime)
 	}
 }

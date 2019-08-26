@@ -1303,9 +1303,13 @@ func (c *Config) checkDatabaseConfig() error {
 	m.Lock()
 	defer m.Unlock()
 
+	if !c.Database.Enabled {
+		return nil
+	}
+
 	if !common.StringDataCompare(database.SupportedDrivers, c.Database.Driver) {
 		c.Database.Enabled = false
-		return fmt.Errorf("unsupported database driver %v database disabled", c.Database.Driver)
+		return fmt.Errorf("unsupported database driver %v, database disabled", c.Database.Driver)
 	}
 
 	if c.Database.Driver == "sqlite" {

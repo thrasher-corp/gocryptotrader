@@ -295,11 +295,21 @@ func WebsocketRoutine() {
 						common.IsEnabled(Bot.Exchanges[i].IsWebsocketEnabled()))
 				}
 
+				// TO-DO: expose IsConnected() and IsConnecting so this can be simplified
 				if Bot.Exchanges[i].IsWebsocketEnabled() {
 					ws, err := Bot.Exchanges[i].GetWebsocket()
 					if err != nil {
+						log.Errorf(log.WebsocketMgr, "Exchange %s GetWebsocket error: %s\n",
+							Bot.Exchanges[i].GetName(), err)
 						return
 					}
+
+					// Exchange sync manager might have already started ws
+					// service or is in the process of connecting, so check
+					if ws.IsConnected() || ws.IsConnecting() {
+						return
+					}
+
 					// Data handler routine
 					go WebsocketDataHandler(ws)
 

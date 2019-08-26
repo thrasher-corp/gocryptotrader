@@ -34,7 +34,7 @@ func (a *databaseManager) Start() (err error) {
 		return errors.New("database manager already started")
 	}
 
-	log.Debugln(log.DatabaseMgr, "database manager starting...")
+	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
 	a.shutdown = make(chan struct{})
 
@@ -60,7 +60,7 @@ func (a *databaseManager) Start() (err error) {
 			audit.Audit = auditSQLite.Audit()
 		}
 		dbConn.Connected = true
-		log.Debugf(log.DatabaseMgr, "connection established to %v using %v", dbConn.Config.Host, dbConn.Config.Driver)
+		log.Debugf(log.DatabaseMgr, "Database connection established to host: %v using %v driver\n", dbConn.Config.Host, dbConn.Config.Driver)
 
 		mLogger := mg.MLogger{}
 		migrations := mg.Migrator{
@@ -91,7 +91,7 @@ func (a *databaseManager) Stop() error {
 		return errors.New("database manager already stopped")
 	}
 
-	log.Debugln(log.DatabaseMgr, "database manager shutting down...")
+	log.Debugln(log.DatabaseMgr, "Database manager shutting down...")
 	err := dbConn.SQL.Close()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Failed to close database: %v", err)
@@ -101,7 +101,7 @@ func (a *databaseManager) Stop() error {
 }
 
 func (a *databaseManager) run() {
-	log.Debugln(log.DatabaseMgr, "database manager started.")
+	log.Debugln(log.DatabaseMgr, "Database manager started.")
 	Bot.ServicesWG.Add(1)
 
 	t := time.NewTicker(time.Second * 2)
@@ -113,7 +113,7 @@ func (a *databaseManager) run() {
 
 		Bot.ServicesWG.Done()
 
-		log.Debugln(log.DatabaseMgr, "database manager shutdown.")
+		log.Debugln(log.DatabaseMgr, "Database manager shutdown.")
 	}()
 
 	for {
@@ -132,13 +132,13 @@ func (a *databaseManager) checkConnection() {
 
 	err := dbConn.SQL.Ping()
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "database connection error: %v", err)
+		log.Errorf(log.DatabaseMgr, "Database connection error: %v\n", err)
 		dbConn.Connected = false
 		return
 	}
 
 	if !dbConn.Connected {
-		log.Info(log.DatabaseMgr, "database connection reestablished")
+		log.Info(log.DatabaseMgr, "Database connection reestablished")
 		dbConn.Connected = true
 	}
 }

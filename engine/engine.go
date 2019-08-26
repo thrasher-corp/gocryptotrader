@@ -164,6 +164,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableExchangeHTTPDebugging = s.EnableExchangeHTTPDebugging
 	b.Settings.DisableExchangeAutoPairUpdates = s.DisableExchangeAutoPairUpdates
 	b.Settings.ExchangePurgeCredentials = s.ExchangePurgeCredentials
+	b.Settings.EnableWebsocketRoutine = s.EnableWebsocketRoutine
 
 	if !b.Settings.EnableExchangeHTTPRateLimiter {
 		request.DisableRateLimiter = true
@@ -381,6 +382,10 @@ func (e *Engine) Start() {
 
 	if e.Settings.EnableEventManager {
 		go EventManger()
+	}
+
+	if e.Settings.EnableWebsocketRoutine {
+		go WebsocketRoutine()
 	}
 
 	<-e.Shutdown
