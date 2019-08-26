@@ -1214,12 +1214,17 @@ func (c *Config) CheckCurrencyConfigValues() error {
 
 // RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
 // pairs either cryptoCurrencies or fiatCurrencies
-func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
+func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool, assetType asset.Item) error {
 	cryptoCurrencies := c.Currency.Cryptocurrencies
 	fiatCurrencies := currency.GetFiatCurrencies()
 
 	for x := range c.Exchanges {
 		if !c.Exchanges[x].Enabled && enabledOnly {
+			continue
+		}
+
+		supports, _ := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
+		if !supports {
 			continue
 		}
 
@@ -1232,12 +1237,17 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 	}
 
 	for x := range c.Exchanges {
+		supports, _ := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
+		if !supports {
+			continue
+		}
+
 		var pairs []currency.Pair
 		var err error
 		if !c.Exchanges[x].Enabled && enabledOnly {
-			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name, asset.Spot)
+			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name, assetType)
 		} else {
-			pairs, err = c.GetAvailablePairs(c.Exchanges[x].Name, asset.Spot)
+			pairs, err = c.GetAvailablePairs(c.Exchanges[x].Name, assetType)
 		}
 
 		if err != nil {

@@ -35,7 +35,7 @@ func SetupTestHelpers(t *testing.T) {
 			}
 			testSetup = true
 		}
-		err := Bot.Config.RetrieveConfigCurrencyPairs(true)
+		err := Bot.Config.RetrieveConfigCurrencyPairs(true, asset.Spot)
 		if err != nil {
 			t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 		}
