@@ -146,7 +146,7 @@ func TestGetFee(t *testing.T) {
 func TestCalculateTradingFee(t *testing.T) {
 	t.Parallel()
 
-	var newBalance Balances
+	var newBalance = new(Balances)
 	newBalance.BTCUSDFee = 1
 	newBalance.BTCEURFee = 0
 
