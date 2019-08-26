@@ -63,7 +63,6 @@ const (
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
-	Balance       Balances
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
@@ -176,8 +175,7 @@ func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		var err error
-		b.Balance, err = b.GetBalance()
+		balance, err := b.GetBalance()
 		if err != nil {
 			return 0, err
 		}
@@ -185,7 +183,7 @@ func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 			feeBuilder.Pair.Quote,
 			feeBuilder.PurchasePrice,
 			feeBuilder.Amount,
-			&b.Balance)
+			balance)
 	case exchange.CyptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
@@ -368,9 +366,9 @@ func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 }
 
 // GetBalance returns full balance of currency held on the exchange
-func (b *Bitstamp) GetBalance() (Balances, error) {
+func (b *Bitstamp) GetBalance() (*Balances, error) {
 	var balance Balances
-	return balance,
+	return &balance,
 		b.SendAuthenticatedHTTPRequest(bitstampAPIBalance, true, nil, &balance)
 }
 
