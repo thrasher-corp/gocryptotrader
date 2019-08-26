@@ -151,10 +151,10 @@ type OrderCancellationResponse struct {
 
 // TickerComponent is a sub-type for ticker
 type TickerComponent struct {
-	Currency     string  `json:"currency"`
-	Display      string  `json:"display"`
-	DisplayShort string  `json:"display_short"`
-	Value        float64 `json:"value,string,omitempty"`
+	Currency     string `json:"currency"`
+	Display      string `json:"display"`
+	DisplayShort string `json:"display_short"`
+	Value        string `json:"value"`
 }
 
 // Ticker contains ticker data

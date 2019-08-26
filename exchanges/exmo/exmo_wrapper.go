@@ -160,17 +160,17 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 	if err != nil {
 		return tickerPrice, err
 	}
-	if _, ok := result[p]; !ok {
+	if _, ok := result[p.String()]; !ok {
 		return tickerPrice, err
 	}
 	pairs := e.GetEnabledPairs(assetType)
 	for i := range pairs {
 		for j := range result {
-			if !pairs[i].Equal(j) {
+			if !strings.EqualFold(pairs[i].String(), j) {
 				continue
 			}
 			tickerPrice = ticker.Price{
-				Pair:   j,
+				Pair:   pairs[i],
 				Last:   result[j].Last,
 				Ask:    result[j].Sell,
 				High:   result[j].High,

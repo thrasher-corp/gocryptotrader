@@ -136,7 +136,7 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				g.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:  g.GetName(),
+					Exchange:  g.Name,
 					Open:      ticker.Open,
 					Close:     ticker.Close,
 					Volume:    ticker.BaseVolume,
@@ -239,7 +239,7 @@ func (g *Gateio) WsHandleData() {
 					newOrderBook.Pair = currency.NewPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-						false)
+						true)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -59,12 +60,12 @@ func (o *OKEX) SetDefaults() {
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: false,
-			Delimiter: "_",
+			Delimiter: "-",
 		},
 
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "_",
+			Delimiter: "-",
 		},
 	}
 
@@ -74,6 +75,7 @@ func (o *OKEX) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
+				TickerBatching:  true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -192,4 +194,104 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 		}
 	}
 	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, _ error) {
+	switch assetType {
+	case asset.Spot:
+		resp, err := o.GetSpotAllTokenPairsInformation()
+		if err != nil {
+			return
+		}
+		pairs := o.GetEnabledPairs(assetType)
+		for i := range pairs {
+			for j := range resp {
+				if !pairs[i].Equal(resp[j].InstrumentID) {
+					continue
+				}
+				tickerData = ticker.Price{
+					Last:        resp[j].Last,
+					High:        resp[j].High24h,
+					Low:         resp[j].Low24h,
+					Bid:         resp[j].BestBid,
+					Ask:         resp[j].BestAsk,
+					Volume:      resp[j].BaseVolume24h,
+					QuoteVolume: resp[j].QuoteVolume24h,
+					Open:        resp[j].Open24h,
+					Pair:        pairs[i],
+					LastUpdated: resp[j].Timestamp,
+				}
+				err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+				if err != nil {
+					log.Error(log.Ticker, err)
+				}
+			}
+		}
+	case asset.PerpetualSwap:
+		resp, err := o.GetAllSwapTokensInformation()
+		if err != nil {
+			return
+		}
+		pairs := o.GetEnabledPairs(assetType)
+		for i := range pairs {
+			for j := range resp {
+				if !pairs[i].Equal(resp[j].InstrumentID) {
+					continue
+				}
+				tickerData = ticker.Price{
+					Last:        resp[j].Last,
+					High:        resp[j].High24H,
+					Low:         resp[j].Low24H,
+					Bid:         resp[j].BestBid,
+					Ask:         resp[j].BestAsk,
+					Volume:      resp[j].Volume24H,
+					Pair:        resp[j].InstrumentID,
+					LastUpdated: resp[j].Timestamp,
+				}
+				err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+				if err != nil {
+					log.Error(log.Ticker, err)
+				}
+			}
+		}
+	case asset.Futures:
+		resp, err := o.GetAllFuturesTokenInfo()
+		if err != nil {
+			return
+		}
+		pairs := o.GetEnabledPairs(assetType)
+		for i := range pairs {
+			for j := range resp {
+				if !pairs[i].Equal(resp[j].InstrumentID) {
+					continue
+				}
+				tickerData = ticker.Price{
+					Last:        resp[j].Last,
+					High:        resp[j].High24h,
+					Low:         resp[j].Low24h,
+					Bid:         resp[j].BestBid,
+					Ask:         resp[j].BestAsk,
+					Volume:      resp[j].Volume24h,
+					Pair:        resp[j].InstrumentID,
+					LastUpdated: resp[j].Timestamp,
+				}
+				err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+				if err != nil {
+					log.Error(log.Ticker, err)
+				}
+			}
+		}
+	}
+
+	return ticker.GetTicker(o.GetName(), p, assetType)
+}
+
+// FetchTicker returns the ticker for a currency pair
+func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, err error) {
+	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
+	if err != nil {
+		return o.UpdateTicker(p, assetType)
+	}
+	return
 }

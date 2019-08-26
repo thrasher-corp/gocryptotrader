@@ -193,7 +193,7 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 			return
 
 		case <-ticker.C:
-			err := o.WebsocketConn.SendMessage("ping")
+			err := o.WebsocketConn.Connection.WriteMessage(websocket.TextMessage, []byte("ping"))
 			if o.Verbose {
 				log.Debugf(log.ExchangeSys, "%v sending ping", o.GetName())
 			}

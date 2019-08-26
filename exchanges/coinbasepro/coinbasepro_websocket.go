@@ -92,7 +92,7 @@ func (c *CoinbasePro) WsHandleData() {
 					Timestamp: ticker.Time,
 					Pair:      ticker.ProductID,
 					AssetType: asset.Spot,
-					Exchange:  c.GetName(),
+					Exchange:  c.Name,
 					Open:      ticker.Open24H,
 					High:      ticker.High24H,
 					Low:       ticker.Low24H,
