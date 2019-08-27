@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -23,14 +24,16 @@ type BTSE struct {
 
 const (
 	btseAPIURL     = "https://api.btse.com/v1/restapi"
+	btseAPIURLv2   = "https://api.btse.com/spot/v2"
 	btseAPIVersion = "1"
 
 	// Public endpoints
-	btseMarkets = "markets"
-	btseTrades  = "trades"
-	btseTicker  = "ticker"
-	btseStats   = "stats"
-	btseTime    = "time"
+	btseMarkets   = "markets"
+	btseTrades    = "trades"
+	btseTicker    = "ticker"
+	btseOrderbook = "orderbook"
+	btseStats     = "stats"
+	btseTime      = "time"
 
 	// Authenticated endpoints
 	btseAccount       = "account"
@@ -60,6 +63,34 @@ func (b *BTSE) GetTicker(symbol string) (*Ticker, error) {
 	var t Ticker
 	endpoint := fmt.Sprintf("%s/%s", btseTicker, symbol)
 	err := b.SendHTTPRequest(http.MethodGet, endpoint, &t)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// GetOrderbook returns the orderbook for a specified symbol
+func (b *BTSE) GetOrderbook(symbol string, group, limitAsks, limitBids int64) (*Orderbook, error) {
+	var t Orderbook
+	vals := url.Values{}
+	if group != 0 {
+		vals.Set("group", strconv.FormatInt(group, 10))
+	}
+
+	if limitAsks != 0 {
+		vals.Set("limit_asks", strconv.FormatInt(limitAsks, 10))
+	}
+
+	if limitBids != 0 {
+		vals.Set("limit_bids", strconv.FormatInt(limitBids, 10))
+	}
+
+	if symbol == "" {
+		return nil, errors.New("symbol not set")
+	}
+
+	endpoint := fmt.Sprintf("%s/%s", btseOrderbook, symbol)
+	err := b.SendHTTPRequestv2(http.MethodGet, endpoint, vals, &t)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +209,22 @@ func (b *BTSE) GetFills(orderID, productID, before, after, limit string) (*Fille
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
 	return b.SendPayload(method,
 		fmt.Sprintf("%s/%s", b.API.Endpoints.URL, endpoint),
+		nil,
+		nil,
+		&result,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
+}
+
+// SendHTTPRequestv2 sends an HTTP request to the desired endpoint
+func (b *BTSE) SendHTTPRequestv2(method, endpoint string, values url.Values, result interface{}) error {
+	path := fmt.Sprintf("%s/%s", btseAPIURLv2, endpoint)
+	path = common.EncodeURLValues(path, values)
+	return b.SendPayload(method,
+		path,
 		nil,
 		nil,
 		&result,

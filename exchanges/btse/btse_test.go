@@ -61,6 +61,14 @@ func TestGetTicker(t *testing.T) {
 	}
 }
 
+func TestGetOrderbook(t *testing.T) {
+	b.SetDefaults()
+	_, err := b.GetOrderbook("BTC-USD", 0, 0, 0)
+	if err != nil {
+		t.Fatalf("Test failed. Err: %s", err)
+	}
+}
+
 func TestGetMarketStatistics(t *testing.T) {
 	b.SetDefaults()
 	_, err := b.GetMarketStatistics("BTC-USD")

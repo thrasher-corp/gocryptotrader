@@ -41,6 +41,18 @@ type Ticker struct {
 	Time   string  `json:"time"`
 }
 
+// OrderbookItem stores the price and size orderbook data
+type OrderbookItem struct {
+	Price float64 `json:"price,string"`
+	Size  float64 `json:"size,string"`
+}
+
+// Orderbook stores the orderbook bids and asks
+type Orderbook struct {
+	Bids []OrderbookItem `json:"buyQuote"`
+	Asks []OrderbookItem `json:"sellQuote"`
+}
+
 // MarketStatistics stores market statistics for a particular product
 type MarketStatistics struct {
 	Open   float64 `json:"open,string"`

@@ -247,7 +247,41 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	return orderbook.Base{}, common.ErrFunctionNotSupported
+	var orderBook orderbook.Base
+	obNew, err := b.GetOrderbook(
+		b.FormatExchangeCurrency(p, assetType).String(), 0, 0, 0)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x := range obNew.Bids {
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{
+				Amount: obNew.Bids[x].Size,
+				Price:  obNew.Bids[x].Price,
+			},
+		)
+	}
+
+	for x := range obNew.Asks {
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{
+				Amount: obNew.Asks[x].Size,
+				Price:  obNew.Asks[x].Price,
+			},
+		)
+	}
+
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.Name
+	orderBook.AssetType = assetType
+
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
