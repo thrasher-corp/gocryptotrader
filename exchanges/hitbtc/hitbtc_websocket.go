@@ -116,7 +116,7 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			return
 		}
 		h.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:    h.GetName(),
+			Exchange:    h.Name,
 			Open:        ticker.Params.Open,
 			Volume:      ticker.Params.Volume,
 			QuoteVolume: ticker.Params.VolumeQuote,

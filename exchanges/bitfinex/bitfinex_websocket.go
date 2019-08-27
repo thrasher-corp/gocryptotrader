@@ -278,7 +278,7 @@ func (b *Bitfinex) WsDataHandler() {
 							High:      chanData[9].(float64),
 							Low:       chanData[10].(float64),
 							Pair:      currency.NewPairFromString(chanInfo.Pair),
-							Exchange:  b.GetName(),
+							Exchange:  b.Name,
 							AssetType: asset.Spot,
 						}
 

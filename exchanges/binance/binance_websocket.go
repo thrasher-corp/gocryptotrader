@@ -148,7 +148,7 @@ func (b *Binance) WsHandleData() {
 				}
 
 				b.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:    b.GetName(),
+					Exchange:    b.Name,
 					Open:        t.OpenPrice,
 					Close:       t.ClosePrice,
 					Volume:      t.TotalTradedVolume,

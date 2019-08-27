@@ -239,7 +239,7 @@ func (l *LakeBTC) processTicker(ticker string) error {
 			continue
 		}
 		l.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:  l.GetName(),
+			Exchange:  l.Name,
 			Volume:    vol,
 			High:      high,
 			Low:       low,

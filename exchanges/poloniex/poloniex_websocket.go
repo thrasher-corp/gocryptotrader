@@ -217,7 +217,7 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) {
 	t.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
 
 	p.Websocket.DataHandler <- wshandler.TickerData{
-		Exchange:    p.GetName(),
+		Exchange:    p.Name,
 		Volume:      t.BaseCurrencyVolume24H,
 		QuoteVolume: t.QuoteCurrencyVolume24H,
 		High:        t.HighestBid,

@@ -234,7 +234,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 		data := strings.Split(ticker.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:  h.GetName(),
+			Exchange:  h.Name,
 			Open:      ticker.Tick.Open,
 			Close:     ticker.Tick.Close,
 			Volume:    ticker.Tick.Vol,

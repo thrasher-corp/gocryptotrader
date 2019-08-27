@@ -96,7 +96,7 @@ func (b *BTSE) WsHandleData() {
 				b.Websocket.DataHandler <- wshandler.TickerData{
 					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
 					AssetType: asset.Spot,
-					Exchange:  b.GetName(),
+					Exchange:  b.Name,
 					Close:     price,
 					Volume:    t.LastSize,
 				}

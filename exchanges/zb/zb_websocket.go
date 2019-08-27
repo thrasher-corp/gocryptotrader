@@ -96,7 +96,7 @@ func (z *ZB) WsHandleData() {
 				}
 
 				z.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:  z.GetName(),
+					Exchange:  z.Name,
 					Close:     ticker.Data.Last,
 					Volume:    ticker.Data.Volume24Hr,
 					High:      ticker.Data.High,

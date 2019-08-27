@@ -361,7 +361,7 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
 		o.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:    o.GetName(),
+			Exchange:    o.Name,
 			Open:        response.Data[i].Open24h,
 			Close:       response.Data[i].Last,
 			Volume:      response.Data[i].BaseVolume24h,
