@@ -8,7 +8,6 @@ package coinmarketcap
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -80,18 +79,15 @@ func (c *Coinmarketcap) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (c *Coinmarketcap) Setup(conf Settings) {
+func (c *Coinmarketcap) Setup(conf Settings) error {
 	if !conf.Enabled {
 		c.Enabled = false
-	} else {
-		c.Enabled = true
-		c.Verbose = conf.Verbose
-		c.APIkey = conf.APIkey
-		err := c.SetAccountPlan(conf.AccountPlan)
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
+
+	c.Enabled = true
+	c.Verbose = conf.Verbose
+	c.APIkey = conf.APIkey
+	return c.SetAccountPlan(conf.AccountPlan)
 }
 
 // GetCryptocurrencyInfo returns all static metadata for one or more
