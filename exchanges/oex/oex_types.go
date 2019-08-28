@@ -6,8 +6,8 @@ type ErrCapture struct {
 	Msg   string `json:"msg"`
 }
 
-// TickerTempResponse returns the time and tickerinfo for a trading pair
-type TickerTempResponse struct {
+// TickerDataResponse returns the time and tickerinfo for a trading pair
+type TickerDataResponse struct {
 	High   string  `json:"high"`
 	Volume string  `json:"vol"`
 	Last   float64 `json:"last"`
@@ -21,7 +21,7 @@ type TickerTempResponse struct {
 // TickerResponse returns the time and tickerinfo for a trading pair
 type TickerResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       TickerTempResponse `json:"data"`
+	Data       TickerDataResponse `json:"data"`
 }
 
 // AllTicker stores the ticker price data for a currency pair
@@ -36,8 +36,8 @@ type AllTicker struct {
 	Rose   string  `json:"rose"`
 }
 
-// AllTickerTempResponse used for temp storage
-type AllTickerTempResponse struct {
+// AllTickerDataResponse used for data storage
+type AllTickerDataResponse struct {
 	Date   int64       `json:"date"`
 	Ticker []AllTicker `json:"ticker"`
 }
@@ -45,7 +45,7 @@ type AllTickerTempResponse struct {
 // AllTickerResponse returns the time and Ticker info for all trading pairs
 type AllTickerResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       AllTickerTempResponse `json:"data"`
+	Data       AllTickerDataResponse `json:"data"`
 }
 
 // KlineResponse stores kline info for given currency exchange
@@ -54,8 +54,8 @@ type KlineResponse struct {
 	Data       [][]float64 `json:"data"`
 }
 
-// TradeTemp returns market transaction records for a currency pair
-type TradeTemp struct {
+// TradeData returns market transaction records for a currency pair
+type TradeData struct {
 	Amount    float64 `json:"amount"`
 	Price     float64 `json:"price"`
 	ID        int64   `json:"id"`
@@ -65,7 +65,7 @@ type TradeTemp struct {
 // TradeResponse returns market transaction records for a currency pair
 type TradeResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       []TradeTemp `json:"data"`
+	Data       []TradeData `json:"data"`
 }
 
 // PairAccuracyResp stores accuracy for a currency pair
@@ -91,8 +91,8 @@ type CoinInfo struct {
 	BtcValuatin string `json:"btcValuatin"`
 }
 
-// UserInfoTempResponse stores user's balance info
-type UserInfoTempResponse struct {
+// UserInfoDataResponse stores user's balance info
+type UserInfoDataResponse struct {
 	Total    string     `json:"total_asset"`
 	CoinData []CoinInfo `json:"coin_list"`
 }
@@ -100,7 +100,7 @@ type UserInfoTempResponse struct {
 // UserInfoResponse stores user's balance info
 type UserInfoResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       UserInfoTempResponse `json:"data"`
+	Data       UserInfoDataResponse `json:"data"`
 }
 
 // OrderResponse stores order info
@@ -124,8 +124,8 @@ type OrderResponse struct {
 	Status          int64   `json:"status"`
 }
 
-// AllOrderTempResponse stores info for multiple orders
-type AllOrderTempResponse struct {
+// AllOrderDataResponse stores info for multiple orders
+type AllOrderDataResponse struct {
 	Count     int64           `json:"count"`
 	OrderList []OrderResponse `json:"orderList"`
 }
@@ -133,7 +133,7 @@ type AllOrderTempResponse struct {
 // AllOrderResponse stores info for multiple orders
 type AllOrderResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       AllOrderTempResponse `json:"data"`
+	Data       AllOrderDataResponse `json:"data"`
 }
 
 // OrderHistoryData stores data about past orders
@@ -153,8 +153,8 @@ type OrderHistoryData struct {
 	AskUserID int64   `json:"ask_user_id"`
 }
 
-// OrderTempResponse stores past orders
-type OrderTempResponse struct {
+// OrderDataResponse stores past orders
+type OrderDataResponse struct {
 	Count      int64              `json:"conut"`
 	ResultList []OrderHistoryData `json:"resultList"`
 }
@@ -162,7 +162,7 @@ type OrderTempResponse struct {
 // OrderHistoryResponse stores past orders
 type OrderHistoryResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       OrderTempResponse `json:"data"`
+	Data       OrderDataResponse `json:"data"`
 }
 
 // RemoveOrderResponse indicates whether the cancel order query was successful
@@ -171,15 +171,15 @@ type RemoveOrderResponse struct {
 	Data       string `json:"data"`
 }
 
-// CreateOrderTempResponse stores orderID for successful orders creations
-type CreateOrderTempResponse struct {
+// CreateOrderDataResponse stores orderID for successful orders creations
+type CreateOrderDataResponse struct {
 	OrderID int64 `json:"order_id"`
 }
 
 // CreateOrderResponse stores orderID for created orders
 type CreateOrderResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       CreateOrderTempResponse `json:"data"`
+	Data       CreateOrderDataResponse `json:"data"`
 }
 
 // LatestCurrencyPrices stores latest price for currency pairs
@@ -194,32 +194,32 @@ type MarketDepth struct {
 	Bids [][]float64 `json:"bids"`
 }
 
-// MarketDepthTemp stores market depth data
-type MarketDepthTemp struct {
+// MarketDepthData stores market depth data
+type MarketDepthData struct {
 	Tick MarketDepth `json:"tick"`
 }
 
 // MarketDepthResponse stores market depth data
 type MarketDepthResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       MarketDepthTemp `json:"data"`
+	Data       MarketDepthData `json:"data"`
 }
 
 // OpenOrderResponse stores data of all current delegation
 type OpenOrderResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       OrderTempResponse `json:"data"`
+	Data       OrderDataResponse `json:"data"`
 }
 
-// SelfTradeTempResponse stores self trade data
-type SelfTradeTempResponse struct {
+// SelfTradeDataResponse stores self trade data
+type SelfTradeDataResponse struct {
 	OrderID int64 `json:"order_id"`
 }
 
 // SelfTradeResponse stores self trade data
 type SelfTradeResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       SelfTradeTempResponse `json:"data"`
+	Data       SelfTradeDataResponse `json:"data"`
 }
 
 // BalanceInfo stores balance data
@@ -263,8 +263,8 @@ type OrderData struct {
 	AvgPrice   float64 `json:"avg_price"`
 }
 
-// TradeData stores data for a trade
-type TradeData struct {
+// TradeData2 stores data for a trade
+type TradeData2 struct {
 	ID        int64   `json:"id"`
 	CreatedAt string  `json:"created_at"`
 	Price     float64 `json:"price"`
@@ -273,14 +273,14 @@ type TradeData struct {
 	Fee       float64 `json:"fee"`
 }
 
-// FetchOrderTempResp stores data for a given orderid
-type FetchOrderTempResp struct {
-	OrderInfo OrderData   `json:"order_info"`
-	TradeList []TradeData `json:"trade_list"`
+// FetchOrderDataResp stores data for a given orderid
+type FetchOrderDataResp struct {
+	OrderInfo OrderData    `json:"order_info"`
+	TradeList []TradeData2 `json:"trade_list"`
 }
 
 // FetchOrderResponse stores data for a given order id
 type FetchOrderResponse struct {
 	ErrCapture `json:",omitempty"`
-	Data       FetchOrderTempResp `json:"data"`
+	Data       FetchOrderDataResp `json:"data"`
 }

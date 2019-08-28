@@ -28,7 +28,6 @@ func (o *Oex) Start(wg *sync.WaitGroup) {
 // Run implements the Oex wrapper
 func (o *Oex) Run() {
 	if o.Verbose {
-
 		log.Debugf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
 		log.Debugf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
@@ -75,7 +74,7 @@ func (o *Oex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, err
 	}
 	resp.Volume = tempAmount
 	resp.LastUpdated = time.Unix(0, tempResp.Data.Time)
-	return resp, nil // NOTE DO NOT USE AS RETURN
+	return resp, nil
 }
 
 // GetTickerPrice returns the ticker for a currency pair

@@ -23,7 +23,6 @@ import (
 // Oex is the overarching type across this package
 type Oex struct {
 	exchange.Base
-	// privateKey    *rsa.PrivateKey
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
@@ -50,6 +49,7 @@ const (
 	oexAllOpenOrders   = "/open/api/v2/new_order"
 	oexSelfTrade       = "/open/api/self_trade"
 	oexFetchOrderInfo  = "/open/api/order_info"
+	oexNoError         = "0"
 )
 
 // SetDefaults sets the basic defaults for Oex
@@ -111,15 +111,6 @@ func (o *Oex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// If the exchange supports websocket, update the below block
-		// err = o.WebsocketSetup(o.WsConnect,
-		//	exch.Name,
-		//	exch.Websocket,
-		//	oexWebsocket,
-		//	exch.WebsocketURL)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
 	}
 }
 
@@ -134,7 +125,7 @@ func (o *Oex) GetTicker(symbol string) (TickerResponse, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -150,7 +141,7 @@ func (o *Oex) GetAllTicker() (AllTickerResponse, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -169,7 +160,7 @@ func (o *Oex) GetKline(symbol, period string) (KlineResponse, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -187,7 +178,7 @@ func (o *Oex) GetTrades(symbol string) (TradeResponse, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -205,7 +196,7 @@ func (o *Oex) LatestCurrencyPrices(time string) (LatestCurrencyPrices, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -224,7 +215,7 @@ func (o *Oex) GetMarketDepth(symbol, depthType string) (MarketDepthResponse, err
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -240,7 +231,7 @@ func (o *Oex) GetAllPairs() (AllPairResponse, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -256,7 +247,7 @@ func (o *Oex) GetUserInfo() (UserInfoResponse, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -278,7 +269,7 @@ func (o *Oex) GetAllOrders(symbol, startDate, endDate, pageSize, page string) (A
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -301,7 +292,7 @@ func (o *Oex) FindOrderHistory(symbol, startDate, endDate, pageSize, page, sort 
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -320,7 +311,7 @@ func (o *Oex) RemoveOrder(orderID, symbol string) (RemoveOrderResponse, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -338,7 +329,7 @@ func (o *Oex) RemoveAllOrders(symbol string) (RemoveOrderResponse, error) {
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -361,7 +352,7 @@ func (o *Oex) CreateOrder(side, orderType, volume, price, symbol, fee string) (C
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -381,7 +372,7 @@ func (o *Oex) GetOpenOrders(symbol, pageSize, page string) (OpenOrderResponse, e
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -404,7 +395,7 @@ func (o *Oex) SelfTrade(side, orderType, volume, price, symbol, fee string) (Sel
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -424,7 +415,7 @@ func (o *Oex) GetUserAssetData(uid, mobileNumber, email string) (UserAssetRespon
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -443,7 +434,7 @@ func (o *Oex) FetchOrderInfo(orderID, symbol string) (FetchOrderResponse, error)
 		return resp, err
 	}
 
-	if resp.Error != "0" {
+	if resp.Error != oexNoError {
 		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
 	}
 
@@ -471,7 +462,10 @@ func (o *Oex) SendHTTPRequest(path string, result interface{}) error {
 
 // ErrorCapture deals with errors
 func ErrorCapture(code, message string) error {
-	return errors.New(message)
+	var temp []string
+	temp = append(temp, code)
+	temp = append(temp, message)
+	return errors.New(strings.Join(temp, ":"))
 }
 
 // SendAuthHTTPRequest sends a post request (api keys and sign included)
