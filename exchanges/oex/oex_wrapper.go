@@ -32,6 +32,18 @@ func (o *Oex) Run() {
 		log.Debugf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
 		log.Debugf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
+	exchangeCurrencies, err := o.GetAllPairs()
+	if err != nil {
+		log.Errorf("%s Failed to get available symbols.\n", o.GetName())
+	}
+	var newExchangeCurrencies currency.Pairs
+	for x := 0; x < len(exchangeCurrencies.Data); x++ {
+		newExchangeCurrencies = append(newExchangeCurrencies, currency.NewPairFromString(exchangeCurrencies.Data[x].Symbol))
+	}
+	err = o.UpdateCurrencies(newExchangeCurrencies, false, true)
+	if err != nil {
+		log.Errorf("%s Failed to update available currencies %s.\n", o.GetName(), err)
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
