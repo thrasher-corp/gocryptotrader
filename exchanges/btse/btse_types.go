@@ -2,9 +2,24 @@ package btse
 
 import "time"
 
+// OverviewData stores market overview data
+type OverviewData struct {
+	High24Hr         string `json:"high24hr"`
+	HighestBid       string `json:"highestbid"`
+	Last             string `json:"last"`
+	Low24Hr          string `json:"low24hr"`
+	LowestAsk        string `json:"lowest_ask"`
+	PercentageChange string `json:"percentage_change"`
+	Volume           string `json:"volume"`
+}
+
+// HighLevelMarketData stores market overview data
+type HighLevelMarketData struct {
+	String OverviewData `json:"string"`
+}
+
 // Market stores market data
 type Market struct {
-	Symbol              string  `json:"symbol"`
 	BaseCurrency        string  `json:"base_currency"`
 	QuoteCurrency       string  `json:"quote_currency"`
 	BaseMinSize         float64 `json:"base_min_size"`
@@ -26,6 +41,20 @@ type Trade struct {
 	Amount   float64 `json:"amount"`
 	Time     string  `json:"time"`
 	Type     string  `json:"type"`
+}
+
+// QuoteData stores quote data
+type QuoteData struct {
+	Price string `json:"price"`
+	Size  string `json:"size"`
+}
+
+// Orderbook stores orderbook info
+type Orderbook struct {
+	BuyQuote  []QuoteData `json:"buyQuote"`
+	SellQuote []QuoteData `json:"sellQuote"`
+	Symbol    string      `json:"symbol"`
+	Timestamp int64       `json:"timestamp"`
 }
 
 // Trades stores an array of trade data

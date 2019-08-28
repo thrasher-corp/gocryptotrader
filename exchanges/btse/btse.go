@@ -25,15 +25,17 @@ type BTSE struct {
 }
 
 const (
-	btseAPIURL     = "https://api.btse.com/v1/restapi"
-	btseAPIVersion = "1"
+	btseAPIURL     = "https://api.btse.com/spot/v2"
+	btseAPIVersion = "2"
 
 	// Public endpoints
-	btseMarkets = "markets"
-	btseTrades  = "trades"
-	btseTicker  = "ticker"
-	btseStats   = "stats"
-	btseTime    = "time"
+	btseMarketOverview = "market_summary"
+	btseMarkets        = "markets"
+	btseOrderbook      = "orderbook"
+	btseTrades         = "trades"
+	btseTicker         = "ticker"
+	btseStats          = "stats"
+	btseTime           = "time"
 
 	// Authenticated endpoints
 	btseAccount       = "account"
@@ -140,10 +142,23 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) {
 	}
 }
 
+// GetMarketsSummary stores market summary data
+func (b *BTSE) GetMarketsSummary(pair string) (*HighLevelMarketData, error) {
+	var m HighLevelMarketData
+	return &m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m)
+}
+
 // GetMarkets returns a list of markets available on BTSE
 func (b *BTSE) GetMarkets() (*Markets, error) {
 	var m Markets
 	return &m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m)
+}
+
+// FetchOrderBook gets orderbook data for a given pair
+func (b *BTSE) FetchOrderBook(symbol string) (*Orderbook, error) {
+	var o Orderbook
+	endpoint := fmt.Sprintf("%s/%s", btseOrderbook, symbol)
+	return &o, b.SendHTTPRequest(http.MethodGet, endpoint, &o)
 }
 
 // GetTrades returns a list of trades for the specified symbol
