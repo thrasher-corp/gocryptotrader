@@ -129,7 +129,6 @@ func (o *Oex) GetTicker(symbol string) (TickerResponse, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := fmt.Sprintf("%s%s?%s", o.APIUrl, oexGetTicker, params.Encode())
-	log.Println(path)
 	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return resp, err
@@ -146,7 +145,6 @@ func (o *Oex) GetTicker(symbol string) (TickerResponse, error) {
 func (o *Oex) GetAllTicker() (AllTickerResponse, error) {
 	var resp AllTickerResponse
 	path := fmt.Sprintf("%s%s", o.APIUrl, oexGetAllTicker)
-	log.Println(path)
 	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return resp, err
@@ -166,7 +164,6 @@ func (o *Oex) GetKline(symbol, period string) (KlineResponse, error) {
 	params.Set("symbol", symbol)
 	params.Set("period", period)
 	path := fmt.Sprintf("%s%s?%s", o.APIUrl, oexGetKline, params.Encode())
-	log.Println(path)
 	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return resp, err

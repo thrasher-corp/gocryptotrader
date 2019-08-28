@@ -63,7 +63,6 @@ func (o *Oex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, err
 	}
 	resp.Volume = tempAmount
 	resp.LastUpdated = time.Unix(0, tempResp.Data.Time)
-	log.Println(resp.LastUpdated)
 	return resp, nil // NOTE DO NOT USE AS RETURN
 }
 
@@ -95,18 +94,13 @@ func (o *Oex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base
 	}
 	resp.ExchangeName = o.GetName()
 	resp.Pair = p
-	log.Println("MEOW", tempResp.Data.Tick.Bids)
 	for i := range tempResp.Data.Tick.Bids {
 		var tempBids orderbook.Item
 		tempBids.Amount = tempResp.Data.Tick.Bids[i][1]
 		tempBids.Price = tempResp.Data.Tick.Bids[i][0]
 
 		resp.Bids = append(resp.Bids, tempBids)
-
-		// resp.Bids[i].Amount = tempResp.Data.Tick.Bids[i][1]
-		// resp.Bids[i].Price = tempResp.Data.Tick.Bids[i][0]
 	}
-	log.Println("MEOW", tempResp.Data.Tick.Asks)
 	for j := range tempResp.Data.Tick.Asks {
 		var tempAsks orderbook.Item
 		tempAsks.Amount = tempResp.Data.Tick.Asks[j][1]
