@@ -66,6 +66,7 @@ const (
 	lakebtc       = "..%s..%sexchanges%slakebtc%s"
 	lbank         = "..%s..%sexchanges%slbank%s"
 	localbitcoins = "..%s..%sexchanges%slocalbitcoins%s"
+	oex           = "..%s..%sexchanges%soex%s"
 	okcoin        = "..%s..%sexchanges%sokcoin%s"
 	okex          = "..%s..%sexchanges%sokex%s"
 	poloniex      = "..%s..%sexchanges%spoloniex%s"
@@ -236,6 +237,7 @@ func addPaths() {
 	codebasePaths["exchanges lakebtc"] = fmt.Sprintf(lakebtc, path, path, path, path)
 	codebasePaths["exchanges lbank"] = fmt.Sprintf(lbank, path, path, path, path)
 	codebasePaths["exchanges localbitcoins"] = fmt.Sprintf(localbitcoins, path, path, path, path)
+	codebasePaths["exchanges oex"] = fmt.Sprintf(oex, path, path, path, path)
 	codebasePaths["exchanges okcoin"] = fmt.Sprintf(okcoin, path, path, path, path)
 	codebasePaths["exchanges okex"] = fmt.Sprintf(okex, path, path, path, path)
 	codebasePaths["exchanges poloniex"] = fmt.Sprintf(poloniex, path, path, path, path)

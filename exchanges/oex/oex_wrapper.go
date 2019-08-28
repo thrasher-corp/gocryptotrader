@@ -54,25 +54,13 @@ func (o *Oex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, err
 	if err != nil {
 		return resp, err
 	}
-	high, err := strconv.ParseFloat(tempResp.Data.High, 64)
-	if err != nil {
-		return resp, err
-	}
-	low, err := strconv.ParseFloat(tempResp.Data.Low, 64)
-	if err != nil {
-		return resp, err
-	}
 	resp.Pair = p
 	resp.Last = tempResp.Data.Last
-	resp.High = high
-	resp.Low = low
+	resp.High = tempResp.Data.High
+	resp.Low = tempResp.Data.Low
 	resp.Bid = tempResp.Data.Buy
 	resp.Ask = tempResp.Data.Sell
-	tempAmount, err := strconv.ParseFloat(tempResp.Data.Volume, 64)
-	if err != nil {
-		return resp, err
-	}
-	resp.Volume = tempAmount
+	resp.Volume = tempResp.Data.Volume
 	resp.LastUpdated = time.Unix(0, tempResp.Data.Time)
 	return resp, nil
 }
@@ -119,7 +107,7 @@ func (o *Oex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base
 
 		resp.Bids = append(resp.Bids, tempAsks)
 	}
-	return resp, nil // NOTE DO NOT USE AS RETURN
+	return resp, nil
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -133,18 +121,10 @@ func (o *Oex) GetAccountInfo() (exchange.AccountInfo, error) {
 		return resp, err
 	}
 	for x := range tempResp.Data.CoinData {
-		totalVal, err := strconv.ParseFloat(tempResp.Data.CoinData[x].Normal, 64)
-		if err != nil {
-			return resp, err
-		}
-		holdVal, err2 := strconv.ParseFloat(tempResp.Data.CoinData[x].Locked, 64)
-		if err2 != nil {
-			return resp, err2
-		}
 		tempData.Currencies = append(tempData.Currencies,
 			exchange.AccountCurrencyInfo{CurrencyName: currency.NewCode(tempResp.Data.CoinData[x].Coin),
-				TotalValue: totalVal,
-				Hold:       holdVal})
+				TotalValue: tempResp.Data.CoinData[x].Normal,
+				Hold:       tempResp.Data.CoinData[x].Locked})
 	}
 	resp.Accounts = append(resp.Accounts, tempData)
 	return resp, nil
@@ -153,7 +133,7 @@ func (o *Oex) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (o *Oex) GetFundingHistory() ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -245,23 +225,15 @@ func (o *Oex) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 				resp.OrderSide = exchange.SellOrderSide
 			}
 			resp.Price = tempResp.Data.OrderInfo.Price
-			tempAmount, err := strconv.ParseFloat(tempResp.Data.OrderInfo.Volume, 64)
-			if err != nil {
-				return resp, err
-			}
-			resp.Amount = tempAmount
+			resp.Amount = tempResp.Data.OrderInfo.Volume
 			tempTime, err := strconv.ParseInt(tempResp.Data.OrderInfo.CreatedAt, 10, 64)
 			if err != nil {
 				return resp, err
 			}
 			resp.OrderDate = time.Unix(tempTime, 9)
 			resp.ID = orderID
-			tempExecAmount, err := strconv.ParseFloat(tempResp.Data.OrderInfo.DealVolume, 64)
-			if err != nil {
-				return resp, err
-			}
-			resp.ExecutedAmount = tempExecAmount
-			resp.RemainingAmount = tempAmount - tempExecAmount
+			resp.ExecutedAmount = tempResp.Data.OrderInfo.DealVolume
+			resp.RemainingAmount = tempResp.Data.OrderInfo.Volume - tempResp.Data.OrderInfo.DealVolume
 			resp.Fee = tempResp.Data.OrderInfo.Fee
 		}
 	}
@@ -270,30 +242,30 @@ func (o *Oex) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (o *Oex) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (o *Oex) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (o *Oex) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (o *Oex) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (o *Oex) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -327,23 +299,15 @@ func (o *Oex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 						tempResp.OrderSide = exchange.SellOrderSide
 					}
 					tempResp.Price = tempData2.Data.OrderInfo.Price
-					tempAmount, err := strconv.ParseFloat(tempData2.Data.OrderInfo.Volume, 64)
-					if err != nil {
-						return resp, err
-					}
-					tempResp.Amount = tempAmount
+					tempResp.Amount = tempData2.Data.OrderInfo.Volume
 					tempTime, err2 := strconv.ParseInt(tempData2.Data.OrderInfo.CreatedAt, 10, 64)
 					if err2 != nil {
 						return resp, err2
 					}
 					tempResp.OrderDate = time.Unix(tempTime, 9)
 					tempResp.ID = strconv.FormatInt(val[y], 10)
-					tempExecAmount, err2 := strconv.ParseFloat(tempData2.Data.OrderInfo.DealVolume, 64)
-					if err2 != nil {
-						return resp, err2
-					}
-					tempResp.ExecutedAmount = tempExecAmount
-					tempResp.RemainingAmount = tempAmount - tempExecAmount
+					tempResp.ExecutedAmount = tempData2.Data.OrderInfo.DealVolume
+					tempResp.RemainingAmount = tempData2.Data.OrderInfo.Volume - tempData2.Data.OrderInfo.DealVolume
 					tempResp.Fee = tempData2.Data.OrderInfo.Fee
 					if getOrdersRequest.OrderSide == exchange.AnyOrderSide {
 						resp = append(resp, tempResp)
@@ -367,7 +331,7 @@ func (o *Oex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (o *Oex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	return 0, common.ErrFunctionNotSupported
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
@@ -380,12 +344,12 @@ func (o *Oex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannel
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (o *Oex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrNotYetImplemented
+	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
 func (o *Oex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

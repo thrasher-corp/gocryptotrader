@@ -8,10 +8,10 @@ type ErrCapture struct {
 
 // TickerDataResponse returns the time and tickerinfo for a trading pair
 type TickerDataResponse struct {
-	High   string  `json:"high"`
-	Volume string  `json:"vol"`
+	High   float64 `json:"high,string"`
+	Volume float64 `json:"vol,string"`
 	Last   float64 `json:"last"`
-	Low    string  `json:"low"`
+	Low    float64 `json:"low,string"`
 	Buy    float64 `json:"buy"`
 	Sell   float64 `json:"sell"`
 	Rose   string  `json:"rose"`
@@ -27,10 +27,10 @@ type TickerResponse struct {
 // AllTicker stores the ticker price data for a currency pair
 type AllTicker struct {
 	Symbol string  `json:"symbol"`
-	High   string  `json:"high"`
-	Volume string  `json:"vol"`
+	High   float64 `json:"high,string"`
+	Volume float64 `json:"vol,string"`
 	Last   float64 `json:"last"`
-	Low    string  `json:"low"`
+	Low    float64 `json:"low,string"`
 	Buy    float64 `json:"buy"`
 	Sell   float64 `json:"sell"`
 	Rose   string  `json:"rose"`
@@ -57,7 +57,7 @@ type KlineResponse struct {
 // TradeData returns market transaction records for a currency pair
 type TradeData struct {
 	Amount    float64 `json:"amount"`
-	Price     float64 `json:"price"`
+	Price     float64 `json:"price,string"`
 	ID        int64   `json:"id"`
 	OrderType string  `json:"type"`
 }
@@ -85,10 +85,10 @@ type AllPairResponse struct {
 
 // CoinInfo stores info about particular coins that user has
 type CoinInfo struct {
-	Coin        string `json:"coin"`
-	Normal      string `json:"normal"`
-	Locked      string `json:"locked"`
-	BtcValuatin string `json:"btcValuatin"`
+	Coin        string  `json:"coin"`
+	Normal      float64 `json:"normal,string"`
+	Locked      float64 `json:"locked,string"`
+	BtcValuatin string  `json:"btcValuatin"`
 }
 
 // UserInfoDataResponse stores user's balance info
@@ -113,11 +113,11 @@ type OrderResponse struct {
 	Source          int64   `json:"source"`
 	Type            int64   `json:"type"`
 	SideMsg         string  `json:"side_msg"`
-	Volume          string  `json:"volume"`
-	Price           float64 `json:"price"`
+	Volume          float64 `json:"vol,string"`
+	Price           float64 `json:"price,string"`
 	SourceMsg       string  `json:"source_msg"`
 	StatusMsg       string  `json:"status_msg"`
-	DealVolume      float64 `json:"deal_volume"`
+	DealVolume      float64 `json:"deal_volume,string"`
 	OrderID         int64   `json:"id"`
 	RemainingVolume string  `json:"remain_volume"`
 	BaseCoin        string  `json:"baseCoin"`
@@ -138,13 +138,13 @@ type AllOrderResponse struct {
 
 // OrderHistoryData stores data about past orders
 type OrderHistoryData struct {
-	Volume    float64 `json:"vol"`
+	Volume    float64 `json:"vol,string"`
 	Side      string  `json:"side"`
 	FeeCoin   string  `json:"feeCoin"`
-	Price     string  `json:"price"`
-	Fee       string  `json:"fee"`
+	Price     float64 `json:"price,string"`
+	Fee       float64 `json:"fee,string"`
 	CTime     int64   `json:"ctime"`
-	DealPrice string  `json:"deal_price"`
+	DealPrice float64 `json:"deal_price,string"`
 	ID        int64   `json:"id"`
 	Type      string  `json:"type"`
 	BidID     int64   `json:"bid_id"`
@@ -232,7 +232,7 @@ type BalanceInfo struct {
 type DepositList struct {
 	UID       int64   `json:"uid"`
 	Symbol    string  `json:"symbol"`
-	Fee       float64 `json:"fee"`
+	Fee       float64 `json:"fee,string"`
 	Amount    float64 `json:"amount"`
 	CreatedAt string  `json:"created_at"`
 }
@@ -255,11 +255,11 @@ type OrderData struct {
 	Side       string  `json:"side"`
 	SideMsg    string  `json:"side_msg"`
 	CreatedAt  string  `json:"created_at"`
-	Price      float64 `json:"price"`
-	Volume     string  `json:"volume"`
-	DealVolume string  `json:"deal_volume"`
+	Price      float64 `json:"price,string"`
+	Volume     float64 `json:"vol,string"`
+	DealVolume float64 `json:"deal_volume,string"`
 	TotalPrice float64 `json:"total_price"`
-	Fee        float64 `json:"fee"`
+	Fee        float64 `json:"fee,string"`
 	AvgPrice   float64 `json:"avg_price"`
 }
 
@@ -267,10 +267,10 @@ type OrderData struct {
 type TradeData2 struct {
 	ID        int64   `json:"id"`
 	CreatedAt string  `json:"created_at"`
-	Price     float64 `json:"price"`
-	Volume    string  `json:"volume"`
-	DealPrice float64 `json:"deal_price"`
-	Fee       float64 `json:"fee"`
+	Price     float64 `json:"price,string"`
+	Volume    float64 `json:"vol,string"`
+	DealPrice float64 `json:"deal_price,string"`
+	Fee       float64 `json:"fee,string"`
 }
 
 // FetchOrderDataResp stores data for a given orderid

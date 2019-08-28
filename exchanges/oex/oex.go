@@ -469,7 +469,6 @@ func ErrorCapture(code, message string) error {
 
 // SendAuthHTTPRequest sends a post request (api keys and sign included)
 func (o *Oex) SendAuthHTTPRequest(method, path string, params url.Values, result interface{}) error {
-
 	if params == nil {
 		params = url.Values{}
 	}
