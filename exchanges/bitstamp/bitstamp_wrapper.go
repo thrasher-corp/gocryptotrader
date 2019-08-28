@@ -71,7 +71,6 @@ func (b *Bitstamp) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
-				TickerBatching:  false,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,

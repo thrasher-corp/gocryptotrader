@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -45,7 +46,7 @@ type Price struct {
 
 // Ticker struct holds the ticker information for a currency pair and type
 type Ticker struct {
-	Price        map[string]map[string]map[asset.Item]Price
+	Price        map[string]map[string]map[string]Price
 	ExchangeName string
 }
 
@@ -55,19 +56,19 @@ func (t *Ticker) PriceToString(p currency.Pair, priceType string, tickerType ass
 
 	switch priceType {
 	case "last":
-		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType].Last, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType.String()].Last, 'f', -1, 64)
 	case "high":
-		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType].High, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType.String()].High, 'f', -1, 64)
 	case "low":
-		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType].Low, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType.String()].Low, 'f', -1, 64)
 	case "bid":
-		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType].Bid, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType.String()].Bid, 'f', -1, 64)
 	case "ask":
-		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType].Ask, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType.String()].Ask, 'f', -1, 64)
 	case "volume":
-		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType].Volume, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType.String()].Volume, 'f', -1, 64)
 	case "ath":
-		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType].PriceATH, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType.String()].PriceATH, 'f', -1, 64)
 	default:
 		return ""
 	}
@@ -88,7 +89,7 @@ func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (Price, 
 		return Price{}, errors.New(errQuoteCurrencyNotFound)
 	}
 
-	return ticker.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType], nil
+	return ticker.Price[p.Base.Upper().String()][p.Quote.Upper().String()][tickerType.String()], nil
 }
 
 // GetTickerByExchange returns an exchange Ticker
@@ -141,10 +142,10 @@ func CreateNewTicker(exchangeName string, tickerNew *Price, tickerType asset.Ite
 	defer m.Unlock()
 	ticker := Ticker{}
 	ticker.ExchangeName = exchangeName
-	ticker.Price = make(map[string]map[string]map[asset.Item]Price)
-	a := make(map[string]map[asset.Item]Price)
-	b := make(map[asset.Item]Price)
-	b[tickerType] = *tickerNew
+	ticker.Price = make(map[string]map[string]map[string]Price)
+	a := make(map[string]map[string]Price)
+	b := make(map[string]Price)
+	b[tickerType.String()] = *tickerNew
 	a[tickerNew.Pair.Quote.Upper().String()] = b
 	ticker.Price[tickerNew.Pair.Base.Upper().String()] = a
 	Tickers = append(Tickers, ticker)
@@ -174,17 +175,18 @@ func ProcessTicker(exchangeName string, tickerNew *Price, assetType asset.Item) 
 
 	if BaseCurrencyExists(exchangeName, tickerNew.Pair.Base) {
 		m.Lock()
-		a := make(map[asset.Item]Price)
-		a[assetType] = *tickerNew
+		a := make(map[string]Price)
+		a[assetType.String()] = *tickerNew
 		ticker.Price[tickerNew.Pair.Base.Upper().String()][tickerNew.Pair.Quote.Upper().String()] = a
 		m.Unlock()
 		return nil
 	}
 
 	m.Lock()
-	a := make(map[string]map[asset.Item]Price)
-	b := make(map[asset.Item]Price)
-	b[assetType] = *tickerNew
+
+	a := make(map[string]map[string]Price)
+	b := make(map[string]Price)
+	b[assetType.String()] = *tickerNew
 	a[tickerNew.Pair.Quote.Upper().String()] = b
 	ticker.Price[tickerNew.Pair.Base.Upper().String()] = a
 	m.Unlock()

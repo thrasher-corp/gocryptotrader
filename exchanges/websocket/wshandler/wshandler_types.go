@@ -154,6 +154,7 @@ type TickerData struct {
 	Bid         float64
 	Ask         float64
 	Last        float64
+	PriceATH    float64
 	Timestamp   time.Time
 	AssetType   asset.Item
 	Pair        currency.Pair

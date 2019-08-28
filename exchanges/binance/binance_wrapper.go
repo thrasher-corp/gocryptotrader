@@ -163,9 +163,9 @@ func (b *Binance) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
-		enabledPairs := currency.NewPairsFromStrings([]string{"BTC-USDT"})
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), b.Config.ConfigCurrencyPairFormat.Delimiter) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), b.Config.ConfigCurrencyPairFormat.Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSDT", b.Config.ConfigCurrencyPairFormat.Delimiter)})
 		log.Warn(log.ExchangeSys,
 			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true

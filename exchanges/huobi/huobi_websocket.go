@@ -23,10 +23,11 @@ import (
 const (
 	baseWSURL = "wss://api.huobi.pro"
 
-	wsMarketURL   = baseWSURL + "/ws"
-	wsMarketKline = "market.%s.kline.1min"
-	wsMarketDepth = "market.%s.depth.step0"
-	wsMarketTrade = "market.%s.trade.detail"
+	wsMarketURL    = baseWSURL + "/ws"
+	wsMarketKline  = "market.%s.kline.1min"
+	wsMarketDepth  = "market.%s.depth.step0"
+	wsMarketTrade  = "market.%s.trade.detail"
+	wsMarketTicker = "market.%s.detail"
 
 	wsAccountsOrdersEndPoint = "/ws/v1"
 	wsAccountsList           = "accounts.list"
@@ -225,25 +226,6 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 	}
 
 	switch {
-	case strings.Contains(init.Channel, "tick"):
-		var ticker WsTick
-		err := common.JSONDecode(resp.Raw, &ticker)
-		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
-		}
-		data := strings.Split(ticker.Channel, ".")
-		h.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:  h.Name,
-			Open:      ticker.Tick.Open,
-			Close:     ticker.Tick.Close,
-			Volume:    ticker.Tick.Vol,
-			High:      ticker.Tick.High,
-			Low:       ticker.Tick.Low,
-			Timestamp: time.Unix(0, ticker.Timestamp),
-			AssetType: asset.Spot,
-			Pair:      currency.NewPairFromString(data[1]),
-		}
 	case strings.Contains(init.Channel, "depth"):
 		var depth WsDepth
 		err := common.JSONDecode(resp.Raw, &depth)
@@ -272,7 +254,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			LowPrice:   kline.Tick.Low,
 			Volume:     kline.Tick.Volume,
 		}
-	case strings.Contains(init.Channel, "trade"):
+	case strings.Contains(init.Channel, "trade.detail"):
 		var trade WsTrade
 		err := common.JSONDecode(resp.Raw, &trade)
 		if err != nil {
@@ -285,6 +267,26 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			AssetType:    asset.Spot,
 			CurrencyPair: currency.NewPairFromString(data[1]),
 			Timestamp:    time.Unix(0, trade.Tick.Timestamp),
+		}
+	case strings.Contains(init.Channel, "detail"):
+		var ticker WsTick
+		err := common.JSONDecode(resp.Raw, &ticker)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+		data := strings.Split(ticker.Channel, ".")
+		h.Websocket.DataHandler <- wshandler.TickerData{
+			Exchange:    h.Name,
+			Open:        ticker.Tick.Open,
+			Close:       ticker.Tick.Close,
+			Volume:      ticker.Tick.Amount,
+			QuoteVolume: ticker.Tick.Vol,
+			High:        ticker.Tick.High,
+			Low:         ticker.Tick.Low,
+			Timestamp:   time.Unix(0, ticker.Timestamp),
+			AssetType:   asset.Spot,
+			Pair:        currency.NewPairFromString(data[1]),
 		}
 	}
 }
@@ -322,7 +324,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBI) GenerateDefaultSubscriptions() {
-	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
+	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade, wsMarketTicker}
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, "orders.%v", "orders.%v.update")

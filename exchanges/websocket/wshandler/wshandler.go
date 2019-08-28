@@ -103,7 +103,7 @@ func (w *Websocket) Connect() error {
 	if !w.connectionMonitorRunning {
 		go w.connectionMonitor()
 	}
-	if w.SupportsFunctionality(WebsocketSubscribeSupported) && w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
+	if w.SupportsFunctionality(WebsocketSubscribeSupported) || w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
 		go w.manageSubscriptions()
 	}
 

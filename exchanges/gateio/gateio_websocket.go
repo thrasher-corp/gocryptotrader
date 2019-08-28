@@ -136,16 +136,16 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				g.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:  g.Name,
-					Open:      ticker.Open,
-					Close:     ticker.Close,
-					Volume:    ticker.BaseVolume,
-					High:      ticker.High,
-					Low:       ticker.Low,
-					Last:      ticker.Last,
-					Timestamp: time.Now(),
-					AssetType: asset.Spot,
-					Pair:      currency.NewPairFromString(c),
+					Exchange:    g.Name,
+					Open:        ticker.Open,
+					Close:       ticker.Close,
+					Volume:      ticker.BaseVolume,
+					QuoteVolume: ticker.QuoteVolume,
+					High:        ticker.High,
+					Low:         ticker.Low,
+					Last:        ticker.Last,
+					AssetType:   asset.Spot,
+					Pair:        currency.NewPairFromString(c),
 				}
 
 			case strings.Contains(result.Method, "trades"):

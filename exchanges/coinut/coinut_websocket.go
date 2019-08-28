@@ -139,14 +139,15 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 		currencyPair := instrumentListByCode[ticker.InstID]
 		c.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:  c.Name,
-			Volume:    ticker.Volume,
-			High:      ticker.HighestBuy,
-			Low:       ticker.LowestSell,
-			Last:      ticker.Last,
-			Timestamp: time.Unix(0, ticker.Timestamp),
-			AssetType: asset.Spot,
-			Pair:      currency.NewPairFromString(currencyPair),
+			Exchange:    c.Name,
+			Volume:      ticker.Volume,
+			QuoteVolume: ticker.VolumeQuote,
+			High:        ticker.HighestBuy,
+			Low:         ticker.LowestSell,
+			Last:        ticker.Last,
+			Timestamp:   time.Unix(0, ticker.Timestamp),
+			AssetType:   asset.Spot,
+			Pair:        currency.NewPairFromString(currencyPair),
 		}
 
 	case "inst_order_book":
@@ -245,9 +246,9 @@ func (c *COINUT) WsSetInstrumentList() error {
 	if err != nil {
 		return err
 	}
-	for currency, data := range list.Spot {
-		instrumentListByString[currency] = data[0].InstID
-		instrumentListByCode[data[0].InstID] = currency
+	for curr, data := range list.Spot {
+		instrumentListByString[curr] = data[0].InstID
+		instrumentListByCode[data[0].InstID] = curr
 	}
 	if len(instrumentListByString) == 0 || len(instrumentListByCode) == 0 {
 		return errors.New("instrument lists failed to populate")
@@ -414,11 +415,11 @@ func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) (*WsStandardOrder
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
-	currency := c.FormatExchangeCurrency(order.Currency, asset.Spot).String()
+	curr := c.FormatExchangeCurrency(order.Currency, asset.Spot).String()
 	var orderSubmissionRequest WsSubmitOrderRequest
 	orderSubmissionRequest.Request = "new_order"
 	orderSubmissionRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
-	orderSubmissionRequest.InstID = instrumentListByString[currency]
+	orderSubmissionRequest.InstID = instrumentListByString[curr]
 	orderSubmissionRequest.Qty = order.Amount
 	orderSubmissionRequest.Price = order.Price
 	orderSubmissionRequest.Side = string(order.Side)
@@ -523,13 +524,13 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]WsStandardO
 	}
 	orderRequest := WsSubmitOrdersRequest{}
 	for i := range orders {
-		currency := c.FormatExchangeCurrency(orders[i].Currency, asset.Spot).String()
+		curr := c.FormatExchangeCurrency(orders[i].Currency, asset.Spot).String()
 		orderRequest.Orders = append(orderRequest.Orders,
 			WsSubmitOrdersRequestData{
 				Qty:         orders[i].Amount,
 				Price:       orders[i].Price,
 				Side:        string(orders[i].Side),
-				InstID:      instrumentListByString[currency],
+				InstID:      instrumentListByString[curr],
 				ClientOrdID: i + 1,
 			})
 	}
@@ -582,11 +583,11 @@ func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v not authorised to get open orders", c.Name)
 	}
-	currency := c.FormatExchangeCurrency(p, asset.Spot).String()
+	curr := c.FormatExchangeCurrency(p, asset.Spot).String()
 	var openOrdersRequest WsGetOpenOrdersRequest
 	openOrdersRequest.Request = "user_open_orders"
 	openOrdersRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
-	openOrdersRequest.InstID = instrumentListByString[currency]
+	openOrdersRequest.InstID = instrumentListByString[curr]
 
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(openOrdersRequest.Nonce, openOrdersRequest)
 	if err != nil {
@@ -679,10 +680,10 @@ func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) error {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v not authorised to get trade history", c.Name)
 	}
-	currency := c.FormatExchangeCurrency(p, asset.Spot).String()
+	curr := c.FormatExchangeCurrency(p, asset.Spot).String()
 	var request WsTradeHistoryRequest
 	request.Request = "trade_history"
-	request.InstID = instrumentListByString[currency]
+	request.InstID = instrumentListByString[curr]
 	request.Nonce = c.WebsocketConn.GenerateMessageID(false)
 	request.Start = start
 	request.Limit = limit

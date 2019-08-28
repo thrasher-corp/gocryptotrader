@@ -204,7 +204,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 	}
 
 	for _, x := range z.GetEnabledPairs(assetType) {
-		currencySplit := strings.Split(z.FormatExchangeCurrency(x, assetType).String(), "_")
+		currencySplit := strings.Split(z.FormatExchangeCurrency(x, assetType).String(), z.CurrencyPairs.ConfigFormat.Delimiter)
 		curr := currencySplit[0] + currencySplit[1]
 		if _, ok := result[curr]; !ok {
 			continue

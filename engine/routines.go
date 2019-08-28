@@ -434,6 +434,8 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 					Bid:         d.Bid,
 					Ask:         d.Ask,
 					Volume:      d.Volume,
+					QuoteVolume: d.QuoteVolume,
+					PriceATH:    d.PriceATH,
 					Open:        d.Open,
 					Close:       d.Close,
 					Pair:        d.Pair,

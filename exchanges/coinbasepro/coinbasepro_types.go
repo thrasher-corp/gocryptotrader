@@ -447,7 +447,7 @@ type WebsocketTicker struct {
 	ProductID currency.Pair `json:"product_id"`
 	Price     float64       `json:"price,string"`
 	Open24H   float64       `json:"open_24h,string"`
-	Volume24H float64       `json:"volumen_24h,string"`
+	Volume24H float64       `json:"volume_24h,string"`
 	Low24H    float64       `json:"low_24h,string"`
 	High24H   float64       `json:"high_24h,string"`
 	Volume30D float64       `json:"volume_30d,string"`
