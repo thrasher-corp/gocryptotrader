@@ -463,8 +463,7 @@ func (o *Oex) SendHTTPRequest(path string, result interface{}) error {
 // ErrorCapture deals with errors
 func ErrorCapture(code, message string) error {
 	var temp []string
-	temp = append(temp, code)
-	temp = append(temp, message)
+	temp = append(temp, code, message)
 	return errors.New(strings.Join(temp, ":"))
 }
 
