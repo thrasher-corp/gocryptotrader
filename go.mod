@@ -1,15 +1,14 @@
-module github.com/thrasher-corp/gocryptotrader
-
-go 1.12
+module github.com/thrasher-/gocryptotrader
 
 require (
-	github.com/google/go-querystring v1.0.0
-	github.com/gorilla/mux v1.7.3
-	github.com/gorilla/websocket v1.4.1
-	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
-	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7 // indirect
-	golang.org/x/sys v0.0.0-20190825160603-fb81701db80f // indirect
-	golang.org/x/text v0.3.2 // indirect
-	golang.org/x/tools v0.0.0-20190825031127-d72b05d2b1b6 // indirect
+	github.com/beatgammit/turnpike v0.0.0-20170911161258-573f579df7ee // indirect
+	github.com/gorilla/context v0.0.0-20160226214623-1ea25387ff6f // indirect
+	github.com/gorilla/mux v1.6.1
+	github.com/gorilla/websocket v1.2.0
+	github.com/streamrail/concurrent-map v0.0.0-20160823150647-8bf1e9bacbf6 // indirect
+	github.com/thrasher-/socketio v0.0.0-20150420123453-38b9599889b9 // indirect
+	github.com/toorop/go-pusher v0.0.0-20180107133620-4549deda5702
+	github.com/ugorji/go v0.0.0-20180112141927-9831f2c3ac10 // indirect
+	golang.org/x/crypto v0.0.0-20180602220124-df8d4716b347
+	golang.org/x/net v0.0.0-20180201030042-309822c5b9b9 // indirect
 )
