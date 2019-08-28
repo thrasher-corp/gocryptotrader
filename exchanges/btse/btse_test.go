@@ -45,6 +45,14 @@ func TestGetMarkets(t *testing.T) {
 	}
 }
 
+func TestFetchOrderBook(t *testing.T) {
+	b.SetDefaults()
+	_, err := b.FetchOrderBook("BTC-USD")
+	if err != nil {
+		t.Fatalf("Test failed. Err: %s", err)
+	}
+}
+
 func TestGetTrades(t *testing.T) {
 	b.SetDefaults()
 	_, err := b.GetTrades("BTC-USD")
