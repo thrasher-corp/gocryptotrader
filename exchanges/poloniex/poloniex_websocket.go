@@ -210,9 +210,7 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) {
 	t.PercentageChange, _ = strconv.ParseFloat(tickerData[4].(string), 64)
 	t.BaseCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[5].(string), 64)
 	t.QuoteCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[6].(string), 64)
-	if tickerData[7].(float64) == 1 {
-		t.IsFrozen = true
-	}
+	t.IsFrozen = tickerData[7].(float64) == 1
 	t.HighestTradeIn24H, _ = strconv.ParseFloat(tickerData[8].(string), 64)
 	t.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
 
