@@ -25,6 +25,9 @@ type TickerV2 struct {
 	High    float64       `json:"high,string"`
 	Low     float64       `json:"low,string"`
 	Open    float64       `json:"open,string"`
+	Message string        `json:"message,omitempty"`
+	Reason  string        `json:"reason,omitempty"`
+	Result  string        `json:"result,omitempty"`
 	Symbol  currency.Pair `json:"symbol"`
 }
 

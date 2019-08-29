@@ -216,31 +216,31 @@ func TestCreateNewTicker(t *testing.T) {
 		t.Error("Test Failed - ticker CreateNewTicker.ExchangeName value is not ANX")
 	}
 
-	if !newTicker.Price[currency.BTC.Upper().String()][currency.USD.Upper().String()][asset.Spot].Pair.Equal(newPair) {
+	if !newTicker.Price[currency.BTC.Upper().String()][currency.USD.Upper().String()][asset.Spot.String()].Pair.Equal(newPair) {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Pair.Pair().String() value is not expected 'BTCUSD'")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot].Ask).String() != float64Type {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Ask).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Ask value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot].Bid).String() != float64Type {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Bid).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Bid value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot].Pair).String() != "currency.Pair" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Pair).String() != "currency.Pair" {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].CurrencyPair value is not a currency.Pair")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot].High).String() != float64Type {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].High).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].High value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot].Last).String() != float64Type {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Last).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Last value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot].Low).String() != float64Type {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Low).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Low value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot].PriceATH).String() != float64Type {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].PriceATH).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].PriceATH value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot].Volume).String() != float64Type {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Volume).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Volume value is not a float64")
 	}
 }

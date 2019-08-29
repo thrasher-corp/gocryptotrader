@@ -97,8 +97,8 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	}
 }
 
-func TestGetTicker(t *testing.T) {
-	_, err := h.GetTicker("")
+func TestGetAllTickers(t *testing.T) {
+	_, err := h.GetTickers()
 	if err != nil {
 		t.Error(err)
 	}

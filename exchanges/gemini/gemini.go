@@ -81,6 +81,12 @@ func (g *Gemini) GetTicker(currencyPair string) (TickerV2, error) {
 	if err != nil {
 		return ticker, err
 	}
+	if ticker.Result == "error" {
+		return ticker, fmt.Errorf("%v %v %v",
+			g.Name,
+			ticker.Reason,
+			ticker.Message)
+	}
 
 	return ticker, nil
 }
