@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2356,4 +2357,100 @@ func disableExchangePair(c *cli.Context) error {
 	}
 	jsonOutput(result)
 	return nil
+}
+
+var getOrderbookStreamCommand = cli.Command{
+	Name:      "getorderbookstream",
+	Usage:     "gets the orderbook stream for a specific currency pair and exchange",
+	ArgsUsage: "<exchange> <base> <quote> <asset>",
+	Action:    getOrderbookStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the ticker for",
+		},
+		cli.StringFlag{
+			Name:  "base",
+			Usage: "base currency",
+		},
+		cli.StringFlag{
+			Name:  "quote",
+			Usage: "quote currency",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type of the currency pair",
+		},
+	},
+}
+
+func getOrderbookStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getorderbookstream")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var exchangeName string
+	var base string
+	var quote string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("base") {
+		base = c.String("base")
+	} else {
+		base = c.Args().Get(1)
+	}
+
+	if c.IsSet("quote") {
+		quote = c.String("quote")
+	} else {
+		quote = c.Args().Get(2)
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(3)
+	}
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetOrderbookStream(context.Background(),
+		&gctrpc.GetOrderbookStreamRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Base:  base,
+				Quote: quote,
+			},
+			AssetType: assetType,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("RPC stream POC")
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Orderbook received for %v @ %s \n",
+			resp.Pair,
+			time.Now())
+	}
 }

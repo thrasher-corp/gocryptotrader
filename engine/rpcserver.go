@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	// "os"
+
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -17,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -953,5 +956,58 @@ func (s *RPCServer) DisableExchangePair(ctx context.Context, r *gctrpc.ExchangeP
 	err = GetExchangeByName(r.Exchange).GetBase().CurrencyPairs.DisablePair(
 		asset.Item(r.AssetType), p)
 	return &gctrpc.GenericExchangeNameResponse{}, err
+}
 
+// GetOrderbookStream is a test stream for cli
+func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetOrderbookStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New("exchange name unset")
+	}
+
+	if r.Pair.String() == "" {
+		return errors.New("currency pair unset")
+	}
+
+	if r.AssetType == "" {
+		return errors.New("asset type unset")
+	}
+
+	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+
+	a, err := orderbook.SubscribeOrderbook(r.Exchange, p, asset.Item(r.AssetType))
+	if err != nil {
+		return err
+	}
+
+	defer a.Release()
+
+	for {
+		// TODO: Redo channel definition
+		wow := <-a.C
+		wowagain := wow.(*orderbook.Base)
+		var bids, asks []*gctrpc.OrderbookItem
+		for i := range wowagain.Bids {
+			bids = append(bids, &gctrpc.OrderbookItem{
+				Amount: wowagain.Bids[i].Amount,
+				Price:  wowagain.Bids[i].Price,
+				Id:     wowagain.Bids[i].ID,
+			})
+		}
+		for i := range wowagain.Asks {
+			asks = append(asks, &gctrpc.OrderbookItem{
+				Amount: wowagain.Asks[i].Amount,
+				Price:  wowagain.Asks[i].Price,
+				Id:     wowagain.Asks[i].ID,
+			})
+		}
+		err := stream.Send(&gctrpc.OrderbookResponse{
+			Pair:      r.Pair,
+			Bids:      bids,
+			Asks:      asks,
+			AssetType: r.AssetType,
+		})
+		if err != nil {
+			return err
+		}
+	}
 }

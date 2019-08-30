@@ -489,6 +489,12 @@ message ExchangePairRequest {
     CurrencyPair pair = 3;
 }
 
+message GetOrderbookStreamRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    string asset_type = 3;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -769,6 +775,11 @@ service GoCryptoTrader {
         option (google.api.http) = {
             post: "/v1/disableexchangepair",
             body: "*"
+        };
+    }
+    rpc GetOrderbookStream(GetOrderbookStreamRequest) returns (stream OrderbookResponse) {
+        option (google.api.http) = {
+            get: "/v1/getorderbookstream"
         };
     }
 }

@@ -128,6 +128,7 @@ func main() {
 		getExchangePairsCommand,
 		enableExchangePairCommand,
 		disableExchangePairCommand,
+		getOrderbookStreamCommand,
 	}
 
 	err := app.Run(os.Args)
