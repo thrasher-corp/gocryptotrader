@@ -235,7 +235,7 @@ func TestGetTradeVolume(t *testing.T) {
 // TestAddOrder API endpoint test
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
-	args := AddOrderOptions{Oflags: "fcib"}
+	args := AddOrderOptions{OrderFlags: "fcib"}
 	_, err := k.AddOrder("XXBTZUSD",
 		exchange.SellOrderSide.ToLower().ToString(), exchange.LimitOrderType.ToLower().ToString(),
 		0.00000001, 0, 0, 0, &args)

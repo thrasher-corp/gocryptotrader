@@ -173,7 +173,7 @@ func (a *ANX) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var currencies []string
 	for x := range result.CurrencyPairs {
-		currencies = append(currencies, fmt.Sprintf("%v%v%v", result.CurrencyPairs[x].TradedCcy, a.CurrencyPairs.ConfigFormat.Delimiter, result.CurrencyPairs[x].SettlementCcy))
+		currencies = append(currencies, fmt.Sprintf("%v%v%v", result.CurrencyPairs[x].TradedCcy, a.GetPairFormat(asset, false).Delimiter, result.CurrencyPairs[x].SettlementCcy))
 	}
 
 	return currencies, nil
@@ -191,7 +191,7 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 	low, _ := convert.FloatFromString(tick.Data.Low.Value)
 	bid, _ := convert.FloatFromString(tick.Data.Buy.Value)
 	ask, _ := convert.FloatFromString(tick.Data.Sell.Value)
-	volume, _ := convert.FloatFromString(tick.Data.Vol.Value)
+	volume, _ := convert.FloatFromString(tick.Data.Volume.Value)
 
 	tickerPrice = ticker.Price{
 		Last:        last,

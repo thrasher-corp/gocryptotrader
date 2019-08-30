@@ -72,12 +72,12 @@ type TickerResponse struct {
 
 // TickerChildResponse holds the ticker child response data
 type TickerChildResponse struct {
-	Vol  float64 `json:"vol,string"`  // 成交量(最近的24小时)
-	Last float64 `json:"last,string"` // 最新成交价
-	Sell float64 `json:"sell,string"` // 卖一价
-	Buy  float64 `json:"buy,string"`  // 买一价
-	High float64 `json:"high,string"` // 最高价
-	Low  float64 `json:"low,string"`  // 最低价
+	Volume float64 `json:"vol,string"`  // 成交量(最近的24小时)
+	Last   float64 `json:"last,string"` // 最新成交价
+	Sell   float64 `json:"sell,string"` // 卖一价
+	Buy    float64 `json:"buy,string"`  // 买一价
+	High   float64 `json:"high,string"` // 最高价
+	Low    float64 `json:"low,string"`  // 最低价
 }
 
 // SpotNewOrderRequestParamsType ZB 交易类型

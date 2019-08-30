@@ -145,7 +145,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 		}
 
 		for x := range prods {
-			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency, o.CurrencyPairs.ConfigFormat.Delimiter, prods[x].QuoteCurrency))
+			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency, o.GetPairFormat(i, false).Delimiter, prods[x].QuoteCurrency))
 		}
 		return pairs, nil
 	case asset.Futures:
@@ -156,7 +156,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].UnderlyingIndex+prods[x].QuoteCurrency, o.CurrencyPairs.ConfigFormat.Delimiter, prods[x].Delivery))
+			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].UnderlyingIndex+prods[x].QuoteCurrency, o.GetPairFormat(i, false).Delimiter, prods[x].Delivery))
 		}
 		return pairs, nil
 
@@ -168,11 +168,11 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, fmt.Sprintf("%v%v%v%vSWAP", prods[x].UnderlyingIndex, o.CurrencyPairs.ConfigFormat.Delimiter, prods[x].QuoteCurrency, o.CurrencyPairs.ConfigFormat.Delimiter))
+			pairs = append(pairs, fmt.Sprintf("%v%v%v%vSWAP", prods[x].UnderlyingIndex, o.GetPairFormat(i, false).Delimiter, prods[x].QuoteCurrency, o.GetPairFormat(i, false).Delimiter))
 		}
 		return pairs, nil
 	case asset.Index:
-		return []string{fmt.Sprintf("BTC%vUSD", o.CurrencyPairs.ConfigFormat.Delimiter)}, nil
+		return []string{fmt.Sprintf("BTC%vUSD", o.GetPairFormat(i, false).Delimiter)}, nil
 	}
 
 	return nil, fmt.Errorf("%s invalid asset type", o.Name)

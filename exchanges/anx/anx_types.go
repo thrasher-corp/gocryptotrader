@@ -161,16 +161,16 @@ type TickerComponent struct {
 type Ticker struct {
 	Result string `json:"result"`
 	Data   struct {
-		High       TickerComponent `json:"high"`
-		Low        TickerComponent `json:"low"`
-		Avg        TickerComponent `json:"avg"`
-		Vwap       TickerComponent `json:"vwap"`
-		Vol        TickerComponent `json:"vol"`
-		Last       TickerComponent `json:"last"`
-		Buy        TickerComponent `json:"buy"`
-		Sell       TickerComponent `json:"sell"`
-		Now        int64           `json:"now,string"`
-		UpdateTime int64           `json:"dataUpdateTime,string"`
+		High                       TickerComponent `json:"high"`
+		Low                        TickerComponent `json:"low"`
+		Average                    TickerComponent `json:"avg"`
+		VolumeWeightedAveragePrice TickerComponent `json:"vwap"`
+		Volume                     TickerComponent `json:"vol"`
+		Last                       TickerComponent `json:"last"`
+		Buy                        TickerComponent `json:"buy"`
+		Sell                       TickerComponent `json:"sell"`
+		Now                        int64           `json:"now,string"`
+		UpdateTime                 int64           `json:"dataUpdateTime,string"`
 	} `json:"data"`
 }
 

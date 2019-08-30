@@ -281,7 +281,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			Open:        ticker.Tick.Open,
 			Close:       ticker.Tick.Close,
 			Volume:      ticker.Tick.Amount,
-			QuoteVolume: ticker.Tick.Vol,
+			QuoteVolume: ticker.Tick.Volume,
 			High:        ticker.Tick.High,
 			Low:         ticker.Tick.Low,
 			Timestamp:   time.Unix(0, ticker.Timestamp),

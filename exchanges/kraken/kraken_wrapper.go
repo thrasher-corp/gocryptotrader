@@ -168,9 +168,9 @@ func (k *Kraken) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), k.CurrencyPairs.ConfigFormat.Delimiter) ||
-		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), k.CurrencyPairs.ConfigFormat.Delimiter) {
-		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSD", k.CurrencyPairs.ConfigFormat.Delimiter)})
+	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), k.GetPairFormat(asset.Spot, false).Delimiter) ||
+		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), k.GetPairFormat(asset.Spot, false).Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSD", k.GetPairFormat(asset.Spot, false).Delimiter)})
 		log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
@@ -211,7 +211,7 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
 			v.Quote = v.Quote[1:]
 		}
-		products = append(products, fmt.Sprintf("%v%v%v", v.Base, k.CurrencyPairs.ConfigFormat.Delimiter, v.Quote))
+		products = append(products, fmt.Sprintf("%v%v%v", v.Base, k.GetPairFormat(asset, false).Delimiter, v.Quote))
 	}
 	return products, nil
 }
@@ -486,19 +486,19 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for i := range resp.Open {
-		symbol := currency.NewPairFromString(resp.Open[i].Descr.Pair)
-		orderDate := time.Unix(int64(resp.Open[i].StartTm), 0)
-		side := exchange.OrderSide(strings.ToUpper(resp.Open[i].Descr.Type))
-		orderType := exchange.OrderType(strings.ToUpper(resp.Open[i].Descr.OrderType))
+		symbol := currency.NewPairFromString(resp.Open[i].Description.Pair)
+		orderDate := time.Unix(int64(resp.Open[i].StartTime), 0)
+		side := exchange.OrderSide(strings.ToUpper(resp.Open[i].Description.Type))
+		orderType := exchange.OrderType(strings.ToUpper(resp.Open[i].Description.OrderType))
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              i,
-			Amount:          resp.Open[i].Vol,
-			RemainingAmount: (resp.Open[i].Vol - resp.Open[i].VolExec),
-			ExecutedAmount:  resp.Open[i].VolExec,
+			Amount:          resp.Open[i].Volume,
+			RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
+			ExecutedAmount:  resp.Open[i].VolumeExecuted,
 			Exchange:        k.Name,
 			OrderDate:       orderDate,
-			Price:           resp.Open[i].Descr.Price,
+			Price:           resp.Open[i].Description.Price,
 			OrderSide:       side,
 			OrderType:       orderType,
 			CurrencyPair:    symbol,
@@ -530,19 +530,19 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for i := range resp.Closed {
-		symbol := currency.NewPairFromString(resp.Closed[i].Descr.Pair)
-		orderDate := time.Unix(int64(resp.Closed[i].StartTm), 0)
-		side := exchange.OrderSide(strings.ToUpper(resp.Closed[i].Descr.Type))
-		orderType := exchange.OrderType(strings.ToUpper(resp.Closed[i].Descr.OrderType))
+		symbol := currency.NewPairFromString(resp.Closed[i].Description.Pair)
+		orderDate := time.Unix(int64(resp.Closed[i].StartTime), 0)
+		side := exchange.OrderSide(strings.ToUpper(resp.Closed[i].Description.Type))
+		orderType := exchange.OrderType(strings.ToUpper(resp.Closed[i].Description.OrderType))
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              i,
-			Amount:          resp.Closed[i].Vol,
-			RemainingAmount: (resp.Closed[i].Vol - resp.Closed[i].VolExec),
-			ExecutedAmount:  resp.Closed[i].VolExec,
+			Amount:          resp.Closed[i].Volume,
+			RemainingAmount: (resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted),
+			ExecutedAmount:  resp.Closed[i].VolumeExecuted,
 			Exchange:        k.Name,
 			OrderDate:       orderDate,
-			Price:           resp.Closed[i].Descr.Price,
+			Price:           resp.Closed[i].Description.Price,
 			OrderSide:       side,
 			OrderType:       orderType,
 			CurrencyPair:    symbol,

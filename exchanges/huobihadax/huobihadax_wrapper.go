@@ -191,7 +191,7 @@ func (h *HUOBIHADAX) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range symbols {
-		pairs = append(pairs, fmt.Sprintf("%v%v%v", symbols[x].BaseCurrency, h.CurrencyPairs.ConfigFormat.Delimiter, symbols[x].QuoteCurrency))
+		pairs = append(pairs, fmt.Sprintf("%v%v%v", symbols[x].BaseCurrency, h.GetPairFormat(asset, false).Delimiter, symbols[x].QuoteCurrency))
 	}
 
 	return pairs, nil
@@ -224,7 +224,7 @@ func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker
 			tickerPrice := ticker.Price{
 				High:   tickers.Data[j].High,
 				Low:    tickers.Data[j].Low,
-				Volume: tickers.Data[j].Vol,
+				Volume: tickers.Data[j].Volume,
 				Open:   tickers.Data[j].Open,
 				Close:  tickers.Data[j].Close,
 				Pair:   tickers.Data[j].Symbol,

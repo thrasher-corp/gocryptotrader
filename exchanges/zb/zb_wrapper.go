@@ -204,7 +204,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 	}
 
 	for _, x := range z.GetEnabledPairs(assetType) {
-		currencySplit := strings.Split(z.FormatExchangeCurrency(x, assetType).String(), z.CurrencyPairs.ConfigFormat.Delimiter)
+		currencySplit := strings.Split(z.FormatExchangeCurrency(x, assetType).String(), z.GetPairFormat(assetType, false).Delimiter)
 		curr := currencySplit[0] + currencySplit[1]
 		if _, ok := result[curr]; !ok {
 			continue
@@ -216,7 +216,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 		tp.Ask = result[curr].Sell
 		tp.Bid = result[curr].Buy
 		tp.Low = result[curr].Low
-		tp.Volume = result[curr].Vol
+		tp.Volume = result[curr].Volume
 
 		err = ticker.ProcessTicker(z.Name, &tp, assetType)
 		if err != nil {

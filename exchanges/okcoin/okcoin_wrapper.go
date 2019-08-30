@@ -143,7 +143,7 @@ func (o *OKCoin) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range prods {
-		pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency, o.CurrencyPairs.ConfigFormat.Delimiter, prods[x].QuoteCurrency))
+		pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency, o.GetPairFormat(asset, false).Delimiter, prods[x].QuoteCurrency))
 	}
 
 	return pairs, nil

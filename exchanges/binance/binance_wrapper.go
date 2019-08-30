@@ -163,9 +163,9 @@ func (b *Binance) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), b.CurrencyPairs.ConfigFormat.Delimiter) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), b.CurrencyPairs.ConfigFormat.Delimiter) {
-		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSDT", b.CurrencyPairs.ConfigFormat.Delimiter)})
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), b.GetPairFormat(asset.Spot, false).Delimiter) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), b.GetPairFormat(asset.Spot, false).Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSDT", b.GetPairFormat(asset.Spot, false).Delimiter)})
 		log.Warn(log.ExchangeSys,
 			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
@@ -199,7 +199,7 @@ func (b *Binance) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if info.Symbols[x].Status == "TRADING" {
 			validCurrencyPairs = append(validCurrencyPairs, fmt.Sprintf("%v%v%v",
 				info.Symbols[x].BaseAsset,
-				b.CurrencyPairs.ConfigFormat.Delimiter,
+				b.GetPairFormat(asset, false).Delimiter,
 				info.Symbols[x].QuoteAsset))
 		}
 	}
