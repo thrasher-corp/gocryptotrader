@@ -142,6 +142,7 @@ func (z *ZB) WsHandleData() {
 				newOrderBook.Bids = bids
 				newOrderBook.AssetType = asset.Spot
 				newOrderBook.Pair = cPair
+				newOrderBook.ExchangeName = z.GetName()
 
 				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 				if err != nil {
