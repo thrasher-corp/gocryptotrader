@@ -72,13 +72,13 @@ func (r *Rotate) openOrCreateFile(n int64) error {
 
 func (r *Rotate) openNew() error {
 	name := filepath.Join(LogPath, r.FileName)
-
-	t := time.Now()
-	timestamp := t.Format("2006-01-02T15-04-05")
-	newName := filepath.Join(LogPath, timestamp+"-"+r.FileName)
 	_, err := os.Stat(name)
 
 	if err == nil {
+		t := time.Now()
+		timestamp := t.Format("2006-01-02T15-04-05")
+		newName := filepath.Join(LogPath, timestamp+"-"+r.FileName)
+
 		err = os.Rename(name, newName)
 		if err != nil {
 			return fmt.Errorf("can't rename log file: %s", err)
@@ -105,6 +105,7 @@ func (r *Rotate) close() (err error) {
 	return err
 }
 
+// Close handler for open file
 func (r *Rotate) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

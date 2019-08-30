@@ -51,6 +51,7 @@ type Logger struct {
 	Spacer                                           string
 }
 
+// Levels flags for each sub logger type
 type Levels struct {
 	Info, Debug, Warn, Error bool
 }
@@ -61,6 +62,7 @@ type subLogger struct {
 	output io.Writer
 }
 
+// LogEvent holds the data sent to the log and which multiwriter to send to
 type LogEvent struct {
 	data   []byte
 	output io.Writer
@@ -68,14 +70,17 @@ type LogEvent struct {
 
 type multiWriter struct {
 	writers []io.Writer
-	mu      sync.Mutex
+	mu      sync.RWMutex
 }
 
 var (
-	logger                         = &Logger{}
+	logger = &Logger{}
+	// FileLoggingConfiguredCorrectly flag set during config check if file logging meets requirements
 	FileLoggingConfiguredCorrectly bool
-	GlobalLogConfig                = &Config{} // GlobalLogConfig hold global configuration options for logger
-	GlobalLogFile                  = &Rotate{}
+	// GlobalLogConfig holds global configuration options for logger
+	GlobalLogConfig = &Config{}
+	// GlobalLogFile hold global configuration options for file logger
+	GlobalLogFile = &Rotate{}
 
 	eventPool = &sync.Pool{
 		New: func() interface{} {
@@ -85,5 +90,6 @@ var (
 		},
 	}
 
+	// LogPath system path to store log files in
 	LogPath string
 )
