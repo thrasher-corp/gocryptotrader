@@ -100,7 +100,7 @@ func (b *BTSE) WsHandleData() {
 					Ask:       t.BestAsk,
 					Last:      t.LastSize,
 					AssetType: asset.Spot,
-					Pair:      currency.NewPairDelimiter(t.ProductID, b.Config.ConfigCurrencyPairFormat.Delimiter),
+					Pair:      currency.NewPairDelimiter(t.ProductID, b.GetPairFormat(asset.Spot, false).Delimiter),
 				}
 			case "snapshot":
 				snapshot := websocketOrderbookSnapshot{}

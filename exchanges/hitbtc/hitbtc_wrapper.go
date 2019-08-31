@@ -234,7 +234,7 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) 
 				Volume:      tick[j].Volume,
 				QuoteVolume: tick[j].VolumeQuote,
 				Open:        tick[j].Open,
-				Pair:        pairs[j],
+				Pair:        pairs[i],
 				LastUpdated: tick[j].Timestamp,
 			}
 			err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)

@@ -59,7 +59,7 @@ func (o *OKEX) SetDefaults() {
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
-			Uppercase: false,
+			Uppercase: true,
 			Delimiter: "-",
 		},
 
@@ -197,12 +197,13 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, _ error) {
+func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+	var tickerData ticker.Price
 	switch assetType {
 	case asset.Spot:
 		resp, err := o.GetSpotAllTokenPairsInformation()
 		if err != nil {
-			return
+			return tickerData, err
 		}
 		pairs := o.GetEnabledPairs(assetType)
 		for i := range pairs {
@@ -231,7 +232,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerData t
 	case asset.PerpetualSwap:
 		resp, err := o.GetAllSwapTokensInformation()
 		if err != nil {
-			return
+			return tickerData, err
 		}
 		pairs := o.GetEnabledPairs(assetType)
 		for i := range pairs {
@@ -258,7 +259,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerData t
 	case asset.Futures:
 		resp, err := o.GetAllFuturesTokenInfo()
 		if err != nil {
-			return
+			return tickerData, err
 		}
 		pairs := o.GetEnabledPairs(assetType)
 		for i := range pairs {

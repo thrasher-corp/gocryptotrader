@@ -60,11 +60,11 @@ func (k *Kraken) SetDefaults() {
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Separator: ",",
-			Delimiter: "",
 		},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: "",
 			Uppercase: true,
+			Delimiter: "-",
+			Separator: ",",
 		},
 	}
 

@@ -122,7 +122,7 @@ func (h *HitBTC) GetTicker(symbol string) (TickerResponse, error) {
 	return resp, h.SendHTTPRequest(path, &resp)
 }
 
-// GetTicker returns ticker information
+// GetTickers returns ticker information
 func (h *HitBTC) GetTickers() ([]TickerResponse, error) {
 	var resp []TickerResponse
 	path := fmt.Sprintf("%s/%s/", h.API.Endpoints.URL, apiV2Ticker)
