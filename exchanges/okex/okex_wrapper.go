@@ -123,6 +123,27 @@ func (o *OKEX) Run() {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.API.Endpoints.WebsocketURL)
 	}
+	if o.Config.CurrencyPairs.ConfigFormat.Delimiter != o.CurrencyPairs.ConfigFormat.Delimiter {
+		o.Config.CurrencyPairs.ConfigFormat.Delimiter = o.CurrencyPairs.ConfigFormat.Delimiter
+	}
+	if o.Config.CurrencyPairs.RequestFormat.Uppercase != o.CurrencyPairs.RequestFormat.Uppercase {
+		o.Config.CurrencyPairs.RequestFormat.Uppercase = true
+	}
+	if o.Config.CurrencyPairs.RequestFormat.Delimiter != o.CurrencyPairs.RequestFormat.Delimiter {
+		o.Config.CurrencyPairs.RequestFormat.Delimiter = o.CurrencyPairs.RequestFormat.Delimiter
+	}
+
+	if !common.StringDataContains(o.Config.CurrencyPairs.Pairs[asset.Spot].Enabled.Strings(), o.CurrencyPairs.RequestFormat.Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{"EOS-USDT"})
+		log.Warnf(log.ExchangeSys,
+			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.", o.Name)
+
+		err := o.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update currencies.\n", o.GetName())
+			return
+		}
+	}
 
 	if !o.GetEnabledFeatures().AutoPairUpdates {
 		return
