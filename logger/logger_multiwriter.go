@@ -11,7 +11,7 @@ func (mw *multiWriter) Add(writer io.Writer) {
 	mw.mu.Unlock()
 }
 
-// Remove removes exisiting writer from multiwriter slice
+// Remove removes existing writer from multiwriter slice
 func (mw *multiWriter) Remove(writer io.Writer) {
 	mw.mu.Lock()
 
@@ -37,8 +37,10 @@ func (mw *multiWriter) Write(p []byte) (n int, err error) {
 		n   int
 		err error
 	}
+	mw.mu.RLock()
+	defer mw.mu.RUnlock()
 
-	results := make(chan data)
+	results := make(chan data, len(mw.writers))
 
 	for _, wr := range mw.writers {
 		go func(w io.Writer, p []byte, ch chan data) {
@@ -51,10 +53,7 @@ func (mw *multiWriter) Write(p []byte) (n int, err error) {
 				ch <- data{n, io.ErrShortWrite}
 				return
 			}
-			select {
-			case ch <- data{n, nil}:
-			default:
-			}
+			ch <- data{n, nil}
 		}(wr, p, results)
 	}
 
