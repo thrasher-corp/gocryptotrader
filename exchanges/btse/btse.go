@@ -143,7 +143,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) {
 }
 
 // GetMarketsSummary stores market summary data
-func (b *BTSE) GetMarketsSummary(pair string) (*HighLevelMarketData, error) {
+func (b *BTSE) GetMarketsSummary() (*HighLevelMarketData, error) {
 	var m HighLevelMarketData
 	return &m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m)
 }
