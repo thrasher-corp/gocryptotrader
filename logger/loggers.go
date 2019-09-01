@@ -163,6 +163,6 @@ func Errorf(sl *subLogger, data string, v ...interface{}) {
 
 func displayError(err error) {
 	if err != nil {
-		log.Printf("logger write error: %v", err)
+		log.Printf("Logger write error: %v\n", err)
 	}
 }
