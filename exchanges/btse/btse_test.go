@@ -37,6 +37,14 @@ func TestSetup(t *testing.T) {
 	b.Setup(&btseConfig)
 }
 
+func TestGetMarketsSummary(t *testing.T) {
+	b.SetDefaults()
+	_, err := b.GetMarketsSummary()
+	if err != nil {
+		t.Fatalf("Test failed. Err: %s", err)
+	}
+}
+
 func TestGetMarkets(t *testing.T) {
 	b.SetDefaults()
 	_, err := b.GetMarkets()

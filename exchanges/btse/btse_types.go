@@ -14,12 +14,11 @@ type OverviewData struct {
 }
 
 // HighLevelMarketData stores market overview data
-type HighLevelMarketData struct {
-	String OverviewData `json:"string"`
-}
+type HighLevelMarketData map[string]OverviewData
 
 // Market stores market data
 type Market struct {
+	ID                  string  `json:"id"`
 	BaseCurrency        string  `json:"base_currency"`
 	QuoteCurrency       string  `json:"quote_currency"`
 	BaseMinSize         float64 `json:"base_min_size"`
