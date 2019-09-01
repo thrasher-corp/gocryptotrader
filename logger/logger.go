@@ -22,6 +22,7 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) error {
 	if w == nil {
 		return errors.New("io.Writer not set")
 	}
+
 	e := eventPool.Get().(*LogEvent)
 	e.output = w
 	e.data = append(e.data, []byte(header)...)
@@ -35,9 +36,6 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) error {
 		e.data = append(e.data, '\n')
 	}
 	_, err := e.output.Write(e.data)
-	if err != nil {
-		fmt.Printf("Log Write failed: %v\n", err)
-	}
 
 	e.data = e.data[:0]
 	eventPool.Put(e)

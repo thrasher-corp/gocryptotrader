@@ -75,8 +75,7 @@ func (r *Rotate) openNew() error {
 	_, err := os.Stat(name)
 
 	if err == nil {
-		t := time.Now()
-		timestamp := t.Format("2006-01-02T15-04-05")
+		timestamp := time.Now().Format("2006-01-02T15-04-05")
 		newName := filepath.Join(LogPath, timestamp+"-"+r.FileName)
 
 		err = os.Rename(name, newName)
