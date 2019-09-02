@@ -98,7 +98,6 @@ func (b *BTSE) WsHandleData() {
 					Close:     price,
 					Bid:       t.BestBids,
 					Ask:       t.BestAsk,
-					Last:      t.LastSize,
 					AssetType: asset.Spot,
 					Pair:      currency.NewPairDelimiter(t.ProductID, b.GetPairFormat(asset.Spot, false).Delimiter),
 				}

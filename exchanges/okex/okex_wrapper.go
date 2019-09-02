@@ -57,17 +57,34 @@ func (o *OKEX) SetDefaults() {
 			asset.PerpetualSwap,
 			asset.Index,
 		},
-		UseGlobalFormat: true,
+		UseGlobalFormat: false,
+	}
+	// Same format used for perpetual swap and futures
+	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "-",
 		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "_",
+		},
+	}
+	o.CurrencyPairs.Store(asset.PerpetualSwap, fmt1)
+	o.CurrencyPairs.Store(asset.Futures, fmt1)
 
+	fmt2 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "-",
 		},
 	}
+	o.CurrencyPairs.Store(asset.Spot, fmt2)
+	o.CurrencyPairs.Store(asset.Index, fmt2)
 
 	o.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -123,17 +140,22 @@ func (o *OKEX) Run() {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.API.Endpoints.WebsocketURL)
 	}
-	if o.Config.CurrencyPairs.ConfigFormat.Delimiter != o.CurrencyPairs.ConfigFormat.Delimiter {
-		o.Config.CurrencyPairs.ConfigFormat.Delimiter = o.CurrencyPairs.ConfigFormat.Delimiter
-	}
-	if o.Config.CurrencyPairs.RequestFormat.Uppercase != o.CurrencyPairs.RequestFormat.Uppercase {
-		o.Config.CurrencyPairs.RequestFormat.Uppercase = true
-	}
-	if o.Config.CurrencyPairs.RequestFormat.Delimiter != o.CurrencyPairs.RequestFormat.Delimiter {
-		o.Config.CurrencyPairs.RequestFormat.Delimiter = o.CurrencyPairs.RequestFormat.Delimiter
+	if o.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat == nil {
+		fmt := currency.PairStore{
+			RequestFormat: &currency.PairFormat{
+				Uppercase: true,
+				Delimiter: "-",
+			},
+			ConfigFormat: &currency.PairFormat{
+				Uppercase: true,
+				Delimiter: "-",
+			},
+		}
+		o.CurrencyPairs.Store(asset.Spot, fmt)
+		o.Config.CurrencyPairs.Store(asset.Spot, fmt)
 	}
 
-	if !common.StringDataContains(o.Config.CurrencyPairs.Pairs[asset.Spot].Enabled.Strings(), o.CurrencyPairs.RequestFormat.Delimiter) {
+	if !common.StringDataContains(o.Config.CurrencyPairs.Pairs[asset.Spot].Enabled.Strings(), o.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter) {
 		enabledPairs := currency.NewPairsFromStrings([]string{"EOS-USDT"})
 		log.Warnf(log.ExchangeSys,
 			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.", o.Name)
