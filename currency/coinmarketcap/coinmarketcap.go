@@ -16,7 +16,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Coinmarketcap account plan bitmasks, url and enpoint consts
@@ -80,19 +79,16 @@ func (c *Coinmarketcap) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (c *Coinmarketcap) Setup(conf Settings) {
+func (c *Coinmarketcap) Setup(conf Settings) error {
 	if !conf.Enabled {
 		c.Enabled = false
-	} else {
-		err := c.SetAccountPlan(conf.AccountPlan)
-		if err != nil {
-			log.Errorf(log.Global, "CoinMarketCap enabled but SetAccountPlan failed. Err: %s\n", err)
-			return
-		}
-		c.Enabled = true
-		c.Verbose = conf.Verbose
-		c.APIkey = conf.APIkey
+		return nil
 	}
+
+	c.Enabled = true
+	c.Verbose = conf.Verbose
+	c.APIkey = conf.APIkey
+	return c.SetAccountPlan(conf.AccountPlan)
 }
 
 // GetCryptocurrencyInfo returns all static metadata for one or more

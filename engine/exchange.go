@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"os"
 	"strings"
 	"sync"
 
@@ -313,8 +312,4 @@ func SetupExchanges() {
 		)
 	}
 	wg.Wait()
-	if len(Bot.Exchanges) == 0 {
-		log.Errorln(log.Global, "No exchanges were able to be loaded. Exiting")
-		os.Exit(1)
-	}
 }

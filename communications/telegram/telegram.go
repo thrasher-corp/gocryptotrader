@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -39,9 +39,16 @@ const (
 	talkRoot = "GoCryptoTrader bot"
 )
 
+var (
+	// ErrWaiter is the default timer to wait if an err occurs
+	// before retrying after successfully connecting
+	ErrWaiter = time.Second * 30
+)
+
 // Telegram is the overarching type across this package
 type Telegram struct {
 	base.Base
+	initConnected     bool
 	Token             string
 	Offset            int64
 	AuthorisedClients []int64
@@ -63,6 +70,8 @@ func (t *Telegram) Connect() error {
 	if err := t.TestConnection(); err != nil {
 		return err
 	}
+
+	log.Debugln(log.CommunicationMgr, "Telegram: Connected successfully!")
 	t.Connected = true
 	go t.PollerStart()
 	return nil
@@ -70,9 +79,10 @@ func (t *Telegram) Connect() error {
 
 // PushEvent sends an event to a supplied recipient list via telegram
 func (t *Telegram) PushEvent(event base.Event) error {
+	msg := fmt.Sprintf("Type: %s Message: %s",
+		event.Type, event.Message)
 	for i := range t.AuthorisedClients {
-		err := t.SendMessage(fmt.Sprintf("Type: %s Message: %s",
-			event.Type, event.Message), t.AuthorisedClients[i])
+		err := t.SendMessage(msg, t.AuthorisedClients[i])
 		if err != nil {
 			return err
 		}
@@ -82,12 +92,25 @@ func (t *Telegram) PushEvent(event base.Event) error {
 
 // PollerStart starts the long polling sequence
 func (t *Telegram) PollerStart() {
-	t.InitialConnect()
+	errWait := func(err error) {
+		log.Errorln(log.CommunicationMgr, err)
+		time.Sleep(ErrWaiter)
+	}
 
 	for {
+		if !t.initConnected {
+			err := t.InitialConnect()
+			if err != nil {
+				errWait(err)
+				continue
+			}
+			t.initConnected = true
+		}
+
 		resp, err := t.GetUpdates()
 		if err != nil {
-			log.Errorln(log.CommunicationMgr, err)
+			errWait(err)
+			continue
 		}
 
 		for i := range resp.Result {
@@ -95,7 +118,8 @@ func (t *Telegram) PollerStart() {
 				if string(resp.Result[i].Message.Text[0]) == "/" {
 					err = t.HandleMessages(resp.Result[i].Message.Text, resp.Result[i].Message.From.ID)
 					if err != nil {
-						log.Errorln(log.CommunicationMgr, err)
+						log.Errorf(log.CommunicationMgr, "Telegram: Unable to HandleMessages. Error: %s\n", err)
+						continue
 					}
 				}
 				t.Offset = resp.Result[i].UpdateID
@@ -106,16 +130,14 @@ func (t *Telegram) PollerStart() {
 
 // InitialConnect sets offset, and sends a welcome greeting to any associated
 // IDs
-func (t *Telegram) InitialConnect() {
+func (t *Telegram) InitialConnect() error {
 	resp, err := t.GetUpdates()
 	if err != nil {
-		log.Errorln(log.CommunicationMgr, err)
-		os.Exit(1)
+		return err
 	}
 
 	if !resp.Ok {
-		log.Errorln(log.CommunicationMgr, resp.Description)
-		os.Exit(1)
+		return errors.New(resp.Description)
 	}
 
 	warmWelcomeList := make(map[string]int64)
@@ -128,18 +150,25 @@ func (t *Telegram) InitialConnect() {
 	for userName, ID := range warmWelcomeList {
 		err = t.SendMessage(fmt.Sprintf("GoCryptoTrader bot has connected: Hello, %s!", userName), ID)
 		if err != nil {
-			log.Errorln(log.CommunicationMgr, err)
-			os.Exit(1)
+			log.Errorf(log.CommunicationMgr, "Telegram: Unable to send welcome message. Error: %s\n", err)
+			continue
 		}
 	}
+
 	if len(resp.Result) == 0 {
-		return
+		return nil
 	}
+
 	t.Offset = resp.Result[len(resp.Result)-1].UpdateID
+	return nil
 }
 
 // HandleMessages handles incoming message from the long polling routine
 func (t *Telegram) HandleMessages(text string, chatID int64) error {
+	if t.Verbose {
+		log.Debugf(log.CommunicationMgr, "Telegram: Received message: %s\n", text)
+	}
+
 	switch {
 	case strings.Contains(text, cmdHelp):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, cmdHelpReply), chatID)
@@ -151,7 +180,7 @@ func (t *Telegram) HandleMessages(text string, chatID int64) error {
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetStatus()), chatID)
 
 	default:
-		return t.SendMessage(fmt.Sprintf("command %s not recognized", text), chatID)
+		return t.SendMessage(fmt.Sprintf("Command %s not recognized", text), chatID)
 	}
 }
 
@@ -203,6 +232,10 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 
 	if !resp.Ok {
 		return errors.New(resp.Description)
+	}
+
+	if t.Verbose {
+		log.Debugf(log.CommunicationMgr, "Telegram: Sent '%s'\n", text)
 	}
 	return nil
 }

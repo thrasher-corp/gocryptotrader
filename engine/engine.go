@@ -257,6 +257,7 @@ func PrintSettings(s *Settings) {
 
 // Start starts the engine
 func (e *Engine) Start() {
+	// TO-DO: move this out of here
 	if e == nil {
 		log.Errorln(log.Global, "Engine instance is nil")
 		os.Exit(1)
@@ -301,6 +302,11 @@ func (e *Engine) Start() {
 
 	log.Debugln(log.Global, "Setting up exchanges..")
 	SetupExchanges()
+	// TO-DO: move this out of here
+	if len(Bot.Exchanges) == 0 {
+		log.Errorln(log.Global, "No exchanges were able to be loaded. Exiting")
+		os.Exit(1)
+	}
 
 	if e.Settings.EnableCommsRelayer {
 		if err := e.CommsManager.Start(); err != nil {

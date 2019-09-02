@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -164,7 +163,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 
 						mockRespVals, urlErr := url.ParseQuery(mockResponses[i].BodyParams)
 						if urlErr != nil {
-							log.Fatal(urlErr)
+							return urlErr
 						}
 
 						if MatchURLVals(respQueryVals, mockRespVals) {
