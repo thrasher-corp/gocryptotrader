@@ -428,18 +428,27 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 				// }
 
 				tickerNew := ticker.Price{
+					Last:        d.Last,
+					High:        d.High,
+					Low:         d.Low,
+					Bid:         d.Bid,
+					Ask:         d.Ask,
+					Volume:      d.Volume,
+					QuoteVolume: d.QuoteVolume,
+					PriceATH:    d.PriceATH,
+					Open:        d.Open,
+					Close:       d.Close,
 					Pair:        d.Pair,
 					LastUpdated: d.Timestamp,
-					Last:        d.ClosePrice,
-					High:        d.HighPrice,
-					Low:         d.LowPrice,
-					Volume:      d.Quantity,
 				}
 				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
 						d.Pair, d.AssetType, SyncItemTicker, nil)
 				}
-				ticker.ProcessTicker(ws.GetName(), &tickerNew, d.AssetType)
+				err := ticker.ProcessTicker(ws.GetName(), &tickerNew, d.AssetType)
+				if err != nil {
+					log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), err)
+				}
 				printTickerSummary(&tickerNew, tickerNew.Pair, d.AssetType, ws.GetName(), nil)
 			case wshandler.KlineData:
 				// Kline data

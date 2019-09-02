@@ -196,7 +196,7 @@ func (h *HitBTC) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range symbols {
-		pairs = append(pairs, symbols[x].BaseCurrency+"-"+symbols[x].QuoteCurrency)
+		pairs = append(pairs, fmt.Sprintf("%v%v%v", symbols[x].BaseCurrency, h.GetPairFormat(asset, false).Delimiter, symbols[x].QuoteCurrency))
 	}
 	return pairs, nil
 }
@@ -214,25 +214,33 @@ func (h *HitBTC) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tick, err := h.GetTicker("")
+	var tickerPrice ticker.Price
+	tick, err := h.GetTickers()
 	if err != nil {
-		return ticker.Price{}, err
+		return tickerPrice, err
 	}
-
-	for _, x := range h.GetEnabledPairs(assetType) {
-		var tp ticker.Price
-		curr := h.FormatExchangeCurrency(x, assetType).String()
-		tp.Pair = x
-		tp.Ask = tick[curr].Ask
-		tp.Bid = tick[curr].Bid
-		tp.High = tick[curr].High
-		tp.Last = tick[curr].Last
-		tp.Low = tick[curr].Low
-		tp.Volume = tick[curr].Volume
-
-		err = ticker.ProcessTicker(h.GetName(), &tp, assetType)
-		if err != nil {
-			return ticker.Price{}, err
+	pairs := h.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for j := range tick {
+			if !tick[j].Symbol.Equal(pairs[i]) {
+				continue
+			}
+			tickerPrice := ticker.Price{
+				Last:        tick[j].Last,
+				High:        tick[j].High,
+				Low:         tick[j].Low,
+				Bid:         tick[j].Bid,
+				Ask:         tick[j].Ask,
+				Volume:      tick[j].Volume,
+				QuoteVolume: tick[j].VolumeQuote,
+				Open:        tick[j].Open,
+				Pair:        pairs[i],
+				LastUpdated: tick[j].Timestamp,
+			}
+			err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
 		}
 	}
 	return ticker.GetTicker(h.Name, currencyPair, assetType)

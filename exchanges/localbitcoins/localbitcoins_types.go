@@ -312,7 +312,8 @@ type WalletBalanceInfo struct {
 // Ticker contains ticker information
 type Ticker struct {
 	Avg12h float64 `json:"avg_12h,string"`
-	Avg1h  float64 `json:"avg_1h,string"`
+	Avg1h  float64 `json:"avg_1h,string,omitempty"`
+	Avg6h  float64 `json:"avg_6h,string,omitempty"`
 	Avg24h float64 `json:"avg_24h,string"`
 	Rates  struct {
 		Last float64 `json:"last,string"`

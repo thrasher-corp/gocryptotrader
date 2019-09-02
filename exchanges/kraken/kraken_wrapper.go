@@ -62,8 +62,9 @@ func (k *Kraken) SetDefaults() {
 			Separator: ",",
 		},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
 			Uppercase: true,
+			Delimiter: "-",
+			Separator: ",",
 		},
 	}
 
@@ -167,9 +168,9 @@ func (k *Kraken) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), "-") ||
-		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), "-") {
-		enabledPairs := currency.NewPairsFromStrings([]string{"XBT-USD"})
+	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), k.GetPairFormat(asset.Spot, false).Delimiter) ||
+		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), k.GetPairFormat(asset.Spot, false).Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSD", k.GetPairFormat(asset.Spot, false).Delimiter)})
 		log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
@@ -210,7 +211,7 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
 			v.Quote = v.Quote[1:]
 		}
-		products = append(products, v.Base+"-"+v.Quote)
+		products = append(products, fmt.Sprintf("%v%v%v", v.Base, k.GetPairFormat(asset, false).Delimiter, v.Quote))
 	}
 	return products, nil
 }
@@ -239,21 +240,33 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 		return tickerPrice, err
 	}
 
-	for _, x := range pairs {
-		for y, z := range tickers {
-			if !strings.Contains(y, x.Base.Upper().String()) ||
-				!strings.Contains(y, x.Quote.Upper().String()) {
-				continue
+	for i := range pairs {
+		for curr, v := range tickers {
+			if !strings.EqualFold(pairs[i].String(), curr) {
+				var altCurrency string
+				var ok bool
+				if altCurrency, ok = assetPairMap[curr]; !ok {
+					continue
+				}
+				if !strings.EqualFold(pairs[i].String(), altCurrency) {
+					continue
+				}
 			}
-			var tp ticker.Price
-			tp.Pair = x
-			tp.Last = z.Last
-			tp.Ask = z.Ask
-			tp.Bid = z.Bid
-			tp.High = z.High
-			tp.Low = z.Low
-			tp.Volume = z.Volume
-			ticker.ProcessTicker(k.GetName(), &tp, assetType)
+
+			tickerPrice = ticker.Price{
+				Last:   v.Last,
+				High:   v.High,
+				Low:    v.Low,
+				Bid:    v.Bid,
+				Ask:    v.Ask,
+				Volume: v.Volume,
+				Open:   v.Open,
+				Pair:   pairs[i],
+			}
+			err = ticker.ProcessTicker(k.Name, &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
 		}
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)
@@ -473,19 +486,19 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for i := range resp.Open {
-		symbol := currency.NewPairFromString(resp.Open[i].Descr.Pair)
-		orderDate := time.Unix(int64(resp.Open[i].StartTm), 0)
-		side := exchange.OrderSide(strings.ToUpper(resp.Open[i].Descr.Type))
-		orderType := exchange.OrderType(strings.ToUpper(resp.Open[i].Descr.OrderType))
+		symbol := currency.NewPairFromString(resp.Open[i].Description.Pair)
+		orderDate := time.Unix(int64(resp.Open[i].StartTime), 0)
+		side := exchange.OrderSide(strings.ToUpper(resp.Open[i].Description.Type))
+		orderType := exchange.OrderType(strings.ToUpper(resp.Open[i].Description.OrderType))
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              i,
-			Amount:          resp.Open[i].Vol,
-			RemainingAmount: (resp.Open[i].Vol - resp.Open[i].VolExec),
-			ExecutedAmount:  resp.Open[i].VolExec,
+			Amount:          resp.Open[i].Volume,
+			RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
+			ExecutedAmount:  resp.Open[i].VolumeExecuted,
 			Exchange:        k.Name,
 			OrderDate:       orderDate,
-			Price:           resp.Open[i].Descr.Price,
+			Price:           resp.Open[i].Description.Price,
 			OrderSide:       side,
 			OrderType:       orderType,
 			CurrencyPair:    symbol,
@@ -517,19 +530,19 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for i := range resp.Closed {
-		symbol := currency.NewPairFromString(resp.Closed[i].Descr.Pair)
-		orderDate := time.Unix(int64(resp.Closed[i].StartTm), 0)
-		side := exchange.OrderSide(strings.ToUpper(resp.Closed[i].Descr.Type))
-		orderType := exchange.OrderType(strings.ToUpper(resp.Closed[i].Descr.OrderType))
+		symbol := currency.NewPairFromString(resp.Closed[i].Description.Pair)
+		orderDate := time.Unix(int64(resp.Closed[i].StartTime), 0)
+		side := exchange.OrderSide(strings.ToUpper(resp.Closed[i].Description.Type))
+		orderType := exchange.OrderType(strings.ToUpper(resp.Closed[i].Description.OrderType))
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              i,
-			Amount:          resp.Closed[i].Vol,
-			RemainingAmount: (resp.Closed[i].Vol - resp.Closed[i].VolExec),
-			ExecutedAmount:  resp.Closed[i].VolExec,
+			Amount:          resp.Closed[i].Volume,
+			RemainingAmount: (resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted),
+			ExecutedAmount:  resp.Closed[i].VolumeExecuted,
 			Exchange:        k.Name,
 			OrderDate:       orderDate,
-			Price:           resp.Closed[i].Descr.Price,
+			Price:           resp.Closed[i].Description.Price,
 			OrderSide:       side,
 			OrderType:       orderType,
 			CurrencyPair:    symbol,

@@ -278,17 +278,18 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := c.GetInstrumentTicker(c.InstrumentMap[p.String()])
+	tick, err := c.GetInstrumentTicker(c.InstrumentMap[c.FormatExchangeCurrency(p, assetType).String()])
 	if err != nil {
-		return ticker.Price{}, err
+		return tickerPrice, err
 	}
-
-	tickerPrice.Pair = p
-	tickerPrice.Volume = tick.Volume
-	tickerPrice.Last = tick.Last
-	tickerPrice.High = tick.HighestBuy
-	tickerPrice.Low = tick.LowestSell
-
+	tickerPrice = ticker.Price{
+		Last:        tick.Last,
+		High:        tick.HighestBuy,
+		Low:         tick.LowestSell,
+		Volume:      tick.Volume24,
+		Pair:        p,
+		LastUpdated: time.Unix(0, tick.Timestamp),
+	}
 	err = ticker.ProcessTicker(c.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err

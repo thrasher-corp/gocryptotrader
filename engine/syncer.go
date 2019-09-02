@@ -486,6 +486,8 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 				} else {
 					usingWebsocket = true
 				}
+			} else {
+				usingWebsocket = true
 			}
 		} else if supportsREST {
 			usingREST = true

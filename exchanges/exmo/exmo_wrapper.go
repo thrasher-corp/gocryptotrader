@@ -73,7 +73,7 @@ func (e *EXMO) SetDefaults() {
 			Websocket: false,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
-				TickerBatching:  false,
+				TickerBatching:  true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -156,31 +156,32 @@ func (e *EXMO) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType), assetType)
+	result, err := e.GetTicker()
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	result, err := e.GetTicker(pairsCollated)
-	if err != nil {
+	if _, ok := result[p.String()]; !ok {
 		return tickerPrice, err
 	}
-
-	for _, x := range e.GetEnabledPairs(assetType) {
-		currency := e.FormatExchangeCurrency(x, assetType).String()
-		var tickerPrice ticker.Price
-		tickerPrice.Pair = x
-		tickerPrice.Last = result[currency].Last
-		tickerPrice.Ask = result[currency].Sell
-		tickerPrice.High = result[currency].High
-		tickerPrice.Bid = result[currency].Buy
-		tickerPrice.Last = result[currency].Last
-		tickerPrice.Low = result[currency].Low
-		tickerPrice.Volume = result[currency].Volume
-
-		err = ticker.ProcessTicker(e.Name, &tickerPrice, assetType)
-		if err != nil {
-			return tickerPrice, err
+	pairs := e.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for j := range result {
+			if !strings.EqualFold(pairs[i].String(), j) {
+				continue
+			}
+			tickerPrice = ticker.Price{
+				Pair:   pairs[i],
+				Last:   result[j].Last,
+				Ask:    result[j].Sell,
+				High:   result[j].High,
+				Bid:    result[j].Buy,
+				Low:    result[j].Low,
+				Volume: result[j].Volume,
+			}
+			err = ticker.ProcessTicker(e.Name, &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
 		}
 	}
 	return ticker.GetTicker(e.Name, p, assetType)

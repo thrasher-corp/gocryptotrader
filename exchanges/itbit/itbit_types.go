@@ -1,5 +1,7 @@
 package itbit
 
+import "time"
+
 // GeneralReturn is a generalized return type to capture any errors
 type GeneralReturn struct {
 	Code        int    `json:"code"`
@@ -9,23 +11,23 @@ type GeneralReturn struct {
 
 // Ticker holds returned ticker information
 type Ticker struct {
-	Pair          string  `json:"pair"`
-	Bid           float64 `json:"bid,string"`
-	BidAmt        float64 `json:"bidAmt,string"`
-	Ask           float64 `json:"ask,string"`
-	AskAmt        float64 `json:"askAmt,string"`
-	LastPrice     float64 `json:"lastPrice,string"`
-	LastAmt       float64 `json:"lastAmt,string"`
-	Volume24h     float64 `json:"volume24h,string"`
-	VolumeToday   float64 `json:"volumeToday,string"`
-	High24h       float64 `json:"high24h,string"`
-	Low24h        float64 `json:"low24h,string"`
-	HighToday     float64 `json:"highToday,string"`
-	LowToday      float64 `json:"lowToday,string"`
-	OpenToday     float64 `json:"openToday,string"`
-	VwapToday     float64 `json:"vwapToday,string"`
-	Vwap24h       float64 `json:"vwap24h,string"`
-	ServertimeUTC string  `json:"serverTimeUTC"`
+	Pair          string    `json:"pair"`
+	Bid           float64   `json:"bid,string"`
+	BidAmt        float64   `json:"bidAmt,string"`
+	Ask           float64   `json:"ask,string"`
+	AskAmt        float64   `json:"askAmt,string"`
+	LastPrice     float64   `json:"lastPrice,string"`
+	LastAmt       float64   `json:"lastAmt,string"`
+	Volume24h     float64   `json:"volume24h,string"`
+	VolumeToday   float64   `json:"volumeToday,string"`
+	High24h       float64   `json:"high24h,string"`
+	Low24h        float64   `json:"low24h,string"`
+	HighToday     float64   `json:"highToday,string"`
+	LowToday      float64   `json:"lowToday,string"`
+	OpenToday     float64   `json:"openToday,string"`
+	VwapToday     float64   `json:"vwapToday,string"`
+	Vwap24h       float64   `json:"vwap24h,string"`
+	ServertimeUTC time.Time `json:"serverTimeUTC"`
 }
 
 // OrderbookResponse contains multi-arrayed strings of bid and ask side

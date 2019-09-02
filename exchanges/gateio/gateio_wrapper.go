@@ -198,20 +198,26 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	for _, x := range g.GetEnabledPairs(assetType) {
-		currency := g.FormatExchangeCurrency(x, assetType).String()
-		var tp ticker.Price
-		tp.Pair = x
-		tp.High = result[currency].High
-		tp.Last = result[currency].Last
-		tp.Last = result[currency].Last
-		tp.Low = result[currency].Low
-		tp.Volume = result[currency].Volume
-
-		err = ticker.ProcessTicker(g.Name, &tp, assetType)
-		if err != nil {
-			return tickerPrice, err
+	pairs := g.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for k := range result {
+			if !strings.EqualFold(k, pairs[i].String()) {
+				continue
+			}
+			tickerPrice = ticker.Price{
+				Last:        result[k].Last,
+				High:        result[k].High,
+				Low:         result[k].Low,
+				Volume:      result[k].BaseVolume,
+				QuoteVolume: result[k].QuoteVolume,
+				Open:        result[k].Open,
+				Close:       result[k].Close,
+				Pair:        pairs[i],
+			}
+			err = ticker.ProcessTicker(g.Name, &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
 		}
 	}
 

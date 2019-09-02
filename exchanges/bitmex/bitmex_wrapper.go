@@ -2,7 +2,6 @@ package bitmex
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -93,7 +92,7 @@ func (b *Bitmex) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
-				TickerBatching:  false,
+				TickerBatching:  true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.WithdrawCryptoWithEmail |
@@ -205,7 +204,7 @@ func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var products []string
 	for x := range marketInfo {
-		products = append(products, marketInfo[x].Symbol)
+		products = append(products, marketInfo[x].Symbol.String())
 	}
 
 	return products, nil
@@ -260,24 +259,34 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	currency := b.FormatExchangeCurrency(p, assetType)
-
-	tick, err := b.GetTrade(&GenericRequestParams{
-		Symbol:  currency.String(),
-		Reverse: true,
-		Count:   1})
+	tick, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	if len(tick) == 0 {
-		return tickerPrice, fmt.Errorf("%s REST error: no ticker return", b.Name)
+	pairs := b.GetEnabledPairs(assetType)
+	for i := range pairs {
+		for j := range tick {
+			if !pairs[i].Equal(tick[j].Symbol) {
+				continue
+			}
+			tickerPrice = ticker.Price{
+				Last:        tick[j].LastPrice,
+				High:        tick[j].HighPrice,
+				Low:         tick[j].LowPrice,
+				Bid:         tick[j].BidPrice,
+				Ask:         tick[j].AskPrice,
+				Volume:      tick[j].Volume24h,
+				Close:       tick[j].PrevClosePrice,
+				Pair:        tick[j].Symbol,
+				LastUpdated: tick[j].Timestamp,
+			}
+			err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
+		}
 	}
-
-	tickerPrice.Pair = p
-	tickerPrice.Last = tick[0].Price
-	tickerPrice.Volume = float64(tick[0].Size)
-	return tickerPrice, ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair

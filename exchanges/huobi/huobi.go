@@ -32,6 +32,7 @@ const (
 	huobiMarketDetailMerged    = "market/detail/merged"
 	huobiMarketDepth           = "market/depth"
 	huobiMarketTrade           = "market/trade"
+	huobiMarketTickers         = "market/tickers"
 	huobiMarketTradeHistory    = "market/history/trade"
 	huobiSymbols               = "common/symbols"
 	huobiCurrencies            = "common/currencys"
@@ -93,6 +94,13 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Data, err
+}
+
+// GetTickers returns the ticker for the specified symbol
+func (h *HUOBI) GetTickers() (Tickers, error) {
+	var result Tickers
+	urlPath := fmt.Sprintf("%s/%s", h.API.Endpoints.URL, huobiMarketTickers)
+	return result, h.SendHTTPRequest(urlPath, &result)
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol

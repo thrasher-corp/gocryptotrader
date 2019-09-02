@@ -1,5 +1,7 @@
 package bitfinex
 
+import "time"
+
 // Ticker holds basic ticker information from the exchange
 type Ticker struct {
 	Mid       float64 `json:"mid,string"`
@@ -28,6 +30,7 @@ type Tickerv2 struct {
 	Volume          float64
 	High            float64
 	Low             float64
+	Timestamp       time.Time
 }
 
 // Tickersv2 holds the version 2 tickers information

@@ -59,6 +59,17 @@ func TestGetTicker(t *testing.T) {
 	}
 }
 
+func TestGetTickers(t *testing.T) {
+	TestSetup(t)
+	tickers, err := l.GetTickers()
+	if err != nil {
+		t.Errorf("test failed: %v", err)
+	}
+	if len(tickers) <= 1 {
+		t.Errorf("Expected multiple tickers, received %v", len(tickers))
+	}
+}
+
 func TestGetCurrencyPairs(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetCurrencyPairs()

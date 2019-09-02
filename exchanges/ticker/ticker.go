@@ -2,6 +2,7 @@ package ticker
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,14 +29,17 @@ var (
 
 // Price struct stores the currency pair and pricing information
 type Price struct {
-	Pair        currency.Pair `json:"Pair"`
 	Last        float64       `json:"Last"`
 	High        float64       `json:"High"`
 	Low         float64       `json:"Low"`
 	Bid         float64       `json:"Bid"`
 	Ask         float64       `json:"Ask"`
 	Volume      float64       `json:"Volume"`
+	QuoteVolume float64       `json:"QuoteVolume"`
 	PriceATH    float64       `json:"PriceATH"`
+	Open        float64       `json:"Open"`
+	Close       float64       `json:"Close"`
+	Pair        currency.Pair `json:"Pair"`
 	LastUpdated time.Time
 }
 
@@ -151,11 +155,11 @@ func CreateNewTicker(exchangeName string, tickerNew *Price, tickerType asset.Ite
 // list
 func ProcessTicker(exchangeName string, tickerNew *Price, assetType asset.Item) error {
 	if tickerNew.Pair.IsEmpty() {
-		return errors.New(errPairNotSet)
+		return fmt.Errorf("%v %v", exchangeName, errPairNotSet)
 	}
 
 	if assetType == "" {
-		return errors.New(errAssetTypeNotSet)
+		return fmt.Errorf("%v %v %v", exchangeName, tickerNew.Pair.String(), errAssetTypeNotSet)
 	}
 
 	if tickerNew.LastUpdated.IsZero() {
@@ -178,6 +182,7 @@ func ProcessTicker(exchangeName string, tickerNew *Price, assetType asset.Item) 
 	}
 
 	m.Lock()
+
 	a := make(map[string]map[string]Price)
 	b := make(map[string]Price)
 	b[assetType.String()] = *tickerNew

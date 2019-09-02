@@ -133,15 +133,17 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Ask
-	tickerPrice.Bid = tick.Bid
-	tickerPrice.Last = tick.LastPrice
-	tickerPrice.High = tick.High24h
-	tickerPrice.Low = tick.Low24h
-	tickerPrice.Volume = tick.Volume24h
-
+	tickerPrice = ticker.Price{
+		Last:        tick.LastPrice,
+		High:        tick.High24h,
+		Low:         tick.Low24h,
+		Bid:         tick.Bid,
+		Ask:         tick.Ask,
+		Volume:      tick.Volume24h,
+		Open:        tick.OpenToday,
+		Pair:        p,
+		LastUpdated: tick.ServertimeUTC,
+	}
 	err = ticker.ProcessTicker(i.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err

@@ -163,9 +163,9 @@ func (b *Binance) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
-		enabledPairs := currency.NewPairsFromStrings([]string{"BTC-USDT"})
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), b.GetPairFormat(asset.Spot, false).Delimiter) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), b.GetPairFormat(asset.Spot, false).Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSDT", b.GetPairFormat(asset.Spot, false).Delimiter)})
 		log.Warn(log.ExchangeSys,
 			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
@@ -197,8 +197,10 @@ func (b *Binance) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	for x := range info.Symbols {
 		if info.Symbols[x].Status == "TRADING" {
-			validCurrencyPairs = append(validCurrencyPairs,
-				info.Symbols[x].BaseAsset+"-"+info.Symbols[x].QuoteAsset)
+			validCurrencyPairs = append(validCurrencyPairs, fmt.Sprintf("%v%v%v",
+				info.Symbols[x].BaseAsset,
+				b.GetPairFormat(asset, false).Delimiter,
+				info.Symbols[x].QuoteAsset))
 		}
 	}
 	return validCurrencyPairs, nil
@@ -222,21 +224,28 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 	if err != nil {
 		return tickerPrice, err
 	}
-
-	for _, x := range b.GetEnabledPairs(assetType) {
-		curr := b.FormatExchangeCurrency(x, assetType)
+	pairs := b.GetEnabledPairs(assetType)
+	for i := range pairs {
 		for y := range tick {
-			if tick[y].Symbol != curr.String() {
+			if !tick[y].Symbol.Equal(pairs[i]) {
 				continue
 			}
-			tickerPrice.Pair = x
-			tickerPrice.Ask = tick[y].AskPrice
-			tickerPrice.Bid = tick[y].BidPrice
-			tickerPrice.High = tick[y].HighPrice
-			tickerPrice.Last = tick[y].LastPrice
-			tickerPrice.Low = tick[y].LowPrice
-			tickerPrice.Volume = tick[y].Volume
-			ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+			tickerPrice := ticker.Price{
+				Last:        tick[y].LastPrice,
+				High:        tick[y].HighPrice,
+				Low:         tick[y].LowPrice,
+				Bid:         tick[y].BidPrice,
+				Ask:         tick[y].AskPrice,
+				Volume:      tick[y].Volume,
+				QuoteVolume: tick[y].QuoteVolume,
+				Open:        tick[y].OpenPrice,
+				Close:       tick[y].PrevClosePrice,
+				Pair:        pairs[i],
+			}
+			err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+			if err != nil {
+				log.Error(log.Ticker, err)
+			}
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)

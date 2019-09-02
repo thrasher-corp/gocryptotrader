@@ -11,6 +11,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -56,17 +57,34 @@ func (o *OKEX) SetDefaults() {
 			asset.PerpetualSwap,
 			asset.Index,
 		},
-		UseGlobalFormat: true,
+		UseGlobalFormat: false,
+	}
+	// Same format used for perpetual swap and futures
+	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
-			Uppercase: false,
-			Delimiter: "_",
+			Uppercase: true,
+			Delimiter: "-",
 		},
-
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "_",
 		},
 	}
+	o.CurrencyPairs.Store(asset.PerpetualSwap, fmt1)
+	o.CurrencyPairs.Store(asset.Futures, fmt1)
+
+	fmt2 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+	}
+	o.CurrencyPairs.Store(asset.Spot, fmt2)
+	o.CurrencyPairs.Store(asset.Index, fmt2)
 
 	o.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -74,6 +92,7 @@ func (o *OKEX) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
 				AutoPairUpdates: true,
+				TickerBatching:  true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -121,6 +140,32 @@ func (o *OKEX) Run() {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.API.Endpoints.WebsocketURL)
 	}
+	if o.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat == nil {
+		fmt := currency.PairStore{
+			RequestFormat: &currency.PairFormat{
+				Uppercase: true,
+				Delimiter: "-",
+			},
+			ConfigFormat: &currency.PairFormat{
+				Uppercase: true,
+				Delimiter: "-",
+			},
+		}
+		o.CurrencyPairs.Store(asset.Spot, fmt)
+		o.Config.CurrencyPairs.Store(asset.Spot, fmt)
+	}
+
+	if !common.StringDataContains(o.Config.CurrencyPairs.Pairs[asset.Spot].Enabled.Strings(), o.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{"EOS-USDT"})
+		log.Warnf(log.ExchangeSys,
+			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.", o.Name)
+
+		err := o.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update currencies.\n", o.GetName())
+			return
+		}
+	}
 
 	if !o.GetEnabledFeatures().AutoPairUpdates {
 		return
@@ -143,7 +188,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 		}
 
 		for x := range prods {
-			pairs = append(pairs, prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency)
+			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency, o.GetPairFormat(i, false).Delimiter, prods[x].QuoteCurrency))
 		}
 		return pairs, nil
 	case asset.Futures:
@@ -154,7 +199,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, prods[x].UnderlyingIndex+prods[x].QuoteCurrency+"_"+prods[x].Delivery)
+			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].UnderlyingIndex+prods[x].QuoteCurrency, o.GetPairFormat(i, false).Delimiter, prods[x].Delivery))
 		}
 		return pairs, nil
 
@@ -166,11 +211,11 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, prods[x].UnderlyingIndex+"_"+prods[x].QuoteCurrency+"_SWAP")
+			pairs = append(pairs, fmt.Sprintf("%v%v%v%vSWAP", prods[x].UnderlyingIndex, o.GetPairFormat(i, false).Delimiter, prods[x].QuoteCurrency, o.GetPairFormat(i, false).Delimiter))
 		}
 		return pairs, nil
 	case asset.Index:
-		return []string{"BTC_USD"}, nil
+		return []string{fmt.Sprintf("BTC%vUSD", o.GetPairFormat(i, false).Delimiter)}, nil
 	}
 
 	return nil, fmt.Errorf("%s invalid asset type", o.Name)
@@ -192,4 +237,105 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 		}
 	}
 	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+	var tickerData ticker.Price
+	switch assetType {
+	case asset.Spot:
+		resp, err := o.GetSpotAllTokenPairsInformation()
+		if err != nil {
+			return tickerData, err
+		}
+		pairs := o.GetEnabledPairs(assetType)
+		for i := range pairs {
+			for j := range resp {
+				if !pairs[i].Equal(resp[j].InstrumentID) {
+					continue
+				}
+				tickerData = ticker.Price{
+					Last:        resp[j].Last,
+					High:        resp[j].High24h,
+					Low:         resp[j].Low24h,
+					Bid:         resp[j].BestBid,
+					Ask:         resp[j].BestAsk,
+					Volume:      resp[j].BaseVolume24h,
+					QuoteVolume: resp[j].QuoteVolume24h,
+					Open:        resp[j].Open24h,
+					Pair:        pairs[i],
+					LastUpdated: resp[j].Timestamp,
+				}
+				err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+				if err != nil {
+					log.Error(log.Ticker, err)
+				}
+			}
+		}
+	case asset.PerpetualSwap:
+		resp, err := o.GetAllSwapTokensInformation()
+		if err != nil {
+			return tickerData, err
+		}
+		pairs := o.GetEnabledPairs(assetType)
+		for i := range pairs {
+			for j := range resp {
+				if !pairs[i].Equal(resp[j].InstrumentID) {
+					continue
+				}
+				tickerData = ticker.Price{
+					Last:        resp[j].Last,
+					High:        resp[j].High24H,
+					Low:         resp[j].Low24H,
+					Bid:         resp[j].BestBid,
+					Ask:         resp[j].BestAsk,
+					Volume:      resp[j].Volume24H,
+					Pair:        resp[j].InstrumentID,
+					LastUpdated: resp[j].Timestamp,
+				}
+				err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+				if err != nil {
+					log.Error(log.Ticker, err)
+				}
+			}
+		}
+	case asset.Futures:
+		resp, err := o.GetAllFuturesTokenInfo()
+		if err != nil {
+			return tickerData, err
+		}
+		pairs := o.GetEnabledPairs(assetType)
+		for i := range pairs {
+			for j := range resp {
+				if !pairs[i].Equal(resp[j].InstrumentID) {
+					continue
+				}
+				tickerData = ticker.Price{
+					Last:        resp[j].Last,
+					High:        resp[j].High24h,
+					Low:         resp[j].Low24h,
+					Bid:         resp[j].BestBid,
+					Ask:         resp[j].BestAsk,
+					Volume:      resp[j].Volume24h,
+					Pair:        resp[j].InstrumentID,
+					LastUpdated: resp[j].Timestamp,
+				}
+				err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+				if err != nil {
+					log.Error(log.Ticker, err)
+				}
+			}
+		}
+	}
+
+	return ticker.GetTicker(o.GetName(), p, assetType)
+}
+
+// FetchTicker returns the ticker for a currency pair
+func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, err error) {
+	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
+	if err != nil {
+		return o.UpdateTicker(p, assetType)
+	}
+	return
 }

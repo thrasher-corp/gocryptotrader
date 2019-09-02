@@ -56,7 +56,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTicker("BTC_USD")
+	_, err := e.GetTicker()
 	if err != nil {
 		t.Errorf("Test failed. Err: %s", err)
 	}

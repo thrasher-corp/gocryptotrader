@@ -62,7 +62,7 @@ func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 // NewPairFromString converts currency string into a new CurrencyPair
 // with or without delimeter
 func NewPairFromString(currencyPair string) Pair {
-	delimiters := []string{"_", "-", "/"}
+	delimiters := []string{"_", "-", "/", ":"}
 	var delimiter string
 	for _, x := range delimiters {
 		if strings.Contains(currencyPair, x) {

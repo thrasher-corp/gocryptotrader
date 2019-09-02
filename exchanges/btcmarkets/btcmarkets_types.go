@@ -30,13 +30,16 @@ type Market struct {
 
 // Ticker holds ticker information
 type Ticker struct {
-	BestBID    float64 `json:"bestBid"`
-	BestAsk    float64 `json:"bestAsk"`
-	LastPrice  float64 `json:"lastPrice"`
-	Currency   string  `json:"currency"`
-	Instrument string  `json:"instrument"`
-	Timestamp  int64   `json:"timestamp"`
-	Volume     float64 `json:"volume24h"`
+	BestAsk    float64       `json:"bestAsk"`
+	BestBid    float64       `json:"bestBid"`
+	Currency   currency.Code `json:"currency"`
+	High24h    float64       `json:"high24h"`
+	Instrument currency.Pair `json:"instrument"`
+	LastPrice  float64       `json:"lastPrice"`
+	Low24h     float64       `json:"low24h"`
+	Price24h   float64       `json:"price24h"`
+	Timestamp  int64         `json:"timestamp"`
+	Volume24h  float64       `json:"volume24h"`
 }
 
 // Orderbook holds current orderbook information returned from the exchange

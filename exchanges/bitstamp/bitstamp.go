@@ -51,8 +51,8 @@ const (
 	bitstampAPIReturnType         = "string"
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
 
-	bitstampAuthRate   = 600
-	bitstampUnauthRate = 600
+	bitstampAuthRate   = 8000
+	bitstampUnauthRate = 8000
 )
 
 // Bitstamp is the overarching type across the bitstamp package

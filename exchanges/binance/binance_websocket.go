@@ -147,18 +147,21 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				var wsTicker wshandler.TickerData
-				wsTicker.Timestamp = time.Unix(t.EventTime/1000, 0)
-				wsTicker.Pair = currency.NewPairFromString(t.Symbol)
-				wsTicker.AssetType = asset.Spot
-				wsTicker.Exchange = b.GetName()
-				wsTicker.ClosePrice, _ = strconv.ParseFloat(t.CurrDayClose, 64)
-				wsTicker.Quantity, _ = strconv.ParseFloat(t.TotalTradedVolume, 64)
-				wsTicker.OpenPrice, _ = strconv.ParseFloat(t.OpenPrice, 64)
-				wsTicker.HighPrice, _ = strconv.ParseFloat(t.HighPrice, 64)
-				wsTicker.LowPrice, _ = strconv.ParseFloat(t.LowPrice, 64)
-
-				b.Websocket.DataHandler <- wsTicker
+				b.Websocket.DataHandler <- wshandler.TickerData{
+					Exchange:    b.Name,
+					Open:        t.OpenPrice,
+					Close:       t.ClosePrice,
+					Volume:      t.TotalTradedVolume,
+					QuoteVolume: t.TotalTradedQuoteVolume,
+					High:        t.HighPrice,
+					Low:         t.LowPrice,
+					Bid:         t.BestBidPrice,
+					Ask:         t.BestAskPrice,
+					Last:        t.LastPrice,
+					Timestamp:   time.Unix(0, t.EventTime),
+					AssetType:   asset.Spot,
+					Pair:        t.Symbol,
+				}
 
 				continue
 			case "kline":

@@ -51,6 +51,8 @@ const (
 	krakenUnauthRate = 0
 )
 
+var assetPairMap map[string]string
+
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
@@ -102,6 +104,12 @@ func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
 	if err := k.SendHTTPRequest(path, &response); err != nil {
 		return response.Result, err
 	}
+	for i := range response.Result {
+		if assetPairMap == nil {
+			assetPairMap = make(map[string]string)
+		}
+		assetPairMap[i] = response.Result[i].Altname
+	}
 
 	return response.Result, GetError(response.Error)
 }
@@ -134,7 +142,7 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 		tick.Bid, _ = strconv.ParseFloat(resp.Data[i].Bid[0], 64)
 		tick.Last, _ = strconv.ParseFloat(resp.Data[i].Last[0], 64)
 		tick.Volume, _ = strconv.ParseFloat(resp.Data[i].Volume[1], 64)
-		tick.VWAP, _ = strconv.ParseFloat(resp.Data[i].VWAP[1], 64)
+		tick.VolumeWeightedAveragePrice, _ = strconv.ParseFloat(resp.Data[i].VolumeWeightedAveragePrice[1], 64)
 		tick.Trades = resp.Data[i].Trades[1]
 		tick.Low, _ = strconv.ParseFloat(resp.Data[i].Low[1], 64)
 		tick.High, _ = strconv.ParseFloat(resp.Data[i].High[1], 64)
@@ -175,7 +183,7 @@ func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
 		tick.Bid, _ = strconv.ParseFloat(resp.Data[i].Bid[0], 64)
 		tick.Last, _ = strconv.ParseFloat(resp.Data[i].Last[0], 64)
 		tick.Volume, _ = strconv.ParseFloat(resp.Data[i].Volume[1], 64)
-		tick.VWAP, _ = strconv.ParseFloat(resp.Data[i].VWAP[1], 64)
+		tick.VolumeWeightedAveragePrice, _ = strconv.ParseFloat(resp.Data[i].VolumeWeightedAveragePrice[1], 64)
 		tick.Trades = resp.Data[i].Trades[1]
 		tick.Low, _ = strconv.ParseFloat(resp.Data[i].Low[1], 64)
 		tick.High, _ = strconv.ParseFloat(resp.Data[i].High[1], 64)
@@ -224,7 +232,7 @@ func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
 			case 4:
 				o.Close, _ = strconv.ParseFloat(x.(string), 64)
 			case 5:
-				o.Vwap, _ = strconv.ParseFloat(x.(string), 64)
+				o.VolumeWeightedAveragePrice, _ = strconv.ParseFloat(x.(string), 64)
 			case 6:
 				o.Volume, _ = strconv.ParseFloat(x.(string), 64)
 			case 7:
@@ -767,8 +775,8 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	}
 
-	if args.Oflags != "" {
-		params.Set("oflags", args.Oflags)
+	if args.OrderFlags != "" {
+		params.Set("oflags", args.OrderFlags)
 	}
 
 	if args.StartTm != "" {

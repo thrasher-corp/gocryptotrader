@@ -48,6 +48,20 @@ func TestSetup(t *testing.T) {
 	b.Requester.SetRateLimit(false, time.Millisecond*300, 1)
 }
 
+func TestAppendOptionalDelimiter(t *testing.T) {
+	curr1 := currency.NewPairFromString("BTCUSD")
+	b.appendOptionalDelimiter(&curr1)
+	if curr1.Delimiter != "" {
+		t.Errorf("Expected no delimiter, received %v", curr1.Delimiter)
+	}
+	curr2 := currency.NewPairFromString("DUSK:USD")
+	curr2.Delimiter = ""
+	b.appendOptionalDelimiter(&curr2)
+	if curr2.Delimiter != ":" {
+		t.Errorf("Expected \"-\" as a delimiter, received %v", curr2.Delimiter)
+	}
+}
+
 func TestGetPlatformStatus(t *testing.T) {
 	t.Parallel()
 
