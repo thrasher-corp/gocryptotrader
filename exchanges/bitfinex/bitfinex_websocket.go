@@ -541,6 +541,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		enabledPairs := b.GetEnabledPairs(asset.Spot)
 		for j := range enabledPairs {
+			b.appendOptionalDelimiter(&enabledPairs[j])
 			params := make(map[string]interface{})
 			if channels[i] == "book" {
 				params["prec"] = "P0"

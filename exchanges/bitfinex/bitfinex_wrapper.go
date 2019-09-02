@@ -186,15 +186,8 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-	var formattedPairs currency.Pairs
-	for i := range pairs {
-		if strings.Contains(pairs[i], ":") {
-			formattedPairs = append(formattedPairs, currency.NewPairDelimiter(pairs[i], ":"))
-		} else {
-			formattedPairs = append(formattedPairs, currency.NewPairFromString(pairs[i]))
-		}
-	}
-	return b.UpdatePairs(formattedPairs, asset.Spot, false, forceUpdate)
+
+	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -203,6 +196,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 	enabledPairs := b.GetEnabledPairs(assetType)
 	var pairs []string
 	for x := range enabledPairs {
+		b.appendOptionalDelimiter(&enabledPairs[x])
 		pairs = append(pairs, "t"+enabledPairs[x].String())
 	}
 	tickerNew, err := b.GetTickersV2(strings.Join(pairs, ","))
@@ -210,7 +204,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 		return tickerPrice, err
 	}
 	for i := range tickerNew {
-		newP := currency.NewPairFromStrings(tickerNew[i].Symbol[1:4], tickerNew[i].Symbol[4:])
+		newP := tickerNew[i].Symbol[1:] // Remove the "t" prefix
 		tick := ticker.Price{
 			Last:        tickerNew[i].Last,
 			High:        tickerNew[i].High,
@@ -218,7 +212,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 			Bid:         tickerNew[i].Bid,
 			Ask:         tickerNew[i].Ask,
 			Volume:      tickerNew[i].Volume,
-			Pair:        newP,
+			Pair:        currency.NewPairFromString(newP),
 			LastUpdated: tickerNew[i].Timestamp,
 		}
 		err = ticker.ProcessTicker(b.Name, &tick, assetType)
@@ -232,6 +226,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+	b.appendOptionalDelimiter(&p)
 	tick, err := ticker.GetTicker(b.GetName(), p, asset.Spot)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -241,6 +236,7 @@ func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+	b.appendOptionalDelimiter(&p)
 	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -250,6 +246,7 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+	b.appendOptionalDelimiter(&p)
 	var orderBook orderbook.Base
 	urlVals := url.Values{}
 	urlVals.Set("limit_bids", "100")
@@ -343,7 +340,7 @@ func (b *Bitfinex) SubmitOrder(order *exchange.OrderSubmission) (exchange.Submit
 	if order.OrderSide == exchange.BuyOrderSide {
 		isBuying = true
 	}
-
+	b.appendOptionalDelimiter(&order.Pair)
 	response, err := b.NewOrder(order.Pair.String(),
 		order.Amount,
 		order.Price,
@@ -596,6 +593,9 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	for i := range getOrdersRequest.Currencies {
+		b.appendOptionalDelimiter(&getOrdersRequest.Currencies[i])
+	}
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 	return orders, nil
 }
@@ -603,6 +603,9 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (b *Bitfinex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	for i := range channels {
+		b.appendOptionalDelimiter(&channels[i].Currency)
+	}
 	b.Websocket.SubscribeToChannels(channels)
 	return nil
 }
@@ -610,6 +613,9 @@ func (b *Bitfinex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketCh
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	for i := range channels {
+		b.appendOptionalDelimiter(&channels[i].Currency)
+	}
 	b.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
@@ -622,4 +628,12 @@ func (b *Bitfinex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription,
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Bitfinex) AuthenticateWebsocket() error {
 	return b.WsSendAuth()
+}
+
+// appendOptionalDelimiter ensures that a delimiter is present for long character currencies
+func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
+	if len(p.Quote.String()) > 3 ||
+		len(p.Base.String()) > 3 {
+		p.Delimiter = ":"
+	}
 }
