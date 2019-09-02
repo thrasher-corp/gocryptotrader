@@ -57,7 +57,7 @@ type KlineResponse struct {
 // TradeData returns market transaction records for a currency pair
 type TradeData struct {
 	Amount    float64 `json:"amount"`
-	Price     float64 `json:"price,string"`
+	Price     float64 `json:"price"`
 	ID        int64   `json:"id"`
 	OrderType string  `json:"type"`
 }
@@ -88,7 +88,7 @@ type CoinInfo struct {
 	Coin        string  `json:"coin"`
 	Normal      float64 `json:"normal,string"`
 	Locked      float64 `json:"locked,string"`
-	BtcValuatin string  `json:"btcValuatin"`
+	BtcValuatin float64 `json:"btcValuatin,string"`
 }
 
 // UserInfoDataResponse stores user's balance info

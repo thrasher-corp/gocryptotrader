@@ -1,7 +1,6 @@
 package oex
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -126,7 +125,7 @@ func (o *Oex) GetTicker(symbol string) (TickerResponse, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -142,7 +141,7 @@ func (o *Oex) GetAllTicker() (AllTickerResponse, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -161,7 +160,7 @@ func (o *Oex) GetKline(symbol, period string) (KlineResponse, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -179,7 +178,7 @@ func (o *Oex) GetTrades(symbol string) (TradeResponse, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -197,7 +196,7 @@ func (o *Oex) LatestCurrencyPrices(time string) (LatestCurrencyPrices, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -216,7 +215,7 @@ func (o *Oex) GetMarketDepth(symbol, depthType string) (MarketDepthResponse, err
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -232,7 +231,7 @@ func (o *Oex) GetAllPairs() (AllPairResponse, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -248,7 +247,7 @@ func (o *Oex) GetUserInfo() (UserInfoResponse, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -270,7 +269,7 @@ func (o *Oex) GetAllOrders(symbol, startDate, endDate, pageSize, page string) (A
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -293,7 +292,7 @@ func (o *Oex) FindOrderHistory(symbol, startDate, endDate, pageSize, page, sort 
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -312,7 +311,7 @@ func (o *Oex) RemoveOrder(orderID, symbol string) (RemoveOrderResponse, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -330,7 +329,7 @@ func (o *Oex) RemoveAllOrders(symbol string) (RemoveOrderResponse, error) {
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -353,7 +352,7 @@ func (o *Oex) CreateOrder(side, orderType, volume, price, symbol, fee string) (C
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -373,7 +372,7 @@ func (o *Oex) GetOpenOrders(symbol, pageSize, page string) (OpenOrderResponse, e
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -396,7 +395,7 @@ func (o *Oex) SelfTrade(side, orderType, volume, price, symbol, fee string) (Sel
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -416,7 +415,7 @@ func (o *Oex) GetUserAssetData(uid, mobileNumber, email string) (UserAssetRespon
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -428,14 +427,14 @@ func (o *Oex) FetchOrderInfo(orderID, symbol string) (FetchOrderResponse, error)
 	params := url.Values{}
 	params.Set("order_id", orderID)
 	params.Set("symbol", symbol)
-	path := o.APIUrl + oexUserBalanceInfo
-	err := o.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
+	path := o.APIUrl + oexFetchOrderInfo
+	err := o.SendAuthHTTPRequest(http.MethodGet, path, params, &resp)
 	if err != nil {
 		return resp, err
 	}
 
 	if resp.Error != oexNoError {
-		return resp, ErrorCapture(resp.ErrCapture.Error, resp.ErrCapture.Msg)
+		return resp, errors.New(resp.ErrCapture.Msg)
 	}
 
 	return resp, nil
@@ -443,28 +442,16 @@ func (o *Oex) FetchOrderInfo(orderID, symbol string) (FetchOrderResponse, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (o *Oex) SendHTTPRequest(path string, result interface{}) error {
-	var intermediary json.RawMessage
-	err := o.SendPayload(http.MethodGet,
+	return o.SendPayload(http.MethodGet,
 		path,
 		nil,
 		nil,
-		&intermediary,
+		&result,
 		false,
 		false,
 		o.Verbose,
 		o.HTTPDebugging,
 		o.HTTPRecording)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(intermediary, result)
-}
-
-// ErrorCapture deals with errors
-func ErrorCapture(code, message string) error {
-	var temp []string
-	temp = append(temp, code, message)
-	return errors.New(strings.Join(temp, ":"))
 }
 
 // SendAuthHTTPRequest sends a post request (api keys and sign included)
@@ -472,7 +459,7 @@ func (o *Oex) SendAuthHTTPRequest(method, path string, params url.Values, result
 	if params == nil {
 		params = url.Values{}
 	}
-	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[:13]
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	params.Set("api_key", o.APIKey)
 	params.Set("time", timestamp)
 

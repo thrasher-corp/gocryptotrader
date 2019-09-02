@@ -207,8 +207,8 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestSelfTrade(t *testing.T) {
 	TestSetup(t)
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	_, err := o.SelfTrade("buy", "limit order", "1", "", "ethbtc", "")
 	if err != nil {
