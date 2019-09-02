@@ -1,5 +1,6 @@
 package logger
 
+//nolint
 var (
 	subLoggers = map[string]*subLogger{}
 

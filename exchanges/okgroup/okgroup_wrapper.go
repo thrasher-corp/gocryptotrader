@@ -11,7 +11,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -63,36 +62,6 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		false,
 		exch.Name)
 	return nil
-}
-
-// UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKGroup) UpdateTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, err error) {
-	resp, err := o.GetSpotAllTokenPairsInformationForCurrency(o.FormatExchangeCurrency(p, assetType).String())
-	if err != nil {
-		return
-	}
-	tickerData = ticker.Price{
-		Ask:         resp.BestAsk,
-		Bid:         resp.BestBid,
-		High:        resp.High24h,
-		Last:        resp.Last,
-		LastUpdated: resp.Timestamp,
-		Low:         resp.Low24h,
-		Pair:        o.FormatExchangeCurrency(p, assetType),
-		Volume:      resp.BaseVolume24h,
-	}
-
-	err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
-	return
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (o *OKGroup) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, err error) {
-	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
-	if err != nil {
-		return o.UpdateTicker(p, assetType)
-	}
-	return
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
@@ -339,7 +308,7 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err e
 // GetDepositAddress returns a deposit address for a specified currency
 func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (_ string, err error) {
 	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())
-	if err != nil {
+	if err != nil || len(wallet) == 0 {
 		return
 	}
 	return wallet[0].Address, nil

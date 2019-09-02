@@ -2,6 +2,8 @@ package okgroup
 
 import (
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // GetAccountCurrenciesResponse response data for GetAccountCurrencies
@@ -288,16 +290,16 @@ type GetSpotOrderBookResponse struct {
 
 // GetSpotTokenPairsInformationResponse response data for GetSpotTokenPairsInformation
 type GetSpotTokenPairsInformationResponse struct {
-	BaseVolume24h  float64   `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
-	BestAsk        float64   `json:"best_ask,string"`         // best ask price
-	BestBid        float64   `json:"best_bid,string"`         // best bid price
-	High24h        float64   `json:"high_24h,string"`         // 24 hour high
-	InstrumentID   string    `json:"instrument_id"`           // trading pair
-	Last           float64   `json:"last,string"`             // last traded price
-	Low24h         float64   `json:"low_24h,string"`          // 24 hour low
-	Open24h        float64   `json:"open_24h,string"`         // 24 hour open
-	QuoteVolume24h float64   `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
-	Timestamp      time.Time `json:"timestamp"`
+	BaseVolume24h  float64       `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
+	BestAsk        float64       `json:"best_ask,string"`         // best ask price
+	BestBid        float64       `json:"best_bid,string"`         // best bid price
+	High24h        float64       `json:"high_24h,string"`         // 24 hour high
+	InstrumentID   currency.Pair `json:"instrument_id"`           // trading pair
+	Last           float64       `json:"last,string"`             // last traded price
+	Low24h         float64       `json:"low_24h,string"`          // 24 hour low
+	Open24h        float64       `json:"open_24h,string"`         // 24 hour open
+	QuoteVolume24h float64       `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
+	Timestamp      time.Time     `json:"timestamp"`
 }
 
 // GetSpotFilledOrdersInformationRequest request data for GetSpotFilledOrdersInformation
@@ -699,14 +701,14 @@ type GetFuturesOrderBookResponse struct {
 
 // GetFuturesTokenInfoResponse response data for GetFuturesOrderBook
 type GetFuturesTokenInfoResponse struct {
-	BestAsk      float64   `json:"best_ask,string"`
-	BestBid      float64   `json:"best_bid,string"`
-	High24h      float64   `json:"high_24h,string"`
-	InstrumentID string    `json:"instrument_id"`
-	Last         float64   `json:"last,string"`
-	Low24h       float64   `json:"low_24h,string"`
-	Timestamp    time.Time `json:"timestamp"`
-	Volume24h    int64     `json:"volume_24h,string"`
+	BestAsk      float64       `json:"best_ask,string"`
+	BestBid      float64       `json:"best_bid,string"`
+	High24h      float64       `json:"high_24h,string"`
+	InstrumentID currency.Pair `json:"instrument_id"`
+	Last         float64       `json:"last,string"`
+	Low24h       float64       `json:"low_24h,string"`
+	Timestamp    time.Time     `json:"timestamp"`
+	Volume24h    float64       `json:"volume_24h,string"`
 }
 
 // GetFuturesFilledOrderRequest request data for GetFuturesFilledOrder
@@ -1057,14 +1059,14 @@ type GetSwapOrderBookResponse struct {
 
 // GetAllSwapTokensInformationResponse response data for GetAllSwapTokensInformation
 type GetAllSwapTokensInformationResponse struct {
-	InstrumentID string    `json:"instrument_id"`
-	Last         float64   `json:"last,string"`
-	High24H      float64   `json:"high_24h,string"`
-	Low24H       float64   `json:"low_24h,string"`
-	BestBid      float64   `json:"best_bid,string"`
-	BestAsk      float64   `json:"best_ask,string"`
-	Volume24H    float64   `json:"volume_24h,string"`
-	Timestamp    time.Time `json:"timestamp"`
+	InstrumentID currency.Pair `json:"instrument_id"`
+	Last         float64       `json:"last,string"`
+	High24H      float64       `json:"high_24h,string"`
+	Low24H       float64       `json:"low_24h,string"`
+	BestBid      float64       `json:"best_bid,string"`
+	BestAsk      float64       `json:"best_ask,string"`
+	Volume24H    float64       `json:"volume_24h,string"`
+	Timestamp    time.Time     `json:"timestamp"`
 }
 
 // GetSwapFilledOrdersDataRequest request data for GetSwapFilledOrdersData
@@ -1340,12 +1342,14 @@ type WebsocketDataWrapper struct {
 
 // WebsocketTickerData contains formatted data for ticker related websocket responses
 type WebsocketTickerData struct {
-	High24H   float64 `json:"high_24h,string,omitempty"`
-	Last      float64 `json:"last,string,omitempty"`
-	BestBid   float64 `json:"best_bid,string,omitempty"`
-	BestAsk   float64 `json:"best_ask,string,omitempty"`
-	Low24H    float64 `json:"low_24h,string,omitempty"`
-	Volume24H float64 `json:"volume_24h,string,omitempty"`
+	BaseVolume24h  float64 `json:"base_volume_24h,string,omitempty"`
+	BestAsk        float64 `json:"best_ask,string,omitempty"`
+	BestBid        float64 `json:"best_bid,string,omitempty"`
+	High24h        float64 `json:"high_24h,string,omitempty"`
+	Last           float64 `json:"last,string,omitempty"`
+	Low24h         float64 `json:"low_24h,string,omitempty"`
+	Open24h        float64 `json:"open_24h,string,omitempty"`
+	QuoteVolume24h float64 `json:"quote_volume_24h,string,omitempty"`
 }
 
 // WebsocketTradeResponse contains formatted data for trade related websocket responses

@@ -116,65 +116,17 @@ func (h *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
 }
 
 // GetTicker returns ticker information
-func (h *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
-	var resp1 []TickerResponse
-	resp2 := TickerResponse{}
-	ret := make(map[string]TickerResponse)
-	result := make(map[string]Ticker)
+func (h *HitBTC) GetTicker(symbol string) (TickerResponse, error) {
+	var resp TickerResponse
 	path := fmt.Sprintf("%s/%s/%s", h.API.Endpoints.URL, apiV2Ticker, symbol)
-	var err error
+	return resp, h.SendHTTPRequest(path, &resp)
+}
 
-	if symbol == "" {
-		err = h.SendHTTPRequest(path, &resp1)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range resp1 {
-			if resp1[i].Symbol != "" {
-				ret[resp1[i].Symbol] = resp1[i]
-			}
-		}
-	} else {
-		err = h.SendHTTPRequest(path, &resp2)
-		ret[resp2.Symbol] = resp2
-	}
-
-	if err == nil {
-		for i := range ret {
-			tick := Ticker{}
-
-			ask, _ := strconv.ParseFloat(ret[i].Ask, 64)
-			tick.Ask = ask
-
-			bid, _ := strconv.ParseFloat(ret[i].Bid, 64)
-			tick.Bid = bid
-
-			high, _ := strconv.ParseFloat(ret[i].High, 64)
-			tick.High = high
-
-			last, _ := strconv.ParseFloat(ret[i].Last, 64)
-			tick.Last = last
-
-			low, _ := strconv.ParseFloat(ret[i].Low, 64)
-			tick.Low = low
-
-			open, _ := strconv.ParseFloat(ret[i].Open, 64)
-			tick.Open = open
-
-			vol, _ := strconv.ParseFloat(ret[i].Volume, 64)
-			tick.Volume = vol
-
-			volQuote, _ := strconv.ParseFloat(ret[i].VolumeQuote, 64)
-			tick.VolumeQuote = volQuote
-
-			tick.Symbol = ret[i].Symbol
-			tick.Timestamp = ret[i].Timestamp
-			result[i] = tick
-		}
-	}
-
-	return result, err
+// GetTickers returns ticker information
+func (h *HitBTC) GetTickers() ([]TickerResponse, error) {
+	var resp []TickerResponse
+	path := fmt.Sprintf("%s/%s/", h.API.Endpoints.URL, apiV2Ticker)
+	return resp, h.SendHTTPRequest(path, &resp)
 }
 
 // GetTrades returns trades from hitbtc

@@ -21,8 +21,41 @@ type KlineItem struct {
 	Low    float64 `json:"low"`
 	High   float64 `json:"high"`
 	Amount float64 `json:"amount"`
-	Vol    float64 `json:"vol"`
+	Volume float64 `json:"vol"`
 	Count  int     `json:"count"`
+}
+
+type WsTick struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+	Tick      struct {
+		Amount    float64 `json:"amount"`
+		Close     float64 `json:"close"`
+		Count     float64 `json:"count"`
+		High      float64 `json:"high"`
+		ID        float64 `json:"id"`
+		Low       float64 `json:"low"`
+		Open      float64 `json:"open"`
+		Timestamp float64 `json:"ts"`
+		Volume    float64 `json:"vol"`
+	} `json:"tick"`
+}
+
+// Tickers contain all tickers
+type Tickers struct {
+	Data []Ticker `json:"data"`
+}
+
+// Ticker latest ticker data
+type Ticker struct {
+	Amount float64       `json:"amount"`
+	Close  float64       `json:"close"`
+	Count  int64         `json:"count"`
+	High   float64       `json:"high"`
+	Low    float64       `json:"low"`
+	Open   float64       `json:"open"`
+	Symbol currency.Pair `json:"symbol"`
+	Volume float64       `json:"vol"`
 }
 
 // DetailMerged stores the ticker detail merged data

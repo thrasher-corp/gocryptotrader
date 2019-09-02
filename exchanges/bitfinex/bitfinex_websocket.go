@@ -271,13 +271,15 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 					case "ticker":
 						b.Websocket.DataHandler <- wshandler.TickerData{
-							Quantity:   chanData[8].(float64),
-							ClosePrice: chanData[7].(float64),
-							HighPrice:  chanData[9].(float64),
-							LowPrice:   chanData[10].(float64),
-							Pair:       currency.NewPairFromString(chanInfo.Pair),
-							Exchange:   b.GetName(),
-							AssetType:  asset.Spot,
+							Exchange:  b.Name,
+							Volume:    chanData[8].(float64),
+							High:      chanData[9].(float64),
+							Low:       chanData[10].(float64),
+							Bid:       chanData[1].(float64),
+							Ask:       chanData[3].(float64),
+							Last:      chanData[7].(float64),
+							AssetType: asset.Spot,
+							Pair:      currency.NewPairFromString(chanInfo.Pair),
 						}
 
 					case "account":
@@ -539,6 +541,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		enabledPairs := b.GetEnabledPairs(asset.Spot)
 		for j := range enabledPairs {
+			b.appendOptionalDelimiter(&enabledPairs[j])
 			params := make(map[string]interface{})
 			if channels[i] == "book" {
 				params["prec"] = "P0"

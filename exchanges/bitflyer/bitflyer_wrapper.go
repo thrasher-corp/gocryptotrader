@@ -138,7 +138,7 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 	for _, info := range pairs {
 		if info.Alias != "" && assetType == asset.Futures {
 			products = append(products, info.Alias)
-		} else if info.Alias == "" && assetType == asset.Spot && strings.Contains(info.ProductCode, "_") {
+		} else if info.Alias == "" && assetType == asset.Spot && strings.Contains(info.ProductCode, b.GetPairFormat(assetType, false).Delimiter) {
 			products = append(products, info.ProductCode)
 		}
 	}
@@ -177,10 +177,8 @@ func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tickerNew.BestAsk
 	tickerPrice.Bid = tickerNew.BestBid
-	// tickerPrice.Low
 	tickerPrice.Last = tickerNew.Last
 	tickerPrice.Volume = tickerNew.Volume
-	// tickerPrice.High
 	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err

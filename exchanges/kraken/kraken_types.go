@@ -38,15 +38,15 @@ type AssetPairs struct {
 
 // Ticker is a standard ticker type
 type Ticker struct {
-	Ask    float64
-	Bid    float64
-	Last   float64
-	Volume float64
-	VWAP   float64
-	Trades int64
-	Low    float64
-	High   float64
-	Open   float64
+	Ask                        float64
+	Bid                        float64
+	Last                       float64
+	Volume                     float64
+	VolumeWeightedAveragePrice float64
+	Trades                     int64
+	Low                        float64
+	High                       float64
+	Open                       float64
 }
 
 // Tickers stores a map of tickers
@@ -54,27 +54,27 @@ type Tickers map[string]Ticker
 
 // TickerResponse holds ticker information before its put into the Ticker struct
 type TickerResponse struct {
-	Ask    []string `json:"a"`
-	Bid    []string `json:"b"`
-	Last   []string `json:"c"`
-	Volume []string `json:"v"`
-	VWAP   []string `json:"p"`
-	Trades []int64  `json:"t"`
-	Low    []string `json:"l"`
-	High   []string `json:"h"`
-	Open   string   `json:"o"`
+	Ask                        []string `json:"a"`
+	Bid                        []string `json:"b"`
+	Last                       []string `json:"c"`
+	Volume                     []string `json:"v"`
+	VolumeWeightedAveragePrice []string `json:"p"`
+	Trades                     []int64  `json:"t"`
+	Low                        []string `json:"l"`
+	High                       []string `json:"h"`
+	Open                       string   `json:"o"`
 }
 
 // OpenHighLowClose contains ticker event information
 type OpenHighLowClose struct {
-	Time   float64
-	Open   float64
-	High   float64
-	Low    float64
-	Close  float64
-	Vwap   float64
-	Volume float64
-	Count  float64
+	Time                       float64
+	Open                       float64
+	High                       float64
+	Low                        float64
+	Close                      float64
+	VolumeWeightedAveragePrice float64
+	Volume                     float64
+	Count                      float64
 }
 
 // RecentTrades holds recent trade data
@@ -125,13 +125,13 @@ type TradeBalanceInfo struct {
 
 // OrderInfo type
 type OrderInfo struct {
-	RefID    string  `json:"refid"`
-	UserRef  int32   `json:"userref"`
-	Status   string  `json:"status"`
-	OpenTm   float64 `json:"opentm"`
-	StartTm  float64 `json:"starttm"`
-	ExpireTm float64 `json:"expiretm"`
-	Descr    struct {
+	RefID       string  `json:"refid"`
+	UserRef     int32   `json:"userref"`
+	Status      string  `json:"status"`
+	OpenTime    float64 `json:"opentm"`
+	StartTime   float64 `json:"starttm"`
+	ExpireTime  float64 `json:"expiretm"`
+	Description struct {
 		Pair      string  `json:"pair"`
 		Type      string  `json:"type"`
 		OrderType string  `json:"ordertype"`
@@ -141,16 +141,16 @@ type OrderInfo struct {
 		Order     string  `json:"order"`
 		Close     string  `json:"close"`
 	} `json:"descr"`
-	Vol        float64  `json:"vol,string"`
-	VolExec    float64  `json:"vol_exec,string"`
-	Cost       float64  `json:"cost,string"`
-	Fee        float64  `json:"fee,string"`
-	Price      float64  `json:"price,string"`
-	StopPrice  float64  `json:"stopprice,string"`
-	LimitPrice float64  `json:"limitprice,string"`
-	Misc       string   `json:"misc"`
-	Oflags     string   `json:"oflags"`
-	Trades     []string `json:"trades"`
+	Volume         float64  `json:"vol,string"`
+	VolumeExecuted float64  `json:"vol_exec,string"`
+	Cost           float64  `json:"cost,string"`
+	Fee            float64  `json:"fee,string"`
+	Price          float64  `json:"price,string"`
+	StopPrice      float64  `json:"stopprice,string"`
+	LimitPrice     float64  `json:"limitprice,string"`
+	Misc           string   `json:"misc"`
+	OrderFlags     string   `json:"oflags"`
+	Trades         []string `json:"trades"`
 }
 
 // OpenOrders type
@@ -198,44 +198,44 @@ type TradesHistory struct {
 
 // TradeInfo type
 type TradeInfo struct {
-	OrderTxID string   `json:"ordertxid"`
-	Pair      string   `json:"pair"`
-	Time      float64  `json:"time"`
-	Type      string   `json:"type"`
-	OrderType string   `json:"ordertype"`
-	Price     float64  `json:"price,string"`
-	Cost      float64  `json:"cost,string"`
-	Fee       float64  `json:"fee,string"`
-	Vol       float64  `json:"vol,string"`
-	Margin    float64  `json:"margin,string"`
-	Misc      string   `json:"misc"`
-	PosTxID   string   `json:"postxid"`
-	Cprice    float64  `json:"cprice,string"`
-	Cfee      float64  `json:"cfee,string"`
-	Cvol      float64  `json:"cvol,string"`
-	Cmargin   float64  `json:"cmargin,string"`
-	Trades    []string `json:"trades"`
-	PosStatus string   `json:"posstatus"`
+	OrderTxID                  string   `json:"ordertxid"`
+	Pair                       string   `json:"pair"`
+	Time                       float64  `json:"time"`
+	Type                       string   `json:"type"`
+	OrderType                  string   `json:"ordertype"`
+	Price                      float64  `json:"price,string"`
+	Cost                       float64  `json:"cost,string"`
+	Fee                        float64  `json:"fee,string"`
+	Volume                     float64  `json:"vol,string"`
+	Margin                     float64  `json:"margin,string"`
+	Misc                       string   `json:"misc"`
+	PosTxID                    string   `json:"postxid"`
+	ClosedPositionAveragePrice float64  `json:"cprice,string"`
+	ClosedPositionFee          float64  `json:"cfee,string"`
+	ClosedPositionVolume       float64  `json:"cvol,string"`
+	ClosedPositionMargin       float64  `json:"cmargin,string"`
+	Trades                     []string `json:"trades"`
+	PosStatus                  string   `json:"posstatus"`
 }
 
 // Position holds the opened position
 type Position struct {
-	Ordertxid  string  `json:"ordertxid"`
-	Pair       string  `json:"pair"`
-	Time       float64 `json:"time"`
-	Type       string  `json:"type"`
-	OrderType  string  `json:"ordertype"`
-	Cost       float64 `json:"cost,string"`
-	Fee        float64 `json:"fee,string"`
-	Vol        float64 `json:"vol,string"`
-	VolClosed  float64 `json:"vol_closed,string"`
-	Margin     float64 `json:"margin,string"`
-	Rollovertm int64   `json:"rollovertm,string"`
-	Misc       string  `json:"misc"`
-	Oflags     string  `json:"oflags"`
-	PosStatus  string  `json:"posstatus"`
-	Net        string  `json:"net"`
-	Terms      string  `json:"terms"`
+	Ordertxid      string  `json:"ordertxid"`
+	Pair           string  `json:"pair"`
+	Time           float64 `json:"time"`
+	Type           string  `json:"type"`
+	OrderType      string  `json:"ordertype"`
+	Cost           float64 `json:"cost,string"`
+	Fee            float64 `json:"fee,string"`
+	Volume         float64 `json:"vol,string"`
+	VolumeClosed   float64 `json:"vol_closed,string"`
+	Margin         float64 `json:"margin,string"`
+	RolloverTime   int64   `json:"rollovertm,string"`
+	Misc           string  `json:"misc"`
+	OrderFlags     string  `json:"oflags"`
+	PositionStatus string  `json:"posstatus"`
+	Net            string  `json:"net"`
+	Terms          string  `json:"terms"`
 }
 
 // GetLedgersOptions type
@@ -314,7 +314,7 @@ type OrderDescription struct {
 // AddOrderOptions represents the AddOrder options
 type AddOrderOptions struct {
 	UserRef        int32
-	Oflags         string
+	OrderFlags     string
 	StartTm        string
 	ExpireTm       string
 	CloseOrderType string

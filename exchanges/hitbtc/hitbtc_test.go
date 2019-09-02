@@ -97,6 +97,20 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	}
 }
 
+func TestGetAllTickers(t *testing.T) {
+	_, err := h.GetTickers()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSingularTicker(t *testing.T) {
+	_, err := h.GetTicker("BTCUSD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	h.SetDefaults()
 	TestSetup(t)

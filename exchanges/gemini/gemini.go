@@ -74,47 +74,19 @@ func (g *Gemini) GetSymbols() ([]string, error) {
 }
 
 // GetTicker returns information about recent trading activity for the symbol
-func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
-	type TickerResponse struct {
-		Ask     float64 `json:"ask,string"`
-		Bid     float64 `json:"bid,string"`
-		Last    float64 `json:"last,string"`
-		Volume  map[string]interface{}
-		Message string `json:"message"`
-	}
-
-	ticker := Ticker{}
-	resp := TickerResponse{}
-	path := fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiTicker, currencyPair)
-
-	err := g.SendHTTPRequest(path, &resp)
+func (g *Gemini) GetTicker(currencyPair string) (TickerV2, error) {
+	ticker := TickerV2{}
+	path := fmt.Sprintf("%s/v2/ticker/%s", g.API.Endpoints.URL, currencyPair)
+	err := g.SendHTTPRequest(path, &ticker)
 	if err != nil {
 		return ticker, err
 	}
-
-	if resp.Message != "" {
-		return ticker, errors.New(resp.Message)
+	if ticker.Result == "error" {
+		return ticker, fmt.Errorf("%v %v %v",
+			g.Name,
+			ticker.Reason,
+			ticker.Message)
 	}
-
-	ticker.Ask = resp.Ask
-	ticker.Bid = resp.Bid
-	ticker.Last = resp.Last
-	ticker.Volume.Currency, _ = strconv.ParseFloat(resp.Volume[currencyPair[0:3]].(string), 64)
-
-	if strings.Contains(currencyPair, "USD") {
-		ticker.Volume.USD, _ = strconv.ParseFloat(resp.Volume["USD"].(string), 64)
-	} else {
-		if resp.Volume["ETH"] != nil {
-			ticker.Volume.ETH, _ = strconv.ParseFloat(resp.Volume["ETH"].(string), 64)
-		}
-
-		if resp.Volume["BTC"] != nil {
-			ticker.Volume.BTC, _ = strconv.ParseFloat(resp.Volume["BTC"].(string), 64)
-		}
-	}
-
-	time, _ := resp.Volume["timestamp"].(float64)
-	ticker.Volume.Timestamp = int64(time)
 
 	return ticker, nil
 }

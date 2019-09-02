@@ -28,6 +28,7 @@ const (
 	huobihadaxMarketDetail          = "market/detail"
 	huobihadaxMarketDetailMerged    = "market/detail/merged"
 	huobihadaxMarketDepth           = "market/depth"
+	huobihadaxMarketTicker          = "market/tickers"
 	huobihadaxMarketTrade           = "market/trade"
 	huobihadaxMarketTradeHistory    = "market/history/trade"
 	huobihadaxSymbols               = "common/symbols"
@@ -250,6 +251,13 @@ func (h *HUOBIHADAX) GetCurrencies() ([]string, error) {
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Currencies, err
+}
+
+// GetTickers returns the ticker for the specified symbol
+func (h *HUOBIHADAX) GetTickers() (Tickers, error) {
+	var result Tickers
+	urlPath := fmt.Sprintf("%s/%s", h.API.Endpoints.URL, huobihadaxMarketTicker)
+	return result, h.SendHTTPRequest(urlPath, &result)
 }
 
 // GetTimestamp returns the Huobi server time

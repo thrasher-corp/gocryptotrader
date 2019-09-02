@@ -68,9 +68,8 @@ func (e *EXMO) GetOrderbook(symbol string) (map[string]Orderbook, error) {
 }
 
 // GetTicker returns the ticker for a symbol or symbols
-func (e *EXMO) GetTicker(symbol string) (map[string]Ticker, error) {
+func (e *EXMO) GetTicker() (map[string]Ticker, error) {
 	v := url.Values{}
-	v.Set("pair", symbol)
 	result := make(map[string]Ticker)
 	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoTicker)
 	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)

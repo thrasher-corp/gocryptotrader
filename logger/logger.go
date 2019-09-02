@@ -22,6 +22,7 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) error {
 	if w == nil {
 		return errors.New("io.Writer not set")
 	}
+
 	e := eventPool.Get().(*LogEvent)
 	e.output = w
 	e.data = append(e.data, []byte(header)...)
@@ -34,11 +35,12 @@ func (l *Logger) newLogEvent(data, header string, w io.Writer) error {
 	if data == "" || data[len(data)-1] != '\n' {
 		e.data = append(e.data, '\n')
 	}
-	e.output.Write(e.data)
+	_, err := e.output.Write(e.data)
+
 	e.data = e.data[:0]
 	eventPool.Put(e)
 
-	return nil
+	return err
 }
 
 // CloseLogger is called on shutdown of application
@@ -58,6 +60,7 @@ func validSubLogger(s string) (bool, *subLogger) {
 	return false, nil
 }
 
+// Level retries the current sublogger levels
 func Level(s string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {
@@ -67,6 +70,7 @@ func Level(s string) (*Levels, error) {
 	return &logger.Levels, nil
 }
 
+// SetLevel sets sublogger levels
 func SetLevel(s, level string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {

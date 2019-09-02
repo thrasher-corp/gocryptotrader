@@ -193,7 +193,7 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 			return
 
 		case <-ticker.C:
-			err := o.WebsocketConn.SendMessage("ping")
+			err := o.WebsocketConn.Connection.WriteMessage(websocket.TextMessage, []byte("ping"))
 			if o.Verbose {
 				log.Debugf(log.ExchangeSys, "%v sending ping", o.GetName())
 			}
@@ -361,13 +361,19 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		instrument := currency.NewPairDelimiter(response.Data[i].InstrumentID, "-")
 		o.Websocket.DataHandler <- wshandler.TickerData{
-			Timestamp:  response.Data[i].Timestamp,
-			Exchange:   o.GetName(),
-			AssetType:  o.GetAssetTypeFromTableName(response.Table),
-			HighPrice:  response.Data[i].High24H,
-			LowPrice:   response.Data[i].Low24H,
-			ClosePrice: response.Data[i].Last,
-			Pair:       instrument,
+			Exchange:    o.Name,
+			Open:        response.Data[i].Open24h,
+			Close:       response.Data[i].Last,
+			Volume:      response.Data[i].BaseVolume24h,
+			QuoteVolume: response.Data[i].QuoteVolume24h,
+			High:        response.Data[i].High24h,
+			Low:         response.Data[i].Low24h,
+			Bid:         response.Data[i].BestBid,
+			Ask:         response.Data[i].BestAsk,
+			Last:        response.Data[i].Last,
+			Timestamp:   response.Data[i].Timestamp,
+			AssetType:   o.GetAssetTypeFromTableName(response.Table),
+			Pair:        instrument,
 		}
 	}
 }

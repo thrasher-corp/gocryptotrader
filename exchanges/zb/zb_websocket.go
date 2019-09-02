@@ -96,13 +96,17 @@ func (z *ZB) WsHandleData() {
 				}
 
 				z.Websocket.DataHandler <- wshandler.TickerData{
-					Timestamp:  time.Unix(0, ticker.Date),
-					Pair:       currency.NewPairFromString(cPair[0]),
-					AssetType:  asset.Spot,
-					Exchange:   z.GetName(),
-					ClosePrice: ticker.Data.Last,
-					HighPrice:  ticker.Data.High,
-					LowPrice:   ticker.Data.Low,
+					Exchange:  z.Name,
+					Close:     ticker.Data.Last,
+					Volume:    ticker.Data.Volume24Hr,
+					High:      ticker.Data.High,
+					Low:       ticker.Data.Low,
+					Last:      ticker.Data.Last,
+					Bid:       ticker.Data.Buy,
+					Ask:       ticker.Data.Sell,
+					Timestamp: time.Unix(0, ticker.Date),
+					AssetType: asset.Spot,
+					Pair:      currency.NewPairFromString(cPair[0]),
 				}
 
 			case strings.Contains(result.Channel, "depth"):

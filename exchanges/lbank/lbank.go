@@ -68,6 +68,15 @@ func (l *Lbank) GetTicker(symbol string) (TickerResponse, error) {
 	return t, l.SendHTTPRequest(path, &t)
 }
 
+// GetTickers returns all tickers
+func (l *Lbank) GetTickers() ([]TickerResponse, error) {
+	var t []TickerResponse
+	params := url.Values{}
+	params.Set("symbol", "all")
+	path := fmt.Sprintf("%s/v%s/%s?%s", l.API.Endpoints.URL, lbankAPIVersion, lbankTicker, params.Encode())
+	return t, l.SendHTTPRequest(path, &t)
+}
+
 // GetCurrencyPairs returns a list of supported currency pairs by the exchange
 func (l *Lbank) GetCurrencyPairs() ([]string, error) {
 	path := fmt.Sprintf("%s/v%s/%s", l.API.Endpoints.URL, lbankAPIVersion,

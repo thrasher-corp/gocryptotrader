@@ -136,15 +136,16 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				g.Websocket.DataHandler <- wshandler.TickerData{
-					Timestamp:  time.Now(),
-					Pair:       currency.NewPairFromString(c),
-					AssetType:  asset.Spot,
-					Exchange:   g.GetName(),
-					ClosePrice: ticker.Close,
-					Quantity:   ticker.BaseVolume,
-					OpenPrice:  ticker.Open,
-					HighPrice:  ticker.High,
-					LowPrice:   ticker.Low,
+					Exchange:    g.Name,
+					Open:        ticker.Open,
+					Close:       ticker.Close,
+					Volume:      ticker.BaseVolume,
+					QuoteVolume: ticker.QuoteVolume,
+					High:        ticker.High,
+					Low:         ticker.Low,
+					Last:        ticker.Last,
+					AssetType:   asset.Spot,
+					Pair:        currency.NewPairFromString(c),
 				}
 
 			case strings.Contains(result.Method, "trades"):
@@ -238,7 +239,7 @@ func (g *Gateio) WsHandleData() {
 					newOrderBook.Pair = currency.NewPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-						false)
+						true)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}

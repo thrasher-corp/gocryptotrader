@@ -2,12 +2,12 @@ package anx
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -173,7 +173,7 @@ func (a *ANX) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var currencies []string
 	for x := range result.CurrencyPairs {
-		currencies = append(currencies, result.CurrencyPairs[x].TradedCcy+"_"+result.CurrencyPairs[x].SettlementCcy)
+		currencies = append(currencies, fmt.Sprintf("%v%v%v", result.CurrencyPairs[x].TradedCcy, a.GetPairFormat(asset, false).Delimiter, result.CurrencyPairs[x].SettlementCcy))
 	}
 
 	return currencies, nil
@@ -186,61 +186,22 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 	if err != nil {
 		return tickerPrice, err
 	}
+	last, _ := convert.FloatFromString(tick.Data.Last.Value)
+	high, _ := convert.FloatFromString(tick.Data.High.Value)
+	low, _ := convert.FloatFromString(tick.Data.Low.Value)
+	bid, _ := convert.FloatFromString(tick.Data.Buy.Value)
+	ask, _ := convert.FloatFromString(tick.Data.Sell.Value)
+	volume, _ := convert.FloatFromString(tick.Data.Volume.Value)
 
-	tickerPrice.Pair = p
-
-	if tick.Data.Sell.Value != "" {
-		tickerPrice.Ask, err = strconv.ParseFloat(tick.Data.Sell.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Ask = 0
-	}
-
-	if tick.Data.Buy.Value != "" {
-		tickerPrice.Bid, err = strconv.ParseFloat(tick.Data.Buy.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Bid = 0
-	}
-
-	if tick.Data.Low.Value != "" {
-		tickerPrice.Low, err = strconv.ParseFloat(tick.Data.Low.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Low = 0
-	}
-
-	if tick.Data.Last.Value != "" {
-		tickerPrice.Last, err = strconv.ParseFloat(tick.Data.Last.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Last = 0
-	}
-
-	if tick.Data.Vol.Value != "" {
-		tickerPrice.Volume, err = strconv.ParseFloat(tick.Data.Vol.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.Volume = 0
-	}
-
-	if tick.Data.High.Value != "" {
-		tickerPrice.High, err = strconv.ParseFloat(tick.Data.High.Value, 64)
-		if err != nil {
-			return tickerPrice, err
-		}
-	} else {
-		tickerPrice.High = 0
+	tickerPrice = ticker.Price{
+		Last:        last,
+		High:        high,
+		Low:         low,
+		Bid:         bid,
+		Ask:         ask,
+		Volume:      volume,
+		Pair:        p,
+		LastUpdated: time.Unix(0, tick.Data.UpdateTime),
 	}
 
 	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)

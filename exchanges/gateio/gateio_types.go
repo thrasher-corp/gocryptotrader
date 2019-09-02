@@ -70,15 +70,15 @@ type KLineResponse struct {
 
 // TickerResponse  holds the ticker response data
 type TickerResponse struct {
-	Result        string  `json:"result"`
-	Volume        float64 `json:"baseVolume,string"`    // Trading volume
-	High          float64 `json:"high24hr,string"`      // 24 hour high price
-	Open          float64 `json:"highestBid,string"`    // Openening price
-	Last          float64 `json:"last,string"`          // Last price
-	Low           float64 `json:"low24hr,string"`       // 24 hour low price
-	Close         float64 `json:"lowestAsk,string"`     // Closing price
-	PercentChange float64 `json:"percentChange,string"` // Percentage change
-	QuoteVolume   float64 `json:"quoteVolume,string"`   // Quote currency volume
+	Period      int64   `json:"period"`
+	BaseVolume  float64 `json:"baseVolume,string"`
+	Change      float64 `json:"change,string"`
+	Close       float64 `json:"close,string"`
+	High        float64 `json:"high,string"`
+	Last        float64 `json:"last,string"`
+	Low         float64 `json:"low,string"`
+	Open        float64 `json:"open,string"`
+	QuoteVolume float64 `json:"quoteVolume,string"`
 }
 
 // OrderbookResponse stores the orderbook data
