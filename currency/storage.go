@@ -130,7 +130,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 			Verbose:     settings.CryptocurrencyProvider.Verbose,
 		})
 		if err != nil {
-			log.Errorf(log.Global, 
+			log.Errorf(log.Global,
 				"Unable to setup CoinMarketCap analysis. Error: %s", err)
 			c = nil
 			settings.CryptocurrencyProvider.Enabled = false

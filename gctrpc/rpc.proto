@@ -78,6 +78,11 @@ message DisableExchangeRequest {
     string exchange = 1;
 }
 
+message PairsSupported {
+    string available_pairs = 1;
+    string enabled_pairs = 2;
+}
+
 message GetExchangeInfoResponse {
     string name = 1;
     bool enabled = 2;
@@ -87,10 +92,8 @@ message GetExchangeInfoResponse {
     string http_useragent = 6;
     string http_proxy = 7;
     string base_currencies = 8;
-    string supported_assets = 9;
-    string enabled_pairs = 10;
-    string available_pairs = 11;
-    bool authenticated_api = 12;
+    map<string, PairsSupported> supported_assets = 9;
+    bool authenticated_api = 10;
 }
 
 message GetTickerRequest {

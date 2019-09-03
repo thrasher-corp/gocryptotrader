@@ -138,8 +138,6 @@ func StartRPCRESTProxy() {
 	}()
 
 	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
-	select {}
-
 }
 
 // GetInfo returns info about the current GoCryptoTrader session
@@ -252,23 +250,26 @@ func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchan
 		return nil, err
 	}
 
-	return &gctrpc.GetExchangeInfoResponse{
-		Name:            exchCfg.Name,
-		Enabled:         exchCfg.Enabled,
-		Verbose:         exchCfg.Verbose,
-		UsingSandbox:    exchCfg.UseSandbox,
-		HttpTimeout:     exchCfg.HTTPTimeout.String(),
-		HttpUseragent:   exchCfg.HTTPUserAgent,
-		HttpProxy:       exchCfg.ProxyAddress,
-		BaseCurrencies:  strings.Join(exchCfg.BaseCurrencies.Strings(), ","),
-		SupportedAssets: exchCfg.CurrencyPairs.AssetTypes.JoinToString(","),
+	resp := &gctrpc.GetExchangeInfoResponse{
+		Name:           exchCfg.Name,
+		Enabled:        exchCfg.Enabled,
+		Verbose:        exchCfg.Verbose,
+		UsingSandbox:   exchCfg.UseSandbox,
+		HttpTimeout:    exchCfg.HTTPTimeout.String(),
+		HttpUseragent:  exchCfg.HTTPUserAgent,
+		HttpProxy:      exchCfg.ProxyAddress,
+		BaseCurrencies: strings.Join(exchCfg.BaseCurrencies.Strings(), ","),
+	}
 
-		// TO-DO fix pairs
-		//EnabledPairs: strings.Join(
-		//	exchCfg.CurrencyPairs.Pairs.GetPairs().Enabled.Strings(), ","),
-		//AvailablePairs: strings.Join(
-		//	exchCfg.CurrencyPairs.Spot.Available.Strings(), ","),
-	}, nil
+	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
+	for x := range exchCfg.CurrencyPairs.AssetTypes {
+		a := exchCfg.CurrencyPairs.AssetTypes[x]
+		resp.SupportedAssets[a.String()] = &gctrpc.PairsSupported{
+			EnabledPairs:   exchCfg.CurrencyPairs.Get(a).Enabled.Join(),
+			AvailablePairs: exchCfg.CurrencyPairs.Get(a).Available.Join(),
+		}
+	}
+	return resp, nil
 }
 
 // GetTicker returns the ticker for a specified exchange, currency pair and

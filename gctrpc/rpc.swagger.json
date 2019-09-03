@@ -1323,13 +1323,10 @@
           "type": "string"
         },
         "supported_assets": {
-          "type": "string"
-        },
-        "enabled_pairs": {
-          "type": "string"
-        },
-        "available_pairs": {
-          "type": "string"
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcPairsSupported"
+          }
         },
         "authenticated_api": {
           "type": "boolean",
@@ -1751,6 +1748,17 @@
           "items": {
             "$ref": "#/definitions/gctrpcOrderbookResponse"
           }
+        }
+      }
+    },
+    "gctrpcPairsSupported": {
+      "type": "object",
+      "properties": {
+        "available_pairs": {
+          "type": "string"
+        },
+        "enabled_pairs": {
+          "type": "string"
         }
       }
     },
