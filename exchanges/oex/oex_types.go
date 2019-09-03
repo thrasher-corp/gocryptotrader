@@ -140,7 +140,7 @@ type AllOrderResponse struct {
 type OrderHistoryData struct {
 	Volume    float64 `json:"vol,string"`
 	Side      string  `json:"side"`
-	FeeCoin   string  `json:"feeCoin"`
+	FeeCoin   float64 `json:"feeCoin,string"`
 	Price     float64 `json:"price,string"`
 	Fee       float64 `json:"fee,string"`
 	CTime     int64   `json:"ctime"`

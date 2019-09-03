@@ -59,11 +59,11 @@ func (o *Oex) SetDefaults() {
 	o.RESTPollingDelay = 10
 	o.RequestCurrencyPairFormat.Delimiter = ""
 	o.RequestCurrencyPairFormat.Uppercase = false
-	o.ConfigCurrencyPairFormat.Delimiter = ""
-	o.ConfigCurrencyPairFormat.Uppercase = false
+	o.ConfigCurrencyPairFormat.Delimiter = "_"
+	o.ConfigCurrencyPairFormat.Uppercase = true
 	o.AssetTypes = []string{ticker.Spot}
-	o.SupportsAutoPairUpdating = false
-	o.SupportsRESTTickerBatching = false
+	o.SupportsAutoPairUpdating = true
+	o.SupportsRESTTickerBatching = true
 	o.Requester = request.New(o.Name,
 		request.NewRateLimit(time.Second, 0),
 		request.NewRateLimit(time.Second, 0),
@@ -131,8 +131,8 @@ func (o *Oex) GetTicker(symbol string) (TickerResponse, error) {
 	return resp, nil
 }
 
-// GetAllTicker returns ticker info for all trading pairs available
-func (o *Oex) GetAllTicker() (AllTickerResponse, error) {
+// GetAllTickers returns ticker info for all trading pairs available
+func (o *Oex) GetAllTickers() (AllTickerResponse, error) {
 	var resp AllTickerResponse
 	path := fmt.Sprintf("%s%s", o.APIUrl, oexGetAllTicker)
 	err := o.SendHTTPRequest(path, &resp)
@@ -337,14 +337,15 @@ func (o *Oex) RemoveAllOrders(symbol string) (RemoveOrderResponse, error) {
 }
 
 // CreateOrder creates a new order
-func (o *Oex) CreateOrder(side, orderType, volume, price, symbol, fee string) (CreateOrderResponse, error) {
+func (o *Oex) CreateOrder(side, orderType string, volume, price float64, symbol string, fee int64) (CreateOrderResponse, error) {
 	var resp CreateOrderResponse
 	params := url.Values{}
 	params.Set("side", side)
 	params.Set("type", orderType)
-	params.Set("volume", volume)
+	params.Set("volume", strconv.FormatFloat(volume, 'f', 10, 64))
+	params.Set("price", strconv.FormatFloat(price, 'f', 10, 64))
 	params.Set("symbol", symbol)
-	params.Set("fee_is_user_exchange_coin", fee)
+	params.Set("fee_is_user_exchange_coin", strconv.FormatInt(fee, 10))
 	path := o.APIUrl + oexCreateOrder
 	err := o.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
 	if err != nil {
@@ -379,15 +380,15 @@ func (o *Oex) GetOpenOrders(symbol, pageSize, page string) (OpenOrderResponse, e
 }
 
 // SelfTrade stores information about self trades
-func (o *Oex) SelfTrade(side, orderType, volume, price, symbol, fee string) (SelfTradeResponse, error) {
+func (o *Oex) SelfTrade(side, orderType string, volume, price float64, symbol string, fee int64) (SelfTradeResponse, error) {
 	var resp SelfTradeResponse
 	params := url.Values{}
 	params.Set("side", side)
 	params.Set("type", orderType)
-	params.Set("volume", volume)
-	params.Set("price", price)
+	params.Set("volume", strconv.FormatFloat(volume, 'f', 10, 64))
+	params.Set("price", strconv.FormatFloat(price, 'f', 10, 64))
 	params.Set("symbol", symbol)
-	params.Set("fee_is_user_exchange_coin", fee)
+	params.Set("fee_is_user_exchange_coin", strconv.FormatInt(fee, 10))
 	path := o.APIUrl + oexSelfTrade
 	err := o.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
 	if err != nil {

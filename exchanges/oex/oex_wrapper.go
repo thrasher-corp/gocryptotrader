@@ -49,7 +49,7 @@ func (o *Oex) Run() {
 func (o *Oex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var resp ticker.Price
 
-	strPair := p.Lower().String()
+	strPair := exchange.FormatExchangeCurrency(o.Name, p).String()
 	tempResp, err := o.GetTicker(strPair)
 	if err != nil {
 		return resp, err
@@ -150,7 +150,7 @@ func (o *Oex) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType ex
 	if orderType != exchange.LimitOrderType && orderType != exchange.MarketOrderType {
 		return resp, fmt.Errorf("%s ordertype is not supported by %s", orderType, o.GetName())
 	}
-	tempResp, err := o.CreateOrder(side.ToString(), orderType.ToString(), strconv.FormatFloat(amount, 'f', -1, 64), strconv.FormatFloat(price, 'f', -1, 64), exchange.FormatExchangeCurrency(o.Name, p).String(), "")
+	tempResp, err := o.CreateOrder(side.ToString(), orderType.ToString(), amount, price, exchange.FormatExchangeCurrency(o.Name, p).String(), 1)
 	if err != nil {
 		return resp, err
 	}
@@ -337,19 +337,18 @@ func (o *Oex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (o *Oex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	o.Websocket.SubscribeToChannels(channels)
-	return nil
+	return common.ErrNotYetImplemented
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (o *Oex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
+	return common.ErrNotYetImplemented
 }
 
 // GetSubscriptions returns a copied list of subscriptions
 func (o *Oex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
