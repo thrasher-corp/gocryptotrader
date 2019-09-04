@@ -27,4 +27,4 @@ An exchange interface wrapper for the GoCryptoTrader application.
 
 |User|Github|Contribution|
 |--|--|--|
-|AliasGoesHere|https://github.com/AliasGoesHere |WHAT-YOU-DID|
+|MadCozBadd|https://github.com/MadCozBadd |Added exchange Rest and Market Support|

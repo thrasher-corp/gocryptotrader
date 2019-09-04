@@ -36,8 +36,10 @@ func (o *Oex) Run() {
 		log.Errorf("%s Failed to get available symbols.\n", o.GetName())
 	}
 	var newExchangeCurrencies currency.Pairs
+	var tempPair currency.Pair
 	for x := 0; x < len(exchangeCurrencies.Data); x++ {
-		newExchangeCurrencies = append(newExchangeCurrencies, currency.NewPairFromString(exchangeCurrencies.Data[x].Symbol))
+		tempPair = currency.NewPairFromString(exchangeCurrencies.Data[x].Symbol)
+		newExchangeCurrencies = append(newExchangeCurrencies, exchange.FormatCurrency(tempPair))
 	}
 	err = o.UpdateCurrencies(newExchangeCurrencies, false, true)
 	if err != nil {
@@ -50,18 +52,23 @@ func (o *Oex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, err
 	var resp ticker.Price
 
 	strPair := exchange.FormatExchangeCurrency(o.Name, p).String()
-	tempResp, err := o.GetTicker(strPair)
+	tempResp, err := o.GetAllTickers()
 	if err != nil {
 		return resp, err
 	}
-	resp.Pair = p
-	resp.Last = tempResp.Data.Last
-	resp.High = tempResp.Data.High
-	resp.Low = tempResp.Data.Low
-	resp.Bid = tempResp.Data.Buy
-	resp.Ask = tempResp.Data.Sell
-	resp.Volume = tempResp.Data.Volume
-	resp.LastUpdated = time.Unix(0, tempResp.Data.Time)
+	for a := range tempResp.Data.Ticker {
+		if tempResp.Data.Ticker[a].Symbol != strPair {
+			continue
+		}
+		resp.Pair = p
+		resp.Last = tempResp.Data.Ticker[a].Last
+		resp.High = tempResp.Data.Ticker[a].High
+		resp.Low = tempResp.Data.Ticker[a].Low
+		resp.Bid = tempResp.Data.Ticker[a].Buy
+		resp.Ask = tempResp.Data.Ticker[a].Sell
+		resp.Volume = tempResp.Data.Ticker[a].Volume
+		resp.LastUpdated = time.Unix(0, tempResp.Data.Date)
+	}
 	return resp, nil
 }
 
@@ -86,7 +93,7 @@ func (o *Oex) GetOrderbookEx(currency currency.Pair, assetType string) (orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *Oex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var resp orderbook.Base
-	strPair := p.Lower().String()
+	strPair := exchange.FormatExchangeCurrency(o.Name, p).String()
 	tempResp, err := o.GetMarketDepth(strPair, "step2")
 	if err != nil {
 		return resp, err
