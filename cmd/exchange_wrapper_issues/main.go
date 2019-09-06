@@ -19,17 +19,21 @@ const (
 type Key struct {
 	ExchangeName, APIKey, APISecret, ClientID string
 }
-
-type Response struct {
-	Function string      `json:"function"`
-	Error    error       `json:"error"`
-	Response interface{} `json:"response"`
+type SuperDuperResponse struct {
+	ExchangeName string                    `json:"exchangeName"`
+	Responses    []ExchangeWrapperResponse `json:"responses"`
 }
 
 type ExchangeWrapperResponse struct {
 	AssetType    asset.Item    `json:"asset"`
 	CurrencyPair currency.Pair `json:"currency"`
 	Responses    []Response    `json:"responses"`
+}
+
+type Response struct {
+	Function string      `json:"function"`
+	Error    string      `json:"error"`
+	Response interface{} `json:"response"`
 }
 
 func SetupKeys() map[string]Key {
@@ -63,8 +67,8 @@ func main() {
 	wg.Wait()
 	log.Println("Done.")
 	log.Printf("Testing exchange wrappers..")
-	results := make(map[string][]ExchangeWrapperResponse)
 	wg = sync.WaitGroup{}
+	superFinalResponse := []SuperDuperResponse{}
 	for x := range engine.Bot.Exchanges {
 		base := engine.Bot.Exchanges[x].GetBase()
 		if !base.Config.Enabled {
@@ -83,7 +87,10 @@ func main() {
 			// base.Config.API.Credentials.Secret = keys[name].APISecret
 			// base.Config.API.Credentials.ClientID = keys[name].ClientID
 			authenticated := base.ValidateAPICredentials()
-			results[name] = testWrappers(engine.Bot.Exchanges[num], base, authenticated, false)
+			superFinalResponse = append(superFinalResponse, SuperDuperResponse{
+				ExchangeName: name,
+				Responses:    testWrappers(engine.Bot.Exchanges[num], base, authenticated, false),
+			})
 			wg.Done()
 		}(x)
 	}
@@ -91,34 +98,36 @@ func main() {
 	log.Println("Done.")
 	log.Println()
 	var totalErrors int64
-	for name, funcs := range results {
-		log.Printf("------------%v Results-------------\n", name)
-		for x := range funcs {
-			for i := range funcs[x].Responses {
-				log.Printf("%v Result: %v", name, i)
-				log.Printf("Function:\t%v", funcs[x].Responses[i].Function)
-				log.Printf("AssetType:\t%v", funcs[x].AssetType)
-				log.Printf("Currency:\t%v\n", funcs[x].CurrencyPair)
-				if funcs[x].Responses[i].Error != nil {
+	for i := range superFinalResponse {
+		log.Printf("------------%v Results-------------\n", superFinalResponse[i].ExchangeName)
+		for j := range superFinalResponse[i].Responses {
+			for k := range superFinalResponse[i].Responses[j].Responses {
+				log.Printf("%v Result: %v", superFinalResponse[j].ExchangeName, k)
+				log.Printf("Function:\t%v", superFinalResponse[i].Responses[j].Responses[k].Function)
+				log.Printf("AssetType:\t%v", superFinalResponse[i].Responses[j].AssetType)
+				log.Printf("Currency:\t%v\n", superFinalResponse[i].Responses[j].CurrencyPair)
+				if superFinalResponse[i].Responses[j].Responses[k].Error != "" {
 					totalErrors++
-					log.Printf("Error:\t%v", funcs[x].Responses[i].Error)
+					log.Printf("Error:\t%v", superFinalResponse[i].Responses[j].Responses[k].Error)
 				} else {
 					log.Print("Error:\tnone")
 				}
 				if verbose {
-					butts, err := common.JSONEncode(funcs[x].Responses[i].Response)
+					butts, err := common.JSONEncode(superFinalResponse[i].Responses[j].Responses[k].Response)
 					if err != nil {
 						log.Printf("JSON Error:\t%v", err)
 					}
 					log.Printf("Response:\t%s", butts)
 				}
 				log.Println()
+
 			}
 		}
 		log.Println()
+
 	}
 	log.Println("JSONifying results...")
-	json, err := common.JSONEncode(results)
+	json, err := common.JSONEncode(superFinalResponse)
 	if err != nil {
 		log.Println("WOAH NELLY, JSON STUFFED UP")
 		return
@@ -141,6 +150,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 	var response []ExchangeWrapperResponse
 	assetTypes := base.GetAssetTypes()
 	for i := range assetTypes {
+		var msg string
 		var p currency.Pair
 		log.Printf("%v %v", base.GetName(), assetTypes[i])
 		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
@@ -159,44 +169,68 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 			CurrencyPair: p,
 		}
 		r1, err := e.FetchTicker(p, assetTypes[i])
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "FetchTicker",
-			Error:    err,
+			Error:    msg,
 			Response: r1,
 		})
 
 		r2, err := e.UpdateTicker(p, assetTypes[i])
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "UpdateTicker",
-			Error:    err,
+			Error:    msg,
 			Response: r2,
 		})
 
 		r3, err := e.FetchOrderbook(p, assetTypes[i])
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "FetchOrderbook",
-			Error:    err,
+			Error:    msg,
 			Response: r3,
 		})
 
 		r4, err := e.UpdateOrderbook(p, assetTypes[i])
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "UpdateOrderbook",
-			Error:    err,
+			Error:    msg,
 			Response: r4,
 		})
 
-		r5, err := e.FetchTradablePairs(asset.Spot)
+		r5, err := e.FetchTradablePairs(assetTypes[i])
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "FetchTradablePairs",
-			Error:    err,
+			Error:    msg,
 			Response: r5,
 		})
 		// r6
 		err = e.UpdateTradablePairs(false)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "UpdateTradablePairs",
-			Error:    err,
+			Error:    msg,
 		})
 
 		if !authenticated {
@@ -205,23 +239,35 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		}
 
 		r7, err := e.GetAccountInfo()
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "GetAccountInfo",
-			Error:    err,
+			Error:    msg,
 			Response: r7,
 		})
 
 		r8, err := e.GetExchangeHistory(p, assetTypes[i])
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "GetExchangeHistory",
-			Error:    err,
+			Error:    msg,
 			Response: r8,
 		})
 
 		r9, err := e.GetFundingHistory()
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "GetFundingHistory",
-			Error:    err,
+			Error:    msg,
 			Response: r9,
 		})
 
@@ -231,80 +277,132 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 			OrderType: exchange.LimitOrderType,
 			Amount:    1000000,
 			Price:     10000000000,
-			ClientID:  "meow",
+			ClientID:  base.API.Credentials.ClientID,
 		}
 		r10, err := e.SubmitOrder(s)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "SubmitOrder",
-			Error:    err,
+			Error:    msg,
 			Response: r10,
 		})
 
-		r11, err := e.ModifyOrder(&exchange.ModifyOrder{})
+		r16, err := e.GetActiveOrders(&exchange.GetOrdersRequest{})
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
+		butts.Responses = append(butts.Responses, Response{
+			Function: "GetActiveOrders",
+			Error:    msg,
+			Response: r16,
+		})
+		var orderID string
+		if len(r16) > 0 {
+			orderID = r16[0].ID
+		}
+
+		r11, err := e.ModifyOrder(&exchange.ModifyOrder{
+			OrderID: orderID,
+		})
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "ModifyOrder",
-			Error:    err,
+			Error:    msg,
 			Response: r11,
 		})
 		// r12
-		err = e.CancelOrder(&exchange.OrderCancellation{})
+		err = e.CancelOrder(&exchange.OrderCancellation{
+			OrderID: orderID,
+		})
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "CancelOrder",
-			Error:    err,
+			Error:    msg,
 		})
 
 		r13, err := e.CancelAllOrders(&exchange.OrderCancellation{})
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "CancelAllOrders",
-			Error:    err,
+			Error:    msg,
 			Response: r13,
 		})
 
-		r14, err := e.GetOrderInfo("1")
+		r14, err := e.GetOrderInfo(orderID)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "GetOrderInfo",
-			Error:    err,
+			Error:    msg,
 			Response: r14,
 		})
 
 		r15, err := e.GetOrderHistory(&exchange.GetOrdersRequest{})
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "GetOrderHistory",
-			Error:    err,
+			Error:    msg,
 			Response: r15,
 		})
 
-		r16, err := e.GetActiveOrders(&exchange.GetOrdersRequest{})
-		butts.Responses = append(butts.Responses, Response{
-			Function: "GetActiveOrders",
-			Error:    err,
-			Response: r16,
-		})
-
-		r17, err := e.GetDepositAddress(currency.BTC, "")
+		r17, err := e.GetDepositAddress(p.Base, "")
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "GetDepositAddress",
-			Error:    err,
+			Error:    msg,
 			Response: r17,
 		})
 
 		r18, err := e.WithdrawCryptocurrencyFunds(&exchange.CryptoWithdrawRequest{})
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "WithdrawCryptocurrencyFunds",
-			Error:    err,
+			Error:    msg,
 			Response: r18,
 		})
 
 		r19, err := e.WithdrawFiatFunds(&exchange.FiatWithdrawRequest{})
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "WithdrawFiatFunds",
-			Error:    err,
+			Error:    msg,
 			Response: r19,
 		})
 		r20, err := e.WithdrawFiatFundsToInternationalBank(&exchange.FiatWithdrawRequest{})
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+		}
 		butts.Responses = append(butts.Responses, Response{
 			Function: "WithdrawFiatFundsToInternationalBank",
-			Error:    err,
+			Error:    msg,
 			Response: r20,
 		})
 		response = append(response, butts)
