@@ -1172,7 +1172,7 @@
    ]
   },
   {
-    "name": "Oex",
+    "name": "OEX",
     "enabled": true,
     "verbose": false,
     "websocket": false,
@@ -1189,18 +1189,18 @@
     "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
     "proxyAddress": "",
     "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-    "availablePairs": "btcusd",
+    "availablePairs": "BTC-USDT",
     "enabledPairs": "btcusd",
     "baseCurrencies": "USD",
     "assetTypes": "SPOT",
     "supportsAutoPairUpdates": true,
     "configCurrencyPairFormat": {
      "uppercase": true,
-     "delimiter": "_"
+     "delimiter": "-"
     },
     "requestCurrencyPairFormat": {
      "uppercase": false,
-     "delimiter": "_"
+     "delimiter": ""
     },
     "bankAccounts": [
      {

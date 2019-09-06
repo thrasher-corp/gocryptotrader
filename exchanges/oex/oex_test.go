@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -239,5 +240,21 @@ func TestFetchOrderInfo(t *testing.T) {
 	_, err := o.FetchOrderInfo("ksldfkaig", "btcusdt")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
+	var input exchange.FeeBuilder
+	input.Amount = 2
+	input.PurchasePrice = 10585.3
+	input.Pair = cp
+	a, err := o.GetFeeByType(&input)
+	if err != nil {
+		t.Error(err)
+	}
+	if a != 42.3412 {
+		t.Errorf("testGetFeeByType failed. Expected 42.3412, received: %v", a)
 	}
 }

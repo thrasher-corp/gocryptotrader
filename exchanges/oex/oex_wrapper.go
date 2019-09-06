@@ -34,41 +34,45 @@ func (o *Oex) Run() {
 	exchangeCurrencies, err := o.GetAllPairs()
 	if err != nil {
 		log.Errorf("%s Failed to get available symbols.\n", o.GetName())
-	}
-	var newExchangeCurrencies currency.Pairs
-	var tempPair currency.Pair
-	for x := 0; x < len(exchangeCurrencies.Data); x++ {
-		tempPair = currency.NewPairFromString(exchangeCurrencies.Data[x].Symbol)
-		newExchangeCurrencies = append(newExchangeCurrencies, exchange.FormatCurrency(tempPair))
-	}
-	err = o.UpdateCurrencies(newExchangeCurrencies, false, true)
-	if err != nil {
-		log.Errorf("%s Failed to update available currencies %s.\n", o.GetName(), err)
+	} else {
+		var newExchangeCurrencies currency.Pairs
+		var tempPair currency.Pair
+		for x := 0; x < len(exchangeCurrencies.Data); x++ {
+			tempPair = currency.NewPairFromString(exchangeCurrencies.Data[x].Symbol)
+			newExchangeCurrencies = append(newExchangeCurrencies, exchange.FormatCurrency(tempPair))
+		}
+		err = o.UpdateCurrencies(newExchangeCurrencies, false, false)
+		if err != nil {
+			log.Errorf("%s Failed to update available currencies %s.\n", o.GetName(), err)
+		}
 	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *Oex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var resp ticker.Price
-
-	strPair := exchange.FormatExchangeCurrency(o.Name, p).String()
 	tempResp, err := o.GetAllTickers()
 	if err != nil {
 		return resp, err
 	}
-	for a := range tempResp.Data.Ticker {
-		if tempResp.Data.Ticker[a].Symbol != strPair {
-			continue
+	allPairs := o.GetEnabledCurrencies()
+	for x := range allPairs {
+		for y := range tempResp.Data.Ticker {
+			if exchange.FormatExchangeCurrency(o.Name, allPairs[x]).String() != tempResp.Data.Ticker[y].Symbol {
+				continue
+			}
+			resp.Pair = allPairs[x]
+			resp.Last = tempResp.Data.Ticker[y].Last
+			resp.High = tempResp.Data.Ticker[y].High
+			resp.Low = tempResp.Data.Ticker[y].Low
+			resp.Bid = tempResp.Data.Ticker[y].Buy
+			resp.Ask = tempResp.Data.Ticker[y].Sell
+			resp.Volume = tempResp.Data.Ticker[y].Volume
+			resp.LastUpdated = time.Unix(0, tempResp.Data.Date)
+			ticker.ProcessTicker(o.Name, &resp, tempResp.Data.Ticker[y].Symbol)
 		}
-		resp.Pair = p
-		resp.Last = tempResp.Data.Ticker[a].Last
-		resp.High = tempResp.Data.Ticker[a].High
-		resp.Low = tempResp.Data.Ticker[a].Low
-		resp.Bid = tempResp.Data.Ticker[a].Buy
-		resp.Ask = tempResp.Data.Ticker[a].Sell
-		resp.Volume = tempResp.Data.Ticker[a].Volume
-		resp.LastUpdated = time.Unix(0, tempResp.Data.Date)
 	}
+	resp, err = ticker.GetTicker(o.Name, p, "")
 	return resp, nil
 }
 
@@ -100,6 +104,7 @@ func (o *Oex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base
 	}
 	resp.ExchangeName = o.GetName()
 	resp.Pair = p
+	resp.AssetType = assetType
 	for i := range tempResp.Data.Tick.Bids {
 		var tempBids orderbook.Item
 		tempBids.Amount = tempResp.Data.Tick.Bids[i][1]
@@ -113,6 +118,10 @@ func (o *Oex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base
 		tempAsks.Price = tempResp.Data.Tick.Asks[j][0]
 
 		resp.Bids = append(resp.Bids, tempAsks)
+	}
+	err = resp.Process()
+	if err != nil {
+		return resp, err
 	}
 	return resp, nil
 }
@@ -272,7 +281,7 @@ func (o *Oex) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.Wit
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (o *Oex) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -338,7 +347,7 @@ func (o *Oex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (o *Oex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrFunctionNotSupported
+	return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.002, nil
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
