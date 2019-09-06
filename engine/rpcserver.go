@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -1047,6 +1048,90 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			Bids:      bids,
 			Asks:      asks,
 			AssetType: ob.AssetType.String(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+}
+
+// GetTickerStream streams the requested updated ticker
+func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetTickerStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New("exchange name unset")
+	}
+
+	if r.Pair.String() == "" {
+		return errors.New("currency pair unset")
+	}
+
+	if r.AssetType == "" {
+		return errors.New("asset type unset")
+	}
+
+	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+
+	pipe, err := ticker.SubscribeTicker(r.Exchange, p, asset.Item(r.AssetType))
+	if err != nil {
+		return err
+	}
+
+	defer pipe.Release()
+
+	for {
+		data := <-pipe.C
+		t := (*data.(*interface{})).(ticker.Price)
+
+		err := stream.Send(&gctrpc.TickerResponse{
+			Pair: &gctrpc.CurrencyPair{
+				Base:      t.Pair.Base.String(),
+				Quote:     t.Pair.Quote.String(),
+				Delimiter: t.Pair.Delimiter},
+			LastUpdated: t.LastUpdated.Unix(),
+			Last:        t.Last,
+			High:        t.High,
+			Low:         t.Low,
+			Bid:         t.Bid,
+			Ask:         t.Ask,
+			Volume:      t.Volume,
+			PriceAth:    t.PriceATH,
+		})
+		if err != nil {
+			return err
+		}
+	}
+}
+
+// GetExchangeTickerStream streams all tickers associated with an exchange
+func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeTickerStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New("exchange name unset")
+	}
+
+	pipe, err := ticker.SubscribeToExchangeTickers(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	defer pipe.Release()
+
+	for {
+		data := <-pipe.C
+		t := (*data.(*interface{})).(ticker.Price)
+
+		err := stream.Send(&gctrpc.TickerResponse{
+			Pair: &gctrpc.CurrencyPair{
+				Base:      t.Pair.Base.String(),
+				Quote:     t.Pair.Quote.String(),
+				Delimiter: t.Pair.Delimiter},
+			LastUpdated: t.LastUpdated.Unix(),
+			Last:        t.Last,
+			High:        t.High,
+			Low:         t.Low,
+			Bid:         t.Bid,
+			Ask:         t.Ask,
+			Volume:      t.Volume,
+			PriceAth:    t.PriceATH,
 		})
 		if err != nil {
 			return err

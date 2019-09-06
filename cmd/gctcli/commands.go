@@ -2555,3 +2555,176 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			resp.Pair.String())
 	}
 }
+
+var getTickerStreamCommand = cli.Command{
+	Name:      "gettickerstream",
+	Usage:     "gets the ticker stream for a specific currency pair and exchange",
+	ArgsUsage: "<exchange> <base> <quote> <asset>",
+	Action:    getTickerStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the orderbook from",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "currency pair",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type of the currency pair",
+		},
+	},
+}
+
+func getTickerStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "gettickerstream")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var exchangeName string
+	var pair string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("pair") {
+		pair = c.String("pair")
+	} else {
+		pair = c.Args().Get(1)
+	}
+
+	if !validPair(pair) {
+		return errInvalidPair
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(2)
+	}
+
+	p := currency.NewPairDelimiter(pair, pairDelimiter)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetTickerStream(context.Background(),
+		&gctrpc.GetTickerStreamRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+				Delimiter: p.Delimiter,
+			},
+			AssetType: assetType,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		clear := exec.Command("clear")
+		clear.Stdout = os.Stdout
+
+		err = clear.Run()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Ticker stream for %s %s:\n", exchangeName,
+			resp.Pair.String())
+		fmt.Println()
+
+		fmt.Printf("LAST: %f\n HIGH: %f\n LOW: %f\n BID: %f\n ASK: %f\n VOLUME: %f\n PRICEATH: %f\n LASTUPDATED: %d\n",
+			resp.Last,
+			resp.High,
+			resp.Low,
+			resp.Bid,
+			resp.Ask,
+			resp.Volume,
+			resp.PriceAth,
+			resp.LastUpdated)
+	}
+}
+
+var getExchangeTickerStreamCommand = cli.Command{
+	Name:      "getexchangetickerstream",
+	Usage:     "gets a stream for all tickers associated with an exchange",
+	ArgsUsage: "<exchange>",
+	Action:    getExchangeTickerStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the ticker from",
+		},
+	},
+}
+
+func getExchangeTickerStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getexchangetickerstream")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var exchangeName string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetExchangeTickerStream(context.Background(),
+		&gctrpc.GetExchangeTickerStreamRequest{
+			Exchange: exchangeName,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Ticker stream for %s %s:\n",
+			exchangeName,
+			resp.Pair.String())
+
+		fmt.Printf("LAST: %f HIGH: %f LOW: %f BID: %f ASK: %f VOLUME: %f PRICEATH: %f LASTUPDATED: %d\n",
+			resp.Last,
+			resp.High,
+			resp.Low,
+			resp.Bid,
+			resp.Ask,
+			resp.Volume,
+			resp.PriceAth,
+			resp.LastUpdated)
+	}
+}

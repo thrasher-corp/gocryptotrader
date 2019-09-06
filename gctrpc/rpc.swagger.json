@@ -271,6 +271,54 @@
         ]
       }
     },
+    "/v1/getTickerstream": {
+      "get": {
+        "operationId": "GetTickerStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset_type",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getaccountinfo": {
       "get": {
         "operationId": "GetAccountInfo",
@@ -527,6 +575,30 @@
             "required": false,
             "type": "boolean",
             "format": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getexchangetickerstream": {
+      "get": {
+        "operationId": "GetExchangeTickerStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -2298,6 +2370,18 @@
         }
       },
       "title": "Stream result of gctrpcOrderbookResponse"
+    },
+    "gctrpcTickerResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcTickerResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcTickerResponse"
     }
   }
 }
