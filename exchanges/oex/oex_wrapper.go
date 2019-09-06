@@ -73,6 +73,9 @@ func (o *Oex) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, err
 		}
 	}
 	resp, err = ticker.GetTicker(o.Name, p, "")
+	if err != nil {
+		return resp, err
+	}
 	return resp, nil
 }
 
