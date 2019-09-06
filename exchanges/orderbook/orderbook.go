@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -138,19 +139,22 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	s.RLock()
 	defer s.RUnlock()
 	if s.Books[exchange] == nil {
-		return nil, errors.New("no orderbooks for exchange")
+		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
 	}
 
 	if s.Books[exchange][p.Base.Item] == nil {
-		return nil, errors.New("no orderbooks associated with base currency")
+		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+			p.Base)
 	}
 
 	if s.Books[exchange][p.Base.Item][p.Quote.Item] == nil {
-		return nil, errors.New("no orderbooks associated with quote currency")
+		return nil, fmt.Errorf("no orderbooks associated with quote currency %s",
+			p.Quote)
 	}
 
 	if s.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
-		return nil, errors.New("no orderbooks associated with asset type")
+		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
+			a)
 	}
 
 	return s.Books[exchange][p.Base.Item][p.Quote.Item][a].b, nil
@@ -162,12 +166,18 @@ func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatc
 	service.RLock()
 	defer service.RUnlock()
 	if service.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
-		return dispatch.Pipe{}, errors.New("orderbook item not found")
+		return dispatch.Pipe{}, fmt.Errorf("orderbook item not found for %s %s %s",
+			exchange,
+			p,
+			a)
 	}
 
 	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
 	if !ok {
-		return dispatch.Pipe{}, errors.New("orderbook item not found")
+		return dispatch.Pipe{}, fmt.Errorf("orderbook item not found for %s %s %s",
+			exchange,
+			p,
+			a)
 	}
 
 	return service.mux.Subscribe(book.Main)
@@ -179,7 +189,8 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 	defer service.RUnlock()
 	id, ok := service.Exchange[exchange]
 	if !ok {
-		return dispatch.Pipe{}, errors.New("exchange orderbooks not found")
+		return dispatch.Pipe{}, fmt.Errorf("%s exchange orderbooks not found",
+			exchange)
 	}
 
 	return service.mux.Subscribe(id)
