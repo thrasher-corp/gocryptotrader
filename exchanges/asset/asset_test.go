@@ -36,6 +36,10 @@ func TestContains(t *testing.T) {
 	if a.Contains(Binary) {
 		t.Fatal("Test failed - TestContains returned an unexpected result")
 	}
+
+	if !a.Contains("SpOt") {
+		t.Error("Test failed - TestContains returned an unexpected result")
+	}
 }
 
 func TestJoinToString(t *testing.T) {

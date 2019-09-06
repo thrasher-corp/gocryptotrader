@@ -345,13 +345,13 @@ func disableExchange(c *cli.Context) error {
 
 var getExchangeOTPCommand = cli.Command{
 	Name:      "getexchangeotp",
-	Usage:     "gets a specific exchanges otp code",
+	Usage:     "gets a specific exchange OTP code",
 	ArgsUsage: "<exchange>",
 	Action:    getExchangeOTPCode,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange",
-			Usage: "the exchange to get the otp code for",
+			Usage: "the exchange to get the OTP code for",
 		},
 	},
 }
@@ -392,7 +392,7 @@ func getExchangeOTPCode(c *cli.Context) error {
 
 var getExchangeOTPsCommand = cli.Command{
 	Name:   "getexchangeotps",
-	Usage:  "gets all exchange OTPs",
+	Usage:  "gets all exchange OTP codes",
 	Action: getExchangeOTPCodes,
 }
 
@@ -1950,8 +1950,10 @@ func withdrawFiatFunds(_ *cli.Context) error {
 }
 
 var getLoggerDetailsCommand = cli.Command{
-	Name:   "getloggerdetails",
-	Action: getLoggerDetails,
+	Name:      "getloggerdetails",
+	Usage:     "gets an individual loggers details",
+	ArgsUsage: "<logger>",
+	Action:    getLoggerDetails,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "logger",
@@ -1994,8 +1996,10 @@ func getLoggerDetails(c *cli.Context) error {
 }
 
 var setLoggerDetailsCommand = cli.Command{
-	Name:   "setloggerdetails",
-	Action: setLoggerDetails,
+	Name:      "setloggerdetails",
+	Usage:     "sets an individual loggers details",
+	ArgsUsage: "<logger> <flags>",
+	Action:    setLoggerDetails,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "logger",
@@ -2041,6 +2045,223 @@ func setLoggerDetails(c *cli.Context) error {
 		&gctrpc.SetLoggerDetailsRequest{
 			Logger: logger,
 			Level:  level,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+var getExchangePairsCommand = cli.Command{
+	Name:      "getexchangepairs",
+	Usage:     "gets an exchanges supported currency pairs (available and enabled) plus asset types",
+	ArgsUsage: "<exchange> <asset>",
+	Action:    getExchangePairs,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to list of the currency pairs of",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to filter by",
+		},
+	},
+}
+
+func getExchangePairs(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getexchangepairs")
+		return nil
+	}
+
+	var exchange string
+	var asset string
+
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	if c.IsSet("asset") {
+		asset = c.String("asset")
+	} else {
+		asset = c.Args().Get(1)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.GetExchangePairs(context.Background(),
+		&gctrpc.GetExchangePairsRequest{
+			Exchange: exchange,
+			Asset:    asset,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+var enableExchangePairCommand = cli.Command{
+	Name:      "enableexchangepair",
+	Usage:     "enables an exchange currency pair",
+	ArgsUsage: "<exchange> <pair> <asset>",
+	Action:    enableExchangePair,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to enable the currency pair for",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to enable",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to enable the currency pair for",
+		},
+	},
+}
+
+func enableExchangePair(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "enableexchangepair")
+		return nil
+	}
+
+	var exchange string
+	var pair string
+	var asset string
+
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	if c.IsSet("pair") {
+		pair = c.String("pair")
+	} else {
+		pair = c.Args().Get(1)
+	}
+
+	if c.IsSet("asset") {
+		asset = c.String("asset")
+	} else {
+		asset = c.Args().Get(2)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if !validPair(pair) {
+		return errInvalidPair
+	}
+
+	p := currency.NewPairDelimiter(pair, pairDelimiter)
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.EnableExchangePair(context.Background(),
+		&gctrpc.ExchangePairRequest{
+			Exchange: exchange,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			AssetType: asset,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+var disableExchangePairCommand = cli.Command{
+	Name:      "disableexchangepair",
+	Usage:     "disables a previously enabled exchange currency pair",
+	ArgsUsage: "<exchange> <pair> <asset>",
+	Action:    disableExchangePair,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to disable the currency pair for",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to disable",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to disable the currency pair for",
+		},
+	},
+}
+
+func disableExchangePair(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "disableexchangepair")
+		return nil
+	}
+
+	var exchange string
+	var pair string
+	var asset string
+
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	if c.IsSet("pair") {
+		pair = c.String("pair")
+	} else {
+		pair = c.Args().Get(1)
+	}
+
+	if c.IsSet("asset") {
+		asset = c.String("asset")
+	} else {
+		asset = c.Args().Get(2)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if !validPair(pair) {
+		return errInvalidPair
+	}
+
+	p := currency.NewPairDelimiter(pair, pairDelimiter)
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.DisableExchangePair(context.Background(),
+		&gctrpc.ExchangePairRequest{
+			Exchange: exchange,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			AssetType: asset,
 		},
 	)
 	if err != nil {

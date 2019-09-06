@@ -56,13 +56,13 @@ func (a Items) Strings() []string {
 
 // Contains returns whether or not the supplied asset exists
 // in the list of Items
-func (a Items) Contains(asset Item) bool {
-	if !IsValid(asset) {
+func (a Items) Contains(i Item) bool {
+	if !IsValid(i) {
 		return false
 	}
 
 	for x := range a {
-		if a[x] == asset {
+		if strings.EqualFold(a[x].String(), i.String()) {
 			return true
 		}
 	}

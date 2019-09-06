@@ -123,6 +123,41 @@ func TestRemovePairsByFilter(t *testing.T) {
 	}
 }
 
+func TestRemove(t *testing.T) {
+	var pairs = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(LTC, USDT),
+	}
+
+	p := NewPair(BTC, USD)
+	pairs = pairs.Remove(p)
+	if pairs.Contains(p, true) || len(pairs) != 2 {
+		t.Error("Test failed. TestRemove unexpected result")
+	}
+}
+
+func TestAdd(t *testing.T) {
+	var pairs = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(LTC, USDT),
+	}
+
+	// Test adding a new pair to the list of pairs
+	p := NewPair(BTC, USDT)
+	pairs = pairs.Add(p)
+	if !pairs.Contains(p, true) || len(pairs) != 4 {
+		t.Error("Test failed. TestAdd unexpected result")
+	}
+
+	// Now test adding a pair which already exists
+	pairs = pairs.Add(p)
+	if len(pairs) != 4 {
+		t.Error("Test failed. TestAdd unexpected result")
+	}
+}
+
 func TestContains(t *testing.T) {
 	var pairs = Pairs{
 		NewPair(BTC, USD),

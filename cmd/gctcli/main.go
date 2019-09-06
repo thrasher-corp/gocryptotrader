@@ -124,6 +124,9 @@ func main() {
 		withdrawFiatFundsCommand,
 		getLoggerDetailsCommand,
 		setLoggerDetailsCommand,
+		getExchangePairsCommand,
+		enableExchangePairCommand,
+		disableExchangePairCommand,
 	}
 
 	err := app.Run(os.Args)

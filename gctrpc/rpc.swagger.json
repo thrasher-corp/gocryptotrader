@@ -145,6 +145,32 @@
         ]
       }
     },
+    "/v1/disableexchangepair": {
+      "post": {
+        "operationId": "DisableExchangePair",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericExchangeNameResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcExchangePairRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/disablesubsystem": {
       "get": {
         "operationId": "DisableSubsystem",
@@ -187,6 +213,32 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/gctrpcGenericExchangeNameRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/enableexchangepair": {
+      "post": {
+        "operationId": "EnableExchangePair",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericExchangeNameResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcExchangePairRequest"
             }
           }
         ],
@@ -402,6 +454,32 @@
             }
           }
         },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getexchangepairs": {
+      "post": {
+        "operationId": "GetExchangePairs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetExchangePairsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetExchangePairsRequest"
+            }
+          }
+        ],
         "tags": [
           "GoCryptoTrader"
         ]
@@ -1129,6 +1207,20 @@
         }
       }
     },
+    "gctrpcExchangePairRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        }
+      }
+    },
     "gctrpcForexProvider": {
       "type": "object",
       "properties": {
@@ -1349,6 +1441,28 @@
           "type": "object",
           "additionalProperties": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "gctrpcGetExchangePairsRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetExchangePairsResponse": {
+      "type": "object",
+      "properties": {
+        "supported_assets": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcPairsSupported"
           }
         }
       }

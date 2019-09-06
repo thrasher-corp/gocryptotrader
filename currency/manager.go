@@ -1,6 +1,8 @@
 package currency
 
 import (
+	"errors"
+
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -104,4 +106,61 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) {
 	}
 
 	p.Pairs[a] = c
+}
+
+// DisablePair removes the pair from the enabled pairs list if found
+func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.Pairs == nil {
+		return errors.New("pair manager not initialised")
+	}
+
+	c, ok := p.Pairs[a]
+	if !ok {
+		return errors.New("asset type not found")
+	}
+
+	if c == nil {
+		return errors.New("currency store is nil")
+	}
+
+	if !c.Enabled.Contains(pair, true) {
+		return errors.New("specified pair is not enabled")
+	}
+
+	c.Enabled = c.Enabled.Remove(pair)
+	return nil
+}
+
+// EnablePair adds a pair to the list of enabled pairs if it exists in the list
+// of available pairs and isn't already added
+func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.Pairs == nil {
+		return errors.New("pair manager not initialised")
+	}
+
+	c, ok := p.Pairs[a]
+	if !ok {
+		return errors.New("asset type not found")
+	}
+
+	if c == nil {
+		return errors.New("currency store is nil")
+	}
+
+	if !c.Available.Contains(pair, true) {
+		return errors.New("specified pair was not found in the list of available pairs")
+	}
+
+	if c.Enabled.Contains(pair, true) {
+		return errors.New("specified pair is already enabled")
+	}
+
+	c.Enabled = c.Enabled.Add(pair)
+	return nil
 }

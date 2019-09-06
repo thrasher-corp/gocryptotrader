@@ -858,3 +858,101 @@ func (s *RPCServer) SetLoggerDetails(ctx context.Context, r *gctrpc.SetLoggerDet
 		Error: levels.Error,
 	}, nil
 }
+
+// GetExchangePairs returns a list of exchange supported assets and related pairs
+func (s *RPCServer) GetExchangePairs(ctx context.Context, r *gctrpc.GetExchangePairsRequest) (*gctrpc.GetExchangePairsResponse, error) {
+	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.Asset != "" &&
+		!exchCfg.CurrencyPairs.GetAssetTypes().Contains(asset.Item(r.Asset)) {
+		return nil, errors.New("specified asset type does not exist")
+	}
+
+	var resp gctrpc.GetExchangePairsResponse
+	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
+	assetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
+	for x := range assetTypes {
+		a := assetTypes[x]
+		if r.Asset != "" && !strings.EqualFold(a.String(), r.Asset) {
+			continue
+		}
+		resp.SupportedAssets[a.String()] = &gctrpc.PairsSupported{
+			AvailablePairs: exchCfg.CurrencyPairs.Get(a).Available.Join(),
+			EnabledPairs:   exchCfg.CurrencyPairs.Get(a).Enabled.Join(),
+		}
+	}
+	return &resp, nil
+}
+
+// EnableExchangePair enables the specified pair on an exchange
+func (s *RPCServer) EnableExchangePair(ctx context.Context, r *gctrpc.ExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.AssetType != "" &&
+		!exchCfg.CurrencyPairs.GetAssetTypes().Contains(asset.Item(r.AssetType)) {
+		return nil, errors.New("specified asset type does not exist")
+	}
+
+	// Default to spot asset type unless set
+	a := asset.Spot
+	if r.AssetType != "" {
+		a = asset.Item(r.AssetType)
+	}
+
+	pairFmt, err := Bot.Config.GetPairFormat(r.Exchange, a)
+	if err != nil {
+		return nil, err
+	}
+
+	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote).Format(
+		pairFmt.Delimiter, pairFmt.Uppercase)
+	err = exchCfg.CurrencyPairs.EnablePair(a, p)
+	if err != nil {
+		return nil, err
+	}
+	err = GetExchangeByName(r.Exchange).GetBase().CurrencyPairs.EnablePair(
+		asset.Item(r.AssetType), p)
+	return &gctrpc.GenericExchangeNameResponse{}, err
+
+}
+
+// DisableExchangePair disables the specified pair on an exchange
+func (s *RPCServer) DisableExchangePair(ctx context.Context, r *gctrpc.ExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.AssetType != "" &&
+		!exchCfg.CurrencyPairs.GetAssetTypes().Contains(asset.Item(r.AssetType)) {
+		return nil, errors.New("specified asset type does not exist")
+	}
+
+	// Default to spot asset type unless set
+	a := asset.Spot
+	if r.AssetType != "" {
+		a = asset.Item(r.AssetType)
+	}
+
+	pairFmt, err := Bot.Config.GetPairFormat(r.Exchange, a)
+	if err != nil {
+		return nil, err
+	}
+
+	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote).Format(
+		pairFmt.Delimiter, pairFmt.Uppercase)
+	err = exchCfg.CurrencyPairs.DisablePair(asset.Item(r.AssetType), p)
+	if err != nil {
+		return nil, err
+	}
+	err = GetExchangeByName(r.Exchange).GetBase().CurrencyPairs.DisablePair(
+		asset.Item(r.AssetType), p)
+	return &gctrpc.GenericExchangeNameResponse{}, err
+
+}

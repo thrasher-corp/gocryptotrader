@@ -134,6 +134,27 @@ func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 	return pairs
 }
 
+// Remove removes the specified pair from the list of pairs if it exists
+func (p Pairs) Remove(pair Pair) Pairs {
+	var pairs Pairs
+	for x := range p {
+		if p[x].Equal(pair) {
+			continue
+		}
+		pairs = append(pairs, p[x])
+	}
+	return pairs
+}
+
+// Add adds a specified pair to the list of pairs if it doesn't exist
+func (p Pairs) Add(pair Pair) Pairs {
+	if p.Contains(pair, true) {
+		return p
+	}
+	p = append(p, pair)
+	return p
+}
+
 // FindDifferences returns pairs which are new or have been removed
 func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
 	for x := range pairs {

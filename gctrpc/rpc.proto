@@ -474,6 +474,21 @@ message SetLoggerDetailsRequest {
     string level = 2;
 }
 
+message GetExchangePairsRequest {
+    string exchange = 1;
+    string asset = 2;
+}
+
+message GetExchangePairsResponse {
+    map<string, PairsSupported> supported_assets = 1;
+}
+
+message ExchangePairRequest {
+    string exchange = 1;
+    string asset_type = 2;
+    CurrencyPair pair = 3;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -732,6 +747,27 @@ service GoCryptoTrader {
     rpc SetLoggerDetails(SetLoggerDetailsRequest) returns (GetLoggerDetailsResponse) {
         option (google.api.http) = {
             post: "/v1/setloggerdetails",
+            body: "*"
+        };
+    }
+
+    rpc GetExchangePairs(GetExchangePairsRequest) returns (GetExchangePairsResponse) {
+        option (google.api.http) = {
+            post: "/v1/getexchangepairs",
+            body: "*"
+        };
+    }
+
+    rpc EnableExchangePair(ExchangePairRequest) returns (GenericExchangeNameResponse) {
+        option (google.api.http) = {
+            post: "/v1/enableexchangepair",
+            body: "*"
+        };
+    }
+
+    rpc DisableExchangePair(ExchangePairRequest) returns (GenericExchangeNameResponse) {
+        option (google.api.http) = {
+            post: "/v1/disableexchangepair",
             body: "*"
         };
     }
