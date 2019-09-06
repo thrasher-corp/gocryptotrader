@@ -170,7 +170,7 @@ func (k *Kraken) Run() {
 	forceUpdate := false
 	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), k.GetPairFormat(asset.Spot, false).Delimiter) ||
 		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), k.GetPairFormat(asset.Spot, false).Delimiter) {
-		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSD", k.GetPairFormat(asset.Spot, false).Delimiter)})
+		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("XBT%vUSD", k.GetPairFormat(asset.Spot, false).Delimiter)})
 		log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 
@@ -242,13 +242,14 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 
 	for i := range pairs {
 		for curr, v := range tickers {
-			if !strings.EqualFold(pairs[i].String(), curr) {
+			pairFmt := k.FormatExchangeCurrency(pairs[i], assetType).String()
+			if !strings.EqualFold(pairFmt, curr) {
 				var altCurrency string
 				var ok bool
 				if altCurrency, ok = assetPairMap[curr]; !ok {
 					continue
 				}
-				if !strings.EqualFold(pairs[i].String(), altCurrency) {
+				if !strings.EqualFold(pairFmt, altCurrency) {
 					continue
 				}
 			}

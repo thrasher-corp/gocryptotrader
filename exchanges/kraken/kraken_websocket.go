@@ -220,7 +220,8 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse, rawResp
 // allowing correlation between subscriptions and returned data
 func addNewSubscriptionChannelData(response *WebsocketEventResponse) {
 	// We change the / to - to maintain compatibility with REST/config
-	pair := currency.NewPairWithDelimiter(response.Pair.Base.String(), response.Pair.Quote.String(), "-")
+	pair := currency.NewPairWithDelimiter(response.Pair.Base.String(),
+		response.Pair.Quote.String(), "-")
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
 		Subscription: response.Subscription.Name,
 		Pair:         pair,

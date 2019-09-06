@@ -245,10 +245,11 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 		}
 		data := strings.Split(kline.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp:  time.Unix(0, kline.Timestamp),
-			Exchange:   h.GetName(),
-			AssetType:  asset.Spot,
-			Pair:       currency.NewPairFromString(data[1]),
+			Timestamp: time.Unix(0, kline.Timestamp),
+			Exchange:  h.GetName(),
+			AssetType: asset.Spot,
+			Pair: currency.NewPairFromFormattedPairs(data[1],
+				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 			OpenPrice:  kline.Tick.Open,
 			ClosePrice: kline.Tick.Close,
 			HighPrice:  kline.Tick.High,
@@ -264,10 +265,11 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 		}
 		data := strings.Split(trade.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.TradeData{
-			Exchange:     h.GetName(),
-			AssetType:    asset.Spot,
-			CurrencyPair: currency.NewPairFromString(data[1]),
-			Timestamp:    time.Unix(0, trade.Tick.Timestamp),
+			Exchange:  h.GetName(),
+			AssetType: asset.Spot,
+			CurrencyPair: currency.NewPairFromFormattedPairs(data[1],
+				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
+			Timestamp: time.Unix(0, trade.Tick.Timestamp),
 		}
 	case strings.Contains(init.Channel, "detail"):
 		var ticker WsTick
@@ -287,14 +289,16 @@ func (h *HUOBIHADAX) wsHandleMarketData(resp WsMessage) {
 			Low:         ticker.Tick.Low,
 			Timestamp:   time.Unix(0, ticker.Timestamp),
 			AssetType:   asset.Spot,
-			Pair:        currency.NewPairFromString(data[1]),
+			Pair: currency.NewPairFromFormattedPairs(data[1],
+				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 		}
 	}
 }
 
 // WsProcessOrderbook processes new orderbook data
 func (h *HUOBIHADAX) WsProcessOrderbook(update *WsDepth, symbol string) error {
-	p := currency.NewPairFromString(symbol)
+	p := currency.NewPairFromFormattedPairs(symbol,
+		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
 	var bids, asks []orderbook.Item
 	for i := 0; i < len(update.Tick.Bids); i++ {
 		bidLevel := update.Tick.Bids[i].([]interface{})
@@ -429,7 +433,7 @@ func (h *HUOBIHADAX) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAcco
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            wsAccountsList,
-		Symbol:           pair,
+		Symbol:           h.FormatExchangeCurrency(pair, asset.Spot).String(),
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
 	request.Signature = crypto.Base64Encode(hmac)
@@ -456,7 +460,7 @@ func (h *HUOBIHADAX) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAu
 		Timestamp:        timestamp,
 		Topic:            wsOrdersList,
 		AccountID:        accountID,
-		Symbol:           pair.Lower(),
+		Symbol:           h.FormatExchangeCurrency(pair, asset.Spot).String(),
 		States:           "submitted,partial-filled",
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)

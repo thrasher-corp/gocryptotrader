@@ -196,7 +196,8 @@ func (h *HitBTC) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range symbols {
-		pairs = append(pairs, fmt.Sprintf("%v%v%v", symbols[x].BaseCurrency, h.GetPairFormat(asset, false).Delimiter, symbols[x].QuoteCurrency))
+		pairs = append(pairs, fmt.Sprintf("%v%v%v", symbols[x].BaseCurrency,
+			h.GetPairFormat(asset, false).Delimiter, symbols[x].QuoteCurrency))
 	}
 	return pairs, nil
 }
@@ -222,8 +223,17 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) 
 	pairs := h.GetEnabledPairs(assetType)
 	for i := range pairs {
 		for j := range tick {
-			if !tick[j].Symbol.Equal(pairs[i]) {
-				continue
+			pairFmt := h.FormatExchangeCurrency(pairs[i], assetType).String()
+			if tick[j].Symbol != pairFmt {
+				found := false
+				if strings.Contains(tick[j].Symbol, "USDT") {
+					if pairFmt == tick[j].Symbol[0:len(tick[j].Symbol)-1] {
+						found = true
+					}
+				}
+				if !found {
+					continue
+				}
 			}
 			tickerPrice := ticker.Price{
 				Last:        tick[j].Last,

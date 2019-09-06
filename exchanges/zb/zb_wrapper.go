@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -188,9 +187,8 @@ func (z *ZB) FetchTradablePairs(asset asset.Item) ([]string, error) {
 func (z *ZB) UpdateTradablePairs(forceUpdate bool) error {
 	pairs, err := z.FetchTradablePairs(asset.Spot)
 	if err != nil {
-		return nil
+		return err
 	}
-
 	return z.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
@@ -204,8 +202,9 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 	}
 
 	for _, x := range z.GetEnabledPairs(assetType) {
-		currencySplit := strings.Split(z.FormatExchangeCurrency(x, assetType).String(), z.GetPairFormat(assetType, false).Delimiter)
-		curr := currencySplit[0] + currencySplit[1]
+		// We can't use either pair format here, so format it to lower-
+		// case and without any delimiter
+		curr := x.Format("", false).String()
 		if _, ok := result[curr]; !ok {
 			continue
 		}

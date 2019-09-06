@@ -21,9 +21,12 @@ const (
 	marketGlobalEndpoint = "market-global"
 	marketSubstring      = "market-"
 	globalSubstring      = "-global"
-	volumeString         = "volume"
-	highString           = "high"
-	lowString            = "low"
+	tickerBuyString      = "buy"
+	tickerHighString     = "high"
+	tickerLastString     = "last"
+	tickerLowString      = "low"
+	tickerSellString     = "sell"
+	tickerVolumeString   = "volume"
 	wssSchem             = "wss"
 )
 
@@ -220,29 +223,28 @@ func (l *LakeBTC) processTicker(ticker string) error {
 	}
 	for k, v := range tUpdate {
 		tickerData := v.(map[string]interface{})
-		if tickerData[highString] == nil || tickerData[lowString] == nil || tickerData[volumeString] == nil {
-			continue
+		processTickerItem := func(tick map[string]interface{}, item string) float64 {
+			if tick[item] == nil {
+				return 0
+			}
+
+			p, err := strconv.ParseFloat(tick[item].(string), 64)
+			if err != nil {
+				l.Websocket.DataHandler <- fmt.Errorf("%s error parsing ticker data '%s' %v", l.Name, item, tickerData)
+				return 0
+			}
+
+			return p
 		}
-		high, err := strconv.ParseFloat(tickerData[highString].(string), 64)
-		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'high' %v", l.Name, tickerData)
-			continue
-		}
-		low, err := strconv.ParseFloat(tickerData[lowString].(string), 64)
-		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'low' %v", l.Name, tickerData)
-			continue
-		}
-		vol, err := strconv.ParseFloat(tickerData[volumeString].(string), 64)
-		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'volume' %v", l.Name, tickerData)
-			continue
-		}
+
 		l.Websocket.DataHandler <- wshandler.TickerData{
 			Exchange:  l.Name,
-			Volume:    vol,
-			High:      high,
-			Low:       low,
+			Bid:       processTickerItem(tickerData, tickerBuyString),
+			High:      processTickerItem(tickerData, tickerHighString),
+			Last:      processTickerItem(tickerData, tickerLastString),
+			Low:       processTickerItem(tickerData, tickerLowString),
+			Ask:       processTickerItem(tickerData, tickerSellString),
+			Volume:    processTickerItem(tickerData, tickerVolumeString),
 			AssetType: asset.Spot,
 			Pair:      currency.NewPairFromString(k),
 		}

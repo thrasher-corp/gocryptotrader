@@ -562,7 +562,8 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	req["event"] = "subscribe"
 	req["channel"] = channelToSubscribe.Channel
 	if channelToSubscribe.Currency.String() != "" {
-		req["pair"] = channelToSubscribe.Currency.String()
+		req["pair"] = b.FormatExchangeCurrency(channelToSubscribe.Currency,
+			asset.Spot).String()
 	}
 	if len(channelToSubscribe.Params) > 0 {
 		for k, v := range channelToSubscribe.Params {

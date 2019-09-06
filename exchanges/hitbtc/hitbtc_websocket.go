@@ -127,7 +127,8 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			Last:        ticker.Params.Last,
 			Timestamp:   ts,
 			AssetType:   asset.Spot,
-			Pair:        ticker.Params.Symbol,
+			Pair: currency.NewPairFromFormattedPairs(ticker.Params.Symbol,
+				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 		}
 	case "snapshotOrderbook":
 		var obSnapshot WsOrderbook
@@ -241,7 +242,8 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		asks = append(asks, orderbook.Item{Amount: ob.Params.Ask[i].Size, Price: ob.Params.Ask[i].Price})
 	}
 
-	p := currency.NewPairFromString(ob.Params.Symbol)
+	p := currency.NewPairFromFormattedPairs(ob.Params.Symbol,
+		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
 
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
@@ -278,7 +280,8 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		asks = append(asks, orderbook.Item{Price: update.Params.Ask[i].Price, Amount: update.Params.Ask[i].Size})
 	}
 
-	p := currency.NewPairFromString(update.Params.Symbol)
+	p := currency.NewPairFromFormattedPairs(update.Params.Symbol,
+		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
 	err := h.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Asks:         asks,
 		Bids:         bids,
@@ -327,17 +330,20 @@ func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 	}
 	if channelToSubscribe.Currency.String() != "" {
 		subscribe.Params = params{
-			Symbol: channelToSubscribe.Currency.String(),
+			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
+				asset.Spot).String(),
 		}
 	}
 	if strings.EqualFold(channelToSubscribe.Channel, "subscribeTrades") {
 		subscribe.Params = params{
-			Symbol: channelToSubscribe.Currency.String(),
-			Limit:  100,
+			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
+				asset.Spot).String(),
+			Limit: 100,
 		}
 	} else if strings.EqualFold(channelToSubscribe.Channel, "subscribeCandles") {
 		subscribe.Params = params{
-			Symbol: channelToSubscribe.Currency.String(),
+			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
+				asset.Spot).String(),
 			Period: "M30",
 			Limit:  100,
 		}
@@ -353,17 +359,20 @@ func (h *HitBTC) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		JSONRPCVersion: rpcVersion,
 		Method:         unsubscribeChannel,
 		Params: params{
-			Symbol: channelToSubscribe.Currency.String(),
+			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
+				asset.Spot).String(),
 		},
 	}
 	if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
 		subscribe.Params = params{
-			Symbol: channelToSubscribe.Currency.String(),
-			Limit:  100,
+			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
+				asset.Spot).String(),
+			Limit: 100,
 		}
 	} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {
 		subscribe.Params = params{
-			Symbol: channelToSubscribe.Currency.String(),
+			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
+				asset.Spot).String(),
 			Period: "M30",
 			Limit:  100,
 		}
@@ -408,7 +417,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 		Method: "newOrder",
 		Params: WsSubmitOrderRequestData{
 			ClientOrderID: id,
-			Symbol:        pair,
+			Symbol:        h.FormatExchangeCurrency(pair, asset.Spot).String(),
 			Side:          strings.ToLower(side),
 			Price:         price,
 			Quantity:      quantity,
@@ -566,7 +575,7 @@ func (h *HitBTC) wsGetSymbols(currencyItem currency.Pair) (*WsGetSymbolsResponse
 	request := WsGetSymbolsRequest{
 		Method: "getSymbol",
 		Params: WsGetSymbolsRequestParameters{
-			Symbol: currencyItem,
+			Symbol: h.FormatExchangeCurrency(currencyItem, asset.Spot).String(),
 		},
 		ID: h.WebsocketConn.GenerateMessageID(false),
 	}
@@ -590,7 +599,7 @@ func (h *HitBTC) wsGetTrades(currencyItem currency.Pair, limit int64, sort, by s
 	request := WsGetTradesRequest{
 		Method: "getTrades",
 		Params: WsGetTradesRequestParameters{
-			Symbol: currencyItem,
+			Symbol: h.FormatExchangeCurrency(currencyItem, asset.Spot).String(),
 			Limit:  limit,
 			Sort:   sort,
 			By:     by,

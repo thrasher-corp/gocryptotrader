@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -94,6 +95,22 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 		}
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	h.SetDefaults()
+	TestSetup(t)
+
+	h.CurrencyPairs.StorePairs(asset.Spot, currency.NewPairsFromStrings([]string{"BTC-USD", "XRP-USD"}), true)
+	_, err := h.UpdateTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = h.FetchTicker(currency.NewPair(currency.XRP, currency.USD), asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

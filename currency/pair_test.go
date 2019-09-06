@@ -407,6 +407,30 @@ func TestNewPairFromString(t *testing.T) {
 	}
 }
 
+func TestNewPairFromFormattedPairs(t *testing.T) {
+	t.Parallel()
+	pairs := Pairs{
+		NewPairDelimiter("BTC-USDT", "-"),
+		NewPairDelimiter("LTC-USD", "-"),
+	}
+
+	p := NewPairFromFormattedPairs("BTCUSDT", pairs, PairFormat{Uppercase: true})
+	if p.String() != "BTC-USDT" {
+		t.Error("Test failed. TestNewPairFromFormattedPairs: Expected currency was not found")
+	}
+
+	p = NewPairFromFormattedPairs("btcusdt", pairs, PairFormat{Uppercase: false})
+	if p.String() != "BTC-USDT" {
+		t.Error("Test failed. TestNewPairFromFormattedPairs: Expected currency was not found")
+	}
+
+	// Now a wrong one, will default to NewPairFromString
+	p = NewPairFromFormattedPairs("ethusdt", pairs, PairFormat{})
+	if p.String() != "ethusdt" && p.Base.String() != "eth" {
+		t.Error("Test failed. TestNewPairFromFormattedPairs: Expected currency was not found")
+	}
+}
+
 func TestContainsCurrency(t *testing.T) {
 	p := NewPair(BTC, USD)
 

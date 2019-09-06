@@ -128,13 +128,14 @@ func (b *Binance) WsHandleData() {
 				}
 
 				b.Websocket.DataHandler <- wshandler.TradeData{
-					CurrencyPair: currency.NewPairFromString(trade.Symbol),
-					Timestamp:    time.Unix(0, trade.TimeStamp),
-					Price:        price,
-					Amount:       amount,
-					Exchange:     b.GetName(),
-					AssetType:    asset.Spot,
-					Side:         trade.EventType,
+					CurrencyPair: currency.NewPairFromFormattedPairs(trade.Symbol, b.GetEnabledPairs(asset.Spot),
+						b.GetPairFormat(asset.Spot, true)),
+					Timestamp: time.Unix(0, trade.TimeStamp),
+					Price:     price,
+					Amount:    amount,
+					Exchange:  b.GetName(),
+					AssetType: asset.Spot,
+					Side:      trade.EventType,
 				}
 				continue
 			case "ticker":
@@ -160,7 +161,8 @@ func (b *Binance) WsHandleData() {
 					Last:        t.LastPrice,
 					Timestamp:   time.Unix(0, t.EventTime),
 					AssetType:   asset.Spot,
-					Pair:        t.Symbol,
+					Pair: currency.NewPairFromFormattedPairs(t.Symbol, b.GetEnabledPairs(asset.Spot),
+						b.GetPairFormat(asset.Spot, true)),
 				}
 
 				continue
@@ -176,7 +178,8 @@ func (b *Binance) WsHandleData() {
 
 				var wsKline wshandler.KlineData
 				wsKline.Timestamp = time.Unix(0, kline.EventTime)
-				wsKline.Pair = currency.NewPairFromString(kline.Symbol)
+				wsKline.Pair = currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
+					b.GetPairFormat(asset.Spot, true))
 				wsKline.AssetType = asset.Spot
 				wsKline.Exchange = b.GetName()
 				wsKline.StartTime = time.Unix(0, kline.Kline.StartTime)
@@ -207,7 +210,8 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				currencyPair := currency.NewPairFromString(depth.Pair)
+				currencyPair := currency.NewPairFromFormattedPairs(depth.Pair, b.GetEnabledPairs(asset.Spot),
+					b.GetPairFormat(asset.Spot, true))
 				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     currencyPair,
 					Asset:    asset.Spot,
@@ -222,10 +226,9 @@ func (b *Binance) WsHandleData() {
 // SeedLocalCache seeds depth data
 func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	var newOrderBook orderbook.Base
-	formattedPair := b.FormatExchangeCurrency(p, asset.Spot)
 	orderbookNew, err := b.GetOrderBook(
 		OrderBookDataRequestParams{
-			Symbol: formattedPair.String(),
+			Symbol: b.FormatExchangeCurrency(p, asset.Spot).String(),
 			Limit:  1000,
 		})
 	if err != nil {
@@ -242,7 +245,7 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	}
 
 	newOrderBook.LastUpdated = time.Unix(orderbookNew.LastUpdateID, 0)
-	newOrderBook.Pair = currency.NewPairFromString(formattedPair.String())
+	newOrderBook.Pair = p
 	newOrderBook.AssetType = asset.Spot
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
@@ -276,7 +279,8 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 		}
 		updateAsk = append(updateAsk, priceToBeUpdated)
 	}
-	currencyPair := currency.NewPairFromString(wsdp.Pair)
+	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair, b.GetEnabledPairs(asset.Spot),
+		b.GetPairFormat(asset.Spot, true))
 
 	return b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Bids:         updateBid,

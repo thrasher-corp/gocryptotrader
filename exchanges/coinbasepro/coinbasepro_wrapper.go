@@ -62,6 +62,7 @@ func (c *CoinbasePro) SetDefaults() {
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
+			Delimiter: "-",
 			Uppercase: true,
 		},
 	}
@@ -162,11 +163,25 @@ func (c *CoinbasePro) Run() {
 		c.PrintEnabledPairs()
 	}
 
-	if !c.GetEnabledFeatures().AutoPairUpdates {
+	forceUpdate := false
+	if !common.StringDataContains(c.GetEnabledPairs(asset.Spot).Strings(), c.GetPairFormat(asset.Spot, false).Delimiter) ||
+		!common.StringDataContains(c.GetAvailablePairs(asset.Spot).Strings(), c.GetPairFormat(asset.Spot, false).Delimiter) {
+		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSD", c.GetPairFormat(asset.Spot, false).Delimiter)})
+		log.Warn(log.ExchangeSys,
+			"Enabled pairs for CoinbasePro reset due to config upgrade, please enable the ones you would like to use again")
+		forceUpdate = true
+
+		err := c.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s\n", c.Name, err)
+		}
+	}
+
+	if !c.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
 
-	err := c.UpdateTradablePairs(false)
+	err := c.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
@@ -181,7 +196,8 @@ func (c *CoinbasePro) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var products []string
 	for x := range pairs {
-		products = append(products, pairs[x].BaseCurrency+pairs[x].QuoteCurrency)
+		products = append(products, fmt.Sprintf("%s%s%s", pairs[x].BaseCurrency,
+			c.GetPairFormat(asset, false).Delimiter, pairs[x].QuoteCurrency))
 	}
 
 	return products, nil

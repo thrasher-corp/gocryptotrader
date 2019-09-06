@@ -228,7 +228,11 @@ func (h *HUOBI) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range symbols {
-		pairs = append(pairs, fmt.Sprintf("%v%v%v", symbols[x].BaseCurrency, h.GetPairFormat(asset, false).Delimiter, symbols[x].QuoteCurrency))
+		if symbols[x].State != "online" {
+			continue
+		}
+		pairs = append(pairs, fmt.Sprintf("%v%v%v", symbols[x].BaseCurrency,
+			h.GetPairFormat(asset, false).Delimiter, symbols[x].QuoteCurrency))
 	}
 
 	return pairs, nil
@@ -255,7 +259,8 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 	pairs := h.GetEnabledPairs(assetType)
 	for i := range pairs {
 		for j := range tickers.Data {
-			if !pairs[i].Equal(tickers.Data[j].Symbol) {
+			pairFmt := h.FormatExchangeCurrency(pairs[i], assetType).String()
+			if pairFmt != tickers.Data[j].Symbol {
 				continue
 			}
 			tickerPrice := ticker.Price{
@@ -264,7 +269,7 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 				Volume: tickers.Data[j].Volume,
 				Open:   tickers.Data[j].Open,
 				Close:  tickers.Data[j].Close,
-				Pair:   tickers.Data[j].Symbol,
+				Pair:   pairs[i],
 			}
 			err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
 			if err != nil {

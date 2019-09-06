@@ -167,29 +167,29 @@ type KlineStream struct {
 
 // TickerStream holds the ticker stream data
 type TickerStream struct {
-	EventType              string        `json:"e"`
-	EventTime              int64         `json:"E"`
-	Symbol                 currency.Pair `json:"s"`
-	PriceChange            float64       `json:"p,string"`
-	PriceChangePercent     float64       `json:"P,string"`
-	WeightedAvgPrice       float64       `json:"w,string"`
-	ClosePrice             float64       `json:"x,string"`
-	LastPrice              float64       `json:"c,string"`
-	LastPriceQuantity      float64       `json:"Q,string"`
-	BestBidPrice           float64       `json:"b,string"`
-	BestBidQuantity        float64       `json:"B,string"`
-	BestAskPrice           float64       `json:"a,string"`
-	BestAskQuantity        float64       `json:"A,string"`
-	OpenPrice              float64       `json:"o,string"`
-	HighPrice              float64       `json:"h,string"`
-	LowPrice               float64       `json:"l,string"`
-	TotalTradedVolume      float64       `json:"v,string"`
-	TotalTradedQuoteVolume float64       `json:"q,string"`
-	OpenTime               int64         `json:"O"`
-	CloseTime              int64         `json:"C"`
-	FirstTradeID           int64         `json:"F"`
-	LastTradeID            int64         `json:"L"`
-	NumberOfTrades         int64         `json:"n"`
+	EventType              string  `json:"e"`
+	EventTime              int64   `json:"E"`
+	Symbol                 string  `json:"s"`
+	PriceChange            float64 `json:"p,string"`
+	PriceChangePercent     float64 `json:"P,string"`
+	WeightedAvgPrice       float64 `json:"w,string"`
+	ClosePrice             float64 `json:"x,string"`
+	LastPrice              float64 `json:"c,string"`
+	LastPriceQuantity      float64 `json:"Q,string"`
+	BestBidPrice           float64 `json:"b,string"`
+	BestBidQuantity        float64 `json:"B,string"`
+	BestAskPrice           float64 `json:"a,string"`
+	BestAskQuantity        float64 `json:"A,string"`
+	OpenPrice              float64 `json:"o,string"`
+	HighPrice              float64 `json:"h,string"`
+	LowPrice               float64 `json:"l,string"`
+	TotalTradedVolume      float64 `json:"v,string"`
+	TotalTradedQuoteVolume float64 `json:"q,string"`
+	OpenTime               int64   `json:"O"`
+	CloseTime              int64   `json:"C"`
+	FirstTradeID           int64   `json:"F"`
+	LastTradeID            int64   `json:"L"`
+	NumberOfTrades         int64   `json:"n"`
 }
 
 // HistoricalTrade holds recent trade data
@@ -239,25 +239,25 @@ type AveragePrice struct {
 
 // PriceChangeStats contains statistics for the last 24 hours trade
 type PriceChangeStats struct {
-	Symbol             currency.Pair `json:"symbol"`
-	PriceChange        float64       `json:"priceChange,string"`
-	PriceChangePercent float64       `json:"priceChangePercent,string"`
-	WeightedAvgPrice   float64       `json:"weightedAvgPrice,string"`
-	PrevClosePrice     float64       `json:"prevClosePrice,string"`
-	LastPrice          float64       `json:"lastPrice,string"`
-	LastQty            float64       `json:"lastQty,string"`
-	BidPrice           float64       `json:"bidPrice,string"`
-	AskPrice           float64       `json:"askPrice,string"`
-	OpenPrice          float64       `json:"openPrice,string"`
-	HighPrice          float64       `json:"highPrice,string"`
-	LowPrice           float64       `json:"lowPrice,string"`
-	Volume             float64       `json:"volume,string"`
-	QuoteVolume        float64       `json:"quoteVolume,string"`
-	OpenTime           int64         `json:"openTime"`
-	CloseTime          int64         `json:"closeTime"`
-	FirstID            int64         `json:"fristId"`
-	LastID             int64         `json:"lastId"`
-	Count              int64         `json:"count"`
+	Symbol             string  `json:"symbol"`
+	PriceChange        float64 `json:"priceChange,string"`
+	PriceChangePercent float64 `json:"priceChangePercent,string"`
+	WeightedAvgPrice   float64 `json:"weightedAvgPrice,string"`
+	PrevClosePrice     float64 `json:"prevClosePrice,string"`
+	LastPrice          float64 `json:"lastPrice,string"`
+	LastQty            float64 `json:"lastQty,string"`
+	BidPrice           float64 `json:"bidPrice,string"`
+	AskPrice           float64 `json:"askPrice,string"`
+	OpenPrice          float64 `json:"openPrice,string"`
+	HighPrice          float64 `json:"highPrice,string"`
+	LowPrice           float64 `json:"lowPrice,string"`
+	Volume             float64 `json:"volume,string"`
+	QuoteVolume        float64 `json:"quoteVolume,string"`
+	OpenTime           int64   `json:"openTime"`
+	CloseTime          int64   `json:"closeTime"`
+	FirstID            int64   `json:"fristId"`
+	LastID             int64   `json:"lastId"`
+	Count              int64   `json:"count"`
 }
 
 // SymbolPrice holds basic symbol price

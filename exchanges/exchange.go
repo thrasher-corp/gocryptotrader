@@ -262,7 +262,6 @@ func (e *Base) SetCurrencyPairFormat() {
 		if e.Config.CurrencyPairs.RequestFormat == nil {
 			e.Config.CurrencyPairs.RequestFormat = e.CurrencyPairs.RequestFormat
 		}
-
 		return
 	}
 

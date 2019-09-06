@@ -73,6 +73,20 @@ func NewPairFromString(currencyPair string) Pair {
 	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])
 }
 
+// NewPairFromFormattedPairs matches a supplied currency pair to a list of pairs
+// with a specific format. This is helpful for exchanges which
+// provide currency pairs with no delimiter so we can match it with a list and
+// apply the same format
+func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFormat) Pair {
+	for x := range pairs {
+		if strings.EqualFold(pairs[x].Format(pairFmt.Delimiter,
+			pairFmt.Uppercase).String(), currencyPair) {
+			return pairs[x]
+		}
+	}
+	return NewPairFromString(currencyPair)
+}
+
 // Pair holds currency pair information
 type Pair struct {
 	Delimiter string `json:"delimiter"`
@@ -133,7 +147,8 @@ func (p Pair) Format(delimiter string, uppercase bool) Pair {
 
 // Equal compares two currency pairs and returns whether or not they are equal
 func (p Pair) Equal(cPair Pair) bool {
-	return p.Base.Item == cPair.Base.Item && p.Quote.Item == cPair.Quote.Item
+	return strings.EqualFold(p.Base.String(), cPair.Base.String()) &&
+		strings.EqualFold(p.Quote.String(), cPair.Quote.String())
 }
 
 // EqualIncludeReciprocal compares two currency pairs and returns whether or not

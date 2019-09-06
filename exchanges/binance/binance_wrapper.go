@@ -167,7 +167,7 @@ func (b *Binance) Run() {
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), b.GetPairFormat(asset.Spot, false).Delimiter) {
 		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSDT", b.GetPairFormat(asset.Spot, false).Delimiter)})
 		log.Warn(log.ExchangeSys,
-			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
+			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
 		forceUpdate = true
 
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
@@ -227,7 +227,8 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 	pairs := b.GetEnabledPairs(assetType)
 	for i := range pairs {
 		for y := range tick {
-			if !tick[y].Symbol.Equal(pairs[i]) {
+			pairFmt := b.FormatExchangeCurrency(pairs[i], assetType).String()
+			if tick[y].Symbol != pairFmt {
 				continue
 			}
 			tickerPrice := ticker.Price{
