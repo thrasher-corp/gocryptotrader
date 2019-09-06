@@ -45,7 +45,7 @@ func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 	return m.c.unsubscribe(id, ch)
 }
 
-// Publish takes in a persistant memory address and dispatches changes to
+// Publish takes in a persistent memory address and dispatches changes to
 // required pipes
 func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 	if data == nil {

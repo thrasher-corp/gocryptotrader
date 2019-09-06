@@ -71,7 +71,7 @@ type Communications struct {
 	Routing map[uuid.UUID][]chan interface{}
 	rwMtx   sync.RWMutex
 
-	// Persistant job channel see job struct
+	// Persistent job channel see job struct
 	jobs chan *job
 
 	// Dynamic channel communication pools; unbuffered outbound channels for
