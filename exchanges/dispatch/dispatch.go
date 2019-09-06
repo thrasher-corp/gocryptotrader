@@ -3,8 +3,6 @@ package dispatch
 import (
 	"errors"
 	"fmt"
-
-	// "os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -65,33 +63,6 @@ type job struct {
 	Err  chan interface{}
 }
 
-// SetAndGetNewID registers a new uuid and returns it back to the subsytem so it
-// can publish updates, and routines off that subsystem can subscribe to a
-// channel set
-func SetAndGetNewID() (uuid.UUID, error) {
-	return comms.GetNewID()
-}
-
-// Subscribe using the uuid it will registers and returns a new channel that
-// will allow push updating to occur
-func Subscribe(id uuid.UUID) (interface{}, error) {
-	return comms.Subscribe(id)
-}
-
-// Unsubscribe returns the channel back to a channel pool to be reused in other
-// communications when a routine has finished with it.
-func Unsubscribe(id uuid.UUID, channel interface{}) error {
-	if _, ok := channel.(<-chan interface{}); !ok {
-		return errors.New("channel is not a channel dude")
-	}
-	return comms.Unsubscribe(id, channel.(<-chan interface{}))
-}
-
-// Publish pushes an updated change to all registered/subscribed routines
-func Publish(id uuid.UUID, data interface{}) error {
-	return comms.Publish(id, data)
-}
-
 // Communications defines inner-subsystem communication systems
 type Communications struct {
 	// Outbound subystem with a ticket association so this could be routes will
@@ -122,16 +93,17 @@ func (c *Communications) relayer() {
 		select {
 		case j := <-c.jobs:
 			c.rwMtx.RLock()
-			if _, ok := c.Routing[j.ID]; ok {
-				for i := range c.Routing[j.ID] {
-					c.Routing[j.ID][i] <- j.Data
-				}
-				j.Err <- nil
-			} else {
-				j.Err <- fmt.Errorf("relay failure ID: %v not found in routes",
+			if _, ok := c.Routing[j.ID]; !ok {
+				c.rwMtx.RUnlock()
+				j.Err <- fmt.Errorf("relay failure ID: %s not found in routes",
 					j.ID)
+				continue
+			}
+			for i := range c.Routing[j.ID] {
+				c.Routing[j.ID][i] <- j.Data
 			}
 			c.rwMtx.RUnlock()
+			j.Err <- nil
 
 		case <-tick.C:
 			if atomic.CompareAndSwapUint32(&c.gateway, 0, 1) {
@@ -147,8 +119,8 @@ func (c *Communications) relayer() {
 	}
 }
 
-// Publish relays data to the subscribed subsystems
-func (c *Communications) Publish(id uuid.UUID, data interface{}) error {
+// publish relays data to the subscribed subsystems
+func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 	if data == nil {
 		return errors.New("data cannot be nil")
 	}
@@ -156,8 +128,6 @@ func (c *Communications) Publish(id uuid.UUID, data interface{}) error {
 	if id == (uuid.UUID{}) {
 		return errors.New("id not set")
 	}
-
-	fmt.Println("THIS IS THE ROUTER: ", c.Routing)
 
 	// Get a buffered error channel link
 	err := c.inbound.Get().(chan interface{})
@@ -182,7 +152,7 @@ func (c *Communications) Publish(id uuid.UUID, data interface{}) error {
 			go func() {
 				// Adds in an artificial time buffer between worker generation
 				// so we limit the scale up
-				time.Sleep(time.Millisecond * 1)
+				time.Sleep(defaultGatewaySleep)
 				atomic.SwapUint32(&c.gateway, 0)
 			}()
 			if atomic.LoadInt32(&c.count) < atomic.LoadInt32(&MaxWorkers) {
@@ -206,7 +176,7 @@ func (c *Communications) Publish(id uuid.UUID, data interface{}) error {
 
 // Release releases all chans associated with ticket, will release channels to
 // the pool
-func (c *Communications) Release(id uuid.UUID) error {
+func (c *Communications) release(id uuid.UUID) error {
 	c.rwMtx.Lock()
 	channels, ok := c.Routing[id]
 	if !ok {
@@ -231,7 +201,7 @@ func (c *Communications) Release(id uuid.UUID) error {
 // Subscribe subscribes a system and returns a communication chan, this does not
 // ensure initial push. If your routine is out of sync with heartbeat and the
 // system does not get a change, its up to you to in turn get initial state.
-func (c *Communications) Subscribe(id uuid.UUID) (<-chan interface{}, error) {
+func (c *Communications) subscribe(id uuid.UUID) (chan interface{}, error) {
 	// Read lock to read route list
 	c.rwMtx.RLock()
 	_, ok := c.Routing[id]
@@ -254,7 +224,7 @@ func (c *Communications) Subscribe(id uuid.UUID) (<-chan interface{}, error) {
 }
 
 // Unsubscribe unsubs a routine from the dispatcher
-func (c *Communications) Unsubscribe(id uuid.UUID, usedChan <-chan interface{}) error {
+func (c *Communications) unsubscribe(id uuid.UUID, usedChan chan interface{}) error {
 	// Read lock to read route list
 	c.rwMtx.RLock()
 	_, ok := c.Routing[id]
@@ -266,24 +236,25 @@ func (c *Communications) Unsubscribe(id uuid.UUID, usedChan <-chan interface{}) 
 	// Lock for write to delete references
 	c.rwMtx.Lock()
 	for i := range c.Routing[id] {
-		if c.Routing[id][i] == usedChan {
-			// Delete individual reference
-			c.Routing[id][i] = c.Routing[id][len(c.Routing[id])-1]
-			c.Routing[id][len(c.Routing[id])-1] = nil
-			c.Routing[id] = c.Routing[id][:len(c.Routing[id])-1]
-
-			// Put the used chan back in pool
-			c.outbound.Put(usedChan)
-			c.rwMtx.Unlock()
-			return nil
+		if c.Routing[id][i] != usedChan {
+			continue
 		}
+		// Delete individual reference
+		c.Routing[id][i] = c.Routing[id][len(c.Routing[id])-1]
+		c.Routing[id][len(c.Routing[id])-1] = nil
+		c.Routing[id] = c.Routing[id][:len(c.Routing[id])-1]
+
+		// Put the used chan back in pool
+		c.outbound.Put(usedChan)
+		c.rwMtx.Unlock()
+		return nil
 	}
 	c.rwMtx.Unlock()
 	return errors.New("channel not found in uuid reference slice")
 }
 
 // GetNewID returns a new ID
-func (c *Communications) GetNewID() (uuid.UUID, error) {
+func (c *Communications) getNewID() (uuid.UUID, error) {
 	// Generate new uuid
 	newID, err := uuid.NewV4()
 	if err != nil {

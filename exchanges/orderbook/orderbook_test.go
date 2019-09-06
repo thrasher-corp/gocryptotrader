@@ -95,7 +95,7 @@ func TestUpdate(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	c := currency.NewPairFromStrings("BTC", "USD")
-	base := Base{
+	base := &Base{
 		Pair:         c,
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
@@ -137,7 +137,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestCreateNewOrderbook(t *testing.T) {
 	c := currency.NewPairFromStrings("BTC", "USD")
-	base := Base{
+	base := &Base{
 		Pair:         c,
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},

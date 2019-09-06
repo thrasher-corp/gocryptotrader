@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"errors"
-	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -28,156 +27,162 @@ var (
 )
 
 func init() {
-	service = &Service{
-		Books: make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book),
-	}
+	service = new(Service)
+	service.mux = dispatch.GetNewMux()
+	service.Books = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
+	service.Exchange = make(map[string]uuid.UUID)
+}
+
+// Book defines an orderbook with its links to different dispatch outputs
+type Book struct {
+	b     *Base
+	Main  uuid.UUID
+	Assoc []uuid.UUID
 }
 
 // Service holds orderbook information for each individual exchange
 type Service struct {
-	Books map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book
+	Books    map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book
+	Exchange map[string]uuid.UUID
+	mux      *dispatch.Mux
 	sync.RWMutex
 }
 
 // Update stores orderbook data
-func (s *Service) Update(b Base) error {
+func (s *Service) Update(b *Base) error {
+	var ids []uuid.UUID
+
 	s.Lock()
-	if s.Books[b.ExchangeName] == nil {
+	switch {
+	case s.Books[b.ExchangeName] == nil:
 		s.Books[b.ExchangeName] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
 		s.Books[b.ExchangeName][b.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Book)
 		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] = make(map[asset.Item]*Book)
-		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{Base: b}
-		s.Unlock()
-		return nil
-	}
+		err := s.SetNewData(b)
+		if err != nil {
+			s.Unlock()
+			return err
+		}
 
-	if s.Books[b.ExchangeName][b.Pair.Base.Item] == nil {
+	case s.Books[b.ExchangeName][b.Pair.Base.Item] == nil:
 		s.Books[b.ExchangeName][b.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Book)
 		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] = make(map[asset.Item]*Book)
-		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{Base: b}
-		s.Unlock()
-		return nil
-	}
+		err := s.SetNewData(b)
+		if err != nil {
+			s.Unlock()
+			return err
+		}
 
-	if s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] == nil {
+	case s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] == nil:
 		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] = make(map[asset.Item]*Book)
-		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{Base: b}
-		s.Unlock()
-		return nil
-	}
+		err := s.SetNewData(b)
+		if err != nil {
+			s.Unlock()
+			return err
+		}
 
-	if s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] == nil {
-		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{Base: b}
-		s.Unlock()
-		return nil
-	}
+	case s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] == nil:
+		err := s.SetNewData(b)
+		if err != nil {
+			s.Unlock()
+			return err
+		}
 
-	// Update cache and acquire publish ID
-	s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].Base = b
-	id := s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].ID
+	default:
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.Bids = b.Bids
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.Asks = b.Asks
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.LastUpdated = b.LastUpdated
+		ids = s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].Assoc
+		ids = append(ids, s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].Main)
+	}
 	s.Unlock()
+	return s.mux.Publish(ids, b)
+}
 
-	if id == (uuid.UUID{}) {
-		return nil
+// SetNewData sets new data
+func (s *Service) SetNewData(b *Base) error {
+	ids, err := s.GetAssociations(b)
+	if err != nil {
+		return err
+	}
+	singleID, err := s.mux.GetID()
+	if err != nil {
+		return err
 	}
 
-	// Publish update to dispatch system
-	return dispatch.Publish(id, &b)
+	s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{b: b,
+		Main:  singleID,
+		Assoc: ids}
+	return nil
+}
+
+// GetAssociations links a singular book with it's dispatch associations
+func (s *Service) GetAssociations(b *Base) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	exchangeID, ok := s.Exchange[b.ExchangeName]
+	if !ok {
+		var err error
+		exchangeID, err = s.mux.GetID()
+		if err != nil {
+			return nil, err
+		}
+		s.Exchange[b.ExchangeName] = exchangeID
+	}
+
+	ids = append(ids, exchangeID)
+	return ids, nil
 }
 
 // Retrieve gets orderbook data from the slice
-func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (Base, error) {
+func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	s.RLock()
 	defer s.RUnlock()
 	if s.Books[exchange] == nil {
-		return Base{}, errors.New("no orderbooks for exchange")
+		return nil, errors.New("no orderbooks for exchange")
 	}
 
 	if s.Books[exchange][p.Base.Item] == nil {
-		return Base{}, errors.New("no orderbooks associated with base currency")
+		return nil, errors.New("no orderbooks associated with base currency")
 	}
 
 	if s.Books[exchange][p.Base.Item][p.Quote.Item] == nil {
-		return Base{}, errors.New("no orderbooks associated with quote currency")
+		return nil, errors.New("no orderbooks associated with quote currency")
 	}
 
 	if s.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
-		return Base{}, errors.New("no orderbooks associated with asset type")
+		return nil, errors.New("no orderbooks associated with asset type")
 	}
 
-	return s.Books[exchange][p.Base.Item][p.Quote.Item][a].Base, nil
-}
-
-// GetID returns the uuid for the singulare orderbook
-func (s *Service) GetID(exchange string, p currency.Pair, a asset.Item) (uuid.UUID, error) {
-	s.Lock()
-	defer s.Unlock()
-
-	if s.Books[exchange] == nil {
-		return uuid.UUID{}, errors.New("no orderbooks for exchange")
-	}
-
-	if s.Books[exchange][p.Base.Item] == nil {
-		return uuid.UUID{}, errors.New("no orderbooks associated with base currency")
-	}
-
-	if s.Books[exchange][p.Base.Item][p.Quote.Item] == nil {
-		return uuid.UUID{}, errors.New("no orderbooks associated with quote currency")
-	}
-
-	if s.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
-		return uuid.UUID{}, errors.New("no orderbooks associated with asset type")
-	}
-
-	if s.Books[exchange][p.Base.Item][p.Quote.Item][a].ID == (uuid.UUID{}) {
-		id, err := dispatch.SetAndGetNewID()
-		if err != nil {
-			return uuid.UUID{}, err
-		}
-		s.Books[exchange][p.Base.Item][p.Quote.Item][a].ID = id
-		return id, nil
-	}
-	return s.Books[exchange][p.Base.Item][p.Quote.Item][a].ID, nil
-}
-
-// Comms bra
-type Comms struct {
-	C  <-chan interface{}
-	id uuid.UUID
-}
-
-// Release allows the channel to be released when the routine has finished
-func (c *Comms) Release() error {
-	return dispatch.Unsubscribe(c.id, c.C)
+	return s.Books[exchange][p.Base.Item][p.Quote.Item][a].b, nil
 }
 
 // SubscribeOrderbook subcribes to an orderbook and returns a communication
 // channel to stream orderbook data updates
-func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (*Comms, error) {
-	id, err := service.GetID(exchange, p, a)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
+func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+	service.RLock()
+	defer service.RUnlock()
+	if service.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
+		return dispatch.Pipe{}, errors.New("orderbook item not found")
 	}
 
-	c, err := dispatch.Subscribe(id)
-	if err != nil {
-		return nil, err
+	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
+	if !ok {
+		return dispatch.Pipe{}, errors.New("orderbook item not found")
 	}
 
-	newComms := &Comms{
-		C:  c.(<-chan interface{}),
-		id: id,
-	}
-
-	return newComms, nil
+	return service.mux.Subscribe(book.Main)
 }
 
-// Book defines the full orderbook for an exchange, included is a dispatch ID
-// to push updates as they come available
-type Book struct {
-	ID uuid.UUID
-	Base
+// SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
+func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
+	service.RLock()
+	defer service.RUnlock()
+	id, ok := service.Exchange[exchange]
+	if !ok {
+		return dispatch.Pipe{}, errors.New("exchange orderbooks not found")
+	}
+
+	return service.mux.Subscribe(id)
 }
 
 // Item stores the amount and price values
@@ -265,7 +270,11 @@ func (b *Base) Verify() {
 // Get checks and returns the orderbook given an exchange name and currency pair
 // if it exists
 func Get(exchange string, p currency.Pair, a asset.Item) (Base, error) {
-	return service.Retrieve(exchange, p, a)
+	o, err := service.Retrieve(exchange, p, a)
+	if err != nil {
+		return Base{}, err
+	}
+	return *o, nil
 }
 
 // Process processes incoming orderbooks, creating or updating the orderbook
@@ -292,5 +301,5 @@ func (b *Base) Process() error {
 
 	b.Verify()
 
-	return service.Update(*b)
+	return service.Update(b)
 }

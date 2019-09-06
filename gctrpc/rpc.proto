@@ -495,6 +495,10 @@ message GetOrderbookStreamRequest {
     string asset_type = 3;
 }
 
+message GetExchangeOrderbookStreamRequest {
+    string exchange = 1;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -777,9 +781,16 @@ service GoCryptoTrader {
             body: "*"
         };
     }
+
     rpc GetOrderbookStream(GetOrderbookStreamRequest) returns (stream OrderbookResponse) {
         option (google.api.http) = {
             get: "/v1/getorderbookstream"
+        };
+    }
+
+    rpc GetExchangeOrderbookStream(GetExchangeOrderbookStreamRequest) returns (stream OrderbookResponse) {
+        option (google.api.http) = {
+            get: "/v1/getexchangeorderbookstream"
         };
     }
 }

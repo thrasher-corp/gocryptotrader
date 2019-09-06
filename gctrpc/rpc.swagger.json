@@ -419,6 +419,30 @@
         ]
       }
     },
+    "/v1/getexchangeorderbookstream": {
+      "get": {
+        "operationId": "GetExchangeOrderbookStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/gctrpcOrderbookResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getexchangeotp": {
       "get": {
         "operationId": "GetExchangeOTPCode",

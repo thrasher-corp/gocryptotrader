@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"strconv"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2367,15 +2368,11 @@ var getOrderbookStreamCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange",
-			Usage: "the exchange to get the ticker for",
+			Usage: "the exchange to get the orderbook from",
 		},
 		cli.StringFlag{
-			Name:  "base",
-			Usage: "base currency",
-		},
-		cli.StringFlag{
-			Name:  "quote",
-			Usage: "quote currency",
+			Name:  "pair",
+			Usage: "currency pair",
 		},
 		cli.StringFlag{
 			Name:  "asset",
@@ -2397,8 +2394,7 @@ func getOrderbookStream(c *cli.Context) error {
 	defer conn.Close()
 
 	var exchangeName string
-	var base string
-	var quote string
+	var pair string
 	var assetType string
 
 	if c.IsSet("exchange") {
@@ -2407,31 +2403,32 @@ func getOrderbookStream(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("base") {
-		base = c.String("base")
+	if c.IsSet("pair") {
+		pair = c.String("pair")
 	} else {
-		base = c.Args().Get(1)
+		pair = c.Args().Get(1)
 	}
 
-	if c.IsSet("quote") {
-		quote = c.String("quote")
-	} else {
-		quote = c.Args().Get(2)
+	if !validPair(pair) {
+		return errInvalidPair
 	}
 
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
-		assetType = c.Args().Get(3)
+		assetType = c.Args().Get(2)
 	}
+
+	p := currency.NewPairDelimiter(pair, pairDelimiter)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrderbookStream(context.Background(),
 		&gctrpc.GetOrderbookStreamRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
-				Base:  base,
-				Quote: quote,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+				Delimiter: p.Delimiter,
 			},
 			AssetType: assetType,
 		},
@@ -2441,7 +2438,103 @@ func getOrderbookStream(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Println("RPC stream POC")
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		clear := exec.Command("clear")
+		clear.Stdout = os.Stdout
+
+		err = clear.Run()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName,
+			resp.Pair.String())
+		fmt.Println("\t\tBids\t\t\t\tAsks")
+		fmt.Println()
+
+		bidLen := len(resp.Bids) - 1
+		askLen := len(resp.Asks) - 1
+
+		var maxLen int
+		if bidLen >= askLen {
+			maxLen = bidLen
+		} else {
+			maxLen = askLen
+		}
+
+		for i := 0; i < maxLen; i++ {
+			var bidAmount, bidPrice float64
+			if i <= bidLen {
+				bidAmount = resp.Bids[i].Amount
+				bidPrice = resp.Bids[i].Price
+			}
+
+			var askAmount, askPrice float64
+			if i <= askLen {
+				askAmount = resp.Asks[i].Amount
+				askPrice = resp.Asks[i].Price
+			}
+
+			fmt.Printf("%f %s @ %f %s\t\t%f %s @ %f %s\n",
+				bidAmount,
+				resp.Pair.Base,
+				bidPrice,
+				resp.Pair.Quote,
+				askAmount,
+				resp.Pair.Base,
+				askPrice,
+				resp.Pair.Quote)
+		}
+	}
+}
+
+var getExchangeOrderbookStreamCommand = cli.Command{
+	Name:      "getexchangeorderbookstream",
+	Usage:     "gets a stream for all orderbooks associated with an exchange",
+	ArgsUsage: "<exchange>",
+	Action:    getExchangeOrderbookStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the orderbook from",
+		},
+	},
+}
+
+func getExchangeOrderbookStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getexchangeorderbookstream")
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	var exchangeName string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetExchangeOrderbookStream(context.Background(),
+		&gctrpc.GetExchangeOrderbookStreamRequest{
+			Exchange: exchangeName,
+		})
+
+	if err != nil {
+		return err
+	}
 
 	for {
 		resp, err := result.Recv()
@@ -2449,8 +2542,16 @@ func getOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Orderbook received for %v @ %s \n",
-			resp.Pair,
-			time.Now())
+		clear := exec.Command("clear")
+		clear.Stdout = os.Stdout
+
+		err = clear.Run()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Orderbook streamed for %s %s:\n\n",
+			exchangeName,
+			resp.Pair.String())
 	}
 }

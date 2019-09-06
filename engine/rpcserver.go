@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	// "os"
-
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -958,7 +956,7 @@ func (s *RPCServer) DisableExchangePair(ctx context.Context, r *gctrpc.ExchangeP
 	return &gctrpc.GenericExchangeNameResponse{}, err
 }
 
-// GetOrderbookStream is a test stream for cli
+// GetOrderbookStream streams the requested updated orderbook
 func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetOrderbookStreamServer) error {
 	if r.Exchange == "" {
 		return errors.New("exchange name unset")
@@ -974,37 +972,81 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 
-	a, err := orderbook.SubscribeOrderbook(r.Exchange, p, asset.Item(r.AssetType))
+	pipe, err := orderbook.SubscribeOrderbook(r.Exchange, p, asset.Item(r.AssetType))
 	if err != nil {
 		return err
 	}
 
-	defer a.Release()
+	defer pipe.Release()
 
 	for {
-		// TODO: Redo channel definition
-		wow := <-a.C
-		wowagain := wow.(*orderbook.Base)
+		data := <-pipe.C
+		ob := (*data.(*interface{})).(orderbook.Base)
 		var bids, asks []*gctrpc.OrderbookItem
-		for i := range wowagain.Bids {
+		for i := range ob.Bids {
 			bids = append(bids, &gctrpc.OrderbookItem{
-				Amount: wowagain.Bids[i].Amount,
-				Price:  wowagain.Bids[i].Price,
-				Id:     wowagain.Bids[i].ID,
+				Amount: ob.Bids[i].Amount,
+				Price:  ob.Bids[i].Price,
+				Id:     ob.Bids[i].ID,
 			})
 		}
-		for i := range wowagain.Asks {
+		for i := range ob.Asks {
 			asks = append(asks, &gctrpc.OrderbookItem{
-				Amount: wowagain.Asks[i].Amount,
-				Price:  wowagain.Asks[i].Price,
-				Id:     wowagain.Asks[i].ID,
+				Amount: ob.Asks[i].Amount,
+				Price:  ob.Asks[i].Price,
+				Id:     ob.Asks[i].ID,
 			})
 		}
 		err := stream.Send(&gctrpc.OrderbookResponse{
-			Pair:      r.Pair,
+			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
+				Quote: ob.Pair.Quote.String()},
 			Bids:      bids,
 			Asks:      asks,
-			AssetType: r.AssetType,
+			AssetType: ob.AssetType.String(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+}
+
+// GetExchangeOrderbookStream streams all orderbooks associated with an exchange
+func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New("exchange name unset")
+	}
+
+	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	defer pipe.Release()
+
+	for {
+		data := <-pipe.C
+		ob := (*data.(*interface{})).(orderbook.Base)
+		var bids, asks []*gctrpc.OrderbookItem
+		for i := range ob.Bids {
+			bids = append(bids, &gctrpc.OrderbookItem{
+				Amount: ob.Bids[i].Amount,
+				Price:  ob.Bids[i].Price,
+				Id:     ob.Bids[i].ID,
+			})
+		}
+		for i := range ob.Asks {
+			asks = append(asks, &gctrpc.OrderbookItem{
+				Amount: ob.Asks[i].Amount,
+				Price:  ob.Asks[i].Price,
+				Id:     ob.Asks[i].ID,
+			})
+		}
+		err := stream.Send(&gctrpc.OrderbookResponse{
+			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
+				Quote: ob.Pair.Quote.String()},
+			Bids:      bids,
+			Asks:      asks,
+			AssetType: ob.AssetType.String(),
 		})
 		if err != nil {
 			return err
