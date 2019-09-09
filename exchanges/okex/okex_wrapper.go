@@ -143,7 +143,7 @@ func (o *OKEX) Run() {
 
 	if o.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat == nil ||
 		o.Config.CurrencyPairs.Pairs[asset.Index].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Index].RequestFormat == nil {
-		fmt := currency.PairStore{
+		currFmt := currency.PairStore{
 			RequestFormat: &currency.PairFormat{
 				Uppercase: true,
 				Delimiter: "-",
@@ -153,15 +153,15 @@ func (o *OKEX) Run() {
 				Delimiter: "-",
 			},
 		}
-		o.CurrencyPairs.Store(asset.Spot, fmt)
-		o.Config.CurrencyPairs.Store(asset.Spot, fmt)
-		o.CurrencyPairs.Store(asset.Index, fmt)
-		o.Config.CurrencyPairs.Store(asset.Index, fmt)
+		o.CurrencyPairs.Store(asset.Spot, currFmt)
+		o.Config.CurrencyPairs.Store(asset.Spot, currFmt)
+		o.CurrencyPairs.Store(asset.Index, currFmt)
+		o.Config.CurrencyPairs.Store(asset.Index, currFmt)
 	}
 
 	if o.Config.CurrencyPairs.Pairs[asset.Futures].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Futures].RequestFormat == nil ||
 		o.Config.CurrencyPairs.Pairs[asset.PerpetualSwap].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.PerpetualSwap].RequestFormat == nil {
-		fmt := currency.PairStore{
+		currFmt := currency.PairStore{
 			RequestFormat: &currency.PairFormat{
 				Uppercase: true,
 				Delimiter: "-",
@@ -171,10 +171,10 @@ func (o *OKEX) Run() {
 				Delimiter: "_",
 			},
 		}
-		o.CurrencyPairs.Store(asset.Futures, fmt)
-		o.Config.CurrencyPairs.Store(asset.Futures, fmt)
-		o.CurrencyPairs.Store(asset.PerpetualSwap, fmt)
-		o.Config.CurrencyPairs.Store(asset.PerpetualSwap, fmt)
+		o.CurrencyPairs.Store(asset.Futures, currFmt)
+		o.Config.CurrencyPairs.Store(asset.Futures, currFmt)
+		o.CurrencyPairs.Store(asset.PerpetualSwap, currFmt)
+		o.Config.CurrencyPairs.Store(asset.PerpetualSwap, currFmt)
 	}
 
 	if !common.StringDataContains(o.Config.CurrencyPairs.Pairs[asset.Spot].Enabled.Strings(), o.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter) {
