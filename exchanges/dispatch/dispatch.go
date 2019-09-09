@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -23,10 +24,13 @@ const (
 	// release of workers by dividing how many jobs are in the job queue/channel
 	// with this number
 	defaultWorkerRate = 4
+
+	// DefaultMaxWorkers is the package default worker ceiling amount
+	DefaultMaxWorkers = 10
 )
 
 // MaxWorkers define a ceiling for the amount of workers spawned
-var MaxWorkers int32 = 10
+var MaxWorkers int64
 
 // comms is our main instance
 var comms *Communications
@@ -50,6 +54,8 @@ func init() {
 			},
 		},
 	}
+
+	MaxWorkers = DefaultMaxWorkers
 	// TODO: Might drop this worker in the future and just allocate and
 	// de-allocate as workers are needed
 	go comms.relayer()
@@ -80,14 +86,14 @@ type Communications struct {
 	inbound  sync.Pool
 
 	// Atomic worker count
-	count int32
+	count int64
 	// Atomic worker gateway
 	gateway uint32
 }
 
 // Relayer routine relays communications across the defined routes
 func (c *Communications) relayer() {
-	atomic.AddInt32(&c.count, 1)
+	atomic.AddInt64(&c.count, 1)
 	tick := time.NewTicker(defaultGatewaySleep)
 	for {
 		select {
@@ -108,8 +114,8 @@ func (c *Communications) relayer() {
 		case <-tick.C:
 			if atomic.CompareAndSwapUint32(&c.gateway, 0, 1) {
 				if len(c.jobs) < (defaultJobBuffer / defaultWorkerRate) {
-					if atomic.LoadInt32(&c.count) > 1 {
-						atomic.AddInt32(&c.count, -1)
+					if atomic.LoadInt64(&c.count) > 1 {
+						atomic.AddInt64(&c.count, -1)
 						atomic.SwapUint32(&c.gateway, 0)
 						return
 					}
@@ -155,7 +161,7 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 				time.Sleep(defaultGatewaySleep)
 				atomic.SwapUint32(&c.gateway, 0)
 			}()
-			if atomic.LoadInt32(&c.count) < atomic.LoadInt32(&MaxWorkers) {
+			if atomic.LoadInt64(&c.count) < atomic.LoadInt64(&MaxWorkers) {
 				go c.relayer()
 			}
 		}
@@ -275,4 +281,17 @@ func (c *Communications) getNewID() (uuid.UUID, error) {
 	c.rwMtx.Unlock()
 
 	return newID, nil
+}
+
+// SetMaxWorkers sets worker generation ceiling
+func SetMaxWorkers(w int64) error {
+	if w < 1 {
+		return errors.New("cannot set dispatch workers less than one")
+	}
+
+	old := atomic.SwapInt64(&MaxWorkers, w)
+	log.Debugf(log.Global, "dispatch worker ceiling updated from %d to %d max workers",
+		old,
+		w)
+	return nil
 }

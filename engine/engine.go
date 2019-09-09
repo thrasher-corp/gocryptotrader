@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -203,6 +204,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	}
 
 	b.Settings.GlobalHTTPProxy = s.GlobalHTTPProxy
+	b.Settings.DispatchMaxWorkerAmount = s.DispatchMaxWorkerAmount
 }
 
 // PrintSettings returns the engine settings
@@ -251,6 +253,8 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
 	log.Debugf(log.Global, "\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)
 	log.Debugf(log.Global, "\t Global HTTP proxy: %v", s.ExchangeHTTPProxy)
+	log.Debugf(log.Global, "- PACKAGE SETTINGS:")
+	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugln(log.Global)
 }
 
@@ -263,6 +267,13 @@ func (e *Engine) Start() error {
 	if e.Settings.EnableDatabaseManager {
 		if err := e.DatabaseManager.Start(); err != nil {
 			log.Errorf(log.Global, "Database manager unable to start: %v", err)
+		}
+	}
+
+	if e.Settings.DispatchMaxWorkerAmount != dispatch.DefaultMaxWorkers {
+		err := dispatch.SetMaxWorkers(e.Settings.DispatchMaxWorkerAmount)
+		if err != nil {
+			log.Errorf(log.Global, "Dispatch package set max workers error: %v", err)
 		}
 	}
 

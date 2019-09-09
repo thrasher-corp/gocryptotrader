@@ -61,4 +61,7 @@ type Settings struct {
 	ExchangeHTTPTimeout   time.Duration
 	ExchangeHTTPUserAgent string
 	ExchangeHTTPProxy     string
+
+	// Package system settings
+	DispatchMaxWorkerAmount int64
 }

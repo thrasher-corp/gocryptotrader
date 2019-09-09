@@ -294,6 +294,7 @@ func (b *Base) Process() error {
 	if b.ExchangeName == "" {
 		return errors.New("exchange name unset")
 	}
+
 	if b.Pair.IsEmpty() {
 		return errors.New("pair unset")
 	}

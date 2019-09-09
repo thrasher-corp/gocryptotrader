@@ -387,7 +387,7 @@ func TestUpdateOrderbook(t *testing.T) {
 		Quote:     currency.USD}
 
 	_, err := a.UpdateOrderbook(q, "spot")
-	if err != nil {
-		t.Fatalf("Update for orderbook failed: %v", err)
+	if err == nil {
+		t.Fatalf("error cannot be nil as the endpoint returns no orderbook information")
 	}
 }
