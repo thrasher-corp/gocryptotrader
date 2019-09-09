@@ -2,7 +2,6 @@ package dispatch
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"sync"
 
@@ -56,12 +55,10 @@ func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 
 	for i := range ids {
 		// Create copy to not interfere with stored value
-		go func(id uuid.UUID) {
-			err := m.c.publish(id, &cpy)
-			if err != nil {
-				fmt.Println(err)
-			}
-		}(ids[i])
+		err := m.c.publish(ids[i], &cpy)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

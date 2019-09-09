@@ -63,9 +63,9 @@ func TestPublish(t *testing.T) {
 
 	mainPayload := "PAYLOAD"
 	for i := 0; i < 1000; i++ {
-		err := mux.Publish([]uuid.UUID{itemID}, &mainPayload)
-		if err != nil {
-			t.Error(err)
+		errMux := mux.Publish([]uuid.UUID{itemID}, &mainPayload)
+		if errMux != nil {
+			t.Error(errMux)
 		}
 		if data := <-outgoing; (*data.(*interface{})).(string) != mainPayload {
 			t.Error("published object invalid")
