@@ -1,0 +1,116 @@
+{
+    "alphapoint":
+    {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "anx": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "binance": { 
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "bitfinex": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "bitflyer": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "bithumb": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "bitstamp": {
+        "apiKey":"",
+        "apiSecret":"",
+        "clientId":""
+    },
+    "bittrex": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "btc markets": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "bitmex": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "coinut": {
+        "apiKey":"",
+        "apiSecret":"",
+        "clientId":""
+    },
+    "coinbasepro": {
+        "apiKey":"",
+        "apiSecret":"",
+        "clientId":""
+    },
+    "exmo": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "gateio": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "gemini": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "hitbtc": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "huobi": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "huobihadax": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "itbit": {
+        "apiKey":"",
+        "apiSecret":"",
+        "clientId":""
+    },
+    "kraken": {
+        "apiKey":"",
+        "apiSecret":"",
+        "clientId":""
+    },
+    "lakebtc":{
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "localbitcoins": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "okcoin international": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "okex": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+   "poloniex": {
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "yobit":{
+        "apiKey":"",
+        "apiSecret":""
+    },
+    "zb": {
+        "apiKey":"",
+        "apiSecret":""
+    }
+}

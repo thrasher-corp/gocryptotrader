@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -14,7 +15,6 @@ import (
 )
 
 func main() {
-	//keys := SetupKeys()
 	var verbose bool
 	var err error
 	engine.Bot, err = engine.New()
@@ -60,12 +60,15 @@ func main() {
 		wg.Add(1)
 		go func(num int) {
 			name := engine.Bot.Exchanges[num].GetName()
-
-			// Set the APIKEYS MANNN
-			if _, ok := keys[name]; ok {
-				base.Config.API.Credentials.Key = keys[name].APIKey
-				base.Config.API.Credentials.Secret = keys[name].APISecret
-				base.Config.API.Credentials.ClientID = keys[name].ClientID
+			keyName := strings.ToLower(name)
+			if _, ok := keys[keyName]; ok {
+				base.API.Credentials.Key = keys[keyName].APIKey
+				if keys[keyName].APISecret != "" {
+					base.API.Credentials.Secret = keys[keyName].APISecret
+				}
+				if keys[keyName].ClientID != "" {
+					base.API.Credentials.ClientID = keys[keyName].ClientID
+				}
 			}
 			authenticated := base.ValidateAPICredentials()
 			superFinalResponse = append(superFinalResponse, ExchangeResponses{
@@ -123,7 +126,7 @@ func outputToConsole(superFinalResponse []ExchangeResponses, verbose bool) {
 		log.Printf("------------%v Results-------------\n", superFinalResponse[i].ExchangeName)
 		for j := range superFinalResponse[i].AssetPairResponses {
 			for k := range superFinalResponse[i].AssetPairResponses[j].EndpointResponses {
-				log.Printf("%v Result: %v", superFinalResponse[j].ExchangeName, k)
+				log.Printf("%v Result: %v", superFinalResponse[i].ExchangeName, k)
 				log.Printf("Function:\t%v", superFinalResponse[i].AssetPairResponses[j].EndpointResponses[k].Function)
 				log.Printf("AssetType:\t%v", superFinalResponse[i].AssetPairResponses[j].AssetType)
 				log.Printf("Currency:\t%v\n", superFinalResponse[i].AssetPairResponses[j].CurrencyPair)
@@ -237,6 +240,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		})
 
 		if !authenticated {
+			log.Printf("%v has no API keys in keys.json. Please set them to run authenticated endpoints", base.GetName())
 			response = append(response, responseContainer)
 			continue
 		}
@@ -422,7 +426,9 @@ const (
 )
 
 type Key struct {
-	APIKey, APISecret, ClientID string
+	APIKey    string `json:"apiKey"`
+	APISecret string `json:"apiSecret"`
+	ClientID  string `json:"clientId"`
 }
 type ExchangeResponses struct {
 	ExchangeName       string                       `json:"exchangeName"`
