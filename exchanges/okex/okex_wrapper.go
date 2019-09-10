@@ -140,8 +140,10 @@ func (o *OKEX) Run() {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.API.Endpoints.WebsocketURL)
 	}
-	if o.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat == nil {
-		fmt := currency.PairStore{
+
+	if o.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat == nil ||
+		o.Config.CurrencyPairs.Pairs[asset.Index].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Index].RequestFormat == nil {
+		currFmt := currency.PairStore{
 			RequestFormat: &currency.PairFormat{
 				Uppercase: true,
 				Delimiter: "-",
@@ -151,8 +153,28 @@ func (o *OKEX) Run() {
 				Delimiter: "-",
 			},
 		}
-		o.CurrencyPairs.Store(asset.Spot, fmt)
-		o.Config.CurrencyPairs.Store(asset.Spot, fmt)
+		o.CurrencyPairs.Store(asset.Spot, currFmt)
+		o.Config.CurrencyPairs.Store(asset.Spot, currFmt)
+		o.CurrencyPairs.Store(asset.Index, currFmt)
+		o.Config.CurrencyPairs.Store(asset.Index, currFmt)
+	}
+
+	if o.Config.CurrencyPairs.Pairs[asset.Futures].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.Futures].RequestFormat == nil ||
+		o.Config.CurrencyPairs.Pairs[asset.PerpetualSwap].ConfigFormat == nil || o.Config.CurrencyPairs.Pairs[asset.PerpetualSwap].RequestFormat == nil {
+		currFmt := currency.PairStore{
+			RequestFormat: &currency.PairFormat{
+				Uppercase: true,
+				Delimiter: "-",
+			},
+			ConfigFormat: &currency.PairFormat{
+				Uppercase: true,
+				Delimiter: "_",
+			},
+		}
+		o.CurrencyPairs.Store(asset.Futures, currFmt)
+		o.Config.CurrencyPairs.Store(asset.Futures, currFmt)
+		o.CurrencyPairs.Store(asset.PerpetualSwap, currFmt)
+		o.Config.CurrencyPairs.Store(asset.PerpetualSwap, currFmt)
 	}
 
 	if !common.StringDataContains(o.Config.CurrencyPairs.Pairs[asset.Spot].Enabled.Strings(), o.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter) {
