@@ -292,7 +292,7 @@ func (b *BTCMarkets) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 		s.OrderSide = order.Ask
 	}
 	if strings.EqualFold(s.OrderSide.String(), order.Buy.String()) {
-		s.OrderSide = order.Buy // This is questionable ATM !!!!! (BID???)
+		s.OrderSide = order.Bid
 	}
 
 	response, err := b.NewOrder(s.Pair.Base.Upper().String(),
