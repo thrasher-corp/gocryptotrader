@@ -1,11 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -15,7 +19,6 @@ import (
 )
 
 func main() {
-	var verbose bool
 	var err error
 	engine.Bot, err = engine.New()
 	if err != nil {
@@ -28,62 +31,87 @@ func main() {
 	}
 
 	log.Printf("Loading exchanges..")
-	var wg sync.WaitGroup
 
+	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
-		err := engine.LoadExchange(name, true, &wg)
+		err = engine.LoadExchange(name, true, &wg)
 		if err != nil {
 			log.Printf("Failed to load exchange %s. Err: %s", name, err)
 			continue
 		}
 	}
 	wg.Wait()
+
 	log.Println("Done.")
 	log.Printf("Testing exchange wrappers..")
+
 	wg = sync.WaitGroup{}
-	superFinalResponse := []ExchangeResponses{}
+	var exchangeResponses []ExchangeResponses
 	keys, err := loadKeys()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	for x := range engine.Bot.Exchanges {
 		base := engine.Bot.Exchanges[x].GetBase()
 		if !base.Config.Enabled {
 			log.Printf("Exchange %v not enabled, skipping", base.GetName())
 			continue
 		}
+
 		base.Config.Verbose = false
 		base.Config.HTTPDebugging = false
 		base.Verbose = false
 		base.HTTPDebugging = false
 		wg.Add(1)
+
 		go func(num int) {
 			name := engine.Bot.Exchanges[num].GetName()
-			keyName := strings.ToLower(name)
-			if _, ok := keys[keyName]; ok {
-				base.API.Credentials.Key = keys[keyName].APIKey
-				if keys[keyName].APISecret != "" {
-					base.API.Credentials.Secret = keys[keyName].APISecret
-				}
-				if keys[keyName].ClientID != "" {
-					base.API.Credentials.ClientID = keys[keyName].ClientID
-				}
-			}
-			authenticated := base.ValidateAPICredentials()
-			superFinalResponse = append(superFinalResponse, ExchangeResponses{
+			authenticated := setExchangeAPIKeys(name, keys, base)
+			wrapperResult := ExchangeResponses{
+				ID:                 fmt.Sprintf("Exchange%v", num),
 				ExchangeName:       name,
-				AssetPairResponses: testWrappers(engine.Bot.Exchanges[num], base, authenticated, false),
-			})
+				APIKeysSet:         authenticated,
+				AssetPairResponses: testWrappers(engine.Bot.Exchanges[num], base),
+			}
+			for i := range wrapperResult.AssetPairResponses {
+				wrapperResult.ErrorCount += wrapperResult.AssetPairResponses[i].ErrorCount
+			}
+			exchangeResponses = append(exchangeResponses, wrapperResult)
 			wg.Done()
 		}(x)
 	}
 	wg.Wait()
+
 	log.Println("Done.")
 	log.Println()
 
-	outputToConsole(superFinalResponse, verbose)
-	outputToJSON(superFinalResponse)
+	sort.Slice(exchangeResponses, func(i, j int) bool {
+		return exchangeResponses[i].ExchangeName < exchangeResponses[j].ExchangeName
+	})
+
+	outputToConsole(exchangeResponses)
+	outputToJSON(exchangeResponses)
+	outputToHTML(exchangeResponses)
+}
+
+func setExchangeAPIKeys(name string, keys map[string]Key, base *exchange.Base) bool {
+	keyName := strings.ToLower(name)
+	var authenticated bool
+	if _, ok := keys[keyName]; ok {
+		if keys[keyName].APIKey != "" {
+			base.API.Credentials.Key = keys[keyName].APIKey
+			if keys[keyName].APISecret != "" {
+				base.API.Credentials.Secret = keys[keyName].APISecret
+			}
+			if keys[keyName].ClientID != "" {
+				base.API.Credentials.ClientID = keys[keyName].ClientID
+			}
+			authenticated = base.ValidateAPICredentials()
+		}
+	}
+	return authenticated
 }
 
 func loadKeys() (map[string]Key, error) {
@@ -91,68 +119,91 @@ func loadKeys() (map[string]Key, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	keys, err := ioutil.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}
-	butts := make(map[string]Key)
-	return butts, common.JSONDecode(keys, &butts)
+
+	keyMap := make(map[string]Key)
+	return keyMap, common.JSONDecode(keys, &keyMap)
 }
 
-func outputToJSON(superFinalResponse []ExchangeResponses) {
+func outputToJSON(exchangeResponses []ExchangeResponses) {
 	log.Println("JSONifying results...")
-	json, err := common.JSONEncode(superFinalResponse)
+	json, err := common.JSONEncode(exchangeResponses)
 	if err != nil {
-		log.Println("WOAH NELLY, JSON STUFFED UP")
+		log.Fatalf("Encountered error encoding JSON: %v", err)
 		return
 	}
+
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Println("WOAH NELLY, DIRECTORY STUFFED UP")
+		log.Printf("Encounted error retrieving output directory: %v", err)
 		return
 	}
-	log.Printf("Outputting to: %v", dir+"\\output.json")
 
-	err = common.WriteFile(dir+"\\output.json", json)
+	log.Printf("Outputting to: %v", dir+"\\output.json")
+	err = common.WriteFile(filepath.Join(dir, "output.json"), json)
 	if err != nil {
-		log.Println("WOAH NELLY, OUTPUT STUFFED UP")
+		log.Printf("Encountered error writing to disk: %v", err)
 		return
 	}
 }
 
-func outputToConsole(superFinalResponse []ExchangeResponses, verbose bool) {
+func outputToHTML(exchangeResponses []ExchangeResponses) {
+	log.Println("Generating HTML report...")
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	fileName := "report.html"
+	tmpl, err := template.New("report.tmpl").ParseFiles(filepath.Join(dir, "report.tmpl"))
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	file, err := os.Create(filepath.Join(dir, fileName))
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	defer file.Close()
+	err = tmpl.Execute(file, exchangeResponses)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+}
+
+func outputToConsole(exchangeResponses []ExchangeResponses) {
 	var totalErrors int64
-	for i := range superFinalResponse {
-		log.Printf("------------%v Results-------------\n", superFinalResponse[i].ExchangeName)
-		for j := range superFinalResponse[i].AssetPairResponses {
-			for k := range superFinalResponse[i].AssetPairResponses[j].EndpointResponses {
-				log.Printf("%v Result: %v", superFinalResponse[i].ExchangeName, k)
-				log.Printf("Function:\t%v", superFinalResponse[i].AssetPairResponses[j].EndpointResponses[k].Function)
-				log.Printf("AssetType:\t%v", superFinalResponse[i].AssetPairResponses[j].AssetType)
-				log.Printf("Currency:\t%v\n", superFinalResponse[i].AssetPairResponses[j].CurrencyPair)
-				if superFinalResponse[i].AssetPairResponses[j].EndpointResponses[k].Error != "" {
+	for i := range exchangeResponses {
+		log.Printf("------------%v Results-------------\n", exchangeResponses[i].ExchangeName)
+		for j := range exchangeResponses[i].AssetPairResponses {
+			for k := range exchangeResponses[i].AssetPairResponses[j].EndpointResponses {
+				log.Printf("%v Result: %v", exchangeResponses[i].ExchangeName, k)
+				log.Printf("Function:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Function)
+				log.Printf("AssetType:\t%v", exchangeResponses[i].AssetPairResponses[j].AssetType)
+				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].CurrencyPair)
+				if exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error != "" {
 					totalErrors++
-					log.Printf("Error:\t%v", superFinalResponse[i].AssetPairResponses[j].EndpointResponses[k].Error)
+					log.Printf("Error:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error)
 				} else {
 					log.Print("Error:\tnone")
 				}
-				if verbose {
-					butts, err := common.JSONEncode(superFinalResponse[i].AssetPairResponses[j].EndpointResponses[k].Response)
-					if err != nil {
-						log.Printf("JSON Error:\t%v", err)
-					}
-					log.Printf("Response:\t%s", butts)
-				}
 				log.Println()
-
 			}
 		}
 		log.Println()
-
 	}
 }
 
-func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, verbose bool) []ExchangeAssetPairResponses {
+func testWrappers(e exchange.IBotExchange, base *exchange.Base) []ExchangeAssetPairResponses {
 	var response []ExchangeAssetPairResponses
 	assetTypes := base.GetAssetTypes()
 	for i := range assetTypes {
@@ -178,8 +229,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "FetchTicker",
 			Error:    msg,
 			Response: r1,
@@ -189,8 +241,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "UpdateTicker",
 			Error:    msg,
 			Response: r2,
@@ -200,8 +253,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
+
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "FetchOrderbook",
 			Error:    msg,
 			Response: r3,
@@ -211,8 +266,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
+
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "UpdateOrderbook",
 			Error:    msg,
 			Response: r4,
@@ -222,8 +279,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "FetchTradablePairs",
 			Error:    msg,
 			Response: r5,
@@ -233,24 +291,20 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "UpdateTradablePairs",
 			Error:    msg,
 		})
-
-		if !authenticated {
-			log.Printf("%v has no API keys in keys.json. Please set them to run authenticated endpoints", base.GetName())
-			response = append(response, responseContainer)
-			continue
-		}
 
 		r7, err := e.GetAccountInfo()
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "GetAccountInfo",
 			Error:    msg,
 			Response: r7,
@@ -260,8 +314,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "GetExchangeHistory",
 			Error:    msg,
 			Response: r8,
@@ -271,8 +326,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "GetFundingHistory",
 			Error:    msg,
 			Response: r9,
@@ -290,8 +346,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "SubmitOrder",
 			Error:    msg,
 			Response: r10,
@@ -301,8 +358,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "GetActiveOrders",
 			Error:    msg,
 			Response: r16,
@@ -318,8 +376,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "ModifyOrder",
 			Error:    msg,
 			Response: r11,
@@ -331,8 +390,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "CancelOrder",
 			Error:    msg,
 		})
@@ -341,8 +401,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "CancelAllOrders",
 			Error:    msg,
 			Response: r13,
@@ -352,8 +413,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "GetOrderInfo",
 			Error:    msg,
 			Response: r14,
@@ -363,8 +425,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "GetOrderHistory",
 			Error:    msg,
 			Response: r15,
@@ -374,8 +437,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "GetDepositAddress",
 			Error:    msg,
 			Response: r17,
@@ -385,8 +449,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "WithdrawCryptocurrencyFunds",
 			Error:    msg,
 			Response: r18,
@@ -396,8 +461,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "WithdrawFiatFunds",
 			Error:    msg,
 			Response: r19,
@@ -406,8 +472,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 		msg = ""
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointReponse{
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			Function: "WithdrawFiatFundsToInternationalBank",
 			Error:    msg,
 			Response: r20,
@@ -417,31 +484,28 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, authenticated, v
 	return response
 }
 
-func setupKeys() map[string]Key {
-	return make(map[string]Key)
-}
-
-const (
-	totalWrappers = 20
-)
-
 type Key struct {
 	APIKey    string `json:"apiKey"`
 	APISecret string `json:"apiSecret"`
 	ClientID  string `json:"clientId"`
 }
+
 type ExchangeResponses struct {
+	ID                 string
 	ExchangeName       string                       `json:"exchangeName"`
 	AssetPairResponses []ExchangeAssetPairResponses `json:"responses"`
+	ErrorCount         int64                        `json:"errorCount"`
+	APIKeysSet         bool                         `json:"apiKeysSet"`
 }
 
 type ExchangeAssetPairResponses struct {
-	AssetType         asset.Item        `json:"asset"`
-	CurrencyPair      currency.Pair     `json:"currency"`
-	EndpointResponses []EndpointReponse `json:"responses"`
+	ErrorCount        int64              `json:"errorCount"`
+	AssetType         asset.Item         `json:"asset"`
+	CurrencyPair      currency.Pair      `json:"currency"`
+	EndpointResponses []EndpointResponse `json:"responses"`
 }
 
-type EndpointReponse struct {
+type EndpointResponse struct {
 	Function string      `json:"function"`
 	Error    string      `json:"error"`
 	Response interface{} `json:"response"`
