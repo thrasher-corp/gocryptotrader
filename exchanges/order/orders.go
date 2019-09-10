@@ -1,4 +1,4 @@
-package orders
+package order
 
 const (
 	limitOrder = iota

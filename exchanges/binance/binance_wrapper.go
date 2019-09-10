@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -350,28 +351,24 @@ func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]e
 }
 
 // SubmitOrder submits a new order
-func (b *Binance) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var sideType string
-	if order.OrderSide == exchange.BuyOrderSide {
-		sideType = exchange.BuyOrderSide.ToString()
+	if s.OrderSide == order.Buy {
+		sideType = order.Buy.String()
 	} else {
-		sideType = exchange.SellOrderSide.ToString()
+		sideType = order.Sell.String()
 	}
 
 	var requestParamsOrderType RequestParamsOrderType
-	switch order.OrderType {
-	case exchange.MarketOrderType:
+	switch s.OrderType {
+	case order.Market:
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
-	case exchange.LimitOrderType:
+	case order.Limit:
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
 	default:
 		submitOrderResponse.IsOrderPlaced = false
@@ -379,10 +376,10 @@ func (b *Binance) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitO
 	}
 
 	var orderRequest = NewOrderRequest{
-		Symbol:      order.Pair.Base.String() + order.Pair.Quote.String(),
+		Symbol:      s.Pair.Base.String() + s.Pair.Quote.String(),
 		Side:        sideType,
-		Price:       order.Price,
-		Quantity:    order.Amount,
+		Price:       s.Price,
+		Quantity:    s.Amount,
 		TradeType:   requestParamsOrderType,
 		TimeInForce: BinanceRequestParamsTimeGTC,
 	}
@@ -390,7 +387,7 @@ func (b *Binance) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitO
 	response, err := b.NewOrder(&orderRequest)
 
 	if response.OrderID > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
+		submitOrderResponse.OrderID = fmt.Sprintf("%d", response.OrderID)
 	}
 
 	if err == nil {
@@ -402,12 +399,12 @@ func (b *Binance) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitO
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Binance) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (b *Binance) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Binance) CancelOrder(order *exchange.OrderCancellation) error {
+func (b *Binance) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -420,9 +417,9 @@ func (b *Binance) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Binance) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (b *Binance) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	openOrders, err := b.OpenOrders("")
 	if err != nil {
@@ -432,7 +429,7 @@ func (b *Binance) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cance
 	for i := range openOrders {
 		_, err = b.CancelExistingOrder(openOrders[i].Symbol, openOrders[i].OrderID, "")
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
 		}
 	}
 
@@ -440,8 +437,8 @@ func (b *Binance) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cance
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Binance) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (b *Binance) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -487,12 +484,12 @@ func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Binance) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Binance) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for _, c := range getOrdersRequest.Currencies {
 		resp, err := b.OpenOrders(b.FormatExchangeCurrency(c,
 			asset.Spot).String())
@@ -501,38 +498,38 @@ func (b *Binance) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		for i := range resp {
-			orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
-			orderType := exchange.OrderType(strings.ToUpper(resp[i].Type))
+			orderSide := order.Side(strings.ToUpper(resp[i].Side))
+			orderType := order.Type(strings.ToUpper(resp[i].Type))
 			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
 
-			orders = append(orders, exchange.OrderDetail{
+			orders = append(orders, order.Detail{
 				Amount:       resp[i].OrigQty,
 				OrderDate:    orderDate,
 				Exchange:     b.Name,
-				ID:           fmt.Sprintf("%v", resp[i].OrderID),
+				ID:           fmt.Sprintf("%d", resp[i].OrderID),
 				OrderSide:    orderSide,
 				OrderType:    orderType,
 				Price:        resp[i].Price,
-				Status:       resp[i].Status,
+				Status:       order.Status(resp[i].Status),
 				CurrencyPair: currency.NewPairFromString(resp[i].Symbol),
 			})
 		}
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Binance) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for _, c := range getOrdersRequest.Currencies {
 		resp, err := b.AllOrders(b.FormatExchangeCurrency(c,
 			asset.Spot).String(), "", "1000")
@@ -541,15 +538,15 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		for i := range resp {
-			orderSide := exchange.OrderSide(strings.ToUpper(resp[i].Side))
-			orderType := exchange.OrderType(strings.ToUpper(resp[i].Type))
+			orderSide := order.Side(strings.ToUpper(resp[i].Side))
+			orderType := order.Type(strings.ToUpper(resp[i].Type))
 			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
 			// New orders are covered in GetOpenOrders
 			if resp[i].Status == "NEW" {
 				continue
 			}
 
-			orders = append(orders, exchange.OrderDetail{
+			orders = append(orders, order.Detail{
 				Amount:       resp[i].OrigQty,
 				OrderDate:    orderDate,
 				Exchange:     b.Name,
@@ -558,14 +555,14 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 				OrderType:    orderType,
 				Price:        resp[i].Price,
 				CurrencyPair: currency.NewPairFromString(resp[i].Symbol),
-				Status:       resp[i].Status,
+				Status:       order.Status(resp[i].Status),
 			})
 		}
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	return orders, nil
 }
 

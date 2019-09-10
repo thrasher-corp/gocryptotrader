@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -342,34 +343,30 @@ func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType asset.Item) 
 }
 
 // SubmitOrder submits a new order
-func (c *CoinbasePro) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var response string
 	var err error
-	switch order.OrderType {
-	case exchange.MarketOrderType:
+	switch s.OrderType {
+	case order.Market:
 		response, err = c.PlaceMarketOrder("",
-			order.Amount,
-			order.Amount,
-			order.OrderSide.ToString(),
-			c.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
+			s.Amount,
+			s.Amount,
+			s.OrderSide.String(),
+			c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
 			"")
-	case exchange.LimitOrderType:
+	case order.Limit:
 		response, err = c.PlaceLimitOrder("",
-			order.Price,
-			order.Amount,
-			order.OrderSide.ToString(),
+			s.Price,
+			s.Amount,
+			s.OrderSide.String(),
 			"",
 			"",
-			c.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
+			c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
 			"",
 			false)
 	default:
@@ -389,25 +386,25 @@ func (c *CoinbasePro) SubmitOrder(order *exchange.OrderSubmission) (exchange.Sub
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *CoinbasePro) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (c *CoinbasePro) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *CoinbasePro) CancelOrder(order *exchange.OrderCancellation) error {
+func (c *CoinbasePro) CancelOrder(order *order.Cancellation) error {
 	return c.CancelExistingOrder(order.OrderID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *CoinbasePro) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (c *CoinbasePro) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
 	// CancellAllExisting orders returns a list of successful cancellations, we're only interested in failures
 	_, err := c.CancelAllExistingOrders("")
-	return exchange.CancelAllOrdersResponse{}, err
+	return order.CancelAllResponse{}, err
 }
 
 // GetOrderInfo returns information on a current open order
-func (c *CoinbasePro) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -471,7 +468,7 @@ func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, er
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
 	for i := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"open", "pending", "active"},
@@ -482,19 +479,19 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersReques
 		respOrders = append(respOrders, resp...)
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range respOrders {
 		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
 			c.GetPairFormat(asset.Spot, false).Delimiter)
-		orderSide := exchange.OrderSide(strings.ToUpper(respOrders[i].Side))
-		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
+		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
+		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				c.Name, "GetActiveOrders", respOrders[i].ID, respOrders[i].CreatedAt)
 		}
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
@@ -506,15 +503,15 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *exchange.GetOrdersReques
 		})
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := c.GetOrders([]string{"done", "settled"},
@@ -525,19 +522,19 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 		respOrders = append(respOrders, resp...)
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range respOrders {
 		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
 			c.GetPairFormat(asset.Spot, false).Delimiter)
-		orderSide := exchange.OrderSide(strings.ToUpper(respOrders[i].Side))
-		orderType := exchange.OrderType(strings.ToUpper(respOrders[i].Type))
+		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
+		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				c.Name, "GetActiveOrders", respOrders[i].ID, respOrders[i].CreatedAt)
 		}
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
@@ -549,10 +546,10 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *exchange.GetOrdersReques
 		})
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	return orders, nil
 }
 

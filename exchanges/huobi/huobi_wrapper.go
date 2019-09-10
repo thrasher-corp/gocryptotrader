@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -425,46 +426,42 @@ func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exc
 }
 
 // SubmitOrder submits a new order
-func (h *HUOBI) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	accountID, err := strconv.ParseInt(order.ClientID, 10, 64)
+	accountID, err := strconv.ParseInt(s.ClientID, 10, 64)
 	if err != nil {
 		return submitOrderResponse, err
 	}
 
 	var formattedType SpotNewOrderRequestParamsType
 	var params = SpotNewOrderRequestParams{
-		Amount:    order.Amount,
+		Amount:    s.Amount,
 		Source:    "api",
-		Symbol:    strings.ToLower(order.Pair.String()),
+		Symbol:    s.Pair.Lower().String(),
 		AccountID: int(accountID),
 	}
 
 	switch {
-	case order.OrderSide == exchange.BuyOrderSide && order.OrderType == exchange.MarketOrderType:
+	case s.OrderSide == order.Buy && s.OrderType == order.Market:
 		formattedType = SpotNewOrderRequestTypeBuyMarket
-	case order.OrderSide == exchange.SellOrderSide && order.OrderType == exchange.MarketOrderType:
+	case s.OrderSide == order.Sell && s.OrderType == order.Market:
 		formattedType = SpotNewOrderRequestTypeSellMarket
-	case order.OrderSide == exchange.BuyOrderSide && order.OrderType == exchange.LimitOrderType:
+	case s.OrderSide == order.Buy && s.OrderType == order.Limit:
 		formattedType = SpotNewOrderRequestTypeBuyLimit
-		params.Price = order.Price
-	case order.OrderSide == exchange.SellOrderSide && order.OrderType == exchange.LimitOrderType:
+		params.Price = s.Price
+	case s.OrderSide == order.Sell && s.OrderType == order.Limit:
 		formattedType = SpotNewOrderRequestTypeSellLimit
-		params.Price = order.Price
+		params.Price = s.Price
 	}
 
 	params.Type = formattedType
 	response, err := h.SpotNewOrder(params)
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+		submitOrderResponse.OrderID = fmt.Sprintf("%d", response)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -474,12 +471,12 @@ func (h *HUOBI) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrd
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HUOBI) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (h *HUOBI) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (h *HUOBI) CancelOrder(order *exchange.OrderCancellation) error {
+func (h *HUOBI) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
@@ -492,8 +489,8 @@ func (h *HUOBI) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (h *HUOBI) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+	var cancelAllOrdersResponse order.CancelAllResponse
 	for _, currency := range h.GetEnabledPairs(asset.Spot) {
 		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
 			h.FormatExchangeCurrency(currency, asset.Spot).String())
@@ -514,8 +511,8 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (
 }
 
 // GetOrderInfo returns information on a current open order
-func (h *HUOBI) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -558,19 +555,19 @@ func (h *HUOBI) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HUOBI) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (h *HUOBI) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	side := ""
-	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
+	if getOrdersRequest.OrderSide == order.AnySide || getOrdersRequest.OrderSide == "" {
 		side = ""
-	} else if getOrdersRequest.OrderSide == exchange.SellOrderSide {
+	} else if getOrdersRequest.OrderSide == order.Sell {
 		side = strings.ToLower(string(getOrdersRequest.OrderSide))
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 
 	for _, c := range getOrdersRequest.Currencies {
 		resp, err := h.GetOpenOrders(h.API.Credentials.ClientID,
@@ -580,7 +577,7 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 
 		for i := range resp {
-			orderDetail := exchange.OrderDetail{
+			orderDetail := order.Detail{
 				ID:             fmt.Sprintf("%v", resp[i].ID),
 				Price:          resp[i].Price,
 				Amount:         resp[i].Amount,
@@ -588,7 +585,7 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 				Exchange:       h.Name,
 				ExecutedAmount: resp[i].FilledAmount,
 				OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
-				Status:         resp[i].State,
+				Status:         order.Status(resp[i].State),
 				AccountID:      strconv.FormatFloat(resp[i].AccountID, 'f', -1, 64),
 				Fee:            resp[i].FilledFees,
 			}
@@ -599,20 +596,20 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (h *HUOBI) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	if len(getOrdersRequest.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	states := "partial-canceled,filled,canceled"
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for _, c := range getOrdersRequest.Currencies {
 		resp, err := h.GetOrders(c.Lower().String(),
 			"",
@@ -627,7 +624,7 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 
 		for i := range resp {
-			orderDetail := exchange.OrderDetail{
+			orderDetail := order.Detail{
 				ID:             fmt.Sprintf("%v", resp[i].ID),
 				Price:          resp[i].Price,
 				Amount:         resp[i].Amount,
@@ -635,7 +632,7 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 				Exchange:       h.Name,
 				ExecutedAmount: resp[i].FilledAmount,
 				OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
-				Status:         resp[i].State,
+				Status:         order.Status(resp[i].State),
 				AccountID:      strconv.FormatFloat(resp[i].AccountID, 'f', -1, 64),
 				Fee:            resp[i].FilledFees,
 			}
@@ -646,25 +643,25 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
 	return orders, nil
 }
 
-func setOrderSideAndType(requestType string, orderDetail *exchange.OrderDetail) {
+func setOrderSideAndType(requestType string, orderDetail *order.Detail) {
 	switch SpotNewOrderRequestParamsType(requestType) {
 	case SpotNewOrderRequestTypeBuyMarket:
-		orderDetail.OrderSide = exchange.BuyOrderSide
-		orderDetail.OrderType = exchange.MarketOrderType
+		orderDetail.OrderSide = order.Buy
+		orderDetail.OrderType = order.Market
 	case SpotNewOrderRequestTypeSellMarket:
-		orderDetail.OrderSide = exchange.SellOrderSide
-		orderDetail.OrderType = exchange.MarketOrderType
+		orderDetail.OrderSide = order.Sell
+		orderDetail.OrderType = order.Market
 	case SpotNewOrderRequestTypeBuyLimit:
-		orderDetail.OrderSide = exchange.BuyOrderSide
-		orderDetail.OrderType = exchange.LimitOrderType
+		orderDetail.OrderSide = order.Buy
+		orderDetail.OrderType = order.Limit
 	case SpotNewOrderRequestTypeSellLimit:
-		orderDetail.OrderSide = exchange.SellOrderSide
-		orderDetail.OrderType = exchange.LimitOrderType
+		orderDetail.OrderSide = order.Sell
+		orderDetail.OrderType = order.Limit
 	}
 }
 

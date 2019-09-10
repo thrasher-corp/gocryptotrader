@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
@@ -345,7 +346,7 @@ func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float
 }
 
 func (a *Alphapoint) convertOrderTypeToOrderTypeNumber(orderType string) (orderTypeNumber int64) {
-	if orderType == exchange.MarketOrderType.ToString() {
+	if orderType == order.Market.String() {
 		orderTypeNumber = 1
 	}
 

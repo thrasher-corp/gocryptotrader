@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -325,27 +326,23 @@ func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchan
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (z *ZB) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var oT SpotNewOrderRequestParamsType
-	if order.OrderSide == exchange.BuyOrderSide {
+	if s.OrderSide == order.Buy {
 		oT = SpotNewOrderRequestParamsTypeBuy
 	} else {
 		oT = SpotNewOrderRequestParamsTypeSell
 	}
 
 	var params = SpotNewOrderRequestParams{
-		Amount: order.Amount,
-		Price:  order.Price,
-		Symbol: order.Pair.Lower().String(),
+		Amount: s.Amount,
+		Price:  s.Price,
+		Symbol: s.Pair.Lower().String(),
 		Type:   oT,
 	}
 	response, err := z.SpotNewOrder(params)
@@ -360,12 +357,12 @@ func (z *ZB) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderR
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (z *ZB) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (z *ZB) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (z *ZB) CancelOrder(order *exchange.OrderCancellation) error {
+func (z *ZB) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
@@ -377,9 +374,9 @@ func (z *ZB) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (z *ZB) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (z *ZB) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	var allOpenOrders []Order
 	for _, currency := range z.GetEnabledPairs(asset.Spot) {
@@ -401,7 +398,7 @@ func (z *ZB) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllO
 	for _, openOrder := range allOpenOrders {
 		err := z.CancelExistingOrder(openOrder.ID, openOrder.Currency)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrder.ID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrder.ID, 10)] = err.Error()
 		}
 	}
 
@@ -409,8 +406,8 @@ func (z *ZB) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllO
 }
 
 // GetOrderInfo returns information on a current open order
-func (z *ZB) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (z *ZB) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -458,7 +455,7 @@ func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (z *ZB) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var allOrders []Order
 	for _, currency := range getOrdersRequest.Currencies {
 		var pageNumber int64
@@ -477,41 +474,41 @@ func (z *ZB) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 		}
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Currency,
+	var orders []order.Detail
+	for _, o := range allOrders {
+		symbol := currency.NewPairDelimiter(o.Currency,
 			z.GetPairFormat(asset.Spot, false).Delimiter)
-		orderDate := time.Unix(int64(order.TradeDate), 0)
-		orderSide := orderSideMap[order.Type]
-		orders = append(orders, exchange.OrderDetail{
-			ID:           fmt.Sprintf("%v", order.ID),
-			Amount:       order.TotalAmount,
+		orderDate := time.Unix(int64(o.TradeDate), 0)
+		orderSide := orderSideMap[o.Type]
+		orders = append(orders, order.Detail{
+			ID:           fmt.Sprintf("%d", o.ID),
+			Amount:       o.TotalAmount,
 			Exchange:     z.Name,
 			OrderDate:    orderDate,
-			Price:        order.Price,
+			Price:        o.Price,
 			OrderSide:    orderSide,
 			CurrencyPair: symbol,
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
+func (z *ZB) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if getOrdersRequest.OrderSide == order.AnySide || getOrdersRequest.OrderSide == "" {
 		return nil, errors.New("specific order side is required")
 	}
 
 	var allOrders []Order
 
 	var side int64
-	if getOrdersRequest.OrderSide == exchange.BuyOrderSide {
+	if getOrdersRequest.OrderSide == order.Buy {
 		side = 1
 	}
 
@@ -533,24 +530,24 @@ func (z *ZB) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exc
 		}
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := currency.NewPairDelimiter(order.Currency,
+	var orders []order.Detail
+	for _, o := range allOrders {
+		symbol := currency.NewPairDelimiter(o.Currency,
 			z.GetPairFormat(asset.Spot, false).Delimiter)
-		orderDate := time.Unix(int64(order.TradeDate), 0)
-		orderSide := orderSideMap[order.Type]
-		orders = append(orders, exchange.OrderDetail{
-			ID:           fmt.Sprintf("%v", order.ID),
-			Amount:       order.TotalAmount,
+		orderDate := time.Unix(int64(o.TradeDate), 0)
+		orderSide := orderSideMap[o.Type]
+		orders = append(orders, order.Detail{
+			ID:           fmt.Sprintf("%d", o.ID),
+			Amount:       o.TotalAmount,
 			Exchange:     z.Name,
 			OrderDate:    orderDate,
-			Price:        order.Price,
+			Price:        o.Price,
 			OrderSide:    orderSide,
 			CurrencyPair: symbol,
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	return orders, nil
 }
 

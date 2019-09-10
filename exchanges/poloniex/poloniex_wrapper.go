@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -334,21 +335,17 @@ func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType asse
 }
 
 // SubmitOrder submits a new order
-func (p *Poloniex) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	fillOrKill := order.OrderType == exchange.MarketOrderType
-	isBuyOrder := order.OrderSide == exchange.BuyOrderSide
-	response, err := p.PlaceOrder(order.Pair.String(),
-		order.Price,
-		order.Amount,
+	fillOrKill := s.OrderType == order.Market
+	isBuyOrder := s.OrderSide == order.Buy
+	response, err := p.PlaceOrder(s.Pair.String(),
+		s.Price,
+		s.Amount,
 		false,
 		fillOrKill,
 		isBuyOrder)
@@ -363,7 +360,7 @@ func (p *Poloniex) SubmitOrder(order *exchange.OrderSubmission) (exchange.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (p *Poloniex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
 	oID, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
 		return "", err
@@ -382,7 +379,7 @@ func (p *Poloniex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (p *Poloniex) CancelOrder(order *exchange.OrderCancellation) error {
+func (p *Poloniex) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -392,9 +389,9 @@ func (p *Poloniex) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (p *Poloniex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (p *Poloniex) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	openOrders, err := p.GetOpenOrdersForAllCurrencies()
 	if err != nil {
@@ -405,7 +402,7 @@ func (p *Poloniex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Canc
 		for _, openOrder := range openOrderPerCurrency {
 			err = p.CancelExistingOrder(openOrder.OrderNumber)
 			if err != nil {
-				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrder.OrderNumber, 10)] = err.Error()
+				cancelAllOrdersResponse.Status[strconv.FormatInt(openOrder.OrderNumber, 10)] = err.Error()
 			}
 		}
 	}
@@ -414,8 +411,8 @@ func (p *Poloniex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Canc
 }
 
 // GetOrderInfo returns information on a current open order
-func (p *Poloniex) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (p *Poloniex) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -469,47 +466,47 @@ func (p *Poloniex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (p *Poloniex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (p *Poloniex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := p.GetOpenOrdersForAllCurrencies()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for currencyPair, openOrders := range resp.Data {
 		symbol := currency.NewPairDelimiter(currencyPair,
 			p.GetPairFormat(asset.Spot, false).Delimiter)
 
-		for _, order := range openOrders {
-			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
-			orderDate, err := time.Parse(poloniexDateLayout, order.Date)
+		for _, o := range openOrders {
+			orderSide := order.Side(strings.ToUpper(o.Type))
+			orderDate, err := time.Parse(poloniexDateLayout, o.Date)
 			if err != nil {
 				log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
+					p.Name, "GetActiveOrders", o.OrderNumber, o.Date)
 			}
 
-			orders = append(orders, exchange.OrderDetail{
-				ID:           fmt.Sprintf("%v", order.OrderNumber),
+			orders = append(orders, order.Detail{
+				ID:           fmt.Sprintf("%d", o.OrderNumber),
 				OrderSide:    orderSide,
-				Amount:       order.Amount,
+				Amount:       o.Amount,
 				OrderDate:    orderDate,
-				Price:        order.Rate,
+				Price:        o.Rate,
 				CurrencyPair: symbol,
 				Exchange:     p.Name,
 			})
 		}
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (p *Poloniex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := p.GetAuthenticatedTradeHistory(getOrdersRequest.StartTicks.Unix(),
 		getOrdersRequest.EndTicks.Unix(),
 		10000)
@@ -517,33 +514,33 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for currencyPair, historicOrders := range resp.Data {
 		symbol := currency.NewPairDelimiter(currencyPair,
 			p.GetPairFormat(asset.Spot, false).Delimiter)
 
-		for _, order := range historicOrders {
-			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
-			orderDate, err := time.Parse(poloniexDateLayout, order.Date)
+		for _, o := range historicOrders {
+			orderSide := order.Side(strings.ToUpper(o.Type))
+			orderDate, err := time.Parse(poloniexDateLayout, o.Date)
 			if err != nil {
 				log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
+					p.Name, "GetActiveOrders", o.OrderNumber, o.Date)
 			}
 
-			orders = append(orders, exchange.OrderDetail{
-				ID:           fmt.Sprintf("%v", order.GlobalTradeID),
+			orders = append(orders, order.Detail{
+				ID:           fmt.Sprintf("%d", o.GlobalTradeID),
 				OrderSide:    orderSide,
-				Amount:       order.Amount,
+				Amount:       o.Amount,
 				OrderDate:    orderDate,
-				Price:        order.Rate,
+				Price:        o.Rate,
 				CurrencyPair: symbol,
 				Exchange:     p.Name,
 			})
 		}
 	}
 
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

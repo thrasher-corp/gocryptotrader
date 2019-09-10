@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -301,8 +302,8 @@ func TestPlaceSpotOrderLimit(t *testing.T) {
 	t.Parallel()
 	request := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.LimitOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Limit.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
 		Price:         "100",
 		Size:          "100",
@@ -318,8 +319,8 @@ func TestPlaceSpotOrderMarket(t *testing.T) {
 	t.Parallel()
 	request := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.MarketOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Market.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
 		Size:          "-100",
 		Notional:      "100",
@@ -335,8 +336,8 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 	t.Parallel()
 	order := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.LimitOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Limit.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
 		Size:          "100",
 		Notional:      "100",
@@ -358,8 +359,8 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	t.Parallel()
 	order := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.LimitOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Limit.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
 		Size:          "100",
 		Notional:      "100",
@@ -385,8 +386,8 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	t.Parallel()
 	order := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.LimitOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Limit.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
 		Size:          "100",
 		Notional:      "100",
@@ -655,8 +656,8 @@ func TestPlaceMarginOrderLimit(t *testing.T) {
 	t.Parallel()
 	request := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.LimitOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Limit.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "2",
 		Price:         "100",
 		Size:          "100",
@@ -672,8 +673,8 @@ func TestPlaceMarginOrderMarket(t *testing.T) {
 	t.Parallel()
 	request := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.MarketOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Market.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "2",
 		Size:          "-100",
 		Notional:      "100",
@@ -689,8 +690,8 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 	t.Parallel()
 	order := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.LimitOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Limit.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
 		Size:          "100",
 		Notional:      "100",
@@ -712,8 +713,8 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	t.Parallel()
 	order := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.LimitOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Limit.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
 		Size:          "100",
 		Notional:      "100",
@@ -739,8 +740,8 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	t.Parallel()
 	order := okgroup.PlaceSpotOrderRequest{
 		InstrumentID:  spotCurrency,
-		Type:          exchange.LimitOrderType.ToLower().ToString(),
-		Side:          exchange.BuyOrderSide.ToLower().ToString(),
+		Type:          order.Limit.Lower(),
+		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
 		Size:          "100",
 		Notional:      "100",
@@ -1813,13 +1814,13 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	var orderSubmission = &exchange.OrderSubmission{
+	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USDT,
 		},
-		OrderSide: exchange.BuyOrderSide,
-		OrderType: exchange.LimitOrderType,
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
 		Price:     1,
 		Amount:    1,
 		ClientID:  "meowOrder",
@@ -1837,7 +1838,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = order.Cancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -1854,7 +1855,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = exchange.OrderCancellation{
+	var orderCancellation = order.Cancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -1864,8 +1865,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	resp, err := o.CancelAllOrders(&orderCancellation)
 	testStandardErrorHandling(t, err)
 
-	if len(resp.OrderStatus) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	if len(resp.Status) > 0 {
+		t.Errorf("%d orders failed to cancel", len(resp.Status))
 	}
 }
 
@@ -1879,9 +1880,11 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	_, err := o.ModifyOrder(&exchange.ModifyOrder{})
+	_, err := o.ModifyOrder(&order.Modify{})
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'",
+			common.ErrFunctionNotSupported,
+			err)
 	}
 }
 
@@ -1910,7 +1913,9 @@ func TestWithdrawFiat(t *testing.T) {
 	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := o.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'",
+			common.ErrFunctionNotSupported,
+			err)
 	}
 }
 
@@ -1921,6 +1926,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := o.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'",
+			common.ErrFunctionNotSupported,
+			err)
 	}
 }

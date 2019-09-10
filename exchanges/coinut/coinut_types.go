@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // GenericResponse is the generic response you will get from coinut
@@ -477,7 +477,7 @@ type WsSubmitOrderRequest struct {
 // WsSubmitOrderParameters ws request parameters
 type WsSubmitOrderParameters struct {
 	Currency      currency.Pair
-	Side          exchange.OrderSide
+	Side          order.Side
 	Amount, Price float64
 	OrderID       int64
 }

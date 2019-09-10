@@ -15,8 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -610,7 +610,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	resp, err := exch.GetActiveOrders(&exchange.GetOrdersRequest{})
+	resp, err := exch.GetActiveOrders(&order.GetOrdersRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -623,10 +623,10 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			BaseCurrency:  resp[x].CurrencyPair.Base.String(),
 			QuoteCurrency: resp[x].CurrencyPair.Quote.String(),
 			AssetType:     asset.Spot.String(),
-			OrderType:     resp[x].OrderType.ToString(),
-			OrderSide:     resp[x].OrderSide.ToString(),
+			OrderType:     resp[x].OrderType.String(),
+			OrderSide:     resp[x].OrderSide.String(),
 			CreationTime:  resp[x].OrderDate.Unix(),
-			Status:        resp[x].Status,
+			Status:        resp[x].Status.String(),
 			Price:         resp[x].Price,
 			Amount:        resp[x].Amount,
 		})
@@ -649,10 +649,10 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	}
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	submission := &exchange.OrderSubmission{
+	submission := &order.Submit{
 		Pair:      p,
-		OrderSide: exchange.OrderSide(r.Side),
-		OrderType: exchange.OrderType(r.OrderType),
+		OrderSide: order.Side(r.Side),
+		OrderType: order.Type(r.OrderType),
 		Amount:    r.Amount,
 		Price:     r.Price,
 		ClientID:  r.ClientId,
@@ -679,8 +679,8 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 	}
 
 	var buy = true
-	if !strings.EqualFold(r.Side, exchange.BuyOrderSide.ToString()) &&
-		!strings.EqualFold(r.Side, exchange.BidOrderSide.ToString()) {
+	if !strings.EqualFold(r.Side, order.Buy.String()) &&
+		!strings.EqualFold(r.Side, order.Bid.String()) {
 		buy = false
 	}
 
@@ -716,8 +716,8 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 	}
 
 	var buy = true
-	if !strings.EqualFold(r.Side, exchange.BuyOrderSide.ToString()) &&
-		!strings.EqualFold(r.Side, exchange.BidOrderSide.ToString()) {
+	if !strings.EqualFold(r.Side, order.Buy.String()) &&
+		!strings.EqualFold(r.Side, order.Bid.String()) {
 		buy = false
 	}
 
@@ -746,10 +746,10 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	err := exch.CancelOrder(&exchange.OrderCancellation{
+	err := exch.CancelOrder(&order.Cancellation{
 		AccountID:     r.AccountId,
 		OrderID:       r.OrderId,
-		Side:          exchange.OrderSide(r.Side),
+		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
 	})
 

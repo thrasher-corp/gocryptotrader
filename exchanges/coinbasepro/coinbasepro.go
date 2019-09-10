@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -288,7 +289,7 @@ func (c *CoinbasePro) GetHolds(accountID string) ([]AccountHolds, error) {
 func (c *CoinbasePro) PlaceLimitOrder(clientRef string, price, amount float64, side, timeInforce, cancelAfter, productID, stp string, postOnly bool) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	req := make(map[string]interface{})
-	req["type"] = exchange.LimitOrderType.ToLower().ToString()
+	req["type"] = order.Limit.Lower()
 	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	req["size"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["side"] = side
@@ -339,7 +340,7 @@ func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds float64, si
 	req := make(map[string]interface{})
 	req["side"] = side
 	req["product_id"] = productID
-	req["type"] = exchange.MarketOrderType.ToLower().ToString()
+	req["type"] = order.Market.Lower()
 
 	if size != 0 {
 		req["size"] = strconv.FormatFloat(size, 'f', -1, 64)

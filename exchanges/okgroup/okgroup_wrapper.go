@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -199,25 +200,21 @@ func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]e
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(order *exchange.OrderSubmission) (resp exchange.SubmitOrderResponse, err error) {
-	if order == nil {
-		return resp, exchange.ErrOrderSubmissionIsNil
-	}
-
-	err = order.Validate()
+func (o *OKGroup) SubmitOrder(s *order.Submit) (resp order.SubmitResponse, err error) {
+	err = s.Validate()
 	if err != nil {
 		return resp, err
 	}
 
 	request := PlaceSpotOrderRequest{
-		ClientOID:    order.ClientID,
-		InstrumentID: o.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
-		Side:         strings.ToLower(order.OrderSide.ToString()),
-		Type:         strings.ToLower(order.OrderType.ToString()),
-		Size:         strconv.FormatFloat(order.Amount, 'f', -1, 64),
+		ClientOID:    s.ClientID,
+		InstrumentID: o.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		Side:         strings.ToLower(s.OrderSide.String()),
+		Type:         strings.ToLower(s.OrderType.String()),
+		Size:         strconv.FormatFloat(s.Amount, 'f', -1, 64),
 	}
-	if order.OrderType == exchange.LimitOrderType {
-		request.Price = strconv.FormatFloat(order.Price, 'f', -1, 64)
+	if s.OrderType == order.Limit {
+		request.Price = strconv.FormatFloat(s.Price, 'f', -1, 64)
 	}
 
 	orderResponse, err := o.PlaceSpotOrder(&request)
@@ -232,12 +229,12 @@ func (o *OKGroup) SubmitOrder(order *exchange.OrderSubmission) (resp exchange.Su
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKGroup) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKGroup) CancelOrder(orderCancellation *exchange.OrderCancellation) (err error) {
+func (o *OKGroup) CancelOrder(orderCancellation *order.Cancellation) (err error) {
 	orderID, err := strconv.ParseInt(orderCancellation.OrderID, 10, 64)
 	if err != nil {
 		return
@@ -248,21 +245,22 @@ func (o *OKGroup) CancelOrder(orderCancellation *exchange.OrderCancellation) (er
 		OrderID: orderID,
 	})
 	if !orderCancellationResponse.Result {
-		err = fmt.Errorf("order %v failed to be cancelled", orderCancellationResponse.OrderID)
+		err = fmt.Errorf("order %d failed to be cancelled",
+			orderCancellationResponse.OrderID)
 	}
 
 	return
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (resp exchange.CancelAllOrdersResponse, err error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancellation) (resp order.CancelAllResponse, err error) {
 	orderIDs := strings.Split(orderCancellation.OrderID, ",")
-	resp.OrderStatus = make(map[string]string)
+	resp.Status = make(map[string]string)
 	var orderIDNumbers []int64
 	for _, i := range orderIDs {
 		orderIDNumber, strConvErr := strconv.ParseInt(i, 10, 64)
 		if strConvErr != nil {
-			resp.OrderStatus[i] = strConvErr.Error()
+			resp.Status[i] = strConvErr.Error()
 			continue
 		}
 		orderIDNumbers = append(orderIDNumbers, orderIDNumber)
@@ -279,7 +277,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 
 	for _, orderMap := range cancelOrdersResponse {
 		for _, cancelledOrder := range orderMap {
-			resp.OrderStatus[fmt.Sprintf("%v", cancelledOrder.OrderID)] = fmt.Sprintf("%v", cancelledOrder.Result)
+			resp.Status[fmt.Sprintf("%v", cancelledOrder.OrderID)] = fmt.Sprintf("%v", cancelledOrder.Result)
 		}
 	}
 
@@ -287,20 +285,20 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 }
 
 // GetOrderInfo returns information on a current open order
-func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err error) {
-	order, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
+func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
+	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
 	}
-	resp = exchange.OrderDetail{
-		Amount: order.Size,
-		CurrencyPair: currency.NewPairDelimiter(order.InstrumentID,
+	resp = order.Detail{
+		Amount: mOrder.Size,
+		CurrencyPair: currency.NewPairDelimiter(mOrder.InstrumentID,
 			o.GetPairFormat(asset.Spot, false).Delimiter),
 		Exchange:       o.Name,
-		OrderDate:      order.Timestamp,
-		ExecutedAmount: order.FilledSize,
-		Status:         order.Status,
-		OrderSide:      exchange.OrderSide(order.Side),
+		OrderDate:      mOrder.Timestamp,
+		ExecutedAmount: mOrder.FilledSize,
+		Status:         order.Status(mOrder.Status),
+		OrderSide:      order.Side(mOrder.Side),
 	}
 	return
 }
@@ -329,10 +327,13 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWi
 		return "", err
 	}
 	if !withdrawal.Result {
-		return fmt.Sprintf("%v", withdrawal.WithdrawalID), fmt.Errorf("could not withdraw currency %v to %v, no error specified", withdrawRequest.Currency.String(), withdrawRequest.Address)
+		return fmt.Sprintf("%d", withdrawal.WithdrawalID),
+			fmt.Errorf("could not withdraw currency %s to %s, no error specified",
+				withdrawRequest.Currency,
+				withdrawRequest.Address)
 	}
 
-	return fmt.Sprintf("%v", withdrawal.WithdrawalID), nil
+	return fmt.Sprintf("%d", withdrawal.WithdrawalID), nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -348,7 +349,7 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
+func (o *OKGroup) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (resp []order.Detail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
 			InstrumentID: o.FormatExchangeCurrency(currency,
@@ -358,17 +359,17 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 			return resp, err
 		}
 		for i := range spotOpenOrders {
-			resp = append(resp, exchange.OrderDetail{
+			resp = append(resp, order.Detail{
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
 				CurrencyPair:   currency,
 				Exchange:       o.Name,
-				OrderSide:      exchange.OrderSide(spotOpenOrders[i].Side),
-				OrderType:      exchange.OrderType(spotOpenOrders[i].Type),
+				OrderSide:      order.Side(spotOpenOrders[i].Side),
+				OrderType:      order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
 				OrderDate:      spotOpenOrders[i].Timestamp,
-				Status:         spotOpenOrders[i].Status,
+				Status:         order.Status(spotOpenOrders[i].Status),
 			})
 		}
 	}
@@ -378,7 +379,7 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
+func (o *OKGroup) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) (resp []order.Detail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
 			Status: strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
@@ -389,17 +390,17 @@ func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 			return resp, err
 		}
 		for i := range spotOpenOrders {
-			resp = append(resp, exchange.OrderDetail{
+			resp = append(resp, order.Detail{
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
 				CurrencyPair:   currency,
 				Exchange:       o.Name,
-				OrderSide:      exchange.OrderSide(spotOpenOrders[i].Side),
-				OrderType:      exchange.OrderType(spotOpenOrders[i].Type),
+				OrderSide:      order.Side(spotOpenOrders[i].Side),
+				OrderType:      order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
 				OrderDate:      spotOpenOrders[i].Timestamp,
-				Status:         spotOpenOrders[i].Status,
+				Status:         order.Status(spotOpenOrders[i].Status),
 			})
 		}
 	}

@@ -1,6 +1,8 @@
 package alphapoint
 
-import exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
 
 // Response contains general responses from the exchange
 type Response struct {
@@ -198,15 +200,15 @@ type WebsocketTicker struct {
 }
 
 // orderSideMap holds order type info based on Alphapoint data
-var orderSideMap = map[int64]exchange.OrderSide{
-	1: exchange.BuyOrderSide,
-	2: exchange.SellOrderSide,
+var orderSideMap = map[int64]order.Side{
+	1: order.Buy,
+	2: order.Sell,
 }
 
 // orderTypeMap holds order type info based on Alphapoint data
-var orderTypeMap = map[int]exchange.OrderType{
-	1: exchange.MarketOrderType,
-	2: exchange.LimitOrderType,
-	3: exchange.StopOrderType,
-	6: exchange.TrailingStopOrderType,
+var orderTypeMap = map[int]order.Type{
+	1: order.Market,
+	2: order.Limit,
+	3: order.Stop,
+	6: order.TrailingStop,
 }

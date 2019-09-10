@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -304,19 +305,15 @@ func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]e
 }
 
 // SubmitOrder submits a new order
-func (l *LakeBTC) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (l *LakeBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	isBuyOrder := order.OrderSide == exchange.BuyOrderSide
-	response, err := l.Trade(isBuyOrder, order.Amount, order.Price,
-		order.Pair.Lower().String())
+	isBuyOrder := s.OrderSide == order.Buy
+	response, err := l.Trade(isBuyOrder, s.Amount, s.Price,
+		s.Pair.Lower().String())
 	if response.ID > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
 	}
@@ -328,12 +325,12 @@ func (l *LakeBTC) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitO
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LakeBTC) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (l *LakeBTC) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LakeBTC) CancelOrder(order *exchange.OrderCancellation) error {
+func (l *LakeBTC) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
@@ -344,8 +341,8 @@ func (l *LakeBTC) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LakeBTC) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+func (l *LakeBTC) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	var cancelAllOrdersResponse order.CancelAllResponse
 	openOrders, err := l.GetOpenOrders()
 	if err != nil {
 		return cancelAllOrdersResponse, err
@@ -361,8 +358,8 @@ func (l *LakeBTC) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cance
 }
 
 // GetOrderInfo returns information on a current open order
-func (l *LakeBTC) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (l *LakeBTC) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -423,23 +420,23 @@ func (l *LakeBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LakeBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LakeBTC) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := l.GetOpenOrders()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range resp {
-		symbol := currency.NewPairDelimiter(order.Symbol,
+	var orders []order.Detail
+	for _, o := range resp {
+		symbol := currency.NewPairDelimiter(o.Symbol,
 			l.GetPairFormat(asset.Spot, false).Delimiter)
-		orderDate := time.Unix(order.At, 0)
-		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orderDate := time.Unix(o.At, 0)
+		side := order.Side(strings.ToUpper(o.Type))
 
-		orders = append(orders, exchange.OrderDetail{
-			Amount:       order.Amount,
-			ID:           fmt.Sprintf("%v", order.ID),
-			Price:        order.Price,
+		orders = append(orders, order.Detail{
+			Amount:       o.Amount,
+			ID:           fmt.Sprintf("%d", o.ID),
+			Price:        o.Price,
 			OrderSide:    side,
 			OrderDate:    orderDate,
 			CurrencyPair: symbol,
@@ -447,36 +444,36 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LakeBTC) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := l.GetOrders([]int64{})
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range resp {
-		if order.State == "active" {
+	var orders []order.Detail
+	for _, o := range resp {
+		if o.State == "active" {
 			continue
 		}
 
-		symbol := currency.NewPairDelimiter(order.Symbol,
+		symbol := currency.NewPairDelimiter(o.Symbol,
 			l.GetPairFormat(asset.Spot, false).Delimiter)
-		orderDate := time.Unix(order.At, 0)
-		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orderDate := time.Unix(o.At, 0)
+		side := order.Side(strings.ToUpper(o.Type))
 
-		orders = append(orders, exchange.OrderDetail{
-			Amount:       order.Amount,
-			ID:           fmt.Sprintf("%v", order.ID),
-			Price:        order.Price,
+		orders = append(orders, order.Detail{
+			Amount:       o.Amount,
+			ID:           fmt.Sprintf("%d", o.ID),
+			Price:        o.Price,
 			OrderSide:    side,
 			OrderDate:    orderDate,
 			CurrencyPair: symbol,
@@ -484,10 +481,10 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

@@ -105,7 +105,7 @@ func (y *Yobit) GetAccountInformation() (AccountInfo, error) {
 func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
-	req.Add("type", orderType)
+	req.Add("type", strings.ToLower(orderType))
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
 

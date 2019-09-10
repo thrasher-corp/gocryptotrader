@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
@@ -310,7 +311,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 					Amount: result.Events[i].Remaining,
 					Price:  result.Events[i].Price,
 				}
-				if strings.EqualFold(result.Events[i].Side, exchange.AskOrderSide.ToString()) {
+				if strings.EqualFold(result.Events[i].Side, order.Ask.String()) {
 					asks = append(asks, item)
 				} else {
 					bids = append(bids, item)

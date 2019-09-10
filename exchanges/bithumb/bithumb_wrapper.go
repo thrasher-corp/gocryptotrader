@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -274,30 +274,26 @@ func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]e
 
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
-func (b *Bithumb) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var orderID string
 	var err error
-	if order.OrderSide == exchange.BuyOrderSide {
+	if s.OrderSide == order.Buy {
 		var result MarketBuy
-		result, err = b.MarketBuyOrder(order.Pair.Base.String(), order.Amount)
+		result, err = b.MarketBuyOrder(s.Pair.Base.String(), s.Amount)
 		orderID = result.OrderID
-	} else if order.OrderSide == exchange.SellOrderSide {
+	} else if s.OrderSide == order.Sell {
 		var result MarketSell
-		result, err = b.MarketSellOrder(order.Pair.Base.String(), order.Amount)
+		result, err = b.MarketSellOrder(s.Pair.Base.String(), s.Amount)
 		orderID = result.OrderID
 	}
 
 	if orderID != "" {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderID)
+		submitOrderResponse.OrderID = fmt.Sprintf("%s", orderID)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -307,10 +303,10 @@ func (b *Bithumb) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitO
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bithumb) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
 	order, err := b.ModifyTrade(action.OrderID,
 		action.CurrencyPair.Base.String(),
-		strings.ToLower(action.OrderSide.ToString()),
+		action.Side.Lower(),
 		action.Amount,
 		int64(action.Price))
 
@@ -322,23 +318,23 @@ func (b *Bithumb) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bithumb) CancelOrder(order *exchange.OrderCancellation) error {
-	_, err := b.CancelTrade(order.Side.ToString(),
+func (b *Bithumb) CancelOrder(order *order.Cancellation) error {
+	_, err := b.CancelTrade(order.Side.String(),
 		order.OrderID,
 		order.CurrencyPair.Base.String())
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bithumb) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 
 	var allOrders []OrderData
 	for _, currency := range b.GetEnabledPairs(asset.Spot) {
 		orders, err := b.GetOrders("",
-			orderCancellation.Side.ToString(),
+			orderCancellation.Side.String(),
 			"100",
 			"",
 			currency.Base.String())
@@ -349,11 +345,11 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 	}
 
 	for i := range allOrders {
-		_, err := b.CancelTrade(orderCancellation.Side.ToString(),
+		_, err := b.CancelTrade(orderCancellation.Side.String(),
 			allOrders[i].OrderID,
 			orderCancellation.CurrencyPair.Base.String())
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[allOrders[i].OrderID] = err.Error()
+			cancelAllOrdersResponse.Status[allOrders[i].OrderID] = err.Error()
 		}
 	}
 
@@ -361,8 +357,8 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bithumb) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (b *Bithumb) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -426,8 +422,8 @@ func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var orders []exchange.OrderDetail
+func (b *Bithumb) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	var orders []order.Detail
 	resp, err := b.GetOrders("", "", "1000", "", "")
 	if err != nil {
 		return nil, err
@@ -439,39 +435,39 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
-		orderDetail := exchange.OrderDetail{
+		orderDetail := order.Detail{
 			Amount:          resp.Data[i].Units,
 			Exchange:        b.Name,
 			ID:              resp.Data[i].OrderID,
 			OrderDate:       orderDate,
 			Price:           resp.Data[i].Price,
 			RemainingAmount: resp.Data[i].UnitsRemaining,
-			Status:          string(exchange.ActiveOrderStatus),
+			Status:          order.Active,
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
 				b.GetPairFormat(asset.Spot, false).Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
-			orderDetail.OrderSide = exchange.BuyOrderSide
+			orderDetail.OrderSide = order.Buy
 		} else if resp.Data[i].Type == "ask" {
-			orderDetail.OrderSide = exchange.SellOrderSide
+			orderDetail.OrderSide = order.Sell
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var orders []exchange.OrderDetail
+func (b *Bithumb) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	var orders []order.Detail
 	resp, err := b.GetOrders("", "", "1000", "", "")
 	if err != nil {
 		return nil, err
@@ -483,7 +479,7 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
-		orderDetail := exchange.OrderDetail{
+		orderDetail := order.Detail{
 			Amount:          resp.Data[i].Units,
 			Exchange:        b.Name,
 			ID:              resp.Data[i].OrderID,
@@ -496,18 +492,18 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		}
 
 		if resp.Data[i].Type == "bid" {
-			orderDetail.OrderSide = exchange.BuyOrderSide
+			orderDetail.OrderSide = order.Buy
 		} else if resp.Data[i].Type == "ask" {
-			orderDetail.OrderSide = exchange.SellOrderSide
+			orderDetail.OrderSide = order.Sell
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 	return orders, nil
 }
 
