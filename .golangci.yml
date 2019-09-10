@@ -1,5 +1,5 @@
 run:
-  deadline: 40s
+  deadline: 1m0s
   issues-exit-code: 1
   tests: true
   skip-dirs:

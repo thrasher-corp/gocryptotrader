@@ -15,6 +15,7 @@ const (
 	// Default number of enabled exchanges. Modify this whenever an exchange is
 	// added or removed
 	defaultEnabledExchanges = 28
+	testFakeExchangeName    = "Stampbit"
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
@@ -143,6 +144,70 @@ func TestCheckClientBankAccounts(t *testing.T) {
 	// TO-DO: Complete test coverage
 }
 
+func TestPurgeExchangeCredentials(t *testing.T) {
+	t.Parallel()
+	var c Config
+	c.Exchanges = []ExchangeConfig{
+		{
+			Name: "test",
+			API: APIConfig{
+				AuthenticatedSupport:          true,
+				AuthenticatedWebsocketSupport: true,
+
+				CredentialsValidator: &APICredentialsValidatorConfig{
+					RequiresKey:      true,
+					RequiresSecret:   true,
+					RequiresClientID: true,
+				},
+
+				Credentials: APICredentialsConfig{
+					Key:       "asdf123",
+					Secret:    "secretp4ssw0rd",
+					ClientID:  "1337",
+					OTPSecret: "otp",
+					PEMKey:    "aaa",
+				},
+			},
+		},
+		{
+			Name: "test123",
+			API: APIConfig{
+				CredentialsValidator: &APICredentialsValidatorConfig{
+					RequiresKey: true,
+				},
+				Credentials: APICredentialsConfig{
+					Key:    "asdf",
+					Secret: DefaultAPISecret,
+				},
+			},
+		},
+	}
+
+	c.PurgeExchangeAPICredentials()
+
+	exchCfg, err := c.GetExchangeConfig("test")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if exchCfg.API.Credentials.Key != DefaultAPIKey &&
+		exchCfg.API.Credentials.ClientID != DefaultAPIClientID &&
+		exchCfg.API.Credentials.Secret != DefaultAPISecret &&
+		exchCfg.API.Credentials.OTPSecret != "" &&
+		exchCfg.API.Credentials.PEMKey != "" {
+		t.Error("unexpected values")
+	}
+
+	exchCfg, err = c.GetExchangeConfig("test123")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if exchCfg.API.Credentials.Key != "asdf" {
+		t.Error("unexpected values")
+	}
+}
+
 func TestGetCommunicationsConfig(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
@@ -224,6 +289,18 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 		t.Error("Test failed. CheckCommunicationsConfig error:", err)
 	}
 
+	cfg.Communications.SMSGlobalConfig.From = ""
+	cfg.CheckCommunicationsConfig()
+	if cfg.Communications.SMSGlobalConfig.From != cfg.Name {
+		t.Error("Test failed. CheckCommunicationsConfig From value should of been set to the config name")
+	}
+
+	cfg.Communications.SMSGlobalConfig.From = "aaaaaaaaaaaaaaaaaaa"
+	cfg.CheckCommunicationsConfig()
+	if cfg.Communications.SMSGlobalConfig.From != "aaaaaaaaaaa" {
+		t.Error("Test failed. CheckCommunicationsConfig From value should of been trimmed to 11 characters")
+	}
+
 	cfg.SMS = &SMSGlobalConfig{}
 	cfg.CheckCommunicationsConfig()
 	if cfg.SMS != nil {
@@ -263,6 +340,122 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.TelegramConfig.Enabled {
 		t.Error("Test failed. CheckCommunicationsConfig TelegramConfig is enabled when it shouldn't be.")
+	}
+}
+
+func TestGetExchangeAssetTypes(t *testing.T) {
+	t.Parallel()
+	var c Config
+	_, err := c.GetExchangeAssetTypes("void")
+	if err == nil {
+		t.Error("err should of been thrown on a non-existent exchange")
+	}
+
+	c.Exchanges = append(c.Exchanges,
+		ExchangeConfig{
+			Name: testFakeExchangeName,
+			CurrencyPairs: &currency.PairsManager{
+				AssetTypes: asset.Items{
+					asset.Spot,
+					asset.Futures,
+				},
+			},
+		},
+	)
+
+	var assets asset.Items
+	assets, err = c.GetExchangeAssetTypes(testFakeExchangeName)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if assets.JoinToString(",") != "spot,futures" {
+		t.Error("unexpected results")
+	}
+
+	c.Exchanges[0].CurrencyPairs = nil
+	_, err = c.GetExchangeAssetTypes(testFakeExchangeName)
+	if err == nil {
+		t.Error("a nil pair manager should throw an error")
+	}
+}
+
+func TestSupportsExchangeAssetType(t *testing.T) {
+	t.Parallel()
+	var c Config
+	_, err := c.SupportsExchangeAssetType("void", asset.Spot)
+	if err == nil {
+		t.Error("unexpected result for non-existent exchange")
+	}
+
+	c.Exchanges = append(c.Exchanges,
+		ExchangeConfig{
+			Name: testFakeExchangeName,
+			CurrencyPairs: &currency.PairsManager{
+				AssetTypes: asset.Items{
+					asset.Spot,
+					asset.Futures,
+				},
+			},
+		},
+	)
+
+	supports, err := c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !supports {
+		t.Error("exchange should support spot asset item")
+	}
+
+	_, err = c.SupportsExchangeAssetType(testFakeExchangeName, "asdf")
+	if err == nil {
+		t.Error("invalid asset item should throw an error")
+	}
+
+	c.Exchanges[0].CurrencyPairs = nil
+	_, err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
+	if err == nil {
+		t.Error("a nil pair manager should throw an error")
+	}
+}
+
+func TestCheckExchangeAssetsConsistency(t *testing.T) {
+	t.Parallel()
+	var c Config
+	// Test for non-existent exchange
+	c.CheckExchangeAssetsConsistency("void")
+
+	c.Exchanges = append(c.Exchanges,
+		ExchangeConfig{
+			Name: testFakeExchangeName,
+		},
+	)
+
+	// Tests for nil currency pairs store but valid exchange name
+	c.CheckExchangeAssetsConsistency(testFakeExchangeName)
+
+	// Simulate testing a diff between stored asset types (config loading)
+	// and pair store
+	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
+		AssetTypes: asset.Items{
+			asset.Spot,
+			asset.Futures,
+			asset.Index,
+		},
+	}
+	c.Exchanges[0].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.PerpetualContract] = &currency.PairStore{}
+	c.CheckExchangeAssetsConsistency(testFakeExchangeName)
+
+	supports, err := c.SupportsExchangeAssetType(testFakeExchangeName, asset.PerpetualContract)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if supports {
+		t.Error("perpetual contract should of been removed from the pair manager")
 	}
 }
 

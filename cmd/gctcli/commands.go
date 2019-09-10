@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -82,18 +83,22 @@ func enableSubsystem(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var subsystemName string
 	if c.IsSet("subsystem") {
 		subsystemName = c.String("subsystem")
 	} else {
 		subsystemName = c.Args().First()
 	}
+
+	if subsystemName == "" {
+		return errors.New("invalid subsystem supplied")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.EnableSubsystem(context.Background(),
@@ -129,18 +134,22 @@ func disableSubsystem(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var subsystemName string
 	if c.IsSet("subsystem") {
 		subsystemName = c.String("subsystem")
 	} else {
 		subsystemName = c.Args().First()
 	}
+
+	if subsystemName == "" {
+		return errors.New("invalid subsystem supplied")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.DisableSubsystem(context.Background(),
@@ -268,18 +277,22 @@ func enableExchange(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.EnableExchange(context.Background(),
@@ -315,18 +328,22 @@ func disableExchange(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.DisableExchange(context.Background(),
@@ -362,18 +379,22 @@ func getExchangeOTPCode(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetExchangeOTPCode(context.Background(),
@@ -434,18 +455,22 @@ func getExchangeInfo(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetExchangeInfo(context.Background(),
@@ -489,12 +514,6 @@ func getTicker(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var currencyPair string
 	var assetType string
@@ -505,10 +524,18 @@ func getTicker(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
 		currencyPair = c.Args().Get(1)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
 	}
 
 	if c.IsSet("asset") {
@@ -517,11 +544,13 @@ func getTicker(c *cli.Context) error {
 		assetType = c.Args().Get(2)
 	}
 
-	if !validPair(currencyPair) {
-		return errInvalidPair
+	conn, err := setupClient()
+	if err != nil {
+		return err
 	}
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	defer conn.Close()
 
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetTicker(context.Background(),
 		&gctrpc.GetTickerRequest{
@@ -545,7 +574,7 @@ func getTicker(c *cli.Context) error {
 
 var getTickersCommand = cli.Command{
 	Name:   "gettickers",
-	Usage:  "gets all tickers for all enabled exchanes and currency pairs",
+	Usage:  "gets all tickers for all enabled exchanges and currency pairs",
 	Action: getTickers,
 }
 
@@ -593,12 +622,6 @@ func getOrderbook(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var currencyPair string
 	var assetType string
@@ -609,10 +632,18 @@ func getOrderbook(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
 		currencyPair = c.Args().Get(1)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
 	}
 
 	if c.IsSet("asset") {
@@ -621,11 +652,13 @@ func getOrderbook(c *cli.Context) error {
 		assetType = c.Args().Get(2)
 	}
 
-	if !validPair(currencyPair) {
-		return errInvalidPair
+	conn, err := setupClient()
+	if err != nil {
+		return err
 	}
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	defer conn.Close()
 
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrderbook(context.Background(),
 		&gctrpc.GetOrderbookRequest{
@@ -649,7 +682,7 @@ func getOrderbook(c *cli.Context) error {
 
 var getOrderbooksCommand = cli.Command{
 	Name:   "getorderbooks",
-	Usage:  "gets all orderbooks for all enabled exchanes and currency pairs",
+	Usage:  "gets all orderbooks for all enabled exchanges and currency pairs",
 	Action: getOrderbooks,
 }
 
@@ -689,18 +722,22 @@ func getAccountInfo(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchange string
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
 	}
+
+	if !validExchange(exchange) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetAccountInfo(context.Background(),
@@ -1009,12 +1046,6 @@ var getOrdersCommand = cli.Command{
 }
 
 func getOrders(c *cli.Context) error {
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var assetType string
 	var currencyPair string
@@ -1023,6 +1054,10 @@ func getOrders(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
 	}
 
 	if c.IsSet("asset_type") {
@@ -1040,8 +1075,14 @@ func getOrders(c *cli.Context) error {
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange:  exchangeName,
@@ -1083,12 +1124,6 @@ func getOrder(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var orderID string
 
@@ -1098,11 +1133,21 @@ func getOrder(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
 	if c.IsSet("order_id") {
 		orderID = c.String("order_id")
 	} else {
 		orderID = c.Args().Get(1)
 	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
@@ -1120,7 +1165,7 @@ func getOrder(c *cli.Context) error {
 var submitOrderCommand = cli.Command{
 	Name:      "submitorder",
 	Usage:     "submit order submits an exchange order",
-	ArgsUsage: "<exchange> <currency_pair> <side> <order_type> <amount> <price> <client_id>",
+	ArgsUsage: "<exchange> <pair> <side> <order_type> <amount> <price> <client_id>",
 	Action:    submitOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1128,7 +1173,7 @@ var submitOrderCommand = cli.Command{
 			Usage: "the exchange to submit the order for",
 		},
 		cli.StringFlag{
-			Name:  "currency_pair",
+			Name:  "pair",
 			Usage: "the currency pair",
 		},
 		cli.StringFlag{
@@ -1160,12 +1205,6 @@ func submitOrder(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var currencyPair string
 	var orderSide string
@@ -1180,10 +1219,18 @@ func submitOrder(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("currency_pair") {
-		currencyPair = c.String("currency_pair")
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
 	} else {
 		currencyPair = c.Args().Get(1)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
 	}
 
 	if c.IsSet("side") {
@@ -1216,11 +1263,13 @@ func submitOrder(c *cli.Context) error {
 		clientID = c.Args().Get(6)
 	}
 
-	if !validPair(currencyPair) {
-		return errInvalidPair
+	conn, err := setupClient()
+	if err != nil {
+		return err
 	}
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	defer conn.Close()
 
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SubmitOrder(context.Background(), &gctrpc.SubmitOrderRequest{
 		Exchange: exchangeName,
@@ -1246,7 +1295,7 @@ func submitOrder(c *cli.Context) error {
 var simulateOrderCommand = cli.Command{
 	Name:      "simulateorder",
 	Usage:     "simulate order simulates an exchange order",
-	ArgsUsage: "<exchange> <currency_pair> <side> <amount>",
+	ArgsUsage: "<exchange> <pair> <side> <amount>",
 	Action:    simulateOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1254,7 +1303,7 @@ var simulateOrderCommand = cli.Command{
 			Usage: "the exchange to simulate the order for",
 		},
 		cli.StringFlag{
-			Name:  "currency_pair",
+			Name:  "pair",
 			Usage: "the currency pair",
 		},
 		cli.StringFlag{
@@ -1274,12 +1323,6 @@ func simulateOrder(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var currencyPair string
 	var orderSide string
@@ -1291,10 +1334,18 @@ func simulateOrder(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("currency_pair") {
-		currencyPair = c.String("currency_pair")
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
 	} else {
 		currencyPair = c.Args().Get(1)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
 	}
 
 	if c.IsSet("side") {
@@ -1309,11 +1360,13 @@ func simulateOrder(c *cli.Context) error {
 		amount, _ = strconv.ParseFloat(c.Args().Get(3), 64)
 	}
 
-	if !validPair(currencyPair) {
-		return errInvalidPair
+	conn, err := setupClient()
+	if err != nil {
+		return err
 	}
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	defer conn.Close()
 
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SimulateOrder(context.Background(), &gctrpc.SimulateOrderRequest{
 		Exchange: exchangeName,
@@ -1336,7 +1389,7 @@ func simulateOrder(c *cli.Context) error {
 var whaleBombCommand = cli.Command{
 	Name:      "whalebomb",
 	Usage:     "whale bomb finds the amount required to reach a price target",
-	ArgsUsage: "<exchange> <currency_pair> <side> <price>",
+	ArgsUsage: "<exchange> <pair> <side> <price>",
 	Action:    whaleBomb,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1344,7 +1397,7 @@ var whaleBombCommand = cli.Command{
 			Usage: "the exchange to whale bomb",
 		},
 		cli.StringFlag{
-			Name:  "currency_pair",
+			Name:  "pair",
 			Usage: "the currency pair",
 		},
 		cli.StringFlag{
@@ -1364,12 +1417,6 @@ func whaleBomb(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var currencyPair string
 	var orderSide string
@@ -1381,10 +1428,18 @@ func whaleBomb(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("currency_pair") {
-		currencyPair = c.String("currency_pair")
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
 	} else {
 		currencyPair = c.Args().Get(1)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
 	}
 
 	if c.IsSet("side") {
@@ -1399,11 +1454,13 @@ func whaleBomb(c *cli.Context) error {
 		price, _ = strconv.ParseFloat(c.Args().Get(3), 64)
 	}
 
-	if !validPair(currencyPair) {
-		return errInvalidPair
+	conn, err := setupClient()
+	if err != nil {
+		return err
 	}
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	defer conn.Close()
 
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.WhaleBomb(context.Background(), &gctrpc.WhaleBombRequest{
 		Exchange: exchangeName,
@@ -1426,7 +1483,7 @@ func whaleBomb(c *cli.Context) error {
 var cancelOrderCommand = cli.Command{
 	Name:      "cancelorder",
 	Usage:     "cancel order cancels an exchange order",
-	ArgsUsage: "<exchange> <account_id> <order_id> <currency_pair> <asset_type> <wallet_address> <side>",
+	ArgsUsage: "<exchange> <account_id> <order_id> <pair> <asset_type> <wallet_address> <side>",
 	Action:    cancelOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1442,7 +1499,7 @@ var cancelOrderCommand = cli.Command{
 			Usage: "the order id",
 		},
 		cli.StringFlag{
-			Name:  "currency_pair",
+			Name:  "pair",
 			Usage: "the currency pair to cancel the order for",
 		},
 		cli.StringFlag{
@@ -1466,12 +1523,6 @@ func cancelOrder(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var accountID string
 	var orderID string
@@ -1486,6 +1537,10 @@ func cancelOrder(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
 	if c.IsSet("order_id") {
 		orderID = c.String("order_id")
 	} else {
@@ -1496,8 +1551,8 @@ func cancelOrder(c *cli.Context) error {
 		accountID = c.String("account_id")
 	}
 
-	if c.IsSet("currency_pair") {
-		currencyPair = c.String("currency_pair")
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
 	}
 
 	if c.IsSet("asset_type") {
@@ -1519,6 +1574,12 @@ func cancelOrder(c *cli.Context) error {
 		}
 		p = currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.CancelOrder(context.Background(), &gctrpc.CancelOrderRequest{
@@ -1556,18 +1617,25 @@ var cancelAllOrdersCommand = cli.Command{
 }
 
 func cancelAllOrders(c *cli.Context) error {
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+
+	// exchange name is an optional param
+	if exchangeName != "" {
+		if !validExchange(exchangeName) {
+			return errInvalidExchange
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.CancelAllOrders(context.Background(), &gctrpc.CancelAllOrdersRequest{
@@ -1607,7 +1675,7 @@ func getEvents(_ *cli.Context) error {
 var addEventCommand = cli.Command{
 	Name:      "addevent",
 	Usage:     "adds an event",
-	ArgsUsage: "<exchange> <item> <condition> <price> <check_bids> <check_bids_and_asks> <orderbook_amount> <currency_pair> <asset_type> <action>",
+	ArgsUsage: "<exchange> <item> <condition> <price> <check_bids> <check_bids_and_asks> <orderbook_amount> <pair> <asset_type> <action>",
 	Action:    addEvent,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1639,7 +1707,7 @@ var addEventCommand = cli.Command{
 			Usage: "the orderbook amount to trigger the event",
 		},
 		cli.StringFlag{
-			Name:  "currency_pair",
+			Name:  "pair",
 			Usage: "the currency pair",
 		},
 		cli.StringFlag{
@@ -1704,8 +1772,8 @@ func addEvent(c *cli.Context) error {
 		orderbookAmount = c.Float64("orderbook_amount")
 	}
 
-	if c.IsSet("currency_pair") {
-		currencyPair = c.String("currency_pair")
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
 	} else {
 		return fmt.Errorf("currency pair is required")
 	}
@@ -1720,17 +1788,17 @@ func addEvent(c *cli.Context) error {
 		return fmt.Errorf("action is required")
 	}
 
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
 	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.AddEvent(context.Background(), &gctrpc.AddEventRequest{
 		Exchange: exchangeName,
@@ -1831,6 +1899,10 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -1878,6 +1950,10 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
 	}
 
 	if c.IsSet("cryptocurrency") {
@@ -2086,6 +2162,10 @@ func getExchangePairs(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
+	if !validExchange(exchange) {
+		return errInvalidExchange
+	}
+
 	if c.IsSet("asset") {
 		asset = c.String("asset")
 	} else {
@@ -2099,7 +2179,6 @@ func getExchangePairs(c *cli.Context) error {
 	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-
 	result, err := client.GetExchangePairs(context.Background(),
 		&gctrpc.GetExchangePairsRequest{
 			Exchange: exchange,
@@ -2150,10 +2229,18 @@ func enableExchangePair(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
+	if !validExchange(exchange) {
+		return errInvalidExchange
+	}
+
 	if c.IsSet("pair") {
 		pair = c.String("pair")
 	} else {
 		pair = c.Args().Get(1)
+	}
+
+	if !validPair(pair) {
+		return errInvalidPair
 	}
 
 	if c.IsSet("asset") {
@@ -2167,10 +2254,6 @@ func enableExchangePair(c *cli.Context) error {
 		return err
 	}
 	defer conn.Close()
-
-	if !validPair(pair) {
-		return errInvalidPair
-	}
 
 	p := currency.NewPairDelimiter(pair, pairDelimiter)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
@@ -2229,10 +2312,18 @@ func disableExchangePair(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
+	if !validExchange(exchange) {
+		return errInvalidExchange
+	}
+
 	if c.IsSet("pair") {
 		pair = c.String("pair")
 	} else {
 		pair = c.Args().Get(1)
+	}
+
+	if !validPair(pair) {
+		return errInvalidPair
 	}
 
 	if c.IsSet("asset") {
@@ -2246,10 +2337,6 @@ func disableExchangePair(c *cli.Context) error {
 		return err
 	}
 	defer conn.Close()
-
-	if !validPair(pair) {
-		return errInvalidPair
-	}
 
 	p := currency.NewPairDelimiter(pair, pairDelimiter)
 	client := gctrpc.NewGoCryptoTraderClient(conn)

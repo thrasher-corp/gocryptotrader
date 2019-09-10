@@ -446,10 +446,6 @@ func (c *Config) CheckExchangeAssetsConsistency(exchName string) {
 		return
 	}
 
-	if exchCfg.CurrencyPairs == nil {
-		return
-	}
-
 	exchangeAssetTypes, err := c.GetExchangeAssetTypes(exchName)
 	if err != nil {
 		return
@@ -458,7 +454,9 @@ func (c *Config) CheckExchangeAssetsConsistency(exchName string) {
 	storedAssetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
 	for x := range storedAssetTypes {
 		if !exchangeAssetTypes.Contains(storedAssetTypes[x]) {
-			log.Warnf(log.ConfigMgr, "%s has non-needed stored asset type %v. Removing..\n", exchName, storedAssetTypes[x])
+			log.Warnf(log.ConfigMgr,
+				"%s has non-needed stored asset type %v. Removing..\n",
+				exchName, storedAssetTypes[x])
 			exchCfg.CurrencyPairs.Delete(storedAssetTypes[x])
 		}
 	}

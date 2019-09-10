@@ -1045,7 +1045,9 @@ func TestGetAllFuturesTokenInfo(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetAllFuturesTokenInfo()
-	testStandardErrorHandling(t, err)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 // TestGetAllFuturesTokenInfo API endpoint test
