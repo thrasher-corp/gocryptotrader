@@ -464,6 +464,10 @@ func (c *Config) CheckExchangeAssetsConsistency(exchName string) {
 
 // SetPairs sets the exchanges currency pairs
 func (c *Config) SetPairs(exchName string, assetType asset.Item, enabled bool, pairs currency.Pairs) error {
+	if len(pairs) == 0 {
+		return fmt.Errorf("pairs is nil")
+	}
+
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
 		return err
@@ -515,14 +519,9 @@ func (c *Config) CheckPairConfigFormats(exchName string) error {
 			return err
 		}
 
-		pairs, err := c.GetCurrencyPairConfig(exchName, assetType)
-		if err != nil {
-			return err
-		}
-
-		if pairs == nil {
-			continue
-		}
+		// No err checking is required as the above checks the same
+		// conditions
+		pairs, _ := c.GetCurrencyPairConfig(exchName, assetType)
 
 		if len(pairs.Available) == 0 || len(pairs.Enabled) == 0 {
 			continue
@@ -537,15 +536,22 @@ func (c *Config) CheckPairConfigFormats(exchName string) error {
 			}
 
 			for y := range loadedPairs {
+				if pairFmt.Delimiter != "" && pairFmt.Index != "" {
+					return fmt.Errorf(
+						"exchange %s %s %s cannot have an index and delimiter set at the same time",
+						exchName, pairsType, assetType)
+				}
 				if pairFmt.Delimiter != "" {
 					if !strings.Contains(loadedPairs[y].String(), pairFmt.Delimiter) {
-						return fmt.Errorf("exchange %s %s %v pairs does not contain delimiter", exchName, pairsType, assetType)
+						return fmt.Errorf(
+							"exchange %s %s %s pairs does not contain delimiter",
+							exchName, pairsType, assetType)
 					}
 				}
-
 				if pairFmt.Index != "" {
 					if !strings.Contains(loadedPairs[y].String(), pairFmt.Index) {
-						return fmt.Errorf("exchange %s %s %v pairs does not contain an index", exchName, pairsType, assetType)
+						return fmt.Errorf("exchange %s %s %s pairs does not contain an index",
+							exchName, pairsType, assetType)
 					}
 				}
 			}
@@ -574,22 +580,13 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 		return err
 	}
 
-	err = c.CheckPairConfigFormats(exchName)
-	if err != nil {
-		return err
-	}
-
 	for x := range assetTypes {
 		enabledPairs, err := c.GetEnabledPairs(exchName, assetTypes[x])
 		if err != nil {
 			return err
 		}
 
-		availPairs, err := c.GetAvailablePairs(exchName, assetTypes[x])
-		if err != nil {
-			return err
-		}
-
+		availPairs, _ := c.GetAvailablePairs(exchName, assetTypes[x])
 		if len(availPairs) == 0 {
 			continue
 		}
@@ -616,20 +613,12 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 		if len(pairs) == 0 || len(enabledPairs) == 0 {
 			newPair := availPairs.GetRandomPair()
-			err = c.SetPairs(exchName, assetTypes[x], true,
-				currency.Pairs{newPair},
-			)
-			if err != nil {
-				return fmt.Errorf("exchange %s failed to set pairs: %v", exchName, err)
-			}
+			c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{newPair})
 			log.Warnf(log.ExchangeSys, "Exchange %s: [%v] No enabled pairs found in available pairs, randomly added %v pair.\n",
 				exchName, assetTypes[x], newPair)
 			continue
 		} else {
-			err = c.SetPairs(exchName, assetTypes[x], true, pairs)
-			if err != nil {
-				return fmt.Errorf("exchange %s failed to set pairs: %v", exchName, err)
-			}
+			c.SetPairs(exchName, assetTypes[x], true, pairs)
 		}
 		log.Warnf(log.ExchangeSys, "Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.\n",
 			exchName, assetTypes[x], pairsRemoved.Strings())
@@ -661,18 +650,22 @@ func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.
 
 	if !supports {
 		return currency.PairFormat{},
-			fmt.Errorf("exchange %s does not support asset type %v", exchName, assetType)
-	}
-
-	if exchCfg.CurrencyPairs == nil {
-		return currency.PairFormat{}, errors.New("exchange currency pairs type is nil")
+			fmt.Errorf("exchange %s does not support asset type %s", exchName,
+				assetType)
 	}
 
 	if exchCfg.CurrencyPairs.UseGlobalFormat {
 		return *exchCfg.CurrencyPairs.ConfigFormat, nil
 	}
 
-	return *exchCfg.CurrencyPairs.Get(assetType).ConfigFormat, nil
+	p := exchCfg.CurrencyPairs.Get(assetType)
+	if p == nil {
+		return currency.PairFormat{},
+			fmt.Errorf("exchange %s pair store for asset type %s is nil", exchName,
+				assetType)
+	}
+
+	return *p.ConfigFormat, nil
 }
 
 // GetAvailablePairs returns a list of currency pairs for a specifc exchange
@@ -687,12 +680,12 @@ func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (curre
 		return nil, err
 	}
 
-	pairs := exchCfg.CurrencyPairs.Get(assetType)
+	pairs := exchCfg.CurrencyPairs.GetPairs(assetType, false)
 	if pairs == nil {
 		return nil, nil
 	}
 
-	return pairs.Available.Format(pairFormat.Delimiter, pairFormat.Index,
+	return pairs.Format(pairFormat.Delimiter, pairFormat.Index,
 		pairFormat.Uppercase), nil
 }
 
@@ -708,12 +701,12 @@ func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) ([]curre
 		return nil, err
 	}
 
-	pairs := exchCfg.CurrencyPairs.Get(assetType)
+	pairs := exchCfg.CurrencyPairs.GetPairs(assetType, true)
 	if pairs == nil {
 		return nil, nil
 	}
 
-	return pairs.Enabled.Format(pairFormat.Delimiter, pairFormat.Index,
+	return pairs.Format(pairFormat.Delimiter, pairFormat.Index,
 		pairFormat.Uppercase), nil
 }
 
@@ -934,12 +927,31 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 			c.Exchanges[i].CurrencyPairs.ConfigFormat = c.Exchanges[i].ConfigCurrencyPairFormat
 			c.Exchanges[i].CurrencyPairs.RequestFormat = c.Exchanges[i].RequestCurrencyPairFormat
-			c.Exchanges[i].CurrencyPairs.AssetTypes = asset.New(strings.ToLower(*c.Exchanges[i].AssetTypes))
+
+			if c.Exchanges[i].AssetTypes == nil {
+				c.Exchanges[i].CurrencyPairs.AssetTypes = asset.Items{
+					asset.Spot,
+				}
+			} else {
+				c.Exchanges[i].CurrencyPairs.AssetTypes = asset.New(
+					strings.ToLower(*c.Exchanges[i].AssetTypes),
+				)
+			}
+
+			var availPairs, enabledPairs currency.Pairs
+			if c.Exchanges[i].AvailablePairs != nil {
+				availPairs = *c.Exchanges[i].AvailablePairs
+			}
+
+			if c.Exchanges[i].EnabledPairs != nil {
+				enabledPairs = *c.Exchanges[i].EnabledPairs
+			}
+
 			c.Exchanges[i].CurrencyPairs.UseGlobalFormat = true
 			c.Exchanges[i].CurrencyPairs.Store(asset.Spot,
 				currency.PairStore{
-					Available: *c.Exchanges[i].AvailablePairs,
-					Enabled:   *c.Exchanges[i].EnabledPairs,
+					Available: availPairs,
+					Enabled:   enabledPairs,
 				},
 			)
 
@@ -954,7 +966,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 		if c.Exchanges[i].Enabled {
 			if c.Exchanges[i].Name == "" {
-				log.Error(log.ConfigMgr, ErrExchangeNameEmpty, i)
+				log.Errorf(log.ConfigMgr, ErrExchangeNameEmpty, i)
 				c.Exchanges[i].Enabled = false
 				continue
 			}
