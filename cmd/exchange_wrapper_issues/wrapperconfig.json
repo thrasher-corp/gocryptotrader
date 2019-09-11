@@ -1,4 +1,15 @@
 {
+    "bankAccount": 
+        {
+         "bankName": "",
+         "bankAddress": "",
+         "accountName": "",
+         "accountNumber": "",
+         "swiftCode": "",
+         "iban": ""
+        },
+        "exchanges": {
+       
     "alphapoint":
     {
         "apiKey":"",
@@ -113,4 +124,5 @@
         "apiKey":"",
         "apiSecret":""
     }
+}
 }

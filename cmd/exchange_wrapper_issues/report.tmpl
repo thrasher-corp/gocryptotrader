@@ -73,26 +73,29 @@
             {{ end }}
         <table class="table table-hover col-11 container-fluid table-sm">
             <thead class="thead-dark">
-                <th width="8%">
+                <th width="6%">
                     Asset Type
                 </th>
-                <th width="10%">
+                <th width="8%">
                     Currency Pair
                 </th>
                 <th width="15%">
                     Function
                 </th>
-                <th width="30%">
+                 <th width="16%">
+                    Wrapper Params Sent
+                </th>
+                <th width="25%">
                     Error
                 </th>
-                <th width="37%">
-                    Raw API JSON Response
+                <th width="30%">
+                    Wrapper Response
                 </th>
 
             </thead>
             <tbody>
                 {{ range $k, $endpointResponse := $assetPairResponses.EndpointResponses }}
-                <tr {{ if $endpointResponse.Error }}class="table-danger" {{ end }}>
+                <tr {{if eq $endpointResponse.Error "not yet implemented"}} class="table-warning" {{else if eq $endpointResponse.Error "unsupported wrapper function"}} {{ else if $endpointResponse.Error }}class="table-danger" {{ end }}>
                     <td>
                         {{ $assetPairResponses.AssetType }}
                     </td>
@@ -102,18 +105,31 @@
                     <td>
                         {{ $endpointResponse.Function }}
                     </td>
+                     <td>
+                      <button class="btn btn-info" type="button" data-toggle="collapse"
+                            data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
+                            aria-expanded="false" aria-controls="collapseExample">
+                            Wrapper Params
+                        </button>
+                        <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
+                            class="collapse">
+                            <div class="card card-body" style="word-wrap:anywhere">
+                                {{ $endpointResponse.SentParams }}
+                            </div>
+                        </div>
+                    </td>
                     <td>
                         {{ $endpointResponse.Error }}
                     </td>
                     <td>
-                        <button class="btn btn-primary" type="button" data-toggle="collapse"
+                        <button class="btn btn-info" type="button" data-toggle="collapse"
                             data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
                             aria-expanded="false" aria-controls="collapseExample">
-                            Response
+                            Wrapper Response
                         </button>
                         <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
                             class="collapse">
-                            <div class="card card-body">
+                            <div class="card card-body" style="word-wrap:anywhere">
                                 {{ $endpointResponse.Response }}
                             </div>
                         </div>

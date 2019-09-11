@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,13 +13,55 @@ import (
 	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+var orderType string
+var output string
+var orderSide string
+var currencyPair string
+var wrapperName string
+var assetType string
+var orderPrice float64
+var orderAmount float64
+var withdrawAddress string
+var authenticatedOnly bool
+var exchangesToUse []string
+
+func parseCLFlags() {
+	exchangesFlag := flag.String("exchanges", "", "A + delimited list of exchange names to run tests against eg -exchanges=bitfinex+anx")
+	assetTypeFlag := flag.String("asset", "", "The asset type to run tests against (where applicable)")
+	currencyPairFlag := flag.String("currency", "", "The currency to run tests against (where applicable)")
+	outputFlag := flag.String("output", "HTML", "JSON, HTML or Console")
+	authenticatedOnlyFlag := flag.Bool("authonly", false, "Skip any wrapper function that doesn't require auth")
+	orderSideFlag := flag.String("orderSide", "BUY", "The order type for all order based wrapper tests")
+	orderTypeFlag := flag.String("orderType", "LIMIT", "The order type for all order based wrapper tests")
+	orderAmountFlag := flag.Float64("orderAmount", 100000000, "The order amount for all order based wrapper tests")
+	orderPriceFlag := flag.Float64("orderPrice", 100000000, "The order price for all order based wrapper tests")
+	wrapperFlag := flag.String("wrapper", "", "Specify a singular wrapper to run against. eg -wrapper=SubmitOrder")
+	withdrawAddressFlag := flag.String("withdrawWallet", "", "Withdraw wallet address")
+	flag.Parse()
+	if *exchangesFlag != "" {
+		exchangesToUse = strings.Split(*exchangesFlag, "+")
+	}
+	currencyPair = *currencyPairFlag
+	assetType = *assetTypeFlag
+	wrapperName = *wrapperFlag
+	orderType = strings.ToUpper(*orderTypeFlag)
+	orderSide = strings.ToUpper(*orderSideFlag)
+	authenticatedOnly = *authenticatedOnlyFlag
+	output = *outputFlag
+	orderPrice = *orderPriceFlag
+	orderAmount = *orderAmountFlag
+	withdrawAddress = *withdrawAddressFlag
+}
+
 func main() {
+	parseCLFlags()
 	var err error
 	engine.Bot, err = engine.New()
 	if err != nil {
@@ -48,18 +91,28 @@ func main() {
 
 	wg = sync.WaitGroup{}
 	var exchangeResponses []ExchangeResponses
-	keys, err := loadKeys()
+	config, err := loadKeys()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for x := range engine.Bot.Exchanges {
+		if len(exchangesToUse) > 0 {
+			var found bool
+			for i := range exchangesToUse {
+				if strings.EqualFold(engine.Bot.Exchanges[x].GetName(), exchangesToUse[i]) {
+					found = true
+				}
+			}
+			if !found {
+				continue
+			}
+		}
 		base := engine.Bot.Exchanges[x].GetBase()
 		if !base.Config.Enabled {
 			log.Printf("Exchange %v not enabled, skipping", base.GetName())
 			continue
 		}
-
 		base.Config.Verbose = false
 		base.Config.HTTPDebugging = false
 		base.Verbose = false
@@ -68,7 +121,7 @@ func main() {
 
 		go func(num int) {
 			name := engine.Bot.Exchanges[num].GetName()
-			authenticated := setExchangeAPIKeys(name, keys, base)
+			authenticated := setExchangeAPIKeys(name, config.APIKEys, base)
 			wrapperResult := ExchangeResponses{
 				ID:                 fmt.Sprintf("Exchange%v", num),
 				ExchangeName:       name,
@@ -91,9 +144,15 @@ func main() {
 		return exchangeResponses[i].ExchangeName < exchangeResponses[j].ExchangeName
 	})
 
-	outputToConsole(exchangeResponses)
-	outputToJSON(exchangeResponses)
-	outputToHTML(exchangeResponses)
+	if strings.EqualFold(output, "Console") {
+		outputToConsole(exchangeResponses)
+	}
+	if strings.EqualFold(output, "JSON") {
+		outputToJSON(exchangeResponses)
+	}
+	if strings.EqualFold(output, "HTML") {
+		outputToHTML(exchangeResponses)
+	}
 }
 
 func setExchangeAPIKeys(name string, keys map[string]Key, base *exchange.Base) bool {
@@ -102,11 +161,18 @@ func setExchangeAPIKeys(name string, keys map[string]Key, base *exchange.Base) b
 	if _, ok := keys[keyName]; ok {
 		if keys[keyName].APIKey != "" {
 			base.API.Credentials.Key = keys[keyName].APIKey
+			base.Config.API.Credentials.Key = keys[keyName].APIKey
+			base.API.AuthenticatedSupport = true
+			base.API.AuthenticatedWebsocketSupport = true
+			base.Config.API.AuthenticatedSupport = true
+			base.Config.API.AuthenticatedWebsocketSupport = true
 			if keys[keyName].APISecret != "" {
 				base.API.Credentials.Secret = keys[keyName].APISecret
+				base.Config.API.Credentials.Secret = keys[keyName].APISecret
 			}
 			if keys[keyName].ClientID != "" {
 				base.API.Credentials.ClientID = keys[keyName].ClientID
+				base.Config.API.Credentials.ClientID = keys[keyName].ClientID
 			}
 			authenticated = base.ValidateAPICredentials()
 		}
@@ -114,19 +180,399 @@ func setExchangeAPIKeys(name string, keys map[string]Key, base *exchange.Base) b
 	return authenticated
 }
 
-func loadKeys() (map[string]Key, error) {
-	file, err := os.OpenFile("keys.json", os.O_RDONLY, os.ModePerm)
+func parseOrderSide() exchange.OrderSide {
+	switch orderSide {
+	case exchange.AnyOrderSide.ToString():
+		return exchange.AnyOrderSide
+	case exchange.BuyOrderSide.ToString():
+		return exchange.BuyOrderSide
+	case exchange.SellOrderSide.ToString():
+		return exchange.SellOrderSide
+	case exchange.BidOrderSide.ToString():
+		return exchange.BidOrderSide
+	case exchange.AskOrderSide.ToString():
+		return exchange.AskOrderSide
+	default:
+		log.Printf("Orderside '%v' not recognised, defaulting to BUY", orderSide)
+		return exchange.BuyOrderSide
+	}
+}
+
+func parseOrderType() exchange.OrderType {
+	switch orderType {
+	case exchange.AnyOrderType.ToString():
+		return exchange.AnyOrderType
+	case exchange.LimitOrderType.ToString():
+		return exchange.LimitOrderType
+	case exchange.MarketOrderType.ToString():
+		return exchange.MarketOrderType
+	case exchange.ImmediateOrCancelOrderType.ToString():
+		return exchange.ImmediateOrCancelOrderType
+	case exchange.StopOrderType.ToString():
+		return exchange.StopOrderType
+	case exchange.TrailingStopOrderType.ToString():
+		return exchange.TrailingStopOrderType
+	case exchange.UnknownOrderType.ToString():
+		return exchange.UnknownOrderType
+	default:
+		log.Printf("OrderType '%v' not recognised, defaulting to MARKET", orderType)
+		return exchange.MarketOrderType
+	}
+}
+func testWrappers(e exchange.IBotExchange, base *exchange.Base) []ExchangeAssetPairResponses {
+	var response []ExchangeAssetPairResponses
+	assetTypes := base.GetAssetTypes()
+	testOrderSide := parseOrderSide()
+	testOrderType := parseOrderType()
+
+	for i := range assetTypes {
+		var msg string
+		var p currency.Pair
+		log.Printf("%v %v", base.GetName(), assetTypes[i])
+		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
+			continue
+		}
+		if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0 {
+			if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available) == 0 {
+				continue
+			}
+			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available[0]
+		} else {
+			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled[0]
+		}
+		responseContainer := ExchangeAssetPairResponses{
+			AssetType:    assetTypes[i],
+			CurrencyPair: p,
+		}
+		e.Setup(base.Config)
+		if !authenticatedOnly {
+			r1, err := e.FetchTicker(p, assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+				Function:   "FetchTicker",
+				Error:      msg,
+				Response:   r1,
+			})
+
+			r2, err := e.UpdateTicker(p, assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+				Function:   "UpdateTicker",
+				Error:      msg,
+				Response:   r2,
+			})
+
+			r3, err := e.FetchOrderbook(p, assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+				Function:   "FetchOrderbook",
+				Error:      msg,
+				Response:   r3,
+			})
+
+			r4, err := e.UpdateOrderbook(p, assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+				Function:   "UpdateOrderbook",
+				Error:      msg,
+				Response:   r4,
+			})
+
+			r5, err := e.FetchTradablePairs(assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{assetTypes[i]}),
+				Function:   "FetchTradablePairs",
+				Error:      msg,
+				Response:   r5,
+			})
+			// r6
+			err = e.UpdateTradablePairs(false)
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{false}),
+				Function:   "UpdateTradablePairs",
+				Error:      msg,
+			})
+		}
+		r7, err := e.GetAccountInfo()
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			Function: "GetAccountInfo",
+			Error:    msg,
+			Response: r7,
+		})
+
+		r8, err := e.GetExchangeHistory(p, assetTypes[i])
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+			Function:   "GetExchangeHistory",
+			Error:      msg,
+			Response:   r8,
+		})
+
+		r9, err := e.GetFundingHistory()
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			Function: "GetFundingHistory",
+			Error:    msg,
+			Response: r9,
+		})
+
+		s := &exchange.OrderSubmission{
+			Pair:      p,
+			OrderSide: testOrderSide,
+			OrderType: testOrderType,
+			Amount:    orderAmount,
+			Price:     orderPrice,
+			ClientID:  base.API.Credentials.ClientID,
+		}
+		r10, err := e.SubmitOrder(s)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{*s}),
+			Function:   "SubmitOrder",
+			Error:      msg,
+			Response:   r10,
+		})
+
+		var orderID string
+		if r10.IsOrderPlaced {
+			orderID = r10.OrderID
+		}
+
+		orderRequest := exchange.GetOrdersRequest{
+			OrderType:  testOrderType,
+			OrderSide:  testOrderSide,
+			Currencies: []currency.Pair{p},
+		}
+		r16, err := e.GetActiveOrders(&orderRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{orderRequest}),
+			Function:   "GetActiveOrders",
+			Error:      msg,
+			Response:   r16,
+		})
+		if len(r16) > 0 {
+			orderID = r16[0].ID
+		}
+
+		modifyRequest := exchange.ModifyOrder{
+			OrderID:      orderID,
+			OrderType:    testOrderType,
+			OrderSide:    testOrderSide,
+			CurrencyPair: p,
+			Price:        orderPrice,
+			Amount:       orderAmount,
+		}
+		r11, err := e.ModifyOrder(&modifyRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{modifyRequest}),
+			Function:   "ModifyOrder",
+			Error:      msg,
+			Response:   r11,
+		})
+		// r12
+		cancelRequest := exchange.OrderCancellation{
+			Side:         testOrderSide,
+			CurrencyPair: p,
+			OrderID:      orderID,
+		}
+		err = e.CancelOrder(&cancelRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{cancelRequest}),
+			Function:   "CancelOrder",
+			Error:      msg,
+		})
+		r13, err := e.CancelAllOrders(&cancelRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{cancelRequest}),
+			Function:   "CancelAllOrders",
+			Error:      msg,
+			Response:   r13,
+		})
+
+		r14, err := e.GetOrderInfo(orderID)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{orderID}),
+			Function:   "GetOrderInfo",
+			Error:      msg,
+			Response:   r14,
+		})
+		historyRequest := exchange.GetOrdersRequest{
+			OrderType:  testOrderType,
+			OrderSide:  testOrderSide,
+			Currencies: []currency.Pair{p},
+		}
+		r15, err := e.GetOrderHistory(&historyRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{historyRequest}),
+			Function:   "GetOrderHistory",
+			Error:      msg,
+			Response:   r15,
+		})
+
+		r17, err := e.GetDepositAddress(p.Base, "")
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{p.Base, ""}),
+			Function:   "GetDepositAddress",
+			Error:      msg,
+			Response:   r17,
+		})
+
+		genericWithdrawRequest := exchange.GenericWithdrawRequestInfo{
+			Amount:   orderAmount,
+			Currency: p.Quote,
+		}
+		withdrawRequest := exchange.CryptoWithdrawRequest{
+			GenericWithdrawRequestInfo: genericWithdrawRequest,
+			Address:                    withdrawAddress,
+		}
+		r18, err := e.WithdrawCryptocurrencyFunds(&withdrawRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{withdrawRequest}),
+			Function:   "WithdrawCryptocurrencyFunds",
+			Error:      msg,
+			Response:   r18,
+		})
+		fiatWithdrawRequest := exchange.FiatWithdrawRequest{
+			GenericWithdrawRequestInfo: genericWithdrawRequest,
+		}
+		r19, err := e.WithdrawFiatFunds(&fiatWithdrawRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{fiatWithdrawRequest}),
+			Function:   "WithdrawFiatFunds",
+			Error:      msg,
+			Response:   r19,
+		})
+
+		r20, err := e.WithdrawFiatFundsToInternationalBank(&fiatWithdrawRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{fiatWithdrawRequest}),
+			Function:   "WithdrawFiatFundsToInternationalBank",
+			Error:      msg,
+			Response:   r20,
+		})
+		response = append(response, responseContainer)
+	}
+	return response
+}
+
+func jsonifyInterface(params []interface{}) string {
+	response, _ := common.JSONEncode(params)
+	return string(response)
+}
+
+func loadKeys() (Config, error) {
+	var config Config
+	file, err := os.OpenFile("wrapperconfig.json", os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		return nil, err
+		return config, err
 	}
 
 	keys, err := ioutil.ReadAll(file)
 	if err != nil {
-		return nil, err
+		return config, err
 	}
 
-	keyMap := make(map[string]Key)
-	return keyMap, common.JSONDecode(keys, &keyMap)
+	return config, common.JSONDecode(keys, &config)
 }
 
 func outputToJSON(exchangeResponses []ExchangeResponses) {
@@ -203,285 +649,9 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 	}
 }
 
-func testWrappers(e exchange.IBotExchange, base *exchange.Base) []ExchangeAssetPairResponses {
-	var response []ExchangeAssetPairResponses
-	assetTypes := base.GetAssetTypes()
-	for i := range assetTypes {
-		var msg string
-		var p currency.Pair
-		log.Printf("%v %v", base.GetName(), assetTypes[i])
-		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
-			continue
-		}
-		if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0 {
-			if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available) == 0 {
-				continue
-			}
-			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available[0]
-		} else {
-			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled[0]
-		}
-		responseContainer := ExchangeAssetPairResponses{
-			AssetType:    assetTypes[i],
-			CurrencyPair: p,
-		}
-		r1, err := e.FetchTicker(p, assetTypes[i])
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "FetchTicker",
-			Error:    msg,
-			Response: r1,
-		})
-
-		r2, err := e.UpdateTicker(p, assetTypes[i])
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "UpdateTicker",
-			Error:    msg,
-			Response: r2,
-		})
-
-		r3, err := e.FetchOrderbook(p, assetTypes[i])
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "FetchOrderbook",
-			Error:    msg,
-			Response: r3,
-		})
-
-		r4, err := e.UpdateOrderbook(p, assetTypes[i])
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "UpdateOrderbook",
-			Error:    msg,
-			Response: r4,
-		})
-
-		r5, err := e.FetchTradablePairs(assetTypes[i])
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "FetchTradablePairs",
-			Error:    msg,
-			Response: r5,
-		})
-		// r6
-		err = e.UpdateTradablePairs(false)
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "UpdateTradablePairs",
-			Error:    msg,
-		})
-
-		r7, err := e.GetAccountInfo()
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetAccountInfo",
-			Error:    msg,
-			Response: r7,
-		})
-
-		r8, err := e.GetExchangeHistory(p, assetTypes[i])
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetExchangeHistory",
-			Error:    msg,
-			Response: r8,
-		})
-
-		r9, err := e.GetFundingHistory()
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetFundingHistory",
-			Error:    msg,
-			Response: r9,
-		})
-
-		s := &exchange.OrderSubmission{
-			Pair:      p,
-			OrderSide: exchange.BuyOrderSide,
-			OrderType: exchange.LimitOrderType,
-			Amount:    1000000,
-			Price:     10000000000,
-			ClientID:  base.API.Credentials.ClientID,
-		}
-		r10, err := e.SubmitOrder(s)
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "SubmitOrder",
-			Error:    msg,
-			Response: r10,
-		})
-
-		r16, err := e.GetActiveOrders(&exchange.GetOrdersRequest{})
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetActiveOrders",
-			Error:    msg,
-			Response: r16,
-		})
-		var orderID string
-		if len(r16) > 0 {
-			orderID = r16[0].ID
-		}
-
-		r11, err := e.ModifyOrder(&exchange.ModifyOrder{
-			OrderID: orderID,
-		})
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "ModifyOrder",
-			Error:    msg,
-			Response: r11,
-		})
-		// r12
-		err = e.CancelOrder(&exchange.OrderCancellation{
-			OrderID: orderID,
-		})
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "CancelOrder",
-			Error:    msg,
-		})
-
-		r13, err := e.CancelAllOrders(&exchange.OrderCancellation{})
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "CancelAllOrders",
-			Error:    msg,
-			Response: r13,
-		})
-
-		r14, err := e.GetOrderInfo(orderID)
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetOrderInfo",
-			Error:    msg,
-			Response: r14,
-		})
-
-		r15, err := e.GetOrderHistory(&exchange.GetOrdersRequest{})
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetOrderHistory",
-			Error:    msg,
-			Response: r15,
-		})
-
-		r17, err := e.GetDepositAddress(p.Base, "")
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetDepositAddress",
-			Error:    msg,
-			Response: r17,
-		})
-
-		r18, err := e.WithdrawCryptocurrencyFunds(&exchange.CryptoWithdrawRequest{})
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "WithdrawCryptocurrencyFunds",
-			Error:    msg,
-			Response: r18,
-		})
-
-		r19, err := e.WithdrawFiatFunds(&exchange.FiatWithdrawRequest{})
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "WithdrawFiatFunds",
-			Error:    msg,
-			Response: r19,
-		})
-		r20, err := e.WithdrawFiatFundsToInternationalBank(&exchange.FiatWithdrawRequest{})
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "WithdrawFiatFundsToInternationalBank",
-			Error:    msg,
-			Response: r20,
-		})
-		response = append(response, responseContainer)
-	}
-	return response
+type Config struct {
+	BankDetails config.BankAccount `json:"bankAccount"`
+	APIKEys     map[string]Key     `json:"exchanges"`
 }
 
 type Key struct {
@@ -506,7 +676,8 @@ type ExchangeAssetPairResponses struct {
 }
 
 type EndpointResponse struct {
-	Function string      `json:"function"`
-	Error    string      `json:"error"`
-	Response interface{} `json:"response"`
+	Function   string      `json:"function"`
+	Error      string      `json:"error"`
+	Response   interface{} `json:"response"`
+	SentParams string      `json:"sentParams"`
 }
