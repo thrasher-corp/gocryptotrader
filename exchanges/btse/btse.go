@@ -1,11 +1,11 @@
 package btse
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -25,8 +25,7 @@ type BTSE struct {
 }
 
 const (
-	btseAPIURL     = "https://api.btse.com/spot/v2"
-	btseAPIVersion = "2"
+	btseAPIURL = "https://api.btse.com/spot/v2"
 
 	// Public endpoints
 	btseMarketOverview = "market_summary"
@@ -308,26 +307,42 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
+	path := fmt.Sprintf("%s/%s", btseAPIURL, endpoint)
+
 	payload, err := common.JSONEncode(req)
 	if err != nil {
 		return errors.New("sendAuthenticatedAPIRequest: unable to JSON request")
 	}
 
 	headers := make(map[string]string)
-	headers["API-KEY"] = b.APIKey
-	headers["API-PASSPHRASE"] = b.APISecret
-	if len(payload) > 0 {
-		headers["Content-Type"] = "application/json"
+	headers["btse-api"] = b.APIKey
+	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+	headers["btse-nonce"] = nonce
+
+	fmt.Println("HELLO", string(payload))
+	var meow []byte
+
+	if string(payload) == "null" {
+		fmt.Println("WOW")
+		meow = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce)), []byte(b.APISecret))
+	} else {
+		meow = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce + string(payload))), []byte(b.APISecret))
 	}
 
-	p := fmt.Sprintf("%s/%s", btseAPIURL, endpoint)
-	if b.Verbose {
-		log.Debugf("Sending %s request to URL %s with params %s\n", method, p, string(payload))
+	headers["btse-sign"] = common.HexEncodeToString(meow)
+
+	if len(payload) > 0 {
+		headers["Accept"] = "application/json"
 	}
+
+	if b.Verbose {
+		log.Debugf("Sending %s request to URL %s with params %s\n", method, path, string(payload))
+	}
+
 	return b.SendPayload(method,
-		p,
+		path,
 		headers,
-		strings.NewReader(string(payload)),
+		bytes.NewBufferString(string(payload)),
 		&result,
 		true,
 		false,

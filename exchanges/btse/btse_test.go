@@ -87,6 +87,7 @@ func TestGetMarketStatistics(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	b.SetDefaults()
+	b.Verbose = true
 	_, err := b.GetServerTime()
 	if err != nil {
 		t.Fatalf("Test failed. Err: %s", err)
@@ -96,6 +97,8 @@ func TestGetServerTime(t *testing.T) {
 func TestGetAccount(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+
+	b.Verbose = true
 
 	_, err := b.GetAccountBalance()
 	if areTestAPIKeysSet() && err != nil {
@@ -108,6 +111,7 @@ func TestGetAccount(t *testing.T) {
 func TestGetFills(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	b.Verbose = true
 
 	_, err := b.GetFills("", "BTC-USD", "", "", "")
 	if areTestAPIKeysSet() && err != nil {
@@ -118,9 +122,23 @@ func TestGetFills(t *testing.T) {
 
 }
 
+func TestGetOrders(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+	b.Verbose = true
+
+	_, err := b.GetOrders("1")
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
 func TestGetActiveOrders(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
@@ -137,6 +155,8 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+
+	b.Verbose = true
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
