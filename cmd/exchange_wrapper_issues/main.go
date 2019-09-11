@@ -13,7 +13,6 @@ import (
 	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -91,9 +90,13 @@ func main() {
 
 	wg = sync.WaitGroup{}
 	var exchangeResponses []ExchangeResponses
-	config, err := loadKeys()
+	config, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if config.WalletAddress != "" && withdrawAddress == "" {
+		withdrawAddress = config.WalletAddress
 	}
 
 	for x := range engine.Bot.Exchanges {
@@ -126,7 +129,7 @@ func main() {
 				ID:                 fmt.Sprintf("Exchange%v", num),
 				ExchangeName:       name,
 				APIKeysSet:         authenticated,
-				AssetPairResponses: testWrappers(engine.Bot.Exchanges[num], base),
+				AssetPairResponses: testWrappers(engine.Bot.Exchanges[num], base, config.BankDetails),
 			}
 			for i := range wrapperResult.AssetPairResponses {
 				wrapperResult.ErrorCount += wrapperResult.AssetPairResponses[i].ErrorCount
@@ -219,7 +222,7 @@ func parseOrderType() exchange.OrderType {
 		return exchange.MarketOrderType
 	}
 }
-func testWrappers(e exchange.IBotExchange, base *exchange.Base) []ExchangeAssetPairResponses {
+func testWrappers(e exchange.IBotExchange, base *exchange.Base, bankDetails Bank) []ExchangeAssetPairResponses {
 	var response []ExchangeAssetPairResponses
 	assetTypes := base.GetAssetTypes()
 	testOrderSide := parseOrderSide()
@@ -523,7 +526,28 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base) []ExchangeAssetP
 			Response:   r18,
 		})
 		fiatWithdrawRequest := exchange.FiatWithdrawRequest{
-			GenericWithdrawRequestInfo: genericWithdrawRequest,
+			GenericWithdrawRequestInfo:    genericWithdrawRequest,
+			BankAccountName:               bankDetails.BankAccountName,
+			BankAccountNumber:             bankDetails.BankAccountNumber,
+			SwiftCode:                     bankDetails.SwiftCode,
+			IBAN:                          bankDetails.Iban,
+			BankCity:                      bankDetails.BankCity,
+			BankName:                      bankDetails.BankName,
+			BankAddress:                   bankDetails.BankAddress,
+			BankCountry:                   bankDetails.BankCountry,
+			BankPostalCode:                bankDetails.BankPostalCode,
+			BankCode:                      bankDetails.BankCode,
+			IsExpressWire:                 bankDetails.IsExpressWire,
+			RequiresIntermediaryBank:      bankDetails.RequiresIntermediaryBank,
+			IntermediaryBankName:          bankDetails.IntermediaryBankName,
+			IntermediaryBankAccountNumber: bankDetails.IntermediaryBankAccountNumber,
+			IntermediarySwiftCode:         bankDetails.IntermediarySwiftCode,
+			IntermediaryIBAN:              bankDetails.IntermediaryIban,
+			IntermediaryBankCity:          bankDetails.IntermediaryBankCity,
+			IntermediaryBankAddress:       bankDetails.IntermediaryBankAddress,
+			IntermediaryBankCountry:       bankDetails.IntermediaryBankCountry,
+			IntermediaryBankPostalCode:    bankDetails.IntermediaryBankPostalCode,
+			IntermediaryBankCode:          bankDetails.IntermediaryBankCode,
 		}
 		r19, err := e.WithdrawFiatFunds(&fiatWithdrawRequest)
 		msg = ""
@@ -560,7 +584,7 @@ func jsonifyInterface(params []interface{}) string {
 	return string(response)
 }
 
-func loadKeys() (Config, error) {
+func loadConfig() (Config, error) {
 	var config Config
 	file, err := os.OpenFile("wrapperconfig.json", os.O_RDONLY, os.ModePerm)
 	if err != nil {
@@ -650,8 +674,9 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 }
 
 type Config struct {
-	BankDetails config.BankAccount `json:"bankAccount"`
-	APIKEys     map[string]Key     `json:"exchanges"`
+	WalletAddress string         `json:"walletAddress"`
+	BankDetails   Bank           `json:"bankAccount"`
+	APIKEys       map[string]Key `json:"exchanges"`
 }
 
 type Key struct {
@@ -680,4 +705,30 @@ type EndpointResponse struct {
 	Error      string      `json:"error"`
 	Response   interface{} `json:"response"`
 	SentParams string      `json:"sentParams"`
+}
+
+type Bank struct {
+	BankAccountName               string  `json:"bankAccountName"`
+	BankAccountNumber             float64 `json:"bankAccountNumber"`
+	BankAddress                   string  `json:"bankAddress"`
+	BankCity                      string  `json:"bankCity"`
+	BankCountry                   string  `json:"bankCountry"`
+	BankName                      string  `json:"bankName"`
+	BankPostalCode                string  `json:"bankPostalCode"`
+	Iban                          string  `json:"iban"`
+	IntermediaryBankAccountName   string  `json:"intermediaryBankAccountName"`
+	IntermediaryBankAccountNumber float64 `json:"intermediaryBankAccountNumber"`
+	IntermediaryBankAddress       string  `json:"intermediaryBankAddress"`
+	IntermediaryBankCity          string  `json:"intermediaryBankCity"`
+	IntermediaryBankCountry       string  `json:"intermediaryBankCountry"`
+	IntermediaryBankName          string  `json:"intermediaryBankName"`
+	IntermediaryBankPostalCode    string  `json:"intermediaryBankPostalCode"`
+	IntermediaryIban              string  `json:"intermediaryIban"`
+	IntermediaryIsExpressWire     bool    `json:"intermediaryIsExpressWire"`
+	IntermediarySwiftCode         string  `json:"intermediarySwiftCode"`
+	IsExpressWire                 bool    `json:"isExpressWire"`
+	RequiresIntermediaryBank      bool    `json:"requiresIntermediaryBank"`
+	SwiftCode                     string  `json:"swiftCode"`
+	BankCode                      float64 `json:"bankCode"`
+	IntermediaryBankCode          float64 `json:"intermediaryBankCode"`
 }

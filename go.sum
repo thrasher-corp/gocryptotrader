@@ -56,6 +56,7 @@ github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b/go.mod h1:dA0hQrY
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+github.com/thrasher-/gocryptotrader v0.0.0-20190827004747-c7ca29a6d74d h1:WIWgAn531kC/VxAsG/dmWu3UCoiGOQY0S2yMwh+SOQc=
 github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb h1:9kcmLvQdiIecpgVEL3/+J5QIP/ElRBJDljOay0SvqnA=
 github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb/go.mod h1:VTLqNCX1tXrur6pdIRCl8Q90FR7nw/mEBdyMkWMcsb0=
 github.com/urfave/cli v1.20.0 h1:fDqGv3UG/4jbVl/QkFwEdddtEDjh/5Ov6X+0B/3bPaw=

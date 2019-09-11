@@ -1,12 +1,29 @@
 {
+    "walletAddress":"",
     "bankAccount": 
         {
-         "bankName": "",
-         "bankAddress": "",
-         "accountName": "",
-         "accountNumber": "",
-         "swiftCode": "",
-         "iban": ""
+         "bankAccountName": "bankAccountName",
+         "bankAccountNumber": 1337,
+         "bankName":"bankName",
+         "bankAddress":"bankAddress",
+         "bankCity":"bankCity",
+         "bankCountry":"bankCountry",
+         "bankPostalCode":"bankPostalCode",
+         "swiftCode":"swiftCode",
+         "bankCode":1337,
+         "iban":"iban",
+         "isExpressWire":false,
+         "requiresIntermediaryBank":false,
+         "intermediaryBankAccountName": "intermediaryBankAccountName",
+         "intermediaryBankAccountNumber": 1337,
+         "intermediaryBankName":"intermediaryBankName",
+         "intermediaryBankAddress":"intermediaryBankAddress",
+         "intermediaryBankCity":"intermediaryBankCity",
+         "intermediaryBankCountry":"intermediaryBankCountry",
+         "intermediaryBankPostalCode":"intermediaryBankPostalCode",
+         "intermediaryBankCode":1337,
+         "intermediarySwiftCode":"intermediarySwiftCode",
+         "intermediaryIban":"intermediaryIban"
         },
         "exchanges": {
        
