@@ -285,8 +285,7 @@ func (l *Lbank) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 
-	if s.OrderSide != order.Buy &&
-		s.OrderSide != order.Sell {
+	if s.OrderSide != order.Buy && s.OrderSide != order.Sell {
 		return resp,
 			fmt.Errorf("%s order side is not supported by the exchange",
 				s.OrderSide)

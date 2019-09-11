@@ -1245,11 +1245,11 @@
    "supportsAutoPairUpdates": true,
    "configCurrencyPairFormat": {
     "uppercase": true,
-    "delimiter": "_"
+    "delimiter": "-"
    },
    "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+    "uppercase": true,
+    "delimiter": "-"
    },
    "bankAccounts": [
     {

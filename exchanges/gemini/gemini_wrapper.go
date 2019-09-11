@@ -2,7 +2,6 @@ package gemini
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -306,7 +305,8 @@ func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	if s.OrderType != order.Limit {
-		return submitOrderResponse, errors.New("only limit orders are enabled through this exchange")
+		return submitOrderResponse,
+			errors.New("only limit orders are enabled through this exchange")
 	}
 
 	response, err := g.NewOrder(
@@ -316,7 +316,7 @@ func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.OrderSide.String(),
 		"exchange limit")
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", response)
+		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -414,7 +414,7 @@ func (g *Gemini) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gemini) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := g.GetOrders()
 	if err != nil {
 		return nil, err
@@ -437,7 +437,7 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 		orders = append(orders, order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			RemainingAmount: resp[i].RemainingAmount,
-			ID:              fmt.Sprintf("%v", resp[i].OrderID),
+			ID:              strconv.FormatInt(resp[i].OrderID, 10),
 			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        g.Name,
 			OrderType:       orderType,
@@ -448,32 +448,32 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gemini) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	var trades []TradeHistory
-	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := g.GetTradeHistory(g.FormatExchangeCurrency(currency,
-			asset.Spot).String(), getOrdersRequest.StartTicks.Unix())
+	for j := range req.Currencies {
+		resp, err := g.GetTradeHistory(g.FormatExchangeCurrency(req.Currencies[j],
+			asset.Spot).String(),
+			req.StartTicks.Unix())
 		if err != nil {
 			return nil, err
 		}
 
 		for i := range resp {
-			resp[i].BaseCurrency = currency.Base.String()
-			resp[i].QuoteCurrency = currency.Quote.String()
+			resp[i].BaseCurrency = req.Currencies[j].Base.String()
+			resp[i].QuoteCurrency = req.Currencies[j].Quote.String()
 			trades = append(trades, resp[i])
 		}
 	}
@@ -485,7 +485,7 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 
 		orders = append(orders, order.Detail{
 			Amount:    trades[i].Amount,
-			ID:        fmt.Sprintf("%v", trades[i].OrderID),
+			ID:        strconv.FormatInt(trades[i].OrderID, 10),
 			Exchange:  g.Name,
 			OrderDate: orderDate,
 			OrderSide: side,
@@ -497,9 +497,8 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

@@ -160,7 +160,8 @@ func (c *CoinbasePro) Start(wg *sync.WaitGroup) {
 // Run implements the coinbasepro wrapper
 func (c *CoinbasePro) Run() {
 	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n",
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s. (url: %s).\n",
 			c.GetName(),
 			common.IsEnabled(c.Websocket.IsEnabled()),
 			coinbaseproWebsocketURL)
@@ -468,11 +469,11 @@ func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, er
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
-	for i := range getOrdersRequest.Currencies {
+	for i := range req.Currencies {
 		resp, err := c.GetOrders([]string{"open", "pending", "active"},
-			c.FormatExchangeCurrency(getOrdersRequest.Currencies[i], asset.Spot).String())
+			c.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -487,8 +488,12 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) 
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				c.Name, "GetActiveOrders", respOrders[i].ID, respOrders[i].CreatedAt)
+			log.Warnf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				c.Name,
+				"GetActiveOrders",
+				respOrders[i].ID,
+				respOrders[i].CreatedAt)
 		}
 
 		orders = append(orders, order.Detail{
@@ -503,17 +508,17 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) 
 		})
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
-	for _, currency := range getOrdersRequest.Currencies {
+	for _, currency := range req.Currencies {
 		resp, err := c.GetOrders([]string{"done", "settled"},
 			c.FormatExchangeCurrency(currency, asset.Spot).String())
 		if err != nil {
@@ -530,8 +535,12 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) 
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				c.Name, "GetActiveOrders", respOrders[i].ID, respOrders[i].CreatedAt)
+			log.Warnf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				c.Name,
+				"GetActiveOrders",
+				respOrders[i].ID,
+				respOrders[i].CreatedAt)
 		}
 
 		orders = append(orders, order.Detail{
@@ -546,10 +555,9 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) 
 		})
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

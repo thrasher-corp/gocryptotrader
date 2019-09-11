@@ -86,11 +86,15 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType asset.Item) (resp o
 	for x := range orderbookNew.Bids {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if convErr != nil {
-			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", orderbookNew.Bids[x][1])
+			log.Errorf(log.ExchangeSys,
+				"Could not convert %v to float64",
+				orderbookNew.Bids[x][1])
 		}
 		price, convErr := strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
 		if convErr != nil {
-			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", orderbookNew.Bids[x][0])
+			log.Errorf(log.ExchangeSys,
+				"Could not convert %v to float64",
+				orderbookNew.Bids[x][0])
 		}
 		resp.Bids = append(resp.Bids, orderbook.Item{
 			Amount: amount,
@@ -101,11 +105,15 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType asset.Item) (resp o
 	for x := range orderbookNew.Asks {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if convErr != nil {
-			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", orderbookNew.Asks[x][1])
+			log.Errorf(log.ExchangeSys,
+				"Could not convert %v to float64",
+				orderbookNew.Asks[x][1])
 		}
 		price, convErr := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
 		if convErr != nil {
-			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", orderbookNew.Asks[x][0])
+			log.Errorf(log.ExchangeSys,
+				"Could not convert %v to float64",
+				orderbookNew.Asks[x][0])
 		}
 		resp.Asks = append(resp.Asks, orderbook.Item{
 			Amount: amount,
@@ -131,20 +139,25 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 	currencies, err := o.GetSpotTradingAccounts()
 	currencyAccount := exchange.Account{}
 
-	for _, curr := range currencies {
-		hold, err := strconv.ParseFloat(curr.Hold, 64)
+	for i := range currencies {
+		hold, err := strconv.ParseFloat(currencies[i].Hold, 64)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", curr.Hold)
+			log.Errorf(log.ExchangeSys,
+				"Could not convert %v to float64",
+				currencies[i].Hold)
 		}
-		totalValue, err := strconv.ParseFloat(curr.Balance, 64)
+		totalValue, err := strconv.ParseFloat(currencies[i].Balance, 64)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "Could not convert %v to float64", curr.Balance)
+			log.Errorf(log.ExchangeSys,
+				"Could not convert %v to float64",
+				currencies[i].Balance)
 		}
-		currencyAccount.Currencies = append(currencyAccount.Currencies, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(curr.Currency),
-			Hold:         hold,
-			TotalValue:   totalValue,
-		})
+		currencyAccount.Currencies = append(currencyAccount.Currencies,
+			exchange.AccountCurrencyInfo{
+				CurrencyName: currency.NewCode(currencies[i].Currency),
+				Hold:         hold,
+				TotalValue:   totalValue,
+			})
 	}
 
 	resp.Accounts = append(resp.Accounts, currencyAccount)
@@ -158,9 +171,9 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 	if err != nil {
 		return
 	}
-	for _, deposit := range accountDepositHistory {
+	for x := range accountDepositHistory {
 		orderStatus := ""
-		switch deposit.Status {
+		switch accountDepositHistory[x].Status {
 		case 0:
 			orderStatus = "waiting"
 		case 1:
@@ -170,12 +183,12 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 		}
 
 		resp = append(resp, exchange.FundHistory{
-			Amount:       deposit.Amount,
-			Currency:     deposit.Currency,
+			Amount:       accountDepositHistory[x].Amount,
+			Currency:     accountDepositHistory[x].Currency,
 			ExchangeName: o.Name,
 			Status:       orderStatus,
-			Timestamp:    deposit.Timestamp,
-			TransferID:   deposit.TransactionID,
+			Timestamp:    accountDepositHistory[x].Timestamp,
+			TransferID:   accountDepositHistory[x].TransactionID,
 			TransferType: "deposit",
 		})
 	}
@@ -257,10 +270,10 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancellation) (resp o
 	orderIDs := strings.Split(orderCancellation.OrderID, ",")
 	resp.Status = make(map[string]string)
 	var orderIDNumbers []int64
-	for _, i := range orderIDs {
-		orderIDNumber, strConvErr := strconv.ParseInt(i, 10, 64)
+	for i := range orderIDs {
+		orderIDNumber, strConvErr := strconv.ParseInt(orderIDs[i], 10, 64)
 		if strConvErr != nil {
-			resp.Status[i] = strConvErr.Error()
+			resp.Status[orderIDs[i]] = strConvErr.Error()
 			continue
 		}
 		orderIDNumbers = append(orderIDNumbers, orderIDNumber)
@@ -275,9 +288,9 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancellation) (resp o
 		return
 	}
 
-	for _, orderMap := range cancelOrdersResponse {
-		for _, cancelledOrder := range orderMap {
-			resp.Status[fmt.Sprintf("%v", cancelledOrder.OrderID)] = fmt.Sprintf("%v", cancelledOrder.Result)
+	for x := range cancelOrdersResponse {
+		for y := range cancelOrdersResponse[x] {
+			resp.Status[strconv.FormatInt(cancelOrdersResponse[x][y].OrderID, 10)] = strconv.FormatBool(cancelOrdersResponse[x][y].Result)
 		}
 	}
 
@@ -304,10 +317,10 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (_ string, err error) {
+func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (string, error) {
 	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())
 	if err != nil || len(wallet) == 0 {
-		return
+		return "", err
 	}
 	return wallet[0].Address, nil
 }
@@ -327,13 +340,13 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWi
 		return "", err
 	}
 	if !withdrawal.Result {
-		return fmt.Sprintf("%d", withdrawal.WithdrawalID),
+		return strconv.FormatInt(withdrawal.WithdrawalID, 10),
 			fmt.Errorf("could not withdraw currency %s to %s, no error specified",
 				withdrawRequest.Currency,
 				withdrawRequest.Address)
 	}
 
-	return fmt.Sprintf("%d", withdrawal.WithdrawalID), nil
+	return strconv.FormatInt(withdrawal.WithdrawalID, 10), nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -349,10 +362,10 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKGroup) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	for _, currency := range getOrdersRequest.Currencies {
+func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+	for x := range req.Currencies {
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: o.FormatExchangeCurrency(currency,
+			InstrumentID: o.FormatExchangeCurrency(req.Currencies[x],
 				asset.Spot).String(),
 		})
 		if err != nil {
@@ -363,7 +376,7 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (res
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
-				CurrencyPair:   currency,
+				CurrencyPair:   req.Currencies[x],
 				Exchange:       o.Name,
 				OrderSide:      order.Side(spotOpenOrders[i].Side),
 				OrderType:      order.Type(spotOpenOrders[i].Type),
@@ -379,11 +392,11 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (res
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKGroup) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	for _, currency := range getOrdersRequest.Currencies {
+func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+	for x := range req.Currencies {
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
 			Status: strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: o.FormatExchangeCurrency(currency,
+			InstrumentID: o.FormatExchangeCurrency(req.Currencies[x],
 				asset.Spot).String(),
 		})
 		if err != nil {
@@ -394,7 +407,7 @@ func (o *OKGroup) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) (res
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
-				CurrencyPair:   currency,
+				CurrencyPair:   req.Currencies[x],
 				Exchange:       o.Name,
 				OrderSide:      order.Side(spotOpenOrders[i].Side),
 				OrderType:      order.Type(spotOpenOrders[i].Type),

@@ -190,7 +190,11 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 		if err != nil {
 			return orderBook, err
 		}
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: amount, Price: price})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{
+				Amount: amount,
+				Price:  price,
+			})
 	}
 
 	for x := range orderbookNew.Asks {
@@ -204,7 +208,11 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 		if err != nil {
 			return orderBook, err
 		}
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: amount, Price: price})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{
+				Amount: amount,
+				Price:  price,
+			})
 	}
 
 	orderBook.Pair = p
@@ -236,8 +244,8 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	var amounts = make(map[string]*balance)
 
-	for _, wallet := range wallets {
-		for _, cb := range wallet.Balances {
+	for x := range wallets {
+		for _, cb := range wallets[x].Balances {
 			if _, ok := amounts[cb.Currency]; !ok {
 				amounts[cb.Currency] = &balance{}
 			}
@@ -248,12 +256,11 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var fullBalance []exchange.AccountCurrencyInfo
-
-	for key, data := range amounts {
+	for key := range amounts {
 		fullBalance = append(fullBalance, exchange.AccountCurrencyInfo{
 			CurrencyName: currency.NewCode(key),
-			TotalValue:   data.TotalValue,
-			Hold:         data.Hold,
+			TotalValue:   amounts[key].TotalValue,
+			Hold:         amounts[key].Hold,
 		})
 	}
 
@@ -290,11 +297,11 @@ func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	// Determine what wallet ID to use if there is any actual available currency to make the trade!
-	for _, i := range wallets {
-		for j := range i.Balances {
-			if i.Balances[j].Currency == s.Pair.Base.String() &&
-				i.Balances[j].AvailableBalance >= s.Amount {
-				wallet = i.ID
+	for i := range wallets {
+		for j := range wallets[i].Balances {
+			if wallets[i].Balances[j].Currency == s.Pair.Base.String() &&
+				wallets[i].Balances[j].AvailableBalance >= s.Amount {
+				wallet = wallets[i].ID
 			}
 		}
 	}
@@ -402,15 +409,15 @@ func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (i *ItBit) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err
 	}
 
 	var allOrders []Order
-	for _, wallet := range wallets {
-		resp, err := i.GetOrders(wallet.ID, "", "open", 0, 0)
+	for x := range wallets {
+		resp, err := i.GetOrders(wallets[x].ID, "", "open", 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -424,8 +431,12 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				i.Name, "GetActiveOrders", allOrders[j].ID, allOrders[j].CreatedTime)
+			log.Warnf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				i.Name,
+				"GetActiveOrders",
+				allOrders[j].ID,
+				allOrders[j].CreatedTime)
 		}
 
 		orders = append(orders, order.Detail{
@@ -440,24 +451,23 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (i *ItBit) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err
 	}
 
 	var allOrders []Order
-	for _, wallet := range wallets {
-		resp, err := i.GetOrders(wallet.ID, "", "", 0, 0)
+	for x := range wallets {
+		resp, err := i.GetOrders(wallets[x].ID, "", "", 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -475,8 +485,12 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				i.Name, "GetActiveOrders", allOrders[j].ID, allOrders[j].CreatedTime)
+			log.Warnf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				i.Name,
+				"GetActiveOrders",
+				allOrders[j].ID,
+				allOrders[j].CreatedTime)
 		}
 
 		orders = append(orders, order.Detail{
@@ -491,10 +505,9 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 

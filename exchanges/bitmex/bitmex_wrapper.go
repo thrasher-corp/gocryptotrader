@@ -444,7 +444,6 @@ func (b *Bitmex) CancelOrder(order *order.Cancellation) error {
 		OrderID: order.OrderID,
 	}
 	_, err := b.CancelOrders(&params)
-
 	return err
 }
 
@@ -528,7 +527,7 @@ func (b *Bitmex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (b *Bitmex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	params := OrdersRequest{}
 	params.Filter = "{\"open\":true}"
@@ -561,18 +560,17 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (b *Bitmex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	params := OrdersRequest{}
 	resp, err := b.GetOrders(&params)
@@ -603,10 +601,10 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 

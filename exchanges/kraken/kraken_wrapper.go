@@ -3,6 +3,7 @@ package kraken
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -177,7 +178,10 @@ func (k *Kraken) Run() {
 
 		err := k.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s\n", k.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				k.Name,
+				err)
 		}
 	}
 
@@ -187,7 +191,10 @@ func (k *Kraken) Run() {
 
 	err := k.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", k.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			k.Name,
+			err)
 	}
 }
 
@@ -212,7 +219,10 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
 			v.Quote = v.Quote[1:]
 		}
-		products = append(products, fmt.Sprintf("%v%v%v", v.Base, k.GetPairFormat(asset, false).Delimiter, v.Quote))
+		products = append(products, fmt.Sprintf("%v%v%v",
+			v.Base,
+			k.GetPairFormat(asset, false).Delimiter,
+			v.Quote))
 	}
 	return products, nil
 }
@@ -242,12 +252,11 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	}
 
 	for i := range pairs {
-		for curr, v := range tickers {
+		for curr := range tickers {
 			pairFmt := k.FormatExchangeCurrency(pairs[i], assetType).String()
 			if !strings.EqualFold(pairFmt, curr) {
-				var altCurrency string
-				var ok bool
-				if altCurrency, ok = assetPairMap[curr]; !ok {
+				altCurrency, ok := assetPairMap[curr]
+				if !ok {
 					continue
 				}
 				if !strings.EqualFold(pairFmt, altCurrency) {
@@ -256,13 +265,13 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 			}
 
 			tickerPrice = ticker.Price{
-				Last:   v.Last,
-				High:   v.High,
-				Low:    v.Low,
-				Bid:    v.Bid,
-				Ask:    v.Ask,
-				Volume: v.Volume,
-				Open:   v.Open,
+				Last:   tickers[curr].Last,
+				High:   tickers[curr].High,
+				Low:    tickers[curr].Low,
+				Bid:    tickers[curr].Bid,
+				Ask:    tickers[curr].Ask,
+				Volume: tickers[curr].Volume,
+				Open:   tickers[curr].Open,
 				Pair:   pairs[i],
 			}
 			err = ticker.ProcessTicker(k.Name, &tickerPrice, assetType)
@@ -333,10 +342,10 @@ func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var balances []exchange.AccountCurrencyInfo
-	for key, data := range bal {
+	for key := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
 			CurrencyName: currency.NewCode(key),
-			TotalValue:   data,
+			TotalValue:   bal[key],
 		})
 	}
 
@@ -366,7 +375,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	var args = AddOrderOptions{}
 	response, err := k.AddOrder(s.Pair.String(),
 		s.OrderSide.String(),
 		s.OrderType.String(),
@@ -374,7 +382,7 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Price,
 		0,
 		0,
-		&args)
+		&AddOrderOptions{})
 	if len(response.TransactionIds) > 0 {
 		submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
 	}
@@ -476,7 +484,7 @@ func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (k *Kraken) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := k.GetOpenOrders(OrderInfoOptions{})
 	if err != nil {
 		return nil, err
@@ -503,10 +511,9 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
@@ -515,10 +522,10 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	req := GetClosedOrdersOptions{}
 	if getOrdersRequest.StartTicks.Unix() > 0 {
-		req.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks.Unix())
+		req.Start = strconv.FormatInt(getOrdersRequest.StartTicks.Unix(), 10)
 	}
 	if getOrdersRequest.EndTicks.Unix() > 0 {
-		req.End = fmt.Sprintf("%v", getOrdersRequest.EndTicks.Unix())
+		req.End = strconv.FormatInt(getOrdersRequest.EndTicks.Unix(), 10)
 	}
 
 	resp, err := k.GetClosedOrders(req)

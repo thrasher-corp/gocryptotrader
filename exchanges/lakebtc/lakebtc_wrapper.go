@@ -315,7 +315,7 @@ func (l *LakeBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	response, err := l.Trade(isBuyOrder, s.Amount, s.Price,
 		s.Pair.Lower().String())
 	if response.ID > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -390,7 +390,7 @@ func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWi
 		return "", err
 	}
 
-	return fmt.Sprintf("%v", resp.ID), nil
+	return strconv.FormatInt(resp.ID, 10), nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -420,23 +420,23 @@ func (l *LakeBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LakeBTC) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (l *LakeBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := l.GetOpenOrders()
 	if err != nil {
 		return nil, err
 	}
 
 	var orders []order.Detail
-	for _, o := range resp {
-		symbol := currency.NewPairDelimiter(o.Symbol,
+	for i := range resp {
+		symbol := currency.NewPairDelimiter(resp[i].Symbol,
 			l.GetPairFormat(asset.Spot, false).Delimiter)
-		orderDate := time.Unix(o.At, 0)
-		side := order.Side(strings.ToUpper(o.Type))
+		orderDate := time.Unix(resp[i].At, 0)
+		side := order.Side(strings.ToUpper(resp[i].Type))
 
 		orders = append(orders, order.Detail{
-			Amount:       o.Amount,
-			ID:           fmt.Sprintf("%d", o.ID),
-			Price:        o.Price,
+			Amount:       resp[i].Amount,
+			ID:           strconv.FormatInt(resp[i].ID, 10),
+			Price:        resp[i].Price,
 			OrderSide:    side,
 			OrderDate:    orderDate,
 			CurrencyPair: symbol,
@@ -444,36 +444,36 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LakeBTC) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := l.GetOrders([]int64{})
 	if err != nil {
 		return nil, err
 	}
 
 	var orders []order.Detail
-	for _, o := range resp {
-		if o.State == "active" {
+	for i := range resp {
+		if resp[i].State == "active" {
 			continue
 		}
 
-		symbol := currency.NewPairDelimiter(o.Symbol,
+		symbol := currency.NewPairDelimiter(resp[i].Symbol,
 			l.GetPairFormat(asset.Spot, false).Delimiter)
-		orderDate := time.Unix(o.At, 0)
-		side := order.Side(strings.ToUpper(o.Type))
+		orderDate := time.Unix(resp[i].At, 0)
+		side := order.Side(strings.ToUpper(resp[i].Type))
 
 		orders = append(orders, order.Detail{
-			Amount:       o.Amount,
-			ID:           fmt.Sprintf("%d", o.ID),
-			Price:        o.Price,
+			Amount:       resp[i].Amount,
+			ID:           strconv.FormatInt(resp[i].ID, 10),
+			Price:        resp[i].Price,
 			OrderSide:    side,
 			OrderDate:    orderDate,
 			CurrencyPair: symbol,
@@ -481,10 +481,9 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]o
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 
 	return orders, nil
 }

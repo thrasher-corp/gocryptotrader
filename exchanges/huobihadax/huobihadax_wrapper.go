@@ -315,30 +315,28 @@ func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
 		return info, err
 	}
 
-	for _, account := range accounts {
+	for i := range accounts {
 		var acc exchange.Account
-
-		acc.ID = strconv.FormatInt(account.ID, 10)
-
+		acc.ID = strconv.FormatInt(accounts[i].ID, 10)
 		balances, err := h.GetAccountBalance(acc.ID)
 		if err != nil {
 			return info, err
 		}
 
 		var currencyDetails []exchange.AccountCurrencyInfo
-		for _, balance := range balances {
+		for j := range balances {
 			var frozen bool
-			if balance.Type == "frozen" {
+			if balances[j].Type == "frozen" {
 				frozen = true
 			}
 
 			var updated bool
 			for i := range currencyDetails {
-				if currencyDetails[i].CurrencyName == currency.NewCode(balance.Currency) {
+				if currencyDetails[i].CurrencyName == currency.NewCode(balances[j].Currency) {
 					if frozen {
-						currencyDetails[i].Hold = balance.Balance
+						currencyDetails[i].Hold = balances[j].Balance
 					} else {
-						currencyDetails[i].TotalValue = balance.Balance
+						currencyDetails[i].TotalValue = balances[j].Balance
 					}
 					updated = true
 				}
@@ -351,14 +349,14 @@ func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
 			if frozen {
 				currencyDetails = append(currencyDetails,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: currency.NewCode(balance.Currency),
-						Hold:         balance.Balance,
+						CurrencyName: currency.NewCode(balances[j].Currency),
+						Hold:         balances[j].Balance,
 					})
 			} else {
 				currencyDetails = append(currencyDetails,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: currency.NewCode(balance.Currency),
-						TotalValue:   balance.Balance,
+						CurrencyName: currency.NewCode(balances[j].Currency),
+						TotalValue:   balances[j].Balance,
 					})
 			}
 		}
@@ -418,7 +416,7 @@ func (h *HUOBIHADAX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 	params.Type = formattedType
 	response, err := h.SpotNewOrder(params)
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -435,13 +433,11 @@ func (h *HUOBIHADAX) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (h *HUOBIHADAX) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
 	_, err = h.CancelExistingOrder(orderIDInt)
-
 	return err
 }
 
@@ -456,7 +452,9 @@ func (h *HUOBIHADAX) CancelAllOrders(orderCancellation *order.Cancellation) (ord
 		}
 
 		if resp.Data.FailedCount > 0 {
-			return cancelAllOrdersResponse, fmt.Errorf("%v orders failed to cancel", resp.Data.FailedCount)
+			return cancelAllOrdersResponse,
+				fmt.Errorf("%v orders failed to cancel",
+					resp.Data.FailedCount)
 		}
 
 		if resp.Status == "error" {
@@ -481,8 +479,12 @@ func (h *HUOBIHADAX) GetDepositAddress(cryptocurrency currency.Code, accountID s
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (h *HUOBIHADAX) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	resp, err := h.Withdraw(withdrawRequest.Currency, withdrawRequest.Address, withdrawRequest.AddressTag, withdrawRequest.Amount, withdrawRequest.FeeAmount)
-	return fmt.Sprintf("%v", resp), err
+	resp, err := h.Withdraw(withdrawRequest.Currency,
+		withdrawRequest.Address,
+		withdrawRequest.AddressTag,
+		withdrawRequest.Amount,
+		withdrawRequest.FeeAmount)
+	return strconv.FormatInt(resp, 10), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -512,20 +514,20 @@ func (h *HUOBIHADAX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (h *HUOBIHADAX) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	side := ""
-	if getOrdersRequest.OrderSide == order.AnySide || getOrdersRequest.OrderSide == "" {
+	if req.OrderSide == order.AnySide || req.OrderSide == "" {
 		side = ""
-	} else if getOrdersRequest.OrderSide == order.Sell {
-		side = strings.ToLower(string(getOrdersRequest.OrderSide))
+	} else if req.OrderSide == order.Sell {
+		side = strings.ToLower(string(req.OrderSide))
 	}
 
 	var allOrders []OrderInfo
-	for _, currency := range getOrdersRequest.Currencies {
+	for _, currency := range req.Currencies {
 		resp, err := h.GetOpenOrders(h.API.Credentials.ClientID,
 			currency.Lower().String(),
 			side,
@@ -543,7 +545,7 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (
 		orderDate := time.Unix(0, allOrders[i].CreatedAt*int64(time.Millisecond))
 
 		orders = append(orders, order.Detail{
-			ID:              fmt.Sprintf("%v", allOrders[i].ID),
+			ID:              strconv.FormatInt(int64(allOrders[i].ID), 10),
 			Exchange:        h.Name,
 			Amount:          allOrders[i].Amount,
 			Price:           allOrders[i].Price,
@@ -553,21 +555,20 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (
 			CurrencyPair:    symbol,
 		})
 	}
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (h *HUOBIHADAX) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	states := "partial-canceled,filled,canceled"
 	var allOrders []OrderInfo
-	for _, currency := range getOrdersRequest.Currencies {
+	for _, currency := range req.Currencies {
 		resp, err := h.GetOrders(currency.Lower().String(),
 			"",
 			"",
@@ -589,7 +590,7 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) (
 		orderDate := time.Unix(0, allOrders[i].CreatedAt*int64(time.Millisecond))
 
 		orders = append(orders, order.Detail{
-			ID:           fmt.Sprintf("%v", allOrders[i].ID),
+			ID:           strconv.FormatInt(int64(allOrders[i].ID), 10),
 			Exchange:     h.Name,
 			Amount:       allOrders[i].Amount,
 			Price:        allOrders[i].Price,
@@ -598,8 +599,7 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) (
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
 

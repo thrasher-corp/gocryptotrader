@@ -316,8 +316,8 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 			ads.AdList[i].Data.RequireTrustedByAdvertiser == params.RequireTrustedByAdvertiser &&
 			ads.AdList[i].Data.OnlineProvider == params.OnlineProvider &&
 			ads.AdList[i].Data.TradeType == params.TradeType &&
-			ads.AdList[i].Data.MinAmount == fmt.Sprintf("%v", params.MinAmount) {
-			adID = fmt.Sprintf("%v", ads.AdList[i].Data.AdID)
+			ads.AdList[i].Data.MinAmount == strconv.FormatInt(int64(params.MinAmount), 10) {
+			adID = strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
 		}
 	}
 
@@ -441,7 +441,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 		orders = append(orders, order.Detail{
 			Amount:    resp[i].Data.AmountBTC,
 			Price:     resp[i].Data.Amount,
-			ID:        fmt.Sprintf("%v", resp[i].Data.Advertisement.ID),
+			ID:        strconv.FormatInt(int64(resp[i].Data.Advertisement.ID), 10),
 			OrderDate: orderDate,
 			Fee:       resp[i].Data.FeeBTC,
 			OrderSide: side,
@@ -485,7 +485,8 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 	for i := range allTrades {
 		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",
 				allTrades[i].Data.Advertisement.ID,
@@ -502,18 +503,21 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 		status := ""
 
 		switch {
-		case allTrades[i].Data.ReleasedAt != "" && allTrades[i].Data.ReleasedAt != null:
+		case allTrades[i].Data.ReleasedAt != "" &&
+			allTrades[i].Data.ReleasedAt != null:
 			status = "Released"
-		case allTrades[i].Data.CanceledAt != "" && allTrades[i].Data.CanceledAt != null:
+		case allTrades[i].Data.CanceledAt != "" &&
+			allTrades[i].Data.CanceledAt != null:
 			status = "Cancelled"
-		case allTrades[i].Data.ClosedAt != "" && allTrades[i].Data.ClosedAt != null:
+		case allTrades[i].Data.ClosedAt != "" &&
+			allTrades[i].Data.ClosedAt != null:
 			status = "Closed"
 		}
 
 		orders = append(orders, order.Detail{
 			Amount:    allTrades[i].Data.AmountBTC,
 			Price:     allTrades[i].Data.Amount,
-			ID:        fmt.Sprintf("%d", allTrades[i].Data.Advertisement.ID),
+			ID:        strconv.FormatInt(int64(allTrades[i].Data.Advertisement.ID), 10),
 			OrderDate: orderDate,
 			Fee:       allTrades[i].Data.FeeBTC,
 			OrderSide: side,

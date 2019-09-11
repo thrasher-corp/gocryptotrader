@@ -106,7 +106,7 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := y.CancelExistingOrder(1337)
+	err := y.CancelExistingOrder(1337)
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
 	}
@@ -493,7 +493,9 @@ func TestWithdrawFiat(t *testing.T) {
 	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := y.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'",
+			common.ErrFunctionNotSupported,
+			err)
 	}
 }
 
@@ -508,7 +510,9 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := y.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'",
+			common.ErrFunctionNotSupported,
+			err)
 	}
 }
 

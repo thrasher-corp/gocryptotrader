@@ -467,7 +467,7 @@ func (a *ANX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (a *ANX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (a *ANX) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := a.GetOrderList(false)
 	if err != nil {
 		return nil, err
@@ -494,10 +494,9 @@ func (a *ANX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 

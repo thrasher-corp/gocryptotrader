@@ -160,7 +160,9 @@ func (b *Bitfinex) Start(wg *sync.WaitGroup) {
 func (b *Bitfinex) Run() {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
+			"%s Websocket: %s.",
+			b.GetName(),
+			common.IsEnabled(b.Websocket.IsEnabled()))
 		b.PrintEnabledPairs()
 	}
 
@@ -297,14 +299,14 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 		{ID: "trading"},
 	}
 
-	for _, bal := range accountBalance {
+	for x := range accountBalance {
 		for i := range Accounts {
-			if Accounts[i].ID == bal.Type {
+			if Accounts[i].ID == accountBalance[x].Type {
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					exchange.AccountCurrencyInfo{
-						CurrencyName: currency.NewCode(bal.Currency),
-						TotalValue:   bal.Amount,
-						Hold:         bal.Amount - bal.Available,
+						CurrencyName: currency.NewCode(accountBalance[x].Currency),
+						TotalValue:   accountBalance[x].Amount,
+						Hold:         accountBalance[x].Amount - accountBalance[x].Available,
 					})
 			}
 		}
@@ -346,7 +348,7 @@ func (b *Bitfinex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		false)
 
 	if response.OrderID > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", response.OrderID)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 	}
 
 	if err == nil {
@@ -365,11 +367,9 @@ func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Bitfinex) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
-
 	_, err = b.CancelExistingOrder(orderIDInt)
 	return err
 }
@@ -421,7 +421,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoW
 		return "", errors.New("no withdrawID returned. Check order status")
 	}
 
-	return fmt.Sprintf("%v", resp[0].WithdrawalID), err
+	return strconv.FormatInt(resp[0].WithdrawalID, 10), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
@@ -478,7 +478,7 @@ func (b *Bitfinex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitfinex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	resp, err := b.GetOpenOrders()
 	if err != nil {
@@ -499,7 +499,7 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 			Amount:          resp[i].OriginalAmount,
 			OrderDate:       orderDate,
 			Exchange:        b.Name,
-			ID:              fmt.Sprintf("%d", resp[i].OrderID),
+			ID:              strconv.FormatInt(resp[i].OrderID, 10),
 			OrderSide:       orderSide,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
@@ -530,16 +530,16 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitfinex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	resp, err := b.GetInactiveOrders()
 	if err != nil {
@@ -558,7 +558,7 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 			Amount:          resp[i].OriginalAmount,
 			OrderDate:       orderDate,
 			Exchange:        b.Name,
-			ID:              fmt.Sprintf("%v", resp[i].OrderID),
+			ID:              strconv.FormatInt(resp[i].OrderID, 10),
 			OrderSide:       orderSide,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
@@ -589,13 +589,13 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	for i := range getOrdersRequest.Currencies {
-		b.appendOptionalDelimiter(&getOrdersRequest.Currencies[i])
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	for i := range req.Currencies {
+		b.appendOptionalDelimiter(&req.Currencies[i])
 	}
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 

@@ -155,7 +155,7 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 // GetTickers supports fetching multiple tickers from Kraken
 // pairList must be in the format pairs separated by commas
 // ("LTCUSD,ETCUSD")
-func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
+func (k *Kraken) GetTickers(pairList string) (map[string]Ticker, error) {
 	values := url.Values{}
 	values.Set("pair", pairList)
 
@@ -176,7 +176,7 @@ func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
 		return nil, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
-	tickers := make(Tickers)
+	tickers := make(map[string]Ticker)
 
 	for i := range resp.Data {
 		tick := Ticker{}

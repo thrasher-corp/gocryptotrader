@@ -304,7 +304,7 @@ func (b *BTCMarkets) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 		s.ClientID)
 
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", response)
+		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
 
 	if err == nil {
@@ -426,7 +426,11 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReq
 	if withdrawRequest.Currency != currency.AUD {
 		return "", errors.New("only AUD is supported for withdrawals")
 	}
-	return b.WithdrawAUD(withdrawRequest.BankAccountName, fmt.Sprintf("%v", withdrawRequest.BankAccountNumber), withdrawRequest.BankName, fmt.Sprintf("%v", withdrawRequest.BankCode), withdrawRequest.Amount)
+	return b.WithdrawAUD(withdrawRequest.BankAccountName,
+		strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64),
+		withdrawRequest.BankName,
+		strconv.FormatFloat(withdrawRequest.BankCode, 'f', -1, 64),
+		withdrawRequest.Amount)
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
@@ -450,7 +454,7 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTCMarkets) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := b.GetOpenOrders()
 	if err != nil {
 		return nil, err
@@ -498,24 +502,23 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (
 		orders = append(orders, openOrder)
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTCMarkets) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("requires at least one currency pair to retrieve history")
 	}
 
 	var respOrders []Order
-	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := b.GetOrders(currency.Base.String(),
-			currency.Quote.String(),
+	for i := range req.Currencies {
+		resp, err := b.GetOrders(req.Currencies[i].Base.String(),
+			req.Currencies[i].Quote.String(),
 			200,
 			0,
 			true)
@@ -566,9 +569,9 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) (
 		orders = append(orders, openOrder)
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

@@ -2,7 +2,6 @@ package bittrex
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -125,7 +124,10 @@ func (b *Bittrex) Run() {
 
 		err := b.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s\n", b.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				b.Name,
+				err)
 		}
 	}
 
@@ -135,7 +137,10 @@ func (b *Bittrex) Run() {
 
 	err := b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			b.Name,
+			err)
 	}
 }
 
@@ -308,7 +313,8 @@ func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	buy := s.OrderSide == order.Buy
 
 	if s.OrderType != order.Limit {
-		return submitOrderResponse, errors.New("limit order not supported on exchange")
+		return submitOrderResponse,
+			errors.New("limit order not supported on exchange")
 	}
 
 	var response UUID
@@ -387,7 +393,7 @@ func (b *Bittrex) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // submitted
 func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
 	uuid, err := b.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.AddressTag, withdrawRequest.Address, withdrawRequest.Amount)
-	return fmt.Sprintf("%v", uuid), err
+	return uuid.Result.ID, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -418,10 +424,10 @@ func (b *Bittrex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bittrex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(getOrdersRequest.Currencies) == 1 {
-		currPair = getOrdersRequest.Currencies[0].String()
+	if len(req.Currencies) == 1 {
+		currPair = req.Currencies[0].String()
 	}
 
 	resp, err := b.GetOpenOrders(currPair)
@@ -433,8 +439,12 @@ func (b *Bittrex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 	for i := range resp.Result {
 		orderDate, err := time.Parse(time.RFC3339, resp.Result[i].Opened)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				b.Name, "GetActiveOrders", resp.Result[i].OrderUUID, resp.Result[i].Opened)
+			log.Warnf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				b.Name,
+				"GetActiveOrders",
+				resp.Result[i].OrderUUID,
+				resp.Result[i].Opened)
 		}
 
 		pair := currency.NewPairDelimiter(resp.Result[i].Exchange,
@@ -453,19 +463,18 @@ func (b *Bittrex) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 		})
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bittrex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(getOrdersRequest.Currencies) == 1 {
-		currPair = getOrdersRequest.Currencies[0].String()
+	if len(req.Currencies) == 1 {
+		currPair = req.Currencies[0].String()
 	}
 
 	resp, err := b.GetOrderHistoryForCurrency(currPair)
@@ -477,8 +486,12 @@ func (b *Bittrex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]o
 	for i := range resp.Result {
 		orderDate, err := time.Parse(time.RFC3339, resp.Result[i].TimeStamp)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				b.Name, "GetActiveOrders", resp.Result[i].OrderUUID, resp.Result[i].Opened)
+			log.Warnf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				b.Name,
+				"GetActiveOrders",
+				resp.Result[i].OrderUUID,
+				resp.Result[i].Opened)
 		}
 
 		pair := currency.NewPairDelimiter(resp.Result[i].Exchange,
@@ -498,10 +511,9 @@ func (b *Bittrex) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]o
 		})
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 

@@ -2,6 +2,7 @@ package okex
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -202,6 +203,8 @@ func (o *OKEX) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 	var pairs []string
+	var builder strings.Builder
+
 	switch i {
 	case asset.Spot:
 		prods, err := o.GetSpotTokenPairDetails()
@@ -210,7 +213,12 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 		}
 
 		for x := range prods {
-			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency, o.GetPairFormat(i, false).Delimiter, prods[x].QuoteCurrency))
+			builder.WriteString(prods[x].BaseCurrency)
+			builder.WriteString(o.GetPairFormat(i, true).Delimiter)
+			builder.WriteString(prods[x].QuoteCurrency)
+
+			pairs = append(pairs, builder.String())
+			builder.Reset()
 		}
 		return pairs, nil
 	case asset.Futures:
@@ -219,9 +227,14 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 			return nil, err
 		}
 
-		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].UnderlyingIndex+prods[x].QuoteCurrency, o.GetPairFormat(i, false).Delimiter, prods[x].Delivery))
+			builder.WriteString(prods[x].UnderlyingIndex)
+			builder.WriteString(prods[x].QuoteCurrency)
+			builder.WriteString(o.GetPairFormat(i, true).Delimiter)
+			builder.WriteString(prods[x].Delivery)
+
+			pairs = append(pairs, builder.String())
+			builder.Reset()
 		}
 		return pairs, nil
 
@@ -231,13 +244,23 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 			return nil, err
 		}
 
-		var pairs []string
 		for x := range prods {
-			pairs = append(pairs, fmt.Sprintf("%v%v%v%vSWAP", prods[x].UnderlyingIndex, o.GetPairFormat(i, false).Delimiter, prods[x].QuoteCurrency, o.GetPairFormat(i, false).Delimiter))
+			builder.WriteString(prods[x].UnderlyingIndex)
+			builder.WriteString(o.GetPairFormat(i, true).Delimiter)
+			builder.WriteString(prods[x].QuoteCurrency)
+			builder.WriteString(o.GetPairFormat(i, true).Delimiter)
+			builder.WriteString("SWAP")
+
+			pairs = append(pairs, builder.String())
+			builder.Reset()
 		}
 		return pairs, nil
 	case asset.Index:
-		return []string{fmt.Sprintf("BTC%vUSD", o.GetPairFormat(i, false).Delimiter)}, nil
+		builder.WriteString("BTC")
+		builder.WriteString(o.GetPairFormat(i, true).Delimiter)
+		builder.WriteString("USD")
+
+		return []string{builder.String()}, nil
 	}
 
 	return nil, fmt.Errorf("%s invalid asset type", o.Name)

@@ -456,13 +456,13 @@ func (c *COINUT) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	switch apiResp := APIresponse.(type) {
 	case OrdersBase:
 		orderResult := apiResp
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", orderResult.OrderID)
+		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.OrderID, 10)
 	case OrderFilledResponse:
 		orderResult := apiResp
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", orderResult.Order.OrderID)
+		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.Order.OrderID, 10)
 	case OrderRejectResponse:
 		orderResult := apiResp
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", orderResult.OrderID)
+		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.OrderID, 10)
 		err = fmt.Errorf("orderID: %d was rejected: %v",
 			orderResult.OrderID,
 			orderResult.Reasons)
@@ -510,8 +510,9 @@ func (c *COINUT) CancelOrder(order *order.Cancellation) error {
 func (c *COINUT) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
 	// TODO, this is a terrible implementation. Requires DB to improve
 	// Coinut provides no way of retrieving orders without a currency
-	// So we need to retrieve all currencies, then retrieve orders for each currency
-	// Then cancel. Advisable to never use this until DB due to performance
+	// So we need to retrieve all currencies, then retrieve orders for each
+	// currency then cancel. Advisable to never use this until DB due to
+	// performance.
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
@@ -601,7 +602,7 @@ func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *COINUT) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if !c.instrumentMap.IsLoaded() {
 		err := c.SeedInstruments()
 		if err != nil {
@@ -610,9 +611,9 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 	}
 
 	var instrumentsToUse []int64
-	if len(getOrdersRequest.Currencies) > 0 {
-		for x := range getOrdersRequest.Currencies {
-			currency := c.FormatExchangeCurrency(getOrdersRequest.Currencies[x],
+	if len(req.Currencies) > 0 {
+		for x := range req.Currencies {
+			currency := c.FormatExchangeCurrency(req.Currencies[x],
 				asset.Spot).String()
 			instrumentsToUse = append(instrumentsToUse,
 				c.instrumentMap.LookupID(currency))
@@ -650,8 +651,8 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 		}
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

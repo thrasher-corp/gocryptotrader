@@ -210,7 +210,6 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 		assetType).String())
 	if err != nil {
 		return tickerPrice, err
-
 	}
 
 	tickerPrice.Pair = p
@@ -410,43 +409,43 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 
 	for i := range *o {
-		o := (*o)[i]
-		if o.ID != orderID {
+		if (*o)[i].ID != orderID {
 			continue
 		}
 
 		var side = order.Buy
-		if strings.EqualFold(o.Side, order.Ask.String()) {
+		if strings.EqualFold((*o)[i].Side, order.Ask.String()) {
 			side = order.Sell
 		}
 
-		od.CurrencyPair = currency.NewPairDelimiter(o.ProductID,
+		od.CurrencyPair = currency.NewPairDelimiter((*o)[i].ProductID,
 			b.GetPairFormat(asset.Spot, false).Delimiter)
 		od.Exchange = b.Name
-		od.Amount = o.Amount
-		od.ID = o.ID
-		od.OrderDate = parseOrderTime(o.CreatedAt)
+		od.Amount = (*o)[i].Amount
+		od.ID = (*o)[i].ID
+		od.OrderDate = parseOrderTime((*o)[i].CreatedAt)
 		od.OrderSide = side
-		od.OrderType = order.Type(strings.ToUpper(o.Type))
-		od.Price = o.Price
-		od.Status = order.Status(o.Status)
+		od.OrderType = order.Type(strings.ToUpper((*o)[i].Type))
+		od.Price = (*o)[i].Price
+		od.Status = order.Status((*o)[i].Status)
 
 		fills, err := b.GetFills(orderID, "", "", "", "")
 		if err != nil {
-			return od, fmt.Errorf("unable to get order fills for orderID %s", orderID)
+			return od,
+				fmt.Errorf("unable to get order fills for orderID %s",
+					orderID)
 		}
 
 		for i := range *fills {
-			f := (*fills)[i]
-			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+			createdAt, _ := time.Parse(time.RFC3339, (*fills)[i].CreatedAt)
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
-				TID:       f.ID,
-				Price:     f.Price,
-				Amount:    f.Amount,
+				TID:       (*fills)[i].ID,
+				Price:     (*fills)[i].Price,
+				Amount:    (*fills)[i].Amount,
 				Exchange:  b.Name,
-				Side:      order.Side(f.Side),
-				Fee:       f.Fee,
+				Side:      order.Side((*fills)[i].Side),
+				Fee:       (*fills)[i].Fee,
 			})
 		}
 	}
@@ -482,7 +481,7 @@ func (b *BTSE) GetWebsocket() (*wshandler.Websocket, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTSE) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := b.GetOrders("")
 	if err != nil {
 		return nil, err
@@ -490,52 +489,50 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]orde
 
 	var orders []order.Detail
 	for i := range *resp {
-		o := (*resp)[i]
 		var side = order.Buy
-		if strings.EqualFold(o.Side, order.Ask.String()) {
+		if strings.EqualFold((*resp)[i].Side, order.Ask.String()) {
 			side = order.Sell
 		}
 
 		openOrder := order.Detail{
-			CurrencyPair: currency.NewPairDelimiter(o.ProductID,
+			CurrencyPair: currency.NewPairDelimiter((*resp)[i].ProductID,
 				b.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange:  b.Name,
-			Amount:    o.Amount,
-			ID:        o.ID,
-			OrderDate: parseOrderTime(o.CreatedAt),
+			Amount:    (*resp)[i].Amount,
+			ID:        (*resp)[i].ID,
+			OrderDate: parseOrderTime((*resp)[i].CreatedAt),
 			OrderSide: side,
-			OrderType: order.Type(strings.ToUpper(o.Type)),
-			Price:     o.Price,
-			Status:    order.Status(o.Status),
+			OrderType: order.Type(strings.ToUpper((*resp)[i].Type)),
+			Price:     (*resp)[i].Price,
+			Status:    order.Status((*resp)[i].Status),
 		}
 
-		fills, err := b.GetFills(o.ID, "", "", "", "")
+		fills, err := b.GetFills((*resp)[i].ID, "", "", "", "")
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"unable to get order fills for orderID %s",
-				o.ID)
+				(*resp)[i].ID)
 			continue
 		}
 
 		for i := range *fills {
-			f := (*fills)[i]
-			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+			createdAt, _ := time.Parse(time.RFC3339, (*fills)[i].CreatedAt)
 			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 				Timestamp: createdAt,
-				TID:       f.ID,
-				Price:     f.Price,
-				Amount:    f.Amount,
+				TID:       (*fills)[i].ID,
+				Price:     (*fills)[i].Price,
+				Amount:    (*fills)[i].Amount,
 				Exchange:  b.Name,
-				Side:      order.Side(f.Side),
-				Fee:       f.Fee,
+				Side:      order.Side((*fills)[i].Side),
+				Fee:       (*fills)[i].Fee,
 			})
 		}
 		orders = append(orders, openOrder)
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

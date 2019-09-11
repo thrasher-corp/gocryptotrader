@@ -159,7 +159,10 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 func (b *Binance) Run() {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.Websocket.GetWebsocketURL())
+			"%s Websocket: %s. (url: %s).\n",
+			b.GetName(),
+			common.IsEnabled(b.Websocket.IsEnabled()),
+			b.Websocket.GetWebsocketURL())
 		b.PrintEnabledPairs()
 	}
 
@@ -173,7 +176,9 @@ func (b *Binance) Run() {
 
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s\n", b.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				b.Name, err)
 		}
 	}
 
@@ -183,7 +188,10 @@ func (b *Binance) Run() {
 
 	err := b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			b.Name,
+			err)
 	}
 }
 
@@ -280,14 +288,20 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderb
 		return orderBook, err
 	}
 
-	for _, bids := range orderbookNew.Bids {
+	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids,
-			orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
+			orderbook.Item{
+				Amount: orderbookNew.Bids[x].Quantity,
+				Price:  orderbookNew.Bids[x].Price,
+			})
 	}
 
-	for _, asks := range orderbookNew.Asks {
+	for x := range orderbookNew.Asks {
 		orderBook.Asks = append(orderBook.Asks,
-			orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
+			orderbook.Item{
+				Amount: orderbookNew.Asks[x].Quantity,
+				Price:  orderbookNew.Asks[x].Price,
+			})
 	}
 
 	orderBook.Pair = p
@@ -312,19 +326,19 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var currencyBalance []exchange.AccountCurrencyInfo
-	for _, balance := range raw.Balances {
-		freeCurrency, err := strconv.ParseFloat(balance.Free, 64)
+	for i := range raw.Balances {
+		freeCurrency, err := strconv.ParseFloat(raw.Balances[i].Free, 64)
 		if err != nil {
 			return info, err
 		}
 
-		lockedCurrency, err := strconv.ParseFloat(balance.Locked, 64)
+		lockedCurrency, err := strconv.ParseFloat(raw.Balances[i].Locked, 64)
 		if err != nil {
 			return info, err
 		}
 
 		currencyBalance = append(currencyBalance, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(balance.Asset),
+			CurrencyName: currency.NewCode(raw.Balances[i].Asset),
 			TotalValue:   freeCurrency + lockedCurrency,
 			Hold:         freeCurrency,
 		})
@@ -387,7 +401,7 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	response, err := b.NewOrder(&orderRequest)
 
 	if response.OrderID > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", response.OrderID)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 	}
 
 	if err == nil {
@@ -411,8 +425,9 @@ func (b *Binance) CancelOrder(order *order.Cancellation) error {
 	}
 
 	_, err = b.CancelExistingOrder(b.FormatExchangeCurrency(order.CurrencyPair,
-		order.AssetType).String(), orderIDInt, order.AccountID)
-
+		order.AssetType).String(),
+		orderIDInt,
+		order.AccountID)
 	return err
 }
 
@@ -427,7 +442,9 @@ func (b *Binance) CancelAllOrders(_ *order.Cancellation) (order.CancelAllRespons
 	}
 
 	for i := range openOrders {
-		_, err = b.CancelExistingOrder(openOrders[i].Symbol, openOrders[i].OrderID, "")
+		_, err = b.CancelExistingOrder(openOrders[i].Symbol,
+			openOrders[i].OrderID,
+			"")
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
 		}
@@ -484,14 +501,14 @@ func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Binance) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
 	var orders []order.Detail
-	for _, c := range getOrdersRequest.Currencies {
-		resp, err := b.OpenOrders(b.FormatExchangeCurrency(c,
+	for x := range req.Currencies {
+		resp, err := b.OpenOrders(b.FormatExchangeCurrency(req.Currencies[x],
 			asset.Spot).String())
 		if err != nil {
 			return nil, err
@@ -506,7 +523,7 @@ func (b *Binance) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 				Amount:       resp[i].OrigQty,
 				OrderDate:    orderDate,
 				Exchange:     b.Name,
-				ID:           fmt.Sprintf("%d", resp[i].OrderID),
+				ID:           strconv.FormatInt(resp[i].OrderID, 10),
 				OrderSide:    orderSide,
 				OrderType:    orderType,
 				Price:        resp[i].Price,
@@ -516,23 +533,25 @@ func (b *Binance) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 		}
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Binance) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
 	var orders []order.Detail
-	for _, c := range getOrdersRequest.Currencies {
-		resp, err := b.AllOrders(b.FormatExchangeCurrency(c,
-			asset.Spot).String(), "", "1000")
+	for x := range req.Currencies {
+		resp, err := b.AllOrders(b.FormatExchangeCurrency(req.Currencies[x],
+			asset.Spot).String(),
+			"",
+			"1000")
 		if err != nil {
 			return nil, err
 		}
@@ -550,7 +569,7 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]o
 				Amount:       resp[i].OrigQty,
 				OrderDate:    orderDate,
 				Exchange:     b.Name,
-				ID:           fmt.Sprintf("%v", resp[i].OrderID),
+				ID:           strconv.FormatInt(resp[i].OrderID, 10),
 				OrderSide:    orderSide,
 				OrderType:    orderType,
 				Price:        resp[i].Price,
@@ -560,9 +579,9 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]o
 		}
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
 

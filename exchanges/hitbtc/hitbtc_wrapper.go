@@ -316,17 +316,18 @@ func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var currencies []exchange.AccountCurrencyInfo
-	for _, item := range accountBalance {
+	for i := range accountBalance {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCode(item.Currency)
-		exchangeCurrency.TotalValue = item.Available
-		exchangeCurrency.Hold = item.Reserved
+		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
+		exchangeCurrency.TotalValue = accountBalance[i].Available
+		exchangeCurrency.Hold = accountBalance[i].Reserved
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: currencies,
-	})
+	response.Accounts = append(response.Accounts,
+		exchange.Account{
+			Currencies: currencies,
+		})
 
 	return response, nil
 }
@@ -356,7 +357,7 @@ func (h *HitBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		strings.ToLower(s.OrderType.String()),
 		strings.ToLower(s.OrderSide.String()))
 	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", response.OrderNumber)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -373,13 +374,11 @@ func (h *HitBTC) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (h *HitBTC) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
 	_, err = h.CancelExistingOrder(orderIDInt)
-
 	return err
 }
 
@@ -426,7 +425,6 @@ func (h *HitBTC) GetDepositAddress(currency currency.Code, _ string) (string, er
 // submitted
 func (h *HitBTC) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
 	_, err := h.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Address, withdrawRequest.Amount)
-
 	return "", err
 }
 
@@ -457,14 +455,14 @@ func (h *HitBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HitBTC) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (h *HitBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	var allOrders []OrderHistoryResponse
-	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := h.GetOpenOrders(currency.String())
+	for i := range req.Currencies {
+		resp, err := h.GetOpenOrders(req.Currencies[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -487,22 +485,21 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HitBTC) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (h *HitBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	var allOrders []OrderHistoryResponse
-	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := h.GetOrders(currency.String())
+	for i := range req.Currencies {
+		resp, err := h.GetOrders(req.Currencies[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -525,8 +522,8 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

@@ -209,11 +209,13 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderb
 	}
 
 	for _, bids := range orderbookNew.Data.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
 	}
 
 	for _, asks := range orderbookNew.Data.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
 	}
 
 	orderBook.Pair = p
@@ -293,7 +295,7 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	if orderID != "" {
-		submitOrderResponse.OrderID = fmt.Sprintf("%s", orderID)
+		submitOrderResponse.OrderID = orderID
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -375,7 +377,10 @@ func (b *Bithumb) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	_, err := b.WithdrawCrypto(withdrawRequest.Address, withdrawRequest.AddressTag, withdrawRequest.Currency.String(), withdrawRequest.Amount)
+	_, err := b.WithdrawCrypto(withdrawRequest.Address,
+		withdrawRequest.AddressTag,
+		withdrawRequest.Currency.String(),
+		withdrawRequest.Amount)
 	return "", err
 }
 
@@ -422,7 +427,7 @@ func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bithumb) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	resp, err := b.GetOrders("", "", "1000", "", "")
 	if err != nil {
@@ -457,16 +462,15 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bithumb) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	resp, err := b.GetOrders("", "", "1000", "", "")
 	if err != nil {
@@ -500,10 +504,9 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]o
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 

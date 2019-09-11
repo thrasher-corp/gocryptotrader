@@ -2,7 +2,6 @@ package alphapoint
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -201,7 +200,7 @@ func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 		s.Price)
 
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%d", response)
+		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
 
 	if err == nil {
@@ -223,9 +222,7 @@ func (a *Alphapoint) CancelOrder(order *order.Cancellation) error {
 	if err != nil {
 		return err
 	}
-
 	_, err = a.CancelExistingOrder(orderIDInt, order.AccountID)
-
 	return err
 }
 
@@ -296,7 +293,7 @@ func (a *Alphapoint) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := a.GetOrders()
 	if err != nil {
 		return nil, err
@@ -304,23 +301,23 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (
 
 	var orders []order.Detail
 	for x := range resp {
-		for _, o := range resp[x].OpenOrders {
-			if o.State != 1 {
+		for y := range resp[x].OpenOrders {
+			if resp[x].OpenOrders[y].State != 1 {
 				continue
 			}
 
 			orderDetail := order.Detail{
-				Amount:          o.QtyTotal,
+				Amount:          resp[x].OpenOrders[y].QtyTotal,
 				Exchange:        a.Name,
-				AccountID:       fmt.Sprintf("%d", o.AccountID),
-				ID:              fmt.Sprintf("%d", o.ServerOrderID),
-				Price:           o.Price,
-				RemainingAmount: o.QtyRemaining,
+				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
+				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
+				Price:           resp[x].OpenOrders[y].Price,
+				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
 
-			orderDetail.OrderSide = orderSideMap[o.Side]
-			orderDetail.OrderDate = time.Unix(o.ReceiveTime, 0)
-			orderDetail.OrderType = orderTypeMap[o.OrderType]
+			orderDetail.OrderSide = orderSideMap[resp[x].OpenOrders[y].Side]
+			orderDetail.OrderDate = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
+			orderDetail.OrderType = orderTypeMap[resp[x].OpenOrders[y].OrderType]
 			if orderDetail.OrderType == "" {
 				orderDetail.OrderType = order.Unknown
 			}
@@ -329,16 +326,16 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) (
 		}
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := a.GetOrders()
 	if err != nil {
 		return nil, err
@@ -346,23 +343,23 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) (
 
 	var orders []order.Detail
 	for x := range resp {
-		for _, o := range resp[x].OpenOrders {
-			if o.State == 1 {
+		for y := range resp[x].OpenOrders {
+			if resp[x].OpenOrders[y].State == 1 {
 				continue
 			}
 
 			orderDetail := order.Detail{
-				Amount:          o.QtyTotal,
-				AccountID:       fmt.Sprintf("%d", o.AccountID),
+				Amount:          resp[x].OpenOrders[y].QtyTotal,
+				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
 				Exchange:        a.Name,
-				ID:              fmt.Sprintf("%d", o.ServerOrderID),
-				Price:           o.Price,
-				RemainingAmount: o.QtyRemaining,
+				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
+				Price:           resp[x].OpenOrders[y].Price,
+				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
 
-			orderDetail.OrderSide = orderSideMap[o.Side]
-			orderDetail.OrderDate = time.Unix(o.ReceiveTime, 0)
-			orderDetail.OrderType = orderTypeMap[o.OrderType]
+			orderDetail.OrderSide = orderSideMap[resp[x].OpenOrders[y].Side]
+			orderDetail.OrderDate = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
+			orderDetail.OrderType = orderTypeMap[resp[x].OpenOrders[y].OrderType]
 			if orderDetail.OrderType == "" {
 				orderDetail.OrderType = order.Unknown
 			}
@@ -371,9 +368,9 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) (
 		}
 	}
 
-	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
 

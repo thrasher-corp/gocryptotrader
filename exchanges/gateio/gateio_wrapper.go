@@ -376,7 +376,7 @@ func (g *Gateio) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
 	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}
 
 	if err == nil {
@@ -395,13 +395,11 @@ func (g *Gateio) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (g *Gateio) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
-	_, err = g.CancelExistingOrder(orderIDInt, g.FormatExchangeCurrency(order.CurrencyPair,
-		order.AssetType).String())
-
+	_, err = g.CancelExistingOrder(orderIDInt,
+		g.FormatExchangeCurrency(order.CurrencyPair, order.AssetType).String())
 	return err
 }
 
@@ -469,21 +467,11 @@ func (g *Gateio) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 		return "", err
 	}
 
-	// Waits for new generated address if not created yet, its variable per
-	// currency
 	if addr == gateioGenerateAddress {
-		time.Sleep(10 * time.Second)
-		addr, err = g.GetCryptoDepositAddress(cryptocurrency.String())
-		if err != nil {
-			return "", err
-		}
-		if addr == gateioGenerateAddress {
-			return "", errors.New("new deposit address is being generated, please retry again shortly")
-		}
-		return addr, nil
+		return "",
+			errors.New("new deposit address is being generated, please retry again shortly")
 	}
-
-	return addr, err
+	return addr, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -519,10 +507,10 @@ func (g *Gateio) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gateio) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(getOrdersRequest.Currencies) == 1 {
-		currPair = getOrdersRequest.Currencies[0].String()
+	if len(req.Currencies) == 1 {
+		currPair = req.Currencies[0].String()
 	}
 
 	resp, err := g.GetOpenOrders(currPair)
@@ -554,16 +542,16 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]or
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var trades []TradesResponse
-	for _, currency := range getOrdersRequest.Currencies {
+	for _, currency := range req.Currencies {
 		resp, err := g.GetTradeHistory(currency.String())
 		if err != nil {
 			return nil, err
@@ -588,9 +576,8 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

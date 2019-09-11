@@ -79,7 +79,11 @@ func TestSetup(t *testing.T) {
 	okexConfig.API.Credentials.Secret = apiSecret
 	okexConfig.API.Credentials.ClientID = passphrase
 	okexConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
-	o.Setup(okexConfig)
+	err = o.Setup(okexConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	testSetupRan = true
 	o.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	o.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
@@ -1929,5 +1933,13 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Errorf("Expected '%v', received: '%v'",
 			common.ErrFunctionNotSupported,
 			err)
+	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }
