@@ -339,7 +339,8 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	params := []interface{}{g.FormatExchangeCurrency(channelToSubscribe.Currency,
-		asset.Spot).String()}
+		asset.Spot).Upper()}
+
 	for i := range channelToSubscribe.Params {
 		params = append(params, channelToSubscribe.Params[i])
 	}
