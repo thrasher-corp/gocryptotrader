@@ -48,7 +48,7 @@ func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 // required pipes
 func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 	if data == nil {
-		return errors.New("data payload is nil, that's a little bit of an issue")
+		return errors.New("data payload is nil")
 	}
 
 	cpy := reflect.ValueOf(data).Elem().Interface()

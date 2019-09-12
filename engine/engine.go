@@ -11,8 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -271,10 +271,7 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.DispatchMaxWorkerAmount != dispatch.DefaultMaxWorkers {
-		err := dispatch.SetMaxWorkers(e.Settings.DispatchMaxWorkerAmount)
-		if err != nil {
-			log.Errorf(log.Global, "Dispatch package set max workers error: %v", err)
-		}
+		dispatch.SetMaxWorkers(e.Settings.DispatchMaxWorkerAmount)
 	}
 
 	// Sets up internet connectivity monitor

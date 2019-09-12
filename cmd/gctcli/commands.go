@@ -2388,12 +2388,6 @@ func getOrderbookStream(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var pair string
 	var assetType string
@@ -2402,6 +2396,10 @@ func getOrderbookStream(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
 	}
 
 	if c.IsSet("pair") {
@@ -2419,6 +2417,12 @@ func getOrderbookStream(c *cli.Context) error {
 	} else {
 		assetType = c.Args().Get(2)
 	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	p := currency.NewPairDelimiter(pair, pairDelimiter)
 
@@ -2510,19 +2514,22 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
-
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetExchangeOrderbookStream(context.Background(),
@@ -2578,12 +2585,6 @@ func getTickerStream(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
 	var pair string
 	var assetType string
@@ -2592,6 +2593,10 @@ func getTickerStream(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
 	}
 
 	if c.IsSet("pair") {
@@ -2609,6 +2614,12 @@ func getTickerStream(c *cli.Context) error {
 	} else {
 		assetType = c.Args().Get(2)
 	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	p := currency.NewPairDelimiter(pair, pairDelimiter)
 
@@ -2675,19 +2686,22 @@ func getExchangeTickerStream(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var exchangeName string
-
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetExchangeTickerStream(context.Background(),

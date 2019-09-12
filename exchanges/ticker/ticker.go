@@ -1,24 +1,21 @@
 package ticker
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // const values for the ticker package
 const (
-	errExchangeTickerNotFound = "ticker for exchange does not exist"
-	errPairNotSet             = "ticker currency pair not set"
-	errAssetTypeNotSet        = "ticker asset type not set"
-	errBaseCurrencyNotFound   = "ticker base currency not found"
-	errQuoteCurrencyNotFound  = "ticker quote currency not found"
+	errExchangeNameUnset = "ticker exchange name not set"
+	errPairNotSet        = "ticker currency pair not set"
+	errAssetTypeNotSet   = "ticker asset type not set"
 )
 
 // Vars for the ticker package
@@ -165,12 +162,18 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 	service.RLock()
 	defer service.RUnlock()
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item][a] == nil {
-		return dispatch.Pipe{}, errors.New("orderbook item not found")
+		return dispatch.Pipe{}, fmt.Errorf("ticker item not found for %s %s %s",
+			exchange,
+			p,
+			a)
 	}
 
 	tick, ok := service.Tickers[exchange][p.Base.Item][p.Quote.Item][a]
 	if !ok {
-		return dispatch.Pipe{}, errors.New("orderbook item not found")
+		return dispatch.Pipe{}, fmt.Errorf("ticker item not found for %s %s %s",
+			exchange,
+			p,
+			a)
 	}
 
 	return service.mux.Subscribe(tick.Main)
@@ -182,7 +185,8 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 	defer service.RUnlock()
 	id, ok := service.Exchange[exchange]
 	if !ok {
-		return dispatch.Pipe{}, errors.New("exchange orderbooks not found")
+		return dispatch.Pipe{}, fmt.Errorf("%s exchange tickers not found",
+			exchange)
 	}
 
 	return service.mux.Subscribe(id)
@@ -193,19 +197,22 @@ func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (Price, 
 	service.RLock()
 	defer service.RUnlock()
 	if service.Tickers[exchange] == nil {
-		return Price{}, errors.New("exchange tickers not found")
+		return Price{}, fmt.Errorf("no tickers for %s exchange", exchange)
 	}
 
 	if service.Tickers[exchange][p.Base.Item] == nil {
-		return Price{}, errors.New("base currency tickers not found")
+		return Price{}, fmt.Errorf("no tickers associated with base currency %s",
+			p.Base)
 	}
 
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item] == nil {
-		return Price{}, errors.New("quote currency tickers not found")
+		return Price{}, fmt.Errorf("no tickers associated with quote currency %s",
+			p.Quote)
 	}
 
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item][tickerType] == nil {
-		return Price{}, errors.New("asset type tickers not found")
+		return Price{}, fmt.Errorf("no orderbooks associated with asset type %s",
+			tickerType)
 	}
 
 	return service.Tickers[exchange][p.Base.Item][p.Quote.Item][tickerType].Price, nil
@@ -215,7 +222,7 @@ func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (Price, 
 // list
 func ProcessTicker(exchangeName string, tickerNew *Price, assetType asset.Item) error {
 	if exchangeName == "" {
-		return fmt.Errorf("%s %s", exchangeName, "name not set")
+		return fmt.Errorf(errExchangeNameUnset)
 	}
 
 	tickerNew.ExchangeName = exchangeName
@@ -225,7 +232,9 @@ func ProcessTicker(exchangeName string, tickerNew *Price, assetType asset.Item) 
 	}
 
 	if assetType == "" {
-		return fmt.Errorf("%s %s %s", exchangeName, tickerNew.Pair.String(), errAssetTypeNotSet)
+		return fmt.Errorf("%s %s %s", exchangeName,
+			tickerNew.Pair,
+			errAssetTypeNotSet)
 	}
 
 	tickerNew.AssetType = assetType

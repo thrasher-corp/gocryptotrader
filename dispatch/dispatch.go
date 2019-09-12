@@ -284,14 +284,16 @@ func (c *Communications) getNewID() (uuid.UUID, error) {
 }
 
 // SetMaxWorkers sets worker generation ceiling
-func SetMaxWorkers(w int64) error {
+func SetMaxWorkers(w int64) {
 	if w < 1 {
-		return errors.New("cannot set dispatch workers less than one")
+		log.Warnf(log.Global,
+			"dispatch package: invalid worker amount, defaulting to %d",
+			DefaultMaxWorkers)
+		w = DefaultMaxWorkers
 	}
 
 	old := atomic.SwapInt64(&MaxWorkers, w)
 	log.Debugf(log.Global, "dispatch worker ceiling updated from %d to %d max workers",
 		old,
 		w)
-	return nil
 }

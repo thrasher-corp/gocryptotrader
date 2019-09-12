@@ -29,6 +29,12 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	errExchangeNameUnset = "exchange name unset"
+	errCurrencyPairUnset = "currency pair unset"
+	errAssetTypeUnset    = "asset type unset"
+)
+
 // RPCServer struct
 type RPCServer struct{}
 
@@ -960,15 +966,15 @@ func (s *RPCServer) DisableExchangePair(ctx context.Context, r *gctrpc.ExchangeP
 // GetOrderbookStream streams the requested updated orderbook
 func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetOrderbookStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New("exchange name unset")
+		return errors.New(errExchangeNameUnset)
 	}
 
 	if r.Pair.String() == "" {
-		return errors.New("currency pair unset")
+		return errors.New(errCurrencyPairUnset)
 	}
 
 	if r.AssetType == "" {
-		return errors.New("asset type unset")
+		return errors.New(errAssetTypeUnset)
 	}
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -1014,7 +1020,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 // GetExchangeOrderbookStream streams all orderbooks associated with an exchange
 func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New("exchange name unset")
+		return errors.New(errExchangeNameUnset)
 	}
 
 	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
@@ -1058,15 +1064,15 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 // GetTickerStream streams the requested updated ticker
 func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetTickerStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New("exchange name unset")
+		return errors.New(errExchangeNameUnset)
 	}
 
 	if r.Pair.String() == "" {
-		return errors.New("currency pair unset")
+		return errors.New(errCurrencyPairUnset)
 	}
 
 	if r.AssetType == "" {
-		return errors.New("asset type unset")
+		return errors.New(errAssetTypeUnset)
 	}
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -1105,7 +1111,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 // GetExchangeTickerStream streams all tickers associated with an exchange
 func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeTickerStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New("exchange name unset")
+		return errors.New(errExchangeNameUnset)
 	}
 
 	pipe, err := ticker.SubscribeToExchangeTickers(r.Exchange)

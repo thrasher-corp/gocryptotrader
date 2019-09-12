@@ -9,17 +9,16 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // const values for orderbook package
 const (
-	errExchangeOrderbookNotFound = "orderbook for exchange does not exist"
-	errPairNotSet                = "orderbook currency pair not set"
-	errAssetTypeNotSet           = "orderbook asset type not set"
-	errBaseCurrencyNotFound      = "orderbook base currency not found"
-	errQuoteCurrencyNotFound     = "orderbook quote currency not found"
+	errExchangeNameUnset = "orderbook exchange name not set"
+	errPairNotSet        = "orderbook currency pair not set"
+	errAssetTypeNotSet   = "orderbook asset type not set"
+	errNoOrderbook       = "orderbook bids and asks are empty"
 )
 
 // Vars for the orderbook package
@@ -292,19 +291,19 @@ func Get(exchange string, p currency.Pair, a asset.Item) (Base, error) {
 // list
 func (b *Base) Process() error {
 	if b.ExchangeName == "" {
-		return errors.New("exchange name unset")
+		return errors.New(errExchangeNameUnset)
 	}
 
 	if b.Pair.IsEmpty() {
-		return errors.New("pair unset")
+		return errors.New(errPairNotSet)
 	}
 
 	if b.AssetType.String() == "" {
-		return errors.New("asset unset")
+		return errors.New(errAssetTypeNotSet)
 	}
 
 	if len(b.Asks) == 0 && len(b.Bids) == 0 {
-		return errors.New("no orderbook info")
+		return errors.New(errNoOrderbook)
 	}
 
 	if b.LastUpdated.IsZero() {

@@ -18,6 +18,7 @@ var itemArray = [][]orderbook.Item{
 	{{Price: 3000, Amount: 2, ID: 4}},
 	{{Price: 4000, Amount: 0, ID: 6}},
 	{{Price: 5000, Amount: 1, ID: 5}},
+	{{Price: 6000, Amount: 12, ID: 7}},
 }
 
 const (
@@ -221,7 +222,7 @@ func TestDeleteWithIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	obl.updateEntriesByID = true
-	for i := 0; i < len(itemArray); i++ {
+	for i := 0; i < len(itemArray)-3; i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
@@ -233,14 +234,16 @@ func TestDeleteWithIDs(t *testing.T) {
 			Action:       "delete",
 		})
 		if err != nil {
-			fmt.Println(err)
+			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[curr][asset.Spot].Asks) != 0 {
-		t.Errorf("expected 0 entries, received: %v", len(obl.ob[curr][asset.Spot].Asks))
+	if len(obl.ob[curr][asset.Spot].Asks) != 1 {
+		t.Errorf("expected 0 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Asks))
 	}
-	if len(obl.ob[curr][asset.Spot].Bids) != 0 {
-		t.Errorf("expected 0 entries, received: %v", len(obl.ob[curr][asset.Spot].Bids))
+	if len(obl.ob[curr][asset.Spot].Bids) != 1 {
+		t.Errorf("expected 0 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Bids))
 	}
 }
 
@@ -281,7 +284,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6}
+	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6, 7}
 	if itemArray[0][0].Price != 1000 {
 		t.Errorf("expected sorted price to be 3000, received: %v", itemArray[1][0].Price)
 	}
