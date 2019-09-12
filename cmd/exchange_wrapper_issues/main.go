@@ -240,7 +240,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	assetTypes := base.GetAssetTypes()
 	testOrderSide := parseOrderSide(config.OrderSubmission.OrderSide)
 	testOrderType := parseOrderType(config.OrderSubmission.OrderType)
-
+	if assetTypeOverride != "" {
+		assetTypes = asset.Items{asset.Item(assetTypeOverride)}
+	}
 	for i := range assetTypes {
 		var msg string
 		var p currency.Pair
