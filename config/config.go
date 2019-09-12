@@ -873,12 +873,13 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AuthenticatedAPISupport = nil
 			c.Exchanges[i].AuthenticatedWebsocketAPISupport = nil
 			c.Exchanges[i].APIKey = nil
-			c.Exchanges[i].APIAuthPEMKey = nil
 			c.Exchanges[i].APISecret = nil
+			c.Exchanges[i].ClientID = nil
+			c.Exchanges[i].APIAuthPEMKeySupport = nil
+			c.Exchanges[i].APIAuthPEMKey = nil
 			c.Exchanges[i].APIURL = nil
 			c.Exchanges[i].APIURLSecondary = nil
 			c.Exchanges[i].WebsocketURL = nil
-			c.Exchanges[i].ClientID = nil
 		}
 
 		if c.Exchanges[i].Features == nil {
