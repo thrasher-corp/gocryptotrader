@@ -1,157 +1,154 @@
 {
     "withdrawWalletAddress":"",
-    "orderSubmission": {
+    "orderSubmission":{
         "orderSide":"BUY",
         "orderType":"LIMIT",
         "amount":1333333337,
         "price":1333333337
     },
-    "bankAccount": 
-        {
-         "bankAccountName": "bankAccountName",
-         "bankAccountNumber": 1337,
-         "bankName":"bankName",
-         "bankAddress":"bankAddress",
-         "bankCity":"bankCity",
-         "bankCountry":"bankCountry",
-         "bankPostalCode":"bankPostalCode",
-         "swiftCode":"swiftCode",
-         "bankCode":1337,
-         "iban":"iban",
-         "isExpressWire":false,
-         "requiresIntermediaryBank":false,
-         "intermediaryBankAccountName": "intermediaryBankAccountName",
-         "intermediaryBankAccountNumber": 1337,
-         "intermediaryBankName":"intermediaryBankName",
-         "intermediaryBankAddress":"intermediaryBankAddress",
-         "intermediaryBankCity":"intermediaryBankCity",
-         "intermediaryBankCountry":"intermediaryBankCountry",
-         "intermediaryBankPostalCode":"intermediaryBankPostalCode",
-         "intermediaryBankCode":1337,
-         "intermediarySwiftCode":"intermediarySwiftCode",
-         "intermediaryIban":"intermediaryIban"
+    "bankAccount":{
+        "bankAccountName":"bankAccountName",
+        "bankAccountNumber":1337,
+        "bankName":"bankName",
+        "bankAddress":"bankAddress",
+        "bankCity":"bankCity",
+        "bankCountry":"bankCountry",
+        "bankPostalCode":"bankPostalCode",
+        "swiftCode":"swiftCode",
+        "bankCode":1337,
+        "iban":"iban",
+        "isExpressWire":false,
+        "requiresIntermediaryBank":false,
+        "intermediaryBankAccountName":"intermediaryBankAccountName",
+        "intermediaryBankAccountNumber":1337,
+        "intermediaryBankName":"intermediaryBankName",
+        "intermediaryBankAddress":"intermediaryBankAddress",
+        "intermediaryBankCity":"intermediaryBankCity",
+        "intermediaryBankCountry":"intermediaryBankCountry",
+        "intermediaryBankPostalCode":"intermediaryBankPostalCode",
+        "intermediaryBankCode":1337,
+        "intermediarySwiftCode":"intermediarySwiftCode",
+        "intermediaryIban":"intermediaryIban"
+    },
+    "exchanges":{
+        "alphapoint":{
+            "apiKey":"",
+            "apiSecret":""
         },
-        "exchanges": {
-       
-    "alphapoint":
-    {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "anx": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "binance": { 
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "bitfinex": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "bitflyer": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "bithumb": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "bitstamp": {
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":""
-    },
-    "bittrex": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "btc markets": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "bitmex": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "coinut": {
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":""
-    },
-    "coinbasepro": {
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":""
-    },
-    "exmo": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "gateio": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "gemini": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "hitbtc": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "huobi": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "huobihadax": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "itbit": {
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":""
-    },
-    "kraken": {
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":""
-    },
-    "lakebtc":{
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "lbank":{
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "localbitcoins": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "okcoin international": {
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":""
-    },
-    "okex": {
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":""
-    },
-   "poloniex": {
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "yobit":{
-        "apiKey":"",
-        "apiSecret":""
-    },
-    "zb": {
-        "apiKey":"",
-        "apiSecret":""
+        "anx":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "binance":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "bitfinex":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "bitflyer":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "bithumb":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "bitstamp":{
+            "apiKey":"",
+            "apiSecret":"",
+            "clientId":""
+        },
+        "bittrex":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "btc markets":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "bitmex":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "coinut":{
+            "apiKey":"",
+            "apiSecret":"",
+            "clientId":""
+        },
+        "coinbasepro":{
+            "apiKey":"",
+            "apiSecret":"",
+            "clientId":""
+        },
+        "exmo":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "gateio":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "gemini":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "hitbtc":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "huobi":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "huobihadax":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "itbit":{
+            "apiKey":"",
+            "apiSecret":"",
+            "clientId":""
+        },
+        "kraken":{
+            "apiKey":"",
+            "apiSecret":"",
+            "clientId":""
+        },
+        "lakebtc":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "lbank":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "localbitcoins":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "okcoin international":{
+            "apiKey":"",
+            "apiSecret":"",
+            "clientId":""
+        },
+        "okex":{
+            "apiKey":"",
+            "apiSecret":"",
+            "clientId":""
+        },
+        "poloniex":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "yobit":{
+            "apiKey":"",
+            "apiSecret":""
+        },
+        "zb":{
+            "apiKey":"",
+            "apiSecret":""
+        }
     }
-}
 }

@@ -248,16 +248,19 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
 			continue
 		}
-		if currencyPairOverride != "" {
+
+		switch {
+		case currencyPairOverride != "":
 			p = currency.NewPairFromString(currencyPairOverride)
-		} else if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0 {
+		case len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0:
 			if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available) == 0 {
 				continue
 			}
 			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available.GetRandomPair()
-		} else {
+		default:
 			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled.GetRandomPair()
 		}
+
 		responseContainer := ExchangeAssetPairResponses{
 			AssetType:    assetTypes[i],
 			CurrencyPair: p,
