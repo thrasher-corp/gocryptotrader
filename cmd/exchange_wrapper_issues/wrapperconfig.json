@@ -1,5 +1,11 @@
 {
-    "walletAddress":"",
+    "withdrawWalletAddress":"",
+    "orderSubmission": {
+        "orderSide":"BUY",
+        "orderType":"LIMIT",
+        "amount":1333333337,
+        "price":1333333337
+    },
     "bankAccount": 
         {
          "bankAccountName": "bankAccountName",
@@ -117,17 +123,23 @@
         "apiKey":"",
         "apiSecret":""
     },
+    "lbank":{
+        "apiKey":"",
+        "apiSecret":""
+    },
     "localbitcoins": {
         "apiKey":"",
         "apiSecret":""
     },
     "okcoin international": {
         "apiKey":"",
-        "apiSecret":""
+        "apiSecret":"",
+        "clientId":""
     },
     "okex": {
         "apiKey":"",
         "apiSecret":""
+        "clientId":""
     },
    "poloniex": {
         "apiKey":"",
