@@ -20,7 +20,7 @@ import (
 )
 
 var orderTypeOverride string
-var output string
+var outputOverride string
 var orderSideOverride string
 var currencyPairOverride string
 var assetTypeOverride string
@@ -28,32 +28,35 @@ var orderPriceOverride float64
 var orderAmountOverride float64
 var withdrawAddressOverride string
 var authenticatedOnly bool
-var exchangesToUse []string
+var verboseOverride bool
+var exchangesToUseOverride string
+var exchangesToExcludeOverride string
+var outputFileName string
+var exchangesToUseList []string
+var exchangesToExcludeList []string
 
 func parseCLFlags() {
-	exchangesFlag := flag.String("exchanges", "", "A + delimited list of exchange names to run tests against eg -exchanges=bitfinex+anx")
-	assetTypeFlag := flag.String("asset", "", "The asset type to run tests against (where applicable)")
-	currencyPairFlag := flag.String("currency", "", "The currency to run tests against (where applicable)")
-	outputFlag := flag.String("output", "HTML", "JSON, HTML or Console")
-	authenticatedOnlyFlag := flag.Bool("authonly", false, "Skip any wrapper function that doesn't require auth")
-	orderSideFlag := flag.String("orderSide", "BUY", "The order type for all order based wrapper tests")
-	orderTypeFlag := flag.String("orderType", "LIMIT", "The order type for all order based wrapper tests")
-	orderAmountFlag := flag.Float64("orderAmount", 0, "The order amount for all order based wrapper tests")
-	orderPriceFlag := flag.Float64("orderPrice", 0, "The order price for all order based wrapper tests")
-	withdrawAddressFlag := flag.String("withdrawWallet", "", "Withdraw wallet address")
+	flag.StringVar(&exchangesToUseOverride, "exchanges", "", "A + delimited list of exchange names to run tests against eg -exchanges=bitfinex+anx")
+	flag.StringVar(&exchangesToExcludeOverride, "exchangesToExclude", "", "A + delimited list of exchange names to ignore when they're being temperamental eg -exchangesToExlude=lbank")
+	flag.StringVar(&assetTypeOverride, "asset", "", "The asset type to run tests against (where applicable)")
+	flag.StringVar(&currencyPairOverride, "currency", "", "The currency to run tests against (where applicable)")
+	flag.StringVar(&outputOverride, "output", "HTML", "JSON, HTML or Console")
+	flag.BoolVar(&authenticatedOnly, "authonly", false, "Skip any wrapper function that doesn't require auth")
+	flag.BoolVar(&verboseOverride, "verbose", false, "Verbose CL output")
+	flag.StringVar(&orderSideOverride, "orderSide", "BUY", "The order type for all order based wrapper tests")
+	flag.StringVar(&orderTypeOverride, "orderType", "LIMIT", "The order type for all order based wrapper tests")
+	flag.Float64Var(&orderAmountOverride, "orderAmount", 0, "The order amount for all order based wrapper tests")
+	flag.Float64Var(&orderPriceOverride, "orderPrice", 0, "The order price for all order based wrapper tests")
+	flag.StringVar(&withdrawAddressOverride, "withdrawWallet", "", "Withdraw wallet address")
+	flag.StringVar(&outputFileName, "outputFileName", "report", "Name of the output file eg 'report'.html or 'report'.json")
 	flag.Parse()
-	if *exchangesFlag != "" {
-		exchangesToUse = strings.Split(*exchangesFlag, "+")
+
+	if exchangesToUseOverride != "" {
+		exchangesToUseList = strings.Split(exchangesToUseOverride, "+")
 	}
-	currencyPairOverride = *currencyPairFlag
-	assetTypeOverride = *assetTypeFlag
-	orderTypeOverride = strings.ToUpper(*orderTypeFlag)
-	orderSideOverride = strings.ToUpper(*orderSideFlag)
-	authenticatedOnly = *authenticatedOnlyFlag
-	output = *outputFlag
-	orderPriceOverride = *orderPriceFlag
-	orderAmountOverride = *orderAmountFlag
-	withdrawAddressOverride = *withdrawAddressFlag
+	if exchangesToExcludeOverride != "" {
+		exchangesToExcludeList = strings.Split(exchangesToExcludeOverride, "+")
+	}
 }
 
 func main() {
@@ -68,7 +71,7 @@ func main() {
 
 	engine.Bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,
-		Verbose:                        false,
+		Verbose:                        verboseOverride,
 	}
 
 	log.Printf("Loading exchanges..")
@@ -76,10 +79,12 @@ func main() {
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
-		err = engine.LoadExchange(name, true, &wg)
-		if err != nil {
-			log.Printf("Failed to load exchange %s. Err: %s", name, err)
-			continue
+		if shouldLoadExchange(name) {
+			err = engine.LoadExchange(name, true, &wg)
+			if err != nil {
+				log.Printf("Failed to load exchange %s. Err: %s", name, err)
+				continue
+			}
 		}
 	}
 	wg.Wait()
@@ -87,7 +92,6 @@ func main() {
 	log.Println("Done.")
 	log.Printf("Testing exchange wrappers..")
 
-	wg = sync.WaitGroup{}
 	var exchangeResponses []ExchangeResponses
 	log.Printf("Loading config...")
 	config, err := loadConfig()
@@ -112,26 +116,15 @@ func main() {
 	}
 
 	for x := range engine.Bot.Exchanges {
-		if len(exchangesToUse) > 0 {
-			var found bool
-			for i := range exchangesToUse {
-				if strings.EqualFold(engine.Bot.Exchanges[x].GetName(), exchangesToUse[i]) {
-					found = true
-				}
-			}
-			if !found {
-				continue
-			}
-		}
 		base := engine.Bot.Exchanges[x].GetBase()
 		if !base.Config.Enabled {
 			log.Printf("Exchange %v not enabled, skipping", base.GetName())
 			continue
 		}
-		base.Config.Verbose = false
-		base.Config.HTTPDebugging = false
-		base.Verbose = false
+		base.Config.Verbose = verboseOverride
+		base.Verbose = verboseOverride
 		base.HTTPDebugging = false
+		base.Config.HTTPDebugging = false
 		wg.Add(1)
 
 		go func(num int) {
@@ -159,15 +152,41 @@ func main() {
 		return exchangeResponses[i].ExchangeName < exchangeResponses[j].ExchangeName
 	})
 
-	if strings.EqualFold(output, "Console") {
+	if strings.EqualFold(outputOverride, "Console") {
 		outputToConsole(exchangeResponses)
 	}
-	if strings.EqualFold(output, "JSON") {
+	if strings.EqualFold(outputOverride, "JSON") {
 		outputToJSON(exchangeResponses)
 	}
-	if strings.EqualFold(output, "HTML") {
+	if strings.EqualFold(outputOverride, "HTML") {
 		outputToHTML(exchangeResponses)
 	}
+}
+
+func shouldLoadExchange(name string) bool {
+	shouldLoadExchange := true
+	if len(exchangesToUseList) > 0 {
+		var found bool
+		for i := range exchangesToUseList {
+			if strings.EqualFold(name, exchangesToUseList[i]) {
+				found = true
+			}
+		}
+		if !found {
+			shouldLoadExchange = false
+		}
+	}
+
+	if len(exchangesToExcludeList) > 0 {
+		for i := range exchangesToExcludeList {
+			if strings.EqualFold(name, exchangesToExcludeList[i]) {
+				if shouldLoadExchange {
+					shouldLoadExchange = false
+				}
+			}
+		}
+	}
+	return shouldLoadExchange
 }
 
 func setExchangeAPIKeys(name string, keys map[string]Key, base *exchange.Base) bool {
@@ -690,8 +709,8 @@ func outputToJSON(exchangeResponses []ExchangeResponses) {
 		return
 	}
 
-	log.Printf("Outputting to: %v", dir+"\\output.json")
-	err = common.WriteFile(filepath.Join(dir, "output.json"), json)
+	log.Printf("Outputting to: %v", filepath.Join(dir, fmt.Sprintf("%v.json", outputFileName)))
+	err = common.WriteFile(filepath.Join(dir, fmt.Sprintf("%v.json", outputFileName)), json)
 	if err != nil {
 		log.Printf("Encountered error writing to disk: %v", err)
 		return
@@ -706,14 +725,14 @@ func outputToHTML(exchangeResponses []ExchangeResponses) {
 		return
 	}
 
-	fileName := "report.html"
 	tmpl, err := template.New("report.tmpl").ParseFiles(filepath.Join(dir, "report.tmpl"))
 	if err != nil {
 		log.Print(err)
 		return
 	}
 
-	file, err := os.Create(filepath.Join(dir, fileName))
+	log.Printf("Outputting to: %v", filepath.Join(dir, fmt.Sprintf("%v.html", outputFileName)))
+	file, err := os.Create(filepath.Join(dir, fmt.Sprintf("%v.html", outputFileName)))
 	if err != nil {
 		log.Print(err)
 		return
