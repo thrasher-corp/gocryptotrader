@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -2363,7 +2364,7 @@ func disableExchangePair(c *cli.Context) error {
 var getOrderbookStreamCommand = cli.Command{
 	Name:      "getorderbookstream",
 	Usage:     "gets the orderbook stream for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <base> <quote> <asset>",
+	ArgsUsage: "<exchange> <currencyPair> <asset>",
 	Action:    getOrderbookStream,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2444,10 +2445,7 @@ func getOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		clear := exec.Command("clear")
-		clear.Stdout = os.Stdout
-
-		err = clear.Run()
+		err = clearScreen()
 		if err != nil {
 			return err
 		}
@@ -2542,10 +2540,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		clear := exec.Command("clear")
-		clear.Stdout = os.Stdout
-
-		err = clear.Run()
+		err = clearScreen()
 		if err != nil {
 			return err
 		}
@@ -2559,12 +2554,12 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 var getTickerStreamCommand = cli.Command{
 	Name:      "gettickerstream",
 	Usage:     "gets the ticker stream for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <base> <quote> <asset>",
+	ArgsUsage: "<exchange> <currencyPair> <asset>",
 	Action:    getTickerStream,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange",
-			Usage: "the exchange to get the orderbook from",
+			Usage: "the exchange to get the ticker from",
 		},
 		cli.StringFlag{
 			Name:  "pair",
@@ -2640,10 +2635,7 @@ func getTickerStream(c *cli.Context) error {
 			return err
 		}
 
-		clear := exec.Command("clear")
-		clear.Stdout = os.Stdout
-
-		err = clear.Run()
+		err = clearScreen()
 		if err != nil {
 			return err
 		}
@@ -2726,5 +2718,18 @@ func getExchangeTickerStream(c *cli.Context) error {
 			resp.Volume,
 			resp.PriceAth,
 			resp.LastUpdated)
+	}
+}
+
+func clearScreen() error {
+	switch runtime.GOOS {
+	case "windows":
+		cmd := exec.Command("cmd", "/c", "cls")
+		cmd.Stdout = os.Stdout
+		return cmd.Run()
+	default:
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		return cmd.Run()
 	}
 }
