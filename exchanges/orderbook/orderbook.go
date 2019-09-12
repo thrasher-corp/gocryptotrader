@@ -10,7 +10,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 )
 
 // const values for orderbook package

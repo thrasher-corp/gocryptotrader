@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
