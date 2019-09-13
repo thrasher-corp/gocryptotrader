@@ -1213,7 +1213,7 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 			answered = true
 		case "d":
 			c.NTPClient.Level = -1
-			resp = "Future notifications for out time sync have been disabled"
+			resp = "Future notifications for out of time sync has been disabled"
 			answered = true
 		default:
 			log.Warn("Invalid option selected, please try again (a)lert / (w)arn / (d)isable")
