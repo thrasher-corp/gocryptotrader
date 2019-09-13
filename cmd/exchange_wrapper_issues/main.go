@@ -20,46 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var orderTypeOverride string
-var outputOverride string
-var orderSideOverride string
-var currencyPairOverride string
-var assetTypeOverride string
-var orderPriceOverride float64
-var orderAmountOverride float64
-var withdrawAddressOverride string
-var authenticatedOnly bool
-var verboseOverride bool
-var exchangesToUseOverride string
-var exchangesToExcludeOverride string
-var outputFileName string
-var exchangesToUseList []string
-var exchangesToExcludeList []string
-
-func parseCLFlags() {
-	flag.StringVar(&exchangesToUseOverride, "exchanges", "", "A + delimited list of exchange names to run tests against eg -exchanges=bitfinex+anx")
-	flag.StringVar(&exchangesToExcludeOverride, "exchangesToExclude", "", "A + delimited list of exchange names to ignore when they're being temperamental eg -exchangesToExlude=lbank")
-	flag.StringVar(&assetTypeOverride, "asset", "", "The asset type to run tests against (where applicable)")
-	flag.StringVar(&currencyPairOverride, "currency", "", "The currency to run tests against (where applicable)")
-	flag.StringVar(&outputOverride, "output", "HTML", "JSON, HTML or Console")
-	flag.BoolVar(&authenticatedOnly, "authonly", false, "Skip any wrapper function that doesn't require auth")
-	flag.BoolVar(&verboseOverride, "verbose", false, "Verbose CL output")
-	flag.StringVar(&orderSideOverride, "orderSide", "BUY", "The order type for all order based wrapper tests")
-	flag.StringVar(&orderTypeOverride, "orderType", "LIMIT", "The order type for all order based wrapper tests")
-	flag.Float64Var(&orderAmountOverride, "orderAmount", 0, "The order amount for all order based wrapper tests")
-	flag.Float64Var(&orderPriceOverride, "orderPrice", 0, "The order price for all order based wrapper tests")
-	flag.StringVar(&withdrawAddressOverride, "withdrawWallet", "", "Withdraw wallet address")
-	flag.StringVar(&outputFileName, "outputFileName", "report", "Name of the output file eg 'report'.html or 'report'.json")
-	flag.Parse()
-
-	if exchangesToUseOverride != "" {
-		exchangesToUseList = strings.Split(exchangesToUseOverride, "+")
-	}
-	if exchangesToExcludeOverride != "" {
-		exchangesToExcludeList = strings.Split(exchangesToExcludeOverride, "+")
-	}
-}
-
 func main() {
 	log.Printf("Loading flags..")
 	parseCLFlags()
@@ -89,11 +49,8 @@ func main() {
 		}
 	}
 	wg.Wait()
-
 	log.Println("Done.")
-	log.Printf("Testing exchange wrappers..")
 
-	var exchangeResponses []ExchangeResponses
 	log.Printf("Loading config...")
 	config, err := loadConfig()
 	if err != nil {
@@ -115,6 +72,9 @@ func main() {
 	if orderAmountOverride > 0 {
 		config.OrderSubmission.Amount = orderAmountOverride
 	}
+
+	log.Printf("Testing exchange wrappers..")
+	var exchangeResponses []ExchangeResponses
 
 	for x := range engine.Bot.Exchanges {
 		base := engine.Bot.Exchanges[x].GetBase()
@@ -161,6 +121,30 @@ func main() {
 	}
 	if strings.EqualFold(outputOverride, "HTML") {
 		outputToHTML(exchangeResponses)
+	}
+}
+
+func parseCLFlags() {
+	flag.StringVar(&exchangesToUseOverride, "exchanges", "", "a + delimited list of exchange names to run tests against eg -exchanges=bitfinex+anx")
+	flag.StringVar(&exchangesToExcludeOverride, "excluded-exchanges", "", "a + delimited list of exchange names to ignore when they're being temperamental eg -exchangesToExlude=lbank")
+	flag.StringVar(&assetTypeOverride, "asset", "", "the asset type to run tests against (where applicable)")
+	flag.StringVar(&currencyPairOverride, "currency", "", "the currency to run tests against (where applicable)")
+	flag.StringVar(&outputOverride, "output", "HTML", "JSON, HTML or Console")
+	flag.BoolVar(&authenticatedOnly, "auth-only", false, "skip any wrapper function that doesn't require auth")
+	flag.BoolVar(&verboseOverride, "verbose", false, "verbose CL output")
+	flag.StringVar(&orderSideOverride, "orderside", "BUY", "the order type for all order based wrapper tests")
+	flag.StringVar(&orderTypeOverride, "ordertype", "LIMIT", "the order type for all order based wrapper tests")
+	flag.Float64Var(&orderAmountOverride, "orderamount", 0, "the order amount for all order based wrapper tests")
+	flag.Float64Var(&orderPriceOverride, "orderprice", 0, "the order price for all order based wrapper tests")
+	flag.StringVar(&withdrawAddressOverride, "withdraw-wallet", "", "withdraw wallet address")
+	flag.StringVar(&outputFileName, "filename", "report", "name of the output file eg 'report'.html or 'report'.json")
+	flag.Parse()
+
+	if exchangesToUseOverride != "" {
+		exchangesToUseList = strings.Split(exchangesToUseOverride, "+")
+	}
+	if exchangesToExcludeOverride != "" {
+		exchangesToExcludeList = strings.Split(exchangesToExcludeOverride, "+")
 	}
 }
 
@@ -769,73 +753,4 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 		}
 		log.Println()
 	}
-}
-
-type Config struct {
-	OrderSubmission OrderSubmission `json:"orderSubmission"`
-	WalletAddress   string          `json:"withdrawWalletAddress"`
-	BankDetails     Bank            `json:"bankAccount"`
-	APIKEys         map[string]Key  `json:"exchanges"`
-}
-
-type OrderSubmission struct {
-	OrderSide string  `json:"orderSide"`
-	OrderType string  `json:"orderType"`
-	Amount    float64 `json:"amount"`
-	Price     float64 `json:"price"`
-	OrderID   string  `json:"orderID"`
-}
-
-type Key struct {
-	APIKey    string `json:"apiKey"`
-	APISecret string `json:"apiSecret"`
-	ClientID  string `json:"clientId"`
-}
-
-type ExchangeResponses struct {
-	ID                 string
-	ExchangeName       string                       `json:"exchangeName"`
-	AssetPairResponses []ExchangeAssetPairResponses `json:"responses"`
-	ErrorCount         int64                        `json:"errorCount"`
-	APIKeysSet         bool                         `json:"apiKeysSet"`
-}
-
-type ExchangeAssetPairResponses struct {
-	ErrorCount        int64              `json:"errorCount"`
-	AssetType         asset.Item         `json:"asset"`
-	CurrencyPair      currency.Pair      `json:"currency"`
-	EndpointResponses []EndpointResponse `json:"responses"`
-}
-
-type EndpointResponse struct {
-	Function   string          `json:"function"`
-	Error      string          `json:"error"`
-	Response   interface{}     `json:"response"`
-	SentParams json.RawMessage `json:"sentParams"`
-}
-
-type Bank struct {
-	BankAccountName               string  `json:"bankAccountName"`
-	BankAccountNumber             float64 `json:"bankAccountNumber"`
-	BankAddress                   string  `json:"bankAddress"`
-	BankCity                      string  `json:"bankCity"`
-	BankCountry                   string  `json:"bankCountry"`
-	BankName                      string  `json:"bankName"`
-	BankPostalCode                string  `json:"bankPostalCode"`
-	Iban                          string  `json:"iban"`
-	IntermediaryBankAccountName   string  `json:"intermediaryBankAccountName"`
-	IntermediaryBankAccountNumber float64 `json:"intermediaryBankAccountNumber"`
-	IntermediaryBankAddress       string  `json:"intermediaryBankAddress"`
-	IntermediaryBankCity          string  `json:"intermediaryBankCity"`
-	IntermediaryBankCountry       string  `json:"intermediaryBankCountry"`
-	IntermediaryBankName          string  `json:"intermediaryBankName"`
-	IntermediaryBankPostalCode    string  `json:"intermediaryBankPostalCode"`
-	IntermediaryIban              string  `json:"intermediaryIban"`
-	IntermediaryIsExpressWire     bool    `json:"intermediaryIsExpressWire"`
-	IntermediarySwiftCode         string  `json:"intermediarySwiftCode"`
-	IsExpressWire                 bool    `json:"isExpressWire"`
-	RequiresIntermediaryBank      bool    `json:"requiresIntermediaryBank"`
-	SwiftCode                     string  `json:"swiftCode"`
-	BankCode                      float64 `json:"bankCode"`
-	IntermediaryBankCode          float64 `json:"intermediaryBankCode"`
 }
