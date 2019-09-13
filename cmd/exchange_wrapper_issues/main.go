@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -675,9 +676,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	return response
 }
 
-func jsonifyInterface(params []interface{}) string {
-	response, _ := common.JSONEncode(params)
-	return string(response)
+func jsonifyInterface(params []interface{}) json.RawMessage {
+	response, _ := json.MarshalIndent(params, "", " ")
+	return response
 }
 
 func loadConfig() (Config, error) {
@@ -697,7 +698,7 @@ func loadConfig() (Config, error) {
 
 func outputToJSON(exchangeResponses []ExchangeResponses) {
 	log.Println("JSONifying results...")
-	json, err := common.JSONEncode(exchangeResponses)
+	jsonOutput, err := json.MarshalIndent(exchangeResponses, "", " ")
 	if err != nil {
 		log.Fatalf("Encountered error encoding JSON: %v", err)
 		return
@@ -710,7 +711,7 @@ func outputToJSON(exchangeResponses []ExchangeResponses) {
 	}
 
 	log.Printf("Outputting to: %v", filepath.Join(dir, fmt.Sprintf("%v.json", outputFileName)))
-	err = common.WriteFile(filepath.Join(dir, fmt.Sprintf("%v.json", outputFileName)), json)
+	err = common.WriteFile(filepath.Join(dir, fmt.Sprintf("%v.json", outputFileName)), jsonOutput)
 	if err != nil {
 		log.Printf("Encountered error writing to disk: %v", err)
 		return
@@ -807,10 +808,10 @@ type ExchangeAssetPairResponses struct {
 }
 
 type EndpointResponse struct {
-	Function   string      `json:"function"`
-	Error      string      `json:"error"`
-	Response   interface{} `json:"response"`
-	SentParams string      `json:"sentParams"`
+	Function   string          `json:"function"`
+	Error      string          `json:"error"`
+	Response   interface{}     `json:"response"`
+	SentParams json.RawMessage `json:"sentParams"`
 }
 
 type Bank struct {
