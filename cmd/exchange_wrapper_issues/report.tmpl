@@ -114,7 +114,7 @@
                         <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
                             class="collapse">
                             <div class="card card-body" style="word-wrap:anywhere">
-                                {{ $endpointResponse.SentParams }}
+                                {{ $endpointResponse.SentParams  | printf "%s" }}
                             </div>
                         </div>
                     </td>
@@ -130,7 +130,7 @@
                         <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
                             class="collapse">
                             <div class="card card-body" style="word-wrap:anywhere">
-                                {{ $endpointResponse.Response }}
+                                {{ $endpointResponse.Response  | printf "%s" }}
                             </div>
                         </div>
                     </td>
