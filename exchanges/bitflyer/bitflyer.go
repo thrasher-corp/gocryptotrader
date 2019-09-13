@@ -397,7 +397,7 @@ func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
 // if you have access and update the authenticated requests
 // TODO: Fill out this function once API access is obtained
 func (b *Bitflyer) SendAuthHTTPRequest() {
-	// headers := make(map[string]string)
+	// nolint: gocritic headers := make(map[string]string)
 	// headers["ACCESS-KEY"] = b.APIKey
 	// headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
 }

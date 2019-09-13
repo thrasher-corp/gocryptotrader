@@ -44,14 +44,14 @@ func TestUpdateBaseCurrency(t *testing.T) {
 	}
 
 	if GetBaseCurrency() != AUD {
-		t.Errorf("Test failed - GetBaseCurrency() expected %s but recieved %s",
+		t.Errorf("Test failed - GetBaseCurrency() expected %s but received %s",
 			AUD, GetBaseCurrency())
 	}
 }
 
 func TestGetDefaultBaseCurrency(t *testing.T) {
 	if GetDefaultBaseCurrency() != USD {
-		t.Errorf("Test failed - GetDefaultBaseCurrency() expected %s but recieved %s",
+		t.Errorf("Test failed - GetDefaultBaseCurrency() expected %s but received %s",
 			USD, GetDefaultBaseCurrency())
 	}
 }
@@ -59,7 +59,7 @@ func TestGetDefaultBaseCurrency(t *testing.T) {
 func TestGetDefaulCryptoCurrencies(t *testing.T) {
 	expected := Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR}
 	if !GetDefaultCryptocurrencies().Match(expected) {
-		t.Errorf("Test failed - GetDefaultCryptocurrencies() expected %s but recieved %s",
+		t.Errorf("Test failed - GetDefaultCryptocurrencies() expected %s but received %s",
 			expected, GetDefaultCryptocurrencies())
 	}
 }
@@ -67,7 +67,7 @@ func TestGetDefaulCryptoCurrencies(t *testing.T) {
 func TestGetDefaultFiatCurrencies(t *testing.T) {
 	expected := Currencies{USD, AUD, EUR, CNY}
 	if !GetDefaultFiatCurrencies().Match(expected) {
-		t.Errorf("Test failed - GetDefaultFiatCurrencies() expected %s but recieved %s",
+		t.Errorf("Test failed - GetDefaultFiatCurrencies() expected %s but received %s",
 			expected, GetDefaultFiatCurrencies())
 	}
 }

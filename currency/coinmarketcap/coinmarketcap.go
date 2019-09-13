@@ -154,28 +154,28 @@ func (c *Coinmarketcap) GetCryptocurrencyIDMap() ([]CryptoCurrencyMap, error) {
 // GetCryptocurrencyHistoricalListings returns a paginated list of all
 // cryptocurrencies with market data for a given historical time.
 func (c *Coinmarketcap) GetCryptocurrencyHistoricalListings() ([]CryptocurrencyHistoricalListings, error) {
-	return nil, errors.New("this endpoint is not yet available")
+	return nil, common.ErrNotYetImplemented
 	// NOTE unreachable code but will be utilised at a later date
 	// resp := struct {
 	// 	Data   []CryptocurrencyHistoricalListings `json:"data"`
 	// 	Status Status                             `json:"status"`
 	// }{}
 
-	// err := c.CheckAccountPlan(0)
+	// nolint: gocritic err := c.CheckAccountPlan(0)
 	// if err != nil {
 	// 	return resp.Data, err
 	// }
 
-	// err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyHistoricalListings, nil, &resp)
+	// nolint: gocritic err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyHistoricalListings, nil, &resp)
 	// if err != nil {
 	// 	return resp.Data, err
 	// }
 
-	//nolint:gocritic if resp.Status.ErrorCode != 0 {
+	// nolint: gocritic nolint:gocritic if resp.Status.ErrorCode != 0 {
 	// 	return resp.Data, errors.New(resp.Status.ErrorMessage)
 	// }
 
-	//nolint:gocritic return resp.Data, nil
+	// nolint: gocritic nolint:gocritic return resp.Data, nil
 }
 
 // GetCryptocurrencyLatestListing returns a paginated list of all
