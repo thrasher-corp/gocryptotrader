@@ -35,4 +35,7 @@ var (
 
 	// SupportedDrivers slice of supported database driver types
 	SupportedDrivers = []string{"sqlite", "postgres"}
+
+	// DefaultSQLiteDatabase is the default sqlite database name to use
+	DefaultSQLiteDatabase = "gocryptotrader.db"
 )

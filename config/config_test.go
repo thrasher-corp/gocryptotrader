@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/ntpclient"
@@ -1538,6 +1540,24 @@ func TestSaveConfig(t *testing.T) {
 	}
 }
 
+func TestCheckConnectionMonitorConfig(t *testing.T) {
+	t.Parallel()
+
+	var c Config
+	c.ConnectionMonitor.CheckInterval = 0
+	c.ConnectionMonitor.DNSList = nil
+	c.ConnectionMonitor.PublicDomainList = nil
+	c.CheckConnectionMonitorConfig()
+
+	if c.ConnectionMonitor.CheckInterval != connchecker.DefaultCheckInterval ||
+		len(common.StringSliceDifference(
+			c.ConnectionMonitor.DNSList, connchecker.DefaultDNSList)) != 0 ||
+		len(common.StringSliceDifference(
+			c.ConnectionMonitor.PublicDomainList, connchecker.DefaultDomainList)) != 0 {
+		t.Error("unexpected values")
+	}
+}
+
 func TestGetFilePath(t *testing.T) {
 	expected := "blah.json"
 	result, _ := GetFilePath("blah.json")
@@ -1551,6 +1571,44 @@ func TestGetFilePath(t *testing.T) {
 		t.Errorf("Test failed. TestGetFilePath: expected %s got %s", expected, result)
 	}
 	testBypass = true
+}
+
+func TestCheckRemoteControlConfig(t *testing.T) {
+	t.Parallel()
+
+	var c Config
+	c.Webserver = &WebserverConfig{
+		Enabled:                      true,
+		AdminUsername:                "satoshi",
+		AdminPassword:                "ultrasecurepassword",
+		ListenAddress:                ":9050",
+		WebsocketConnectionLimit:     5,
+		WebsocketMaxAuthFailures:     10,
+		WebsocketAllowInsecureOrigin: true,
+	}
+
+	c.CheckRemoteControlConfig()
+
+	if c.RemoteControl.Username != "satoshi" ||
+		c.RemoteControl.Password != "ultrasecurepassword" ||
+		!c.RemoteControl.GRPC.Enabled ||
+		c.RemoteControl.GRPC.ListenAddress != "localhost:9052" ||
+		!c.RemoteControl.GRPC.GRPCProxyEnabled ||
+		c.RemoteControl.GRPC.GRPCProxyListenAddress != "localhost:9053" ||
+		!c.RemoteControl.DeprecatedRPC.Enabled ||
+		c.RemoteControl.DeprecatedRPC.ListenAddress != "localhost:9050" ||
+		!c.RemoteControl.WebsocketRPC.Enabled ||
+		c.RemoteControl.WebsocketRPC.ListenAddress != "localhost:9051" ||
+		!c.RemoteControl.WebsocketRPC.AllowInsecureOrigin ||
+		c.RemoteControl.WebsocketRPC.ConnectionLimit != 5 ||
+		c.RemoteControl.WebsocketRPC.MaxAuthFailures != 10 {
+		t.Error("unexpected results")
+	}
+
+	// Now test to ensure the previous settings are flushed
+	if c.Webserver != nil {
+		t.Error("old webserver settings should be nil")
+	}
 }
 
 func TestCheckConfig(t *testing.T) {
@@ -1596,7 +1654,6 @@ func TestUpdateConfig(t *testing.T) {
 
 func BenchmarkUpdateConfig(b *testing.B) {
 	var c Config
-
 	err := c.LoadConfig(ConfigTestFile)
 	if err != nil {
 		b.Errorf("Unable to benchmark UpdateConfig(): %s", err)
@@ -1609,16 +1666,34 @@ func BenchmarkUpdateConfig(b *testing.B) {
 }
 
 func TestCheckLoggerConfig(t *testing.T) {
-	c := GetConfig()
-	err := c.LoadConfig(ConfigTestFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Parallel()
+
+	var c Config
 	c.Logging = log.Config{}
+	err := c.CheckLoggerConfig()
+	if err != nil {
+		t.Errorf("Failed to create default logger. Error: %s", err)
+	}
+
+	if !*c.Logging.Enabled {
+		t.Error("unexpected result")
+	}
+
+	c.Logging.LoggerFileConfig.FileName = ""
+	c.Logging.LoggerFileConfig.Rotate = nil
+	c.Logging.LoggerFileConfig.MaxSize = -1
+
 	err = c.CheckLoggerConfig()
 	if err != nil {
-		t.Errorf("Failed to create default logger reason: %v", err)
+		t.Error(err)
 	}
+
+	if c.Logging.LoggerFileConfig.FileName != "log.txt" ||
+		c.Logging.LoggerFileConfig.Rotate == nil ||
+		c.Logging.LoggerFileConfig.MaxSize != 100 {
+		t.Error("unexpected result")
+	}
+
 	c.LoadConfig(ConfigTestFile)
 	err = c.CheckLoggerConfig()
 	if err != nil {
@@ -1627,6 +1702,8 @@ func TestCheckLoggerConfig(t *testing.T) {
 }
 
 func TestDisableNTPCheck(t *testing.T) {
+	t.Parallel()
+
 	c := GetConfig()
 	err := c.LoadConfig(ConfigTestFile)
 	if err != nil {
@@ -1654,6 +1731,33 @@ func TestDisableNTPCheck(t *testing.T) {
 	_, err = c.DisableNTPCheck(strings.NewReader(" "))
 	if err.Error() != "EOF" {
 		t.Errorf("failed expected EOF got: %v", err)
+	}
+}
+
+func TestCheckDatabaseConfig(t *testing.T) {
+	t.Parallel()
+
+	var c Config
+	if err := c.checkDatabaseConfig(); err != nil {
+		t.Error(err)
+	}
+
+	if c.Database.Driver != "sqlite" ||
+		c.Database.Database != database.DefaultSQLiteDatabase ||
+		c.Database.Enabled {
+		t.Error("unexpected results")
+	}
+
+	c.Database.Enabled = true
+	c.Database.Driver = "mssqlisthebest"
+	if err := c.checkDatabaseConfig(); err == nil {
+		t.Error("unexpected result")
+	}
+
+	c.Database.Driver = "sqlite"
+	c.Database.Enabled = true
+	if err := c.checkDatabaseConfig(); err != nil {
+		t.Error(err)
 	}
 }
 

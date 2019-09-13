@@ -60,7 +60,16 @@ func (a *databaseManager) Start() (err error) {
 			audit.Audit = auditSQLite.Audit()
 		}
 		dbConn.Connected = true
-		log.Debugf(log.DatabaseMgr, "Database connection established to host: %v using %v driver\n", dbConn.Config.Host, dbConn.Config.Driver)
+
+		if Bot.Config.Database.Driver == "postgres" {
+			log.Debugf(log.DatabaseMgr,
+				"Database connection established to host: %s. Using postgres driver\n",
+				dbConn.Config.Host)
+		} else {
+			log.Debugf(log.DatabaseMgr,
+				"Database connection established to file database: %s. Using sqlite driver\n",
+				dbConn.Config.Database)
+		}
 
 		mLogger := mg.MLogger{}
 		migrations := mg.Migrator{

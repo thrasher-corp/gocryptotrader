@@ -1324,6 +1324,11 @@ func (c *Config) checkDatabaseConfig() error {
 	m.Lock()
 	defer m.Unlock()
 
+	if (c.Database == database.Config{}) {
+		c.Database.Driver = "sqlite"
+		c.Database.Database = database.DefaultSQLiteDatabase
+	}
+
 	if !c.Database.Enabled {
 		return nil
 	}
