@@ -176,7 +176,7 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 		return 0, err
 	}
 	if result.Code != 1000 {
-		return 0, fmt.Errorf("unsucessful new order, message: %s code: %d", result.Message, result.Code)
+		return 0, fmt.Errorf("unsuccessful new order, message: %s code: %d", result.Message, result.Code)
 	}
 	newOrderID, err := strconv.ParseInt(result.ID, 10, 64)
 	if err != nil {

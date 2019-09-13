@@ -577,6 +577,6 @@ func TestSetup(t *testing.T) {
 	w := WebsocketOrderbookLocal{}
 	w.Setup(1, true, true, true, true, "hi")
 	if w.obBufferLimit != 1 || !w.bufferEnabled || !w.sortBuffer || !w.sortBufferByUpdateIDs || !w.updateEntriesByID || w.exchangeName != "hi" {
-		t.Errorf("Setup incorrectly loaded %v", w)
+		t.Errorf("Setup incorrectly loaded %s", w.exchangeName)
 	}
 }
