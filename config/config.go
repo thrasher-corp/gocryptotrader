@@ -1374,33 +1374,37 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	log.Warnln(log.ConfigMgr, "Your system time is out of sync, this may cause issues with trading.")
-	log.Warnln(log.ConfigMgr, "How would you like to show future notifications? (a)lert / (w)arn / (d)isable.")
+	log.Warnln(log.ConfigMgr, "Your system time is out of sync, this may cause issues with trading")
+	log.Warnln(log.ConfigMgr, "How would you like to show future notifications? (a)lert / (w)arn / (d)isable")
 
-	var answered = false
-	for ok := true; ok; ok = (!answered) {
+	var resp string
+	answered := false
+	for !answered {
 		answer, err := reader.ReadString('\n')
 		if err != nil {
-			return "", err
+			return resp, err
 		}
 
 		answer = strings.TrimRight(answer, "\r\n")
 		switch answer {
 		case "a":
 			c.NTPClient.Level = 0
+			resp = "Time sync has been set to alert"
 			answered = true
-			return "Time sync has been set to alert", nil
 		case "w":
 			c.NTPClient.Level = 1
+			resp = "Time sync has been set to warn only"
 			answered = true
-			return "Time sync has been set to warn only", nil
 		case "d":
 			c.NTPClient.Level = -1
+			resp = "Future notifications for out of time sync has been disabled"
 			answered = true
-			return "Future notications for out time sync have been disabled", nil
+		default:
+			log.Warnln(log.ConfigMgr,
+				"Invalid option selected, please try again (a)lert / (w)arn / (d)isable")
 		}
 	}
-	return "", errors.New("something went wrong, NTPCheck should never make it this far")
+	return resp, nil
 }
 
 // CheckConnectionMonitorConfig checks and if zero value assigns default values

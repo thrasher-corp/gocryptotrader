@@ -1,7 +1,6 @@
 package bitflyer
 
 import (
-	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -248,26 +247,13 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (order
 // GetAccountInfo retrieves balances for all enabled currencies on the
 // Bitflyer exchange
 func (b *Bitflyer) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	response.Exchange = b.GetName()
-	// accountBalance, err := b.GetAccountBalance()
-	// if err != nil {
-	// 	return response, err
-	// }
-	if !b.Enabled {
-		return response, errors.New("exchange not enabled")
-	}
-
-	// implement once authenticated requests are introduced
-
-	return response, nil
+	return exchange.AccountInfo{}, common.ErrNotYetImplemented
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

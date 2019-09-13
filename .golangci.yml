@@ -4,7 +4,7 @@ run:
   tests: true
   skip-dirs:
     - vendor
-    - web
+    - web/
     - testdata
 
 linters:
@@ -21,14 +21,13 @@ linters:
     - ineffassign
 #   - deadcode
     - typecheck
-    - goimports
-    - govet
 
 # disabled by default linters
+#   - bodyclose
     - golint
     - stylecheck
     - gosec
-#    - interfacer
+#   - interfacer
     - unconvert
 #   - dupl
     - goconst
@@ -46,6 +45,7 @@ linters:
     - gocritic
 #   - gochecknoinits
 #   - gochecknoglobals
+#   - funlen
 
 linters-settings:
   govet:
@@ -67,6 +67,7 @@ linters-settings:
       - wrapperFunc
       - importShadow
       - methodExprCall
+      - evalOrder
 
 issues:
   max-issues-per-linter: 0
