@@ -1,154 +1,174 @@
 {
-    "withdrawWalletAddress":"",
-    "orderSubmission":{
-        "orderSide":"BUY",
-        "orderType":"LIMIT",
-        "amount":1333333337,
-        "price":1333333337
-    },
-    "bankAccount":{
-        "bankAccountName":"bankAccountName",
-        "bankAccountNumber":1337,
-        "bankName":"bankName",
-        "bankAddress":"bankAddress",
-        "bankCity":"bankCity",
-        "bankCountry":"bankCountry",
-        "bankPostalCode":"bankPostalCode",
-        "swiftCode":"swiftCode",
-        "bankCode":1337,
-        "iban":"iban",
-        "isExpressWire":false,
-        "requiresIntermediaryBank":false,
-        "intermediaryBankAccountName":"intermediaryBankAccountName",
-        "intermediaryBankAccountNumber":1337,
-        "intermediaryBankName":"intermediaryBankName",
-        "intermediaryBankAddress":"intermediaryBankAddress",
-        "intermediaryBankCity":"intermediaryBankCity",
-        "intermediaryBankCountry":"intermediaryBankCountry",
-        "intermediaryBankPostalCode":"intermediaryBankPostalCode",
-        "intermediaryBankCode":1337,
-        "intermediarySwiftCode":"intermediarySwiftCode",
-        "intermediaryIban":"intermediaryIban"
-    },
-    "exchanges":{
-        "alphapoint":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "anx":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "binance":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "bitfinex":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "bitflyer":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "bithumb":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "bitstamp":{
-            "apiKey":"",
-            "apiSecret":"",
-            "clientId":""
-        },
-        "bittrex":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "btc markets":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "bitmex":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "coinut":{
-            "apiKey":"",
-            "apiSecret":"",
-            "clientId":""
-        },
-        "coinbasepro":{
-            "apiKey":"",
-            "apiSecret":"",
-            "clientId":""
-        },
-        "exmo":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "gateio":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "gemini":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "hitbtc":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "huobi":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "huobihadax":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "itbit":{
-            "apiKey":"",
-            "apiSecret":"",
-            "clientId":""
-        },
-        "kraken":{
-            "apiKey":"",
-            "apiSecret":"",
-            "clientId":""
-        },
-        "lakebtc":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "lbank":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "localbitcoins":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "okcoin international":{
-            "apiKey":"",
-            "apiSecret":"",
-            "clientId":""
-        },
-        "okex":{
-            "apiKey":"",
-            "apiSecret":"",
-            "clientId":""
-        },
-        "poloniex":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "yobit":{
-            "apiKey":"",
-            "apiSecret":""
-        },
-        "zb":{
-            "apiKey":"",
-            "apiSecret":""
-        }
-    }
+ "orderSubmission": {
+  "orderSide": "BUY",
+  "orderType": "LIMIT",
+  "amount": 1333333337,
+  "price": 1333333337,
+  "orderID": ""
+ },
+ "withdrawWalletAddress": "",
+ "bankAccount": {
+  "bankAccountName": "bankAccountName",
+  "bankAccountNumber": 1337,
+  "bankAddress": "bankAddress",
+  "bankCity": "bankCity",
+  "bankCountry": "bankCountry",
+  "bankName": "bankName",
+  "bankPostalCode": "bankPostalCode",
+  "iban": "iban",
+  "intermediaryBankAccountName": "intermediaryBankAccountName",
+  "intermediaryBankAccountNumber": 1337,
+  "intermediaryBankAddress": "intermediaryBankAddress",
+  "intermediaryBankCity": "intermediaryBankCity",
+  "intermediaryBankCountry": "intermediaryBankCountry",
+  "intermediaryBankName": "intermediaryBankName",
+  "intermediaryBankPostalCode": "intermediaryBankPostalCode",
+  "intermediaryIban": "intermediaryIban",
+  "intermediaryIsExpressWire": false,
+  "intermediarySwiftCode": "intermediarySwiftCode",
+  "isExpressWire": false,
+  "requiresIntermediaryBank": false,
+  "swiftCode": "swiftCode",
+  "bankCode": 1337,
+  "intermediaryBankCode": 1337
+ },
+ "exchanges": {
+  "alphapoint": {},
+  "anx": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "binance": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "bitfinex": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "bitflyer": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "bithumb": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "bitmex": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "bitstamp": {
+   "key": "Key",
+   "secret": "Secret",
+   "clientID": "ClientID",
+   "otpSecret": "-"
+  },
+  "bittrex": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "btc markets": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "btse": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "coinbasepro": {
+   "key": "Key",
+   "secret": "Secret",
+   "clientID": "ClientID",
+   "otpSecret": "-"
+  },
+  "coinut": {},
+  "exmo": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "gateio": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "gemini": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "hitbtc": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "huobi": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "huobihadax": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "itbit": {
+   "secret": "Secret",
+   "clientID": "ClientID",
+   "otpSecret": "-"
+  },
+  "kraken": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "lakebtc": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "lbank": {},
+  "localbitcoins": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "okcoin international": {
+   "key": "Key",
+   "secret": "Secret",
+   "clientID": "ClientID",
+   "otpSecret": "-"
+  },
+  "okex": {
+   "key": "Key",
+   "secret": "Secret",
+   "clientID": "ClientID",
+   "otpSecret": "-"
+  },
+  "poloniex": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "yobit": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "zb": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  }
+ }
 }

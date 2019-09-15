@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -35,11 +36,24 @@ func main() {
 		Verbose:                        verboseOverride,
 	}
 
+	log.Printf("Loading config...")
+	wrapperConfig, err := loadConfig()
+	if err != nil {
+		log.Print(err)
+		log.Printf("Error loading config, generating empty config")
+		wrapperConfig = Config{
+			Exchanges: make(map[string]*config.APICredentialsConfig),
+		}
+	}
+
 	log.Printf("Loading exchanges..")
 
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
+		if _, ok := wrapperConfig.Exchanges[strings.ToLower(name)]; !ok {
+			wrapperConfig.Exchanges[strings.ToLower(name)] = &config.APICredentialsConfig{}
+		}
 		if shouldLoadExchange(name) {
 			err = engine.LoadExchange(name, true, &wg)
 			if err != nil {
@@ -51,26 +65,20 @@ func main() {
 	wg.Wait()
 	log.Println("Done.")
 
-	log.Printf("Loading config...")
-	config, err := loadConfig()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	if withdrawAddressOverride != "" {
-		config.WalletAddress = withdrawAddressOverride
+		wrapperConfig.WalletAddress = withdrawAddressOverride
 	}
 	if orderTypeOverride != "LIMIT" {
-		config.OrderSubmission.OrderType = orderTypeOverride
+		wrapperConfig.OrderSubmission.OrderType = orderTypeOverride
 	}
 	if orderSideOverride != "BUY" {
-		config.OrderSubmission.OrderSide = orderSideOverride
+		wrapperConfig.OrderSubmission.OrderSide = orderSideOverride
 	}
 	if orderPriceOverride > 0 {
-		config.OrderSubmission.Price = orderPriceOverride
+		wrapperConfig.OrderSubmission.Price = orderPriceOverride
 	}
 	if orderAmountOverride > 0 {
-		config.OrderSubmission.Amount = orderAmountOverride
+		wrapperConfig.OrderSubmission.Amount = orderAmountOverride
 	}
 
 	log.Printf("Testing exchange wrappers..")
@@ -90,12 +98,12 @@ func main() {
 
 		go func(num int) {
 			name := engine.Bot.Exchanges[num].GetName()
-			authenticated := setExchangeAPIKeys(name, config.APIKEys, base)
+			authenticated := setExchangeAPIKeys(name, wrapperConfig.Exchanges, base)
 			wrapperResult := ExchangeResponses{
 				ID:                 fmt.Sprintf("Exchange%v", num),
 				ExchangeName:       name,
 				APIKeysSet:         authenticated,
-				AssetPairResponses: testWrappers(engine.Bot.Exchanges[num], base, &config),
+				AssetPairResponses: testWrappers(engine.Bot.Exchanges[num], base, &wrapperConfig),
 			}
 			for i := range wrapperResult.AssetPairResponses {
 				wrapperResult.ErrorCount += wrapperResult.AssetPairResponses[i].ErrorCount
@@ -112,6 +120,8 @@ func main() {
 	sort.Slice(exchangeResponses, func(i, j int) bool {
 		return exchangeResponses[i].ExchangeName < exchangeResponses[j].ExchangeName
 	})
+
+	saveConfig(&wrapperConfig)
 
 	if strings.EqualFold(outputOverride, "Console") {
 		outputToConsole(exchangeResponses)
@@ -174,28 +184,46 @@ func shouldLoadExchange(name string) bool {
 	return shouldLoadExchange
 }
 
-func setExchangeAPIKeys(name string, keys map[string]Key, base *exchange.Base) bool {
-	keyName := strings.ToLower(name)
+func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfig, base *exchange.Base) bool {
+	lowerExchangeName := strings.ToLower(name)
 	var authenticated bool
-	if _, ok := keys[keyName]; ok {
-		if keys[keyName].APIKey != "" {
-			base.API.Credentials.Key = keys[keyName].APIKey
-			base.Config.API.Credentials.Key = keys[keyName].APIKey
-			base.API.AuthenticatedSupport = true
-			base.API.AuthenticatedWebsocketSupport = true
-			base.Config.API.AuthenticatedSupport = true
-			base.Config.API.AuthenticatedWebsocketSupport = true
-			if keys[keyName].APISecret != "" {
-				base.API.Credentials.Secret = keys[keyName].APISecret
-				base.Config.API.Credentials.Secret = keys[keyName].APISecret
-			}
-			if keys[keyName].ClientID != "" {
-				base.API.Credentials.ClientID = keys[keyName].ClientID
-				base.Config.API.Credentials.ClientID = keys[keyName].ClientID
-			}
-			authenticated = base.ValidateAPICredentials()
+	
+		if base.API.CredentialsValidator.RequiresKey && keys[lowerExchangeName].Key == "" {
+			keys[lowerExchangeName].Key = config.DefaultAPIKey
 		}
-	}
+		if base.API.CredentialsValidator.RequiresSecret && keys[lowerExchangeName].Secret == "" {
+			keys[lowerExchangeName].Secret = config.DefaultAPISecret
+		}
+		if base.API.CredentialsValidator.RequiresPEM && keys[lowerExchangeName].PEMKey == "" {
+			keys[lowerExchangeName].PEMKey = "PEM"
+		}
+		if base.API.CredentialsValidator.RequiresClientID && keys[lowerExchangeName].ClientID == "" {
+			keys[lowerExchangeName].ClientID = config.DefaultAPIClientID
+		}
+		if keys[lowerExchangeName].OTPSecret == "" {
+			keys[lowerExchangeName].OTPSecret = "-" // Ensure OTP is available for use
+		}
+
+		base.API.Credentials.Key = keys[lowerExchangeName].Key
+		base.Config.API.Credentials.Key = keys[lowerExchangeName].Key
+
+		base.API.Credentials.Secret = keys[lowerExchangeName].Secret
+		base.Config.API.Credentials.Secret = keys[lowerExchangeName].Secret
+
+		base.API.Credentials.ClientID = keys[lowerExchangeName].ClientID
+		base.Config.API.Credentials.ClientID = keys[lowerExchangeName].ClientID
+
+		if keys[lowerExchangeName].OTPSecret != "-" {
+			base.Config.API.Credentials.OTPSecret = keys[lowerExchangeName].OTPSecret
+		}
+
+		base.API.AuthenticatedSupport = true
+		base.API.AuthenticatedWebsocketSupport = true
+		base.Config.API.AuthenticatedSupport = true
+		base.Config.API.AuthenticatedWebsocketSupport = true
+
+		authenticated = base.ValidateAPICredentials()
+	
 	return authenticated
 }
 
@@ -354,6 +382,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				SentParams: jsonifyInterface([]interface{}{false}),
 				Function:   "UpdateTradablePairs",
 				Error:      msg,
+				Response:   jsonifyInterface([]interface{}{nil}),
 			})
 		}
 		r7, err := e.GetAccountInfo()
@@ -409,7 +438,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			SentParams: jsonifyInterface([]interface{}{feeType}),
 			Function:   "GetFeeByType-Trade",
 			Error:      msg,
-			Response:   r10,
+			Response:   jsonifyInterface([]interface{}{r10}),
 		})
 
 		s := &exchange.OrderSubmission{
@@ -469,6 +498,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			SentParams: jsonifyInterface([]interface{}{cancelRequest}),
 			Function:   "CancelOrder",
 			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{nil}),
 		})
 		r14, err := e.CancelAllOrders(&cancelRequest)
 		msg = ""
@@ -561,7 +591,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			SentParams: jsonifyInterface([]interface{}{feeType}),
 			Function:   "GetFeeByType-Crypto-Withdraw",
 			Error:      msg,
-			Response:   r19,
+			Response:   jsonifyInterface([]interface{}{r19}),
 		})
 
 		genericWithdrawRequest := exchange.GenericWithdrawRequestInfo{
@@ -603,7 +633,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			SentParams: jsonifyInterface([]interface{}{feeType}),
 			Function:   "GetFeeByType-FIAT-Withdraw",
 			Error:      msg,
-			Response:   r21,
+			Response:   jsonifyInterface([]interface{}{r21}),
 		})
 
 		fiatWithdrawRequest := exchange.FiatWithdrawRequest{
@@ -678,6 +708,28 @@ func loadConfig() (Config, error) {
 	}
 
 	return config, common.JSONDecode(keys, &config)
+}
+
+func saveConfig(config *Config) {
+	log.Println("JSONifying config...")
+	jsonOutput, err := json.MarshalIndent(config, "", " ")
+	if err != nil {
+		log.Fatalf("Encountered error encoding JSON: %v", err)
+		return
+	}
+
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Printf("Encounted error retrieving output directory: %v", err)
+		return
+	}
+
+	log.Printf("Outputting to: %v", filepath.Join(dir, "wrapperconfig.json"))
+	err = common.WriteFile(filepath.Join(dir, "wrapperconfig.json"), jsonOutput)
+	if err != nil {
+		log.Printf("Encountered error writing to disk: %v", err)
+		return
+	}
 }
 
 func outputToJSON(exchangeResponses []ExchangeResponses) {

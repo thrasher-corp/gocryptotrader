@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -26,10 +27,10 @@ var (
 )
 
 type Config struct {
-	OrderSubmission OrderSubmission `json:"orderSubmission"`
-	WalletAddress   string          `json:"withdrawWalletAddress"`
-	BankDetails     Bank            `json:"bankAccount"`
-	APIKEys         map[string]Key  `json:"exchanges"`
+	OrderSubmission OrderSubmission                         `json:"orderSubmission"`
+	WalletAddress   string                                  `json:"withdrawWalletAddress"`
+	BankDetails     Bank                                    `json:"bankAccount"`
+	Exchanges       map[string]*config.APICredentialsConfig `json:"exchanges"`
 }
 
 type OrderSubmission struct {
@@ -42,9 +43,9 @@ type OrderSubmission struct {
 
 type Key struct {
 	APIKey    string `json:"apiKey"`
-	APISecret string `json:"apiSecret"`
-	ClientID  string `json:"clientId"`
-	OTPSecret string `json:"otpSecret"`
+	APISecret string `json:"apiSecret,omitempty"`
+	ClientID  string `json:"clientId,omitempty"`
+	OTPSecret string `json:"otpSecret,omitempty"`
 }
 
 type ExchangeResponses struct {
