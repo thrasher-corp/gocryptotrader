@@ -44,8 +44,8 @@ type Trade struct {
 
 // QuoteData stores quote data
 type QuoteData struct {
-	Price string `json:"price"`
-	Size  string `json:"size"`
+	Price float64 `json:"price,string"`
+	Size  float64 `json:"size,string"`
 }
 
 // Orderbook stores orderbook info
@@ -103,7 +103,7 @@ type Order struct {
 	Price     float64 `json:"price"`
 	Amount    float64 `json:"amount"`
 	Tag       string  `json:"tag"`
-	ProductID string  `json:"product_id"`
+	Symbol    string  `json:"symbol"`
 	CreatedAt string  `json:"created_at"`
 }
 
@@ -131,7 +131,7 @@ type FilledOrder struct {
 	Tag       string  `json:"tag"`
 	ID        int64   `json:"id"`
 	TradeID   string  `json:"trade_id"`
-	ProductID string  `json:"product_id"`
+	Symbol    string  `json:"symbol"`
 	OrderID   string  `json:"order_id"`
 	CreatedAt string  `json:"created_at"`
 }
@@ -139,27 +139,38 @@ type FilledOrder struct {
 // FilledOrders stores an array of filled orders
 type FilledOrders []FilledOrder
 
-type websocketSubscribe struct {
-	Type     string             `json:"type"`
-	Channels []websocketChannel `json:"channels"`
+type wsSub struct {
+	Operation string   `json:"op"`
+	Arguments []string `json:"args"`
 }
 
-type websocketChannel struct {
-	Name       string   `json:"name"`
-	ProductIDs []string `json:"product_ids"`
+type wsQuoteData struct {
+	Total string `json:"cumulativeTotal"`
+	Price string `json:"price"`
+	Size  string `json:"size"`
 }
 
-type wsTicker struct {
-	BestAsk   float64     `json:"best_ask,string"`
-	BestBids  float64     `json:"best_bid,string"`
-	LastSize  float64     `json:"last_size,string"`
-	Price     interface{} `json:"price"`
-	ProductID string      `json:"product_id"`
+type wsOBData struct {
+	Currency  string        `json:"currency"`
+	BuyQuote  []wsQuoteData `json:"buyQuote"`
+	SellQuote []wsQuoteData `json:"sellQuote"`
 }
 
-type websocketOrderbookSnapshot struct {
-	ProductID string          `json:"product_id"`
-	Type      string          `json:"type"`
-	Bids      [][]interface{} `json:"bids"`
-	Asks      [][]interface{} `json:"asks"`
+type wsOrderBook struct {
+	Topic string   `json:"topic"`
+	Data  wsOBData `json:"data"`
+}
+
+type wsTradeData struct {
+	Amount           float64 `json:"amount"`
+	Gain             int64   `json:"gain"`
+	Newest           int64   `json:"newest"`
+	Price            float64 `json:"price"`
+	ID               int64   `json:"serialId"`
+	TrasnsactionTime int64   `json:"transactionUnixTime"`
+}
+
+type wsTradeHistory struct {
+	Topic string        `json:"topic"`
+	Data  []wsTradeData `json:"data"`
 }

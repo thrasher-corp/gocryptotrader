@@ -104,7 +104,29 @@ func (b *BTSE) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
-	return orderbook.Base{}, common.ErrFunctionNotSupported
+	var resp orderbook.Base
+	a, err := b.FetchOrderBook(exchange.FormatExchangeCurrency(b.Name, p).String())
+	if err != nil {
+		return resp, err
+	}
+	for x := range a.BuyQuote {
+		resp.Asks = append(resp.Asks, orderbook.Item{
+			Price:  a.BuyQuote[x].Price,
+			Amount: a.BuyQuote[x].Size})
+	}
+	for x := range a.SellQuote {
+		resp.Bids = append(resp.Bids, orderbook.Item{
+			Price:  a.SellQuote[x].Price,
+			Amount: a.SellQuote[x].Size})
+	}
+	resp.Pair = p
+	resp.ExchangeName = b.Name
+	resp.AssetType = assetType
+	err = resp.Process()
+	if err != nil {
+		return resp, err
+	}
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -150,7 +172,7 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange
 func (b *BTSE) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var resp exchange.SubmitOrderResponse
 	r, err := b.CreateOrder(amount, price, side.ToString(),
-		orderType.ToString(), exchange.FormatExchangeCurrency(b.Name, p).String(), "GTC", clientID)
+		orderType.ToString(), exchange.FormatExchangeCurrency(b.Name, p).String(), "LIGMA", clientID)
 	if err != nil {
 		return resp, err
 	}
@@ -231,7 +253,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 			side = exchange.SellOrderSide
 		}
 
-		od.CurrencyPair = currency.NewPairDelimiter(o.ProductID,
+		od.CurrencyPair = currency.NewPairDelimiter(o.Symbol,
 			b.ConfigCurrencyPairFormat.Delimiter)
 		od.Exchange = b.Name
 		od.Amount = o.Amount
@@ -242,7 +264,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		od.Price = o.Price
 		od.Status = o.Status
 
-		fills, err := b.GetFills(orderID, "", "", "", "")
+		fills, err := b.GetFills(orderID, "", "", "", "", "")
 		if err != nil {
 			return od, fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
@@ -308,7 +330,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 		}
 
 		openOrder := exchange.OrderDetail{
-			CurrencyPair: currency.NewPairDelimiter(order.ProductID,
+			CurrencyPair: currency.NewPairDelimiter(order.Symbol,
 				b.ConfigCurrencyPairFormat.Delimiter),
 			Exchange:  b.Name,
 			Amount:    order.Amount,
@@ -320,7 +342,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 			Status:    order.Status,
 		}
 
-		fills, err := b.GetFills(order.ID, "", "", "", "")
+		fills, err := b.GetFills(order.ID, "", "", "", "", "")
 		if err != nil {
 			log.Errorf("unable to get order fills for orderID %s", order.ID)
 			continue

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,7 +26,8 @@ type BTSE struct {
 }
 
 const (
-	btseAPIURL = "https://api.btse.com/spot/v2"
+	btseAPIURL  = "https://api.btse.com"
+	btseAPIPath = "/spot/v2/"
 
 	// Public endpoints
 	btseMarketOverview = "market_summary"
@@ -201,19 +203,14 @@ func (b *BTSE) GetAccountBalance() (*AccountBalance, error) {
 // CreateOrder creates an order
 func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeInForce, tag string) (*string, error) {
 	req := make(map[string]interface{})
-	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req["amount"] = amount
+	req["price"] = price
+	if req["side"] != "" {
+		req["side"] = side
+	}
 	req["side"] = side
 	req["type"] = orderType
-	req["product_id"] = symbol
-
-	if timeInForce != "" {
-		req["time_in_force"] = timeInForce
-	}
-
-	if tag != "" {
-		req["tag"] = tag
-	}
+	req["symbol"] = symbol
 
 	type orderResp struct {
 		ID string `json:"id"`
@@ -255,7 +252,7 @@ func (b *BTSE) CancelOrders(productID string) (*CancelOrder, error) {
 }
 
 // GetFills gets all filled orders
-func (b *BTSE) GetFills(orderID, productID, before, after, limit string) (*FilledOrders, error) {
+func (b *BTSE) GetFills(orderID, productID, before, after, limit, username string) (*FilledOrders, error) {
 	if orderID != "" && productID != "" {
 		return nil, errors.New("orderID and productID cannot co-exist in the same query")
 	} else if orderID == "" && productID == "" {
@@ -290,7 +287,7 @@ func (b *BTSE) GetFills(orderID, productID, before, after, limit string) (*Fille
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
 	return b.SendPayload(method,
-		fmt.Sprintf("%s/%s", btseAPIURL, endpoint),
+		fmt.Sprintf("%s%s%s", btseAPIURL, btseAPIPath, endpoint),
 		nil,
 		nil,
 		&result,
@@ -306,33 +303,37 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 	if !b.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-
-	path := fmt.Sprintf("%s/%s", btseAPIURL, endpoint)
+	b.HTTPDebugging = true
+	path := fmt.Sprintf("%s%s", btseAPIPath, endpoint)
 
 	payload, err := common.JSONEncode(req)
 	if err != nil {
 		return errors.New("sendAuthenticatedAPIRequest: unable to JSON request")
 	}
 
+	var body io.Reader
+	if len(req) != 0 {
+		body = bytes.NewBufferString(string(payload))
+	}
 	headers := make(map[string]string)
 	headers["btse-api"] = b.APIKey
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 	headers["btse-nonce"] = nonce
 
-	fmt.Println("HELLO", string(payload))
 	var meow []byte
 
-	if string(payload) == "null" {
-		fmt.Println("WOW")
+	if string(payload) == "{}" || string(payload) == "null" {
 		meow = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce)), []byte(b.APISecret))
 	} else {
 		meow = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce + string(payload))), []byte(b.APISecret))
+		fmt.Printf("%s", common.HexEncodeToString(meow))
 	}
 
 	headers["btse-sign"] = common.HexEncodeToString(meow)
 
 	if len(payload) > 0 {
 		headers["Accept"] = "application/json"
+		headers["Content-Type"] = "application/json"
 	}
 
 	if b.Verbose {
@@ -340,9 +341,9 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 	}
 
 	return b.SendPayload(method,
-		path,
+		btseAPIURL+path,
 		headers,
-		bytes.NewBufferString(string(payload)),
+		body,
 		&result,
 		true,
 		false,

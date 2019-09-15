@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"log"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -11,9 +12,9 @@ import (
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey                  = ""
+	apiKey                  = "="
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 var b BTSE
@@ -47,6 +48,7 @@ func TestGetMarketsSummary(t *testing.T) {
 
 func TestGetMarkets(t *testing.T) {
 	b.SetDefaults()
+	b.Verbose = true
 	_, err := b.GetMarkets()
 	if err != nil {
 		t.Fatalf("Test failed. Err: %s", err)
@@ -55,7 +57,9 @@ func TestGetMarkets(t *testing.T) {
 
 func TestFetchOrderBook(t *testing.T) {
 	b.SetDefaults()
-	_, err := b.FetchOrderBook("BTC-USD")
+	b.Verbose = true
+	a, err := b.FetchOrderBook("BTC-USD")
+	t.Log(a)
 	if err != nil {
 		t.Fatalf("Test failed. Err: %s", err)
 	}
@@ -87,7 +91,6 @@ func TestGetMarketStatistics(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	b.SetDefaults()
-	b.Verbose = true
 	_, err := b.GetServerTime()
 	if err != nil {
 		t.Fatalf("Test failed. Err: %s", err)
@@ -97,10 +100,9 @@ func TestGetServerTime(t *testing.T) {
 func TestGetAccount(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-
 	b.Verbose = true
-
-	_, err := b.GetAccountBalance()
+	a, err := b.GetAccountBalance()
+	t.Log(a)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get account balance: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -111,9 +113,7 @@ func TestGetAccount(t *testing.T) {
 func TestGetFills(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	b.Verbose = true
-
-	_, err := b.GetFills("", "BTC-USD", "", "", "")
+	_, err := b.GetFills("", "BTC-USD", "", "", "", "")
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get fills: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -122,12 +122,22 @@ func TestGetFills(t *testing.T) {
 
 }
 
+func TestCreateOrder(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+	b.Verbose = true
+	_, err := b.CreateOrder(4.5, 3.4, "buy", "limit", "BTC-USD", "WTF", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetOrders(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	b.Verbose = true
-
-	_, err := b.GetOrders("1")
+	a, err := b.GetOrders("")
+	t.Log(a)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -139,7 +149,6 @@ func TestGetActiveOrders(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	b.Verbose = true
-
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
@@ -155,13 +164,12 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-
-	b.Verbose = true
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := b.GetOrderHistory(&getOrdersRequest)
+	a, err := b.GetOrderHistory(&getOrdersRequest)
+	t.Log(a)
 	if err != common.ErrFunctionNotSupported {
 		t.Fatal("Test failed. Expected different result")
 	}
@@ -174,6 +182,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	if actual != expected {
 		t.Errorf("Expected: %s, Received: %s", expected, actual)
 	}
+	log.Println(actual)
 }
 
 // TestGetFeeByTypeOfflineTradeFee logic test
@@ -277,7 +286,7 @@ func areTestAPIKeysSet() bool {
 func TestSubmitOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-
+	b.Verbose = true
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
