@@ -146,9 +146,6 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 
 	// Create a new job to publish
 	newJob := &job{
-		// TODO: possibly change data to pointer from here, so we dont reference
-		// our main copy in the subsystem which might race when we read and
-		// write to it.
 		Data: data,
 		ID:   id,
 	}
