@@ -90,8 +90,8 @@ func NewRateLimit(d time.Duration, rate int) *RateLimit {
 	return &RateLimit{Duration: d, Rate: rate}
 }
 
-// ToString returns the rate limiter in string notation
-func (r *RateLimit) ToString() string {
+// String returns the rate limiter in string notation
+func (r *RateLimit) String() string {
 	return fmt.Sprintf("Rate limiter set to %d requests per %v", r.Rate, r.Duration)
 }
 

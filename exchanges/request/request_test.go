@@ -66,15 +66,15 @@ func TestIsRateLimited(t *testing.T) {
 	r := New("bitfinex", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
 	r.StartCycle()
 
-	if r.AuthLimit.ToString() != "Rate limiter set to 5 requests per 10s" {
+	if r.AuthLimit.String() != "Rate limiter set to 5 requests per 10s" {
 		t.Fatal("unexcpted values")
 	}
 
-	if r.UnauthLimit.ToString() != "Rate limiter set to 100 requests per 20s" {
+	if r.UnauthLimit.String() != "Rate limiter set to 100 requests per 20s" {
 		t.Fatal("unexpected values")
 	}
 
-	if r.AuthLimit.ToString() != "Rate limiter set to 5 requests per 10s" {
+	if r.AuthLimit.String() != "Rate limiter set to 5 requests per 10s" {
 		t.Fatal("unexcpted values")
 	}
 

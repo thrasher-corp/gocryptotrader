@@ -134,16 +134,68 @@ func TestCheckClientBankAccounts(t *testing.T) {
 
 	cfg.BankAccounts = nil
 	cfg.CheckClientBankAccounts()
-	if err != nil || len(cfg.BankAccounts) == 0 {
+	if len(cfg.BankAccounts) == 0 {
 		t.Error("Test failed. CheckClientBankAccounts error:", err)
 	}
 
 	cfg.BankAccounts = nil
-	cfg.BankAccounts = append(cfg.BankAccounts, BankAccount{
-		Enabled:  true,
-		BankName: "test",
-	})
-	// TO-DO: Complete test coverage
+	cfg.BankAccounts = []BankAccount{
+		{
+			Enabled: true,
+		},
+	}
+
+	cfg.CheckClientBankAccounts()
+	if cfg.BankAccounts[0].Enabled {
+		t.Error("unexpected result")
+	}
+
+	b := BankAccount{
+		Enabled:             true,
+		BankName:            "Commonwealth Bank of Awesome",
+		BankAddress:         "123 Fake Street",
+		BankPostalCode:      "1337",
+		BankPostalCity:      "Satoshiville",
+		BankCountry:         "Genesis",
+		AccountName:         "Satoshi Nakamoto",
+		AccountNumber:       "1231006505",
+		SupportedCurrencies: "USD",
+	}
+	cfg.BankAccounts = []BankAccount{b}
+	cfg.CheckClientBankAccounts()
+	if cfg.BankAccounts[0].Enabled ||
+		cfg.BankAccounts[0].SupportedExchanges != "ALL" {
+		t.Error("unexpected result")
+	}
+
+	// AU based bank, with no BSB number (required for domestic and international
+	// transfers)
+	b.SupportedCurrencies = "AUD"
+	b.SWIFTCode = "BACXSI22"
+	cfg.BankAccounts = []BankAccount{b}
+	cfg.CheckClientBankAccounts()
+	if cfg.BankAccounts[0].Enabled {
+		t.Error("unexpected result")
+	}
+
+	// Valid AU bank
+	b.BSBNumber = "061337"
+	cfg.BankAccounts = []BankAccount{b}
+	cfg.CheckClientBankAccounts()
+	if !cfg.BankAccounts[0].Enabled {
+		t.Error("unexpected result")
+	}
+
+	// Valid SWIFT/IBAN compliant bank
+	b.Enabled = true
+	b.IBAN = "SI56290000170073837"
+	b.SWIFTCode = "BACXSI22"
+	cfg.BankAccounts = []BankAccount{b}
+	cfg.CheckClientBankAccounts()
+	if !cfg.BankAccounts[0].Enabled {
+		t.Error("unexpected result")
+	}
+
 }
 
 func TestPurgeExchangeCredentials(t *testing.T) {
@@ -1176,6 +1228,10 @@ func TestUpdateExchangeConfig(t *testing.T) {
 // TestCheckExchangeConfigValues logic test
 func TestCheckExchangeConfigValues(t *testing.T) {
 	var cfg Config
+	if err := cfg.CheckExchangeConfigValues(); err == nil {
+		t.Error("nil exchanges should throw an err")
+	}
+
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Fatal(err)
@@ -1451,6 +1507,24 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	if !cfg.Exchanges[0].API.AuthenticatedSupport ||
 		!cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected AuthenticatedAPISupport and AuthenticatedWebsocketAPISupport to be false from invalid API keys")
+	}
+
+	// Test exchage bank accounts
+	b := BankAccount{
+		Enabled:             true,
+		BankName:            "Commonwealth Bank of Awesome",
+		BankAddress:         "123 Fake Street",
+		BankPostalCode:      "1337",
+		BankPostalCity:      "Satoshiville",
+		BankCountry:         "Genesis",
+		AccountName:         "Satoshi Nakamoto",
+		AccountNumber:       "1231006505",
+		SupportedCurrencies: "USD",
+	}
+	cfg.Exchanges[0].BankAccounts = []BankAccount{b}
+	cfg.CheckExchangeConfigValues()
+	if cfg.Exchanges[0].BankAccounts[0].Enabled {
+		t.Error("unexpected result")
 	}
 
 	// Test empty exchange name for an enabled exchange

@@ -171,9 +171,12 @@ func (c *Config) CheckClientBankAccounts() {
 	if len(c.BankAccounts) == 0 {
 		c.BankAccounts = append(c.BankAccounts,
 			BankAccount{
-				BankName:            "test",
-				BankAddress:         "test",
-				AccountName:         "TestAccount",
+				BankName:            "Test Bank",
+				BankAddress:         "42 Bank Street",
+				BankPostalCode:      "13337",
+				BankPostalCity:      "Satoshiville",
+				BankCountry:         "Japan",
+				AccountName:         "Satoshi Nakamoto",
 				AccountNumber:       "0234",
 				SWIFTCode:           "91272837",
 				IBAN:                "98218738671897",
@@ -186,29 +189,10 @@ func (c *Config) CheckClientBankAccounts() {
 
 	for i := range c.BankAccounts {
 		if c.BankAccounts[i].Enabled {
-			if c.BankAccounts[i].BankName == "" || c.BankAccounts[i].BankAddress == "" {
+			err := c.BankAccounts[i].Validate()
+			if err != nil {
 				c.BankAccounts[i].Enabled = false
-				log.Warnf(log.ConfigMgr, "banking details for %s is enabled but variables not set correctly\n",
-					c.BankAccounts[i].BankName)
-				continue
-			}
-
-			if c.BankAccounts[i].AccountName == "" || c.BankAccounts[i].AccountNumber == "" {
-				c.BankAccounts[i].Enabled = false
-				log.Warnf(log.ConfigMgr, "banking account details for %s variables not set correctly\n",
-					c.BankAccounts[i].BankName)
-				continue
-			}
-			if c.BankAccounts[i].IBAN == "" && c.BankAccounts[i].SWIFTCode == "" && c.BankAccounts[i].BSBNumber == "" {
-				c.BankAccounts[i].Enabled = false
-				log.Warnf(log.ConfigMgr, "critical banking numbers not set for %s in %s account\n",
-					c.BankAccounts[i].BankName,
-					c.BankAccounts[i].AccountName)
-				continue
-			}
-
-			if c.BankAccounts[i].SupportedExchanges == "" {
-				c.BankAccounts[i].SupportedExchanges = "ALL"
+				log.Warn(log.ConfigMgr, err.Error())
 			}
 		}
 	}
@@ -834,6 +818,10 @@ func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
 // CheckExchangeConfigValues returns configuation values for all enabled
 // exchanges
 func (c *Config) CheckExchangeConfigValues() error {
+	if len(c.Exchanges) == 0 {
+		return errors.New("no exchange configs found")
+	}
+
 	exchanges := 0
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
@@ -1050,40 +1038,14 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 			c.CheckExchangeAssetsConsistency(c.Exchanges[i].Name)
 
-			if len(c.Exchanges[i].BankAccounts) > 0 {
-				for x := range c.Exchanges[i].BankAccounts {
-					if !c.Exchanges[i].BankAccounts[x].Enabled {
-						continue
-					}
-					bankError := false
-					if c.Exchanges[i].BankAccounts[x].BankName == "" || c.Exchanges[i].BankAccounts[x].BankAddress == "" {
-						log.Warnf(log.ExchangeSys, "banking details for %s is enabled but variables not set\n",
-							c.Exchanges[i].Name)
-						bankError = true
-					}
-
-					if c.Exchanges[i].BankAccounts[x].AccountName == "" || c.Exchanges[i].BankAccounts[x].AccountNumber == "" {
-						log.Warnf(log.ExchangeSys, "banking account details for %s variables not set\n",
-							c.Exchanges[i].Name)
-						bankError = true
-					}
-
-					if c.Exchanges[i].BankAccounts[x].SupportedCurrencies == "" {
-						log.Warnf(log.ExchangeSys, "banking account details for %s acceptable funding currencies not set\n",
-							c.Exchanges[i].Name)
-						bankError = true
-					}
-
-					if c.Exchanges[i].BankAccounts[x].BSBNumber == "" && c.Exchanges[i].BankAccounts[x].IBAN == "" &&
-						c.Exchanges[i].BankAccounts[x].SWIFTCode == "" {
-						log.Warnf(log.ExchangeSys, "banking account details for %s critical banking numbers not set\n",
-							c.Exchanges[i].Name)
-						bankError = true
-					}
-
-					if bankError {
-						c.Exchanges[i].BankAccounts[x].Enabled = false
-					}
+			for x := range c.Exchanges[i].BankAccounts {
+				if !c.Exchanges[i].BankAccounts[x].Enabled {
+					continue
+				}
+				err := c.Exchanges[i].BankAccounts[x].Validate()
+				if err != nil {
+					c.Exchanges[i].BankAccounts[x].Enabled = false
+					log.Warn(log.ConfigMgr, err.Error())
 				}
 			}
 			exchanges++
