@@ -2491,6 +2491,11 @@ func getOrderbookStream(c *cli.Context) error {
 				resp.Pair.Base,
 				askPrice,
 				resp.Pair.Quote)
+
+			if i >= 49 {
+				// limits orderbook display output
+				break
+			}
 		}
 	}
 }

@@ -2,7 +2,6 @@ package dispatch
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,6 +26,10 @@ const (
 
 	// DefaultMaxWorkers is the package default worker ceiling amount
 	DefaultMaxWorkers = 10
+
+	// handshakeTimeout defines a workers max length of time to wait on a
+	// channel before moving on to next channel route
+	handshakeTimeout = 200 * time.Nanosecond
 )
 
 // MaxWorkers define a ceiling for the amount of workers spawned
@@ -44,13 +47,6 @@ func init() {
 			New: func() interface{} {
 				// Create unbuffered channel for data pass
 				return make(chan interface{})
-			},
-		},
-		inbound: sync.Pool{
-			New: func() interface{} {
-				// Create buffered channel for error return, buffered to free up
-				// worker
-				return make(chan interface{}, 1)
 			},
 		},
 	}
@@ -101,15 +97,28 @@ func (c *Communications) relayer() {
 			c.rwMtx.RLock()
 			if _, ok := c.Routing[j.ID]; !ok {
 				c.rwMtx.RUnlock()
-				j.Err <- fmt.Errorf("relay failure ID: %s not found in routes",
-					j.ID)
 				continue
 			}
+			// Channel handshake timeout feature if a channel is blocked for any
+			// period of time due to an issue with the receiving routine.
+			// This will wait on channel then fall over to the next route when
+			// the timer actuates and continue over the route list. Have to
+			// iterate across full length of routes so every routine can get
+			// their new info, cannot be buffered as we dont want to have an old
+			// orderbook contained in a buffered channel when a routine actually
+			// is ready for a receive.
+			// TODO: Need to consider optimal timer length
+			chanHSTimeout := time.NewTimer(handshakeTimeout)
 			for i := range c.Routing[j.ID] {
-				c.Routing[j.ID][i] <- j.Data
+				select {
+				case c.Routing[j.ID][i] <- j.Data:
+				case <-chanHSTimeout.C:
+				}
+				// Reset timeout when data is put in the last channel route or
+				// if it fails in this individual route
+				chanHSTimeout.Reset(handshakeTimeout)
 			}
 			c.rwMtx.RUnlock()
-			j.Err <- nil
 
 		case <-tick.C:
 			if atomic.CompareAndSwapUint32(&c.gateway, 0, 1) {
@@ -135,9 +144,6 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 		return errors.New("id not set")
 	}
 
-	// Get a buffered error channel link
-	err := c.inbound.Get().(chan interface{})
-
 	// Create a new job to publish
 	newJob := &job{
 		// TODO: possibly change data to pointer from here, so we dont reference
@@ -145,7 +151,6 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 		// write to it.
 		Data: data,
 		ID:   id,
-		Err:  err,
 	}
 
 	// Push to job stack, this is buffered, when it reaches its buffered limit
@@ -166,15 +171,6 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 			}
 		}
 		c.jobs <- newJob
-	}
-
-	newErr := <-err
-
-	// Put error channel back in to pool when finished
-	c.inbound.Put(err)
-
-	if newErr != nil {
-		return newErr.(error)
 	}
 
 	return nil
