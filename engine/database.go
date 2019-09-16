@@ -9,7 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
-	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -37,7 +38,7 @@ func (a *databaseManager) Start() (err error) {
 
 	if Bot.Config.Database.Enabled {
 		if Bot.Config.Database.Driver == "postgres" {
-			dbConn, err = db.Connect()
+			dbConn, err = dbpsql.Connect()
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 			}
@@ -47,7 +48,11 @@ func (a *databaseManager) Start() (err error) {
 			dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
 		} else if Bot.Config.Database.Driver == "sqlite" {
+			dbConn, err = dbsqlite3.Connect()
 
+			if err != nil {
+				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+			}
 		}
 		dbConn.Connected = true
 
@@ -74,10 +79,12 @@ func (a *databaseManager) Stop() error {
 	}
 
 	log.Debugln(log.DatabaseMgr, "Database manager shutting down...")
+
 	err := dbConn.SQL.Close()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Failed to close database: %v", err)
 	}
+
 	close(a.shutdown)
 	return nil
 }
@@ -114,15 +121,15 @@ func (a *databaseManager) checkConnection() {
 	dbConn.Mu.Lock()
 	defer dbConn.Mu.Unlock()
 
-	err := dbConn.SQL.Ping()
-	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Database connection error: %v\n", err)
-		dbConn.Connected = false
-		return
-	}
-
-	if !dbConn.Connected {
-		log.Info(log.DatabaseMgr, "Database connection reestablished")
-		dbConn.Connected = true
-	}
+	//err := dbConn.SQL.Ping()
+	//if err != nil {
+	//	log.Errorf(log.DatabaseMgr, "Database connection error: %v\n", err)
+	//	dbConn.Connected = false
+	//	return
+	//}
+	//
+	//if !dbConn.Connected {
+	//	log.Info(log.DatabaseMgr, "Database connection reestablished")
+	//	dbConn.Connected = true
+	//}
 }

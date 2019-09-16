@@ -49,4 +49,4 @@ profile_cpu:
 
 .PHONY: db_model
 db_model:
-	sqlboiler --no-tests -o database/models $(DBDRIVER)
+	sqlboiler -o database/models $(DBDRIVER)

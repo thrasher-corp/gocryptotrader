@@ -24,3 +24,6 @@
   pass    = ""
   sslmode = "disable"
   schema  = ""
+
+[sqlite]
+    dbname = "/.gocryptotrader/database/gocryptotrader.db"
