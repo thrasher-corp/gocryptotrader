@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -135,6 +136,7 @@ func (s *Service) GetAssociations(b *Base) ([]uuid.UUID, error) {
 
 // Retrieve gets orderbook data from the slice
 func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+	exchange = strings.ToLower(exchange)
 	s.RLock()
 	defer s.RUnlock()
 	if s.Books[exchange] == nil {
@@ -162,6 +164,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 // SubscribeOrderbook subcribes to an orderbook and returns a communication
 // channel to stream orderbook data updates
 func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()
 	if service.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
@@ -184,6 +187,7 @@ func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatc
 
 // SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
 func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()
 	id, ok := service.Exchange[exchange]
@@ -293,6 +297,8 @@ func (b *Base) Process() error {
 	if b.ExchangeName == "" {
 		return errors.New(errExchangeNameUnset)
 	}
+
+	b.ExchangeName = strings.ToLower(b.ExchangeName)
 
 	if b.Pair.IsEmpty() {
 		return errors.New(errPairNotSet)

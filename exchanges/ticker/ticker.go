@@ -2,6 +2,7 @@ package ticker
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -159,6 +160,7 @@ func (s *Service) GetAssociations(p *Price) ([]uuid.UUID, error) {
 // SubscribeTicker subcribes to a ticker and returns a communication channel to
 // stream new ticker updates
 func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item][a] == nil {
@@ -181,6 +183,7 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 
 // SubscribeToExchangeTickers subcribes to all tickers on an exchange
 func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()
 	id, ok := service.Exchange[exchange]
@@ -194,6 +197,7 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 
 // GetTicker checks and returns a requested ticker if it exists
 func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (Price, error) {
+	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()
 	if service.Tickers[exchange] == nil {
@@ -225,7 +229,7 @@ func ProcessTicker(exchangeName string, tickerNew *Price, assetType asset.Item) 
 		return fmt.Errorf(errExchangeNameUnset)
 	}
 
-	tickerNew.ExchangeName = exchangeName
+	tickerNew.ExchangeName = strings.ToLower(exchangeName)
 
 	if tickerNew.Pair.IsEmpty() {
 		return fmt.Errorf("%s %s", exchangeName, errPairNotSet)
