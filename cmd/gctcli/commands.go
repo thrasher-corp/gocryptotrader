@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -547,6 +548,11 @@ func getTicker(c *cli.Context) error {
 		assetType = c.Args().Get(2)
 	}
 
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -653,6 +659,11 @@ func getOrderbook(c *cli.Context) error {
 		assetType = c.String("asset")
 	} else {
 		assetType = c.Args().Get(2)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
@@ -1067,6 +1078,11 @@ func getOrders(c *cli.Context) error {
 		assetType = c.String("asset_type")
 	} else {
 		assetType = c.Args().Get(1)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	if c.IsSet("pair") {
@@ -1562,6 +1578,11 @@ func cancelOrder(c *cli.Context) error {
 		assetType = c.String("asset_type")
 	}
 
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
 	if c.IsSet("wallet_address") {
 		walletAddress = c.String("wallet_address")
 	}
@@ -1783,6 +1804,11 @@ func addEvent(c *cli.Context) error {
 
 	if c.IsSet("asset_type") {
 		assetType = c.String("asset_type")
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	if c.IsSet("action") {
@@ -2175,6 +2201,11 @@ func getExchangePairs(c *cli.Context) error {
 		asset = c.Args().Get(1)
 	}
 
+	asset = strings.ToLower(asset)
+	if !validAsset(asset) {
+		return errInvalidAsset
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2250,6 +2281,11 @@ func enableExchangePair(c *cli.Context) error {
 		asset = c.String("asset")
 	} else {
 		asset = c.Args().Get(2)
+	}
+
+	asset = strings.ToLower(asset)
+	if !validAsset(asset) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
@@ -2335,6 +2371,11 @@ func disableExchangePair(c *cli.Context) error {
 		asset = c.Args().Get(2)
 	}
 
+	asset = strings.ToLower(asset)
+	if !validAsset(asset) {
+		return errInvalidAsset
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2416,6 +2457,12 @@ func getOrderbookStream(c *cli.Context) error {
 		assetType = c.String("asset")
 	} else {
 		assetType = c.Args().Get(2)
+	}
+
+	assetType = strings.ToLower(assetType)
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
@@ -2618,6 +2665,12 @@ func getTickerStream(c *cli.Context) error {
 		assetType = c.String("asset")
 	} else {
 		assetType = c.Args().Get(2)
+	}
+
+	assetType = strings.ToLower(assetType)
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
