@@ -91,6 +91,7 @@ type Communications struct {
 func (c *Communications) relayer() {
 	atomic.AddInt64(&c.count, 1)
 	tick := time.NewTicker(defaultGatewaySleep)
+	chanHSTimeout := time.NewTimer(0)
 	for {
 		select {
 		case j := <-c.jobs:
@@ -105,18 +106,15 @@ func (c *Communications) relayer() {
 			// the timer actuates and continue over the route list. Have to
 			// iterate across full length of routes so every routine can get
 			// their new info, cannot be buffered as we dont want to have an old
-			// orderbook contained in a buffered channel when a routine actually
-			// is ready for a receive.
+			// orderbook etc contained in a buffered channel when a routine
+			// actually is ready for a receive.
 			// TODO: Need to consider optimal timer length
-			chanHSTimeout := time.NewTimer(handshakeTimeout)
 			for i := range c.Routing[j.ID] {
+				chanHSTimeout.Reset(handshakeTimeout)
 				select {
 				case c.Routing[j.ID][i] <- j.Data:
 				case <-chanHSTimeout.C:
 				}
-				// Reset timeout when data is put in the last channel route or
-				// if it fails in this individual route
-				chanHSTimeout.Reset(handshakeTimeout)
 			}
 			c.rwMtx.RUnlock()
 
@@ -206,9 +204,7 @@ func (c *Communications) subscribe(id uuid.UUID) (chan interface{}, error) {
 	_, ok := c.Routing[id]
 	c.rwMtx.RUnlock()
 	if !ok {
-		newChan := make(chan interface{})
-		close(newChan)
-		return newChan, errors.New("id not found in route list")
+		return nil, errors.New("id not found in route list")
 	}
 
 	// Get an unused channel from the channel pool
