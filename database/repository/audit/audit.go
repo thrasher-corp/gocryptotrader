@@ -2,36 +2,49 @@ package audit
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/volatiletech/sqlboiler/boil"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
+// Event inserts a new audit event to database
 func Event(id, msgtype, message string) {
+	if database.DB.SQL == nil {
+		return
+	}
+
 	var ctx = context.Background()
+
 	var tempEvent = models.AuditEvent{
 		Type:       msgtype,
 		Identifier: id,
 		Message:    message,
 	}
-	fmt.Println(tempEvent)
 
-	err := tempEvent.Insert(ctx, database.DB.SQL, boil.Infer())
+	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Errorf(log.Global, "transaction begin failed: %v", err)
+		return
 	}
-}
 
-func AllEvents() {
-	var ctx context.Context
-	x, err := models.AuditEvents().All(ctx, database.DB.SQL)
+	err = tempEvent.Insert(ctx, tx, boil.Infer())
 	if err != nil {
-		fmt.Println(err)
+		log.Errorf(log.Global, "insert failed: %v", err)
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.Global, "transaction rollback failed: %v", err)
+		}
 	}
-	for event := range x {
-		fmt.Println(x[event])
+
+	err = tx.Commit()
+	if err != nil {
+		log.Errorf(log.Global, "transaction commit failed: %v", err)
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.Global, "transaction rollback failed: %v", err)
+		}
 	}
 }

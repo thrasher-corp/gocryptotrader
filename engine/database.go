@@ -6,8 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
-
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
@@ -96,8 +94,6 @@ func (a *databaseManager) run() {
 	t := time.NewTicker(time.Second * 2)
 	a.running.Store(true)
 
-	audit.Event("gsdg", "gsdgsd", "sdgsdg")
-	audit.AllEvents()
 	defer func() {
 		t.Stop()
 		a.running.Store(false)
@@ -121,15 +117,15 @@ func (a *databaseManager) checkConnection() {
 	dbConn.Mu.Lock()
 	defer dbConn.Mu.Unlock()
 
-	//err := dbConn.SQL.Ping()
-	//if err != nil {
-	//	log.Errorf(log.DatabaseMgr, "Database connection error: %v\n", err)
-	//	dbConn.Connected = false
-	//	return
-	//}
-	//
-	//if !dbConn.Connected {
-	//	log.Info(log.DatabaseMgr, "Database connection reestablished")
-	//	dbConn.Connected = true
-	//}
+	err := dbConn.SQL.Ping()
+	if err != nil {
+		log.Errorf(log.DatabaseMgr, "Database connection error: %v\n", err)
+		dbConn.Connected = false
+		return
+	}
+
+	if !dbConn.Connected {
+		log.Info(log.DatabaseMgr, "Database connection reestablished")
+		dbConn.Connected = true
+	}
 }

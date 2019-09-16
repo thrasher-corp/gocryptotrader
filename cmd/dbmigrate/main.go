@@ -37,7 +37,7 @@ func openDbConnection(driver string) (err error) {
 		dbConn.SQL.SetMaxIdleConns(1)
 		dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
-	} else if driver == "sqlite" {
+	} else if driver == "sqliste" {
 		dbConn, err = dbsqlite3.Connect()
 
 		if err != nil {
