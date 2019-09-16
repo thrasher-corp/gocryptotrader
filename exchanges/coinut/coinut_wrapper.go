@@ -551,10 +551,8 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	for instrument, allInstrumentData := range instruments.Instruments {
 		for _, instrumentData := range allInstrumentData {
 			for _, currency := range getOrdersRequest.Currencies {
-				currStr := fmt.Sprintf("%v%v%v",
-					currency.Base.String(),
-					c.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter,
-					currency.Quote.String())
+				currStr := currency.Format(c.CurrencyPairs.RequestFormat.Delimiter,
+					c.CurrencyPairs.RequestFormat.Uppercase).String()
 				if strings.EqualFold(currStr, instrument) {
 					openOrders, err := c.GetOpenOrders(instrumentData.InstID)
 					if err != nil {
