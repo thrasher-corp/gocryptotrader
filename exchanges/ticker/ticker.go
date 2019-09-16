@@ -211,7 +211,7 @@ func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (Price, 
 	}
 
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item][tickerType] == nil {
-		return Price{}, fmt.Errorf("no orderbooks associated with asset type %s",
+		return Price{}, fmt.Errorf("no tickers associated with asset type %s",
 			tickerType)
 	}
 
