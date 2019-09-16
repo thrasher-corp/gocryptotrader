@@ -91,7 +91,11 @@
    "clientID": "ClientID",
    "otpSecret": "-"
   },
-  "coinut": {},
+  "coinut": {
+   "key": "Key",
+   "clientID": "ClientID",
+   "otpSecret": "-"
+  },
   "exmo": {
    "key": "Key",
    "secret": "Secret",
