@@ -1344,10 +1344,10 @@ func (c *Config) checkDatabaseConfig() error {
 		if err != nil {
 			return err
 		}
-		database.Conn.DataPath = databaseDir
+		database.DB.DataPath = databaseDir
 	}
 
-	database.Conn.Config = &c.Database
+	database.DB.Config = &c.Database
 
 	return nil
 }

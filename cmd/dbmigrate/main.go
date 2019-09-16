@@ -4,35 +4,30 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
-	"strconv"
 	"time"
 
+	"github.com/pressly/goose"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
-	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
-	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
+
+	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 )
 
 var (
-	dbConn          *database.Database
+	dbConn          *database.Db
 	configFile      string
 	defaultDataDir  string
 	createMigration string
 	migrationDir    string
+	command         string
 )
-
-var defaultMigration = []byte(`-- up
--- down
-`)
 
 func openDbConnection(driver string) (err error) {
 	if driver == "postgres" {
-		dbConn, err = db.Connect()
+		dbConn, err = dbPSQL.Connect()
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
@@ -42,33 +37,9 @@ func openDbConnection(driver string) (err error) {
 		dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
 	} else if driver == "sqlite" {
-		dbConn, err = dbsqlite3.Connect()
 
-		if err != nil {
-			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
-		}
 	}
 	return nil
-}
-
-type tmpLogger struct{}
-
-// Printf implantation of migration Logger interface
-// Passes directly to Printf from fmt package
-func (t tmpLogger) Printf(format string, v ...interface{}) {
-	fmt.Printf(format, v...)
-}
-
-// Println implantation of migration Logger interface
-// Passes directly to Println from fmt package
-func (t tmpLogger) Println(v ...interface{}) {
-	fmt.Println(v...)
-}
-
-// Errorf implantation of migration Logger interface
-// Passes directly to Printf from fmt package
-func (t tmpLogger) Errorf(format string, v ...interface{}) {
-	fmt.Printf(format, v...)
 }
 
 func main() {
@@ -81,34 +52,19 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
+	flag.StringVar(&command, "command", "", "command to run")
 	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.StringVar(&createMigration, "create", "", "create a new empty migration file")
-	flag.StringVar(&migrationDir, "migrationdir", mg.MigrationDir, "override migration folder")
+	flag.StringVar(&migrationDir, "migrationdir", database.MigrationDir, "override migration folder")
 
 	flag.Parse()
 
-	if createMigration != "" {
-		err = newMigrationFile(createMigration)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		fmt.Println("Migration created successfully")
-		os.Exit(0)
-	}
-
-	tempLogger := tmpLogger{}
-
-	temp := mg.Migrator{
-		Log: tempLogger,
-	}
-
-	err = temp.LoadMigrations()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(0)
+	args := flag.Args()
+	if len(args) < 1 {
+		command = "status"
+	} else if len(args) < 2 {
+		command = args[0]
 	}
 
 	conf := config.GetConfig()
@@ -127,42 +83,7 @@ func main() {
 
 	fmt.Printf("Connected to: %s\n", conf.Database.Host)
 
-	temp.Conn = dbConn
-
-	err = temp.RunMigration()
-
-	if err != nil {
+	if err := goose.Run(command, dbConn.SQL, migrationDir, ""); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
 	}
-
-	if dbConn.SQL != nil {
-		err = dbConn.SQL.Close()
-		if err != nil {
-			fmt.Println(err)
-		}
-	}
-}
-
-func newMigrationFile(filename string) error {
-	curTime := strconv.FormatInt(time.Now().Unix(), 10)
-	path := filepath.Join(migrationDir, curTime+"_"+filename+".sql")
-	err := common.CreateDir(migrationDir)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Creating new empty migration: %v\n", path)
-	f, err := os.Create(path)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write(defaultMigration)
-
-	if err != nil {
-		return err
-	}
-
-	return f.Close()
 }

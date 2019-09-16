@@ -5,6 +5,7 @@ LINTBIN = $(GOPATH)/bin/golangci-lint
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
 CRON = $(TRAVIS_EVENT_TYPE)
+DBDRIVER=psql
 
 get:
 	GO111MODULE=on go get $(GCTPKG)
@@ -46,5 +47,6 @@ profile_heap:
 profile_cpu:
 	go tool pprof -http "localhost:$(GCTPROFILERLISTENPORT)" 'http://localhost:$(GCTLISTENPORT)/debug/pprof/profile'
 
-db_migrate:
-	go run ./cmd/dbmigrate
+.PHONY: db_model
+db_model:
+	sqlboiler --no-tests -o database/models $(DBDRIVER)

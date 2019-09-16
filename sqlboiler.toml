@@ -1,0 +1,26 @@
+[psql]
+  dbname = "gct"
+  host   = "localhost"
+  port   = 5432
+  user   = "andrew"
+  pass   = ""
+  schema = "public"
+  sslmode = "disable"
+  blacklist = ["goose_db_version"]
+
+[mysql]
+  dbname  = ""
+  host    = ""
+  port    = 3306
+  user    = ""
+  pass    = ""
+  sslmode = "false"
+
+[mssql]
+  dbname  = ""
+  host    = ""
+  port    = 1433
+  user    = ""
+  pass    = ""
+  sslmode = "disable"
+  schema  = ""

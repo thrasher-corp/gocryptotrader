@@ -4,21 +4,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/stdlib"
-	"github.com/jmoiron/sqlx"
+
+	"github.com/jackc/pgx"
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
-// Connect establishes a connection pool to the database
-func Connect() (*database.Database, error) {
+func Connect() (*database.Db, error) {
 	configDSN := fmt.Sprintf("host=%s port=%d user=%s password=%s database=%s sslmode=%s",
-		database.Conn.Config.Host,
-		database.Conn.Config.Port,
-		database.Conn.Config.Username,
-		database.Conn.Config.Password,
-		database.Conn.Config.Database,
-		database.Conn.Config.SSLMode)
+		database.DB.Config.Host,
+		database.DB.Config.Port,
+		database.DB.Config.Username,
+		database.DB.Config.Password,
+		database.DB.Config.Database,
+		database.DB.Config.SSLMode)
 
 	connConfig, err := pgx.ParseDSN(configDSN)
 	if err != nil {
@@ -31,11 +30,12 @@ func Connect() (*database.Database, error) {
 		MaxConnections: 20,
 		AcquireTimeout: 30 * time.Second,
 	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	sqlxDB := stdlib.OpenDBFromPool(connPool)
-	database.Conn.SQL = sqlx.NewDb(sqlxDB, "pgx")
-	return database.Conn, nil
+	database.DB.SQL = stdlib.OpenDBFromPool(connPool)
+
+	return database.DB, nil
 }

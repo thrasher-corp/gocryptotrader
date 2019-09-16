@@ -6,18 +6,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+
 	"github.com/thrasher-corp/gocryptotrader/database"
 	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
-	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
-	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
-	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
-	auditSQLite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var (
-	dbConn *database.Database
+	dbConn *database.Db
 )
 
 type databaseManager struct {
@@ -49,15 +46,8 @@ func (a *databaseManager) Start() (err error) {
 			dbConn.SQL.SetMaxIdleConns(1)
 			dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
-			audit.Audit = auditPSQL.Audit()
 		} else if Bot.Config.Database.Driver == "sqlite" {
-			dbConn, err = dbsqlite3.Connect()
 
-			if err != nil {
-				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
-			}
-
-			audit.Audit = auditSQLite.Audit()
 		}
 		dbConn.Connected = true
 
@@ -69,23 +59,6 @@ func (a *databaseManager) Start() (err error) {
 			log.Debugf(log.DatabaseMgr,
 				"Database connection established to file database: %s. Using sqlite driver\n",
 				dbConn.Config.Database)
-		}
-
-		mLogger := mg.MLogger{}
-		migrations := mg.Migrator{
-			Log: mLogger,
-		}
-
-		migrations.Conn = dbConn
-
-		err := migrations.LoadMigrations()
-		if err != nil {
-			return err
-		}
-
-		err = migrations.RunMigration()
-		if err != nil {
-			return err
 		}
 
 		go a.run()
@@ -116,6 +89,8 @@ func (a *databaseManager) run() {
 	t := time.NewTicker(time.Second * 2)
 	a.running.Store(true)
 
+	audit.Event("gsdg", "gsdgsd", "sdgsdg")
+	audit.AllEvents()
 	defer func() {
 		t.Stop()
 		a.running.Store(false)
