@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// variables for command line overrides
 var (
 	orderTypeOverride          string
 	outputOverride             string
@@ -26,6 +27,7 @@ var (
 	exchangesToExcludeList     []string
 )
 
+// Config the data structure for wrapperconfig.json to store all customisation
 type Config struct {
 	OrderSubmission OrderSubmission                         `json:"orderSubmission"`
 	WalletAddress   string                                  `json:"withdrawWalletAddress"`
@@ -33,14 +35,7 @@ type Config struct {
 	Exchanges       map[string]*config.APICredentialsConfig `json:"exchanges"`
 }
 
-type OrderSubmission struct {
-	OrderSide string  `json:"orderSide"`
-	OrderType string  `json:"orderType"`
-	Amount    float64 `json:"amount"`
-	Price     float64 `json:"price"`
-	OrderID   string  `json:"orderID"`
-}
-
+// Key is the format for wrapperconfig.json to store API credentials
 type Key struct {
 	APIKey    string `json:"apiKey"`
 	APISecret string `json:"apiSecret,omitempty"`
@@ -48,6 +43,8 @@ type Key struct {
 	OTPSecret string `json:"otpSecret,omitempty"`
 }
 
+// ExchangeResponses contains all responses
+// associated with an exchange
 type ExchangeResponses struct {
 	ID                 string
 	ExchangeName       string                       `json:"exchangeName"`
@@ -56,6 +53,8 @@ type ExchangeResponses struct {
 	APIKeysSet         bool                         `json:"apiKeysSet"`
 }
 
+// ExchangeAssetPairResponses contains all responses
+// associated with an asset type and currency pair
 type ExchangeAssetPairResponses struct {
 	ErrorCount        int64              `json:"errorCount"`
 	AssetType         asset.Item         `json:"asset"`
@@ -63,6 +62,7 @@ type ExchangeAssetPairResponses struct {
 	EndpointResponses []EndpointResponse `json:"responses"`
 }
 
+// EndpointResponse is the data for an individual wrapper response
 type EndpointResponse struct {
 	Function   string          `json:"function"`
 	Error      string          `json:"error"`
@@ -70,6 +70,7 @@ type EndpointResponse struct {
 	SentParams json.RawMessage `json:"sentParams"`
 }
 
+// Bank contains all required data for a wrapper withdrawal request
 type Bank struct {
 	BankAccountName               string  `json:"bankAccountName"`
 	BankAccountNumber             float64 `json:"bankAccountNumber"`
@@ -94,4 +95,13 @@ type Bank struct {
 	SwiftCode                     string  `json:"swiftCode"`
 	BankCode                      float64 `json:"bankCode"`
 	IntermediaryBankCode          float64 `json:"intermediaryBankCode"`
+}
+
+// OrderSubmission contains all data required for a wrapper order submission
+type OrderSubmission struct {
+	OrderSide string  `json:"orderSide"`
+	OrderType string  `json:"orderType"`
+	Amount    float64 `json:"amount"`
+	Price     float64 `json:"price"`
+	OrderID   string  `json:"orderID"`
 }

@@ -13,6 +13,9 @@ import (
 	"sync"
 	"text/template"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -22,10 +25,10 @@ import (
 )
 
 func main() {
-	log.Printf("Loading flags..")
+	log.Printf("Loading flags...")
 	parseCLFlags()
 	var err error
-	log.Printf("Loading engine...")
+	log.Println("Loading engine...")
 	engine.Bot, err = engine.New()
 	if err != nil {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
@@ -36,17 +39,16 @@ func main() {
 		Verbose:                        verboseOverride,
 	}
 
-	log.Printf("Loading config...")
+	log.Println("Loading config...")
 	wrapperConfig, err := loadConfig()
 	if err != nil {
-		log.Print(err)
-		log.Printf("Error loading config, generating empty config")
+		log.Printf("Error loading config: '%v', generating empty config", err)
 		wrapperConfig = Config{
 			Exchanges: make(map[string]*config.APICredentialsConfig),
 		}
 	}
 
-	log.Printf("Loading exchanges..")
+	log.Println("Loading exchanges..")
 
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
@@ -81,7 +83,7 @@ func main() {
 		wrapperConfig.OrderSubmission.Amount = orderAmountOverride
 	}
 
-	log.Printf("Testing exchange wrappers..")
+	log.Println("Testing exchange wrappers..")
 	var exchangeResponses []ExchangeResponses
 
 	for x := range engine.Bot.Exchanges {
@@ -187,43 +189,43 @@ func shouldLoadExchange(name string) bool {
 func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfig, base *exchange.Base) bool {
 	lowerExchangeName := strings.ToLower(name)
 	var authenticated bool
-	
-		if base.API.CredentialsValidator.RequiresKey && keys[lowerExchangeName].Key == "" {
-			keys[lowerExchangeName].Key = config.DefaultAPIKey
-		}
-		if base.API.CredentialsValidator.RequiresSecret && keys[lowerExchangeName].Secret == "" {
-			keys[lowerExchangeName].Secret = config.DefaultAPISecret
-		}
-		if base.API.CredentialsValidator.RequiresPEM && keys[lowerExchangeName].PEMKey == "" {
-			keys[lowerExchangeName].PEMKey = "PEM"
-		}
-		if base.API.CredentialsValidator.RequiresClientID && keys[lowerExchangeName].ClientID == "" {
-			keys[lowerExchangeName].ClientID = config.DefaultAPIClientID
-		}
-		if keys[lowerExchangeName].OTPSecret == "" {
-			keys[lowerExchangeName].OTPSecret = "-" // Ensure OTP is available for use
-		}
 
-		base.API.Credentials.Key = keys[lowerExchangeName].Key
-		base.Config.API.Credentials.Key = keys[lowerExchangeName].Key
+	if base.API.CredentialsValidator.RequiresKey && keys[lowerExchangeName].Key == "" {
+		keys[lowerExchangeName].Key = config.DefaultAPIKey
+	}
+	if base.API.CredentialsValidator.RequiresSecret && keys[lowerExchangeName].Secret == "" {
+		keys[lowerExchangeName].Secret = config.DefaultAPISecret
+	}
+	if base.API.CredentialsValidator.RequiresPEM && keys[lowerExchangeName].PEMKey == "" {
+		keys[lowerExchangeName].PEMKey = "PEM"
+	}
+	if base.API.CredentialsValidator.RequiresClientID && keys[lowerExchangeName].ClientID == "" {
+		keys[lowerExchangeName].ClientID = config.DefaultAPIClientID
+	}
+	if keys[lowerExchangeName].OTPSecret == "" {
+		keys[lowerExchangeName].OTPSecret = "-" // Ensure OTP is available for use
+	}
 
-		base.API.Credentials.Secret = keys[lowerExchangeName].Secret
-		base.Config.API.Credentials.Secret = keys[lowerExchangeName].Secret
+	base.API.Credentials.Key = keys[lowerExchangeName].Key
+	base.Config.API.Credentials.Key = keys[lowerExchangeName].Key
 
-		base.API.Credentials.ClientID = keys[lowerExchangeName].ClientID
-		base.Config.API.Credentials.ClientID = keys[lowerExchangeName].ClientID
+	base.API.Credentials.Secret = keys[lowerExchangeName].Secret
+	base.Config.API.Credentials.Secret = keys[lowerExchangeName].Secret
 
-		if keys[lowerExchangeName].OTPSecret != "-" {
-			base.Config.API.Credentials.OTPSecret = keys[lowerExchangeName].OTPSecret
-		}
+	base.API.Credentials.ClientID = keys[lowerExchangeName].ClientID
+	base.Config.API.Credentials.ClientID = keys[lowerExchangeName].ClientID
 
-		base.API.AuthenticatedSupport = true
-		base.API.AuthenticatedWebsocketSupport = true
-		base.Config.API.AuthenticatedSupport = true
-		base.Config.API.AuthenticatedWebsocketSupport = true
+	if keys[lowerExchangeName].OTPSecret != "-" {
+		base.Config.API.Credentials.OTPSecret = keys[lowerExchangeName].OTPSecret
+	}
 
-		authenticated = base.ValidateAPICredentials()
-	
+	base.API.AuthenticatedSupport = true
+	base.API.AuthenticatedWebsocketSupport = true
+	base.Config.API.AuthenticatedSupport = true
+	base.Config.API.AuthenticatedWebsocketSupport = true
+
+	authenticated = base.ValidateAPICredentials()
+
 	return authenticated
 }
 
@@ -288,6 +290,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			p = currency.NewPairFromString(currencyPairOverride)
 		case len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0:
 			if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available) == 0 {
+				log.Printf("%v has no enabled or available currencies. Skipping", base.GetName())
 				continue
 			}
 			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available.GetRandomPair()
@@ -299,13 +302,18 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			AssetType:    assetTypes[i],
 			CurrencyPair: p,
 		}
-		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
 
-		e.Setup(base.Config)
+		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
+		err := e.Setup(base.Config)
+		if err != nil {
+			log.Printf("%v Could not load config, skipping. Error: '%v'", base.GetName(), err)
+			continue
+		}
 		log.Printf("Executing wrappers for %v %v %v", base.GetName(), assetTypes[i], p)
 
 		if !authenticatedOnly {
-			r1, err := e.FetchTicker(p, assetTypes[i])
+			var r1 ticker.Price
+			r1, err = e.FetchTicker(p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -318,7 +326,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{r1}),
 			})
 
-			r2, err := e.UpdateTicker(p, assetTypes[i])
+			var r2 ticker.Price
+			r2, err = e.UpdateTicker(p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -331,7 +340,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{r2}),
 			})
 
-			r3, err := e.FetchOrderbook(p, assetTypes[i])
+			var r3 orderbook.Base
+			r3, err = e.FetchOrderbook(p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -345,7 +355,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{r3}),
 			})
 
-			r4, err := e.UpdateOrderbook(p, assetTypes[i])
+			var r4 orderbook.Base
+			r4, err = e.UpdateOrderbook(p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -359,7 +370,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{r4}),
 			})
 
-			r5, err := e.FetchTradablePairs(assetTypes[i])
+			var r5 []string
+			r5, err = e.FetchTradablePairs(assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -385,7 +397,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{nil}),
 			})
 		}
-		r7, err := e.GetAccountInfo()
+
+		var r7 exchange.AccountInfo
+		r7, err = e.GetAccountInfo()
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -397,7 +411,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response: jsonifyInterface([]interface{}{r7}),
 		})
 
-		r8, err := e.GetExchangeHistory(p, assetTypes[i])
+		var r8 []exchange.TradeHistory
+		r8, err = e.GetExchangeHistory(p, assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -410,7 +425,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r8}),
 		})
 
-		r9, err := e.GetFundingHistory()
+		var r9 []exchange.FundHistory
+		r9, err = e.GetFundingHistory()
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -428,7 +444,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			PurchasePrice: config.OrderSubmission.Price,
 			Amount:        config.OrderSubmission.Amount,
 		}
-		r10, err := e.GetFeeByType(&feeType)
+		var r10 float64
+		r10, err = e.GetFeeByType(&feeType)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -449,7 +466,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Price:     config.OrderSubmission.Price,
 			ClientID:  config.OrderSubmission.OrderID,
 		}
-		r11, err := e.SubmitOrder(s)
+		var r11 exchange.SubmitOrderResponse
+		r11, err = e.SubmitOrder(s)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -470,7 +488,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Price:        config.OrderSubmission.Price,
 			Amount:       config.OrderSubmission.Amount,
 		}
-		r12, err := e.ModifyOrder(&modifyRequest)
+		var r12 string
+		r12, err = e.ModifyOrder(&modifyRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -500,7 +519,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{nil}),
 		})
-		r14, err := e.CancelAllOrders(&cancelRequest)
+
+		var r14 exchange.CancelAllOrdersResponse
+		r14, err = e.CancelAllOrders(&cancelRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -513,7 +534,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r14}),
 		})
 
-		r15, err := e.GetOrderInfo(config.OrderSubmission.OrderID)
+		var r15 exchange.OrderDetail
+		r15, err = e.GetOrderInfo(config.OrderSubmission.OrderID)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -531,7 +553,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			OrderSide:  testOrderSide,
 			Currencies: []currency.Pair{p},
 		}
-		r16, err := e.GetOrderHistory(&historyRequest)
+		var r16 []exchange.OrderDetail
+		r16, err = e.GetOrderHistory(&historyRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -549,7 +572,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			OrderSide:  testOrderSide,
 			Currencies: []currency.Pair{p},
 		}
-		r17, err := e.GetActiveOrders(&orderRequest)
+		var r17 []exchange.OrderDetail
+		r17, err = e.GetActiveOrders(&orderRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -562,7 +586,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r17}),
 		})
 
-		r18, err := e.GetDepositAddress(p.Base, "")
+		var r18 string
+		r18, err = e.GetDepositAddress(p.Base, "")
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -581,7 +606,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			PurchasePrice: config.OrderSubmission.Price,
 			Amount:        config.OrderSubmission.Amount,
 		}
-		r19, err := e.GetFeeByType(&feeType)
+		var r19 float64
+		r19, err = e.GetFeeByType(&feeType)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -602,7 +628,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			GenericWithdrawRequestInfo: genericWithdrawRequest,
 			Address:                    withdrawAddressOverride,
 		}
-		r20, err := e.WithdrawCryptocurrencyFunds(&withdrawRequest)
+		var r20 string
+		r20, err = e.WithdrawCryptocurrencyFunds(&withdrawRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -623,7 +650,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			FiatCurrency:        currency.AUD,
 			BankTransactionType: exchange.WireTransfer,
 		}
-		r21, err := e.GetFeeByType(&feeType)
+		var r21 float64
+		r21, err = e.GetFeeByType(&feeType)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -660,7 +688,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			IntermediaryBankPostalCode:    config.BankDetails.IntermediaryBankPostalCode,
 			IntermediaryBankCode:          config.BankDetails.IntermediaryBankCode,
 		}
-		r22, err := e.WithdrawFiatFunds(&fiatWithdrawRequest)
+		var r22 string
+		r22, err = e.WithdrawFiatFunds(&fiatWithdrawRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -673,7 +702,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   r22,
 		})
 
-		r23, err := e.WithdrawFiatFundsToInternationalBank(&fiatWithdrawRequest)
+		var r23 string
+		r23, err = e.WithdrawFiatFundsToInternationalBank(&fiatWithdrawRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -720,7 +750,7 @@ func saveConfig(config *Config) {
 
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Printf("Encounted error retrieving output directory: %v", err)
+		log.Printf("Encountered error retrieving output directory: %v", err)
 		return
 	}
 
@@ -742,7 +772,7 @@ func outputToJSON(exchangeResponses []ExchangeResponses) {
 
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Printf("Encounted error retrieving output directory: %v", err)
+		log.Printf("Encountered error retrieving output directory: %v", err)
 		return
 	}
 
