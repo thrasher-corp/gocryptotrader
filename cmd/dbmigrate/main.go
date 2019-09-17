@@ -11,11 +11,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/xtda/goose"
+	"github.com/thrasher-corp/goose"
 
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 )
+
+type argsType []string
 
 var (
 	dbConn          *database.Db
@@ -24,7 +26,17 @@ var (
 	createMigration string
 	migrationDir    string
 	command         string
+	args            argsType
 )
+
+func (i *argsType) String() string {
+	return "hello"
+}
+
+func (i *argsType) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
 
 func openDbConnection(driver string) (err error) {
 	if driver == "postgres" {
@@ -57,22 +69,15 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	flag.StringVar(&command, "command", "", "command to run")
+	flag.StringVar(&command, "command", "status", "command to run")
+	flag.Var(&args, "args", "arguments to pass to goose")
+
 	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.StringVar(&createMigration, "create", "", "create a new empty migration file")
 	flag.StringVar(&migrationDir, "migrationdir", database.MigrationDir, "override migration folder")
 
 	flag.Parse()
-
-	args := flag.Args()
-
-	if len(args) > 0 && len(args) < 2 {
-		command = args[0]
-	} else {
-		flag.Usage()
-		os.Exit(0)
-	}
 
 	conf := config.GetConfig()
 
@@ -94,7 +99,7 @@ func main() {
 		fmt.Printf("Connected to: %s\n", conf.Database.Host)
 	}
 
-	if err := goose.Run(command, dbConn.SQL, migrationDir, ""); err != nil {
+	if err := goose.Run(command, dbConn.SQL, migrationDir, args.String()); err != nil {
 		fmt.Println(err)
 	}
 }

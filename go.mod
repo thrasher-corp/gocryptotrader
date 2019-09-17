@@ -26,6 +26,7 @@ require (
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.4.0
+	github.com/thrasher-corp/goose v0.0.0-00010101000000-000000000000
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
 	github.com/urfave/cli v1.20.0
 	github.com/volatiletech/inflect v0.0.0-20170731032912-e7201282ae8d // indirect
@@ -39,3 +40,5 @@ require (
 	google.golang.org/genproto v0.0.0-20190605220351-eb0b1bdb6ae6
 	google.golang.org/grpc v1.21.1
 )
+
+replace github.com/thrasher-corp/goose => ../goose
