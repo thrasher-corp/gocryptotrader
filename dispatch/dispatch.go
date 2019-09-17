@@ -110,7 +110,11 @@ func (c *Communications) relayer() {
 			// actually is ready for a receive.
 			// TODO: Need to consider optimal timer length
 			for i := range c.Routing[j.ID] {
-				chanHSTimeout.Reset(handshakeTimeout)
+				if !chanHSTimeout.Reset(handshakeTimeout) {
+					// Empty buffer if timer actuates before handshake occurs,
+					// should be quite a frequent occurance
+					<-chanHSTimeout.C
+				}
 				select {
 				case c.Routing[j.ID][i] <- j.Data:
 				case <-chanHSTimeout.C:
@@ -124,6 +128,11 @@ func (c *Communications) relayer() {
 					if atomic.LoadInt64(&c.count) > 1 {
 						atomic.AddInt64(&c.count, -1)
 						atomic.SwapUint32(&c.gateway, 0)
+
+						tick.Stop()
+						if !chanHSTimeout.Stop() {
+							_ = <-chanHSTimeout.C
+						}
 						return
 					}
 				}
@@ -168,30 +177,6 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 		c.jobs <- newJob
 	}
 
-	return nil
-}
-
-// Release releases all chans associated with ticket, will release channels to
-// the pool
-func (c *Communications) release(id uuid.UUID) error {
-	c.rwMtx.Lock()
-	channels, ok := c.Routing[id]
-	if !ok {
-		c.rwMtx.Unlock()
-		return errors.New("ticket not found in routing map")
-	}
-
-	// Put excess channels back into the pool
-	for i := range channels {
-		c.outbound.Put(channels[i])
-	}
-
-	c.Routing[id] = nil // Release reference TODO: Actually check garbage
-	// collection ¯\_(ツ)_/¯
-
-	// Delete key and associations
-	delete(c.Routing, id)
-	c.rwMtx.Unlock()
 	return nil
 }
 

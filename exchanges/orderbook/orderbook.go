@@ -219,9 +219,9 @@ type Base struct {
 // TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
 func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
-	for _, x := range b.Bids {
-		amountCollated += x.Amount
-		total += x.Amount * x.Price
+	for x := range b.Bids {
+		amountCollated += b.Bids[x].Amount
+		total += b.Bids[x].Amount * b.Bids[x].Price
 	}
 	return amountCollated, total
 }
@@ -229,9 +229,9 @@ func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
 // TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
 func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
-	for _, x := range b.Asks {
-		amountCollated += x.Amount
-		total += x.Amount * x.Price
+	for y := range b.Asks {
+		amountCollated += b.Asks[y].Amount
+		total += b.Asks[y].Amount * b.Asks[y].Price
 	}
 	return amountCollated, total
 }
