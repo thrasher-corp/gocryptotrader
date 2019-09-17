@@ -26,9 +26,11 @@ type Config struct {
 }
 
 var (
+	// DB Global Database Connection
 	DB = &Db{}
 
-	wd, _        = os.Getwd()
+	wd, _ = os.Getwd()
+	// MigrationDir which folder to look in for current migrations
 	MigrationDir = filepath.Join(wd, "database", "migrations")
 
 	// ErrNoDatabaseProvided error to display when no database is provided

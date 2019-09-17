@@ -7,11 +7,11 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/pressly/goose"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/xtda/goose"
 
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
@@ -37,7 +37,7 @@ func openDbConnection(driver string) (err error) {
 		dbConn.SQL.SetMaxIdleConns(1)
 		dbConn.SQL.SetConnMaxLifetime(time.Hour)
 
-	} else if driver == "sqliste" {
+	} else if driver == "sqlite3" || driver == "sqlite" {
 		dbConn, err = dbsqlite3.Connect()
 
 		if err != nil {
@@ -66,10 +66,12 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
-	if len(args) < 1 {
-		command = "status"
-	} else if len(args) < 2 {
+
+	if len(args) > 0 && len(args) < 2 {
 		command = args[0]
+	} else {
+		flag.Usage()
+		os.Exit(0)
 	}
 
 	conf := config.GetConfig()
@@ -86,7 +88,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Connected to: %s\n", conf.Database.Host)
+	if conf.Database.Driver == "sqlite3" {
+		fmt.Printf("Database file: %s\n", conf.Database.Database)
+	} else {
+		fmt.Printf("Connected to: %s\n", conf.Database.Host)
+	}
 
 	if err := goose.Run(command, dbConn.SQL, migrationDir, ""); err != nil {
 		fmt.Println(err)
