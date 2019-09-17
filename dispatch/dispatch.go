@@ -109,12 +109,15 @@ func (c *Communications) relayer() {
 			// actually is ready for a receive.
 			// TODO: Need to consider optimal timer length
 			for i := range c.Routing[j.ID] {
-				select {
-				case <-chanHSTimeout.C: // Drain channel before reset
-				default:
+				if !chanHSTimeout.Stop() { // Stop timer before reset
+					// Drain channel if timer has already actuated
+					select {
+					case <-chanHSTimeout.C:
+					default:
+					}
 				}
-				chanHSTimeout.Reset(handshakeTimeout)
 
+				chanHSTimeout.Reset(handshakeTimeout)
 				select {
 				case c.Routing[j.ID][i] <- j.Data:
 				case <-chanHSTimeout.C:
@@ -131,7 +134,10 @@ func (c *Communications) relayer() {
 
 						tick.Stop()
 						if !chanHSTimeout.Stop() {
-							<-chanHSTimeout.C // Drain channel after stop
+							select {
+							case <-chanHSTimeout.C:
+							default:
+							}
 						}
 						return
 					}
@@ -174,7 +180,11 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 				go c.relayer()
 			}
 		}
-		c.jobs <- newJob
+		select {
+		case c.jobs <- newJob:
+		default:
+			return errors.New("buffer at max cap, spawn more workers")
+		}
 	}
 
 	return nil
