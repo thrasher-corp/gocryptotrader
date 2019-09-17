@@ -181,8 +181,10 @@ func (c *COINUT) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	c.InstrumentMap = make(map[string]int)
+	c.CurrencyMap = make(map[int]string)
 	for x, y := range i.Instruments {
 		c.InstrumentMap[x] = y[0].InstID
+		c.CurrencyMap[y[0].InstID] = x
 		pairs = append(pairs, x)
 	}
 
@@ -542,50 +544,47 @@ func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var instrumentsToUse []InstrumentBase
 	instruments, err := c.GetInstruments()
 	if err != nil {
 		return nil, err
 	}
-
-	var allTheOrders []OrderResponse
-	for instrument, allInstrumentData := range instruments.Instruments {
-		for _, instrumentData := range allInstrumentData {
-			for _, currency := range getOrdersRequest.Currencies {
-				currStr := currency.Format(c.CurrencyPairs.RequestFormat.Delimiter,
-					c.CurrencyPairs.RequestFormat.Uppercase).String()
-				if strings.EqualFold(currStr, instrument) {
-					openOrders, err := c.GetOpenOrders(instrumentData.InstID)
-					if err != nil {
-						return nil, err
-					}
-					allTheOrders = append(allTheOrders, openOrders.Orders...)
-
-					continue
+	for k, v := range instruments.Instruments {
+		if len(getOrdersRequest.Currencies) > 0 {
+			for j := range getOrdersRequest.Currencies {
+				currStr := c.FormatExchangeCurrency(getOrdersRequest.Currencies[j], asset.Spot).String()
+				if strings.EqualFold(currStr, k) {
+					instrumentsToUse = append(instrumentsToUse, v...)
 				}
 			}
+		} else {
+			instrumentsToUse = append(instrumentsToUse, v...)
 		}
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range allTheOrders {
-		for instrument, allInstrumentData := range instruments.Instruments {
-			for _, instrumentData := range allInstrumentData {
-				if instrumentData.InstID == int(order.InstrumentID) {
-					currPair := currency.NewPairDelimiter(instrument, "")
-					orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
-					orderDate := time.Unix(order.Timestamp, 0)
-					orders = append(orders, exchange.OrderDetail{
-						ID:           strconv.FormatInt(order.OrderID, 10),
-						Amount:       order.Quantity,
-						Price:        order.Price,
-						Exchange:     c.Name,
-						OrderSide:    orderSide,
-						OrderDate:    orderDate,
-						CurrencyPair: currPair,
-					})
-				}
-			}
+	var allOrders []OrderResponse
+	for i := range instrumentsToUse {
+		openOrders, err := c.GetOpenOrders(instrumentsToUse[i].InstID)
+		if err != nil {
+			return nil, err
 		}
+		allOrders = append(allOrders, openOrders.Orders...)
+	}
+
+	var orders []exchange.OrderDetail
+	for i := range allOrders {
+		currPair := currency.NewPairFromString(c.CurrencyMap[int(allOrders[i].InstrumentID)])
+		orderSide := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
+		orderDate := time.Unix(allOrders[i].Timestamp, 0)
+		orders = append(orders, exchange.OrderDetail{
+			ID:           strconv.FormatInt(allOrders[i].OrderID, 10),
+			Amount:       allOrders[i].Quantity,
+			Price:        allOrders[i].Price,
+			Exchange:     c.Name,
+			OrderSide:    orderSide,
+			OrderDate:    orderDate,
+			CurrencyPair: currPair,
+		})
 	}
 
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)

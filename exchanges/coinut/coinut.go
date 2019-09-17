@@ -47,6 +47,7 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
 	InstrumentMap map[string]int
+	CurrencyMap   map[int]string
 }
 
 // GetInstruments returns instruments
