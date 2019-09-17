@@ -77,9 +77,8 @@ type Communications struct {
 	jobs chan *job
 
 	// Dynamic channel communication pools; unbuffered outbound channels for
-	// generic data and buffered inbound channels for general errors
+	// generic data
 	outbound sync.Pool
-	inbound  sync.Pool
 
 	// Atomic worker count
 	count int64
@@ -110,11 +109,12 @@ func (c *Communications) relayer() {
 			// actually is ready for a receive.
 			// TODO: Need to consider optimal timer length
 			for i := range c.Routing[j.ID] {
-				if !chanHSTimeout.Reset(handshakeTimeout) {
-					// Empty buffer if timer actuates before handshake occurs,
-					// should be quite a frequent occurance
-					<-chanHSTimeout.C
+				select {
+				case <-chanHSTimeout.C: // Drain channel before reset
+				default:
 				}
+				chanHSTimeout.Reset(handshakeTimeout)
+
 				select {
 				case c.Routing[j.ID][i] <- j.Data:
 				case <-chanHSTimeout.C:
@@ -131,7 +131,7 @@ func (c *Communications) relayer() {
 
 						tick.Stop()
 						if !chanHSTimeout.Stop() {
-							_ = <-chanHSTimeout.C
+							<-chanHSTimeout.C // Drain channel after stop
 						}
 						return
 					}

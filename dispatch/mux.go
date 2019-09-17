@@ -45,7 +45,7 @@ func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 }
 
 // Publish takes in a persistent memory address and dispatches changes to
-// required pipes
+// required pipes. Data should be of *type.
 func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 	if data == nil {
 		return errors.New("data payload is nil")
