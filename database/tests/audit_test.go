@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"path"
 	"sync"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 )
 
@@ -20,17 +22,17 @@ func TestAudit(t *testing.T) {
 		closer func(t *testing.T, dbConn *database.Db) error
 		output interface{}
 	}{
-		//{
-		//	"SQLite",
-		//	database.Config{
-		//		Driver:            "sqlite",
-		//		ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
-		//	},
-		//
-		//	writeAudit,
-		//	closeDatabase,
-		//	nil,
-		//},
+		{
+			"SQLite",
+			database.Config{
+				Driver:            "sqlite",
+				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
+			},
+
+			writeAudit,
+			closeDatabase,
+			nil,
+		},
 		{
 			"Postgres",
 			postgresTestDatabase,
