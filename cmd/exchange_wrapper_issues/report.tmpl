@@ -16,7 +16,7 @@
 
 </head>
 
-<body >
+<body>
     <!-- Image and text -->
     <nav class="navbar navbar-dark bg-dark">
         <span class="navbar-brand">
@@ -35,112 +35,120 @@
             Wrapper Report
         </span>
     </nav>
-    <div >
-    {{ range $i, $exchangeResult := $output }}
-    <div class= "col-11 container-fluid">
-        <h2>{{ $exchangeResult.ExchangeName }} <span
-                class="badge {{ if $exchangeResult.APIKeysSet }} badge-success {{ else }} badge-warning {{ end }}">{{ if $exchangeResult.APIKeysSet }}
-                API Keys Set {{ else }} API Keys Not Set {{ end }}</span>
-                
-                 <button class="btn btn-primary mx-3 mt-3 mb-3" type="button" data-toggle="collapse"
-                            data-target="#{{ $exchangeResult.ID }}"
-                            aria-expanded="false" aria-controls="{{ $exchangeResult.ExchangeName }}">
-                            Show/Hide
-                        </button>
-                
-                </h2>
-               
-                        </div>
-     
-    <div id="{{ $exchangeResult.ID }}" class="collapse show">
-        <div class="alert col-6 container-fluid {{ if $exchangeResult.ErrorCount }} alert-danger {{ else }} alert-success {{ end }}"
-            role="alert">
-            Total Exchange Errors: {{ $exchangeResult.ErrorCount }}
+    <div>
+        {{ range $i, $exchangeResult := $output }}
+        <div class="col-11 container-fluid">
+            <div class="row col-5">
+                <div class="col">
+                    <h2>{{ $exchangeResult.ExchangeName }}</h2>
+                </div>
+                <div class="col">
+                    <div
+                        class="alert {{ if $exchangeResult.APIKeysSet }} alert-success {{ else }} alert-warning {{ end }}">
+                        {{ if $exchangeResult.APIKeysSet }}
+                        API Keys Set {{ else }} API Keys Not Set {{ end }}
+                    </div>
+                </div>
+                <div class="col">
+                    <button class="btn btn-primary mt-2" type="button" data-toggle="collapse"
+                        data-target="#{{ $exchangeResult.ID }}" aria-expanded="false"
+                        aria-controls="{{ $exchangeResult.ExchangeName }}">
+                        Show/Hide
+                    </button>
+                </div>
+            </div>
         </div>
-        {{ range $j, $assetPairResponses := $exchangeResult.AssetPairResponses }}
-        {{ $length := len $exchangeResult.AssetPairResponses }}
-        {{ if eq $length 1 }}
 
-        {{ else }}
-         <div class= "col-11 container-fluid">
-        <h4> {{ $assetPairResponses.AssetType }} {{ $assetPairResponses.CurrencyPair }} Results </h4>
-        <div class="alert {{ if $assetPairResponses.ErrorCount }} alert-danger {{ else }} alert-success {{ end }}"
-            role="alert">
-            {{ $assetPairResponses.AssetType }} {{ $assetPairResponses.CurrencyPair }} Total Errors:
-            {{ $assetPairResponses.ErrorCount }}
-        </div>
-        </div>
+        <div id="{{ $exchangeResult.ID }}" class="collapse show">
+            <div class="alert col-6 container-fluid {{ if $exchangeResult.ErrorCount }} alert-danger {{ else }} alert-success {{ end }}"
+                role="alert">
+                Total Exchange Errors: {{ $exchangeResult.ErrorCount }}
+            </div>
+            {{ range $j, $assetPairResponses := $exchangeResult.AssetPairResponses }}
+            {{ $length := len $exchangeResult.AssetPairResponses }}
+            {{ if eq $length 1 }}
+            {{ else }}
+            <div class="col-11 container-fluid">
+                <h4> {{ $assetPairResponses.AssetType }} {{ $assetPairResponses.CurrencyPair }} Results </h4>
+                <div class="alert col-6 container-fluid {{ if $assetPairResponses.ErrorCount }} alert-danger {{ else }} alert-success {{ end }}"
+                    role="alert">
+                    {{ $assetPairResponses.AssetType }} {{ $assetPairResponses.CurrencyPair }} Total Errors:
+                    {{ $assetPairResponses.ErrorCount }}
+                </div>
+            </div>
             {{ end }}
-        <table class="table table-hover col-11 container-fluid table-sm">
-            <thead class="thead-dark">
-                <th width="6%">
-                    Asset Type
-                </th>
-                <th width="8%">
-                    Currency Pair
-                </th>
-                <th width="15%">
-                    Function
-                </th>
-                 <th width="16%">
-                    Wrapper Params Sent
-                </th>
-                <th width="25%">
-                    Error
-                </th>
-                <th width="30%">
-                    Wrapper Response
-                </th>
+            <table class="table table-hover col-11 container-fluid table-sm">
+                <thead class="thead-dark">
+                    <th width="6%">
+                        Asset Type
+                    </th>
+                    <th width="8%">
+                        Currency Pair
+                    </th>
+                    <th width="15%">
+                        Function
+                    </th>
+                    <th width="16%">
+                        Wrapper Params Sent
+                    </th>
+                    <th width="25%">
+                        Error
+                    </th>
+                    <th width="30%">
+                        Wrapper Response
+                    </th>
 
-            </thead>
-            <tbody>
-                {{ range $k, $endpointResponse := $assetPairResponses.EndpointResponses }}
-                <tr {{if eq $endpointResponse.Error "not yet implemented"}} class="table-warning" {{else if eq $endpointResponse.Error "unsupported wrapper function"}} {{ else if $endpointResponse.Error }}class="table-danger" {{ end }}>
-                    <td>
-                        {{ $assetPairResponses.AssetType }}
-                    </td>
-                    <td>
-                        {{ $assetPairResponses.CurrencyPair }}
-                    </td>
-                    <td>
-                        {{ $endpointResponse.Function }}
-                    </td>
-                     <td>
-                      <button class="btn btn-info" type="button" data-toggle="collapse"
-                            data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
-                            aria-expanded="false" aria-controls="collapseExample">
-                            Wrapper Params
-                        </button>
-                        <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
-                            class="collapse">
-                            <div class="card card-body" style="word-wrap:anywhere">
-                                {{ $endpointResponse.SentParams  | printf "%s" }}
+                </thead>
+                <tbody>
+                    {{ range $k, $endpointResponse := $assetPairResponses.EndpointResponses }}
+                    <tr {{if eq $endpointResponse.Error "not yet implemented"}} class="table-warning"
+                        {{else if eq $endpointResponse.Error "unsupported wrapper function"}}
+                        {{ else if $endpointResponse.Error }}class="table-danger" {{ end }}>
+                        <td>
+                            {{ $assetPairResponses.AssetType }}
+                        </td>
+                        <td>
+                            {{ $assetPairResponses.CurrencyPair }}
+                        </td>
+                        <td>
+                            {{ $endpointResponse.Function }}
+                        </td>
+                        <td>
+                            <button class="btn btn-info" type="button" data-toggle="collapse"
+                                data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
+                                aria-expanded="false" aria-controls="collapseExample">
+                                Wrapper Params
+                            </button>
+                            <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
+                                class="collapse">
+                                <div class="card card-body" style="word-wrap:anywhere">
+                                    {{ $endpointResponse.SentParams  | printf "%s" }}
+                                </div>
                             </div>
-                        </div>
-                    </td>
-                    <td>
-                        {{ $endpointResponse.Error }}
-                    </td>
-                    <td>
-                        <button class="btn btn-info" type="button" data-toggle="collapse"
-                            data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
-                            aria-expanded="false" aria-controls="collapseExample">
-                            Wrapper Response
-                        </button>
-                        <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
-                            class="collapse">
-                            <div class="card card-body" style="word-wrap:anywhere">
-                                {{ $endpointResponse.Response  | printf "%s" }}
+                        </td>
+                        <td>
+                            {{ $endpointResponse.Error }}
+                        </td>
+                        <td>
+                            <button class="btn btn-info" type="button" data-toggle="collapse"
+                                data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
+                                aria-expanded="false" aria-controls="collapseExample">
+                                Wrapper Response
+                            </button>
+                            <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
+                                class="collapse">
+                                <div class="card card-body" style="word-wrap:anywhere">
+                                    {{ $endpointResponse.Response  | printf "%s" }}
+                                </div>
                             </div>
-                        </div>
-                    </td>
+                        </td>
 
-                </tr>
-                {{ end }}
-        </table>
+                    </tr>
+                    {{ end }}
+            </table>
+            {{ end }}
+        </div>
         {{ end }}
-    </div>
-    {{ end }}
     </div>
 </body>
 

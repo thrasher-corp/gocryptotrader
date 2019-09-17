@@ -13,19 +13,18 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 func main() {
-	log.Printf("Loading flags...")
+	log.Println("Loading flags...")
 	parseCLFlags()
 	var err error
 	log.Println("Loading engine...")
@@ -53,7 +52,7 @@ func main() {
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
-		if _, ok := wrapperConfig.Exchanges[strings.ToLower(name)]; !ok {
+		if _, ok := wrapperConfig.Exchanges[name]; !ok {
 			wrapperConfig.Exchanges[strings.ToLower(name)] = &config.APICredentialsConfig{}
 		}
 		if shouldLoadExchange(name) {
@@ -123,8 +122,6 @@ func main() {
 		return exchangeResponses[i].ExchangeName < exchangeResponses[j].ExchangeName
 	})
 
-	saveConfig(&wrapperConfig)
-
 	if strings.EqualFold(outputOverride, "Console") {
 		outputToConsole(exchangeResponses)
 	}
@@ -134,6 +131,8 @@ func main() {
 	if strings.EqualFold(outputOverride, "HTML") {
 		outputToHTML(exchangeResponses)
 	}
+
+	saveConfig(&wrapperConfig)
 }
 
 func parseCLFlags() {
@@ -188,7 +187,6 @@ func shouldLoadExchange(name string) bool {
 
 func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfig, base *exchange.Base) bool {
 	lowerExchangeName := strings.ToLower(name)
-	var authenticated bool
 
 	if base.API.CredentialsValidator.RequiresKey && keys[lowerExchangeName].Key == "" {
 		keys[lowerExchangeName].Key = config.DefaultAPIKey
@@ -224,9 +222,7 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 	base.Config.API.AuthenticatedSupport = true
 	base.Config.API.AuthenticatedWebsocketSupport = true
 
-	authenticated = base.ValidateAPICredentials()
-
-	return authenticated
+	return base.ValidateAPICredentials()
 }
 
 func parseOrderSide(orderSide string) exchange.OrderSide {
@@ -271,11 +267,15 @@ func parseOrderType(orderType string) exchange.OrderType {
 
 func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) []ExchangeAssetPairResponses {
 	var response []ExchangeAssetPairResponses
-	assetTypes := base.GetAssetTypes()
 	testOrderSide := parseOrderSide(config.OrderSubmission.OrderSide)
 	testOrderType := parseOrderType(config.OrderSubmission.OrderType)
+	assetTypes := base.GetAssetTypes()
 	if assetTypeOverride != "" {
-		assetTypes = asset.Items{asset.Item(assetTypeOverride)}
+		if asset.IsValid(asset.Item(assetTypeOverride)) {
+			assetTypes = asset.Items{asset.Item(assetTypeOverride)}
+		} else {
+			log.Printf("%v Asset Type '%v' not recognised, defaulting to exchange defaults", base.GetName(), assetTypeOverride)
+		}
 	}
 	for i := range assetTypes {
 		var msg string
@@ -306,8 +306,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
 		err := e.Setup(base.Config)
 		if err != nil {
-			log.Printf("%v Could not load config, skipping. Error: '%v'", base.GetName(), err)
-			continue
+			log.Printf("%v Encountered error reloading config: '%v'", base.GetName(), err)
 		}
 		log.Printf("Executing wrappers for %v %v %v", base.GetName(), assetTypes[i], p)
 
@@ -737,7 +736,8 @@ func loadConfig() (Config, error) {
 		return config, err
 	}
 
-	return config, common.JSONDecode(keys, &config)
+	err = common.JSONDecode(keys, &config)
+	return config, err
 }
 
 func saveConfig(config *Config) {
@@ -745,7 +745,6 @@ func saveConfig(config *Config) {
 	jsonOutput, err := json.MarshalIndent(config, "", " ")
 	if err != nil {
 		log.Fatalf("Encountered error encoding JSON: %v", err)
-		return
 	}
 
 	dir, err := os.Getwd()
@@ -767,7 +766,6 @@ func outputToJSON(exchangeResponses []ExchangeResponses) {
 	jsonOutput, err := json.MarshalIndent(exchangeResponses, "", " ")
 	if err != nil {
 		log.Fatalf("Encountered error encoding JSON: %v", err)
-		return
 	}
 
 	dir, err := os.Getwd()
