@@ -40,11 +40,6 @@ func (a *databaseManager) Start() (err error) {
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 			}
-
-			dbConn.SQL.SetMaxOpenConns(2)
-			dbConn.SQL.SetMaxIdleConns(1)
-			dbConn.SQL.SetConnMaxLifetime(time.Hour)
-
 		} else if Bot.Config.Database.Driver == "sqlite" {
 			dbConn, err = dbsqlite3.Connect()
 

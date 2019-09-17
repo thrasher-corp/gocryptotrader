@@ -19,15 +19,15 @@ var (
 	tempDir string
 
 	postgresTestDatabase = database.Config{
-		Enabled: true,
-		Driver:  "postgres",
+		Enabled:           true,
+		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Port:     5432,
-			Username: "andrew",
-			Password: "",
-			Database: "gct-dev",
-			SSLMode:  "disable",
+			//Host:     "",
+			//Port:     5432,
+			//Username: "",
+			//Password: "",
+			//Database: "",
+			//SSLMode:  "",
 		},
 	}
 )
