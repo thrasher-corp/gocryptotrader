@@ -183,8 +183,6 @@ func (d *Dispatcher) stop() error {
 			for i := range d.routes[key] {
 				close(d.routes[key][i])
 			}
-
-			d.routes[key] = nil
 		}
 
 		for len(d.jobs) != 0 { // drain jobs channel for old data
@@ -349,10 +347,6 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 
 // Unsubscribe unsubs a routine from the dispatcher
 func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error {
-	if atomic.LoadUint32(&d.running) == 0 {
-		return errors.New(errNotInitialised)
-	}
-
 	// Read lock to read route list
 	d.rMtx.RLock()
 	_, ok := d.routes[id]

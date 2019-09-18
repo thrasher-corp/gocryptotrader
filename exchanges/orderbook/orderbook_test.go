@@ -103,7 +103,7 @@ func TestGetOrderbook(t *testing.T) {
 		AssetType:    asset.Spot,
 	}
 
-	err := service.Update(base)
+	err := base.Process()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,14 +145,14 @@ func TestCreateNewOrderbook(t *testing.T) {
 		AssetType:    asset.Spot,
 	}
 
-	err := service.Update(base)
+	err := base.Process()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	result, err := Get("testCreateNewOrderbook", c, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestCreateNewOrderbook failed to create new orderbook")
+		t.Fatal("Test failed. TestCreateNewOrderbook failed to create new orderbook", err)
 	}
 
 	if !result.Pair.Equal(c) {

@@ -1,7 +1,9 @@
 package dispatch
 
 import (
+	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/gofrs/uuid"
@@ -10,6 +12,11 @@ import (
 var mux *Mux
 
 func TestMain(m *testing.M) {
+	err := Start(DefaultMaxWorkers)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	mux = GetNewMux()
 	os.Exit(m.Run())
 }
@@ -43,44 +50,43 @@ func TestPublish(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	newPipe, err := mux.Subscribe(itemID)
+	pipe, err := mux.Subscribe(itemID)
 	if err != nil {
 		t.Error(err)
 	}
 
-	outgoing := make(chan interface{})
-
-	// Set up dumb client
-	go func(outgoing chan interface{}, p Pipe) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		wg.Done()
 		for {
-			object := <-p.C
-			if _, ok := (*object.(*interface{})).(struct{}); ok {
-				outgoing <- p.Release()
+			_, ok := <-pipe.C
+			if !ok {
+				pErr := pipe.Release()
+				if pErr != nil {
+					t.Error(pErr)
+				}
+				wg.Done()
+				return
 			}
-			outgoing <- object
 		}
-	}(outgoing, newPipe)
-
+	}(&wg)
+	wg.Wait()
+	wg.Add(1)
 	mainPayload := "PAYLOAD"
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100; i++ {
 		errMux := mux.Publish([]uuid.UUID{itemID}, &mainPayload)
 		if errMux != nil {
 			t.Error(errMux)
 		}
-		if data := <-outgoing; (*data.(*interface{})).(string) != mainPayload {
-			t.Error("published object invalid")
-		}
 	}
 
-	// Shut down dumb client
-	err = mux.Publish([]uuid.UUID{itemID}, &struct{}{})
+	// Shut down dispatch system
+	err = Stop()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-
-	if err := <-outgoing; err != nil {
-		t.Error(err)
-	}
+	wg.Wait()
 }
 
 func BenchmarkSubscribe(b *testing.B) {
