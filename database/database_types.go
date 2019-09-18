@@ -19,6 +19,7 @@ type Db struct {
 	Mu        sync.RWMutex
 }
 
+// Config holds all database configurable options includng enable/disabled & DSN settings
 type Config struct {
 	Enabled                   bool   `json:"enabled"`
 	Driver                    string `json:"driver"`
@@ -37,7 +38,7 @@ var (
 	ErrNoDatabaseProvided = errors.New("no database provided")
 
 	// SupportedDrivers slice of supported database driver types
-	SupportedDrivers = []string{"sqlite3", "postgres"}
+	SupportedDrivers = []string{"sqlite3", "sqlite", "postgres"}
 
 	// DefaultSQLiteDatabase is the default sqlite database name to use
 	DefaultSQLiteDatabase = "gocryptotrader.db"

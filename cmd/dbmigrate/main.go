@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -93,13 +94,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	if conf.Database.Driver == "sqlite3" {
+	drv := driverConvert(conf.Database.Driver)
+
+	if drv == "sqlite" {
 		fmt.Printf("Database file: %s\n", conf.Database.Database)
 	} else {
 		fmt.Printf("Connected to: %s\n", conf.Database.Host)
 	}
 
-	if err := goose.Run(command, dbConn.SQL, migrationDir, args.String()); err != nil {
+	if err := goose.Run(command, dbConn.SQL, drv, migrationDir, args.String()); err != nil {
 		fmt.Println(err)
 	}
+}
+
+func driverConvert(in string) (out string) {
+	switch strings.ToLower(in) {
+	case "postgresql", "postgres", "psql":
+		out = "postgres"
+	case "sqlite3", "sqlite":
+		out = "sqlite"
+	}
+	return
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/models"
+	models "github.com/thrasher-corp/gocryptotrader/database/models/sqlite"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -30,7 +30,7 @@ func Event(id, msgtype, message string) {
 		return
 	}
 
-	err = tempEvent.Insert(ctx, tx, boil.Infer())
+	err = tempEvent.Insert(ctx, tx, boil.Blacklist("id", "ID"))
 	if err != nil {
 		log.Errorf(log.Global, "insert failed: %v", err)
 		err = tx.Rollback()

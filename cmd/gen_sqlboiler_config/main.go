@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 
@@ -82,7 +83,7 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 
 	dbType := driverConvert(c.Driver)
 
-	if dbType == "sqlite" {
+	if dbType == "sqlite3" {
 		tempConfig.Dbname = convertDBName(c.Database)
 	} else {
 		tempConfig.User = c.Username
@@ -97,17 +98,20 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 }
 
 func driverConvert(in string) (out string) {
-	switch in {
-	case "postgresql", "postgres":
+	switch strings.ToLower(in) {
+	case "postgresql", "postgres", "psql":
 		out = "psql"
-	case "sqlite3":
-		out = "sqlite"
+	case "sqlite3", "sqlite":
+		out = "sqlite3"
 	}
 	return
 }
 
 func convertDBName(in string) (out string) {
-	if in[:3] != ".db" {
+
+	x := in[len(in)-3:]
+
+	if x != ".db" {
 		in += ".db"
 	}
 

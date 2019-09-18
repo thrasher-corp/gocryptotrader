@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
@@ -87,6 +89,8 @@ func (a *databaseManager) run() {
 	Bot.ServicesWG.Add(1)
 
 	t := time.NewTicker(time.Second * 2)
+	tt := time.NewTicker(time.Second)
+
 	a.running.Store(true)
 
 	defer func() {
@@ -104,8 +108,14 @@ func (a *databaseManager) run() {
 			return
 		case <-t.C:
 			a.checkConnection()
+		case <-tt.C:
+			a.insertRecord()
 		}
 	}
+}
+
+func (a *databaseManager) insertRecord() {
+	audit.Event("test", "test", "test")
 }
 
 func (a *databaseManager) checkConnection() {

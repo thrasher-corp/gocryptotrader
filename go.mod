@@ -30,7 +30,7 @@ require (
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
 	github.com/urfave/cli v1.20.0
 	github.com/volatiletech/inflect v0.0.0-20170731032912-e7201282ae8d // indirect
-	github.com/volatiletech/null v8.0.0+incompatible // indirect
+	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/volatiletech/sqlboiler v3.5.0+incompatible
 	github.com/xtda/goose v2.6.0+incompatible
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5

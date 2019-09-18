@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"reflect"
 	"testing"
 
@@ -22,11 +21,11 @@ var (
 		Enabled:           true,
 		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
-			//Host:     "",
+			//Host:     "localhost",
 			//Port:     5432,
-			//Username: "",
+			//Username: "gct",
 			//Password: "",
-			//Database: "",
+			//Database: "gct-dev",
 			//SSLMode:  "",
 		},
 	}
@@ -61,7 +60,7 @@ func TestDatabaseConnect(t *testing.T) {
 			"SQLite",
 			database.Config{
 				Driver:            "sqlite",
-				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb.db"},
 			},
 			closeDatabase,
 			nil,
@@ -124,6 +123,7 @@ func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Db
 			return
 		}
 	} else if conn.Driver == "sqlite" {
+		database.DB.DataPath = tempDir
 		dbConn, err = sqliteConn.Connect()
 		if err != nil {
 			return

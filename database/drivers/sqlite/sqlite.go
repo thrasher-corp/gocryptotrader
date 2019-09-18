@@ -14,7 +14,8 @@ func Connect() (*database.Db, error) {
 		return nil, database.ErrNoDatabaseProvided
 	}
 
-	if database.DB.Config.Database[:3] != ".db" {
+	x := database.DB.Config.Database[len(database.DB.Config.Database)-3 : len(database.DB.Config.Database)]
+	if x != ".db" {
 		database.DB.Config.Database += ".db"
 	}
 
