@@ -2604,7 +2604,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Orderbook streamed for %s %s:\n\n",
+		fmt.Printf("Orderbook streamed for %s %s",
 			exchangeName,
 			resp.Pair.String())
 	}
