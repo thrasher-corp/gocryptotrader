@@ -3,11 +3,60 @@ package wshandler
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 var ws *Websocket
+
+// TestDemonstrateChannelClosure this is a test which highlights
+// The decision of why I'm removing the timeout waiting for a channel close
+// This simulates how wshandler currently handles channel timeouts
+// What we can see is that channels do eventually close and a timeout
+// when the thread is busy solves no problems
+func TestDemonstrateChannelClosure(t *testing.T) {
+	helloImAChannel := make(chan interface{})
+	var wg sync.WaitGroup
+	timer := time.NewTimer(15 * time.Second)
+	for _, i := range []int{1, 2, 3, 4, 5, 6, 20, 0, 22, 7, 9, 23} {
+		go func(i int) {
+			wg.Add(1)
+			for {
+				select {
+				case <-helloImAChannel:
+					wg.Done()
+					t.Logf("%v - Im exiting!", i)
+					return
+				default:
+					t.Logf("%v - Im going to waste time!", i)
+					time.Sleep(time.Second * time.Duration(i+5))
+					t.Logf("%v - Finished wasting your time!", i)
+				}
+			}
+		}(i)
+	}
+
+	c := make(chan struct{}, 1)
+	time.Sleep(time.Second * 10)
+	go func(c chan struct{}) {
+		close(helloImAChannel)
+		wg.Wait()
+		c <- struct{}{}
+	}(c)
+
+	select {
+	case <-c:
+		t.Log("Success!")
+	case <-timer.C:
+		t.Log("Waiting timeout!")
+	}
+	ticker1 := time.Now().Unix()
+	wg.Wait()
+	ticker2 := time.Now().Unix()
+
+	t.Logf("Diff: %v. 1 %v 2 %v", (ticker2 - ticker1), ticker1, ticker2)
+}
 
 func TestWebsocketInit(t *testing.T) {
 	ws = New()

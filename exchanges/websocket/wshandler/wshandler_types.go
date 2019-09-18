@@ -53,7 +53,7 @@ const (
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
 	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
 	// websocket connection
-	WebsocketTrafficLimitTime     = 5 * time.Second
+	WebsocketTrafficLimitTime     = 2 * time.Minute
 	websocketRestablishConnection = time.Second
 	manageSubscriptionsDelay      = 5 * time.Second
 	// connection monitor time delays and limits
@@ -102,6 +102,8 @@ type Websocket struct {
 	Wg sync.WaitGroup
 	// TrafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
+	// ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
+	ReadMessageErrors chan error
 	// Functionality defines websocket stream capabilities
 	Functionality                uint32
 	canUseAuthenticatedEndpoints bool
