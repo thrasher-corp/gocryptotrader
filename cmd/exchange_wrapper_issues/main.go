@@ -142,7 +142,7 @@ func parseCLFlags() {
 	flag.StringVar(&currencyPairOverride, "currency", "", "the currency to run tests against (where applicable)")
 	flag.StringVar(&outputOverride, "output", "HTML", "JSON, HTML or Console")
 	flag.BoolVar(&authenticatedOnly, "auth-only", false, "skip any wrapper function that doesn't require auth")
-	flag.BoolVar(&verboseOverride, "verbose", false, "verbose CL output")
+	flag.BoolVar(&verboseOverride, "verbose", false, "verbose CL output - if console output is selected then wrapper response is included")
 	flag.StringVar(&orderSideOverride, "orderside", "BUY", "the order type for all order based wrapper tests")
 	flag.StringVar(&orderTypeOverride, "ordertype", "LIMIT", "the order type for all order based wrapper tests")
 	flag.Float64Var(&orderAmountOverride, "orderamount", 0, "the order amount for all order based wrapper tests")
@@ -821,12 +821,15 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 				log.Printf("Function:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Function)
 				log.Printf("AssetType:\t%v", exchangeResponses[i].AssetPairResponses[j].AssetType)
 				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].CurrencyPair)
-				log.Printf("Wrapper Params:\t%v\n", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].SentParams)
+				log.Printf("Wrapper Params:\t%s\n", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].SentParams)
 				if exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error != "" {
 					totalErrors++
 					log.Printf("Error:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error)
 				} else {
 					log.Print("Error:\tnone")
+				}
+				if verboseOverride {
+					log.Printf("Wrapper Response:\t%s", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Response)
 				}
 				log.Println()
 			}
