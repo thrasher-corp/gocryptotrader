@@ -35,9 +35,6 @@ func init() {
 				return make(chan interface{})
 			},
 		},
-		// Create unbuffered for singular shutdown handshake, pass waitgroup
-		// to ensure concurrency on singular routine shutdown
-		shutdown: make(chan *sync.WaitGroup),
 	}
 }
 
@@ -46,14 +43,14 @@ var dispatcher *Dispatcher
 var mtx sync.Mutex
 
 // Start starts the dispatch system by spawning workers and allocating memory
-func Start() error {
+func Start(workers int64) error {
 	if dispatcher == nil {
 		return errors.New(errNotInitialised)
 	}
 
 	mtx.Lock()
 	defer mtx.Unlock()
-	return dispatcher.start()
+	return dispatcher.start(workers)
 }
 
 // Stop attempts to stop the dispatch service, this will close all pipe channels
@@ -131,12 +128,18 @@ type Dispatcher struct {
 
 // start compares atomic running value, sets defaults, overides with
 // configuration, then spawns workers
-func (d *Dispatcher) start() error {
+func (d *Dispatcher) start(workers int64) error {
 	if atomic.LoadUint32(&d.running) == 1 {
 		return errors.New("Dispatcher: already started")
 	}
 
-	d.maxWorkers = DefaultMaxWorkers
+	if workers < 1 {
+		log.Warn(log.DispatchMgr,
+			"Dispatcher: workers cannot be zero using default values")
+		workers = DefaultMaxWorkers
+	}
+
+	d.maxWorkers = workers
 	d.shutdown = make(chan *sync.WaitGroup)
 
 	if atomic.LoadInt64(&d.count) != 0 {

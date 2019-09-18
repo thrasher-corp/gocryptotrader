@@ -110,7 +110,7 @@ func SetSubsystem(subsys string, enable bool) error {
 		Bot.ExchangeCurrencyPairManager.Stop()
 	case "dispatch":
 		if enable {
-			return dispatch.Start()
+			return dispatch.Start(Bot.Settings.DispatchMaxWorkerAmount)
 		}
 		return dispatch.Stop()
 	}

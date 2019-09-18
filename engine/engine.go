@@ -272,7 +272,7 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.EnableDispatcher {
-		if err := dispatch.Start(); err != nil {
+		if err := dispatch.Start(e.Settings.DispatchMaxWorkerAmount); err != nil {
 			log.Errorf(log.DispatchMgr, "Dispatcher unable to start: %v", err)
 		}
 	}
