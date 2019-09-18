@@ -19,10 +19,13 @@ const (
 	DefaultMaxWorkers = 10
 
 	// DefaultHandshakeTimeout defines a workers max length of time to wait on a
-	// an unbuffered channel for a reciever before moving on to next route
+	// an unbuffered channel for a receiver before moving on to next route
 	DefaultHandshakeTimeout = 200 * time.Nanosecond
 
-	errNotInitialised = "Dispatcher: not initialised"
+	errNotInitialised   = "dispatcher not initialised"
+	errAlreadyStarted   = "dispatcher already started"
+	errCannotShutdown   = "dispatcher cannot shutdown, already stopped"
+	errShutdownRoutines = "dispatcher did not shutdown properly, routines failed to close"
 )
 
 func init() {
@@ -130,7 +133,7 @@ type Dispatcher struct {
 // configuration, then spawns workers
 func (d *Dispatcher) start(workers int64) error {
 	if atomic.LoadUint32(&d.running) == 1 {
-		return errors.New("Dispatcher: already started")
+		return errors.New(errAlreadyStarted)
 	}
 
 	if workers < 1 {
@@ -143,7 +146,7 @@ func (d *Dispatcher) start(workers int64) error {
 	d.shutdown = make(chan *sync.WaitGroup)
 
 	if atomic.LoadInt64(&d.count) != 0 {
-		return errors.New("Dispatcher: leaked workers found")
+		return errors.New("dispatcher leaked workers found")
 	}
 
 	for i := int64(0); i < d.maxWorkers; i++ {
@@ -160,7 +163,7 @@ func (d *Dispatcher) start(workers int64) error {
 // stop stops the service and shuts down all worker routines
 func (d *Dispatcher) stop() error {
 	if !atomic.CompareAndSwapUint32(&d.running, 1, 0) {
-		return errors.New("Dispatcher: cannot shutdown, already stopped")
+		return errors.New(errCannotShutdown)
 	}
 	close(d.shutdown)
 	ch := make(chan struct{})
@@ -192,7 +195,7 @@ func (d *Dispatcher) stop() error {
 
 		return nil
 	case <-timer.C:
-		return errors.New("Dispatcher: cannot shutdown all routines")
+		return errors.New(errShutdownRoutines)
 	}
 }
 
@@ -211,7 +214,7 @@ func (d *Dispatcher) dropWorker() error {
 	newC := atomic.LoadInt64(&d.count)
 
 	if oldC == newC {
-		return errors.New("Dispatcher: worker counts are off")
+		return errors.New("dispatcher worker counts are off")
 	}
 	return nil
 }
@@ -219,7 +222,7 @@ func (d *Dispatcher) dropWorker() error {
 // spawnWorker allocates a new worker for job processing
 func (d *Dispatcher) spawnWorker() error {
 	if atomic.LoadInt64(&d.count) >= d.maxWorkers {
-		return errors.New("Dispatcher: cannot spawn more workers ceiling reached")
+		return errors.New("dispatcher cannot spawn more workers; ceiling reached")
 	}
 	var spawnWg sync.WaitGroup
 	spawnWg.Add(1)
@@ -288,11 +291,11 @@ func (d *Dispatcher) relayer(i *sync.WaitGroup) {
 // publish relays data to the subscribed subsystems
 func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	if data == nil {
-		return errors.New("Dispatcher: data cannot be nil")
+		return errors.New("dispatcher data cannot be nil")
 	}
 
 	if id == (uuid.UUID{}) {
-		return errors.New("Dispatcher: id not set")
+		return errors.New("dispatcher uuid not set")
 	}
 
 	if atomic.LoadUint32(&d.running) == 0 {
@@ -309,7 +312,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	select {
 	case d.jobs <- newJob:
 	default:
-		return fmt.Errorf("Dispatcher: buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x ",
+		return fmt.Errorf("dispatcher buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x",
 			len(d.jobs),
 			atomic.LoadInt64(&d.count))
 	}
@@ -322,7 +325,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 // system does not get a change, its up to you to in turn get initial state.
 func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 	if atomic.LoadUint32(&d.running) == 0 {
-		return nil, errors.New("Dispatcher: not running")
+		return nil, errors.New(errNotInitialised)
 	}
 
 	// Read lock to read route list
@@ -330,7 +333,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 	_, ok := d.routes[id]
 	d.rMtx.RUnlock()
 	if !ok {
-		return nil, errors.New("Dispatcher: id not found in route list")
+		return nil, errors.New("dispatcher uuid not found in route list")
 	}
 
 	// Get an unused channel from the channel pool
@@ -347,7 +350,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 // Unsubscribe unsubs a routine from the dispatcher
 func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error {
 	if atomic.LoadUint32(&d.running) == 0 {
-		return errors.New("Dispatcher: not running")
+		return errors.New(errNotInitialised)
 	}
 
 	// Read lock to read route list
@@ -355,7 +358,7 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error 
 	_, ok := d.routes[id]
 	d.rMtx.RUnlock()
 	if !ok {
-		return errors.New("Dispatcher: ticket does not reference any channels")
+		return errors.New("dispatcher uuid does not reference any channels")
 	}
 
 	// Lock for write to delete references
@@ -384,7 +387,7 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error 
 		return nil
 	}
 	d.rMtx.Unlock()
-	return errors.New("Dispatcher: channel not found in uuid reference slice")
+	return errors.New("dispatcher channel not found in uuid reference slice")
 }
 
 // GetNewID returns a new ID
@@ -400,7 +403,7 @@ func (d *Dispatcher) getNewID() (uuid.UUID, error) {
 	_, ok := d.routes[newID]
 	d.rMtx.RUnlock()
 	if ok {
-		return newID, errors.New("Dispatcher: collision detected, uuid already exists")
+		return newID, errors.New("dispatcher collision detected, uuid already exists")
 	}
 
 	// Write the key into system
