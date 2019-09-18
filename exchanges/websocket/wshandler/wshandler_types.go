@@ -78,6 +78,7 @@ type Websocket struct {
 	connector                func() error
 	m                        sync.Mutex
 	subscriptionLock         sync.Mutex
+	connectionMutex          sync.RWMutex
 	connectionMonitorRunning bool
 	reconnectionLimit        int
 	noConnectionChecks       int

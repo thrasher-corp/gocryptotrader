@@ -57,7 +57,7 @@ func (w *Websocket) Setup(connector func() error,
 	w.SetExchangeName(exchangeName)
 	w.SetCanUseAuthenticatedEndpoints(authenticatedWebsocketAPISupport)
 
-	w.init = false
+	w.setInit(false)
 	return nil
 }
 
@@ -70,32 +70,31 @@ func (w *Websocket) Connect() error {
 	if !w.IsEnabled() {
 		return errors.New(WebsocketNotEnabled)
 	}
-	if w.connecting {
+	if w.IsConnecting() {
 		return fmt.Errorf("%v - Websocket already attempting to connect",
 			w.exchangeName)
 	}
-	if w.connected {
+	if w.IsConnected() {
 		return fmt.Errorf("%v - Websocket already connected",
 			w.exchangeName)
 	}
-
-	w.connecting = true
+	w.setConnectingStatus(true)
 	w.ShutdownC = make(chan struct{}, 1)
 	err := w.connector()
 	if err != nil {
-		w.connecting = false
+		w.setConnectingStatus(false)
 		return fmt.Errorf("%v - Error connecting %s",
 			w.exchangeName, err)
 	}
 
-	w.connected = true
-	w.connecting = false
+	w.setConnectionStatus(true)
+	w.setConnectingStatus(false)
 
 	var anotherWG sync.WaitGroup
 	anotherWG.Add(1)
 	go w.trafficMonitor(&anotherWG)
 	anotherWG.Wait()
-	if !w.connectionMonitorRunning {
+	if !w.IsConnectionMonitorRunning() {
 		go w.connectionMonitor()
 	}
 	if w.SupportsFunctionality(WebsocketSubscribeSupported) || w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
@@ -107,17 +106,13 @@ func (w *Websocket) Connect() error {
 
 // connectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) connectionMonitor() {
-	w.m.Lock()
-	w.connectionMonitorRunning = true
-	w.m.Unlock()
+	w.setConnectionMonitorRunning(true)
 	defer func() {
-		w.connectionMonitorRunning = false
+		w.setConnectionMonitorRunning(false)
 	}()
 
 	for {
-		w.m.Lock()
-		if !w.enabled {
-			w.m.Unlock()
+		if !w.IsEnabled() {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)
 			}
@@ -131,14 +126,13 @@ func (w *Websocket) connectionMonitor() {
 			}
 			return
 		}
-		w.m.Unlock()
 		timer := time.NewTimer(connectionMonitorDelay)
 		select {
 		case err := <-w.ReadMessageErrors:
 			log.Debugf(log.WebsocketMgr, "%v", err)
 			// check if this error is a disconnection error
 			if _, ok := err.(*websocket.CloseError); ok {
-				w.connected = false
+				w.setConnectionStatus(false)
 				if w.verbose {
 					log.Debugf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v",
 						w.exchangeName, err)
@@ -154,20 +148,6 @@ func (w *Websocket) connectionMonitor() {
 	}
 }
 
-// IsConnected exposes websocket connection status
-func (w *Websocket) IsConnected() bool {
-	w.m.Lock()
-	defer w.m.Unlock()
-	return w.connected
-}
-
-// IsConnecting checks whether websocket is busy connecting
-func (w *Websocket) IsConnecting() bool {
-	w.m.Lock()
-	defer w.m.Unlock()
-	return w.connecting
-}
-
 // Shutdown attempts to shut down a websocket connection and associated routines
 // by using a package defined shutdown function
 func (w *Websocket) Shutdown() error {
@@ -176,7 +156,7 @@ func (w *Websocket) Shutdown() error {
 		w.Orderbook.FlushCache()
 		w.m.Unlock()
 	}()
-	if !w.connected && w.ShutdownC == nil {
+	if !w.IsConnected() && w.ShutdownC == nil {
 		return fmt.Errorf("%v cannot shutdown a disconnected websocket", w.exchangeName)
 	}
 	if w.verbose {
@@ -219,6 +199,71 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	}
 }
 
+func (w *Websocket) setConnectionStatus(b bool) {
+	w.connectionMutex.Lock()
+	w.connected = b
+	w.connectionMutex.Unlock()
+}
+
+// IsConnected exposes websocket connection status
+func (w *Websocket) IsConnected() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.connected
+}
+
+func (w *Websocket) setConnectingStatus(b bool) {
+	w.connectionMutex.Lock()
+	w.connecting = b
+	w.connectionMutex.Unlock()
+}
+
+// IsConnecting checks whether websocket is busy connecting
+func (w *Websocket) IsConnecting() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.connecting
+}
+
+func (w *Websocket) setEnabled(b bool) {
+	w.connectionMutex.Lock()
+	w.enabled = b
+	w.connectionMutex.Unlock()
+}
+
+// IsEnabled returns bool
+func (w *Websocket) IsEnabled() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.enabled
+}
+
+func (w *Websocket) setInit(b bool) {
+	w.connectionMutex.Lock()
+	w.init = b
+	w.connectionMutex.Unlock()
+}
+
+// IsInit returns bool
+func (w *Websocket) IsInit() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.init
+}
+
+func (w *Websocket) setConnectionMonitorRunning(b bool) {
+	w.connectionMutex.Lock()
+	w.connectionMonitorRunning = b
+	w.connectionMutex.Unlock()
+}
+
+// IsConnectionMonitorRunning returns bool
+func (w *Websocket) IsConnectionMonitorRunning() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.connectionMonitorRunning
+}
+
 // SetWebsocketURL sets websocket URL
 func (w *Websocket) SetWebsocketURL(websocketURL string) {
 	if websocketURL == "" || websocketURL == config.WebsocketURLNonDefaultMessage {
@@ -236,41 +281,28 @@ func (w *Websocket) GetWebsocketURL() string {
 // SetWsStatusAndConnection sets if websocket is enabled
 // it will also connect/disconnect the websocket connection
 func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
-	w.m.Lock()
-	if w.enabled == enabled {
-		if w.init {
-			w.m.Unlock()
+	if w.IsEnabled() == enabled {
+		if w.IsInit() {
 			return nil
 		}
-		w.m.Unlock()
 		return fmt.Errorf("%v Websocket already set as %t",
 			w.exchangeName, enabled)
 	}
-	w.enabled = enabled
-	if !w.init {
-		if enabled {
-			if w.connected {
-				w.m.Unlock()
+	w.setEnabled(enabled)
+	if !w.IsInit() {
+		if w.IsEnabled() {
+			if w.IsConnected() {
 				return nil
 			}
-			w.m.Unlock()
 			return w.Connect()
 		}
 
-		if !w.connected {
-			w.m.Unlock()
+		if !w.IsConnected() {
 			return nil
 		}
-		w.m.Unlock()
 		return w.Shutdown()
 	}
-	w.m.Unlock()
 	return nil
-}
-
-// IsEnabled returns bool
-func (w *Websocket) IsEnabled() bool {
-	return w.enabled
 }
 
 // SetProxyAddress sets websocket proxy address
@@ -280,8 +312,8 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	}
 
 	w.proxyAddr = proxyAddr
-	if !w.init && w.enabled {
-		if w.connected {
+	if !w.IsInit() && w.IsEnabled() {
+		if w.IsConnected() {
 			err := w.Shutdown()
 			if err != nil {
 				return err
@@ -602,6 +634,10 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	defer w.subscriptionLock.Unlock()
 	return w.canUseAuthenticatedEndpoints
 }
+
+// --------------------------------------------
+// WebsocketConnection stuff here
+// --------------------------------------------
 
 // AddResponseWithID adds data to IDResponses with locks and a nil check
 func (w *WebsocketConnection) AddResponseWithID(id int64, data []byte) {
