@@ -207,7 +207,7 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 		return fmt.Errorf("%v snapshot ask and bids are nil", w.exchangeName)
 	}
 
-	if newOrderbook.Pair.String() == "" {
+	if newOrderbook.Pair.IsEmpty() {
 		return errors.New("websocket orderbook pair unset")
 	}
 

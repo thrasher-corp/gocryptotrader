@@ -74,7 +74,7 @@ func (s *Service) Update(p *Price) error {
 		s.Tickers[p.ExchangeName] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker)
 		s.Tickers[p.ExchangeName][p.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Ticker)
 		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item] = make(map[asset.Item]*Ticker)
-		err := s.SetNewData(p)
+		err := s.SetItemID(p)
 		if err != nil {
 			s.Unlock()
 			return err
@@ -83,7 +83,7 @@ func (s *Service) Update(p *Price) error {
 	case s.Tickers[p.ExchangeName][p.Pair.Base.Item] == nil:
 		s.Tickers[p.ExchangeName][p.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Ticker)
 		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item] = make(map[asset.Item]*Ticker)
-		err := s.SetNewData(p)
+		err := s.SetItemID(p)
 		if err != nil {
 			s.Unlock()
 			return err
@@ -91,14 +91,14 @@ func (s *Service) Update(p *Price) error {
 
 	case s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item] == nil:
 		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item] = make(map[asset.Item]*Ticker)
-		err := s.SetNewData(p)
+		err := s.SetItemID(p)
 		if err != nil {
 			s.Unlock()
 			return err
 		}
 
 	case s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType] == nil:
-		err := s.SetNewData(p)
+		err := s.SetItemID(p)
 		if err != nil {
 			s.Unlock()
 			return err
@@ -123,8 +123,8 @@ func (s *Service) Update(p *Price) error {
 	return s.mux.Publish(ids, p)
 }
 
-// SetNewData sets new data
-func (s *Service) SetNewData(p *Price) error {
+// SetItemID retrieves and sets dispatch mux publish IDs
+func (s *Service) SetItemID(p *Price) error {
 	ids, err := s.GetAssociations(p)
 	if err != nil {
 		return err

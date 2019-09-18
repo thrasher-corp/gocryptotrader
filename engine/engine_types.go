@@ -62,6 +62,7 @@ type Settings struct {
 	ExchangeHTTPUserAgent string
 	ExchangeHTTPProxy     string
 
-	// Package system settings
+	// Dispatch system settings
+	EnableDispatcher        bool
 	DispatchMaxWorkerAmount int64
 }

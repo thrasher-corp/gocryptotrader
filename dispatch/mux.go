@@ -12,16 +12,16 @@ import (
 // per subsystem
 type Mux struct {
 	// Reference to the main running dispatch service
-	c *Communications
+	d *Dispatcher
 	sync.RWMutex
 }
 
 // GetNewMux returns a new multiplexor to track subsystem updates
 func GetNewMux() *Mux {
-	if comms == nil {
+	if dispatcher == nil {
 		panic("communications not initialised while getting new mux, not ideal")
 	}
-	return &Mux{c: comms}
+	return &Mux{d: dispatcher}
 }
 
 // Subscribe takes in a package defined signature element pointing to an ID set
@@ -31,7 +31,7 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 		return Pipe{}, errors.New("id not set")
 	}
 
-	ch, err := m.c.subscribe(id)
+	ch, err := m.d.subscribe(id)
 	if err != nil {
 		return Pipe{}, err
 	}
@@ -41,7 +41,7 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 
 // Unsubscribe returns channel to the pool for the full signature set
 func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
-	return m.c.unsubscribe(id, ch)
+	return m.d.unsubscribe(id, ch)
 }
 
 // Publish takes in a persistent memory address and dispatches changes to
@@ -55,7 +55,7 @@ func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 
 	for i := range ids {
 		// Create copy to not interfere with stored value
-		err := m.c.publish(ids[i], &cpy)
+		err := m.d.publish(ids[i], &cpy)
 		if err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 
 // GetID gets a lovely new ID
 func (m *Mux) GetID() (uuid.UUID, error) {
-	return m.c.getNewID()
+	return m.d.getNewID()
 }
 
 // Pipe defines an outbound object to the desired routine

@@ -987,7 +987,11 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	defer pipe.Release()
 
 	for {
-		data := <-pipe.C
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New("Dispatch system offline")
+		}
+
 		ob := (*data.(*interface{})).(orderbook.Base)
 		var bids, asks []*gctrpc.OrderbookItem
 		for i := range ob.Bids {
@@ -1031,7 +1035,11 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	defer pipe.Release()
 
 	for {
-		data := <-pipe.C
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New("Dispatch system offline")
+		}
+
 		ob := (*data.(*interface{})).(orderbook.Base)
 		var bids, asks []*gctrpc.OrderbookItem
 		for i := range ob.Bids {
@@ -1085,7 +1093,10 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	defer pipe.Release()
 
 	for {
-		data := <-pipe.C
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New("Dispatch system offline")
+		}
 		t := (*data.(*interface{})).(ticker.Price)
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -1122,7 +1133,10 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 	defer pipe.Release()
 
 	for {
-		data := <-pipe.C
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New("Dispatch system offline")
+		}
 		t := (*data.(*interface{})).(ticker.Price)
 
 		err := stream.Send(&gctrpc.TickerResponse{

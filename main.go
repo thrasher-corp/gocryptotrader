@@ -49,6 +49,7 @@ func main() {
 	flag.BoolVar(&settings.EnableDatabaseManager, "databasemanager", true, "enables database manager")
 	flag.DurationVar(&settings.EventManagerDelay, "eventmanagerdelay", time.Duration(0), "sets the event managers sleep delay between event checking")
 	flag.BoolVar(&settings.EnableNTPClient, "ntpclient", true, "enables the NTP client to check system clock drift")
+	flag.BoolVar(&settings.EnableDispatcher, "dispatch", true, "enables the dispatch system")
 	flag.Int64Var(&settings.DispatchMaxWorkerAmount, "dispatchworkers", dispatch.DefaultMaxWorkers, "sets the dispatch package max worker generation limit")
 
 	// Forex provider settings

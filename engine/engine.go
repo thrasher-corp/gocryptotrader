@@ -112,6 +112,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
+	b.Settings.EnableDispatcher = s.EnableDispatcher
 
 	// TO-DO: FIXME
 	if flag.Lookup("grpc") != nil {
@@ -232,6 +233,8 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Enable orderbook syncing: %v", s.EnableOrderbookSyncing)
 	log.Debugf(log.Global, "\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
 	log.Debugf(log.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
+	log.Debugf(log.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
+	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugf(log.Global, "- FOREX SETTINGS:")
 	log.Debugf(log.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
 	log.Debugf(log.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
@@ -253,8 +256,6 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
 	log.Debugf(log.Global, "\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)
 	log.Debugf(log.Global, "\t Global HTTP proxy: %v", s.ExchangeHTTPProxy)
-	log.Debugf(log.Global, "- PACKAGE SETTINGS:")
-	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugln(log.Global)
 }
 
@@ -270,8 +271,10 @@ func (e *Engine) Start() error {
 		}
 	}
 
-	if e.Settings.DispatchMaxWorkerAmount != dispatch.DefaultMaxWorkers {
-		dispatch.SetMaxWorkers(e.Settings.DispatchMaxWorkerAmount)
+	if e.Settings.EnableDispatcher {
+		if err := dispatch.Start(); err != nil {
+			log.Errorf(log.DispatchMgr, "Dispatcher unable to start: %v", err)
+		}
 	}
 
 	// Sets up internet connectivity monitor
@@ -441,6 +444,12 @@ func (e *Engine) Stop() {
 	if e.DatabaseManager.Started() {
 		if err := e.DatabaseManager.Stop(); err != nil {
 			log.Errorf(log.Global, "Database manager unable to stop. Error: %v", err)
+		}
+	}
+
+	if dispatch.IsRunning() {
+		if err := dispatch.Stop(); err != nil {
+			log.Errorf(log.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
 		}
 	}
 

@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,92 +12,231 @@ import (
 )
 
 const (
-	// defaultGatewaySleep defines our sleep time in between worker generation
-	// to limit worker production
-	defaultGatewaySleep = time.Millisecond * 100
-
-	// defaultJobBuffer defines a maxiumum amount of jobs allowed in channel
-	// before we spill over and spawn more workers
-	defaultJobBuffer = 10
-
-	// defaultWorkerRate defines a rate at which we determine the efficient
-	// release of workers by dividing how many jobs are in the job queue/channel
-	// with this number
-	defaultWorkerRate = 4
+	// DefaultJobBuffer defines a maxiumum amount of jobs allowed in channel
+	DefaultJobBuffer = 100
 
 	// DefaultMaxWorkers is the package default worker ceiling amount
 	DefaultMaxWorkers = 10
 
-	// handshakeTimeout defines a workers max length of time to wait on a
-	// channel before moving on to next channel route
-	handshakeTimeout = 200 * time.Nanosecond
+	// DefaultHandshakeTimeout defines a workers max length of time to wait on a
+	// an unbuffered channel for a reciever before moving on to next route
+	DefaultHandshakeTimeout = 200 * time.Nanosecond
+
+	errNotInitialised = "Dispatcher: not initialised"
 )
 
-// MaxWorkers define a ceiling for the amount of workers spawned
-var MaxWorkers int64
-
-// comms is our main instance
-var comms *Communications
-
-// init initial startup (✿◠‿◠)
 func init() {
-	comms = &Communications{
-		Routing: make(map[uuid.UUID][]chan interface{}),
-		jobs:    make(chan *job, defaultJobBuffer),
+	dispatcher = &Dispatcher{
+		routes: make(map[uuid.UUID][]chan interface{}),
+		jobs:   make(chan *job, DefaultJobBuffer),
 		outbound: sync.Pool{
 			New: func() interface{} {
 				// Create unbuffered channel for data pass
 				return make(chan interface{})
 			},
 		},
+		// Create unbuffered for singular shutdown handshake, pass waitgroup
+		// to ensure concurrency on singular routine shutdown
+		shutdown: make(chan *sync.WaitGroup),
+	}
+}
+
+// dispatcher is our main in memory instance with a stop/start mtx below
+var dispatcher *Dispatcher
+var mtx sync.Mutex
+
+// Start starts the dispatch system by spawning workers and allocating memory
+func Start() error {
+	if dispatcher == nil {
+		return errors.New(errNotInitialised)
 	}
 
-	MaxWorkers = DefaultMaxWorkers
-	// TODO: Might drop this worker in the future and just allocate and
-	// de-allocate as workers are needed
-	go comms.relayer()
+	mtx.Lock()
+	defer mtx.Unlock()
+	return dispatcher.start()
 }
 
-// job defines a relaying job associated with a ticket which allows routing to
-// routines that require specific data
-type job struct {
-	Data interface{}
-	ID   uuid.UUID
-	Err  chan interface{}
+// Stop attempts to stop the dispatch service, this will close all pipe channels
+// flush job list and drop all workers
+func Stop() error {
+	if dispatcher == nil {
+		return errors.New(errNotInitialised)
+	}
+
+	log.Debugln(log.DispatchMgr, "Dispatch manager shutting down...")
+
+	mtx.Lock()
+	defer mtx.Unlock()
+	return dispatcher.stop()
 }
 
-// Communications defines inner-subsystem communication systems
-type Communications struct {
-	// Outbound subystem with a ticket association so this could be routes will
-	// be cleaned when sub-systems have no use with them
-	// TODO: limit slice doubling
-	Routing map[uuid.UUID][]chan interface{}
-	rwMtx   sync.RWMutex
+// IsRunning checks to see if the dispatch service is running
+func IsRunning() bool {
+	if dispatcher == nil {
+		return false
+	}
 
-	// Persistent job channel see job struct
+	return dispatcher.isRunning()
+}
+
+// DropWorker drops a worker routine
+func DropWorker() error {
+	if dispatcher == nil {
+		return errors.New(errNotInitialised)
+	}
+
+	return dispatcher.dropWorker()
+}
+
+// SpawnWorker starts a new worker routine
+func SpawnWorker() error {
+	if dispatcher == nil {
+		return errors.New(errNotInitialised)
+	}
+	return dispatcher.spawnWorker()
+}
+
+// Dispatcher defines an internal subsystem communication/change state publisher
+type Dispatcher struct {
+	// routes refers to a subystem uuid ticket map with associated publish
+	// channels, a relayer will be given a unique id through its job channel,
+	// then publish the data across the full registered channels for that uuid.
+	// See relayer() method below.
+	routes map[uuid.UUID][]chan interface{}
+
+	// rMtx protects the routes variable ensuring acceptable read/write access
+	rMtx sync.RWMutex
+
+	// Persistent buffered job queue for relayers
 	jobs chan *job
 
-	// Dynamic channel communication pools; unbuffered outbound channels for
-	// generic data
+	// Dynamic channel pool; returns an unbuffered channel for routes map
 	outbound sync.Pool
 
-	// Atomic worker count
+	// Atomic values -----------------------
+	// MaxWorkers defines max worker ceiling
+	maxWorkers int64
+	// Worker counter
 	count int64
-	// Atomic worker gateway
-	gateway uint32
+	// Dispatch status
+	running uint32
+
+	// Unbufferd shutdown chan, sync wg for ensuring concurrency when only
+	// dropping a single relayer routine
+	shutdown chan *sync.WaitGroup
+
+	// Relayer shutdown tracking
+	wg sync.WaitGroup
+}
+
+// start compares atomic running value, sets defaults, overides with
+// configuration, then spawns workers
+func (d *Dispatcher) start() error {
+	if atomic.LoadUint32(&d.running) == 1 {
+		return errors.New("Dispatcher: already started")
+	}
+
+	d.maxWorkers = DefaultMaxWorkers
+	d.shutdown = make(chan *sync.WaitGroup)
+
+	if atomic.LoadInt64(&d.count) != 0 {
+		return errors.New("Dispatcher: leaked workers found")
+	}
+
+	for i := int64(0); i < d.maxWorkers; i++ {
+		err := d.spawnWorker()
+		if err != nil {
+			return err
+		}
+	}
+
+	atomic.SwapUint32(&d.running, 1)
+	return nil
+}
+
+// stop stops the service and shuts down all worker routines
+func (d *Dispatcher) stop() error {
+	if !atomic.CompareAndSwapUint32(&d.running, 1, 0) {
+		return errors.New("Dispatcher: cannot shutdown, already stopped")
+	}
+	close(d.shutdown)
+	ch := make(chan struct{})
+	timer := time.NewTimer(1 * time.Second)
+	defer func() {
+		timer.Stop()
+		select {
+		case <-timer.C:
+		default:
+		}
+	}()
+	go func(ch chan struct{}) { d.wg.Wait(); ch <- struct{}{} }(ch)
+	select {
+	case <-ch:
+		// close all routes
+		for key := range d.routes {
+			for i := range d.routes[key] {
+				close(d.routes[key][i])
+			}
+
+			d.routes[key] = nil
+		}
+
+		for len(d.jobs) != 0 { // drain jobs channel for old data
+			<-d.jobs
+		}
+
+		log.Debugln(log.DispatchMgr, "Dispatch manager shutdown.")
+
+		return nil
+	case <-timer.C:
+		return errors.New("Dispatcher: cannot shutdown all routines")
+	}
+}
+
+// isRunning returns if the dispatch system is running
+func (d *Dispatcher) isRunning() bool {
+	return atomic.LoadUint32(&d.running) == 1
+}
+
+// dropWorker deallocates a worker routine
+func (d *Dispatcher) dropWorker() error {
+	oldC := atomic.LoadInt64(&d.count)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	d.shutdown <- &wg
+	wg.Wait()
+	newC := atomic.LoadInt64(&d.count)
+
+	if oldC == newC {
+		return errors.New("Dispatcher: worker counts are off")
+	}
+	return nil
+}
+
+// spawnWorker allocates a new worker for job processing
+func (d *Dispatcher) spawnWorker() error {
+	if atomic.LoadInt64(&d.count) >= d.maxWorkers {
+		return errors.New("Dispatcher: cannot spawn more workers ceiling reached")
+	}
+	var spawnWg sync.WaitGroup
+	spawnWg.Add(1)
+	go d.relayer(&spawnWg)
+	spawnWg.Wait()
+	return nil
 }
 
 // Relayer routine relays communications across the defined routes
-func (c *Communications) relayer() {
-	atomic.AddInt64(&c.count, 1)
-	tick := time.NewTicker(defaultGatewaySleep)
-	chanHSTimeout := time.NewTimer(0)
+func (d *Dispatcher) relayer(i *sync.WaitGroup) {
+	atomic.AddInt64(&d.count, 1)
+	d.wg.Add(1)
+	timeout := time.NewTimer(0)
+	i.Done()
 	for {
 		select {
-		case j := <-c.jobs:
-			c.rwMtx.RLock()
-			if _, ok := c.Routing[j.ID]; !ok {
-				c.rwMtx.RUnlock()
+		case j := <-d.jobs:
+			d.rMtx.RLock()
+			if _, ok := d.routes[j.ID]; !ok {
+				d.rMtx.RUnlock()
 				continue
 			}
 			// Channel handshake timeout feature if a channel is blocked for any
@@ -108,53 +248,52 @@ func (c *Communications) relayer() {
 			// orderbook etc contained in a buffered channel when a routine
 			// actually is ready for a receive.
 			// TODO: Need to consider optimal timer length
-			for i := range c.Routing[j.ID] {
-				if !chanHSTimeout.Stop() { // Stop timer before reset
+			for i := range d.routes[j.ID] {
+				if !timeout.Stop() { // Stop timer before reset
 					// Drain channel if timer has already actuated
 					select {
-					case <-chanHSTimeout.C:
+					case <-timeout.C:
 					default:
 					}
 				}
 
-				chanHSTimeout.Reset(handshakeTimeout)
+				timeout.Reset(DefaultHandshakeTimeout)
 				select {
-				case c.Routing[j.ID][i] <- j.Data:
-				case <-chanHSTimeout.C:
+				case d.routes[j.ID][i] <- j.Data:
+				case <-timeout.C:
 				}
 			}
-			c.rwMtx.RUnlock()
+			d.rMtx.RUnlock()
 
-		case <-tick.C:
-			if atomic.CompareAndSwapUint32(&c.gateway, 0, 1) {
-				if len(c.jobs) < (defaultJobBuffer / defaultWorkerRate) {
-					if atomic.LoadInt64(&c.count) > 1 {
-						atomic.AddInt64(&c.count, -1)
-						atomic.SwapUint32(&c.gateway, 0)
-
-						tick.Stop()
-						if !chanHSTimeout.Stop() {
-							select {
-							case <-chanHSTimeout.C:
-							default:
-							}
-						}
-						return
-					}
+		case v := <-d.shutdown:
+			if !timeout.Stop() {
+				select {
+				case <-timeout.C:
+				default:
 				}
 			}
+			atomic.AddInt64(&d.count, -1)
+			if v != nil {
+				v.Done()
+			}
+			d.wg.Done()
+			return
 		}
 	}
 }
 
 // publish relays data to the subscribed subsystems
-func (c *Communications) publish(id uuid.UUID, data interface{}) error {
+func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	if data == nil {
-		return errors.New("data cannot be nil")
+		return errors.New("Dispatcher: data cannot be nil")
 	}
 
 	if id == (uuid.UUID{}) {
-		return errors.New("id not set")
+		return errors.New("Dispatcher: id not set")
+	}
+
+	if atomic.LoadUint32(&d.running) == 0 {
+		return nil
 	}
 
 	// Create a new job to publish
@@ -163,28 +302,13 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 		ID:   id,
 	}
 
-	// Push to job stack, this is buffered, when it reaches its buffered limit
-	// it will overflow the job stack and spawn a worker up until MaxWorkers
-	// (ノಠ益ಠ)
+	// Push job on stack here
 	select {
-	case c.jobs <- newJob:
+	case d.jobs <- newJob:
 	default:
-		if atomic.CompareAndSwapUint32(&c.gateway, 0, 1) {
-			go func() {
-				// Adds in an artificial time buffer between worker generation
-				// so we limit the scale up
-				time.Sleep(defaultGatewaySleep)
-				atomic.SwapUint32(&c.gateway, 0)
-			}()
-			if atomic.LoadInt64(&c.count) < atomic.LoadInt64(&MaxWorkers) {
-				go c.relayer()
-			}
-		}
-		select {
-		case c.jobs <- newJob:
-		default:
-			return errors.New("buffer at max cap, spawn more workers")
-		}
+		return fmt.Errorf("Dispatcher: buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x ",
+			len(d.jobs),
+			atomic.LoadInt64(&d.count))
 	}
 
 	return nil
@@ -193,58 +317,75 @@ func (c *Communications) publish(id uuid.UUID, data interface{}) error {
 // Subscribe subscribes a system and returns a communication chan, this does not
 // ensure initial push. If your routine is out of sync with heartbeat and the
 // system does not get a change, its up to you to in turn get initial state.
-func (c *Communications) subscribe(id uuid.UUID) (chan interface{}, error) {
+func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
+	if atomic.LoadUint32(&d.running) == 0 {
+		return nil, errors.New("Dispatcher: not running")
+	}
+
 	// Read lock to read route list
-	c.rwMtx.RLock()
-	_, ok := c.Routing[id]
-	c.rwMtx.RUnlock()
+	d.rMtx.RLock()
+	_, ok := d.routes[id]
+	d.rMtx.RUnlock()
 	if !ok {
-		return nil, errors.New("id not found in route list")
+		return nil, errors.New("Dispatcher: id not found in route list")
 	}
 
 	// Get an unused channel from the channel pool
-	unusedChan := c.outbound.Get().(chan interface{})
+	unusedChan := d.outbound.Get().(chan interface{})
 
 	// Lock for writing to the route list
-	c.rwMtx.Lock()
-	c.Routing[id] = append(c.Routing[id], unusedChan)
-	c.rwMtx.Unlock()
+	d.rMtx.Lock()
+	d.routes[id] = append(d.routes[id], unusedChan)
+	d.rMtx.Unlock()
 
 	return unusedChan, nil
 }
 
 // Unsubscribe unsubs a routine from the dispatcher
-func (c *Communications) unsubscribe(id uuid.UUID, usedChan chan interface{}) error {
+func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error {
+	if atomic.LoadUint32(&d.running) == 0 {
+		return errors.New("Dispatcher: not running")
+	}
+
 	// Read lock to read route list
-	c.rwMtx.RLock()
-	_, ok := c.Routing[id]
-	c.rwMtx.RUnlock()
+	d.rMtx.RLock()
+	_, ok := d.routes[id]
+	d.rMtx.RUnlock()
 	if !ok {
-		return errors.New("ticket does not reference any channels")
+		return errors.New("Dispatcher: ticket does not reference any channels")
 	}
 
 	// Lock for write to delete references
-	c.rwMtx.Lock()
-	for i := range c.Routing[id] {
-		if c.Routing[id][i] != usedChan {
+	d.rMtx.Lock()
+	for i := range d.routes[id] {
+		if d.routes[id][i] != usedChan {
 			continue
 		}
 		// Delete individual reference
-		c.Routing[id][i] = c.Routing[id][len(c.Routing[id])-1]
-		c.Routing[id][len(c.Routing[id])-1] = nil
-		c.Routing[id] = c.Routing[id][:len(c.Routing[id])-1]
+		d.routes[id][i] = d.routes[id][len(d.routes[id])-1]
+		d.routes[id][len(d.routes[id])-1] = nil
+		d.routes[id] = d.routes[id][:len(d.routes[id])-1]
 
-		// Put the used chan back in pool
-		c.outbound.Put(usedChan)
-		c.rwMtx.Unlock()
+		d.rMtx.Unlock()
+
+		// Drain and put the used chan back in pool; only if it is not closed.
+		select {
+		case _, ok := <-usedChan:
+			if !ok {
+				return nil
+			}
+		default:
+		}
+
+		d.outbound.Put(usedChan)
 		return nil
 	}
-	c.rwMtx.Unlock()
-	return errors.New("channel not found in uuid reference slice")
+	d.rMtx.Unlock()
+	return errors.New("Dispatcher: channel not found in uuid reference slice")
 }
 
 // GetNewID returns a new ID
-func (c *Communications) getNewID() (uuid.UUID, error) {
+func (d *Dispatcher) getNewID() (uuid.UUID, error) {
 	// Generate new uuid
 	newID, err := uuid.NewV4()
 	if err != nil {
@@ -252,32 +393,24 @@ func (c *Communications) getNewID() (uuid.UUID, error) {
 	}
 
 	// Check to see if it already exists
-	c.rwMtx.RLock()
-	_, ok := c.Routing[newID]
-	c.rwMtx.RUnlock()
+	d.rMtx.RLock()
+	_, ok := d.routes[newID]
+	d.rMtx.RUnlock()
 	if ok {
-		return newID, errors.New("collision detected, uuid already exists")
+		return newID, errors.New("Dispatcher: collision detected, uuid already exists")
 	}
 
 	// Write the key into system
-	c.rwMtx.Lock()
-	c.Routing[newID] = nil
-	c.rwMtx.Unlock()
+	d.rMtx.Lock()
+	d.routes[newID] = nil
+	d.rMtx.Unlock()
 
 	return newID, nil
 }
 
-// SetMaxWorkers sets worker generation ceiling
-func SetMaxWorkers(w int64) {
-	if w < 1 {
-		log.Warnf(log.Global,
-			"dispatch package: invalid worker amount, defaulting to %d",
-			DefaultMaxWorkers)
-		w = DefaultMaxWorkers
-	}
-
-	old := atomic.SwapInt64(&MaxWorkers, w)
-	log.Debugf(log.Global, "dispatch worker ceiling updated from %d to %d max workers",
-		old,
-		w)
+// job defines a relaying job associated with a ticket which allows routing to
+// routines that require specific data
+type job struct {
+	Data interface{}
+	ID   uuid.UUID
 }

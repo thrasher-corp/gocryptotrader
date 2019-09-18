@@ -19,6 +19,7 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -42,6 +43,7 @@ func GetSubsystemsStatus() map[string]bool {
 	systems["grpc_proxy"] = Bot.Settings.EnableGRPCProxy
 	systems["deprecated_rpc"] = Bot.Settings.EnableDeprecatedRPC
 	systems["websocket_rpc"] = Bot.Settings.EnableWebsocketRPC
+	systems["dispatch"] = dispatch.IsRunning()
 	return systems
 }
 
@@ -106,6 +108,11 @@ func SetSubsystem(subsys string, enable bool) error {
 			Bot.ExchangeCurrencyPairManager.Start()
 		}
 		Bot.ExchangeCurrencyPairManager.Stop()
+	case "dispatch":
+		if enable {
+			return dispatch.Start()
+		}
+		return dispatch.Stop()
 	}
 	return errors.New("subsystem not found")
 }
