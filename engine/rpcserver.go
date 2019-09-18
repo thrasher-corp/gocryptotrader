@@ -33,6 +33,7 @@ const (
 	errExchangeNameUnset = "exchange name unset"
 	errCurrencyPairUnset = "currency pair unset"
 	errAssetTypeUnset    = "asset type unset"
+	errDispatchSystem    = "dispatch system offline"
 )
 
 // RPCServer struct
@@ -989,7 +990,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New("Dispatch system offline")
+			return errors.New(errDispatchSystem)
 		}
 
 		ob := (*data.(*interface{})).(orderbook.Base)
@@ -1037,7 +1038,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New("Dispatch system offline")
+			return errors.New(errDispatchSystem)
 		}
 
 		ob := (*data.(*interface{})).(orderbook.Base)
@@ -1095,7 +1096,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New("Dispatch system offline")
+			return errors.New(errDispatchSystem)
 		}
 		t := (*data.(*interface{})).(ticker.Price)
 
@@ -1135,7 +1136,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New("Dispatch system offline")
+			return errors.New(errDispatchSystem)
 		}
 		t := (*data.(*interface{})).(ticker.Price)
 
