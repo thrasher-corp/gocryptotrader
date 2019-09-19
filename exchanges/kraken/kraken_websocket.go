@@ -110,9 +110,7 @@ func (k *Kraken) WsHandleData() {
 		default:
 			resp, err := k.WebsocketConn.ReadMessage()
 			if err != nil {
-				k.Websocket.DataHandler <- fmt.Errorf("%v WsHandleData: %v",
-					k.Name,
-					err)
+				k.Websocket.ReadMessageErrors <- err
 				return
 			}
 			k.Websocket.TrafficAlert <- struct{}{}

@@ -31,15 +31,18 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = o.Websocket.Setup(o.WsConnect,
-		o.Subscribe,
-		o.Unsubscribe,
-		exch.Name,
-		exch.Features.Enabled.Websocket,
-		exch.Verbose,
-		o.API.Endpoints.WebsocketURL,
-		exch.API.Endpoints.WebsocketURL,
-		exch.API.AuthenticatedWebsocketSupport)
+	err = o.Websocket.Setup(&wshandler.WebsocketSetup{
+		WsEnabled:                        exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 0,
+		DefaultURL:                       o.API.Endpoints.WebsocketURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        o.WsConnect,
+		Subscriber:                       o.Subscribe,
+		UnSubscriber:                     o.Unsubscribe,
+	})
 	if err != nil {
 		return err
 	}

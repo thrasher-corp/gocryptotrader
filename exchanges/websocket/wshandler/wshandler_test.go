@@ -20,8 +20,8 @@ func TestDemonstrateChannelClosure(t *testing.T) {
 	var wg sync.WaitGroup
 	timer := time.NewTimer(15 * time.Second)
 	for _, i := range []int{1, 2, 3, 4, 5, 6, 20, 0, 22, 7, 9, 23} {
+		wg.Add(1)
 		go func(i int) {
-			wg.Add(1)
 			for {
 				select {
 				case <-helloImAChannel:
@@ -70,15 +70,19 @@ func TestWebsocket(t *testing.T) {
 		t.Error("test failed - SetProxyAddress", err)
 	}
 
-	ws.Setup(func() error { return nil },
-		func(test WebsocketChannelSubscription) error { return nil },
-		func(test WebsocketChannelSubscription) error { return nil },
-		"testName",
-		true,
-		false,
-		"testDefaultURL",
-		"testRunningURL",
-		false)
+	ws.Setup(
+		&WebsocketSetup{
+			WsEnabled:                        true,
+			Verbose:                          false,
+			AuthenticatedWebsocketAPISupport: true,
+			WebsocketTimeout:                 0,
+			DefaultURL:                       "testDefaultURL",
+			ExchangeName:                     "exchangeName",
+			RunningURL:                       "testRunningURL",
+			Connector:                        func() error { return nil },
+			Subscriber:                       func(test WebsocketChannelSubscription) error { return nil },
+			UnSubscriber:                     func(test WebsocketChannelSubscription) error { return nil },
+		})
 
 	// Test variable setting and retreival
 	if ws.GetName() != "testName" {
@@ -298,48 +302,6 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	if !strings.EqualFold(err.(error).Error(),
 		fmt.Sprintf("%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)) {
 		t.Errorf("expecting error 'connectionMonitor: websocket disabled, shutting down', received '%v'", err)
-	}
-}
-
-// TestWsNoConnectionTolerance logic test
-func TestWsNoConnectionTolerance(t *testing.T) {
-	w := Websocket{}
-	w.DataHandler = make(chan interface{}, 1)
-	w.ShutdownC = make(chan struct{}, 1)
-	w.enabled = true
-	w.noConnectionCheckLimit = 500
-	w.checkConnection()
-	if w.noConnectionChecks == 0 {
-		t.Errorf("Expected noConnectionTolerance to increment, received '%v'", w.noConnectionChecks)
-	}
-}
-
-// TestConnecting logic test
-func TestConnecting(t *testing.T) {
-	w := Websocket{}
-	w.DataHandler = make(chan interface{}, 1)
-	w.ShutdownC = make(chan struct{}, 1)
-	w.enabled = true
-	w.connecting = true
-	w.reconnectionLimit = 500
-	w.checkConnection()
-	if w.reconnectionChecks != 1 {
-		t.Errorf("Expected reconnectionLimit to increment, received '%v'", w.reconnectionChecks)
-	}
-}
-
-// TestReconnectionLimit logic test
-func TestReconnectionLimit(t *testing.T) {
-	w := Websocket{}
-	w.DataHandler = make(chan interface{}, 1)
-	w.ShutdownC = make(chan struct{}, 1)
-	w.enabled = true
-	w.connecting = true
-	w.reconnectionChecks = 99
-	w.reconnectionLimit = 1
-	err := w.checkConnection()
-	if err == nil {
-		t.Error("Expected error")
 	}
 }
 

@@ -116,15 +116,17 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		g.API.Endpoints.URL = geminiSandboxAPIURL
 	}
 
-	err = g.Websocket.Setup(g.WsConnect,
-		nil,
-		nil,
-		exch.Name,
-		exch.Features.Enabled.Websocket,
-		exch.Verbose,
-		geminiWebsocketEndpoint,
-		exch.API.Endpoints.WebsocketURL,
-		exch.API.AuthenticatedWebsocketSupport)
+	err = g.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			WsEnabled:                        exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 0,
+			DefaultURL:                       geminiWebsocketEndpoint,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        g.WsConnect,
+		})
 	if err != nil {
 		return err
 	}

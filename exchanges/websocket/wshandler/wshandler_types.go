@@ -66,28 +66,27 @@ const (
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing in routines.go
 type Websocket struct {
-	proxyAddr                string
-	defaultURL               string
-	runningURL               string
-	exchangeName             string
-	enabled                  bool
-	init                     bool
-	connected                bool
-	connecting               bool
-	verbose                  bool
-	connector                func() error
-	m                        sync.Mutex
-	subscriptionLock         sync.Mutex
-	connectionMutex          sync.RWMutex
-	connectionMonitorRunning bool
-	reconnectionLimit        int
-	noConnectionChecks       int
-	reconnectionChecks       int
-	noConnectionCheckLimit   int
-	subscribedChannels       []WebsocketChannelSubscription
-	channelsToSubscribe      []WebsocketChannelSubscription
-	channelSubscriber        func(channelToSubscribe WebsocketChannelSubscription) error
-	channelUnsubscriber      func(channelToUnsubscribe WebsocketChannelSubscription) error
+	// Functionality defines websocket stream capabilities
+	Functionality                uint32
+	canUseAuthenticatedEndpoints bool
+	enabled                      bool
+	init                         bool
+	connected                    bool
+	connecting                   bool
+	verbose                      bool
+	connectionMonitorRunning     bool
+	proxyAddr                    string
+	defaultURL                   string
+	runningURL                   string
+	exchangeName                 string
+	m                            sync.Mutex
+	subscriptionLock             sync.Mutex
+	connectionMutex              sync.RWMutex
+	connector                    func() error
+	subscribedChannels           []WebsocketChannelSubscription
+	channelsToSubscribe          []WebsocketChannelSubscription
+	channelSubscriber            func(channelToSubscribe WebsocketChannelSubscription) error
+	channelUnsubscriber          func(channelToUnsubscribe WebsocketChannelSubscription) error
 	// Connected denotes a channel switch for diversion of request flow
 	Connected chan struct{}
 	// Disconnected denotes a channel switch for diversion of request flow
@@ -105,9 +104,19 @@ type Websocket struct {
 	TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
 	ReadMessageErrors chan error
-	// Functionality defines websocket stream capabilities
-	Functionality                uint32
-	canUseAuthenticatedEndpoints bool
+}
+
+type WebsocketSetup struct {
+	WsEnabled                        bool
+	Verbose                          bool
+	AuthenticatedWebsocketAPISupport bool
+	WebsocketTimeout                 time.Duration
+	DefaultURL                       string
+	ExchangeName                     string
+	RunningURL                       string
+	Connector                        func() error
+	Subscriber                       func(channelToSubscribe WebsocketChannelSubscription) error
+	UnSubscriber                     func(channelToUnsubscribe WebsocketChannelSubscription) error
 }
 
 // WebsocketChannelSubscription container for websocket subscriptions

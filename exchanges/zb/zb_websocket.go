@@ -58,7 +58,7 @@ func (z *ZB) WsHandleData() {
 		default:
 			resp, err := z.WebsocketConn.ReadMessage()
 			if err != nil {
-				z.Websocket.DataHandler <- err
+				z.Websocket.ReadMessageErrors <- err
 				return
 			}
 			z.Websocket.TrafficAlert <- struct{}{}

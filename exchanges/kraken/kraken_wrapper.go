@@ -119,15 +119,19 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = k.Websocket.Setup(k.WsConnect,
-		k.Subscribe,
-		k.Unsubscribe,
-		exch.Name,
-		exch.Features.Enabled.Websocket,
-		exch.Verbose,
-		krakenWSURL,
-		exch.API.Endpoints.WebsocketURL,
-		exch.API.AuthenticatedWebsocketSupport)
+	err = k.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			WsEnabled:                        exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 0,
+			DefaultURL:                       krakenWSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        k.WsConnect,
+			Subscriber:                       k.Subscribe,
+			UnSubscriber:                     k.Unsubscribe,
+		})
 	if err != nil {
 		return err
 	}

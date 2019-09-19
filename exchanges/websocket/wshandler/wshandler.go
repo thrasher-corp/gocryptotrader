@@ -31,31 +31,22 @@ func New() *Websocket {
 }
 
 // Setup sets main variables for websocket connection
-func (w *Websocket) Setup(connector func() error,
-	subscriber func(channelToSubscribe WebsocketChannelSubscription) error,
-	unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error,
-	exchangeName string,
-	wsEnabled,
-	verbose bool,
-	defaultURL,
-	runningURL string,
-	authenticatedWebsocketAPISupport bool) error {
-
+func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	w.DataHandler = make(chan interface{}, 1)
 	w.TrafficAlert = make(chan struct{}, 1)
-	w.verbose = verbose
+	w.verbose = setupData.Verbose
 
-	w.SetChannelSubscriber(subscriber)
-	w.SetChannelUnsubscriber(unsubscriber)
-	err := w.SetWsStatusAndConnection(wsEnabled)
+	w.SetChannelSubscriber(setupData.Subscriber)
+	w.SetChannelUnsubscriber(setupData.UnSubscriber)
+	err := w.SetWsStatusAndConnection(setupData.WsEnabled)
 	if err != nil {
 		return err
 	}
-	w.SetDefaultURL(defaultURL)
-	w.SetConnector(connector)
-	w.SetWebsocketURL(runningURL)
-	w.SetExchangeName(exchangeName)
-	w.SetCanUseAuthenticatedEndpoints(authenticatedWebsocketAPISupport)
+	w.SetDefaultURL(setupData.DefaultURL)
+	w.SetConnector(setupData.Connector)
+	w.SetWebsocketURL(setupData.RunningURL)
+	w.SetExchangeName(setupData.ExchangeName)
+	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 
 	w.setInit(false)
 	return nil
@@ -604,7 +595,6 @@ func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription)
 			w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
 		}
 	}
-	w.noConnectionChecks = 0
 }
 
 // Equal two WebsocketChannelSubscription to determine equality
@@ -738,6 +728,7 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
+
 		return WebsocketResponse{}, err
 	}
 	var standardMessage []byte

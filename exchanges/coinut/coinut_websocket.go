@@ -77,7 +77,7 @@ func (c *COINUT) WsHandleData() {
 		default:
 			resp, err := c.WebsocketConn.ReadMessage()
 			if err != nil {
-				c.Websocket.DataHandler <- err
+				c.Websocket.ReadMessageErrors <- err
 				return
 			}
 			c.Websocket.TrafficAlert <- struct{}{}

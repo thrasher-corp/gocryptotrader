@@ -133,6 +133,7 @@ func (b *Bitfinex) WsConnect() error {
 
 	resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
+		b.Websocket.ReadMessageErrors <- err
 		return fmt.Errorf("%v unable to read from Websocket. Error: %s", b.Name, err)
 	}
 	b.Websocket.TrafficAlert <- struct{}{}
@@ -177,7 +178,7 @@ func (b *Bitfinex) WsDataHandler() {
 		default:
 			stream, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
-				b.Websocket.DataHandler <- err
+				b.Websocket.ReadMessageErrors <- err
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}

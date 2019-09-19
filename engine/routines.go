@@ -409,7 +409,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 			case error:
 				switch {
 				case strings.Contains(d.Error(), "close 1006"):
-					go ws.WebsocketReset()
+					go ws.Connect()
 					continue
 				default:
 					log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)

@@ -21,8 +21,8 @@ const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443"
 )
 
-// WSConnect intiates a websocket connection
-func (b *Binance) WSConnect() error {
+// WsConnect intiates a websocket connection
+func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
@@ -87,7 +87,7 @@ func (b *Binance) WsHandleData() {
 		default:
 			read, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
-				b.Websocket.DataHandler <- err
+				b.Websocket.ReadMessageErrors <- err
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}

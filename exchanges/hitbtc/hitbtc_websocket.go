@@ -65,7 +65,7 @@ func (h *HitBTC) WsHandleData() {
 		default:
 			resp, err := h.WebsocketConn.ReadMessage()
 			if err != nil {
-				h.Websocket.DataHandler <- err
+				h.Websocket.ReadMessageErrors <- err
 				return
 			}
 			h.Websocket.TrafficAlert <- struct{}{}

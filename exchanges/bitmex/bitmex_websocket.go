@@ -66,8 +66,8 @@ var (
 	pongChan = make(chan int, 1)
 )
 
-// WsConnector initiates a new websocket connection
-func (b *Bitmex) WsConnector() error {
+// WsConnect initiates a new websocket connection
+func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
@@ -79,6 +79,7 @@ func (b *Bitmex) WsConnector() error {
 
 	p, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
+		b.Websocket.ReadMessageErrors <- err
 		return err
 	}
 	b.Websocket.TrafficAlert <- struct{}{}

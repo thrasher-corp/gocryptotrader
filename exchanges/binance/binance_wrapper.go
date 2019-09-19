@@ -113,15 +113,20 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(b.WSConnect,
-		nil,
-		nil,
-		exch.Name,
-		exch.Features.Enabled.Websocket,
-		exch.Verbose,
-		binanceDefaultWebsocketURL,
-		exch.API.Endpoints.WebsocketURL,
-		exch.API.AuthenticatedWebsocketSupport)
+	err = b.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			WsEnabled:                        exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 0,
+			DefaultURL:                       binanceDefaultWebsocketURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        b.WsConnect,
+			Subscriber:                       nil,
+			UnSubscriber:                     nil,
+		})
+
 	if err != nil {
 		return err
 	}

@@ -221,7 +221,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 		default:
 			resp, err := o.WebsocketConn.ReadMessage()
 			if err != nil {
-				o.Websocket.DataHandler <- err
+				o.Websocket.ReadMessageErrors <- err
 				return
 			}
 			o.Websocket.TrafficAlert <- struct{}{}

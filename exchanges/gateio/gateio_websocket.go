@@ -92,7 +92,7 @@ func (g *Gateio) WsHandleData() {
 		default:
 			resp, err := g.WebsocketConn.ReadMessage()
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				g.Websocket.ReadMessageErrors <- err
 				return
 			}
 			g.Websocket.TrafficAlert <- struct{}{}

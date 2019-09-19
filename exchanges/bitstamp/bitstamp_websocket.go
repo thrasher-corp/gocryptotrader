@@ -62,7 +62,7 @@ func (b *Bitstamp) WsHandleData() {
 		default:
 			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
-				b.Websocket.DataHandler <- err
+				b.Websocket.ReadMessageErrors <- err
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
@@ -78,7 +78,7 @@ func (b *Bitstamp) WsHandleData() {
 				if b.Verbose {
 					log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.GetName())
 				}
-				go b.Websocket.WebsocketReset()
+				go b.Websocket.Shutdown() // Connection monitor will reconnect
 
 			case "data":
 				wsOrderBookTemp := websocketOrderBookResponse{}
