@@ -491,7 +491,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 				usingREST = true
 			}
 
-			if !ws.IsConnected() {
+			if !ws.IsConnected() && !ws.IsConnecting() {
 				go WebsocketDataHandler(ws)
 
 				err = ws.Connect()

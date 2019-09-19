@@ -658,6 +658,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		}
 		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
+	log.Infof(log.WebsocketMgr, "%v - Websocket connected", w.ExchangeName)
 	return nil
 }
 
