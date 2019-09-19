@@ -18,8 +18,6 @@ import (
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 )
 
-type argsType []string
-
 var (
 	dbConn          *database.Db
 	configFile      string
@@ -27,17 +25,8 @@ var (
 	createMigration string
 	migrationDir    string
 	command         string
-	args            argsType
+	args            string
 )
-
-func (i *argsType) String() string {
-	return "hello"
-}
-
-func (i *argsType) Set(value string) error {
-	*i = append(*i, value)
-	return nil
-}
 
 func openDbConnection(driver string) (err error) {
 	if driver == "postgres" {
@@ -71,7 +60,7 @@ func main() {
 		os.Exit(1)
 	}
 	flag.StringVar(&command, "command", "status", "command to run")
-	flag.Var(&args, "args", "arguments to pass to goose")
+	flag.StringVar(&args, "args", "", "arguments to pass to goose")
 
 	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
@@ -102,7 +91,7 @@ func main() {
 		fmt.Printf("Connected to: %s\n", conf.Database.Host)
 	}
 
-	if err := goose.Run(command, dbConn.SQL, drv, migrationDir, args.String()); err != nil {
+	if err := goose.Run(command, dbConn.SQL, drv, migrationDir, args); err != nil {
 		fmt.Println(err)
 	}
 }
