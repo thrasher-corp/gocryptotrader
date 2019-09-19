@@ -19,7 +19,7 @@ type Db struct {
 	Mu        sync.RWMutex
 }
 
-// Config holds all database configurable options includng enable/disabled & DSN settings
+// Config holds all database configurable options including enable/disabled & DSN settings
 type Config struct {
 	Enabled                   bool   `json:"enabled"`
 	Driver                    string `json:"driver"`

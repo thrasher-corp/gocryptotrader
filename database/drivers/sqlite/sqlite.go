@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
+// Connect opens a connection to sqlite database and returns a pointer to database.DB
 func Connect() (*database.Db, error) {
 	if database.DB.Config.Database == "" {
 		return nil, database.ErrNoDatabaseProvided

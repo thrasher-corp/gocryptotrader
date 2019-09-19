@@ -21,22 +21,6 @@ func Event(id, msgtype, message string) {
 	ctx := context.Background()
 	ctx = boil.SkipTimestamps(ctx)
 
-	var tempEvent interface{}
-
-	if repository.GetSQLDialect() == "sqlite" {
-		tempEvent = modelSQLite.AuditEvent{
-			Type:       msgtype,
-			Identifier: id,
-			Message:    message,
-		}
-	} else {
-		tempEvent = modelPSQL.AuditEvent{
-			Type:       msgtype,
-			Identifier: id,
-			Message:    message,
-		}
-	}
-
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
 		log.Errorf(log.Global, "transaction begin failed: %v", err)
@@ -44,9 +28,19 @@ func Event(id, msgtype, message string) {
 	}
 
 	if repository.GetSQLDialect() == "sqlite" {
+		var tempEvent = modelSQLite.AuditEvent{
+			Type:       msgtype,
+			Identifier: id,
+			Message:    message,
+		}
 		err = tempEvent.Insert(ctx, tx, boil.Blacklist("created_at"))
 	} else {
-
+		var tempEvent = modelPSQL.AuditEvent{
+			Type:       msgtype,
+			Identifier: id,
+			Message:    message,
+		}
+		err = tempEvent.Insert(ctx, tx, boil.Blacklist("created_at"))
 	}
 
 	if err != nil {
