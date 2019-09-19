@@ -23,7 +23,7 @@ import (
 
 // AuditEvent is an object representing the database table.
 type AuditEvent struct {
-	ID         null.Int64  `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	ID         int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
 	Type       string      `boil:"type" json:"type" toml:"type" yaml:"type"`
 	Identifier string      `boil:"identifier" json:"identifier" toml:"identifier" yaml:"identifier"`
 	Message    string      `boil:"message" json:"message" toml:"message" yaml:"message"`
@@ -49,28 +49,14 @@ var AuditEventColumns = struct {
 
 // Generated where
 
-type whereHelpernull_Int64 struct{ field string }
+type whereHelperint64 struct{ field string }
 
-func (w whereHelpernull_Int64) EQ(x null.Int64) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_Int64) NEQ(x null.Int64) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_Int64) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_Int64) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-func (w whereHelpernull_Int64) LT(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_Int64) LTE(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_Int64) GT(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_Int64) GTE(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
+func (w whereHelperint64) EQ(x int64) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperint64) NEQ(x int64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperint64) LT(x int64) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperint64) LTE(x int64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperint64) GT(x int64) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperint64) GTE(x int64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
 
 type whereHelperstring struct{ field string }
 
@@ -112,13 +98,13 @@ func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
 }
 
 var AuditEventWhere = struct {
-	ID         whereHelpernull_Int64
+	ID         whereHelperint64
 	Type       whereHelperstring
 	Identifier whereHelperstring
 	Message    whereHelperstring
 	CreatedAt  whereHelpernull_String
 }{
-	ID:         whereHelpernull_Int64{field: "\"audit_event\".\"id\""},
+	ID:         whereHelperint64{field: "\"audit_event\".\"id\""},
 	Type:       whereHelperstring{field: "\"audit_event\".\"type\""},
 	Identifier: whereHelperstring{field: "\"audit_event\".\"identifier\""},
 	Message:    whereHelperstring{field: "\"audit_event\".\"message\""},
@@ -143,8 +129,8 @@ type auditEventL struct{}
 
 var (
 	auditEventAllColumns            = []string{"id", "type", "identifier", "message", "created_at"}
-	auditEventColumnsWithoutDefault = []string{"type", "identifier", "message"}
-	auditEventColumnsWithDefault    = []string{"id", "created_at"}
+	auditEventColumnsWithoutDefault = []string{}
+	auditEventColumnsWithDefault    = []string{"id", "type", "identifier", "message", "created_at"}
 	auditEventPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -431,7 +417,7 @@ func AuditEvents(mods ...qm.QueryMod) auditEventQuery {
 
 // FindAuditEvent retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindAuditEvent(ctx context.Context, exec boil.ContextExecutor, iD null.Int64, selectCols ...string) (*AuditEvent, error) {
+func FindAuditEvent(ctx context.Context, exec boil.ContextExecutor, iD int64, selectCols ...string) (*AuditEvent, error) {
 	auditEventObj := &AuditEvent{}
 
 	sel := "*"
@@ -521,15 +507,26 @@ func (o *AuditEvent) Insert(ctx context.Context, exec boil.ContextExecutor, colu
 		fmt.Fprintln(boil.DebugWriter, vals)
 	}
 
-	_, err = exec.ExecContext(ctx, cache.query, vals...)
+	result, err := exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "sqlite: unable to insert into audit_event")
 	}
 
+	var lastID int64
 	var identifierCols []interface{}
 
 	if len(cache.retMapping) == 0 {
+		goto CacheNoHooks
+	}
+
+	lastID, err = result.LastInsertId()
+	if err != nil {
+		return ErrSyncFail
+	}
+
+	o.ID = int64(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == auditEventMapping["ID"] {
 		goto CacheNoHooks
 	}
 
@@ -833,7 +830,7 @@ func (o *AuditEventSlice) ReloadAll(ctx context.Context, exec boil.ContextExecut
 }
 
 // AuditEventExists checks if the AuditEvent row exists.
-func AuditEventExists(ctx context.Context, exec boil.ContextExecutor, iD null.Int64) (bool, error) {
+func AuditEventExists(ctx context.Context, exec boil.ContextExecutor, iD int64) (bool, error) {
 	var exists bool
 	sql := "select exists(select 1 from \"audit_event\" where \"id\"=? limit 1)"
 

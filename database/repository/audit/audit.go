@@ -16,7 +16,8 @@ func Event(id, msgtype, message string) {
 		return
 	}
 
-	var ctx = context.Background()
+	ctx := context.Background()
+	ctx = boil.SkipTimestamps(ctx)
 
 	var tempEvent = models.AuditEvent{
 		Type:       msgtype,
@@ -24,19 +25,22 @@ func Event(id, msgtype, message string) {
 		Message:    message,
 	}
 
+	boil.DebugMode = true
+
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
 		log.Errorf(log.Global, "transaction begin failed: %v", err)
 		return
 	}
 
-	err = tempEvent.Insert(ctx, tx, boil.Blacklist("id", "ID"))
+	err = tempEvent.Insert(ctx, tx, boil.Blacklist("created_at"))
 	if err != nil {
 		log.Errorf(log.Global, "insert failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
 			log.Errorf(log.Global, "transaction rollback failed: %v", err)
 		}
+		return
 	}
 
 	err = tx.Commit()
@@ -46,5 +50,6 @@ func Event(id, msgtype, message string) {
 		if err != nil {
 			log.Errorf(log.Global, "transaction rollback failed: %v", err)
 		}
+		return
 	}
 }
