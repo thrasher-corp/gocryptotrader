@@ -123,8 +123,6 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        b.WsConnect,
-			Subscriber:                       nil,
-			UnSubscriber:                     nil,
 		})
 
 	if err != nil {

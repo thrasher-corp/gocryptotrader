@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -38,7 +39,7 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 
 	w.SetChannelSubscriber(setupData.Subscriber)
 	w.SetChannelUnsubscriber(setupData.UnSubscriber)
-	err := w.SetWsStatusAndConnection(setupData.WsEnabled)
+	err := w.Initialise()
 	if err != nil {
 		return err
 	}
@@ -48,11 +49,10 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	w.SetExchangeName(setupData.ExchangeName)
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 
-	w.setInit(false)
 	return nil
 }
 
-// Connect intiates a websocket connection by using a package defined connection
+// Connect initiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {
 	w.m.Lock()
@@ -71,6 +71,7 @@ func (w *Websocket) Connect() error {
 	}
 	w.setConnectingStatus(true)
 	w.ShutdownC = make(chan struct{}, 1)
+	w.ReadMessageErrors = make(chan error, 1)
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
@@ -80,6 +81,7 @@ func (w *Websocket) Connect() error {
 
 	w.setConnectionStatus(true)
 	w.setConnectingStatus(false)
+	w.setInit(true)
 
 	var anotherWG sync.WaitGroup
 	anotherWG.Add(1)
@@ -100,9 +102,14 @@ func (w *Websocket) connectionMonitor() {
 	w.setConnectionMonitorRunning(true)
 	defer func() {
 		w.setConnectionMonitorRunning(false)
+		log.Debugf(log.WebsocketMgr, "%v ---- IM LEAVING FOR SOME REASON",
+			w.exchangeName)
 	}()
 
+	timer := time.NewTimer(connectionMonitorDelay)
 	for {
+		log.Debugf(log.WebsocketMgr, "%v running connection monitor cycle",
+			w.exchangeName)
 		if !w.IsEnabled() {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)
@@ -117,13 +124,13 @@ func (w *Websocket) connectionMonitor() {
 			}
 			return
 		}
-		timer := time.NewTimer(connectionMonitorDelay)
 		select {
 		case err := <-w.ReadMessageErrors:
-			log.Debugf(log.WebsocketMgr, "%v", err)
 			// check if this error is a disconnection error
-			if _, ok := err.(*websocket.CloseError); ok {
+			if isDisconnectionError(err) {
 				w.setConnectionStatus(false)
+				w.setConnectingStatus(false)
+				w.setInit(false)
 				if w.verbose {
 					log.Debugf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v",
 						w.exchangeName, err)
@@ -132,9 +139,18 @@ func (w *Websocket) connectionMonitor() {
 				if err != nil {
 					log.Error(log.WebsocketMgr, err)
 				}
+			} else {
+				// pass off non disconnect errors to datahandler to manage
+				w.DataHandler <- err
 			}
 		case <-timer.C:
-			continue // This is here to prevent total lockouts waiting for data
+			if !w.IsConnecting() && !w.IsConnected() {
+				err := w.Connect()
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
+			}
+			timer.Reset(connectionMonitorDelay)
 		}
 	}
 }
@@ -269,29 +285,21 @@ func (w *Websocket) GetWebsocketURL() string {
 	return w.runningURL
 }
 
-// SetWsStatusAndConnection sets if websocket is enabled
-// it will also connect/disconnect the websocket connection
-func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
-	if w.IsEnabled() == enabled {
+// Initialise verifies status and connects
+func (w *Websocket) Initialise() error {
+	if w.IsEnabled() {
 		if w.IsInit() {
 			return nil
 		}
-		return fmt.Errorf("%v Websocket already set as %t",
-			w.exchangeName, enabled)
+		return fmt.Errorf("%v Websocket already initialised",
+			w.exchangeName)
 	}
-	w.setEnabled(enabled)
+	w.setEnabled(true)
 	if !w.IsInit() {
-		if w.IsEnabled() {
-			if w.IsConnected() {
-				return nil
-			}
-			return w.Connect()
-		}
-
-		if !w.IsConnected() {
+		if w.IsConnected() {
 			return nil
 		}
-		return w.Shutdown()
+		return w.Connect()
 	}
 	return nil
 }
@@ -459,6 +467,10 @@ func (w *Websocket) manageSubscriptions() {
 			return
 		default:
 			time.Sleep(manageSubscriptionsDelay)
+			if !w.IsConnected() {
+				w.subscribedChannels = []WebsocketChannelSubscription{}
+				continue
+			}
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v checking subscriptions", w.exchangeName)
 			}
@@ -659,6 +671,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
 	log.Infof(log.WebsocketMgr, "%v - Websocket connected", w.ExchangeName)
+	w.setConnectionStatus(true)
 	return nil
 }
 
@@ -666,6 +679,9 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 func (w *WebsocketConnection) SendMessage(data interface{}) error {
 	w.Lock()
 	defer w.Unlock()
+	if !w.IsConnected() {
+		return errors.New("NOT CONNECTED CANT SEND A MESSAGE YOU TWAT")
+	}
 	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
@@ -725,11 +741,26 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 	}
 }
 
+func (w *WebsocketConnection) setConnectionStatus(b bool) {
+	w.connectionMutex.Lock()
+	w.connected = b
+	w.connectionMutex.Unlock()
+}
+
+// IsConnected exposes websocket connection status
+func (w *WebsocketConnection) IsConnected() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.connected
+}
+
 // ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-
+		if isDisconnectionError(err) {
+			w.setConnectionStatus(false)
+		}
 		return WebsocketResponse{}, err
 	}
 	var standardMessage []byte
@@ -790,4 +821,12 @@ func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
 		return time.Now().UnixNano()
 	}
 	return time.Now().Unix()
+}
+
+func isDisconnectionError(err error) bool {
+	switch err.(type) {
+	case *websocket.CloseError, *net.OpError:
+		return true
+	}
+	return false
 }
