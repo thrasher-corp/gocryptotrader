@@ -17,6 +17,7 @@ require (
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/pquerna/otp v1.2.0
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
+	github.com/thrasher-corp/goose v2.6.0-gct+incompatible
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
 	github.com/urfave/cli v1.20.0
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
