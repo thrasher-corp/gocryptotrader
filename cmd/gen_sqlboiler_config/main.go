@@ -8,13 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
-
-	"github.com/thrasher-corp/gocryptotrader/database"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
 )
 
 var (
@@ -25,13 +24,13 @@ var (
 var sqlboilerConfig map[string]driverConfig
 
 type driverConfig struct {
-	Dbname    string   `json:"dbname,omitempty"`
+	DBName    string   `json:"dbname,omitempty"`
 	Host      string   `json:"host,omitempty"`
 	Port      uint16   `json:"port,omitempty"`
 	User      string   `json:"user,omitempty"`
 	Pass      string   `json:"pass,omitempty"`
 	Schema    string   `json:"schema,omitempty"`
-	Sslmode   string   `json:"sslmode,omitempty"`
+	SSLMode   string   `json:"sslmode,omitempty"`
 	Blacklist []string `json:"blacklist,omitempty"`
 }
 
@@ -81,39 +80,22 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 
 	sqlboilerConfig = make(map[string]driverConfig)
 
-	dbType := driverConvert(c.Driver)
+	dbType := repository.GetSQLDialect()
 
 	if dbType == "sqlite3" {
-		tempConfig.Dbname = convertDBName(c.Database)
+		tempConfig.DBName = convertDBName(c.Database)
 	} else {
 		tempConfig.User = c.Username
 		tempConfig.Pass = c.Password
 		tempConfig.Port = c.Port
 		tempConfig.Host = c.Host
-		tempConfig.Dbname = c.Database
-		tempConfig.Sslmode = c.SSLMode
+		tempConfig.DBName = c.Database
+		tempConfig.SSLMode = c.SSLMode
 	}
 
 	sqlboilerConfig[dbType] = tempConfig
 }
 
-func driverConvert(in string) (out string) {
-	switch strings.ToLower(in) {
-	case "postgresql", "postgres", "psql":
-		out = "psql"
-	case "sqlite3", "sqlite":
-		out = "sqlite3"
-	}
-	return
-}
-
-func convertDBName(in string) (out string) {
-
-	x := in[len(in)-3:]
-
-	if x != ".db" {
-		in += ".db"
-	}
-
+func convertDBName(in string) string {
 	return filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database", in)
 }

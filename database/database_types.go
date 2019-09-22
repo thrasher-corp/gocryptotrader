@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
+// Db holds all information for a database instance
 type Db struct {
 	SQL      *sql.DB
 	DataPath string
@@ -40,6 +41,6 @@ var (
 	// SupportedDrivers slice of supported database driver types
 	SupportedDrivers = []string{"sqlite3", "sqlite", "postgres"}
 
-	// DefaultSQLiteDatabase is the default sqlite database name to use
+	// DefaultSQLiteDatabase is the default sqlite3 database name to use
 	DefaultSQLiteDatabase = "gocryptotrader.db"
 )

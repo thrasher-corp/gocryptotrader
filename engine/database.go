@@ -6,8 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
-
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
@@ -42,7 +40,7 @@ func (a *databaseManager) Start() (err error) {
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 			}
-		} else if Bot.Config.Database.Driver == "sqlite" {
+		} else if Bot.Config.Database.Driver == "sqlite" || Bot.Config.Database.Driver == "sqlite3" {
 			dbConn, err = dbsqlite3.Connect()
 
 			if err != nil {
@@ -89,7 +87,6 @@ func (a *databaseManager) run() {
 	Bot.ServicesWG.Add(1)
 
 	t := time.NewTicker(time.Second * 2)
-	tt := time.NewTicker(time.Second)
 
 	a.running.Store(true)
 
@@ -108,14 +105,8 @@ func (a *databaseManager) run() {
 			return
 		case <-t.C:
 			a.checkConnection()
-		case <-tt.C:
-			a.insertRecord()
 		}
 	}
-}
-
-func (a *databaseManager) insertRecord() {
-	audit.Event("test", "test", "test")
 }
 
 func (a *databaseManager) checkConnection() {

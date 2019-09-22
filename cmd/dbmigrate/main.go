@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -19,13 +20,12 @@ import (
 )
 
 var (
-	dbConn          *database.Db
-	configFile      string
-	defaultDataDir  string
-	createMigration string
-	migrationDir    string
-	command         string
-	args            string
+	dbConn         *database.Db
+	configFile     string
+	defaultDataDir string
+	migrationDir   string
+	command        string
+	args           string
 )
 
 func openDbConnection(driver string) (err error) {
@@ -59,12 +59,11 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	flag.StringVar(&command, "command", "status", "command to run")
+	flag.StringVar(&command, "command", "status", "command to run status|up|down|create")
 	flag.StringVar(&args, "args", "", "arguments to pass to goose")
 
 	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
-	flag.StringVar(&createMigration, "create", "", "create a new empty migration file")
 	flag.StringVar(&migrationDir, "migrationdir", database.MigrationDir, "override migration folder")
 
 	flag.Parse()
@@ -83,9 +82,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	drv := driverConvert(conf.Database.Driver)
+	drv := repository.GetSQLDialect()
 
-	if drv == "sqlite" {
+	if drv == "sqlite3" {
 		fmt.Printf("Database file: %s\n", conf.Database.Database)
 	} else {
 		fmt.Printf("Connected to: %s\n", conf.Database.Host)
@@ -94,14 +93,4 @@ func main() {
 	if err := goose.Run(command, dbConn.SQL, drv, migrationDir, args); err != nil {
 		fmt.Println(err)
 	}
-}
-
-func driverConvert(in string) (out string) {
-	switch strings.ToLower(in) {
-	case "postgresql", "postgres", "psql":
-		out = "postgres"
-	case "sqlite3", "sqlite":
-		out = "sqlite"
-	}
-	return
 }

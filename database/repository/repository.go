@@ -4,13 +4,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
-// GetSQLDialec returns current SQL Dialect based on enabled driver
+// GetSQLDialect returns current SQL Dialect based on enabled driver
 func GetSQLDialect() string {
 	switch database.DB.Config.Driver {
 	case "sqlite", "sqlite3":
-		return "sqlite"
-	case "psql", "postgresl", "postgresql":
+		return "sqlite3"
+	case "psql", "postgres", "postgresql":
 		return "postgres"
 	}
-	return "no driver found"
+	return "invalid driver"
 }

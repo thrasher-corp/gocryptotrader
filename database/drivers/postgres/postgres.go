@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	// shut up golint
+	// import go libpq driver package
 	_ "github.com/lib/pq"
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
