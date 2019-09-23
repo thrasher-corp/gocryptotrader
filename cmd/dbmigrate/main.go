@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/goose"
-
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/goose"
 )
 
 var (
@@ -34,11 +31,6 @@ func openDbConnection(driver string) (err error) {
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
-
-		dbConn.SQL.SetMaxOpenConns(2)
-		dbConn.SQL.SetMaxIdleConns(1)
-		dbConn.SQL.SetConnMaxLifetime(time.Hour)
-
 	} else if driver == "sqlite3" || driver == "sqlite" {
 		dbConn, err = dbsqlite3.Connect()
 

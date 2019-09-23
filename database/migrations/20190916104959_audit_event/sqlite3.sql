@@ -5,7 +5,8 @@ CREATE TABLE "audit_event" (
                                type	TEXT NOT NULL,
                                identifier	TEXT NOT NULL,
                                message	TEXT NOT NULL,
-                               created_at	TEXT DEFAULT CURRENT_TIMESTAMP
+                               created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
 );
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.

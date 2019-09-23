@@ -442,10 +442,14 @@ func testAuditEventsHooks(t *testing.T) {
 
 func testAuditEventsInsert(t *testing.T) {
 	t.Parallel()
-
+	boil.DebugMode = true
 	seed := randomize.NewSeed()
 	var err error
-	o := &AuditEvent{}
+	o := &AuditEvent{
+		Type:       "hg",
+		Message:    "g",
+		Identifier: "h",
+	}
 	if err = randomize.Struct(seed, o, auditEventDBTypes, true, auditEventColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize AuditEvent struct: %s", err)
 	}
@@ -568,7 +572,7 @@ func testAuditEventsSelect(t *testing.T) {
 }
 
 var (
-	auditEventDBTypes = map[string]string{`ID`: `INTEGER`, `Type`: `TEXT`, `Identifier`: `TEXT`, `Message`: `TEXT`, `CreatedAt`: `TEXT`}
+	auditEventDBTypes = map[string]string{`ID`: `INTEGER`, `Type`: `TEXT`, `Identifier`: `TEXT`, `Message`: `TEXT`, `CreatedAt`: `TIMESTAMP`}
 	_                 = bytes.MinRead
 )
 

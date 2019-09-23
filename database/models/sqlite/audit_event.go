@@ -23,11 +23,11 @@ import (
 
 // AuditEvent is an object representing the database table.
 type AuditEvent struct {
-	ID         int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Type       string      `boil:"type" json:"type" toml:"type" yaml:"type"`
-	Identifier string      `boil:"identifier" json:"identifier" toml:"identifier" yaml:"identifier"`
-	Message    string      `boil:"message" json:"message" toml:"message" yaml:"message"`
-	CreatedAt  null.String `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
+	ID         int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Type       string    `boil:"type" json:"type" toml:"type" yaml:"type"`
+	Identifier string    `boil:"identifier" json:"identifier" toml:"identifier" yaml:"identifier"`
+	Message    string    `boil:"message" json:"message" toml:"message" yaml:"message"`
+	CreatedAt  time.Time `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
 
 	R *auditEventR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L auditEventL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -452,8 +452,8 @@ func (o *AuditEvent) Insert(ctx context.Context, exec boil.ContextExecutor, colu
 	if !boil.TimestampsAreSkipped(ctx) {
 		currTime := time.Now().In(boil.GetLocation())
 
-		if queries.MustTime(o.CreatedAt).IsZero() {
-			queries.SetScanner(&o.CreatedAt, currTime)
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
 		}
 	}
 

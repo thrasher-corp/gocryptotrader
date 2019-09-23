@@ -5,13 +5,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
-
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/goose"
-
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	"github.com/thrasher-corp/goose"
 )
 
 func TestAudit(t *testing.T) {
