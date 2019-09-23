@@ -118,7 +118,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 			WsEnabled:                        exch.Features.Enabled.Websocket,
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 0,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 			DefaultURL:                       binanceDefaultWebsocketURL,
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,

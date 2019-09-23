@@ -41,6 +41,7 @@ const (
 	configDefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
 	configDefaultWebsocketResponseMaxLimit     = time.Second * 7
 	configDefaultWebsocketOrderbookBufferLimit = 5
+	configDefaultWebsocketTrafficTimeout       = time.Second * 120
 	configMaxAuthFailures                      = 3
 	defaultNTPAllowedDifference                = 50000000
 	defaultNTPAllowedNegativeDifference        = 50000000
@@ -1023,6 +1024,11 @@ func (c *Config) CheckExchangeConfigValues() error {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response max limit value not set, defaulting to %v.",
 					c.Exchanges[i].Name, configDefaultWebsocketResponseMaxLimit)
 				c.Exchanges[i].WebsocketResponseMaxLimit = configDefaultWebsocketResponseMaxLimit
+			}
+			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
+				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
+					c.Exchanges[i].Name, configDefaultWebsocketTrafficTimeout)
+				c.Exchanges[i].WebsocketTrafficTimeout = configDefaultWebsocketTrafficTimeout
 			}
 			if c.Exchanges[i].WebsocketOrderbookBufferLimit <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",

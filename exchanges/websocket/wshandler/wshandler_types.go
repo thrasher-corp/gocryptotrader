@@ -51,9 +51,7 @@ const (
 
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
-	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
 	// websocket connection
-	WebsocketTrafficLimitTime     = 2 * time.Minute
 	websocketRestablishConnection = time.Second
 	manageSubscriptionsDelay      = 5 * time.Second
 	// connection monitor time delays and limits
@@ -75,6 +73,7 @@ type Websocket struct {
 	connecting                   bool
 	verbose                      bool
 	connectionMonitorRunning     bool
+	trafficTimeout               time.Duration
 	proxyAddr                    string
 	defaultURL                   string
 	runningURL                   string
@@ -213,4 +212,5 @@ type WebsocketConnection struct {
 	IDResponses          map[int64][]byte
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
+	TrafficTimeout       time.Duration
 }

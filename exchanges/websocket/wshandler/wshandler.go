@@ -48,6 +48,7 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	w.SetWebsocketURL(setupData.RunningURL)
 	w.SetExchangeName(setupData.ExchangeName)
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
+	w.trafficTimeout = setupData.WebsocketTimeout
 
 	return nil
 }
@@ -99,6 +100,9 @@ func (w *Websocket) Connect() error {
 
 // connectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) connectionMonitor() {
+	if w.IsConnectionMonitorRunning() {
+		return
+	}
 	w.setConnectionMonitorRunning(true)
 	defer func() {
 		w.setConnectionMonitorRunning(false)
@@ -114,9 +118,11 @@ func (w *Websocket) connectionMonitor() {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)
 			}
-			err := w.Shutdown()
-			if err != nil {
-				log.Error(log.WebsocketMgr, err)
+			if w.IsConnected() {
+				err := w.Shutdown()
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
 			}
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v connectionMonitor exiting",
@@ -187,7 +193,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 		w.Wg.Done()
 	}()
 
-	trafficTimer := time.NewTimer(WebsocketTrafficLimitTime)
+	trafficTimer := time.NewTimer(w.trafficTimeout)
 	for {
 		select {
 		case <-w.ShutdownC:
@@ -196,7 +202,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 			return
 		case <-w.TrafficAlert:
-			trafficTimer.Reset(WebsocketTrafficLimitTime)
+			trafficTimer.Reset(w.trafficTimeout)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			if w.verbose {
 				log.Warnf(log.WebsocketMgr, "%v has not received a traffic alert in 2 minutes. Reconnecting", w.exchangeName)
