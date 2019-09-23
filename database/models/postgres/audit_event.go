@@ -127,8 +127,8 @@ type auditEventL struct{}
 
 var (
 	auditEventAllColumns            = []string{"id", "type", "identifier", "message", "created_at"}
-	auditEventColumnsWithoutDefault = []string{}
-	auditEventColumnsWithDefault    = []string{"id", "type", "identifier", "message", "created_at"}
+	auditEventColumnsWithoutDefault = []string{"type", "identifier", "message"}
+	auditEventColumnsWithDefault    = []string{"id", "created_at"}
 	auditEventPrimaryKeyColumns     = []string{"id"}
 )
 

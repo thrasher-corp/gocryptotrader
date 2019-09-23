@@ -2,9 +2,10 @@ package tests
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/goose"
@@ -55,7 +56,7 @@ func TestAudit(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = goose.Run("up", dbConn.SQL, driverConvert(test.config.Driver, t), "../migrations", "")
+			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), "../migrations", "")
 			if err != nil {
 				t.Fatalf("failed to run migrations %v", err)
 			}
@@ -89,15 +90,4 @@ func writeAudit(t *testing.T) {
 	}
 
 	wg.Wait()
-}
-
-func driverConvert(in string, t *testing.T) (out string) {
-	t.Helper()
-	switch strings.ToLower(in) {
-	case "postgresql", "postgres", "psql":
-		out = "postgres"
-	case "sqlite3", "sqlite":
-		out = "sqlite"
-	}
-	return
 }

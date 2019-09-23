@@ -6,6 +6,7 @@ GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
 CRON = $(TRAVIS_EVENT_TYPE)
 DBDRIVER=psql
+MODELNAME=postgres
 
 get:
 	GO111MODULE=on go get $(GCTPKG)
@@ -49,4 +50,9 @@ profile_cpu:
 
 .PHONY: db_model
 db_model:
-	sqlboiler -o database/models $(DBDRIVER)
+ifeq ($(DBDRIVER), psql)
+	MODELNAME=postgresl
+else
+	MODELNAME=sqlite
+endif
+	sqlboiler -o database/models/$(MODELNAME) -p "$(MODELNAME)" $(DBDRIVER)
