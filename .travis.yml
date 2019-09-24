@@ -21,10 +21,10 @@ matrix:
         - 1.13.x
       env:
         - GO111MODULE=on
-        - sqlite3_dbname=gct_dev_ci
-        - psql_user=postgres
-        - psql.host=localhost
-        - psql.dbname=gct_dev_ci
+        - SQLITE3_DBNAME=gct_dev_ci
+        - PSQL_USER=postgres
+        - PSQL_HOST=localhost
+        - PSQL_DBNAME=gct_dev_ci
       install: true
       cache:
         directories:
