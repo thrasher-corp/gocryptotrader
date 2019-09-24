@@ -80,7 +80,7 @@ func (w *Websocket) Connect() error {
 			w.exchangeName, err)
 	}
 
-	w.setConnectionStatus(true)
+	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)
 	w.setInit(true)
 
@@ -112,8 +112,10 @@ func (w *Websocket) connectionMonitor() {
 
 	timer := time.NewTimer(connectionMonitorDelay)
 	for {
-		log.Debugf(log.WebsocketMgr, "%v running connection monitor cycle",
-			w.exchangeName)
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr, "%v running connection monitor cycle",
+				w.exchangeName)
+		}
 		if !w.IsEnabled() {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)
@@ -134,7 +136,7 @@ func (w *Websocket) connectionMonitor() {
 		case err := <-w.ReadMessageErrors:
 			// check if this error is a disconnection error
 			if isDisconnectionError(err) {
-				w.setConnectionStatus(false)
+				w.setConnectedStatus(false)
 				w.setConnectingStatus(false)
 				w.setInit(false)
 				if w.verbose {
@@ -212,13 +214,13 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	}
 }
 
-func (w *Websocket) setConnectionStatus(b bool) {
+func (w *Websocket) setConnectedStatus(b bool) {
 	w.connectionMutex.Lock()
 	w.connected = b
 	w.connectionMutex.Unlock()
 }
 
-// IsConnected exposes websocket connection status
+// IsConnected returns status of connection
 func (w *Websocket) IsConnected() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
@@ -231,7 +233,7 @@ func (w *Websocket) setConnectingStatus(b bool) {
 	w.connectionMutex.Unlock()
 }
 
-// IsConnecting checks whether websocket is busy connecting
+// IsConnecting returns status of connecting
 func (w *Websocket) IsConnecting() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
@@ -244,7 +246,7 @@ func (w *Websocket) setEnabled(b bool) {
 	w.connectionMutex.Unlock()
 }
 
-// IsEnabled returns bool
+// IsEnabled returns status of enabled
 func (w *Websocket) IsEnabled() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
@@ -257,7 +259,7 @@ func (w *Websocket) setInit(b bool) {
 	w.connectionMutex.Unlock()
 }
 
-// IsInit returns bool
+// IsInit returns status of init
 func (w *Websocket) IsInit() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
@@ -270,7 +272,7 @@ func (w *Websocket) setConnectionMonitorRunning(b bool) {
 	w.connectionMutex.Unlock()
 }
 
-// IsConnectionMonitorRunning returns bool
+// IsConnectionMonitorRunning returns status of connection monitor
 func (w *Websocket) IsConnectionMonitorRunning() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
@@ -829,6 +831,7 @@ func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
 	return time.Now().Unix()
 }
 
+// isDisconnectionError Determines if the error sent over chan ReadMessageErrors is a disconnection error
 func isDisconnectionError(err error) bool {
 	switch err.(type) {
 	case *websocket.CloseError, *net.OpError:

@@ -82,7 +82,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 			Subscriber:                       func(test WebsocketChannelSubscription) error { return nil },
 			UnSubscriber:                     func(test WebsocketChannelSubscription) error { return nil },
 		})
-	ws.setConnectionStatus(true)
+	ws.setConnectedStatus(true)
 	ws.TrafficAlert = make(chan struct{}, 2)
 	ws.ShutdownC = make(chan struct{})
 	var anotherWG sync.WaitGroup
@@ -393,10 +393,10 @@ func TestManageSubscriptions(t *testing.T) {
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
 	w.SetChannelSubscriber(placeholderSubscriber)
-	w.setConnectionStatus(true)
+	w.setConnectedStatus(true)
 	go w.manageSubscriptions()
 	time.Sleep(8 * time.Second)
-	w.setConnectionStatus(false)
+	w.setConnectedStatus(false)
 	time.Sleep(manageSubscriptionsDelay)
 	if len(w.subscribedChannels) > 0 {
 		t.Error("Expected empty subscribed channels")
