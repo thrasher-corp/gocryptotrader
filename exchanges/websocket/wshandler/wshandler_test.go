@@ -19,54 +19,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// TestDemonstrateChannelClosure this is a test which highlights
-// The decision of why I'm removing the timeout waiting for a channel close
-// This simulates how wshandler currently handles channel timeouts
-// What we can see is that channels do eventually close and a timeout
-// when the thread is busy solves no problems
-func TestDemonstrateChannelClosure(t *testing.T) {
-	helloImAChannel := make(chan interface{})
-	var wg sync.WaitGroup
-	timer := time.NewTimer(15 * time.Second)
-	for _, i := range []int{1, 2, 3, 4, 5, 6, 20, 0, 22, 7, 9, 23} {
-		wg.Add(1)
-		go func(i int) {
-			for {
-				select {
-				case <-helloImAChannel:
-					wg.Done()
-					t.Logf("%v - Im exiting!", i)
-					return
-				default:
-					t.Logf("%v - Im going to waste time!", i)
-					time.Sleep(time.Second * time.Duration(i+5))
-					t.Logf("%v - Finished wasting your time!", i)
-				}
-			}
-		}(i)
-	}
-
-	c := make(chan struct{}, 1)
-	time.Sleep(time.Second * 10)
-	go func(c chan struct{}) {
-		close(helloImAChannel)
-		wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-c:
-		t.Log("Success!")
-	case <-timer.C:
-		t.Log("Waiting timeout!")
-	}
-	ticker1 := time.Now().Unix()
-	wg.Wait()
-	ticker2 := time.Now().Unix()
-
-	t.Logf("Diff: %v. 1 %v 2 %v", (ticker2 - ticker1), ticker1, ticker2)
-}
-
 func TestTrafficMonitorTimeout(t *testing.T) {
 	ws := New()
 	ws.Setup(
@@ -127,7 +79,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	if err.(error).Error() != "errorText" {
 		t.Error("Error 'errorText' should havbe been sent back to datahandler")
 	}
-	timer := time.NewTimer(500 * time.Millisecond)
+	timer := time.NewTimer(900 * time.Millisecond)
 	ws.ReadMessageErrors <- &websocket.CloseError{
 		Code: 1006,
 		Text: "errorText",
@@ -141,7 +93,7 @@ outer1:
 			break outer1
 		}
 	}
-	timer.Reset(500 * time.Millisecond)
+	timer.Reset(900 * time.Millisecond)
 	ws.ReadMessageErrors <- &net.OpError{
 		Op:     "",
 		Net:    "",
@@ -398,9 +350,11 @@ func TestManageSubscriptions(t *testing.T) {
 	time.Sleep(8 * time.Second)
 	w.setConnectedStatus(false)
 	time.Sleep(manageSubscriptionsDelay)
+	w.subscriptionLock.Lock()
 	if len(w.subscribedChannels) > 0 {
 		t.Error("Expected empty subscribed channels")
 	}
+	w.subscriptionLock.Unlock()
 }
 
 // TestConnectionMonitorNoConnection logic test

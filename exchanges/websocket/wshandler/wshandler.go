@@ -39,6 +39,7 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 
 	w.SetChannelSubscriber(setupData.Subscriber)
 	w.SetChannelUnsubscriber(setupData.UnSubscriber)
+	w.enabled = setupData.WsEnabled
 	err := w.Initialise()
 	if err != nil {
 		return err
@@ -63,11 +64,11 @@ func (w *Websocket) Connect() error {
 		return errors.New(WebsocketNotEnabled)
 	}
 	if w.IsConnecting() {
-		return fmt.Errorf("%v - Websocket already attempting to connect",
+		return fmt.Errorf("%v Websocket already attempting to connect",
 			w.exchangeName)
 	}
 	if w.IsConnected() {
-		return fmt.Errorf("%v - Websocket already connected",
+		return fmt.Errorf("%v Websocket already connected",
 			w.exchangeName)
 	}
 	w.setConnectingStatus(true)
@@ -76,7 +77,7 @@ func (w *Websocket) Connect() error {
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
-		return fmt.Errorf("%v - Error connecting %s",
+		return fmt.Errorf("%v Error connecting %s",
 			w.exchangeName, err)
 	}
 
@@ -106,8 +107,10 @@ func (w *Websocket) connectionMonitor() {
 	w.setConnectionMonitorRunning(true)
 	defer func() {
 		w.setConnectionMonitorRunning(false)
-		log.Debugf(log.WebsocketMgr, "%v ---- IM LEAVING FOR SOME REASON",
-			w.exchangeName)
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket connection monitor exiting",
+				w.exchangeName)
+		}
 	}()
 
 	timer := time.NewTimer(connectionMonitorDelay)
@@ -127,7 +130,7 @@ func (w *Websocket) connectionMonitor() {
 				}
 			}
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v connectionMonitor exiting",
+				log.Debugf(log.WebsocketMgr, "%v websocket connection monitor exiting",
 					w.exchangeName)
 			}
 			return
@@ -302,7 +305,7 @@ func (w *Websocket) Initialise() error {
 		return fmt.Errorf("%v Websocket already initialised",
 			w.exchangeName)
 	}
-	w.setEnabled(true)
+	w.setEnabled(w.enabled)
 	if !w.IsInit() {
 		if w.IsConnected() {
 			return nil
@@ -315,7 +318,7 @@ func (w *Websocket) Initialise() error {
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	if w.proxyAddr == proxyAddr {
-		return fmt.Errorf("%v - Cannot set proxy address to the same address '%v'", w.exchangeName, w.proxyAddr)
+		return fmt.Errorf("%v Cannot set proxy address to the same address '%v'", w.exchangeName, w.proxyAddr)
 	}
 
 	w.proxyAddr = proxyAddr
@@ -468,7 +471,9 @@ func (w *Websocket) manageSubscriptions() {
 	for {
 		select {
 		case <-w.ShutdownC:
+			w.subscriptionLock.Lock()
 			w.subscribedChannels = []WebsocketChannelSubscription{}
+			w.subscriptionLock.Unlock()
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v shutdown manageSubscriptions", w.exchangeName)
 			}
@@ -476,7 +481,10 @@ func (w *Websocket) manageSubscriptions() {
 		default:
 			time.Sleep(manageSubscriptionsDelay)
 			if !w.IsConnected() {
+				w.subscriptionLock.Lock()
 				w.subscribedChannels = []WebsocketChannelSubscription{}
+				w.subscriptionLock.Unlock()
+
 				continue
 			}
 			if w.verbose {
@@ -678,7 +686,9 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		}
 		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
-	log.Infof(log.WebsocketMgr, "%v - Websocket connected", w.ExchangeName)
+	if w.Verbose {
+		log.Infof(log.WebsocketMgr, "%v Websocket connected", w.ExchangeName)
+	}
 	w.setConnectionStatus(true)
 	return nil
 }
@@ -688,7 +698,7 @@ func (w *WebsocketConnection) SendMessage(data interface{}) error {
 	w.Lock()
 	defer w.Unlock()
 	if !w.IsConnected() {
-		return errors.New("NOT CONNECTED CANT SEND A MESSAGE YOU TWAT")
+		return fmt.Errorf("%v cannot send message to a disconnected websocket", w.ExchangeName)
 	}
 	json, err := common.JSONEncode(data)
 	if err != nil {
