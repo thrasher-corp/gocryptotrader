@@ -41,7 +41,7 @@ const (
 	configDefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
 	configDefaultWebsocketResponseMaxLimit     = time.Second * 7
 	configDefaultWebsocketOrderbookBufferLimit = 5
-	configDefaultWebsocketTrafficTimeout       = time.Second * 120
+	configDefaultWebsocketTrafficTimeout       = time.Minute * 2
 	configMaxAuthFailures                      = 3
 	defaultNTPAllowedDifference                = 50000000
 	defaultNTPAllowedNegativeDifference        = 50000000

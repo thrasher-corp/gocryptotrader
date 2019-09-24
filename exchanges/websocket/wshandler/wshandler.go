@@ -210,7 +210,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			trafficTimer.Reset(w.trafficTimeout)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			if w.verbose {
-				log.Warnf(log.WebsocketMgr, "%v has not received a traffic alert in 2 minutes. Reconnecting", w.exchangeName)
+				log.Warnf(log.WebsocketMgr, "%v has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
 			}
 			go w.Shutdown()
 		}
@@ -653,10 +653,6 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	return w.canUseAuthenticatedEndpoints
 }
 
-// --------------------------------------------
-// WebsocketConnection stuff here
-// --------------------------------------------
-
 // AddResponseWithID adds data to IDResponses with locks and a nil check
 func (w *WebsocketConnection) AddResponseWithID(id int64, data []byte) {
 	w.Lock()
@@ -689,7 +685,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	if w.Verbose {
 		log.Infof(log.WebsocketMgr, "%v Websocket connected", w.ExchangeName)
 	}
-	w.setConnectionStatus(true)
+	w.setConnectedStatus(true)
 	return nil
 }
 
@@ -759,7 +755,7 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 	}
 }
 
-func (w *WebsocketConnection) setConnectionStatus(b bool) {
+func (w *WebsocketConnection) setConnectedStatus(b bool) {
 	w.connectionMutex.Lock()
 	w.connected = b
 	w.connectionMutex.Unlock()
@@ -777,7 +773,7 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		if isDisconnectionError(err) {
-			w.setConnectionStatus(false)
+			w.setConnectedStatus(false)
 		}
 		return WebsocketResponse{}, err
 	}

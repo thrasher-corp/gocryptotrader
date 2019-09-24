@@ -13,10 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-
-	"github.com/gorilla/websocket"
 )
 
 func TestTrafficMonitorTimeout(t *testing.T) {
@@ -168,9 +167,7 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal("test failed - WebsocketSetup", err)
 	}
-
 	ws.SetWebsocketURL("ws://demos.kaazing.com/echo")
-
 	// -- Already connected connect
 	err = ws.Connect()
 	if err == nil {
@@ -494,10 +491,6 @@ func TestRemoveSubscribedChannels(t *testing.T) {
 		t.Error("Did not remove subscription")
 	}
 }
-
-// --------------------------------------------
-// WebsocketConnection stuff here
-// --------------------------------------------
 
 const (
 	websocketTestURL  = "wss://www.bitmex.com/realtime"
