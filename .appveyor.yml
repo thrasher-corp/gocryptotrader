@@ -13,11 +13,6 @@ environment:
   GO111MODULE: on
   NODEJS_VER: 10.15.3
   APPVEYOR_SAVE_CACHE_ON_ERROR: true
-  SQLITE3_DBNAME: gct_dev_ci
-  PSQL_USER: postgres
-  PSQL_HOST: localhost
-  PSQL_PASSWORD: Password12!
-  PSQL_DBNAME: gct_dev_ci
 
 stack: go 1.12.3
 
