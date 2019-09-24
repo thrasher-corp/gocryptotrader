@@ -13,7 +13,6 @@ matrix:
       script:
         - npm run lint
         - npm run build
-
     - language: go
       dist: xenial
       name: 'GoCryptoTrader [back-end] [linux]'
@@ -53,6 +52,8 @@ matrix:
       cache:
         directories:
           - $GOPATH/pkg/mod
+      services:
+          - postgresql
       before_script:
         - psql -c 'create database gct_dev_ci;' -U postgres
       script:
