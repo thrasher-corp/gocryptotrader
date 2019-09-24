@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -53,8 +54,8 @@ func TestAudit(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-
-			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), "../migrations", "")
+			path := filepath.Join("..", "migrations")
+			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
 			if err != nil {
 				t.Fatalf("failed to run migrations %v", err)
 			}
