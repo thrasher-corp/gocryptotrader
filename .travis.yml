@@ -53,6 +53,7 @@ matrix:
         directories:
           - $GOPATH/pkg/mod
       before_script:
+        - export PG_DATA=$(brew --prefix)/var/postgres
         - pg_ctl start
         - createuser -s postgres
         - psql -c 'create database gct_dev_ci;' -U postgres
