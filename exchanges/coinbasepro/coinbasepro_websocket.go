@@ -285,10 +285,10 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 			continue
 		}
 		for j := range enabledCurrencies {
-			enabledCurrencies[j].Delimiter = "-"
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  channels[i],
-				Currency: enabledCurrencies[j],
+				Channel: channels[i],
+				Currency: c.FormatExchangeCurrency(enabledCurrencies[j],
+					asset.Spot),
 			})
 		}
 	}
@@ -303,7 +303,8 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSub
 			{
 				Name: channelToSubscribe.Channel,
 				ProductIDs: []string{
-					channelToSubscribe.Currency.String(),
+					c.FormatExchangeCurrency(channelToSubscribe.Currency,
+						asset.Spot).String(),
 				},
 			},
 		},
@@ -329,7 +330,8 @@ func (c *CoinbasePro) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelS
 			{
 				Name: channelToSubscribe.Channel,
 				ProductIDs: []string{
-					channelToSubscribe.Currency.String(),
+					c.FormatExchangeCurrency(channelToSubscribe.Currency,
+						asset.Spot).String(),
 				},
 			},
 		},

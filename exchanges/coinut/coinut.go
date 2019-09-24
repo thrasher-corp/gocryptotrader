@@ -42,11 +42,29 @@ const (
 	coinutStatusOK = "OK"
 )
 
+var (
+	errLookupInstrumentID       = errors.New("unable to lookup instrument ID")
+	errLookupInstrumentCurrency = errors.New("unable to lookup instrument")
+)
+
 // COINUT is the overarching type across the coinut package
 type COINUT struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
-	InstrumentMap map[string]int
+	instrumentMap instrumentMap
+}
+
+// SeedInstruments seeds the instrument map
+func (c *COINUT) SeedInstruments() error {
+	i, err := c.GetInstruments()
+	if err != nil {
+		return err
+	}
+
+	for _, y := range i.Instruments {
+		c.instrumentMap.Seed(y[0].Base+y[0].Quote, y[0].InstID)
+	}
+	return nil
 }
 
 // GetInstruments returns instruments
@@ -54,21 +72,19 @@ func (c *COINUT) GetInstruments() (Instruments, error) {
 	var result Instruments
 	params := make(map[string]interface{})
 	params["sec_type"] = strings.ToUpper(asset.Spot.String())
-
 	return result, c.SendHTTPRequest(coinutInstruments, params, false, &result)
 }
 
 // GetInstrumentTicker returns a ticker for a specific instrument
-func (c *COINUT) GetInstrumentTicker(instrumentID int) (Ticker, error) {
+func (c *COINUT) GetInstrumentTicker(instrumentID int64) (Ticker, error) {
 	var result Ticker
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-
 	return result, c.SendHTTPRequest(coinutTicker, params, false, &result)
 }
 
 // GetInstrumentOrderbook returns the orderbooks for a specific instrument
-func (c *COINUT) GetInstrumentOrderbook(instrumentID, limit int) (Orderbook, error) {
+func (c *COINUT) GetInstrumentOrderbook(instrumentID, limit int64) (Orderbook, error) {
 	var result Orderbook
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
@@ -96,7 +112,7 @@ func (c *COINUT) GetUserBalance() (UserBalance, error) {
 }
 
 // NewOrder places a new order on the exchange
-func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, orderID uint32) (interface{}, error) {
+func (c *COINUT) NewOrder(instrumentID int64, quantity, price float64, buy bool, orderID uint32) (interface{}, error) {
 	var result interface{}
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
@@ -133,21 +149,20 @@ func (c *COINUT) NewOrders(orders []Order) ([]OrdersBase, error) {
 }
 
 // GetOpenOrders returns a list of open order and relevant information
-func (c *COINUT) GetOpenOrders(instrumentID int) (GetOpenOrdersResponse, error) {
+func (c *COINUT) GetOpenOrders(instrumentID int64) (GetOpenOrdersResponse, error) {
 	var result GetOpenOrdersResponse
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-
 	return result, c.SendHTTPRequest(coinutOrdersOpen, params, true, &result)
 }
 
 // CancelExistingOrder cancels a specific order and returns if it was actioned
-func (c *COINUT) CancelExistingOrder(instrumentID, orderID int) (bool, error) {
+func (c *COINUT) CancelExistingOrder(instrumentID, orderID int64) (bool, error) {
 	var result GenericResponse
 	params := make(map[string]interface{})
 	type Request struct {
-		InstrumentID int `json:"inst_id"`
-		OrderID      int `json:"order_id"`
+		InstrumentID int64 `json:"inst_id"`
+		OrderID      int64 `json:"order_id"`
 	}
 
 	var entry = Request{
@@ -182,7 +197,7 @@ func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, erro
 }
 
 // GetTradeHistory returns trade history for a specific instrument.
-func (c *COINUT) GetTradeHistory(instrumentID, start, limit int) (TradeHistory, error) {
+func (c *COINUT) GetTradeHistory(instrumentID, start, limit int64) (TradeHistory, error) {
 	var result TradeHistory
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID

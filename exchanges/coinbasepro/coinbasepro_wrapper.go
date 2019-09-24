@@ -159,14 +159,22 @@ func (c *CoinbasePro) Start(wg *sync.WaitGroup) {
 // Run implements the coinbasepro wrapper
 func (c *CoinbasePro) Run() {
 	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinbaseproWebsocketURL)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n",
+			c.GetName(),
+			common.IsEnabled(c.Websocket.IsEnabled()),
+			coinbaseproWebsocketURL)
 		c.PrintEnabledPairs()
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(c.GetEnabledPairs(asset.Spot).Strings(), c.GetPairFormat(asset.Spot, false).Delimiter) ||
-		!common.StringDataContains(c.GetAvailablePairs(asset.Spot).Strings(), c.GetPairFormat(asset.Spot, false).Delimiter) {
-		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSD", c.GetPairFormat(asset.Spot, false).Delimiter)})
+	delim := c.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
+		true).Strings(), delim) ||
+		!common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
+			false).Strings(), delim) {
+		enabledPairs := currency.NewPairsFromStrings(
+			[]string{fmt.Sprintf("BTC%sUSD", delim)},
+		)
 		log.Warn(log.ExchangeSys,
 			"Enabled pairs for CoinbasePro reset due to config upgrade, please enable the ones you would like to use again")
 		forceUpdate = true
@@ -294,7 +302,8 @@ func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := c.GetOrderbook(c.FormatExchangeCurrency(p, assetType).String(), 2)
+	orderbookNew, err := c.GetOrderbook(c.FormatExchangeCurrency(p,
+		assetType).String(), 2)
 	if err != nil {
 		return orderBook, err
 	}
@@ -324,8 +333,7 @@ func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (or
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -352,7 +360,7 @@ func (c *CoinbasePro) SubmitOrder(order *exchange.OrderSubmission) (exchange.Sub
 			order.Amount,
 			order.Amount,
 			order.OrderSide.ToString(),
-			order.Pair.String(),
+			c.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
 			"")
 	case exchange.LimitOrderType:
 		response, err = c.PlaceLimitOrder("",
@@ -361,7 +369,7 @@ func (c *CoinbasePro) SubmitOrder(order *exchange.OrderSubmission) (exchange.Sub
 			order.OrderSide.ToString(),
 			"",
 			"",
-			order.Pair.String(),
+			c.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
 			"",
 			false)
 	default:

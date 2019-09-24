@@ -124,20 +124,19 @@ func (o *OKCoin) Run() {
 		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
 	}
 
-	if o.Config.CurrencyPairs.ConfigFormat.Delimiter != o.CurrencyPairs.ConfigFormat.Delimiter {
-		o.Config.CurrencyPairs.ConfigFormat.Delimiter = o.CurrencyPairs.ConfigFormat.Delimiter
-	}
-	if o.Config.CurrencyPairs.RequestFormat.Uppercase != o.CurrencyPairs.RequestFormat.Uppercase {
-		o.Config.CurrencyPairs.RequestFormat.Uppercase = true
-	}
-	if o.Config.CurrencyPairs.RequestFormat.Delimiter != o.CurrencyPairs.RequestFormat.Delimiter {
-		o.Config.CurrencyPairs.RequestFormat.Delimiter = o.CurrencyPairs.RequestFormat.Delimiter
-	}
-
-	if !common.StringDataContains(o.Config.CurrencyPairs.Pairs[asset.Spot].Enabled.Strings(), o.CurrencyPairs.RequestFormat.Delimiter) {
-		enabledPairs := currency.NewPairsFromStrings([]string{"BTC-USD"})
+	forceUpdate := false
+	delim := o.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(o.CurrencyPairs.GetPairs(asset.Spot,
+		true).Strings(), delim) ||
+		!common.StringDataContains(o.CurrencyPairs.GetPairs(asset.Spot,
+			false).Strings(), delim) {
+		enabledPairs := currency.NewPairsFromStrings([]string{
+			fmt.Sprintf("BTC%sUSD", delim),
+		})
 		log.Warnf(log.ExchangeSys,
-			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.", o.Name)
+			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.\n",
+			o.Name)
+		forceUpdate = true
 
 		err := o.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
@@ -146,11 +145,11 @@ func (o *OKCoin) Run() {
 		}
 	}
 
-	if !o.GetEnabledFeatures().AutoPairUpdates {
+	if !o.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
 
-	err := o.UpdateTradablePairs(false)
+	err := o.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", o.Name, err)
 	}
@@ -165,7 +164,8 @@ func (o *OKCoin) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range prods {
-		pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency, o.GetPairFormat(asset, false).Delimiter, prods[x].QuoteCurrency))
+		pairs = append(pairs, fmt.Sprintf("%v%v%v", prods[x].BaseCurrency,
+			o.GetPairFormat(asset, false).Delimiter, prods[x].QuoteCurrency))
 	}
 
 	return pairs, nil
