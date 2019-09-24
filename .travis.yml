@@ -48,13 +48,13 @@ matrix:
         - PSQL_USER=postgres
         - PSQL_HOST=localhost
         - PSQL_DBNAME=gct_dev_ci
-        - PG_DATA=$(brew --prefix)/var/postgres
       install: true
       cache:
         directories:
           - $GOPATH/pkg/mod
       before_install:
-        - pg_ctl start --pgdata ${PG_DATA}
+        - initdb /usr/local/var/postgres
+        - pg_ctl start --pgdata /usr/local/var/postgres
         - createuser -s postgres
         - psql -c 'create database gct_dev_ci;' -U postgres
       script:
