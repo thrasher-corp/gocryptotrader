@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/drivers/sqlboiler-psql/driver"
 	"github.com/volatiletech/sqlboiler/randomize"
+	"github.com/xtda/goose"
 )
 
 var rgxPGFkey = regexp.MustCompile(`(?m)^ALTER TABLE ONLY .*\n\s+ADD CONSTRAINT .*? FOREIGN KEY .*?;\n`)
@@ -224,6 +225,11 @@ func (p *pgTester) conn() (*sql.DB, error) {
 
 	var err error
 	p.dbConn, err = sql.Open("postgres", driver.PSQLBuildQueryString(p.user, p.pass, p.testDBName, p.host, p.port, p.sslmode))
+	if err != nil {
+		return nil, err
+	}
+
+	err = goose.Run("up", s.dbConn, "postgres", "../../migrations", "")
 	if err != nil {
 		return nil, err
 	}
