@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 				Port:     5432,
 				Username: "postgres",
 				Password: "",
-				Database: "gct-dev-ci",
+				Database: "gct_dev_ci",
 				SSLMode:  "",
 			},
 		}

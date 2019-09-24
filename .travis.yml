@@ -28,7 +28,7 @@ matrix:
       services:
         - postgresql
       before_script:
-            - psql -c 'create database gct-dev-ci;' -U postgres
+            - psql -c 'create database gct_dev_ci;' -U postgres
       script:
         - make check
       after_success:
