@@ -56,6 +56,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "gctcli"
 	app.Version = core.Version(true)
+	app.EnableBashCompletion = true
 	app.Usage = "command line interface for managing the gocryptotrader daemon"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{

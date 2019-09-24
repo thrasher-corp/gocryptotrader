@@ -76,9 +76,6 @@ func setupWSTestAuth(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	instrumentListByString = make(map[string]int64)
-	instrumentListByString[currency.NewPair(currency.LTC, currency.BTC).String()] = 1
 	wsSetupRan = true
 }
 
@@ -86,6 +83,18 @@ func TestGetInstruments(t *testing.T) {
 	_, err := c.GetInstruments()
 	if err != nil {
 		t.Error("Test failed - GetInstruments() error", err)
+	}
+}
+
+func TestSeedInstruments(t *testing.T) {
+	err := c.SeedInstruments()
+	if err != nil {
+		// No point checking the next condition
+		t.Fatal(err)
+	}
+
+	if len(c.instrumentMap.GetInstrumentIDs()) == 0 {
+		t.Error("instrument map hasn't been seeded")
 	}
 }
 
@@ -541,5 +550,91 @@ func TestWsAuthGetOpenOrders(t *testing.T) {
 	err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestCurrencyMapIsLoaded(t *testing.T) {
+	t.Parallel()
+	var i instrumentMap
+	if l := i.IsLoaded(); l {
+		t.Error("unexpected result")
+	}
+
+	i.Seed("BTCUSD", 1337)
+	if l := i.IsLoaded(); !l {
+		t.Error("unexpected result")
+	}
+}
+
+func TestCurrencyMapSeed(t *testing.T) {
+	t.Parallel()
+	var i instrumentMap
+
+	// Test non-seeded lookups
+	if id := i.LookupInstrument(1234); id != "" {
+		t.Error("unexpected result")
+	}
+	if id := i.LookupID("BLAH"); id != 0 {
+		t.Error("unexpected result")
+	}
+
+	// Test seeded lookups
+	i.Seed("BTCUSD", 1337)
+	if id := i.LookupID("BTCUSD"); id != 1337 {
+		t.Error("unexpected result")
+	}
+	if id := i.LookupInstrument(1337); id != "BTCUSD" {
+		t.Error("unexpected result")
+	}
+
+	// Test invalid lookups
+	if id := i.LookupInstrument(1234); id != "" {
+		t.Error("unexpected result")
+	}
+	if id := i.LookupID("BLAH"); id != 0 {
+		t.Error("unexpected result")
+	}
+
+	// Test seeding existing item
+	i.Seed("BTCUSD", 1234)
+	if id := i.LookupID("BTCUSD"); id != 1337 {
+		t.Error("unexpected result")
+	}
+	if id := i.LookupInstrument(1337); id != "BTCUSD" {
+		t.Error("unexpected result")
+	}
+}
+
+func TestCurrencyMapInstrumentIDs(t *testing.T) {
+	t.Parallel()
+
+	var i instrumentMap
+	if r := i.GetInstrumentIDs(); len(r) > 0 {
+		t.Error("non initialised instrument map shouldn't return any ids")
+	}
+
+	// Seed the instrument map
+	i.Seed("BTCUSD", 1234)
+	i.Seed("LTCUSD", 1337)
+
+	f := func(ids []int64, target int64) bool {
+		for x := range ids {
+			if ids[x] == target {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Test 2 valid instruments and one invalid
+	ids := i.GetInstrumentIDs()
+	if r := f(ids, 1234); !r {
+		t.Error("unexpected result")
+	}
+	if r := f(ids, 1337); !r {
+		t.Error("unexpected result")
+	}
+	if r := f(ids, 4321); r {
+		t.Error("unexpected result")
 	}
 }

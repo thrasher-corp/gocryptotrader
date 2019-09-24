@@ -607,7 +607,6 @@ func (s *RPCServer) GetForexRates(ctx context.Context, r *gctrpc.GetForexRatesRe
 func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		log.Debugln(log.GRPCSys, exch)
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
