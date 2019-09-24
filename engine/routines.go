@@ -359,21 +359,25 @@ func Websocketshutdown(ws *wshandler.Websocket) error {
 func streamDiversion(ws *wshandler.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
-
+	var connectedMessageSent, switchMessageSent bool
 	for {
 		select {
 		case <-shutdowner:
 			return
-
-		case <-ws.Connected:
-			if Bot.Settings.Verbose {
-				log.Debugf(log.WebsocketMgr, "exchange %s websocket feed connected\n", ws.GetName())
-			}
-
-		case <-ws.Disconnected:
-			if Bot.Settings.Verbose {
-				log.Debugf(log.WebsocketMgr, "exchange %s websocket feed disconnected, switching to REST functionality\n",
-					ws.GetName())
+		default:
+			if ws.IsConnected() {
+				if Bot.Settings.Verbose && !connectedMessageSent {
+					log.Debugf(log.WebsocketMgr, "exchange %s websocket feed connected\n", ws.GetName())
+					connectedMessageSent = true
+				}
+				switchMessageSent = false
+			} else {
+				if Bot.Settings.Verbose && !switchMessageSent {
+					log.Debugf(log.WebsocketMgr, "exchange %s websocket feed disconnected, switching to REST functionality\n",
+						ws.GetName())
+					switchMessageSent = true
+				}
+				connectedMessageSent = false
 			}
 		}
 	}

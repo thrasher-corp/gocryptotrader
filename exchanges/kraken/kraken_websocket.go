@@ -382,7 +382,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 		}
 	}
 	base.LastUpdated = highestLastUpdate
-	err := k.Websocket.Orderbook.LoadSnapshot(&base, true)
+	err := k.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
 		k.Websocket.DataHandler <- err
 		return

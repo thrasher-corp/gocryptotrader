@@ -162,7 +162,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	base.LastUpdated = time.Now()
 	base.ExchangeName = b.Name
 
-	err := b.Websocket.Orderbook.LoadSnapshot(&base, true)
+	err := b.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
 		return err
 	}

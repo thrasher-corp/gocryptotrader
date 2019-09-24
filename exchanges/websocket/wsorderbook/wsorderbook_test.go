@@ -38,7 +38,7 @@ func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, b
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = curr
 	obl = &WebsocketOrderbookLocal{}
-	err = obl.LoadSnapshot(&snapShot1, false)
+	err = obl.LoadSnapshot(&snapShot1)
 	return
 }
 
@@ -382,8 +382,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	snapShot1.Pair = curr
 	snapShot1.ExchangeName = "test"
 	obl.exchangeName = "test"
-	err := obl.LoadSnapshot(&snapShot1,
-		false)
+	err := obl.LoadSnapshot(&snapShot1)
 	if err == nil {
 		t.Fatal("expected an error loading a snapshot")
 	}
@@ -392,8 +391,8 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	}
 }
 
-// TestLoadSnapshotWithOverride logic test
-func TestLoadSnapshotWithOverride(t *testing.T) {
+// TestLoadSnapshot logic test
+func TestLoadSnapshot(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
 	curr := currency.NewPairFromString("BTCUSD")
@@ -407,18 +406,11 @@ func TestLoadSnapshotWithOverride(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = curr
-	err := obl.LoadSnapshot(&snapShot1, false)
+	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Error(err)
 	}
-	err = obl.LoadSnapshot(&snapShot1, false)
-	if err == nil {
-		t.Error("expected error: 'snapshot instance already found'")
-	}
-	err = obl.LoadSnapshot(&snapShot1, true)
-	if err != nil {
-		t.Error(err)
-	}
+
 }
 
 // TestInsertWithIDs logic test
@@ -473,7 +465,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = currency.NewPairFromString("BTCUSD")
-	err := obl.LoadSnapshot(&snapShot1, false)
+	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,7 +502,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.Bids = bids
 	snapShot2.AssetType = asset.Spot
 	snapShot2.Pair = currency.NewPairFromString("LTCUSD")
-	err = obl.LoadSnapshot(&snapShot2, false)
+	err = obl.LoadSnapshot(&snapShot2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -547,7 +539,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.Bids = bids
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
-	err = obl.LoadSnapshot(&snapShot3, false)
+	err = obl.LoadSnapshot(&snapShot3)
 	if err != nil {
 		t.Fatal(err)
 	}

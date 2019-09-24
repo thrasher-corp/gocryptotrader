@@ -313,7 +313,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = p
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, true)
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}

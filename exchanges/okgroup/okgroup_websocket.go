@@ -475,7 +475,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 		ExchangeName: o.GetName(),
 	}
 
-	err := o.Websocket.Orderbook.LoadSnapshot(&newOrderBook, true)
+	err := o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}

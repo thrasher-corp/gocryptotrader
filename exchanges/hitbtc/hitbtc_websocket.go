@@ -251,7 +251,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.Pair = p
 
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}

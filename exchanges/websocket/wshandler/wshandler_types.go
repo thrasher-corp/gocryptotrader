@@ -48,17 +48,11 @@ const (
 	WebsocketMessageCorrelationSupportedText     = "WEBSOCKET MESSAGE CORRELATION SUPPORTED"
 	WebsocketSequenceNumberSupportedText         = "WEBSOCKET SEQUENCE NUMBER SUPPORTED"
 	WebsocketDeadMansSwitchSupportedText         = "WEBSOCKET DEAD MANS SWITCH SUPPORTED"
-
 	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled = "exchange_websocket_not_enabled"
-	// websocket connection
-	websocketRestablishConnection = time.Second
-	manageSubscriptionsDelay      = 5 * time.Second
+	WebsocketNotEnabled      = "exchange_websocket_not_enabled"
+	manageSubscriptionsDelay = 5 * time.Second
 	// connection monitor time delays and limits
 	connectionMonitorDelay = 2 * time.Second
-	// WebsocketStateTimeout defines a const for when a websocket connection
-	// times out, will be handled by the routine management system
-	WebsocketStateTimeout = "TIMEOUT"
 )
 
 // Websocket defines a return type for websocket connections via the interface
@@ -86,12 +80,7 @@ type Websocket struct {
 	channelsToSubscribe          []WebsocketChannelSubscription
 	channelSubscriber            func(channelToSubscribe WebsocketChannelSubscription) error
 	channelUnsubscriber          func(channelToUnsubscribe WebsocketChannelSubscription) error
-	// Connected denotes a channel switch for diversion of request flow
-	Connected chan struct{}
-	// Disconnected denotes a channel switch for diversion of request flow
-	Disconnected chan struct{}
-	// DataHandler pipes websocket data to an exchange websocket data handler
-	DataHandler chan interface{}
+	DataHandler                  chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks

@@ -238,8 +238,7 @@ func (g *Gateio) WsHandleData() {
 					newOrderBook.AssetType = asset.Spot
 					newOrderBook.Pair = currency.NewPairFromString(c)
 
-					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-						true)
+					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}

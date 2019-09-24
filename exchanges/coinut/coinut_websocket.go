@@ -289,7 +289,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	)
 	newOrderBook.AssetType = asset.Spot
 
-	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
+	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // WsProcessOrderbookUpdate process an orderbook update

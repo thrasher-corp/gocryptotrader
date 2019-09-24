@@ -207,7 +207,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			if w.verbose {
 				log.Warnf(log.WebsocketMgr, "%v has not received a traffic alert in 2 minutes. Reconnecting", w.exchangeName)
 			}
-			w.Shutdown()
+			go w.Shutdown()
 		}
 	}
 }
@@ -482,7 +482,7 @@ func (w *Websocket) manageSubscriptions() {
 			}
 			// Subscribe to channels Pending a subscription
 			if w.SupportsFunctionality(WebsocketSubscribeSupported) {
-				err := w.subscribeToChannels()
+				err := w.appendSubscribedChannels()
 				if err != nil {
 					w.DataHandler <- err
 				}
@@ -497,9 +497,9 @@ func (w *Websocket) manageSubscriptions() {
 	}
 }
 
-// subscribeToChannels compares channelsToSubscribe to subscribedChannels
+// appendSubscribedChannels compares channelsToSubscribe to subscribedChannels
 // and subscribes to any channels not present in subscribedChannels
-func (w *Websocket) subscribeToChannels() error {
+func (w *Websocket) appendSubscribedChannels() error {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
 	for i := 0; i < len(w.channelsToSubscribe); i++ {

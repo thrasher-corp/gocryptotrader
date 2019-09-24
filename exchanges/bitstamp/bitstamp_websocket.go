@@ -248,7 +248,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = asset.Spot
 
-		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
+		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return err
 		}
