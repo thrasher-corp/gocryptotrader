@@ -62,6 +62,17 @@ func TestIsDisconnectionError(t *testing.T) {
 	if !isADisconnectionError {
 		t.Error("It is")
 	}
+
+	isADisconnectionError = isDisconnectionError(&net.OpError{
+		Op:     "",
+		Net:    "",
+		Source: nil,
+		Addr:   nil,
+		Err:    errors.New("errorText"),
+	})
+	if !isADisconnectionError {
+		t.Error("It is")
+	}
 }
 
 func TestConnectionMessageErrors(t *testing.T) {
@@ -83,30 +94,13 @@ func TestConnectionMessageErrors(t *testing.T) {
 		Code: 1006,
 		Text: "errorText",
 	}
-outer1:
+outer:
 	for {
 		select {
 		case <-ws.DataHandler:
 			t.Fatal("Error is a disconnection error")
 		case <-timer.C:
-			break outer1
-		}
-	}
-	timer.Reset(900 * time.Millisecond)
-	ws.ReadMessageErrors <- &net.OpError{
-		Op:     "",
-		Net:    "",
-		Source: nil,
-		Addr:   nil,
-		Err:    errors.New("errorText"),
-	}
-outer2:
-	for {
-		select {
-		case <-ws.DataHandler:
-			t.Fatal("Error is a disconnection error")
-		case <-timer.C:
-			break outer2
+			break outer
 		}
 	}
 }
