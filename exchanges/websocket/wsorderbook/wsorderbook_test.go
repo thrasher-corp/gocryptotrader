@@ -410,10 +410,9 @@ func TestLoadSnapshot(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 }
 
-// TestInsertWithIDs logic test
+// TestFlushCache logic test
 func TestFlushCache(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()
 	if err != nil {

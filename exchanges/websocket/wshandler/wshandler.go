@@ -105,7 +105,10 @@ func (w *Websocket) connectionMonitor() {
 		return
 	}
 	w.setConnectionMonitorRunning(true)
+	timer := time.NewTimer(connectionMonitorDelay)
+
 	defer func() {
+		timer.Stop()
 		w.setConnectionMonitorRunning(false)
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket connection monitor exiting",
@@ -113,7 +116,6 @@ func (w *Websocket) connectionMonitor() {
 		}
 	}()
 
-	timer := time.NewTimer(connectionMonitorDelay)
 	for {
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%v running connection monitor cycle",
@@ -161,6 +163,9 @@ func (w *Websocket) connectionMonitor() {
 					log.Error(log.WebsocketMgr, err)
 				}
 			}
+			if !timer.Stop() {
+				<-timer.C
+			}
 			timer.Reset(connectionMonitorDelay)
 		}
 	}
@@ -196,11 +201,13 @@ func (w *Websocket) Shutdown() error {
 func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	w.Wg.Add(1)
 	wg.Done()
+	trafficTimer := time.NewTimer(w.trafficTimeout)
+
 	defer func() {
+		trafficTimer.Stop()
 		w.Wg.Done()
 	}()
 
-	trafficTimer := time.NewTimer(w.trafficTimeout)
 	for {
 		select {
 		case <-w.ShutdownC:
@@ -209,6 +216,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 			return
 		case <-w.TrafficAlert:
+			if !trafficTimer.Stop() {
+				<-trafficTimer.C
+			}
 			trafficTimer.Reset(w.trafficTimeout)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			if w.verbose {
