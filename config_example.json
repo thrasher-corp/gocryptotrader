@@ -753,6 +753,52 @@
    ]
   },
   {
+    "name": "Coinbene",
+    "enabled": true,
+    "verbose": false,
+    "websocket": false,
+    "useSandbox": false,
+    "restPollingDelay": 10,
+    "httpTimeout": 15000000000,
+    "websocketResponseCheckTimeout": 30000000,
+    "websocketResponseMaxLimit": 7000000000,
+    "websocketOrderbookBufferLimit": 5,
+    "httpUserAgent": "",
+    "httpDebugging": false,
+    "authenticatedApiSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "apiKey": "Key",
+    "apiSecret": "Secret",
+    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+    "proxyAddress": "",
+    "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
+    "clientId": "ClientID",
+    "availablePairs": "btcusdt",
+    "enabledPairs": "btcusdt",
+    "baseCurrencies": "USD,GBP,EUR",
+    "assetTypes": "SPOT",
+    "supportsAutoPairUpdates": true,
+    "configCurrencyPairFormat": {
+     "uppercase": true
+    },
+    "requestCurrencyPairFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "bankAccounts": [
+     {
+      "bankName": "",
+      "bankAddress": "",
+      "accountName": "",
+      "accountNumber": "",
+      "swiftCode": "",
+      "iban": "",
+      "supportedCurrencies": ""
+     }
+    ]
+   },
+  {
    "name": "GateIO",
    "enabled": true,
    "verbose": false,

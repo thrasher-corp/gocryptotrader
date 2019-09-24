@@ -1446,6 +1446,40 @@
      "supportedCurrencies": ""
     }
    ]
+  },
+  {
+   "name": "Coinbene",
+   "enabled": true,
+   "verbose": false,
+   "websocket": false,
+   "useSandbox": false,
+   "restPollingDelay": 10,
+   "httpTimeout": 0,
+   "websocketResponseCheckTimeout": 0,
+   "websocketResponseMaxLimit": 0,
+   "websocketOrderbookBufferLimit": 0,
+   "httpUserAgent": "",
+   "httpDebugging": false,
+   "authenticatedApiSupport": false,
+   "authenticatedWebsocketApiSupport": false,
+   "apiKey": "Key",
+   "apiSecret": "Secret",
+   "apiUrl": "",
+   "apiUrlSecondary": "",
+   "proxyAddress": "",
+   "websocketUrl": "",
+   "availablePairs": "btcusdt",
+   "enabledPairs": "btcusdt",
+   "baseCurrencies": "",
+   "assetTypes": "SPOT",
+   "supportsAutoPairUpdates": false,
+   "configCurrencyPairFormat": {
+    "uppercase": true
+   },
+   "requestCurrencyPairFormat": {
+    "uppercase": true
+   },
+   "bankAccounts": null
   }
  ],
  "bankAccounts": [
