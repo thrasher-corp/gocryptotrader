@@ -23,9 +23,8 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	ws.Setup(
 		&WebsocketSetup{
 			WsEnabled:                        true,
-			Verbose:                          true,
 			AuthenticatedWebsocketAPISupport: true,
-			WebsocketTimeout:                 1,
+			WebsocketTimeout:                 10000,
 			DefaultURL:                       "testDefaultURL",
 			ExchangeName:                     "exchangeName",
 			RunningURL:                       "testRunningURL",
@@ -114,7 +113,6 @@ func TestWebsocket(t *testing.T) {
 	ws.Setup(
 		&WebsocketSetup{
 			WsEnabled:                        true,
-			Verbose:                          false,
 			AuthenticatedWebsocketAPISupport: true,
 			WebsocketTimeout:                 2,
 			DefaultURL:                       "testDefaultURL",
@@ -327,7 +325,6 @@ func TestManageSubscriptions(t *testing.T) {
 	w := Websocket{
 		ShutdownC:     make(chan struct{}),
 		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
-		verbose:       true,
 		subscribedChannels: []WebsocketChannelSubscription{
 			{
 				Channel: "hello",
@@ -523,7 +520,6 @@ type testResponse struct {
 func TestMain(m *testing.M) {
 	wc = &WebsocketConnection{
 		ExchangeName:         "test",
-		Verbose:              true,
 		URL:                  returnResponseURL,
 		ResponseMaxLimit:     7000000000,
 		ResponseCheckTimeout: 30000000,

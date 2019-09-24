@@ -182,6 +182,8 @@ func (w *Websocket) Shutdown() error {
 	}
 	close(w.ShutdownC)
 	w.Wg.Wait()
+	w.setConnectedStatus(false)
+	w.setConnectingStatus(false)
 	if w.verbose {
 		log.Debugf(log.WebsocketMgr, "%v completed websocket channel shutdown", w.exchangeName)
 	}
