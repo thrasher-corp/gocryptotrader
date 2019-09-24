@@ -18,9 +18,9 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"github.com/thrasher-corp/goose"
 	"github.com/volatiletech/sqlboiler/drivers/sqlboiler-psql/driver"
 	"github.com/volatiletech/sqlboiler/randomize"
-	"github.com/xtda/goose"
 )
 
 var rgxPGFkey = regexp.MustCompile(`(?m)^ALTER TABLE ONLY .*\n\s+ADD CONSTRAINT .*? FOREIGN KEY .*?;\n`)
@@ -229,7 +229,7 @@ func (p *pgTester) conn() (*sql.DB, error) {
 		return nil, err
 	}
 
-	err = goose.Run("up", s.dbConn, "postgres", "../../migrations", "")
+	err = goose.Run("up", p.dbConn, "postgres", "../../migrations", "")
 	if err != nil {
 		return nil, err
 	}

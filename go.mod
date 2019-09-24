@@ -23,6 +23,7 @@ require (
 	github.com/volatiletech/inflect v0.0.0-20170731032912-e7201282ae8d // indirect
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/volatiletech/sqlboiler v3.5.0+incompatible
+	github.com/xtda/goose v2.6.0+incompatible
 	golang.org/x/crypto v0.0.0-20190923035154-9ee001bba392
 	golang.org/x/net v0.0.0-20190921015927-1a5e07d1ff72
 	golang.org/x/text v0.3.2 // indirect
