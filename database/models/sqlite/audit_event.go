@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/volatiletech/null"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -27,7 +26,7 @@ type AuditEvent struct {
 	Type       string    `boil:"type" json:"type" toml:"type" yaml:"type"`
 	Identifier string    `boil:"identifier" json:"identifier" toml:"identifier" yaml:"identifier"`
 	Message    string    `boil:"message" json:"message" toml:"message" yaml:"message"`
-	CreatedAt  time.Time `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
+	CreatedAt  time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *auditEventR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L auditEventL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -74,41 +73,18 @@ func (w whereHelperstring) IN(slice []string) qm.QueryMod {
 	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
 }
 
-type whereHelpernull_String struct{ field string }
-
-func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_String) NEQ(x null.String) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-func (w whereHelpernull_String) LT(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_String) LTE(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_String) GT(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-
 var AuditEventWhere = struct {
 	ID         whereHelperint64
 	Type       whereHelperstring
 	Identifier whereHelperstring
 	Message    whereHelperstring
-	CreatedAt  whereHelpernull_String
+	CreatedAt  whereHelperstring
 }{
 	ID:         whereHelperint64{field: "\"audit_event\".\"id\""},
 	Type:       whereHelperstring{field: "\"audit_event\".\"type\""},
 	Identifier: whereHelperstring{field: "\"audit_event\".\"identifier\""},
 	Message:    whereHelperstring{field: "\"audit_event\".\"message\""},
-	CreatedAt:  whereHelpernull_String{field: "\"audit_event\".\"created_at\""},
+	CreatedAt:  whereHelperstring{field: "\"audit_event\".\"created_at\""},
 }
 
 // AuditEventRels is where relationship names are stored.
@@ -129,8 +105,8 @@ type auditEventL struct{}
 
 var (
 	auditEventAllColumns            = []string{"id", "type", "identifier", "message", "created_at"}
-	auditEventColumnsWithoutDefault = []string{}
-	auditEventColumnsWithDefault    = []string{"id", "type", "identifier", "message", "created_at"}
+	auditEventColumnsWithoutDefault = []string{"type", "identifier", "message"}
+	auditEventColumnsWithDefault    = []string{"id", "created_at"}
 	auditEventPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -449,13 +425,6 @@ func (o *AuditEvent) Insert(ctx context.Context, exec boil.ContextExecutor, colu
 	}
 
 	var err error
-	if !boil.TimestampsAreSkipped(ctx) {
-		currTime := time.Now().In(boil.GetLocation())
-
-		if o.CreatedAt.IsZero() {
-			o.CreatedAt = currTime
-		}
-	}
 
 	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
 		return err
@@ -573,9 +542,6 @@ func (o *AuditEvent) Update(ctx context.Context, exec boil.ContextExecutor, colu
 			auditEventPrimaryKeyColumns,
 		)
 
-		if !columns.IsWhitelist() {
-			wl = strmangle.SetComplement(wl, []string{"created_at"})
-		}
 		if len(wl) == 0 {
 			return 0, errors.New("sqlite: unable to update audit_event, could not build whitelist")
 		}

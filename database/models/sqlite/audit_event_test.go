@@ -442,14 +442,10 @@ func testAuditEventsHooks(t *testing.T) {
 
 func testAuditEventsInsert(t *testing.T) {
 	t.Parallel()
-	boil.DebugMode = true
+
 	seed := randomize.NewSeed()
 	var err error
-	o := &AuditEvent{
-		Type:       "hg",
-		Message:    "g",
-		Identifier: "h",
-	}
+	o := &AuditEvent{}
 	if err = randomize.Struct(seed, o, auditEventDBTypes, true, auditEventColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize AuditEvent struct: %s", err)
 	}
