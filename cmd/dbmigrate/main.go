@@ -51,7 +51,8 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	flag.StringVar(&command, "command", "status", "command to run status|up|down|create")
+
+	flag.StringVar(&command, "command", "", "command to run status|up|down|create")
 	flag.StringVar(&args, "args", "", "arguments to pass to goose")
 
 	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
@@ -82,7 +83,14 @@ func main() {
 		fmt.Printf("Connected to: %s\n", conf.Database.Host)
 	}
 
-	if err := goose.Run(command, dbConn.SQL, drv, migrationDir, args); err != nil {
+	if command == "" {
+		_ = goose.Run("status", dbConn.SQL, drv, migrationDir, "")
+		fmt.Println()
+		flag.Usage()
+		return
+	}
+
+	if err = goose.Run(command, dbConn.SQL, drv, migrationDir, args); err != nil {
 		fmt.Println(err)
 	}
 }

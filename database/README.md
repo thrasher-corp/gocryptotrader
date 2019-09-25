@@ -52,7 +52,7 @@ A helper tool has been made located in ./cmd/gen_sqlboiler_config that will pars
 go run ./cmd/gen_sqlboiler_config
 ```
 
-Models generated and sit in the ./database/models/<databasetype> folder using sqlboiler 
+Generate a new model that gets placed in ./database/models/<databasetype> folder
 
 ```shell script
 sqlboiler -o database/models/postgres -p "postgres" psql

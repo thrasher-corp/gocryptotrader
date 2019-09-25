@@ -53,6 +53,7 @@ matrix:
         directories:
           - $GOPATH/pkg/mod
       before_install:
+        - rm -rf /usr/local/var/postgres
         - initdb /usr/local/var/postgres
         - pg_ctl start --pgdata /usr/local/var/postgres
         - createuser -s postgres
