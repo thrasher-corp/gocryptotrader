@@ -69,6 +69,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	if !conf.Database.Enabled {
+		fmt.Println("Database support is disabled")
+		os.Exit(1)
+	}
 	err = openDbConnection(conf.Database.Driver)
 	if err != nil {
 		fmt.Println(err)
