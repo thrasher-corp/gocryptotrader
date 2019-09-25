@@ -48,7 +48,7 @@ matrix:
         - PSQL_USER=postgres
         - PSQL_HOST=localhost
         - PSQL_DBNAME=gct_dev_ci
-	- PSQL_SSLMODE=disable
+	    - PSQL_SSLMODE=disable
       install: true
       cache:
         directories:

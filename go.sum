@@ -178,6 +178,7 @@ github.com/thrasher-corp/goose v2.7.0-rc4.0.20190924222012-82960b1de5ef+incompat
 github.com/thrasher-corp/goose v2.7.0-rc4.0.20190924222012-82960b1de5ef+incompatible/go.mod h1:2Bb/y0SpnUWOlPU5kDz+ctvb3w/mzuAVqxy7JPfBzgw=
 github.com/thrasher-corp/goose v2.7.0-rc4.0.20190925025212-5a41c3f6ed4b+incompatible h1:ExzA22h4xffMjgIepXqBFNhrau+6/KzKDMxnbjxSQR0=
 github.com/thrasher-corp/goose v2.7.0-rc4.0.20190925025212-5a41c3f6ed4b+incompatible/go.mod h1:2Bb/y0SpnUWOlPU5kDz+ctvb3w/mzuAVqxy7JPfBzgw=
+github.com/thrasher-corp/goose v2.7.0-rc4.0.20190925042138-423e69c368f6+incompatible/go.mod h1:2Bb/y0SpnUWOlPU5kDz+ctvb3w/mzuAVqxy7JPfBzgw=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb h1:9kcmLvQdiIecpgVEL3/+J5QIP/ElRBJDljOay0SvqnA=
 github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb/go.mod h1:VTLqNCX1tXrur6pdIRCl8Q90FR7nw/mEBdyMkWMcsb0=
