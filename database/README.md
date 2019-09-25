@@ -26,34 +26,40 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## How to use
 
-##### To Manually migrate to the latest database you can run the "dbmigrate" helper in the cmd folder
-
-This will parse and run all migration files in your $GoCryptoTrader/database/migrations
-
-_This is also run from the bot when a connection is established to the database_
-
-```sh
-go run ./cmd/dbmigrate
+##### Create and Run migrations
+ Migrations are created using a modified version of [Goose](https://github.com/thrasher-corp/goose) 
+ 
+ A helper tool sits in the ./cmd/dbmigrate folder that includes the following features:
+ 
++ Check current database version with the "status" command
+```shell script
+go run ./cmd/dbmigrate -command status
 ```
-A Makefile command has also been added for this
++ Create a new migration
 ```sh
-make db_migrate
+go run ./cmd/dbmigrate -command "create" -args "somemodel"
 ```
-
-##### To create a new migrate file you can also run the same command with the -create "migration name" flag
-
-```sh
-go run ./cmd/dbmigrate -create "alter some table"
+_This will create a folder in the ./database/migration folder that contains postgres.sql and sqlite.sql files_
+ + Run dbmigrate command with -command up 
+```shell script
+go run ./cmd/dbmigrate -command "up"
 ```
-
 ##### Adding a new model
+Model's are generated using [SQLBoilers](https://github.com/volatiletech/sqlboiler) 
+A helper tool has been made located in ./cmd/gen_sqlboiler_config that will parse your GoCryptoTrader config and output a SQLBoiler config
 
-+ Create Model in github.com/thrasher-corp/gocryptotrader/database/models directory
+```sh
+go run ./cmd/gen_sqlboiler_config
+```
+
+Generate a new model that gets placed in ./database/models/<databasetype> folder
+
+```shell script
+sqlboiler -o database/models/postgres -p "postgres" psql
+```
 
 ##### Adding a Repository
 + Create Repository directory in github.com/thrasher-corp/gocryptotrader/database/repository/
-+ Create a base Repository interface with any required Methods
-+ Create a per driver implementation of the Repository that implement all required methods to match the interface
 
 ## Contribution
 

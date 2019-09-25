@@ -1,62 +1,63 @@
 package audit
 
 import (
-	"sync"
+	"context"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/models"
+	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/volatiletech/sqlboiler/boil"
 )
 
-// Repository that is required for each driver type to implement
-type Repository interface {
-	AddEventTx(event []*models.AuditEvent)
-}
-
-var (
-	// Audit repository initialise copy of Audit Repository
-	Audit Repository
-)
-
-type eventPool struct {
-	events  []*models.AuditEvent
-	eventMu sync.Mutex
-}
-
-var ep eventPool
-
-// Event allows you to call audit.Event() as long as the audit repository package without the need to include each driver
-func Event(msgType, identifier, message string) {
-	if database.Conn.SQL == nil {
+// Event inserts a new audit event to database
+func Event(id, msgtype, message string) {
+	if database.DB.SQL == nil {
 		return
 	}
 
-	if Audit == nil {
+	ctx := context.Background()
+	ctx = boil.SkipTimestamps(ctx)
+
+	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	if err != nil {
+		log.Errorf(log.Global, "transaction begin failed: %v", err)
 		return
 	}
 
-	tempEvent := models.AuditEvent{
-		Type:       msgType,
-		Identifier: identifier,
-		Message:    message}
+	if repository.GetSQLDialect() == "sqlite3" {
+		var tempEvent = modelSQLite.AuditEvent{
+			Type:       msgtype,
+			Identifier: id,
+			Message:    message,
+		}
+		err = tempEvent.Insert(ctx, tx, boil.Blacklist("created_at"))
+	} else {
+		var tempEvent = modelPSQL.AuditEvent{
+			Type:       msgtype,
+			Identifier: id,
+			Message:    message,
+		}
+		err = tempEvent.Insert(ctx, tx, boil.Blacklist("created_at"))
+	}
 
-	ep.poolEvents(&tempEvent)
-}
-
-func (e *eventPool) poolEvents(event *models.AuditEvent) {
-	e.eventMu.Lock()
-	defer e.eventMu.Unlock()
-
-	e.events = append(e.events, event)
-
-	database.Conn.Mu.RLock()
-	defer database.Conn.Mu.RUnlock()
-
-	if !database.Conn.Connected {
-		log.Warnln(log.DatabaseMgr, "connection to database interrupted pooling database writes")
+	if err != nil {
+		log.Errorf(log.Global, "insert failed: %v", err)
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.Global, "transaction rollback failed: %v", err)
+		}
 		return
 	}
 
-	Audit.AddEventTx(e.events)
-	e.events = nil
+	err = tx.Commit()
+	if err != nil {
+		log.Errorf(log.Global, "transaction commit failed: %v", err)
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.Global, "transaction rollback failed: %v", err)
+		}
+		return
+	}
 }

@@ -1300,16 +1300,16 @@ func (c *Config) checkDatabaseConfig() error {
 		return fmt.Errorf("unsupported database driver %v, database disabled", c.Database.Driver)
 	}
 
-	if c.Database.Driver == "sqlite" {
+	if c.Database.Driver == "sqlite3" || c.Database.Driver == "sqlite" {
 		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
 		err := common.CreateDir(databaseDir)
 		if err != nil {
 			return err
 		}
-		database.Conn.DataPath = databaseDir
+		database.DB.DataPath = databaseDir
 	}
 
-	database.Conn.Config = &c.Database
+	database.DB.Config = &c.Database
 
 	return nil
 }

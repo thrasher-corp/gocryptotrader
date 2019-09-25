@@ -7,17 +7,13 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
-	db "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
-	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
-	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
-	auditSQLite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 var (
-	dbConn *database.Database
+	dbConn *database.Db
 )
 
 type databaseManager struct {
@@ -40,24 +36,16 @@ func (a *databaseManager) Start() (err error) {
 
 	if Bot.Config.Database.Enabled {
 		if Bot.Config.Database.Driver == "postgres" {
-			dbConn, err = db.Connect()
+			dbConn, err = dbpsql.Connect()
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 			}
-
-			dbConn.SQL.SetMaxOpenConns(2)
-			dbConn.SQL.SetMaxIdleConns(1)
-			dbConn.SQL.SetConnMaxLifetime(time.Hour)
-
-			audit.Audit = auditPSQL.Audit()
-		} else if Bot.Config.Database.Driver == "sqlite" {
+		} else if Bot.Config.Database.Driver == "sqlite" || Bot.Config.Database.Driver == "sqlite3" {
 			dbConn, err = dbsqlite3.Connect()
 
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 			}
-
-			audit.Audit = auditSQLite.Audit()
 		}
 		dbConn.Connected = true
 
@@ -69,23 +57,6 @@ func (a *databaseManager) Start() (err error) {
 			log.Debugf(log.DatabaseMgr,
 				"Database connection established to file database: %s. Using sqlite driver\n",
 				dbConn.Config.Database)
-		}
-
-		mLogger := mg.MLogger{}
-		migrations := mg.Migrator{
-			Log: mLogger,
-		}
-
-		migrations.Conn = dbConn
-
-		err := migrations.LoadMigrations()
-		if err != nil {
-			return err
-		}
-
-		err = migrations.RunMigration()
-		if err != nil {
-			return err
 		}
 
 		go a.run()
@@ -101,10 +72,12 @@ func (a *databaseManager) Stop() error {
 	}
 
 	log.Debugln(log.DatabaseMgr, "Database manager shutting down...")
+
 	err := dbConn.SQL.Close()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Failed to close database: %v", err)
 	}
+
 	close(a.shutdown)
 	return nil
 }
@@ -114,6 +87,7 @@ func (a *databaseManager) run() {
 	Bot.ServicesWG.Add(1)
 
 	t := time.NewTicker(time.Second * 2)
+
 	a.running.Store(true)
 
 	defer func() {

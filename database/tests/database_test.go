@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"reflect"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
-	dbsqlite "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
+
+	psqlConn "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	sqliteConn "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 )
 
 var (
@@ -21,17 +21,33 @@ var (
 		Enabled:           true,
 		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
-			//Host:     "",
+			//Host:     "localhost",
 			//Port:     5432,
-			//Username: "",
+			//Username: "gct",
 			//Password: "",
-			//Database: "",
+			//Database: "gct-dev",
 			//SSLMode:  "",
 		},
 	}
 )
 
 func TestMain(m *testing.M) {
+	_, exists := os.LookupEnv("TRAVIS")
+	if exists {
+		postgresTestDatabase = database.Config{
+			Enabled: true,
+			Driver:  "postgres",
+			ConnectionDetails: drivers.ConnectionDetails{
+				Host:     "localhost",
+				Port:     5432,
+				Username: "postgres",
+				Password: "",
+				Database: "gct_dev_ci",
+				SSLMode:  "",
+			},
+		}
+	}
+
 	var err error
 	tempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
@@ -53,14 +69,14 @@ func TestDatabaseConnect(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config database.Config
-		closer func(t *testing.T, dbConn *database.Database) error
+		closer func(t *testing.T, dbConn *database.Db) error
 		output interface{}
 	}{
 		{
 			"SQLite",
 			database.Config{
 				Driver:            "sqlite",
-				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb.db"},
 			},
 			closeDatabase,
 			nil,
@@ -113,26 +129,27 @@ func TestDatabaseConnect(t *testing.T) {
 	}
 }
 
-func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Database, err error) {
+func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Db, err error) {
 	t.Helper()
-	database.Conn.Config = conn
+	database.DB.Config = conn
 
 	if conn.Driver == "postgres" {
-		dbConn, err = dbpsql.Connect()
+		dbConn, err = psqlConn.Connect()
 		if err != nil {
 			return
 		}
 	} else if conn.Driver == "sqlite" {
-		dbConn, err = dbsqlite.Connect()
+		database.DB.DataPath = tempDir
+		dbConn, err = sqliteConn.Connect()
 		if err != nil {
 			return
 		}
 	}
-	database.Conn.Connected = true
+	database.DB.Connected = true
 	return
 }
 
-func closeDatabase(t *testing.T, conn *database.Database) (err error) {
+func closeDatabase(t *testing.T, conn *database.Db) (err error) {
 	t.Helper()
 
 	if conn != nil {
