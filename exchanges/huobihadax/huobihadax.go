@@ -343,7 +343,7 @@ func (h *HUOBIHADAX) GetSymbols() ([]Symbol, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("%s/v%s/%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxAPIName, huobihadaxSymbols)
+	urlPath := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxSymbols)
 
 	err := h.SendHTTPRequest(urlPath, &result)
 	if result.ErrorMessage != "" {
@@ -360,7 +360,7 @@ func (h *HUOBIHADAX) GetCurrencies() ([]string, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("%s/v%s/%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxAPIName, huobihadaxCurrencies)
+	urlPath := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxCurrencies)
 
 	err := h.SendHTTPRequest(urlPath, &result)
 	if result.ErrorMessage != "" {
