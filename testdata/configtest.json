@@ -946,52 +946,6 @@
    ]
   },
   {
-   "name": "HuobiHadax",
-   "enabled": true,
-   "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
-   "httpTimeout": 15000000000,
-   "websocketResponseCheckTimeout": 30000000,
-   "websocketResponseMaxLimit": 7000000000,
-   "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiAuthPemKey": "-----BEGIN EC PRIVATE KEY-----\nJUSTADUMMY\n-----END EC PRIVATE KEY-----\n",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "TOS-ETH,XMX-ETH,MAN-ETH,MEX-BTC,AE-BTC,DATX-BTC,HPT-HT,PNT-ETH,NCC-BTC,SHE-BTC,18C-ETH,BUT-ETH,DAC-BTC,TRIO-BTC,CNN-BTC,LXT-BTC,PC-BTC,UIP-BTC,EKT-ETH,SEELE-BTC,GSC-ETH,CNN-ETH,UIP-ETH,LYM-BTC,CVCOIN-BTC,SEXC-ETH,KCASH-HT,RCCC-ETH,REN-BTC,ZJLT-ETH,GTC-BTC,AAC-BTC,PC-ETH,KCASH-BTC,BUT-BTC,MUSK-BTC,PORTAL-ETH,UUU-BTC,TOS-BTC,GET-ETH,SSP-BTC,AAC-ETH,SEXC-BTC,MT-ETH,MT-HT,EGCC-ETH,CDC-ETH,GTC-ETH,CDC-BTC,HPT-BTC,RTE-ETH,FAIR-ETH,REN-ETH,FAIR-BTC,RTE-BTC,FTI-ETH,PORTAL-BTC,LXT-ETH,KCASH-ETH,EGCC-BTC,18C-BTC,UUU-ETH,NCC-ETH,MT-BTC,BKBT-ETH,GET-BTC,DAC-ETH,MUSK-ETH,SSP-ETH,SEELE-ETH,MEX-ETH,MAN-BTC,HPT-USDT,IDT-ETH,AE-ETH,PNT-BTC,RCCC-BTC,ZJLT-BTC,DATX-ETH,IDT-BTC,GSC-BTC,GVE-BTC,LYM-ETH,XMX-BTC,CVCOIN-ETH,EKT-BTC,GVE-ETH,YCC-ETH,HOT-ETH,TRIO-ETH,INC-ETH,UC-ETH,BCV-BTC,INC-BTC,SHE-ETH,UC-BTC,BKBT-BTC,BCV-ETH,YCC-BTC,HOT-BTC,FTI-BTC,IIC-ETH,IIC-BTC",
-   "enabledPairs": "HOT-BTC",
-   "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
-   },
-   "requestCurrencyPairFormat": {
-    "uppercase": false
-   },
-   "bankAccounts": [
-    {
-     "bankName": "",
-     "bankAddress": "",
-     "accountName": "",
-     "accountNumber": "",
-     "swiftCode": "",
-     "iban": "",
-     "supportedCurrencies": ""
-    }
-   ]
-  },
-  {
    "name": "ITBIT",
    "enabled": true,
    "verbose": false,
