@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -25,8 +23,9 @@ type Coinbene struct {
 }
 
 const (
-	coinbeneAPIURL     = "https://api.coinbene.com/"
-	coinbeneAPIVersion = "v1"
+	coinbeneAPIURL     = "http://openapi-exchange.coinbene.com/api/exchange/"
+	coinbeneAuthPath   = "/api/exchange/v2"
+	coinbeneAPIVersion = "v2"
 
 	// Public endpoints
 	coinbeneFetchTicker    = "/market/ticker"
@@ -35,7 +34,7 @@ const (
 	coinbeneGetAllPairs    = "/market/symbol"
 
 	// Authenticated endpoints
-	coinbeneGetUserBalance = "/trade/balance"
+	coinbeneGetUserBalance = "/account/list"
 	coinbenePlaceOrder     = "/trade/order/place"
 	coinbeneOrderInfo      = "/trade/order/info"
 	coinbeneRemoveOrder    = "/trade/order/cancel"
@@ -164,7 +163,7 @@ func (c *Coinbene) GetUserBalance() (UserBalanceResponse, error) {
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneGetUserBalance)
 	params := url.Values{}
 	params.Set("account", "exchange")
-	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
+	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, params, &resp)
 }
 
 // PlaceOrder creates an order
@@ -239,45 +238,56 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path string, params url.Values, r
 	if params == nil {
 		params = url.Values{}
 	}
-	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	params.Set("apiid", c.APIKey)
-	params.Set("timestamp", timestamp)
-	var temp, tempSlice []string
-	for x := range params {
-		if params[x][0] == "" {
-			continue
-		}
-		temp = append(temp, x)
-	}
-	temp = append(temp, "SECRET")
-	sort.Strings(temp)
+	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
+	// timestamp := meowTimestamp[:len(meowTimestamp)-10] + "Z"
+	// meow := strings.Split(timestamp, "+")
+	// timestamp = meow[0] + "Z"
 
-	for y := range temp {
-		if temp[y] == "SECRET" {
-			tempSlice = append(tempSlice, strings.ToUpper(fmt.Sprintf("%s=%s", temp[y], c.APISecret)))
-		} else {
-			tempSlice = append(tempSlice, strings.ToUpper(fmt.Sprintf("%s=%s", temp[y], params[temp[y]][0])))
-		}
-	}
-	sort.Strings(tempSlice)
-	fmt.Println("THIS IS MY SORTED TEMP STRING", tempSlice)
-	signMsg := strings.Join(tempSlice, "&")
-	log.Println(signMsg)
+	preSign := fmt.Sprintf("%s%s%s%s", timestamp, method, coinbeneAuthPath, coinbeneGetUserBalance)
+	log.Println(preSign)
 
-	md5 := common.GetMD5([]byte(signMsg))
+	tempSign := common.GetHMAC(common.HashSHA256, []byte(preSign), []byte(c.APISecret))
+	hexEncodedd := string(tempSign)
+	// var temp, tempSlice []string
+	// for x := range params {
+	// 	if params[x][0] == "" {
+	// 		continue
+	// 	}
+	// 	temp = append(temp, x)
+	// }
+	// temp = append(temp, "SECRET")
+	// sort.Strings(temp)
 
-	params.Set("sign", common.HexEncodeToString(md5))
+	// for y := range temp {
+	// 	if temp[y] == "SECRET" {
+	// 		tempSlice = append(tempSlice, strings.ToUpper(fmt.Sprintf("%s", temp[y], c.APISecret)))
+	// 	} else {
+	// 		tempSlice = append(tempSlice, strings.ToUpper(fmt.Sprintf("%s=%s", temp[y], params[temp[y]][0])))
+	// 	}
+	// // }
+	// sort.Strings(tempSlice)
+	// fmt.Println("THIS IS MY SORTED TEMP STRING", tempSlice)
+	// signMsg := strings.Join(tempSlice, "&")
+	// log.Println(signMsg)
+
+	// md5 := common.GetMD5([]byte(signMsg))
+	// hexEncoded := common.HexEncodeToString(md5)
+	// params.Set("sign", hexEncoded)
 
 	// path = common.EncodeURLValues(path, params)
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
+	headers["ACCESS-KEY"] = c.APIKey
+	headers["ACCESS-SIGN"] = hexEncodedd
+	headers["ACCESS-TIMESTAMP"] = timestamp
 
 	var postbody string
 	for key, val := range params {
 		postbody = postbody + `"` + key + `":"` + val[0] + `",`
 	}
-
+	log.Println("KFJSLDJGLSDGJHOADFLJDSFsl")
+	log.Println(path)
 	postbody = `{` + postbody[0:len(postbody)-1] + `}`
 
 	return c.SendPayload(method,

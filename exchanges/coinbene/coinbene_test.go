@@ -10,8 +10,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey    = ""
-	testAPISecret = ""
+	testAPIKey    = "1b297a4a07afe3b7eb4ccbb90fe7343e"
+	testAPISecret = "97abfb041f194f82801f366aab4135ee"
 )
 
 var c Coinbene
