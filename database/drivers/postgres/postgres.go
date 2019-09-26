@@ -24,7 +24,7 @@ func Connect() (*database.Db, error) {
 		database.DB.Config.Database,
 		database.DB.Config.SSLMode)
 
-	db, err := sql.Open(database.DBSQLite, configDSN)
+	db, err := sql.Open(database.DBPostgreSQL, configDSN)
 	if err != nil {
 		return nil, err
 	}
