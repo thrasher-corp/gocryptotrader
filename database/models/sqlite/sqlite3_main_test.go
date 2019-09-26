@@ -16,7 +16,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/thrasher-corp/goose"
 )
 
 var rgxSQLitekey = regexp.MustCompile(`(?mi)((,\n)?\s+foreign key.*?\n)+`)
@@ -86,11 +85,6 @@ func (s *sqliteTester) conn() (*sql.DB, error) {
 
 	var err error
 	s.dbConn, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_loc=UTC", s.testDBName))
-	if err != nil {
-		return nil, err
-	}
-
-	err = goose.Run("up", s.dbConn, "sqlite3", "../../migrations", "")
 	if err != nil {
 		return nil, err
 	}

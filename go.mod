@@ -17,7 +17,7 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/pquerna/otp v1.2.0
 	github.com/spf13/viper v1.4.0
-	github.com/thrasher-corp/goose v2.7.0-rc4.0.20190925025212-5a41c3f6ed4b+incompatible
+	github.com/thrasher-corp/goose v2.7.0-rc4.0.20190925042138-423e69c368f6+incompatible
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
 	github.com/urfave/cli v1.20.0
 	github.com/volatiletech/inflect v0.0.0-20170731032912-e7201282ae8d // indirect

@@ -3,7 +3,6 @@ package database
 import (
 	"database/sql"
 	"errors"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -31,16 +30,21 @@ var (
 	// DB Global Database Connection
 	DB = &Db{}
 
-	wd, _ = os.Getwd()
 	// MigrationDir which folder to look in for current migrations
-	MigrationDir = filepath.Join(wd, "database", "migrations")
+	MigrationDir = filepath.Join("..", "..", "database", "migrations")
 
 	// ErrNoDatabaseProvided error to display when no database is provided
 	ErrNoDatabaseProvided = errors.New("no database provided")
 
 	// SupportedDrivers slice of supported database driver types
-	SupportedDrivers = []string{"sqlite3", "sqlite", "postgres"}
+	SupportedDrivers = []string{DBSQLite, DBSQLite3, DBPostgreSQL}
 
 	// DefaultSQLiteDatabase is the default sqlite3 database name to use
 	DefaultSQLiteDatabase = "gocryptotrader.db"
+)
+
+const (
+	DBSQLite     = "sqlite"
+	DBSQLite3    = "sqlite3"
+	DBPostgreSQL = "postgres"
 )

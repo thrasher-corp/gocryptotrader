@@ -12,7 +12,6 @@ import (
 
 // Connect opens a connection to Postgres database and returns a pointer to database.DB
 func Connect() (*database.Db, error) {
-
 	if database.DB.Config.SSLMode == "" {
 		database.DB.Config.SSLMode = "disable"
 	}
@@ -25,7 +24,7 @@ func Connect() (*database.Db, error) {
 		database.DB.Config.Database,
 		database.DB.Config.SSLMode)
 
-	db, err := sql.Open("postgres", configDSN)
+	db, err := sql.Open(database.DBSQLite, configDSN)
 	if err != nil {
 		return nil, err
 	}

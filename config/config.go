@@ -1287,7 +1287,7 @@ func (c *Config) checkDatabaseConfig() error {
 	defer m.Unlock()
 
 	if (c.Database == database.Config{}) {
-		c.Database.Driver = "sqlite"
+		c.Database.Driver = database.DBSQLite3
 		c.Database.Database = database.DefaultSQLiteDatabase
 	}
 
@@ -1300,7 +1300,7 @@ func (c *Config) checkDatabaseConfig() error {
 		return fmt.Errorf("unsupported database driver %v, database disabled", c.Database.Driver)
 	}
 
-	if c.Database.Driver == "sqlite3" || c.Database.Driver == "sqlite" {
+	if c.Database.Driver == database.DBSQLite || c.Database.Driver == database.DBSQLite3 {
 		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
 		err := common.CreateDir(databaseDir)
 		if err != nil {

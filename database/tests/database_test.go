@@ -75,7 +75,7 @@ func TestDatabaseConnect(t *testing.T) {
 		{
 			"SQLite",
 			database.Config{
-				Driver:            "sqlite",
+				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb.db"},
 			},
 			closeDatabase,
@@ -84,7 +84,7 @@ func TestDatabaseConnect(t *testing.T) {
 		{
 			"SQliteNoDatabase",
 			database.Config{
-				Driver: "sqlite",
+				Driver: database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{
 					Host: "localhost",
 				},
@@ -133,12 +133,12 @@ func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Db
 	t.Helper()
 	database.DB.Config = conn
 
-	if conn.Driver == "postgres" {
+	if conn.Driver == database.DBPostgreSQL {
 		dbConn, err = psqlConn.Connect()
 		if err != nil {
 			return
 		}
-	} else if conn.Driver == "sqlite" {
+	} else if conn.Driver == database.DBSQLite3 {
 		database.DB.DataPath = tempDir
 		dbConn, err = sqliteConn.Connect()
 		if err != nil {

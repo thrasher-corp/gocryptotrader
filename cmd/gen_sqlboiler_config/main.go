@@ -82,7 +82,7 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 
 	dbType := repository.GetSQLDialect()
 
-	if dbType == "sqlite3" {
+	if dbType == database.DBSQLite || dbType == database.DBSQLite3 {
 		tempConfig.DBName = convertDBName(c.Database)
 	} else {
 		tempConfig.User = c.Username
