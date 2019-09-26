@@ -32,7 +32,7 @@ var (
 )
 
 // PromptForConfigEncryption asks for encryption key
-func (c *Config) PromptForConfigEncryption() bool {
+func (c *Config) PromptForConfigEncryption(configPath string) bool {
 	fmt.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
@@ -43,7 +43,7 @@ func (c *Config) PromptForConfigEncryption() bool {
 
 	if !common.YesOrNo(input) {
 		c.EncryptConfig = configFileEncryptionDisabled
-		c.SaveConfig("")
+		c.SaveConfig(configPath)
 		return false
 	}
 	return true

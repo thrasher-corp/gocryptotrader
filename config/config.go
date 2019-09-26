@@ -1510,7 +1510,7 @@ func (c *Config) ReadConfig(configPath string) error {
 			m.Lock()
 			IsInitialSetup = true
 			m.Unlock()
-			if c.PromptForConfigEncryption() {
+			if c.PromptForConfigEncryption(configPath) {
 				c.EncryptConfig = configFileEncryptionEnabled
 				return c.SaveConfig(defaultPath)
 			}
