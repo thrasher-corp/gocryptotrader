@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -26,19 +27,21 @@ var (
 )
 
 func openDbConnection(driver string) (err error) {
-	if driver == "postgres" {
+	if driver == database.DBPostgreSQL {
 		dbConn, err = dbPSQL.Connect()
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
-	} else if driver == "sqlite3" || driver == "sqlite" {
+		return nil
+	} else if driver == database.DBSQLite || driver == database.DBSQLite3 {
 		dbConn, err = dbsqlite3.Connect()
 
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
+		return nil
 	}
-	return nil
+	return errors.New("no connection established")
 }
 
 func main() {
@@ -52,7 +55,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	flag.StringVar(&command, "command", "", "command to run status|up|down|create")
+	flag.StringVar(&command, "command", "", "command to run status|up|up-by-one|up-to|down|create")
 	flag.StringVar(&args, "args", "", "arguments to pass to goose")
 
 	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
@@ -81,7 +84,7 @@ func main() {
 
 	drv := repository.GetSQLDialect()
 
-	if drv == "sqlite3" {
+	if drv == database.DBSQLite || drv == database.DBSQLite3 {
 		fmt.Printf("Database file: %s\n", conf.Database.Database)
 	} else {
 		fmt.Printf("Connected to: %s\n", conf.Database.Host)

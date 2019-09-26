@@ -35,29 +35,25 @@ func (a *databaseManager) Start() (err error) {
 	a.shutdown = make(chan struct{})
 
 	if Bot.Config.Database.Enabled {
-		if Bot.Config.Database.Driver == "postgres" {
+		if Bot.Config.Database.Driver == database.DBPostgreSQL {
+			log.Debugf(log.DatabaseMgr, "Attempting to established to host %s/%s utilising %s driver\n",
+				Bot.Config.Database.Host, Bot.Config.Database.Database, Bot.Config.Database.Driver)
+
 			dbConn, err = dbpsql.Connect()
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 			}
-		} else if Bot.Config.Database.Driver == "sqlite" || Bot.Config.Database.Driver == "sqlite3" {
+		} else if Bot.Config.Database.Driver == database.DBSQLite || Bot.Config.Database.Driver == database.DBSQLite3 {
+			log.Debugf(log.DatabaseMgr, "Attempting to established to database %s utilising %s driver\n",
+				Bot.Config.Database.Database, Bot.Config.Database.Driver)
 			dbConn, err = dbsqlite3.Connect()
 
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 			}
 		}
-		dbConn.Connected = true
 
-		if Bot.Config.Database.Driver == "postgres" {
-			log.Debugf(log.DatabaseMgr,
-				"Database connection established to host: %s. Using postgres driver\n",
-				dbConn.Config.Host)
-		} else {
-			log.Debugf(log.DatabaseMgr,
-				"Database connection established to file database: %s. Using sqlite driver\n",
-				dbConn.Config.Database)
-		}
+		dbConn.Connected = true
 
 		go a.run()
 		return nil

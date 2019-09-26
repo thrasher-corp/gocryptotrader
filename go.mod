@@ -31,3 +31,5 @@ require (
 	google.golang.org/genproto v0.0.0-20190916214212-f660b8655731
 	google.golang.org/grpc v1.23.1
 )
+
+replace github.com/thrasher-corp/goose => ../goose

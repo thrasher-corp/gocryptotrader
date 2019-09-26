@@ -1816,7 +1816,7 @@ func TestCheckDatabaseConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	if c.Database.Driver != "sqlite" ||
+	if c.Database.Driver != database.DBSQLite3 ||
 		c.Database.Database != database.DefaultSQLiteDatabase ||
 		c.Database.Enabled {
 		t.Error("unexpected results")
@@ -1828,7 +1828,7 @@ func TestCheckDatabaseConfig(t *testing.T) {
 		t.Error("unexpected result")
 	}
 
-	c.Database.Driver = "sqlite"
+	c.Database.Driver = database.DBSQLite3
 	c.Database.Enabled = true
 	if err := c.checkDatabaseConfig(); err != nil {
 		t.Error(err)
