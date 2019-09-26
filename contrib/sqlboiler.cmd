@@ -1,7 +1,7 @@
-@echo
+@echo off
 title GoCryptoTrader Database Model Generation
 IF NOT DEFINED GOPATH (
-    echo GOPATH not set
+    echo "GOPATH not set"
     exit
 )
 
