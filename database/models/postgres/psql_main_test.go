@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -229,7 +230,8 @@ func (p *pgTester) conn() (*sql.DB, error) {
 		return nil, err
 	}
 
-	err = goose.Run("up", p.dbConn, "postgres", "../../migrations", "")
+	path := filepath.Join("..", "..", "migrations")
+	err = goose.Run("up", p.dbConn, "postgres", path, "")
 	if err != nil {
 		return nil, err
 	}

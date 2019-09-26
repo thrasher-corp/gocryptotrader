@@ -24,7 +24,7 @@ func TestAudit(t *testing.T) {
 		{
 			"SQLite",
 			database.Config{
-				Driver:            "sqlite",
+				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
 

@@ -132,17 +132,19 @@ func TestDatabaseConnect(t *testing.T) {
 func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Db, err error) {
 	t.Helper()
 	database.DB.Config = conn
+	fmt.Println(conn.Driver)
 
 	if conn.Driver == database.DBPostgreSQL {
 		dbConn, err = psqlConn.Connect()
 		if err != nil {
-			return
+			return nil, err
 		}
-	} else if conn.Driver == database.DBSQLite3 {
+	} else if conn.Driver == database.DBSQLite3 || conn.Driver == database.DBSQLite {
 		database.DB.DataPath = tempDir
 		dbConn, err = sqliteConn.Connect()
+
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 	database.DB.Connected = true

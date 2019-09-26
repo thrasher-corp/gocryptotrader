@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/thrasher-corp/goose"
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -89,5 +91,10 @@ func (s *sqliteTester) conn() (*sql.DB, error) {
 		return nil, err
 	}
 
+	path := filepath.Join("..", "..", "migrations")
+	err = goose.Run("up", s.dbConn, "sqlite3", path, "")
+	if err != nil {
+		return nil, err
+	}
 	return s.dbConn, nil
 }
