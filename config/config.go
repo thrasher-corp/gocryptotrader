@@ -1472,7 +1472,6 @@ func GetFilePath(file string) (string, error) {
 
 		if ConfirmECS(data) {
 			if filepath.Ext(newDirs[x]) == ".dat" {
-
 				return newDirs[x], nil
 			}
 
