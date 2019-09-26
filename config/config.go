@@ -1430,6 +1430,13 @@ func GetFilePath(file string) (string, error) {
 		if os.IsNotExist(err) {
 			continue
 		}
+		_, err = os.Stat(newDirs[x])
+		if !os.IsNotExist(err) {
+			log.Warnf(log.ConfigMgr,
+				"Warning: config.json file found in root dir and gct dir; cannot overwrite, defaulting to gct dir config.json at %s",
+				newDirs[x])
+			return newDirs[x], nil
+		}
 		if filepath.Ext(oldDirs[x]) == ".json" {
 			err = os.Rename(oldDirs[x], newDirs[0])
 			if err != nil {
@@ -1465,6 +1472,7 @@ func GetFilePath(file string) (string, error) {
 
 		if ConfirmECS(data) {
 			if filepath.Ext(newDirs[x]) == ".dat" {
+
 				return newDirs[x], nil
 			}
 
