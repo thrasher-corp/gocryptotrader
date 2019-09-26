@@ -26,7 +26,7 @@ func Event(id, msgtype, message string) {
 		return
 	}
 
-	if repository.GetSQLDialect() == "sqlite3" {
+	if repository.GetSQLDialect() == database.DBSQLite3 {
 		var tempEvent = modelSQLite.AuditEvent{
 			Type:       msgtype,
 			Identifier: id,

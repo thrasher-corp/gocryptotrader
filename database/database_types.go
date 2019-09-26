@@ -3,7 +3,6 @@ package database
 import (
 	"database/sql"
 	"errors"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -31,9 +30,8 @@ var (
 	// DB Global Database Connection
 	DB = &Db{}
 
-	wd, _ = os.Getwd()
 	// MigrationDir which folder to look in for current migrations
-	MigrationDir = filepath.Join(wd, "database", "migrations")
+	MigrationDir = filepath.Join("..", "..", "database", "migrations")
 
 	// ErrNoDatabaseProvided error to display when no database is provided
 	ErrNoDatabaseProvided = errors.New("no database provided")
