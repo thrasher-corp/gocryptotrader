@@ -39,8 +39,14 @@ var (
 	ErrNoDatabaseProvided = errors.New("no database provided")
 
 	// SupportedDrivers slice of supported database driver types
-	SupportedDrivers = []string{"sqlite3", "sqlite", "postgres"}
+	SupportedDrivers = []string{DBSQLite, DBSQLite3, DBPostgreSQL}
 
 	// DefaultSQLiteDatabase is the default sqlite3 database name to use
 	DefaultSQLiteDatabase = "gocryptotrader.db"
+)
+
+const (
+	DBSQLite     = "sqlite"
+	DBSQLite3    = "sqlite3"
+	DBPostgreSQL = "postgres"
 )
