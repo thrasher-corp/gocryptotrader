@@ -1423,7 +1423,8 @@ func GetFilePath(file string) (string, error) {
 		filepath.Join(newDir, EncryptedConfigFile),
 	}
 
-	// First upgrade the old dir config file if it exists to the corresponding new one
+	// First upgrade the old dir config file if it exists to the corresponding
+	// new one
 	for x := range oldDirs {
 		_, err := os.Stat(oldDirs[x])
 		if os.IsNotExist(err) {
@@ -1434,13 +1435,19 @@ func GetFilePath(file string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			log.Debugf(log.ConfigMgr, "Renamed old config file %s to %s\n", oldDirs[x], newDirs[0])
+			log.Debugf(log.ConfigMgr,
+				"Renamed old config file %s to %s\n",
+				oldDirs[x],
+				newDirs[0])
 		} else {
 			err = os.Rename(oldDirs[x], newDirs[1])
 			if err != nil {
 				return "", err
 			}
-			log.Debugf(log.ConfigMgr, "Renamed old config file %s to %s\n", oldDirs[x], newDirs[1])
+			log.Debugf(log.ConfigMgr,
+				"Renamed old config file %s to %s\n",
+				oldDirs[x],
+				newDirs[1])
 		}
 	}
 

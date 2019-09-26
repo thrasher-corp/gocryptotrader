@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -18,18 +17,12 @@ import (
 )
 
 func main() {
-	defaultPath, err := config.GetFilePath("")
-	if err != nil {
-		log.Errorln(log.Global, err)
-		os.Exit(1)
-	}
-
 	// Handle flags
 	var settings engine.Settings
 	versionFlag := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 
 	// Core settings
-	flag.StringVar(&settings.ConfigFile, "config", defaultPath, "config file to load")
+	flag.StringVar(&settings.ConfigFile, "config", "", "config file to load")
 	flag.StringVar(&settings.DataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.StringVar(&settings.MigrationDir, "migrationdir", mg.MigrationDir, "override migration folder")
 	flag.IntVar(&settings.GoMaxProcs, "gomaxprocs", runtime.NumCPU(), "sets the runtime GOMAXPROCS value")
@@ -92,6 +85,7 @@ func main() {
 	fmt.Println(core.Banner)
 	fmt.Println(core.Version(false))
 
+	var err error
 	engine.Bot, err = engine.NewFromSettings(&settings)
 	if engine.Bot == nil || err != nil {
 		log.Errorf(log.Global, "Unable to initialise bot engine. Error: %s\n", err)
