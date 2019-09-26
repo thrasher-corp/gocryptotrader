@@ -82,6 +82,9 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 
 	dbType := repository.GetSQLDialect()
 
+	if dbType == database.DBPostgreSQL {
+		dbType = "psql"
+	}
 	if dbType == database.DBSQLite || dbType == database.DBSQLite3 {
 		tempConfig.DBName = convertDBName(c.Database)
 	} else {
