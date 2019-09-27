@@ -3,24 +3,12 @@ package dispatch
 import (
 	"errors"
 	"reflect"
-	"sync"
 
 	"github.com/gofrs/uuid"
 )
 
-// Mux defines a new multiplexor for the dispatch system, these a generated
-// per subsystem
-type Mux struct {
-	// Reference to the main running dispatch service
-	d *Dispatcher
-	sync.RWMutex
-}
-
 // GetNewMux returns a new multiplexor to track subsystem updates
 func GetNewMux() *Mux {
-	if dispatcher == nil {
-		panic("communications not initialised while getting new mux, not ideal")
-	}
 	return &Mux{d: dispatcher}
 }
 
@@ -66,16 +54,6 @@ func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 // GetID gets a lovely new ID
 func (m *Mux) GetID() (uuid.UUID, error) {
 	return m.d.getNewID()
-}
-
-// Pipe defines an outbound object to the desired routine
-type Pipe struct {
-	// Channel to get all our lovely informations
-	C chan interface{}
-	// ID to tracked system
-	id uuid.UUID
-	// Reference to multiplexor
-	m *Mux
 }
 
 // Release returns the channel to the communications pool to be reused

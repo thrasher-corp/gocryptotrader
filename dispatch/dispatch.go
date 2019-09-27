@@ -11,23 +11,6 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-const (
-	// DefaultJobBuffer defines a maxiumum amount of jobs allowed in channel
-	DefaultJobBuffer = 100
-
-	// DefaultMaxWorkers is the package default worker ceiling amount
-	DefaultMaxWorkers = 10
-
-	// DefaultHandshakeTimeout defines a workers max length of time to wait on a
-	// an unbuffered channel for a receiver before moving on to next route
-	DefaultHandshakeTimeout = 200 * time.Nanosecond
-
-	errNotInitialised   = "dispatcher not initialised"
-	errAlreadyStarted   = "dispatcher already started"
-	errCannotShutdown   = "dispatcher cannot shutdown, already stopped"
-	errShutdownRoutines = "dispatcher did not shutdown properly, routines failed to close"
-)
-
 func init() {
 	dispatcher = &Dispatcher{
 		routes: make(map[uuid.UUID][]chan interface{}),
@@ -40,10 +23,6 @@ func init() {
 		},
 	}
 }
-
-// dispatcher is our main in memory instance with a stop/start mtx below
-var dispatcher *Dispatcher
-var mtx sync.Mutex
 
 // Start starts the dispatch system by spawning workers and allocating memory
 func Start(workers int64) error {
@@ -94,39 +73,6 @@ func SpawnWorker() error {
 		return errors.New(errNotInitialised)
 	}
 	return dispatcher.spawnWorker()
-}
-
-// Dispatcher defines an internal subsystem communication/change state publisher
-type Dispatcher struct {
-	// routes refers to a subystem uuid ticket map with associated publish
-	// channels, a relayer will be given a unique id through its job channel,
-	// then publish the data across the full registered channels for that uuid.
-	// See relayer() method below.
-	routes map[uuid.UUID][]chan interface{}
-
-	// rMtx protects the routes variable ensuring acceptable read/write access
-	rMtx sync.RWMutex
-
-	// Persistent buffered job queue for relayers
-	jobs chan *job
-
-	// Dynamic channel pool; returns an unbuffered channel for routes map
-	outbound sync.Pool
-
-	// Atomic values -----------------------
-	// MaxWorkers defines max worker ceiling
-	maxWorkers int64
-	// Worker counter
-	count int64
-	// Dispatch status
-	running uint32
-
-	// Unbufferd shutdown chan, sync wg for ensuring concurrency when only
-	// dropping a single relayer routine
-	shutdown chan *sync.WaitGroup
-
-	// Relayer shutdown tracking
-	wg sync.WaitGroup
 }
 
 // start compares atomic running value, sets defaults, overides with
@@ -413,11 +359,4 @@ func (d *Dispatcher) getNewID() (uuid.UUID, error) {
 	d.rMtx.Unlock()
 
 	return newID, nil
-}
-
-// job defines a relaying job associated with a ticket which allows routing to
-// routines that require specific data
-type job struct {
-	Data interface{}
-	ID   uuid.UUID
 }
