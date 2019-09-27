@@ -130,7 +130,7 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	ws = *New()
-	if err := ws.SetProxyAddress("testProxy"); err != nil {
+	if err = ws.SetProxyAddress("testProxy"); err != nil {
 		t.Error("test failed - SetProxyAddress", err)
 	}
 
