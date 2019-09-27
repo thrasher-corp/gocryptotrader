@@ -107,7 +107,9 @@ func (w *Websocket) connectionMonitor() {
 	timer := time.NewTimer(connectionMonitorDelay)
 
 	defer func() {
-		timer.Stop()
+		if !timer.Stop() {
+			<-timer.C
+		}
 		w.setConnectionMonitorRunning(false)
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket connection monitor exiting",
@@ -178,7 +180,7 @@ func (w *Websocket) Shutdown() error {
 		w.Orderbook.FlushCache()
 		w.m.Unlock()
 	}()
-	if !w.IsConnected() && w.ShutdownC == nil {
+	if !w.IsConnected() {
 		return fmt.Errorf("%v cannot shutdown a disconnected websocket", w.exchangeName)
 	}
 	if w.verbose {
@@ -203,7 +205,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	trafficTimer := time.NewTimer(w.trafficTimeout)
 
 	defer func() {
-		trafficTimer.Stop()
+		if !trafficTimer.Stop() {
+			<-trafficTimer.C
+		}
 		w.Wg.Done()
 	}()
 
