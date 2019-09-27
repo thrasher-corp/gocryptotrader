@@ -20,7 +20,10 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - ANX load config error", err)
+	}
 	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
 		log.Fatal("Test Failed - Mock server error", err)
@@ -30,7 +33,10 @@ func TestMain(m *testing.M) {
 	anxConfig.API.Credentials.Key = apiKey
 	anxConfig.API.Credentials.Secret = apiSecret
 	a.SetDefaults()
-	a.Setup(anxConfig)
+	err = a.Setup(anxConfig)
+	if err != nil {
+		log.Fatal("Test Failed - ANX setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockFile)
 	if err != nil {

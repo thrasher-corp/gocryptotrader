@@ -53,7 +53,7 @@ func New() (*Engine, error) {
 	var b Engine
 	b.Config = &config.Cfg
 
-	err := b.Config.LoadConfig("")
+	err := b.Config.LoadConfig("", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
@@ -69,9 +69,13 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 
 	var b Engine
 	b.Config = &config.Cfg
+	filePath, err := config.GetFilePath(settings.ConfigFile)
+	if err != nil {
+		return nil, err
+	}
 
-	log.Debugf(log.Global, "Loading config file %s..\n", settings.ConfigFile)
-	err := b.Config.LoadConfig(settings.ConfigFile)
+	log.Debugf(log.Global, "Loading config file %s..\n", filePath)
+	err = b.Config.LoadConfig(filePath, settings.EnableDryRun)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
@@ -86,7 +90,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		log.SetupSubLoggers(b.Config.Logging.SubLoggers)
 	}
 
-	b.Settings.ConfigFile = settings.ConfigFile
+	b.Settings.ConfigFile = filePath
 	b.Settings.DataDir = settings.DataDir
 
 	err = utils.AdjustGoMaxProcs(settings.GoMaxProcs)
@@ -433,7 +437,7 @@ func (e *Engine) Stop() {
 	}
 
 	if !e.Settings.EnableDryRun {
-		err := e.Config.SaveConfig(e.Settings.ConfigFile)
+		err := e.Config.SaveConfig(e.Settings.ConfigFile, false)
 		if err != nil {
 			log.Errorln(log.Global, "Unable to save config.")
 		} else {

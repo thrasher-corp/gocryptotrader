@@ -13,7 +13,7 @@ import (
 
 func loadConfig(t *testing.T) *config.Config {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("")
+	err := cfg.LoadConfig("", true)
 	if err != nil {
 		t.Error("Test failed. GetCurrencyConfig LoadConfig error", err)
 	}

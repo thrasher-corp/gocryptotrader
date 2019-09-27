@@ -20,7 +20,10 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - Bitstamp load config error", err)
+	}
 	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
 		log.Fatal("Test Failed - Bitstamp Setup() init error", err)
@@ -31,7 +34,10 @@ func TestMain(m *testing.M) {
 	bitstampConfig.API.Credentials.Secret = apiSecret
 	bitstampConfig.API.Credentials.ClientID = customerID
 	b.SetDefaults()
-	b.Setup(bitstampConfig)
+	err = b.Setup(bitstampConfig)
+	if err != nil {
+		log.Fatal("Test Failed - Bitstamp setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {

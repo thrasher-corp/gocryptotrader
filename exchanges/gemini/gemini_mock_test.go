@@ -20,7 +20,10 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - Gemini load config error", err)
+	}
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
 		log.Fatal("Test Failed - Mock server error", err)
@@ -30,7 +33,10 @@ func TestMain(m *testing.M) {
 	geminiConfig.API.Credentials.Key = apiKey
 	geminiConfig.API.Credentials.Secret = apiSecret
 	g.SetDefaults()
-	g.Setup(geminiConfig)
+	err = g.Setup(geminiConfig)
+	if err != nil {
+		log.Fatal("Test Failed - Gemini setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockFile)
 	if err != nil {

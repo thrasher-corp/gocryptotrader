@@ -29,17 +29,23 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - ZB load config error", err)
+	}
 	zbConfig, err := cfg.GetExchangeConfig("ZB")
 	if err != nil {
-		t.Error("Test Failed - ZB Setup() init error")
+		t.Fatal("Test Failed - ZB Setup() init error", err)
 	}
 	zbConfig.API.AuthenticatedSupport = true
 	zbConfig.API.AuthenticatedWebsocketSupport = true
 	zbConfig.API.Credentials.Key = apiKey
 	zbConfig.API.Credentials.Secret = apiSecret
 
-	z.Setup(zbConfig)
+	err = z.Setup(zbConfig)
+	if err != nil {
+		t.Fatal("Test Failed - ZB setup error", err)
+	}
 }
 
 func setupWsAuth(t *testing.T) {

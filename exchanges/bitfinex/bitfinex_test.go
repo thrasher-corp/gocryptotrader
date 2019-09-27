@@ -28,12 +28,18 @@ var b Bitfinex
 func TestSetup(t *testing.T) {
 	b.SetDefaults()
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - Bitfinex load config error", err)
+	}
 	bfxConfig, err := cfg.GetExchangeConfig("Bitfinex")
 	if err != nil {
 		t.Error("Test Failed - Bitfinex Setup() init error")
 	}
-	b.Setup(bfxConfig)
+	err = b.Setup(bfxConfig)
+	if err != nil {
+		t.Fatal("Test Failed - Bitfinex setup error", err)
+	}
 	b.API.Credentials.Key = apiKey
 	b.API.Credentials.Secret = apiSecret
 	if !b.Enabled || b.API.AuthenticatedSupport ||

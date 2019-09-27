@@ -11,7 +11,10 @@ var s SMSGlobal
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	commsCfg := cfg.GetCommunicationsConfig()
 	s.Setup(&commsCfg)
 }
@@ -19,14 +22,14 @@ func TestSetup(t *testing.T) {
 func TestConnect(t *testing.T) {
 	err := s.Connect()
 	if err != nil {
-		t.Error("test failed - SMSGlobal Connect() error")
+		t.Error("test failed - SMSGlobal Connect() error", err)
 	}
 }
 
 func TestPushEvent(t *testing.T) {
 	err := s.PushEvent(base.Event{})
 	if err != nil {
-		t.Error("test failed - SMSGlobal PushEvent() error")
+		t.Error("test failed - SMSGlobal PushEvent() error", err)
 	}
 }
 

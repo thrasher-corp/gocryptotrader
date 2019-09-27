@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -32,7 +33,7 @@ var (
 )
 
 // PromptForConfigEncryption asks for encryption key
-func (c *Config) PromptForConfigEncryption() bool {
+func (c *Config) PromptForConfigEncryption(configPath string, dryrun bool) bool {
 	fmt.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
@@ -43,7 +44,10 @@ func (c *Config) PromptForConfigEncryption() bool {
 
 	if !common.YesOrNo(input) {
 		c.EncryptConfig = configFileEncryptionDisabled
-		c.SaveConfig("")
+		err := c.SaveConfig(configPath, dryrun)
+		if err != nil {
+			log.Errorf(log.ConfigMgr, "cannot save config %s", err)
+		}
 		return false
 	}
 	return true

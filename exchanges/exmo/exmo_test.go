@@ -1,6 +1,7 @@
 package exmo
 
 import (
+	"log"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -25,13 +26,19 @@ func TestDefault(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - Exmo load config error", err)
+	}
 	exmoConf, err := cfg.GetExchangeConfig("EXMO")
 	if err != nil {
-		t.Error("Test Failed - OKCoin Setup() init error")
+		t.Error("Test Failed - Exmo Setup() init error")
 	}
 
-	e.Setup(exmoConf)
+	err = e.Setup(exmoConf)
+	if err != nil {
+		t.Fatal("Test Failed - Exmo setup error", err)
+	}
 
 	e.API.AuthenticatedSupport = true
 	e.API.Credentials.Key = APIKey
