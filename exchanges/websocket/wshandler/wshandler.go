@@ -107,9 +107,7 @@ func (w *Websocket) connectionMonitor() {
 	timer := time.NewTimer(connectionMonitorDelay)
 
 	defer func() {
-		if !timer.Stop() {
-			<-timer.C
-		}
+		timer.Stop()
 		w.setConnectionMonitorRunning(false)
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket connection monitor exiting",
@@ -205,9 +203,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	trafficTimer := time.NewTimer(w.trafficTimeout)
 
 	defer func() {
-		if !trafficTimer.Stop() {
-			<-trafficTimer.C
-		}
+		trafficTimer.Stop()
 		w.Wg.Done()
 	}()
 
