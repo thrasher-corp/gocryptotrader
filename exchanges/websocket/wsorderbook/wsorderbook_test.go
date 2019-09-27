@@ -231,11 +231,11 @@ func TestSortIDs(t *testing.T) {
 		}
 	}
 	if len(obl.ob[curr][asset.Spot].Asks) != 3 {
-		t.Errorf("expected 6 entries, received: %v",
+		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[curr][asset.Spot].Asks))
 	}
 	if len(obl.ob[curr][asset.Spot].Bids) != 3 {
-		t.Errorf("expected 6 entries, received: %v",
+		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[curr][asset.Spot].Bids))
 	}
 }
