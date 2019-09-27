@@ -48,7 +48,7 @@ func TestSubscribeOrderbook(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	b.Bids = []Item{Item{}}
+	b.Bids = []Item{{}}
 
 	err = b.Process()
 	if err != nil {
@@ -79,7 +79,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 		Pair:         p,
 		AssetType:    asset.Spot,
 		ExchangeName: "SubscribeToExchangeOrderbooks",
-		Bids:         []Item{Item{}},
+		Bids:         []Item{{}},
 	}
 
 	err = b.Process()
