@@ -30,7 +30,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - Bitmex load config error", err)
+	}
 	bitmexConfig, err := cfg.GetExchangeConfig("Bitmex")
 	if err != nil {
 		t.Error("Test Failed - Bitmex Setup() init error")
@@ -41,7 +44,10 @@ func TestSetup(t *testing.T) {
 	bitmexConfig.API.Credentials.Key = apiKey
 	bitmexConfig.API.Credentials.Secret = apiSecret
 
-	b.Setup(bitmexConfig)
+	err = b.Setup(bitmexConfig)
+	if err != nil {
+		t.Fatal("Test Failed - Bitmex setup error", err)
+	}
 }
 
 func TestStart(t *testing.T) {

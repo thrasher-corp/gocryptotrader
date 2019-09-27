@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"log"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -24,7 +25,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - BTSE load config error", err)
+	}
 	btseConfig, err := cfg.GetExchangeConfig("BTSE")
 	if err != nil {
 		t.Error("Test Failed - BTSE Setup() init error")
@@ -34,7 +38,10 @@ func TestSetup(t *testing.T) {
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
 
-	b.Setup(btseConfig)
+	err = b.Setup(btseConfig)
+	if err != nil {
+		t.Fatal("Test Failed - BTSE setup error", err)
+	}
 }
 
 func TestGetMarkets(t *testing.T) {

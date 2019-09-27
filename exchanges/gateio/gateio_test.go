@@ -30,7 +30,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - GateIO load config error", err)
+	}
 	gateioConfig, err := cfg.GetExchangeConfig("GateIO")
 	if err != nil {
 		t.Error("Test Failed - GateIO Setup() init error")
@@ -40,7 +43,10 @@ func TestSetup(t *testing.T) {
 	gateioConfig.API.Credentials.Key = apiKey
 	gateioConfig.API.Credentials.Secret = apiSecret
 
-	g.Setup(gateioConfig)
+	err = g.Setup(gateioConfig)
+	if err != nil {
+		t.Fatal("Test Failed - GateIO setup error", err)
+	}
 }
 
 func TestGetSymbols(t *testing.T) {

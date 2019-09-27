@@ -30,7 +30,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - coinbasepro load config error", err)
+	}
 	gdxConfig, err := cfg.GetExchangeConfig("CoinbasePro")
 	if err != nil {
 		t.Error("Test Failed - coinbasepro Setup() init error")
@@ -40,7 +43,10 @@ func TestSetup(t *testing.T) {
 	gdxConfig.API.Credentials.ClientID = clientID
 	gdxConfig.API.AuthenticatedSupport = true
 	gdxConfig.API.AuthenticatedWebsocketSupport = true
-	c.Setup(gdxConfig)
+	err = c.Setup(gdxConfig)
+	if err != nil {
+		t.Fatal("Test Failed - CoinbasePro setup error", err)
+	}
 }
 
 func TestGetProducts(t *testing.T) {

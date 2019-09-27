@@ -62,7 +62,10 @@ func TestSetup(t *testing.T) {
 	}
 	o.ExchangeName = OKGroupExchange
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - Okcoin load config error", err)
+	}
 	okcoinConfig, err := cfg.GetExchangeConfig(OKGroupExchange)
 	if err != nil {
 		t.Fatalf("Test Failed - %v Setup() init error", OKGroupExchange)
@@ -77,7 +80,10 @@ func TestSetup(t *testing.T) {
 	okcoinConfig.API.Credentials.Secret = apiSecret
 	okcoinConfig.API.Credentials.ClientID = passphrase
 	okcoinConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
-	o.Setup(okcoinConfig)
+	err = o.Setup(okcoinConfig)
+	if err != nil {
+		t.Fatal("Test Failed - OKCoin setup error", err)
+	}
 	testSetupRan = true
 	o.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	o.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()

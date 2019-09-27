@@ -62,7 +62,7 @@ func main() {
 
 	// Otherwise default to loading the config file and generating OTP codes from it
 	var cfg config.Config
-	err = cfg.LoadConfig(cfgFile)
+	err = cfg.LoadConfig(cfgFile, true)
 	if err != nil {
 		log.Fatal(err)
 	}

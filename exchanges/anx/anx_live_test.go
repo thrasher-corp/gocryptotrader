@@ -17,7 +17,10 @@ var mockTests = false
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatalf("Test Failed - ANX Setup() load config error: %s", err)
+	}
 	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
 		log.Fatalf("Test Failed - ANX Setup() init error: %s", err)
@@ -26,7 +29,10 @@ func TestMain(m *testing.M) {
 	anxConfig.API.Credentials.Key = apiKey
 	anxConfig.API.Credentials.Secret = apiSecret
 	a.SetDefaults()
-	a.Setup(anxConfig)
+	err = a.Setup(anxConfig)
+	if err != nil {
+		log.Fatal("Test Failed - ANX setup error", err)
+	}
 	log.Printf(sharedtestvalues.LiveTesting, a.GetName(), a.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

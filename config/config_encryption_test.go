@@ -8,7 +8,7 @@ import (
 func TestPromptForConfigEncryption(t *testing.T) {
 	t.Parallel()
 
-	if Cfg.PromptForConfigEncryption("") {
+	if Cfg.PromptForConfigEncryption("", true) {
 		t.Error("Test failed. PromptForConfigEncryption return incorrect bool")
 	}
 }
