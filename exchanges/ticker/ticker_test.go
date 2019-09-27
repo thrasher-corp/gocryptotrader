@@ -1,15 +1,65 @@
 package ticker
 
 import (
+	"log"
 	"math/rand"
+	"os"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+func TestMain(m *testing.M) {
+	err := dispatch.Start(1)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	os.Exit(m.Run())
+}
+
+func TestSubscribeTicker(t *testing.T) {
+	_, err := SubscribeTicker("", currency.Pair{}, asset.Item(""))
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	p := currency.NewPair(currency.BTC, currency.USD)
+
+	err = ProcessTicker("subscribetest", &Price{Pair: p}, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = SubscribeTicker("subscribetest", p, asset.Spot)
+	if err != nil {
+		t.Error("error cannot be nil", err)
+	}
+}
+
+func TestSubscribeToExchangeTickers(t *testing.T) {
+	_, err := SubscribeToExchangeTickers("")
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	p := currency.NewPair(currency.BTC, currency.USD)
+
+	err = ProcessTicker("subscribeExchangeTest", &Price{Pair: p}, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = SubscribeToExchangeTickers("subscribeExchangeTest")
+	if err != nil {
+		t.Error("error cannot be nil", err)
+	}
+}
 
 func TestGetTicker(t *testing.T) {
 	newPair := currency.NewPairFromStrings("BTC", "USD")
@@ -69,6 +119,22 @@ func TestGetTicker(t *testing.T) {
 	if tickerPrice.PriceATH != 9001 {
 		t.Error("Test Failed - ticker tickerPrice.PriceATH value is incorrect")
 	}
+
+	_, err = GetTicker("bitfinex", newPair, "meowCats")
+	if err == nil {
+		t.Error("Test Failed - Ticker GetTicker error cannot be nil")
+	}
+
+	err = ProcessTicker("bitfinex", &priceStruct, "meowCats")
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
+
+	// process update again
+	err = ProcessTicker("bitfinex", &priceStruct, "meowCats")
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
 }
 
 func TestProcessTicker(t *testing.T) { // non-appending function to tickers
@@ -84,8 +150,13 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		PriceATH: 1337,
 	}
 
+	err := ProcessTicker("", &priceStruct, asset.Spot)
+	if err == nil {
+		t.Fatal("empty exchange should throw an err")
+	}
+
 	// test for empty pair
-	err := ProcessTicker(exchName, &priceStruct, asset.Spot)
+	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
 	if err == nil {
 		t.Fatal("empty pair should throw an err")
 	}
@@ -214,5 +285,23 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		}
 	}
 	wg.Wait()
+}
 
+func TestSetItemID(t *testing.T) {
+	err := service.SetItemID(nil)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = service.SetItemID(&Price{})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+}
+
+func TestGetAssociation(t *testing.T) {
+	_, err := service.GetAssociations(nil)
+	if err == nil {
+		t.Error("error cannot be nil ")
+	}
 }
