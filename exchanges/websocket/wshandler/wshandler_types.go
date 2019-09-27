@@ -95,7 +95,7 @@ type Websocket struct {
 }
 
 type WebsocketSetup struct {
-	WsEnabled                        bool
+	Enabled                          bool
 	Verbose                          bool
 	AuthenticatedWebsocketAPISupport bool
 	WebsocketTimeout                 time.Duration

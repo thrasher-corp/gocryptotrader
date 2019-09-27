@@ -36,20 +36,19 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	w.DataHandler = make(chan interface{}, 1)
 	w.TrafficAlert = make(chan struct{}, 1)
 	w.verbose = setupData.Verbose
-
 	w.SetChannelSubscriber(setupData.Subscriber)
 	w.SetChannelUnsubscriber(setupData.UnSubscriber)
-	w.enabled = setupData.WsEnabled
-	err := w.Initialise()
-	if err != nil {
-		return err
-	}
+	w.enabled = setupData.Enabled
 	w.SetDefaultURL(setupData.DefaultURL)
 	w.SetConnector(setupData.Connector)
 	w.SetWebsocketURL(setupData.RunningURL)
 	w.SetExchangeName(setupData.ExchangeName)
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	w.trafficTimeout = setupData.WebsocketTimeout
+	err := w.Initialise()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -116,7 +116,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 
 	err = b.Websocket.Setup(
 		&wshandler.WebsocketSetup{
-			WsEnabled:                        exch.Features.Enabled.Websocket,
+			Enabled:                          exch.Features.Enabled.Websocket,
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
