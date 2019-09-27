@@ -108,15 +108,14 @@ func main() {
 	err = temp.LoadMigrations()
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	conf := config.GetConfig()
-
 	err = conf.LoadConfig(configFile)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	err = openDbConnection(conf.Database.Driver)
@@ -130,7 +129,6 @@ func main() {
 	temp.Conn = dbConn
 
 	err = temp.RunMigration()
-
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

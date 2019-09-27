@@ -4,10 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -35,7 +32,6 @@ type Engine struct {
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
 	DepositAddressManager       *DepositAddressManager
-	Shutdown                    chan struct{}
 	Settings                    Settings
 	Uptime                      time.Time
 	ServicesWG                  sync.WaitGroup
@@ -98,7 +94,6 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
 
-	b.handleInterrupt()
 	ValidateSettings(&b, settings)
 	return &b, nil
 }
@@ -256,11 +251,9 @@ func PrintSettings(s *Settings) {
 }
 
 // Start starts the engine
-func (e *Engine) Start() {
-	// TO-DO: move this out of here
+func (e *Engine) Start() error {
 	if e == nil {
-		log.Errorln(log.Global, "Engine instance is nil")
-		os.Exit(1)
+		return errors.New("engine instance is nil")
 	}
 
 	if e.Settings.EnableDatabaseManager {
@@ -302,10 +295,8 @@ func (e *Engine) Start() {
 
 	log.Debugln(log.Global, "Setting up exchanges..")
 	SetupExchanges()
-	// TO-DO: move this out of here
 	if len(Bot.Exchanges) == 0 {
-		log.Errorln(log.Global, "No exchanges were able to be loaded. Exiting")
-		os.Exit(1)
+		return errors.New("no exchanges are loaded")
 	}
 
 	if e.Settings.EnableCommsRelayer {
@@ -394,8 +385,7 @@ func (e *Engine) Start() {
 		go WebsocketRoutine()
 	}
 
-	<-e.Shutdown
-	e.Stop()
+	return nil
 }
 
 // Stop correctly shuts down engine saving configuration files
@@ -453,24 +443,8 @@ func (e *Engine) Stop() {
 
 	// Wait for services to gracefully shutdown
 	e.ServicesWG.Wait()
-	log.Debugln(log.Global, "Exiting.")
 	err := log.CloseLogger()
 	if err != nil {
 		fmt.Printf("Failed to close logger %v", err)
 	}
-
-	os.Exit(0)
-}
-
-// handleInterrupt monitors and captures the SIGTERM in a new goroutine then
-// shuts down the engine instance
-func (e *Engine) handleInterrupt() {
-	c := make(chan os.Signal, 1)
-	e.Shutdown = make(chan struct{})
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		sig := <-c
-		log.Debugf(log.Global, "Captured %v, shutdown requested.\n", sig)
-		close(e.Shutdown)
-	}()
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 func main() {
@@ -93,10 +94,18 @@ func main() {
 
 	engine.Bot, err = engine.NewFromSettings(&settings)
 	if engine.Bot == nil || err != nil {
-		log.Errorf(log.Global, "Unable to initialise bot engine. Err: %s\n", err)
+		log.Errorf(log.Global, "Unable to initialise bot engine. Error: %s\n", err)
 		os.Exit(1)
 	}
 
 	engine.PrintSettings(&engine.Bot.Settings)
-	engine.Bot.Start()
+	if err = engine.Bot.Start(); err != nil {
+		log.Errorf(log.Global, "Unable to start bot engine. Error: %s\n", err)
+		os.Exit(1)
+	}
+
+	interrupt := signaler.WaitForInterrupt()
+	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+	engine.Bot.Stop()
+	log.Infoln(log.Global, "Exiting.")
 }
