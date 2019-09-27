@@ -1,15 +1,97 @@
 package orderbook
 
 import (
+	"log"
 	"math/rand"
+	"os"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+func TestMain(m *testing.M) {
+	err := dispatch.Start(1)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	os.Exit(m.Run())
+}
+
+func TestSubscribeOrderbook(t *testing.T) {
+	_, err := SubscribeOrderbook("", currency.Pair{}, asset.Item(""))
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	p := currency.NewPair(currency.BTC, currency.USD)
+
+	b := Base{
+		Pair:      p,
+		AssetType: asset.Spot,
+	}
+
+	err = b.Process()
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	b.ExchangeName = "SubscribeOBTest"
+
+	err = b.Process()
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	b.Bids = []Item{Item{}}
+
+	err = b.Process()
+	if err != nil {
+		t.Error("test failed - process error", err)
+	}
+
+	_, err = SubscribeOrderbook("SubscribeOBTest", p, asset.Spot)
+	if err != nil {
+		t.Error("error cannot be nil")
+	}
+
+	// process redundant update
+	err = b.Process()
+	if err != nil {
+		t.Error("test failed - process error", err)
+	}
+}
+
+func TestSubscribeToExchangeOrderbooks(t *testing.T) {
+	_, err := SubscribeToExchangeOrderbooks("")
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	p := currency.NewPair(currency.BTC, currency.USD)
+
+	b := Base{
+		Pair:         p,
+		AssetType:    asset.Spot,
+		ExchangeName: "SubscribeToExchangeOrderbooks",
+		Bids:         []Item{Item{}},
+	}
+
+	err = b.Process()
+	if err != nil {
+		t.Error("test failed:", err)
+	}
+
+	_, err = SubscribeToExchangeOrderbooks("SubscribeToExchangeOrderbooks")
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestVerify(t *testing.T) {
 	t.Parallel()
@@ -132,6 +214,17 @@ func TestGetOrderbook(t *testing.T) {
 	_, err = Get("Exchange", newCurrency, asset.Spot)
 	if err == nil {
 		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid second currency")
+	}
+
+	base.Pair = newCurrency
+	err = base.Process()
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = Get("Exchange", newCurrency, "meowCats")
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
 }
 
@@ -354,4 +447,18 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestSetNewData(t *testing.T) {
+	err := service.SetNewData(nil)
+	if err == nil {
+		t.Error("error cannot be nil ")
+	}
+}
+
+func TestGetAssociations(t *testing.T) {
+	_, err := service.GetAssociations(nil)
+	if err == nil {
+		t.Error("error cannot be nil ")
+	}
 }

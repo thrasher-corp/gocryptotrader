@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -14,39 +13,45 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// const values for orderbook package
-const (
-	errExchangeNameUnset = "orderbook exchange name not set"
-	errPairNotSet        = "orderbook currency pair not set"
-	errAssetTypeNotSet   = "orderbook asset type not set"
-	errNoOrderbook       = "orderbook bids and asks are empty"
-)
-
-// Vars for the orderbook package
-var (
-	service *Service
-)
-
-func init() {
-	service = new(Service)
-	service.mux = dispatch.GetNewMux()
-	service.Books = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
-	service.Exchange = make(map[string]uuid.UUID)
+// Get checks and returns the orderbook given an exchange name and currency pair
+// if it exists
+func Get(exchange string, p currency.Pair, a asset.Item) (Base, error) {
+	o, err := service.Retrieve(exchange, p, a)
+	if err != nil {
+		return Base{}, err
+	}
+	return *o, nil
 }
 
-// Book defines an orderbook with its links to different dispatch outputs
-type Book struct {
-	b     *Base
-	Main  uuid.UUID
-	Assoc []uuid.UUID
+// SubscribeOrderbook subcribes to an orderbook and returns a communication
+// channel to stream orderbook data updates
+func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
+	service.RLock()
+	defer service.RUnlock()
+	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
+	if !ok {
+		return dispatch.Pipe{}, fmt.Errorf("orderbook item not found for %s %s %s",
+			exchange,
+			p,
+			a)
+	}
+
+	return service.mux.Subscribe(book.Main)
 }
 
-// Service holds orderbook information for each individual exchange
-type Service struct {
-	Books    map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book
-	Exchange map[string]uuid.UUID
-	mux      *dispatch.Mux
-	sync.RWMutex
+// SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
+func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
+	service.RLock()
+	defer service.RUnlock()
+	id, ok := service.Exchange[exchange]
+	if !ok {
+		return dispatch.Pipe{}, fmt.Errorf("%s exchange orderbooks not found",
+			exchange)
+	}
+
+	return service.mux.Subscribe(id)
 }
 
 // Update stores orderbook data
@@ -119,6 +124,10 @@ func (s *Service) SetNewData(b *Base) error {
 
 // GetAssociations links a singular book with it's dispatch associations
 func (s *Service) GetAssociations(b *Base) ([]uuid.UUID, error) {
+	if b == nil {
+		return nil, errors.New("orderbook is nil")
+	}
+
 	var ids []uuid.UUID
 	exchangeID, ok := s.Exchange[b.ExchangeName]
 	if !ok {
@@ -161,61 +170,6 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	return s.Books[exchange][p.Base.Item][p.Quote.Item][a].b, nil
 }
 
-// SubscribeOrderbook subcribes to an orderbook and returns a communication
-// channel to stream orderbook data updates
-func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
-	exchange = strings.ToLower(exchange)
-	service.RLock()
-	defer service.RUnlock()
-	if service.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
-		return dispatch.Pipe{}, fmt.Errorf("orderbook item not found for %s %s %s",
-			exchange,
-			p,
-			a)
-	}
-
-	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
-	if !ok {
-		return dispatch.Pipe{}, fmt.Errorf("orderbook item not found for %s %s %s",
-			exchange,
-			p,
-			a)
-	}
-
-	return service.mux.Subscribe(book.Main)
-}
-
-// SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
-func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
-	exchange = strings.ToLower(exchange)
-	service.RLock()
-	defer service.RUnlock()
-	id, ok := service.Exchange[exchange]
-	if !ok {
-		return dispatch.Pipe{}, fmt.Errorf("%s exchange orderbooks not found",
-			exchange)
-	}
-
-	return service.mux.Subscribe(id)
-}
-
-// Item stores the amount and price values
-type Item struct {
-	Amount float64
-	Price  float64
-	ID     int64
-}
-
-// Base holds the fields for the orderbook base
-type Base struct {
-	Pair         currency.Pair `json:"pair"`
-	Bids         []Item        `json:"bids"`
-	Asks         []Item        `json:"asks"`
-	LastUpdated  time.Time     `json:"lastUpdated"`
-	AssetType    asset.Item    `json:"assetType"`
-	ExchangeName string        `json:"exchangeName"`
-}
-
 // TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
 func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
@@ -242,12 +196,6 @@ func (b *Base) Update(bids, asks []Item) {
 	b.Asks = asks
 	b.LastUpdated = time.Now()
 }
-
-type byOBPrice []Item
-
-func (a byOBPrice) Len() int           { return len(a) }
-func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
 
 // Verify ensures that the orderbook items are correctly sorted
 // Bids should always go from a high price to a low price and
@@ -279,16 +227,6 @@ func (b *Base) Verify() {
 	if sortAsks {
 		sort.Sort((byOBPrice(b.Asks)))
 	}
-}
-
-// Get checks and returns the orderbook given an exchange name and currency pair
-// if it exists
-func Get(exchange string, p currency.Pair, a asset.Item) (Base, error) {
-	o, err := service.Retrieve(exchange, p, a)
-	if err != nil {
-		return Base{}, err
-	}
-	return *o, nil
 }
 
 // Process processes incoming orderbooks, creating or updating the orderbook
