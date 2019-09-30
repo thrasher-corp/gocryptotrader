@@ -6,14 +6,12 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 	"github.com/thrasher-corp/goose"
 )
 
