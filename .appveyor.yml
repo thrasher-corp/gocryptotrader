@@ -19,6 +19,11 @@ environment:
   POSTGRES_ENV_POSTGRES_USER: postgres
   POSTGRES_ENV_POSTGRES_PASSWORD: Password12!
   POSTGRES_ENV_POSTGRES_DB: gct_dev_ci
+  PSQL_USER: postgres
+  PSQL_HOST: localhost
+  PSQL_PASS: Password12!
+  PSQL_DBNAME: gct_dev_ci
+  PSQL_SSLMODE: disable
 
 stack: go 1.12.3
 
