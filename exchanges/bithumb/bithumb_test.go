@@ -24,7 +24,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - Bithumb load config error", err)
+	}
 	bitConfig, err := cfg.GetExchangeConfig("Bithumb")
 	if err != nil {
 		t.Error("Test Failed - Bithumb Setup() init error")
@@ -34,7 +37,10 @@ func TestSetup(t *testing.T) {
 	bitConfig.API.Credentials.Key = apiKey
 	bitConfig.API.Credentials.Secret = apiSecret
 
-	b.Setup(bitConfig)
+	err = b.Setup(bitConfig)
+	if err != nil {
+		t.Fatal("Test Failed - Bithumb setup error", err)
+	}
 }
 
 func TestGetTradablePairs(t *testing.T) {

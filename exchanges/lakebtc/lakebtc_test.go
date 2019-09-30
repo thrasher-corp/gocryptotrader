@@ -2,6 +2,7 @@ package lakebtc
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -32,7 +33,10 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	if !setupRan {
 		cfg := config.GetConfig()
-		cfg.LoadConfig("../../testdata/configtest.json")
+		err := cfg.LoadConfig("../../testdata/configtest.json", true)
+		if err != nil {
+			log.Fatal("Test Failed - LakeBTC load config error", err)
+		}
 		lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
 		if err != nil {
 			t.Error("Test Failed - LakeBTC Setup() init error")
@@ -41,7 +45,10 @@ func TestSetup(t *testing.T) {
 		lakebtcConfig.API.Credentials.Key = apiKey
 		lakebtcConfig.API.Credentials.Secret = apiSecret
 		lakebtcConfig.Features.Enabled.Websocket = true
-		l.Setup(lakebtcConfig)
+		err = l.Setup(lakebtcConfig)
+		if err != nil {
+			t.Fatal("Test Failed - LakeBTC setup error", err)
+		}
 		l.API.Endpoints.WebsocketURL = lakeBTCWSURL
 		setupRan = true
 	}

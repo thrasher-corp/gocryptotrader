@@ -14,7 +14,7 @@ func SetupTest(t *testing.T) {
 			Bot = new(Engine)
 		}
 		Bot.Config = &config.Cfg
-		err := Bot.Config.LoadConfig("")
+		err := Bot.Config.LoadConfig("", true)
 		if err != nil {
 			t.Fatalf("Test failed. SetupTest: Failed to load config: %s", err)
 		}

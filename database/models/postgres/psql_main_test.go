@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -19,7 +18,6 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/thrasher-corp/goose"
 	"github.com/volatiletech/sqlboiler/drivers/sqlboiler-psql/driver"
 	"github.com/volatiletech/sqlboiler/randomize"
 )
@@ -226,12 +224,6 @@ func (p *pgTester) conn() (*sql.DB, error) {
 
 	var err error
 	p.dbConn, err = sql.Open("postgres", driver.PSQLBuildQueryString(p.user, p.pass, p.testDBName, p.host, p.port, p.sslmode))
-	if err != nil {
-		return nil, err
-	}
-
-	path := filepath.Join("..", "..", "migrations")
-	err = goose.Run("up", p.dbConn, "postgres", path, "")
 	if err != nil {
 		return nil, err
 	}

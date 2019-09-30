@@ -17,7 +17,10 @@ var mockTests = false
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - Poloniex load config error", err)
+	}
 	poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
 	if err != nil {
 		log.Fatal("Test Failed - Poloniex Setup() init error", err)
@@ -26,7 +29,10 @@ func TestMain(m *testing.M) {
 	poloniexConfig.API.Credentials.Key = apiKey
 	poloniexConfig.API.Credentials.Secret = apiSecret
 	p.SetDefaults()
-	p.Setup(poloniexConfig)
+	err = p.Setup(poloniexConfig)
+	if err != nil {
+		log.Fatal("Test Failed - Poloniex setup error", err)
+	}
 	log.Printf(sharedtestvalues.LiveTesting, p.GetName(), p.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

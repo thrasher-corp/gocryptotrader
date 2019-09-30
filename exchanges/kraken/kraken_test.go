@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"log"
 	"net/http"
 	"testing"
 
@@ -31,7 +32,10 @@ func TestSetDefaults(t *testing.T) {
 // TestSetup setup func
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - Kraken load config error", err)
+	}
 	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
 	if err != nil {
 		t.Error("Test Failed - kraken Setup() init error", err)
@@ -43,7 +47,10 @@ func TestSetup(t *testing.T) {
 	krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
 	subscribeToDefaultChannels = false
 
-	k.Setup(krakenConfig)
+	err = k.Setup(krakenConfig)
+	if err != nil {
+		t.Fatal("Test Failed - Kraken setup error", err)
+	}
 }
 
 // TestGetServerTime API endpoint test

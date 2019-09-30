@@ -26,6 +26,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## How to use
 
+##### Prerequisites
+
+
 ##### Create and Run migrations
  Migrations are created using a modified version of [Goose](https://github.com/thrasher-corp/goose) 
  

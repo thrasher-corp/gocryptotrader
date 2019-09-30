@@ -447,13 +447,6 @@ func (o *AuditEvent) Insert(ctx context.Context, exec boil.ContextExecutor, colu
 	}
 
 	var err error
-	if !boil.TimestampsAreSkipped(ctx) {
-		currTime := time.Now().In(boil.GetLocation())
-
-		if o.CreatedAt.IsZero() {
-			o.CreatedAt = currTime
-		}
-	}
 
 	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
 		return err
@@ -543,9 +536,6 @@ func (o *AuditEvent) Update(ctx context.Context, exec boil.ContextExecutor, colu
 			auditEventPrimaryKeyColumns,
 		)
 
-		if !columns.IsWhitelist() {
-			wl = strmangle.SetComplement(wl, []string{"created_at"})
-		}
 		if len(wl) == 0 {
 			return 0, errors.New("postgres: unable to update audit_event, could not build whitelist")
 		}
@@ -657,13 +647,6 @@ func (o AuditEventSlice) UpdateAll(ctx context.Context, exec boil.ContextExecuto
 func (o *AuditEvent) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOnConflict bool, conflictColumns []string, updateColumns, insertColumns boil.Columns) error {
 	if o == nil {
 		return errors.New("postgres: no audit_event provided for upsert")
-	}
-	if !boil.TimestampsAreSkipped(ctx) {
-		currTime := time.Now().In(boil.GetLocation())
-
-		if o.CreatedAt.IsZero() {
-			o.CreatedAt = currTime
-		}
 	}
 
 	if err := o.doBeforeUpsertHooks(ctx, exec); err != nil {

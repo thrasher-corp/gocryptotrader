@@ -66,10 +66,10 @@ func main() {
 
 	conf := config.GetConfig()
 
-	err = conf.LoadConfig(configFile)
+	err = conf.LoadConfig(configFile, true)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	if !conf.Database.Enabled {

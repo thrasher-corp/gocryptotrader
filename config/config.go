@@ -1423,24 +1423,38 @@ func GetFilePath(file string) (string, error) {
 		filepath.Join(newDir, EncryptedConfigFile),
 	}
 
-	// First upgrade the old dir config file if it exists to the corresponding new one
+	// First upgrade the old dir config file if it exists to the corresponding
+	// new one
 	for x := range oldDirs {
 		_, err := os.Stat(oldDirs[x])
 		if os.IsNotExist(err) {
 			continue
+		}
+		_, err = os.Stat(newDirs[x])
+		if !os.IsNotExist(err) {
+			log.Warnf(log.ConfigMgr,
+				"config.json file found in root dir and gct dir; cannot overwrite, defaulting to gct dir config.json at %s",
+				newDirs[x])
+			return newDirs[x], nil
 		}
 		if filepath.Ext(oldDirs[x]) == ".json" {
 			err = os.Rename(oldDirs[x], newDirs[0])
 			if err != nil {
 				return "", err
 			}
-			log.Debugf(log.ConfigMgr, "Renamed old config file %s to %s\n", oldDirs[x], newDirs[0])
+			log.Debugf(log.ConfigMgr,
+				"Renamed old config file %s to %s\n",
+				oldDirs[x],
+				newDirs[0])
 		} else {
 			err = os.Rename(oldDirs[x], newDirs[1])
 			if err != nil {
 				return "", err
 			}
-			log.Debugf(log.ConfigMgr, "Renamed old config file %s to %s\n", oldDirs[x], newDirs[1])
+			log.Debugf(log.ConfigMgr,
+				"Renamed old config file %s to %s\n",
+				oldDirs[x],
+				newDirs[1])
 		}
 	}
 
@@ -1485,7 +1499,7 @@ func GetFilePath(file string) (string, error) {
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted
 // file contains JSON.
-func (c *Config) ReadConfig(configPath string) error {
+func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 	defaultPath, err := GetFilePath(configPath)
 	if err != nil {
 		return err
@@ -1510,9 +1524,9 @@ func (c *Config) ReadConfig(configPath string) error {
 			m.Lock()
 			IsInitialSetup = true
 			m.Unlock()
-			if c.PromptForConfigEncryption() {
+			if c.PromptForConfigEncryption(configPath, dryrun) {
 				c.EncryptConfig = configFileEncryptionEnabled
-				return c.SaveConfig(defaultPath)
+				return c.SaveConfig(defaultPath, dryrun)
 			}
 		}
 	} else {
@@ -1552,7 +1566,11 @@ func (c *Config) ReadConfig(configPath string) error {
 }
 
 // SaveConfig saves your configuration to your desired path
-func (c *Config) SaveConfig(configPath string) error {
+func (c *Config) SaveConfig(configPath string, dryrun bool) error {
+	if dryrun {
+		return nil
+	}
+
 	defaultPath, err := GetFilePath(configPath)
 	if err != nil {
 		return err
@@ -1666,8 +1684,8 @@ func (c *Config) CheckConfig() error {
 }
 
 // LoadConfig loads your configuration file into your configuration object
-func (c *Config) LoadConfig(configPath string) error {
-	err := c.ReadConfig(configPath)
+func (c *Config) LoadConfig(configPath string, dryrun bool) error {
+	err := c.ReadConfig(configPath, dryrun)
 	if err != nil {
 		return fmt.Errorf(ErrFailureOpeningConfig, configPath, err)
 	}
@@ -1676,7 +1694,7 @@ func (c *Config) LoadConfig(configPath string) error {
 }
 
 // UpdateConfig updates the config with a supplied config file
-func (c *Config) UpdateConfig(configPath string, newCfg *Config) error {
+func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) error {
 	err := newCfg.CheckConfig()
 	if err != nil {
 		return err
@@ -1691,12 +1709,12 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config) error {
 	c.Webserver = newCfg.Webserver
 	c.Exchanges = newCfg.Exchanges
 
-	err = c.SaveConfig(configPath)
+	err = c.SaveConfig(configPath, dryrun)
 	if err != nil {
 		return err
 	}
 
-	return c.LoadConfig(configPath)
+	return c.LoadConfig(configPath, dryrun)
 }
 
 // GetConfig returns a pointer to a configuration object

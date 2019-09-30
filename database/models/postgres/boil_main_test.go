@@ -34,11 +34,6 @@ type tester interface {
 }
 
 func TestMain(m *testing.M) {
-	_, exists := os.LookupEnv("APPVEYOR")
-	if exists {
-		os.Exit(0)
-	}
-
 	if dbMain == nil {
 		fmt.Println("no dbMain tester interface was ready")
 		os.Exit(-1)

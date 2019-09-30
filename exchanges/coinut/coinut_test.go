@@ -29,7 +29,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - Coinut load config error", err)
+	}
 	bConfig, err := cfg.GetExchangeConfig("COINUT")
 	if err != nil {
 		t.Error("Test Failed - Coinut Setup() init error")
@@ -39,7 +42,10 @@ func TestSetup(t *testing.T) {
 	bConfig.API.Credentials.Key = apiKey
 	bConfig.API.Credentials.ClientID = clientID
 	bConfig.Verbose = true
-	c.Setup(bConfig)
+	err = c.Setup(bConfig)
+	if err != nil {
+		t.Fatal("Test Failed - Coinut setup error", err)
+	}
 
 	if !c.IsEnabled() || !c.Verbose ||
 		c.Websocket.IsEnabled() || len(c.BaseCurrencies) < 1 {
