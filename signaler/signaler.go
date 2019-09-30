@@ -15,7 +15,6 @@ func init() {
 		os.Interrupt,
 		os.Kill,
 		syscall.SIGTERM,
-		syscall.SIGQUIT,
 		syscall.SIGABRT,
 	}
 	signal.Notify(s, sigs...)
