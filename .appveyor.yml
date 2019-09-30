@@ -19,6 +19,12 @@ stack: go 1.12.3
 services:
   - postgres
 
+init:
+  - SET PGUSER=postgres
+  - SET PGPASSWORD=Password12!
+  - SET PATH=C:\Program Files\PostgreSQL\9.6\bin\;%PATH%
+  - createdb gct_dev_ct
+
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
   - ps: Install-Product node $env:NODEJS_VER

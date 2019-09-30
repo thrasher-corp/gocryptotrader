@@ -16,14 +16,14 @@ import (
 func TestAudit(t *testing.T) {
 	testCases := []struct {
 		name   string
-		config database.Config
+		config *database.Config
 		runner func(t *testing.T)
 		closer func(t *testing.T, dbConn *database.Db) error
 		output interface{}
 	}{
 		{
 			"SQLite",
-			database.Config{
+			&database.Config{
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
@@ -49,7 +49,7 @@ func TestAudit(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := connectToDatabase(t, &test.config)
+			dbConn, err := connectToDatabase(t, test.config)
 
 			if err != nil {
 				t.Fatal(err)

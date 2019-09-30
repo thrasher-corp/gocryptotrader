@@ -18,9 +18,7 @@ import (
 var rgxSQLitekey = regexp.MustCompile(`(?mi)((,\n)?\s+foreign key.*?\n)+`)
 
 type sqliteTester struct {
-	dbConn *sql.DB
-
-	dbName     string
+	dbConn     *sql.DB
 	testDBName string
 }
 
