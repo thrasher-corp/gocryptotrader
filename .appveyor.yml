@@ -13,16 +13,20 @@ environment:
   GO111MODULE: on
   NODEJS_VER: 10.15.3
   APPVEYOR_SAVE_CACHE_ON_ERROR: true
+  POSTGRES_PATH: C:\Program Files\PostgreSQL\9.6
+  PGUSER: postgres
+  PGPASSWORD: Password12!
+  POSTGRES_ENV_POSTGRES_USER: postgres
+  POSTGRES_ENV_POSTGRES_PASSWORD: Password12!
+  POSTGRES_ENV_POSTGRES_DB: gct_dev_ci
 
 stack: go 1.12.3
 
 services:
-  - postgres96
+  - postgresql96
 
 init:
-  - SET PGUSER=postgres
-  - SET PGPASSWORD=Password12!
-  - SET PATH=C:\Program Files\PostgreSQL\9.6\bin\;%PATH%
+  - SET PATH=%POSTGRES_PATH%\bin;%PATH%
 
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
@@ -30,8 +34,10 @@ install:
   - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader\web
   - npm install
 
+build_script:
+  - createdb gct_dev_ci
+
 before_test:
-  - createdb gct_dev_ct
   - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader
   - go get
 
