@@ -23,7 +23,6 @@ init:
   - SET PGUSER=postgres
   - SET PGPASSWORD=Password12!
   - SET PATH=C:\Program Files\PostgreSQL\9.6\bin\;%PATH%
-  - createdb gct_dev_ct
 
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
@@ -32,6 +31,7 @@ install:
   - npm install
 
 before_test:
+  - createdb gct_dev_ct
   - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader
   - go get
 
