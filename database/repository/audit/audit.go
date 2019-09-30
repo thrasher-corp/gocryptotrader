@@ -8,7 +8,7 @@ import (
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 // Event inserts a new audit event to database
