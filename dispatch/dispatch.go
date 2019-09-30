@@ -116,7 +116,10 @@ func (d *Dispatcher) stop() error {
 	timer := time.NewTimer(1 * time.Second)
 	defer func() {
 		if !timer.Stop() {
-			<-timer.C
+			select {
+			case <-timer.C:
+			default:
+			}
 		}
 	}()
 	go func(ch chan struct{}) { d.wg.Wait(); ch <- struct{}{} }(ch)
@@ -201,7 +204,10 @@ func (d *Dispatcher) relayer(i *sync.WaitGroup) {
 			for i := range d.routes[j.ID] {
 				if !timeout.Stop() { // Stop timer before reset
 					// Drain channel if timer has already actuated
-					<-timeout.C
+					select {
+					case <-timeout.C:
+					default:
+					}
 				}
 
 				timeout.Reset(DefaultHandshakeTimeout)
@@ -214,7 +220,10 @@ func (d *Dispatcher) relayer(i *sync.WaitGroup) {
 
 		case v := <-d.shutdown:
 			if !timeout.Stop() {
-				<-timeout.C
+				select {
+				case <-timeout.C:
+				default:
+				}
 			}
 			atomic.AddInt64(&d.count, -1)
 			if v != nil {
