@@ -20,7 +20,6 @@ matrix:
         - 1.13.x
       env:
         - GO111MODULE=on
-        - SQLITE3_DBNAME=gct_dev_ci
         - PSQL_USER=postgres
         - PSQL_HOST=localhost
         - PSQL_DBNAME=gct_dev_ci
@@ -44,11 +43,12 @@ matrix:
         - 1.13.x
       env:
         - GO111MODULE=on
-        - SQLITE3_DBNAME=gct_dev_ci
         - PSQL_USER=postgres
         - PSQL_HOST=localhost
         - PSQL_DBNAME=gct_dev_ci
         - PSQL_SSLMODE=disable
+        - PSQL_SKIPSQLCMD=true
+        - PSQL_TESTDBNAME=gct_dev_ci
       install: true
       cache:
         directories:

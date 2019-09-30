@@ -110,7 +110,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 
 func TestSetAutoPairDefaults(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
+	err := cfg.LoadConfig(config.ConfigTestFile, true)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAutoPairDefaults failed to load config file. Error: %s", err)
 	}
@@ -163,7 +163,7 @@ func TestGetLastPairsUpdateTime(t *testing.T) {
 
 func TestSetAssetTypes(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
+	err := cfg.LoadConfig(config.ConfigTestFile, true)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes failed to load config file. Error: %s", err)
 	}
@@ -222,7 +222,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	t.Skip()
 	// TO-DO
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
+	err := cfg.LoadConfig(config.ConfigTestFile, true)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetCurrencyPairFormat failed to load config file. Error: %s", err)
 	}
@@ -578,7 +578,7 @@ func TestSetPairs(t *testing.T) {
 	t.Skip()
 	// TO-DO
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
+	err := cfg.LoadConfig(config.ConfigTestFile, true)
 	if err != nil {
 		t.Fatal("Test failed. TestSetPairs failed to load config")
 	}
@@ -621,7 +621,7 @@ func TestSetPairs(t *testing.T) {
 
 func TestUpdatePairs(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
+	err := cfg.LoadConfig(config.ConfigTestFile, true)
 	if err != nil {
 		t.Fatal("Test failed. TestUpdatePairs failed to load config")
 	}

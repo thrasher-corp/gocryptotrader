@@ -26,7 +26,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - BTC Markets load config error", err)
+	}
 	bConfig, err := cfg.GetExchangeConfig("BTC Markets")
 	if err != nil {
 		t.Error("Test Failed - BTC Markets Setup() init error")
@@ -35,7 +38,10 @@ func TestSetup(t *testing.T) {
 	bConfig.API.Credentials.Secret = apiSecret
 	bConfig.API.AuthenticatedSupport = true
 
-	b.Setup(bConfig)
+	err = b.Setup(bConfig)
+	if err != nil {
+		t.Fatal("Test Failed - BTC Markets setup error", err)
+	}
 }
 
 func TestGetMarkets(t *testing.T) {

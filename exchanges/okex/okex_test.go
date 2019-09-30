@@ -64,7 +64,10 @@ func TestSetup(t *testing.T) {
 	}
 	o.ExchangeName = OKGroupExchange
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - Okex load config error", err)
+	}
 
 	okexConfig, err := cfg.GetExchangeConfig(OKGroupExchange)
 	if err != nil {
@@ -81,9 +84,8 @@ func TestSetup(t *testing.T) {
 	okexConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
 	err = o.Setup(okexConfig)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("Test Failed - Okex setup error", err)
 	}
-
 	testSetupRan = true
 	o.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	o.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()

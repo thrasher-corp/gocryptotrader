@@ -41,7 +41,10 @@ type group struct {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig(config.ConfigTestFile)
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	commsCfg := cfg.GetCommunicationsConfig()
 	s.Setup(&commsCfg)
@@ -51,7 +54,7 @@ func TestSetup(t *testing.T) {
 func TestConnect(t *testing.T) {
 	err := s.Connect()
 	if err == nil {
-		t.Error("test failed - slack Connect() error")
+		t.Error("test failed - slack Connect() error cannot be nil")
 	}
 }
 
@@ -59,7 +62,7 @@ func TestPushEvent(t *testing.T) {
 	t.Parallel()
 	err := s.PushEvent(base.Event{})
 	if err == nil {
-		t.Error("test failed - slack PushEvent() error")
+		t.Error("test failed - slack PushEvent() error cannot be nil")
 	}
 }
 

@@ -27,17 +27,23 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - Itbit load config error", err)
+	}
 	itbitConfig, err := cfg.GetExchangeConfig("ITBIT")
 	if err != nil {
-		t.Error("Test Failed - Gemini Setup() init error")
+		t.Error("Test Failed - Itbit Setup() init error")
 	}
 	itbitConfig.API.AuthenticatedSupport = true
 	itbitConfig.API.Credentials.Key = apiKey
 	itbitConfig.API.Credentials.Secret = apiSecret
 	itbitConfig.API.Credentials.ClientID = clientID
 
-	i.Setup(itbitConfig)
+	err = i.Setup(itbitConfig)
+	if err != nil {
+		t.Fatal("Test Failed - Itbit setup error", err)
+	}
 }
 
 func TestGetTicker(t *testing.T) {

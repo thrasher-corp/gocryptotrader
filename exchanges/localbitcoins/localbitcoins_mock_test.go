@@ -20,7 +20,10 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - Localbitcoins load config error", err)
+	}
 	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
 	if err != nil {
 		log.Fatal("Test Failed - Localbitcoins Setup() init error", err)
@@ -30,7 +33,10 @@ func TestMain(m *testing.M) {
 	localbitcoinsConfig.API.Credentials.Key = apiKey
 	localbitcoinsConfig.API.Credentials.Secret = apiSecret
 	l.SetDefaults()
-	l.Setup(localbitcoinsConfig)
+	err = l.Setup(localbitcoinsConfig)
+	if err != nil {
+		log.Fatal("Test Failed - Localbitcoins setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {

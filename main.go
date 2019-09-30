@@ -8,26 +8,20 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 func main() {
-	defaultPath, err := config.GetFilePath("")
-	if err != nil {
-		log.Errorln(log.Global, err)
-		os.Exit(1)
-	}
-
 	// Handle flags
 	var settings engine.Settings
 	versionFlag := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 
 	// Core settings
-	flag.StringVar(&settings.ConfigFile, "config", defaultPath, "config file to load")
+	flag.StringVar(&settings.ConfigFile, "config", "", "config file to load")
 	flag.StringVar(&settings.DataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.IntVar(&settings.GoMaxProcs, "gomaxprocs", runtime.NumCPU(), "sets the runtime GOMAXPROCS value")
 	flag.BoolVar(&settings.EnableDryRun, "dryrun", false, "dry runs bot, doesn't save config file")
@@ -89,12 +83,21 @@ func main() {
 	fmt.Println(core.Banner)
 	fmt.Println(core.Version(false))
 
+	var err error
 	engine.Bot, err = engine.NewFromSettings(&settings)
 	if engine.Bot == nil || err != nil {
-		log.Errorf(log.Global, "Unable to initialise bot engine. Err: %s\n", err)
+		log.Errorf(log.Global, "Unable to initialise bot engine. Error: %s\n", err)
 		os.Exit(1)
 	}
 
 	engine.PrintSettings(&engine.Bot.Settings)
-	engine.Bot.Start()
+	if err = engine.Bot.Start(); err != nil {
+		log.Errorf(log.Global, "Unable to start bot engine. Error: %s\n", err)
+		os.Exit(1)
+	}
+
+	interrupt := signaler.WaitForInterrupt()
+	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+	engine.Bot.Stop()
+	log.Infoln(log.Global, "Exiting.")
 }

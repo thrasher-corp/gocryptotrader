@@ -26,6 +26,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## How to use
 
+##### Prerequisites
+
+
 ##### Create and Run migrations
  Migrations are created using a modified version of [Goose](https://github.com/thrasher-corp/goose) 
  
@@ -45,7 +48,7 @@ _This will create a folder in the ./database/migration folder that contains post
 go run ./cmd/dbmigrate -command "up"
 ```
 ##### Adding a new model
-Model's are generated using [SQLBoilers](https://github.com/volatiletech/sqlboiler) 
+Model's are generated using [SQLBoiler](https://github.com/volatiletech/sqlboiler) 
 A helper tool has been made located in ./cmd/gen_sqlboiler_config that will parse your GoCryptoTrader config and output a SQLBoiler config
 
 ```sh
@@ -55,7 +58,7 @@ go run ./cmd/gen_sqlboiler_config
 Generate a new model that gets placed in ./database/models/<databasetype> folder
 
 ```shell script
-sqlboiler -o database/models/postgres -p "postgres" psql
+sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps psql
 ```
 
 ##### Adding a Repository

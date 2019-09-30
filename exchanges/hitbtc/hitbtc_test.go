@@ -32,7 +32,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - HitBTC load config error", err)
+	}
 	hitbtcConfig, err := cfg.GetExchangeConfig("HitBTC")
 	if err != nil {
 		t.Error("Test Failed - HitBTC Setup() init error")
@@ -42,7 +45,10 @@ func TestSetup(t *testing.T) {
 	hitbtcConfig.API.Credentials.Key = apiKey
 	hitbtcConfig.API.Credentials.Secret = apiSecret
 
-	h.Setup(hitbtcConfig)
+	err = h.Setup(hitbtcConfig)
+	if err != nil {
+		t.Fatal("Test Failed - HitBTC setup error", err)
+	}
 }
 
 func TestGetOrderbook(t *testing.T) {

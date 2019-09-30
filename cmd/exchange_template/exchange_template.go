@@ -99,7 +99,7 @@ func main() {
 	}
 
 	configTestFile := config.GetConfig()
-	err = configTestFile.LoadConfig(exchangeConfigPath)
+	err = configTestFile.LoadConfig(exchangeConfigPath, true)
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating configuration retrieval error ", err)
 	}
@@ -129,7 +129,7 @@ func main() {
 	configTestFile.Exchanges = append(configTestFile.Exchanges, newExchConfig)
 	// TODO sorting function so exchanges are in alphabetical order - low priority
 
-	err = configTestFile.SaveConfig(exchangeJSON)
+	err = configTestFile.SaveConfig(exchangeJSON, false)
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating configuration error - cannot save")
 	}

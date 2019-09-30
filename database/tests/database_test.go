@@ -15,26 +15,14 @@ import (
 )
 
 var (
-	tempDir string
-
-	postgresTestDatabase = database.Config{
-		Enabled:           true,
-		Driver:            "postgres",
-		ConnectionDetails: drivers.ConnectionDetails{
-			//Host:     "localhost",
-			//Port:     5432,
-			//Username: "gct",
-			//Password: "",
-			//Database: "gct-dev",
-			//SSLMode:  "",
-		},
-	}
+	tempDir              string
+	postgresTestDatabase *database.Config
 )
 
-func TestMain(m *testing.M) {
+func getConnectionDetails() *database.Config {
 	_, exists := os.LookupEnv("TRAVIS")
 	if exists {
-		postgresTestDatabase = database.Config{
+		return &database.Config{
 			Enabled: true,
 			Driver:  "postgres",
 			ConnectionDetails: drivers.ConnectionDetails{
@@ -47,6 +35,40 @@ func TestMain(m *testing.M) {
 			},
 		}
 	}
+
+	_, exists = os.LookupEnv("APPVEYOR")
+	if exists {
+		return &database.Config{
+			Enabled: true,
+			Driver:  "postgres",
+			ConnectionDetails: drivers.ConnectionDetails{
+				Host:     "localhost",
+				Port:     5432,
+				Username: "postgres",
+				Password: "Password12!",
+				Database: "gct_dev_ci",
+				SSLMode:  "",
+			},
+		}
+	}
+
+	return &database.Config{
+		Enabled:           true,
+		Driver:            "postgres",
+		ConnectionDetails: drivers.ConnectionDetails{
+			//Host:     "localhost",
+			//Port:     5432,
+			//Username: "gct",
+			//Password: "",
+			//Database: "gct-dev",
+			//SSLMode:  "",
+		},
+	}
+}
+
+func TestMain(m *testing.M) {
+
+	postgresTestDatabase = getConnectionDetails()
 
 	var err error
 	tempDir, err = ioutil.TempDir("", "gct-temp")
@@ -68,13 +90,13 @@ func TestMain(m *testing.M) {
 func TestDatabaseConnect(t *testing.T) {
 	testCases := []struct {
 		name   string
-		config database.Config
+		config *database.Config
 		closer func(t *testing.T, dbConn *database.Db) error
 		output interface{}
 	}{
 		{
 			"SQLite",
-			database.Config{
+			&database.Config{
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb.db"},
 			},
@@ -83,7 +105,7 @@ func TestDatabaseConnect(t *testing.T) {
 		},
 		{
 			"SQliteNoDatabase",
-			database.Config{
+			&database.Config{
 				Driver: database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{
 					Host: "localhost",
@@ -106,7 +128,7 @@ func TestDatabaseConnect(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := connectToDatabase(t, &test.config)
+			dbConn, err := connectToDatabase(t, test.config)
 			if err != nil {
 				switch v := test.output.(type) {
 				case error:
@@ -136,13 +158,14 @@ func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Db
 	if conn.Driver == database.DBPostgreSQL {
 		dbConn, err = psqlConn.Connect()
 		if err != nil {
-			return
+			return nil, err
 		}
-	} else if conn.Driver == database.DBSQLite3 {
+	} else if conn.Driver == database.DBSQLite3 || conn.Driver == database.DBSQLite {
 		database.DB.DataPath = tempDir
 		dbConn, err = sqliteConn.Connect()
+
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 	database.DB.Connected = true

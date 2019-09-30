@@ -76,7 +76,7 @@ func SendWebsocketEvent(event string, reqData interface{}, result *WebsocketEven
 
 func main() {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigFile)
+	err := cfg.LoadConfig(config.ConfigFile, true)
 	if err != nil {
 		log.Fatalf("Failed to load config file: %s", err)
 	}

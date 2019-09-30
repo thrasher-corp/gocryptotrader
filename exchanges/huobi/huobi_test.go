@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
+	"log"
 	"strconv"
 	"strings"
 	"testing"
@@ -38,7 +39,10 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Test Failed - Huobi load config error", err)
+	}
 	hConfig, err := cfg.GetExchangeConfig("Huobi")
 	if err != nil {
 		t.Error("Test Failed - Huobi Setup() init error")
@@ -48,7 +52,10 @@ func TestSetup(t *testing.T) {
 	hConfig.API.Credentials.Key = apiKey
 	hConfig.API.Credentials.Secret = apiSecret
 
-	h.Setup(hConfig)
+	err = h.Setup(hConfig)
+	if err != nil {
+		t.Fatal("Test Failed - Huobi setup error", err)
+	}
 }
 
 func setupWsTests(t *testing.T) {

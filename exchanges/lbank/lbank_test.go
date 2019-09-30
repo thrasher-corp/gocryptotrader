@@ -33,18 +33,21 @@ func TestSetup(t *testing.T) {
 	}
 	l.SetDefaults()
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Errorf("Test Failed - Lbank Setup() init error:, %v", err)
+		t.Fatalf("Test Failed - Lbank Setup() init error:, %v", err)
 	}
 	lbankConfig, err := cfg.GetExchangeConfig("Lbank")
 	if err != nil {
-		t.Errorf("Test Failed - Lbank Setup() init error: %v", err)
+		t.Fatalf("Test Failed - Lbank Setup() init error: %v", err)
 	}
 	lbankConfig.API.AuthenticatedSupport = true
 	lbankConfig.API.Credentials.Secret = testAPISecret
 	lbankConfig.API.Credentials.Key = testAPIKey
-	l.Setup(lbankConfig)
+	err = l.Setup(lbankConfig)
+	if err != nil {
+		t.Fatal("Test Failed - LBank setup error", err)
+	}
 	setupRan = true
 }
 

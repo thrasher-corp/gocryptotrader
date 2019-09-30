@@ -121,11 +121,6 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
-  "huobihadax": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
   "itbit": {
    "secret": "Secret",
    "clientID": "ClientID",

@@ -28,16 +28,22 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	yobitConfig := config.GetConfig()
-	yobitConfig.LoadConfig("../../testdata/configtest.json")
+	err := yobitConfig.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("Test Failed - Yobit load config error", err)
+	}
 	conf, err := yobitConfig.GetExchangeConfig("Yobit")
 	if err != nil {
-		t.Error("Test Failed - Yobit init error")
+		t.Fatal("Test Failed - Yobit init error", err)
 	}
 	conf.API.Credentials.Key = apiKey
 	conf.API.Credentials.Secret = apiSecret
 	conf.API.AuthenticatedSupport = true
 
-	y.Setup(conf)
+	err = y.Setup(conf)
+	if err != nil {
+		t.Fatal("Test Failed - Yobit setup error", err)
+	}
 }
 
 func TestFetchTradablePairs(t *testing.T) {
