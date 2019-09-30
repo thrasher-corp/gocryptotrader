@@ -17,7 +17,7 @@ environment:
 stack: go 1.12.3
 
 services:
-  - postgres
+  - postgres96
 
 init:
   - SET PGUSER=postgres
