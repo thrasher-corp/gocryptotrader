@@ -20,8 +20,12 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
+	cpyMux = service.mux
+
 	os.Exit(m.Run())
 }
+
+var cpyMux *dispatch.Mux
 
 func TestSubscribeTicker(t *testing.T) {
 	_, err := SubscribeTicker("", currency.Pair{}, asset.Item(""))
@@ -31,14 +35,41 @@ func TestSubscribeTicker(t *testing.T) {
 
 	p := currency.NewPair(currency.BTC, currency.USD)
 
+	// force error
+	service.mux = nil
+	err = ProcessTicker("subscribetest", &Price{Pair: p}, asset.Spot)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	sillyP := p
+	sillyP.Base = currency.GALA_NEO
+	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, asset.Spot)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	sillyP.Quote = currency.AAA
+	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, asset.Spot)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, "silly")
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+	// reinstate mux
+	service.mux = cpyMux
+
 	err = ProcessTicker("subscribetest", &Price{Pair: p}, asset.Spot)
 	if err != nil {
-		t.Error(err)
+		t.Error("error cannot be nil")
 	}
 
 	_, err = SubscribeTicker("subscribetest", p, asset.Spot)
 	if err != nil {
-		t.Error("error cannot be nil", err)
+		t.Error("cannot subscribe to ticker", err)
 	}
 }
 
@@ -297,6 +328,16 @@ func TestSetItemID(t *testing.T) {
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
+
+	p := currency.NewPair(currency.CYC, currency.CYG)
+
+	service.mux = nil
+	err = service.SetItemID(&Price{Pair: p, ExchangeName: "SetItemID"})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	service.mux = cpyMux
 }
 
 func TestGetAssociation(t *testing.T) {
@@ -304,4 +345,15 @@ func TestGetAssociation(t *testing.T) {
 	if err == nil {
 		t.Error("error cannot be nil ")
 	}
+
+	p := currency.NewPair(currency.CYC, currency.CYG)
+
+	service.mux = nil
+
+	_, err = service.GetAssociations(&Price{Pair: p, ExchangeName: "GetAssociation"})
+	if err == nil {
+		t.Error("error cannot be nil ")
+	}
+
+	service.mux = cpyMux
 }

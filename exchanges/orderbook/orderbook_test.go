@@ -20,8 +20,12 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
+	cpyMux = service.mux
+
 	os.Exit(m.Run())
 }
+
+var cpyMux *dispatch.Mux
 
 func TestSubscribeOrderbook(t *testing.T) {
 	_, err := SubscribeOrderbook("", currency.Pair{}, asset.Item(""))
@@ -65,6 +69,43 @@ func TestSubscribeOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error("test failed - process error", err)
 	}
+}
+
+func TestUpdateBooks(t *testing.T) {
+	p := currency.NewPair(currency.BTC, currency.USD)
+
+	b := Base{
+		Pair:         p,
+		AssetType:    asset.Spot,
+		ExchangeName: "UpdateTest",
+	}
+
+	service.mux = nil
+
+	err := service.Update(&b)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	b.Pair.Base = currency.CYC
+	err = service.Update(&b)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	b.Pair.Quote = currency.ENAU
+	err = service.Update(&b)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	b.AssetType = "unicorns"
+	err = service.Update(&b)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	service.mux = cpyMux
 }
 
 func TestSubscribeToExchangeOrderbooks(t *testing.T) {

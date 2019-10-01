@@ -15,6 +15,10 @@ func GetNewMux() *Mux {
 // Subscribe takes in a package defined signature element pointing to an ID set
 // and returns the associated pipe
 func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
+	if m == nil {
+		return Pipe{}, errors.New("mux is nil")
+	}
+
 	if id == (uuid.UUID{}) {
 		return Pipe{}, errors.New("id not set")
 	}
@@ -29,12 +33,19 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 
 // Unsubscribe returns channel to the pool for the full signature set
 func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
+	if m == nil {
+		return errors.New("mux is nil")
+	}
 	return m.d.unsubscribe(id, ch)
 }
 
 // Publish takes in a persistent memory address and dispatches changes to
 // required pipes. Data should be of *type.
 func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
+	if m == nil {
+		return errors.New("mux is nil")
+	}
+
 	if data == nil {
 		return errors.New("data payload is nil")
 	}
@@ -53,6 +64,10 @@ func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 
 // GetID gets a lovely new ID
 func (m *Mux) GetID() (uuid.UUID, error) {
+	if m == nil {
+		return uuid.UUID{}, errors.New("mux is nil")
+	}
+
 	return m.d.getNewID()
 }
 
