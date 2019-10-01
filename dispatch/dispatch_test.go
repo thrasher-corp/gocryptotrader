@@ -136,11 +136,6 @@ func TestDispatcher(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = dispatcher.spawnWorker()
-	if err != nil {
-		t.Error(err)
-	}
-
 	_, err = dispatcher.subscribe(id)
 	if err == nil {
 		t.Error("error cannot be nil")
