@@ -3,7 +3,6 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.12
 
 require (
-	github.com/ericlagergren/decimal v0.0.0-20190912144844-2c3e3e1ef942 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-querystring v1.0.0

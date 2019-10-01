@@ -31,6 +31,7 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/denisenkom/go-mssqldb v0.0.0-20190924004331-208c0a498538/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
+github.com/ericlagergren/decimal v0.0.0-20180907214518-0bb163153a5d h1:v7ysy5ZQGOuSI0wr0Wgk/b9FPD3Jv1arYX4V9xR6pl4=
 github.com/ericlagergren/decimal v0.0.0-20180907214518-0bb163153a5d/go.mod h1:1yj25TwtUlJ+pfOu9apAVaM1RWfZGg+aFpd4hPQZekQ=
 github.com/ericlagergren/decimal v0.0.0-20190912144844-2c3e3e1ef942/go.mod h1:ZWP59etEywfyMG2lAqnoi3t8uoiZCiTmLtwt6iESIsQ=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
