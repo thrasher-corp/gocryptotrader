@@ -901,7 +901,9 @@ func TestSetupDefaults(t *testing.T) {
 	if err := b.SetupDefaults(&cfg); err != nil {
 		t.Error(err)
 	}
-	b.Websocket.Setup(nil, nil, nil, "", true, false, "", "", false)
+	b.Websocket.Setup(&wshandler.WebsocketSetup{
+		Enabled: true,
+	})
 	if !b.IsWebsocketEnabled() {
 		t.Error("websocket should be enabled")
 	}
