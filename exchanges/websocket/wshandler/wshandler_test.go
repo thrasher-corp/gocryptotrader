@@ -114,23 +114,18 @@ outer:
 
 func TestWebsocket(t *testing.T) {
 	ws := Websocket{}
+	ws.setInit(true)
 	err := ws.Setup(&WebsocketSetup{
-		ExchangeName: "test",
-	})
-	if err.Error() != WebsocketNotEnabled {
-		t.Errorf("Expected '%v', received %v", WebsocketNotEnabled, err)
-	}
-	ws = Websocket{}
-	err = ws.Setup(&WebsocketSetup{
 		ExchangeName: "test",
 		Enabled:      true,
 	})
-	if err.Error() != "test Websocket already initialised" {
+	if err != nil && err.Error() != "test Websocket already initialised" {
 		t.Errorf("Expected 'test Websocket already initialised', received %v", err)
 	}
 
 	ws = *New()
-	if err = ws.SetProxyAddress("testProxy"); err != nil {
+	err = ws.SetProxyAddress("testProxy")
+	if err != nil {
 		t.Error("test failed - SetProxyAddress", err)
 	}
 
@@ -173,7 +168,6 @@ func TestWebsocket(t *testing.T) {
 	if ws.trafficTimeout != time.Duration(2) {
 		t.Error("test failed - WebsocketSetup")
 	}
-
 	// -- Not connected shutdown
 	err = ws.Shutdown()
 	if err == nil {
