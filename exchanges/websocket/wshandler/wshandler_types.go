@@ -65,6 +65,7 @@ type Websocket struct {
 	init                         bool
 	connected                    bool
 	connecting                   bool
+	trafficMonitorRunning        bool
 	verbose                      bool
 	connectionMonitorRunning     bool
 	trafficTimeout               time.Duration
@@ -73,7 +74,7 @@ type Websocket struct {
 	runningURL                   string
 	exchangeName                 string
 	m                            sync.Mutex
-	subscriptionLock             sync.Mutex
+	subscriptionMutex            sync.Mutex
 	connectionMutex              sync.RWMutex
 	connector                    func() error
 	subscribedChannels           []WebsocketChannelSubscription

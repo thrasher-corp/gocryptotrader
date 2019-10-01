@@ -381,11 +381,11 @@ func TestManageSubscriptions(t *testing.T) {
 	time.Sleep(8 * time.Second)
 	w.setConnectedStatus(false)
 	time.Sleep(manageSubscriptionsDelay)
-	w.subscriptionLock.Lock()
+	w.subscriptionMutex.Lock()
 	if len(w.subscribedChannels) > 0 {
 		t.Error("Expected empty subscribed channels")
 	}
-	w.subscriptionLock.Unlock()
+	w.subscriptionMutex.Unlock()
 }
 
 // TestConnectionMonitorNoConnection logic test

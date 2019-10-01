@@ -107,7 +107,12 @@ func (w *Websocket) connectionMonitor() {
 	timer := time.NewTimer(connectionMonitorDelay)
 
 	defer func() {
-		timer.Stop()
+		if !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
 		w.setConnectionMonitorRunning(false)
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket connection monitor exiting",
@@ -163,7 +168,10 @@ func (w *Websocket) connectionMonitor() {
 				}
 			}
 			if !timer.Stop() {
-				<-timer.C
+				select {
+				case <-timer.C:
+				default:
+				}
 			}
 			timer.Reset(connectionMonitorDelay)
 		}
@@ -201,12 +209,20 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	w.Wg.Add(1)
 	wg.Done()
 	trafficTimer := time.NewTimer(w.trafficTimeout)
-
 	defer func() {
-		trafficTimer.Stop()
+		if !trafficTimer.Stop() {
+			select {
+			case <-trafficTimer.C:
+			default:
+			}
+		}
+		w.setTrafficMonitorRunning(false)
 		w.Wg.Done()
 	}()
-
+	if w.IsTrafficMonitorRunning() {
+		return
+	}
+	w.setTrafficMonitorRunning(true)
 	for {
 		select {
 		case <-w.ShutdownC:
@@ -216,7 +232,10 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			return
 		case <-w.TrafficAlert:
 			if !trafficTimer.Stop() {
-				<-trafficTimer.C
+				select {
+				case <-trafficTimer.C:
+				default:
+				}
 			}
 			trafficTimer.Reset(w.trafficTimeout)
 		case <-trafficTimer.C: // Falls through when timer runs out
@@ -280,6 +299,19 @@ func (w *Websocket) IsInit() bool {
 	return w.init
 }
 
+func (w *Websocket) setTrafficMonitorRunning(b bool) {
+	w.connectionMutex.Lock()
+	w.trafficMonitorRunning = b
+	w.connectionMutex.Unlock()
+}
+
+// IsTrafficMonitorRunning returns status of the traffic monitor
+func (w *Websocket) IsTrafficMonitorRunning() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.trafficMonitorRunning
+}
+
 func (w *Websocket) setConnectionMonitorRunning(b bool) {
 	w.connectionMutex.Lock()
 	w.connectionMonitorRunning = b
@@ -317,12 +349,6 @@ func (w *Websocket) Initialise() error {
 			w.exchangeName)
 	}
 	w.setEnabled(w.enabled)
-	if !w.IsInit() {
-		if w.IsConnected() {
-			return nil
-		}
-		return w.Connect()
-	}
 	return nil
 }
 
@@ -482,9 +508,9 @@ func (w *Websocket) manageSubscriptions() {
 	for {
 		select {
 		case <-w.ShutdownC:
-			w.subscriptionLock.Lock()
+			w.subscriptionMutex.Lock()
 			w.subscribedChannels = []WebsocketChannelSubscription{}
-			w.subscriptionLock.Unlock()
+			w.subscriptionMutex.Unlock()
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v shutdown manageSubscriptions", w.exchangeName)
 			}
@@ -492,9 +518,9 @@ func (w *Websocket) manageSubscriptions() {
 		default:
 			time.Sleep(manageSubscriptionsDelay)
 			if !w.IsConnected() {
-				w.subscriptionLock.Lock()
+				w.subscriptionMutex.Lock()
 				w.subscribedChannels = []WebsocketChannelSubscription{}
-				w.subscriptionLock.Unlock()
+				w.subscriptionMutex.Unlock()
 
 				continue
 			}
@@ -521,8 +547,8 @@ func (w *Websocket) manageSubscriptions() {
 // appendSubscribedChannels compares channelsToSubscribe to subscribedChannels
 // and subscribes to any channels not present in subscribedChannels
 func (w *Websocket) appendSubscribedChannels() error {
-	w.subscriptionLock.Lock()
-	defer w.subscriptionLock.Unlock()
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	for i := 0; i < len(w.channelsToSubscribe); i++ {
 		channelIsSubscribed := false
 		for j := 0; j < len(w.subscribedChannels); j++ {
@@ -548,8 +574,8 @@ func (w *Websocket) appendSubscribedChannels() error {
 // unsubscribeToChannels compares subscribedChannels to channelsToSubscribe
 // and unsubscribes to any channels not present in  channelsToSubscribe
 func (w *Websocket) unsubscribeToChannels() error {
-	w.subscriptionLock.Lock()
-	defer w.subscriptionLock.Unlock()
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	for i := 0; i < len(w.subscribedChannels); i++ {
 		subscriptionFound := false
 		for j := 0; j < len(w.channelsToSubscribe); j++ {
@@ -581,8 +607,8 @@ func (w *Websocket) RemoveSubscribedChannels(channels []WebsocketChannelSubscrip
 // removeChannelToSubscribe removes an entry from w.channelsToSubscribe
 // so an unsubscribe event can be triggered
 func (w *Websocket) removeChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
-	w.subscriptionLock.Lock()
-	defer w.subscriptionLock.Unlock()
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	channelLength := len(w.channelsToSubscribe)
 	i := 0
 	for j := 0; j < len(w.channelsToSubscribe); j++ {
@@ -603,8 +629,8 @@ func (w *Websocket) removeChannelToSubscribe(subscribedChannel WebsocketChannelS
 // ResubscribeToChannel calls unsubscribe func and
 // removes it from subscribedChannels to trigger a subscribe event
 func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubscription) {
-	w.subscriptionLock.Lock()
-	defer w.subscriptionLock.Unlock()
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	err := w.channelUnsubscriber(subscribedChannel)
 	if err != nil {
 		w.DataHandler <- err
@@ -651,16 +677,16 @@ func (w *Websocket) GetSubscriptions() []WebsocketChannelSubscription {
 // SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in
 // a thread safe manner
 func (w *Websocket) SetCanUseAuthenticatedEndpoints(val bool) {
-	w.subscriptionLock.Lock()
-	defer w.subscriptionLock.Unlock()
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	w.canUseAuthenticatedEndpoints = val
 }
 
 // CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in
 // a thread safe manner
 func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
-	w.subscriptionLock.Lock()
-	defer w.subscriptionLock.Unlock()
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	return w.canUseAuthenticatedEndpoints
 }
 
@@ -850,6 +876,9 @@ func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
 
 // isDisconnectionError Determines if the error sent over chan ReadMessageErrors is a disconnection error
 func isDisconnectionError(err error) bool {
+	if websocket.IsUnexpectedCloseError(err) {
+		return true
+	}
 	switch err.(type) {
 	case *websocket.CloseError, *net.OpError:
 		return true
