@@ -152,6 +152,10 @@ func TestDispatcher(t *testing.T) {
 	}
 
 	someID, err := uuid.NewV4()
+	if err != nil {
+		t.Error(err)
+	}
+
 	_, err = dispatcher.subscribe(someID)
 	if err == nil {
 		t.Error("error cannot be nil")
