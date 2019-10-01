@@ -65,7 +65,7 @@ func (h *HitBTC) WsHandleData() {
 		default:
 			resp, err := h.WebsocketConn.ReadMessage()
 			if err != nil {
-				h.Websocket.DataHandler <- err
+				h.Websocket.ReadMessageErrors <- err
 				return
 			}
 			h.Websocket.TrafficAlert <- struct{}{}
@@ -251,7 +251,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.Pair = p
 
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}

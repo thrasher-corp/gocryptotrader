@@ -286,7 +286,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			supportsRESTTickerBatching := Bot.Exchanges[x].SupportsRESTTickerBatchUpdates()
 			var usingREST bool
 			var usingWebsocket bool
-
+			var switchedToRest bool
 			if Bot.Exchanges[x].SupportsWebsocket() && Bot.Exchanges[x].IsWebsocketEnabled() {
 				ws, err := Bot.Exchanges[x].GetWebsocket()
 				if err != nil {
@@ -346,7 +346,12 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 						log.Errorf(log.SyncMgr, "failed to get item. Err: %s\n", err)
 						continue
 					}
-
+					if switchedToRest && usingWebsocket {
+						log.Infof(log.SyncMgr,
+							"%s %s: Websocket re-enabled, switching from rest to websocket\n",
+							c.Exchange, FormatCurrency(p).String())
+						switchedToRest = false
+					}
 					if e.Cfg.SyncTicker {
 						if !e.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) {
 							if c.Ticker.LastUpdated.IsZero() || time.Since(c.Ticker.LastUpdated) > defaultSyncerTimeout {
@@ -362,6 +367,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										log.Warnf(log.SyncMgr,
 											"%s %s: No ticker update after 10 seconds, switching from websocket to rest\n",
 											c.Exchange, FormatCurrency(p).String())
+										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
 									}
 								}
@@ -425,6 +431,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										log.Warnf(log.SyncMgr,
 											"%s %s: No orderbook update after 15 seconds, switching from websocket to rest\n",
 											c.Exchange, FormatCurrency(c.Pair).String())
+										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, false)
 									}
 								}
@@ -491,7 +498,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 				usingREST = true
 			}
 
-			if !ws.IsConnected() {
+			if !ws.IsConnected() && !ws.IsConnecting() {
 				go WebsocketDataHandler(ws)
 
 				err = ws.Connect()

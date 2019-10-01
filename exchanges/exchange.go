@@ -449,7 +449,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 
 	if e.Features.Supports.Websocket {
-		e.Websocket.SetWsStatusAndConnection(exch.Features.Enabled.Websocket)
+		e.Websocket.Initialise()
 	}
 	return nil
 }

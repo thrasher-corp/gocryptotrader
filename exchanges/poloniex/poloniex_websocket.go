@@ -88,7 +88,7 @@ func (p *Poloniex) WsHandleData() {
 		default:
 			resp, err := p.WebsocketConn.ReadMessage()
 			if err != nil {
-				p.Websocket.DataHandler <- err
+				p.Websocket.ReadMessageErrors <- err
 				return
 			}
 			p.Websocket.TrafficAlert <- struct{}{}
@@ -330,7 +330,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.Pair = currency.NewPairFromString(symbol)
 
-	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
+	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // WsProcessOrderbookUpdate processes new orderbook updates

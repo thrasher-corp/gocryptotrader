@@ -110,9 +110,7 @@ func (k *Kraken) WsHandleData() {
 		default:
 			resp, err := k.WebsocketConn.ReadMessage()
 			if err != nil {
-				k.Websocket.DataHandler <- fmt.Errorf("%v WsHandleData: %v",
-					k.Name,
-					err)
+				k.Websocket.ReadMessageErrors <- err
 				return
 			}
 			k.Websocket.TrafficAlert <- struct{}{}
@@ -384,7 +382,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 		}
 	}
 	base.LastUpdated = highestLastUpdate
-	err := k.Websocket.Orderbook.LoadSnapshot(&base, true)
+	err := k.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
 		k.Websocket.DataHandler <- err
 		return
@@ -509,7 +507,7 @@ func (k *Kraken) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		Subscription: WebsocketSubscriptionData{
 			Name: channelToSubscribe.Channel,
 		},
-		RequestID: k.WebsocketConn.GenerateMessageID(true),
+		RequestID: k.WebsocketConn.GenerateMessageID(false),
 	}
 	_, err := k.WebsocketConn.SendMessageReturnResponse(resp.RequestID, resp)
 	return err
@@ -523,7 +521,7 @@ func (k *Kraken) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		Subscription: WebsocketSubscriptionData{
 			Name: channelToSubscribe.Channel,
 		},
-		RequestID: k.WebsocketConn.GenerateMessageID(true),
+		RequestID: k.WebsocketConn.GenerateMessageID(false),
 	}
 	_, err := k.WebsocketConn.SendMessageReturnResponse(resp.RequestID, resp)
 	return err

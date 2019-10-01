@@ -58,7 +58,7 @@ func (z *ZB) WsHandleData() {
 		default:
 			resp, err := z.WebsocketConn.ReadMessage()
 			if err != nil {
-				z.Websocket.DataHandler <- err
+				z.Websocket.ReadMessageErrors <- err
 				return
 			}
 			z.Websocket.TrafficAlert <- struct{}{}
@@ -143,8 +143,7 @@ func (z *ZB) WsHandleData() {
 				newOrderBook.AssetType = asset.Spot
 				newOrderBook.Pair = cPair
 
-				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-					true)
+				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue

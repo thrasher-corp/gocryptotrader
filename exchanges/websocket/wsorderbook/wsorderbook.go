@@ -201,7 +201,7 @@ func (w *WebsocketOrderbookLocal) updateByIDAndAction(orderbookUpdate *Websocket
 // LoadSnapshot loads initial snapshot of ob data, overwrite allows full
 // ob to be completely rewritten because the exchange is a doing a full
 // update not an incremental one
-func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, overwrite bool) error {
+func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) error {
 	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
 		return fmt.Errorf("%v snapshot ask and bids are nil", w.exchangeName)
 	}
@@ -216,11 +216,8 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base, ove
 	if w.ob[newOrderbook.Pair][newOrderbook.AssetType] != nil &&
 		(len(w.ob[newOrderbook.Pair][newOrderbook.AssetType].Asks) > 0 ||
 			len(w.ob[newOrderbook.Pair][newOrderbook.AssetType].Bids) > 0) {
-		if overwrite {
-			w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
-			return newOrderbook.Process()
-		}
-		return fmt.Errorf("%v snapshot instance already found", w.exchangeName)
+		w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
+		return newOrderbook.Process()
 	}
 	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
 	return newOrderbook.Process()

@@ -205,7 +205,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 			Price:  price,
 		})
 	}
-	return l.Websocket.Orderbook.LoadSnapshot(&book, true)
+	return l.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
 func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {

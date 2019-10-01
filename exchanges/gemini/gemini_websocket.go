@@ -282,8 +282,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		newOrderBook.Bids = bids
 		newOrderBook.AssetType = asset.Spot
 		newOrderBook.Pair = pair
-		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-			false)
+		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			g.Websocket.DataHandler <- err
 			return
