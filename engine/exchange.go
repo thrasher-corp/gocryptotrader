@@ -228,7 +228,6 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
 				exchCfg.Features.Enabled.AutoPairUpdates = false
 			}
-
 		}
 	}
 
