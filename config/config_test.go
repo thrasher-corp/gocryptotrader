@@ -1451,6 +1451,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].WebsocketResponseMaxLimit = 0
 	cfg.Exchanges[0].WebsocketResponseCheckTimeout = 0
 	cfg.Exchanges[0].WebsocketOrderbookBufferLimit = 0
+	cfg.Exchanges[0].WebsocketTrafficTimeout = 0
 	cfg.Exchanges[0].HTTPTimeout = 0
 	err = cfg.CheckExchangeConfigValues()
 	if err != nil {
@@ -1463,6 +1464,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 	if cfg.Exchanges[0].WebsocketOrderbookBufferLimit == 0 {
 		t.Errorf("expected exchange %s to have updated WebsocketOrderbookBufferLimit value",
+			cfg.Exchanges[0].Name)
+	}
+	if cfg.Exchanges[0].WebsocketTrafficTimeout == 0 {
+		t.Errorf("expected exchange %s to have updated WebsocketTrafficTimeout value",
 			cfg.Exchanges[0].Name)
 	}
 	if cfg.Exchanges[0].HTTPTimeout == 0 {

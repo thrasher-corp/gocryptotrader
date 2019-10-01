@@ -111,15 +111,18 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = l.Websocket.Setup(l.WsConnect,
-		l.Subscribe,
-		nil,
-		exch.Name,
-		exch.Features.Enabled.Websocket,
-		exch.Verbose,
-		lakeBTCWSURL,
-		exch.API.Endpoints.WebsocketURL,
-		exch.API.AuthenticatedWebsocketSupport)
+	err = l.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       lakeBTCWSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        l.WsConnect,
+			Subscriber:                       l.Subscribe,
+		})
 	if err != nil {
 		return err
 	}

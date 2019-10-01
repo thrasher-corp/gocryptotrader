@@ -67,8 +67,8 @@ var (
 	pongChan = make(chan int, 1)
 )
 
-// WsConnector initiates a new websocket connection
-func (b *Bitmex) WsConnector() error {
+// WsConnect initiates a new websocket connection
+func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
@@ -80,6 +80,7 @@ func (b *Bitmex) WsConnector() error {
 
 	p, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
+		b.Websocket.ReadMessageErrors <- err
 		return err
 	}
 	b.Websocket.TrafficAlert <- struct{}{}
@@ -361,7 +362,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		newOrderBook.Bids = bids
 		newOrderBook.AssetType = assetType
 		newOrderBook.Pair = currencyPair
-		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
+		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 				err)

@@ -54,7 +54,7 @@ func (b *BTSE) WsHandleData() {
 		default:
 			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
-				b.Websocket.DataHandler <- err
+				b.Websocket.ReadMessageErrors <- err
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
@@ -162,7 +162,7 @@ func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
 	base.LastUpdated = time.Now()
 	base.ExchangeName = b.Name
 
-	err := b.Websocket.Orderbook.LoadSnapshot(&base, true)
+	err := b.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
 		return err
 	}

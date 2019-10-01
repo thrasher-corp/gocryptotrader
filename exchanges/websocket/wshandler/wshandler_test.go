@@ -1,38 +1,151 @@
 package wshandler
 
 import (
-	"fmt"
+	"bytes"
+	"compress/flate"
+	"compress/gzip"
+	"errors"
+	"net"
+	"net/http"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-var ws *Websocket
+func TestTrafficMonitorTimeout(t *testing.T) {
+	ws := New()
+	err := ws.Setup(
+		&WebsocketSetup{
+			Enabled:                          true,
+			AuthenticatedWebsocketAPISupport: true,
+			WebsocketTimeout:                 10000,
+			DefaultURL:                       "testDefaultURL",
+			ExchangeName:                     "exchangeName",
+			RunningURL:                       "testRunningURL",
+			Connector:                        func() error { return nil },
+			Subscriber:                       func(test WebsocketChannelSubscription) error { return nil },
+			UnSubscriber:                     func(test WebsocketChannelSubscription) error { return nil },
+		})
+	if err != nil {
+		t.Error(err)
+	}
+	ws.setConnectedStatus(true)
+	ws.TrafficAlert = make(chan struct{}, 2)
+	ws.ShutdownC = make(chan struct{})
+	var anotherWG sync.WaitGroup
+	anotherWG.Add(1)
+	go ws.trafficMonitor(&anotherWG)
+	anotherWG.Wait()
+	ws.TrafficAlert <- struct{}{}
+	trafficTimer := time.NewTimer(5 * time.Second)
+	select {
+	case <-trafficTimer.C:
+		t.Error("should be exiting")
+	default:
+		ws.Wg.Wait()
+	}
+}
 
-func TestWebsocketInit(t *testing.T) {
-	ws = New()
-	if ws == nil {
-		t.Error("test failed - Websocket New() error")
+func TestIsDisconnectionError(t *testing.T) {
+	isADisconnectionError := isDisconnectionError(errors.New("errorText"))
+	if isADisconnectionError {
+		t.Error("Its not")
+	}
+	isADisconnectionError = isDisconnectionError(&websocket.CloseError{
+		Code: 1006,
+		Text: "errorText",
+	})
+	if !isADisconnectionError {
+		t.Error("It is")
+	}
+
+	isADisconnectionError = isDisconnectionError(&net.OpError{
+		Op:     "",
+		Net:    "",
+		Source: nil,
+		Addr:   nil,
+		Err:    errors.New("errorText"),
+	})
+	if !isADisconnectionError {
+		t.Error("It is")
+	}
+}
+
+func TestConnectionMessageErrors(t *testing.T) {
+	ws := New()
+	ws.connected = true
+	ws.enabled = true
+	ws.ReadMessageErrors = make(chan error)
+	ws.DataHandler = make(chan interface{})
+	ws.ShutdownC = make(chan struct{})
+	ws.connector = func() error { return nil }
+	go ws.connectionMonitor()
+	timer := time.NewTimer(900 * time.Millisecond)
+	ws.ReadMessageErrors <- errors.New("errorText")
+	select {
+	case err := <-ws.DataHandler:
+		if err.(error).Error() != "errorText" {
+			t.Errorf("Expected 'errorText', received %v", err)
+		}
+	case <-timer.C:
+		t.Error("Timeout waiting for datahandler to receive error")
+	}
+	timer = time.NewTimer(900 * time.Millisecond)
+	ws.ReadMessageErrors <- &websocket.CloseError{
+		Code: 1006,
+		Text: "errorText",
+	}
+outer:
+	for {
+		select {
+		case <-ws.DataHandler:
+			t.Fatal("Error is a disconnection error")
+		case <-timer.C:
+			break outer
+		}
 	}
 }
 
 func TestWebsocket(t *testing.T) {
-	if err := ws.SetProxyAddress("testProxy"); err != nil {
+	ws := Websocket{}
+	ws.setInit(true)
+	err := ws.Setup(&WebsocketSetup{
+		ExchangeName: "test",
+		Enabled:      true,
+	})
+	if err != nil && err.Error() != "test Websocket already initialised" {
+		t.Errorf("Expected 'test Websocket already initialised', received %v", err)
+	}
+
+	ws = *New()
+	err = ws.SetProxyAddress("testProxy")
+	if err != nil {
 		t.Error("test failed - SetProxyAddress", err)
 	}
 
-	ws.Setup(func() error { return nil },
-		func(test WebsocketChannelSubscription) error { return nil },
-		func(test WebsocketChannelSubscription) error { return nil },
-		"testName",
-		true,
-		false,
-		"testDefaultURL",
-		"testRunningURL",
-		false)
+	err = ws.Setup(
+		&WebsocketSetup{
+			Enabled:                          true,
+			AuthenticatedWebsocketAPISupport: true,
+			WebsocketTimeout:                 2,
+			DefaultURL:                       "testDefaultURL",
+			ExchangeName:                     "exchangeName",
+			RunningURL:                       "testRunningURL",
+			Connector:                        func() error { return nil },
+			Subscriber:                       func(test WebsocketChannelSubscription) error { return nil },
+			UnSubscriber:                     func(test WebsocketChannelSubscription) error { return nil },
+		})
+	if err != nil {
+		t.Error(err)
+	}
 
-	// Test variable setting and retreival
-	if ws.GetName() != "testName" {
+	if ws.GetName() != "exchangeName" {
 		t.Error("test failed - WebsocketSetup")
 	}
 
@@ -52,25 +165,11 @@ func TestWebsocket(t *testing.T) {
 		t.Error("test failed - WebsocketSetup")
 	}
 
-	// Test websocket connect and shutdown functions
-	comms := make(chan struct{}, 1)
-	go func() {
-		var count int
-		for {
-			if count == 4 {
-				close(comms)
-				return
-			}
-			select {
-			case <-ws.Connected:
-				count++
-			case <-ws.Disconnected:
-				count++
-			}
-		}
-	}()
+	if ws.trafficTimeout != time.Duration(2) {
+		t.Error("test failed - WebsocketSetup")
+	}
 	// -- Not connected shutdown
-	err := ws.Shutdown()
+	err = ws.Shutdown()
 	if err == nil {
 		t.Fatal("test failed - should not be connected to able to shut down")
 	}
@@ -80,69 +179,60 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal("test failed - WebsocketSetup", err)
 	}
-
+	ws.SetWebsocketURL("ws://demos.kaazing.com/echo")
 	// -- Already connected connect
 	err = ws.Connect()
 	if err == nil {
 		t.Fatal("test failed - should not connect, already connected")
 	}
-
-	ws.SetWebsocketURL("")
-
-	// -- Set true when already true
-	err = ws.SetWsStatusAndConnection(true)
-	if err == nil {
-		t.Fatal("test failed - setting enabled should not work")
-	}
-
-	// -- Set false normal
-	err = ws.SetWsStatusAndConnection(false)
-	if err != nil {
-		t.Fatal("test failed - setting enabled should not work")
-	}
-
-	// -- Set true normal
-	err = ws.SetWsStatusAndConnection(true)
-	if err != nil {
-		t.Fatal("test failed - setting enabled should not work")
-	}
-
 	// -- Normal shutdown
 	err = ws.Shutdown()
 	if err != nil {
 		t.Fatal("test failed - WebsocketSetup", err)
 	}
-
-	timer := time.NewTimer(5 * time.Second)
-	select {
-	case <-comms:
-	case <-timer.C:
-		t.Fatal("test failed - WebsocketSetup - timeout")
-	}
+	ws.Wg.Wait()
 }
 
 func TestFunctionality(t *testing.T) {
-	var w Websocket
-
-	if w.FormatFunctionality() != NoWebsocketSupportText {
+	ws := New()
+	if ws.FormatFunctionality() != NoWebsocketSupportText {
 		t.Fatalf("Test Failed - FormatFunctionality error expected %s but received %s",
-			NoWebsocketSupportText, w.FormatFunctionality())
+			NoWebsocketSupportText, ws.FormatFunctionality())
 	}
 
-	w.Functionality = 1 << 31
+	ws.Functionality = 1 << 31
 
-	if w.FormatFunctionality() != UnknownWebsocketFunctionality+"[1<<31]" {
+	if ws.FormatFunctionality() != UnknownWebsocketFunctionality+"[1<<31]" {
 		t.Fatal("Test Failed - GetFunctionality error incorrect error returned")
 	}
 
-	w.Functionality = WebsocketOrderbookSupported
+	ws.Functionality = WebsocketOrderbookSupported
 
-	if w.GetFunctionality() != WebsocketOrderbookSupported {
+	if ws.GetFunctionality() != WebsocketOrderbookSupported {
 		t.Fatal("Test Failed - GetFunctionality error incorrect bitmask returned")
 	}
 
-	if !w.SupportsFunctionality(WebsocketOrderbookSupported) {
+	if !ws.SupportsFunctionality(WebsocketOrderbookSupported) {
 		t.Fatal("Test Failed - SupportsFunctionality error should be true")
+	}
+
+	ws.Functionality = WebsocketTickerSupported | WebsocketOrderbookSupported | WebsocketKlineSupported |
+		WebsocketTradeDataSupported | WebsocketAccountSupported | WebsocketAllowsRequests |
+		WebsocketSubscribeSupported | WebsocketUnsubscribeSupported | WebsocketAuthenticatedEndpointsSupported |
+		WebsocketAccountDataSupported | WebsocketSubmitOrderSupported | WebsocketCancelOrderSupported |
+		WebsocketWithdrawSupported | WebsocketMessageCorrelationSupported | WebsocketSequenceNumberSupported |
+		WebsocketDeadMansSwitchSupported
+	formatted := ws.FormatFunctionality()
+
+	if !strings.Contains(formatted, WebsocketTickerSupportedText) || !strings.Contains(formatted, WebsocketOrderbookSupportedText) ||
+		!strings.Contains(formatted, WebsocketKlineSupportedText) || !strings.Contains(formatted, WebsocketTradeDataSupportedText) ||
+		!strings.Contains(formatted, WebsocketAccountSupportedText) || !strings.Contains(formatted, WebsocketAllowsRequestsText) ||
+		!strings.Contains(formatted, WebsocketSubscribeSupportedText) || !strings.Contains(formatted, WebsocketUnsubscribeSupportedText) ||
+		!strings.Contains(formatted, WebsocketAuthenticatedEndpointsSupportedText) || !strings.Contains(formatted, WebsocketAccountDataSupportedText) ||
+		!strings.Contains(formatted, WebsocketSubmitOrderSupportedText) || !strings.Contains(formatted, WebsocketCancelOrderSupportedText) ||
+		!strings.Contains(formatted, WebsocketWithdrawSupportedText) || !strings.Contains(formatted, WebsocketMessageCorrelationSupportedText) ||
+		!strings.Contains(formatted, WebsocketSequenceNumberSupportedText) || !strings.Contains(formatted, WebsocketDeadMansSwitchSupportedText) {
+		t.Error("Failed to format and include supported websocket features")
 	}
 }
 
@@ -162,8 +252,28 @@ func TestSubscribe(t *testing.T) {
 		subscribedChannels: []WebsocketChannelSubscription{},
 	}
 	w.SetChannelSubscriber(placeholderSubscriber)
-	w.subscribeToChannels()
+	err := w.appendSubscribedChannels()
+	if err != nil {
+		t.Error(err)
+	}
 	if len(w.subscribedChannels) != 1 {
+		t.Errorf("Subscription did not occur")
+	}
+}
+
+// TestSubscribe logic test
+func TestSubscribeToChannels(t *testing.T) {
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{
+			{
+				Channel: "hello",
+			},
+		},
+		subscribedChannels: []WebsocketChannelSubscription{},
+	}
+	w.SetChannelSubscriber(placeholderSubscriber)
+	w.SubscribeToChannels([]WebsocketChannelSubscription{{Channel: "hello"}, {Channel: "hello2"}})
+	if len(w.channelsToSubscribe) != 2 {
 		t.Errorf("Subscription did not occur")
 	}
 }
@@ -179,7 +289,10 @@ func TestUnsubscribe(t *testing.T) {
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	w.unsubscribeToChannels()
+	err := w.unsubscribeToChannels()
+	if err != nil {
+		t.Error(err)
+	}
 	if len(w.subscribedChannels) != 0 {
 		t.Errorf("Unsubscription did not occur")
 	}
@@ -200,7 +313,10 @@ func TestSubscriptionWithExistingEntry(t *testing.T) {
 		},
 	}
 	w.SetChannelSubscriber(placeholderSubscriber)
-	w.subscribeToChannels()
+	err := w.appendSubscribedChannels()
+	if err != nil {
+		t.Error(err)
+	}
 	if len(w.subscribedChannels) != 1 {
 		t.Errorf("Subscription should not have occurred")
 	}
@@ -221,7 +337,10 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	w.unsubscribeToChannels()
+	err := w.unsubscribeToChannels()
+	if err != nil {
+		t.Error(err)
+	}
 	if len(w.subscribedChannels) != 1 {
 		t.Errorf("Unsubscription should not have occurred")
 	}
@@ -230,67 +349,49 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 // TestManageSubscriptionsStartStop logic test
 func TestManageSubscriptionsStartStop(t *testing.T) {
 	w := Websocket{
-		ShutdownC:     make(chan struct{}, 1),
+		ShutdownC:     make(chan struct{}),
 		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
 	}
 	go w.manageSubscriptions()
-	time.Sleep(time.Second)
 	close(w.ShutdownC)
+	w.Wg.Wait()
+}
+
+// TestManageSubscriptionsStartStop logic test
+func TestManageSubscriptions(t *testing.T) {
+	w := Websocket{
+		ShutdownC:     make(chan struct{}),
+		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
+		subscribedChannels: []WebsocketChannelSubscription{
+			{
+				Channel: "hello",
+			},
+		},
+	}
+	w.SetChannelUnsubscriber(placeholderSubscriber)
+	w.SetChannelSubscriber(placeholderSubscriber)
+	w.setConnectedStatus(true)
+	go w.manageSubscriptions()
+	time.Sleep(8 * time.Second)
+	w.setConnectedStatus(false)
+	time.Sleep(manageSubscriptionsDelay)
+	w.subscriptionMutex.Lock()
+	if len(w.subscribedChannels) > 0 {
+		t.Error("Expected empty subscribed channels")
+	}
+	w.subscriptionMutex.Unlock()
 }
 
 // TestConnectionMonitorNoConnection logic test
 func TestConnectionMonitorNoConnection(t *testing.T) {
-	w := Websocket{}
-	w.DataHandler = make(chan interface{}, 1)
-	w.ShutdownC = make(chan struct{}, 1)
-	w.exchangeName = "hello"
-	go w.connectionMonitor()
-	err := <-w.DataHandler
-	if !strings.EqualFold(err.(error).Error(),
-		fmt.Sprintf("%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)) {
-		t.Errorf("expecting error 'connectionMonitor: websocket disabled, shutting down', received '%v'", err)
-	}
-}
-
-// TestWsNoConnectionTolerance logic test
-func TestWsNoConnectionTolerance(t *testing.T) {
-	w := Websocket{}
-	w.DataHandler = make(chan interface{}, 1)
-	w.ShutdownC = make(chan struct{}, 1)
-	w.enabled = true
-	w.noConnectionCheckLimit = 500
-	w.checkConnection()
-	if w.noConnectionChecks == 0 {
-		t.Errorf("Expected noConnectionTolerance to increment, received '%v'", w.noConnectionChecks)
-	}
-}
-
-// TestConnecting logic test
-func TestConnecting(t *testing.T) {
-	w := Websocket{}
-	w.DataHandler = make(chan interface{}, 1)
-	w.ShutdownC = make(chan struct{}, 1)
-	w.enabled = true
-	w.connecting = true
-	w.reconnectionLimit = 500
-	w.checkConnection()
-	if w.reconnectionChecks != 1 {
-		t.Errorf("Expected reconnectionLimit to increment, received '%v'", w.reconnectionChecks)
-	}
-}
-
-// TestReconnectionLimit logic test
-func TestReconnectionLimit(t *testing.T) {
-	w := Websocket{}
-	w.DataHandler = make(chan interface{}, 1)
-	w.ShutdownC = make(chan struct{}, 1)
-	w.enabled = true
-	w.connecting = true
-	w.reconnectionChecks = 99
-	w.reconnectionLimit = 1
-	err := w.checkConnection()
-	if err == nil {
-		t.Error("Expected error")
+	ws := New()
+	ws.DataHandler = make(chan interface{}, 1)
+	ws.ShutdownC = make(chan struct{}, 1)
+	ws.exchangeName = "hello"
+	ws.trafficTimeout = 1
+	go ws.connectionMonitor()
+	if ws.IsConnectionMonitorRunning() {
+		t.Fatal("Should have exited")
 	}
 }
 
@@ -360,26 +461,259 @@ func TestSliceCopyDoesntImpactBoth(t *testing.T) {
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
-	w.unsubscribeToChannels()
+	err := w.unsubscribeToChannels()
+	if err != nil {
+		t.Error(err)
+	}
 	if len(w.subscribedChannels) != 2 {
 		t.Errorf("Unsubscription did not occur")
 	}
 	w.subscribedChannels[0].Channel = "test"
 	if strings.EqualFold(w.subscribedChannels[0].Channel, w.channelsToSubscribe[0].Channel) {
-		t.Errorf("Slice has not been copies appropriately")
+		t.Errorf("Slice has not been copied appropriately")
+	}
+}
+
+// TestSliceCopyDoesntImpactBoth logic test
+func TestGetSubscriptions(t *testing.T) {
+	w := Websocket{
+		subscribedChannels: []WebsocketChannelSubscription{
+			{
+				Channel: "hello3",
+			},
+		},
+	}
+
+	subs := w.GetSubscriptions()
+	subs[0].Channel = "noHELLO"
+	if strings.EqualFold(w.subscribedChannels[0].Channel, subs[0].Channel) {
+		t.Error("Subscriptions was not copied properly")
 	}
 }
 
 // TestSetCanUseAuthenticatedEndpoints logic test
 func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
-	w := Websocket{}
-	result := w.CanUseAuthenticatedEndpoints()
+	ws := New()
+	result := ws.CanUseAuthenticatedEndpoints()
 	if result {
 		t.Error("expected `canUseAuthenticatedEndpoints` to be false")
 	}
-	w.SetCanUseAuthenticatedEndpoints(true)
-	result = w.CanUseAuthenticatedEndpoints()
+	ws.SetCanUseAuthenticatedEndpoints(true)
+	result = ws.CanUseAuthenticatedEndpoints()
 	if !result {
 		t.Error("expected `canUseAuthenticatedEndpoints` to be true")
+	}
+}
+
+func TestRemoveSubscribedChannels(t *testing.T) {
+	w := Websocket{
+		channelsToSubscribe: []WebsocketChannelSubscription{
+			{
+				Channel: "hello3",
+			},
+		},
+	}
+
+	w.RemoveSubscribedChannels([]WebsocketChannelSubscription{{Channel: "hello3"}})
+	if len(w.channelsToSubscribe) == 1 {
+		t.Error("Did not remove subscription")
+	}
+}
+
+const (
+	websocketTestURL  = "wss://www.bitmex.com/realtime"
+	returnResponseURL = "wss://ws.kraken.com"
+	useProxyTests     = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
+	proxyURL          = "http://212.186.171.4:80" // Replace with a usable proxy server
+)
+
+var wc *WebsocketConnection
+var dialer websocket.Dialer
+
+type testStruct struct {
+	Error error
+	WC    WebsocketConnection
+}
+
+type testRequest struct {
+	Event        string          `json:"event"`
+	RequestID    int64           `json:"reqid,omitempty"`
+	Pairs        []string        `json:"pair"`
+	Subscription testRequestData `json:"subscription,omitempty"`
+}
+
+// testRequestData contains details on WS channel
+type testRequestData struct {
+	Name     string `json:"name,omitempty"`
+	Interval int64  `json:"interval,omitempty"`
+	Depth    int64  `json:"depth,omitempty"`
+}
+
+type testResponse struct {
+	RequestID int64 `json:"reqid,omitempty"`
+}
+
+// TestMain setup test
+func TestMain(m *testing.M) {
+	wc = &WebsocketConnection{
+		ExchangeName:         "test",
+		URL:                  returnResponseURL,
+		ResponseMaxLimit:     7000000000,
+		ResponseCheckTimeout: 30000000,
+	}
+	os.Exit(m.Run())
+}
+
+// TestDial logic test
+func TestDial(t *testing.T) {
+	var testCases = []testStruct{
+		{Error: nil, WC: WebsocketConnection{ExchangeName: "test1", Verbose: true, URL: websocketTestURL, RateLimit: 10, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: "", ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+	}
+	for i := 0; i < len(testCases); i++ {
+		testData := &testCases[i]
+		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+			if testData.WC.ProxyURL != "" && !useProxyTests {
+				t.Skip("Proxy testing not enabled, skipping")
+			}
+			err := testData.WC.Dial(&dialer, http.Header{})
+			if err != nil {
+				if testData.Error != nil && err.Error() == testData.Error.Error() {
+					return
+				}
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+// TestSendMessage logic test
+func TestSendMessage(t *testing.T) {
+	var testCases = []testStruct{
+		{Error: nil, WC: WebsocketConnection{ExchangeName: "test1", Verbose: true, URL: websocketTestURL, RateLimit: 10, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: "", ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
+	}
+	for i := 0; i < len(testCases); i++ {
+		testData := &testCases[i]
+		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+			if testData.WC.ProxyURL != "" && !useProxyTests {
+				t.Skip("Proxy testing not enabled, skipping")
+			}
+			err := testData.WC.Dial(&dialer, http.Header{})
+			if err != nil {
+				if testData.Error != nil && err.Error() == testData.Error.Error() {
+					return
+				}
+				t.Fatal(err)
+			}
+			err = testData.WC.SendMessage("ping")
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+// TestSendMessageWithResponse logic test
+func TestSendMessageWithResponse(t *testing.T) {
+	if wc.ProxyURL != "" && !useProxyTests {
+		t.Skip("Proxy testing not enabled, skipping")
+	}
+	err := wc.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go readMessages(wc, t)
+
+	request := testRequest{
+		Event: "subscribe",
+		Pairs: []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
+		Subscription: testRequestData{
+			Name: "ticker",
+		},
+		RequestID: wc.GenerateMessageID(false),
+	}
+	_, err = wc.SendMessageReturnResponse(request.RequestID, request)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestParseBinaryResponse logic test
+func TestParseBinaryResponse(t *testing.T) {
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	_, err := w.Write([]byte("hello"))
+	if err != nil {
+		t.Error(err)
+	}
+	err = w.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	var resp []byte
+	resp, err = wc.parseBinaryResponse(b.Bytes())
+	if err != nil {
+		t.Error(err)
+	}
+	if !strings.EqualFold(string(resp), "hello") {
+		t.Errorf("GZip conversion failed. Received: '%v', Expected: 'hello'", string(resp))
+	}
+
+	var b2 bytes.Buffer
+	w2, err2 := flate.NewWriter(&b2, 1)
+	if err2 != nil {
+		t.Error(err2)
+	}
+	_, err2 = w2.Write([]byte("hello"))
+	if err2 != nil {
+		t.Error(err)
+	}
+	err2 = w2.Close()
+	if err2 != nil {
+		t.Error(err)
+	}
+	resp2, err3 := wc.parseBinaryResponse(b2.Bytes())
+	if err3 != nil {
+		t.Error(err3)
+	}
+	if !strings.EqualFold(string(resp2), "hello") {
+		t.Errorf("GZip conversion failed. Received: '%v', Expected: 'hello'", string(resp2))
+	}
+}
+
+// TestAddResponseWithID logic test
+func TestAddResponseWithID(t *testing.T) {
+	wc.IDResponses = nil
+	wc.AddResponseWithID(0, []byte("hi"))
+	wc.AddResponseWithID(1, []byte("hi"))
+}
+
+// readMessages helper func
+func readMessages(wc *WebsocketConnection, t *testing.T) {
+	timer := time.NewTimer(20 * time.Second)
+	for {
+		select {
+		case <-timer.C:
+			return
+		default:
+			resp, err := wc.ReadMessage()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			var incoming testResponse
+			err = common.JSONDecode(resp.Raw, &incoming)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if incoming.RequestID > 0 {
+				wc.AddResponseWithID(incoming.RequestID, resp.Raw)
+				return
+			}
+		}
 	}
 }
