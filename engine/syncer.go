@@ -228,9 +228,9 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				e.CurrencyPairs[x].Ticker.HaveData = true
 				e.CurrencyPairs[x].Ticker.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
+					removedCounter++
 					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].\n",
 						exchangeName, FormatCurrency(p).String(), removedCounter, createdCounter)
-					removedCounter++
 					e.initSyncWG.Done()
 				}
 
@@ -243,9 +243,9 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				e.CurrencyPairs[x].Orderbook.HaveData = true
 				e.CurrencyPairs[x].Orderbook.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
+					removedCounter++
 					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].\n",
 						exchangeName, FormatCurrency(p).String(), removedCounter, createdCounter)
-					removedCounter++
 					e.initSyncWG.Done()
 				}
 
@@ -258,9 +258,9 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				e.CurrencyPairs[x].Trade.HaveData = true
 				e.CurrencyPairs[x].Trade.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
+					removedCounter++
 					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].\n",
 						exchangeName, FormatCurrency(p).String(), removedCounter, createdCounter)
-					removedCounter++
 					e.initSyncWG.Done()
 				}
 			}

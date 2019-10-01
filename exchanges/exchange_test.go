@@ -20,6 +20,8 @@ const (
 )
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
+	t.Parallel()
+
 	b := Base{
 		Name: "RAWR",
 		Features: Features{
@@ -38,6 +40,8 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 }
 
 func TestHTTPClient(t *testing.T) {
+	t.Parallel()
+
 	r := Base{Name: "asdf"}
 	r.SetHTTPClientTimeout(time.Second * 5)
 
@@ -77,18 +81,26 @@ func TestHTTPClient(t *testing.T) {
 	if b.GetHTTPClient().Timeout != time.Second*10 {
 		t.Fatalf("Test failed. TestHTTPClient unexpected value")
 	}
+
+	b.SetHTTPClientUserAgent("epicUserAgent")
+	if !strings.Contains(b.GetHTTPClientUserAgent(), "epicUserAgent") {
+		t.Error("user agent not set properly")
+	}
 }
 
 func TestSetClientProxyAddress(t *testing.T) {
-	requester := request.New("testicles",
+	t.Parallel()
+
+	requester := request.New("rawr",
 		&request.RateLimit{},
 		&request.RateLimit{},
 		&http.Client{})
 
-	newBase := Base{Name: "Testicles", Requester: requester}
+	newBase := Base{
+		Name:      "rawr",
+		Requester: requester}
 
 	newBase.Websocket = wshandler.New()
-
 	err := newBase.SetClientProxyAddress(":invalid")
 	if err == nil {
 		t.Error("Test failed. SetClientProxyAddress parsed invalid URL")
@@ -142,16 +154,25 @@ func TestSetAutoPairDefaults(t *testing.T) {
 }
 
 func TestSupportsAutoPairUpdates(t *testing.T) {
+	t.Parallel()
+
 	b := Base{
 		Name: "TESTNAME",
 	}
 
 	if b.SupportsAutoPairUpdates() {
-		t.Fatal("Test failed. TestSupportsAutoPairUpdates Incorrect value")
+		t.Error("exchange shouldn't support auto pair updates")
+	}
+
+	b.Features.Supports.RESTCapabilities.AutoPairUpdates = true
+	if !b.SupportsAutoPairUpdates() {
+		t.Error("exchange should support auto pair updates")
 	}
 }
 
 func TestGetLastPairsUpdateTime(t *testing.T) {
+	t.Parallel()
+
 	testTime := time.Now().Unix()
 	var b Base
 	b.CurrencyPairs.LastUpdated = testTime
@@ -202,6 +223,8 @@ func TestSetAssetTypes(t *testing.T) {
 }
 
 func TestGetAssetTypes(t *testing.T) {
+	t.Parallel()
+
 	testExchange := Base{
 		CurrencyPairs: currency.PairsManager{
 			AssetTypes: asset.Items{
@@ -266,6 +289,8 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 
 // TestGetAuthenticatedAPISupport logic test
 func TestGetAuthenticatedAPISupport(t *testing.T) {
+	t.Parallel()
+
 	base := Base{
 		API: API{
 			AuthenticatedSupport:          true,
@@ -289,6 +314,8 @@ func TestGetAuthenticatedAPISupport(t *testing.T) {
 }
 
 func TestGetName(t *testing.T) {
+	t.Parallel()
+
 	GetName := Base{
 		Name: "TESTNAME",
 	}
@@ -300,6 +327,8 @@ func TestGetName(t *testing.T) {
 }
 
 func TestGetEnabledPairs(t *testing.T) {
+	t.Parallel()
+
 	b := Base{
 		Name: "TESTNAME",
 	}
@@ -374,6 +403,8 @@ func TestGetEnabledPairs(t *testing.T) {
 }
 
 func TestGetAvailablePairs(t *testing.T) {
+	t.Parallel()
+
 	b := Base{
 		Name: "TESTNAME",
 	}
@@ -448,6 +479,8 @@ func TestGetAvailablePairs(t *testing.T) {
 }
 
 func TestSupportsPair(t *testing.T) {
+	t.Parallel()
+
 	b := Base{
 		Name: "TESTNAME",
 	}
@@ -482,6 +515,8 @@ func TestSupportsPair(t *testing.T) {
 }
 
 func TestFormatExchangeCurrencies(t *testing.T) {
+	t.Parallel()
+
 	e := Base{
 		CurrencyPairs: currency.PairsManager{
 			UseGlobalFormat: true,
@@ -509,14 +544,20 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 		t.Errorf("Test failed - Exchange TestFormatExchangeCurrencies error %s", err)
 	}
 	expected := "btc~usd^ltc~btc"
-
 	if actual != expected {
 		t.Errorf("Test failed - Exchange TestFormatExchangeCurrencies %s != %s",
 			actual, expected)
 	}
+
+	_, err = e.FormatExchangeCurrencies(nil, asset.Spot)
+	if err == nil {
+		t.Error("nil pairs should return an error")
+	}
 }
 
 func TestFormatExchangeCurrency(t *testing.T) {
+	t.Parallel()
+
 	var b Base
 	b.CurrencyPairs.UseGlobalFormat = true
 	b.CurrencyPairs.RequestFormat = &currency.PairFormat{
@@ -535,6 +576,8 @@ func TestFormatExchangeCurrency(t *testing.T) {
 }
 
 func TestSetEnabled(t *testing.T) {
+	t.Parallel()
+
 	SetEnabled := Base{
 		Name:    "TESTNAME",
 		Enabled: false,
@@ -547,6 +590,8 @@ func TestSetEnabled(t *testing.T) {
 }
 
 func TestIsEnabled(t *testing.T) {
+	t.Parallel()
+
 	IsEnabled := Base{
 		Name:    "TESTNAME",
 		Enabled: false,
@@ -559,6 +604,8 @@ func TestIsEnabled(t *testing.T) {
 
 // TestSetAPIKeys logic test
 func TestSetAPIKeys(t *testing.T) {
+	t.Parallel()
+
 	SetAPIKeys := Base{
 		Name:    "TESTNAME",
 		Enabled: false,
@@ -574,48 +621,117 @@ func TestSetAPIKeys(t *testing.T) {
 	}
 }
 
+func TestAllowAuthenticatedRequest(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		SkipAuthCheck: true,
+	}
+
+	if r := b.AllowAuthenticatedRequest(); !r {
+		t.Error("skip auth check should allow authenticated requests")
+	}
+
+	b.SkipAuthCheck = false
+	b.API.CredentialsValidator.RequiresKey = true
+	if r := b.AllowAuthenticatedRequest(); r {
+		t.Error("should fail with an empty key")
+	}
+
+}
+
+func TestValidateAPICredentials(t *testing.T) {
+	t.Parallel()
+
+	var b Base
+	type tester struct {
+		Key                        string
+		Secret                     string
+		ClientID                   string
+		PEMKey                     string
+		RequiresPEM                bool
+		RequiresKey                bool
+		RequiresSecret             bool
+		RequiresClientID           bool
+		RequiresBase64DecodeSecret bool
+		Expected                   bool
+		Result                     bool
+	}
+
+	tests := []tester{
+		// test key
+		{RequiresKey: true},
+		{RequiresKey: true, Key: "k3y", Expected: true},
+		// test secret
+		{RequiresSecret: true},
+		{RequiresSecret: true, Secret: "s3cr3t", Expected: true},
+		// test pem
+		{RequiresPEM: true},
+		{RequiresPEM: true, PEMKey: "p3mK3y", Expected: true},
+		// test clientID
+		{RequiresClientID: true},
+		{RequiresClientID: true, ClientID: "cli3nt1D", Expected: true},
+		// test requires base64 decode secret
+		{RequiresBase64DecodeSecret: true, RequiresSecret: true},
+		{RequiresBase64DecodeSecret: true, Secret: "%%", Expected: false},
+		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", Expected: true},
+	}
+
+	for x := range tests {
+		setupBase := func(b *Base, tData tester) {
+			b.API.Credentials.Key = tData.Key
+			b.API.Credentials.Secret = tData.Secret
+			b.API.Credentials.ClientID = tData.ClientID
+			b.API.Credentials.PEMKey = tData.PEMKey
+			b.API.CredentialsValidator.RequiresKey = tData.RequiresKey
+			b.API.CredentialsValidator.RequiresSecret = tData.RequiresSecret
+			b.API.CredentialsValidator.RequiresPEM = tData.RequiresPEM
+			b.API.CredentialsValidator.RequiresClientID = tData.RequiresClientID
+			b.API.CredentialsValidator.RequiresBase64DecodeSecret = tData.RequiresBase64DecodeSecret
+		}
+
+		setupBase(&b, tests[x])
+		if r := b.ValidateAPICredentials(); r != tests[x].Expected {
+			t.Errorf("Test %d: expected: %v: got %v", x, tests[x].Expected, r)
+		}
+	}
+}
+
 func TestSetPairs(t *testing.T) {
-	t.Skip()
-	// TO-DO
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	t.Parallel()
+
+	b := Base{
+		CurrencyPairs: currency.PairsManager{
+			UseGlobalFormat: true,
+			ConfigFormat: &currency.PairFormat{
+				Uppercase: true,
+			},
+		},
+		Config: &config.ExchangeConfig{
+			CurrencyPairs: &currency.PairsManager{
+				UseGlobalFormat: true,
+				ConfigFormat: &currency.PairFormat{
+					Uppercase: true,
+				},
+				Pairs: map[asset.Item]*currency.PairStore{},
+			},
+		},
+	}
+
+	if err := b.SetPairs(nil, asset.Spot, true); err == nil {
+		t.Error("nil pairs should throw an error")
+	}
+
+	pairs := currency.Pairs{
+		currency.NewPair(currency.BTC, currency.USD),
+	}
+	err := b.SetPairs(pairs, asset.Spot, true)
 	if err != nil {
-		t.Fatal("Test failed. TestSetPairs failed to load config")
+		t.Error(err)
 	}
 
-	anxCfg, err := cfg.GetExchangeConfig(defaultTestExchange)
-	if err != nil {
-		t.Fatal("Test failed. TestSetPairs failed to load config")
-	}
-
-	newPair := currency.NewPairDelimiter("ETH_USDT", "_")
-	assetType := asset.Spot
-
-	var UAC Base
-	UAC.Name = "ANX"
-	UAC.Config = anxCfg
-	err = UAC.SetupDefaults(anxCfg)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetPairs unable to set defaults: %s", err)
-	}
-
-	err = UAC.SetPairs([]currency.Pair{newPair}, asset.Spot, true)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetPairs failed to set currencies: %s", err)
-	}
-
-	if !UAC.GetEnabledPairs(assetType).Contains(newPair, true) {
-		t.Fatal("Test failed. TestSetPairs failed to set currencies")
-	}
-
-	UAC.SetPairs([]currency.Pair{newPair}, asset.Spot, false)
-	if !UAC.GetAvailablePairs(assetType).Contains(newPair, true) {
-		t.Fatal("Test failed. TestSetPairs failed to set currencies")
-	}
-
-	err = UAC.SetPairs(nil, asset.Spot, false)
-	if err == nil {
-		t.Fatal("Test failed. TestSetPairs should return an error when attempting to set an empty pairs array")
+	if p := b.GetEnabledPairs(asset.Spot); len(p) != 1 {
+		t.Error("pairs shouldn't be nil")
 	}
 }
 
@@ -686,9 +802,29 @@ func TestUpdatePairs(t *testing.T) {
 	if err == nil {
 		t.Errorf("Test failed - empty available pairs should return an error")
 	}
+
+	// Test empty pair
+	p := currency.NewPairDelimiter(defaultTestCurrencyPair, "-")
+	pairs := currency.Pairs{
+		currency.Pair{},
+		p,
+	}
+	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	if err != nil {
+		t.Errorf("Test Failed - Forced Exchange UpdatePairs() error: %s", err)
+	}
+	UAC.CurrencyPairs.UseGlobalFormat = true
+	UAC.CurrencyPairs.ConfigFormat = &currency.PairFormat{
+		Delimiter: "-",
+	}
+	if !UAC.GetEnabledPairs(asset.Spot).Contains(p, true) {
+		t.Fatal("expected currency pair not found")
+	}
 }
 
 func TestSetAPIURL(t *testing.T) {
+	t.Parallel()
+
 	testURL := "https://api.something.com"
 	testURLSecondary := "https://api.somethingelse.com"
 	testURLDefault := "https://api.defaultsomething.com"
@@ -751,7 +887,52 @@ func BenchmarkSetAPIURL(b *testing.B) {
 	}
 }
 
+func TestSupportsWebsocket(t *testing.T) {
+	t.Parallel()
+
+	var b Base
+	if b.SupportsWebsocket() {
+		t.Error("exchange doesn't support websocket")
+	}
+
+	b.Features.Supports.Websocket = true
+	if !b.SupportsWebsocket() {
+		t.Error("exchange supports websocket")
+	}
+}
+
+func TestSupportsREST(t *testing.T) {
+	t.Parallel()
+
+	var b Base
+	if b.SupportsREST() {
+		t.Error("exchange doesn't support REST")
+	}
+
+	b.Features.Supports.REST = true
+	if !b.SupportsREST() {
+		t.Error("exchange supports REST")
+	}
+}
+
+func TestIsWebsocketEnabled(t *testing.T) {
+	t.Parallel()
+
+	var b Base
+	if b.IsWebsocketEnabled() {
+		t.Error("exchange doesn't support websocket")
+	}
+
+	b.Websocket = wshandler.New()
+	b.Websocket.Setup(nil, nil, nil, "", true, false, "", "", false)
+	if !b.IsWebsocketEnabled() {
+		t.Error("websocket should be enabled")
+	}
+}
+
 func TestSupportsWithdrawPermissions(t *testing.T) {
+	t.Parallel()
+
 	UAC := Base{Name: defaultTestExchange}
 	UAC.Features.Supports.WithdrawPermissions = AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission
 	withdrawPermissions := UAC.SupportsWithdrawPermissions(AutoWithdrawCrypto)
@@ -782,6 +963,8 @@ func TestSupportsWithdrawPermissions(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
+	t.Parallel()
+
 	UAC := Base{Name: "ANX"}
 	UAC.Features.Supports.WithdrawPermissions = AutoWithdrawCrypto |
 		AutoWithdrawCryptoWithAPIPermission |
@@ -817,6 +1000,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestOrderSides(t *testing.T) {
+	t.Parallel()
+
 	var os = BuyOrderSide
 	if os.ToString() != "BUY" {
 		t.Errorf("test failed - unexpected string %s", os.ToString())
@@ -828,6 +1013,8 @@ func TestOrderSides(t *testing.T) {
 }
 
 func TestOrderTypes(t *testing.T) {
+	t.Parallel()
+
 	var ot OrderType = "Mo'Money"
 
 	if ot.ToString() != "Mo'Money" {
@@ -840,6 +1027,8 @@ func TestOrderTypes(t *testing.T) {
 }
 
 func TestFilterOrdersByType(t *testing.T) {
+	t.Parallel()
+
 	var orders = []OrderDetail{
 		{
 			OrderType: ImmediateOrCancelOrderType,
@@ -866,6 +1055,8 @@ func TestFilterOrdersByType(t *testing.T) {
 }
 
 func TestFilterOrdersBySide(t *testing.T) {
+	t.Parallel()
+
 	var orders = []OrderDetail{
 		{
 			OrderSide: BuyOrderSide,
@@ -893,6 +1084,8 @@ func TestFilterOrdersBySide(t *testing.T) {
 }
 
 func TestFilterOrdersByTickRange(t *testing.T) {
+	t.Parallel()
+
 	var orders = []OrderDetail{
 		{
 			OrderDate: time.Unix(100, 0),
@@ -927,6 +1120,8 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 }
 
 func TestFilterOrdersByCurrencies(t *testing.T) {
+	t.Parallel()
+
 	var orders = []OrderDetail{
 		{
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
@@ -968,6 +1163,8 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 }
 
 func TestSortOrdersByPrice(t *testing.T) {
+	t.Parallel()
+
 	orders := []OrderDetail{
 		{
 			Price: 100,
@@ -990,6 +1187,8 @@ func TestSortOrdersByPrice(t *testing.T) {
 }
 
 func TestSortOrdersByDate(t *testing.T) {
+	t.Parallel()
+
 	orders := []OrderDetail{
 		{
 			OrderDate: time.Unix(0, 0),
@@ -1016,6 +1215,8 @@ func TestSortOrdersByDate(t *testing.T) {
 }
 
 func TestSortOrdersByCurrency(t *testing.T) {
+	t.Parallel()
+
 	orders := []OrderDetail{
 		{
 			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
@@ -1056,6 +1257,8 @@ func TestSortOrdersByCurrency(t *testing.T) {
 }
 
 func TestSortOrdersByOrderSide(t *testing.T) {
+	t.Parallel()
+
 	orders := []OrderDetail{
 		{
 			OrderSide: BuyOrderSide,
@@ -1084,6 +1287,8 @@ func TestSortOrdersByOrderSide(t *testing.T) {
 }
 
 func TestSortOrdersByOrderType(t *testing.T) {
+	t.Parallel()
+
 	orders := []OrderDetail{
 		{
 			OrderType: MarketOrderType,
@@ -1104,5 +1309,49 @@ func TestSortOrdersByOrderType(t *testing.T) {
 	SortOrdersByType(&orders, true)
 	if !strings.EqualFold(orders[0].OrderType.ToString(), TrailingStopOrderType.ToString()) {
 		t.Errorf("Test failed. Expected: '%v', received: '%v'", TrailingStopOrderType, orders[0].OrderType)
+	}
+}
+
+func TestIsAssetTypeSupported(t *testing.T) {
+	t.Parallel()
+
+	var b Base
+	b.CurrencyPairs.AssetTypes = asset.Items{
+		asset.Spot,
+	}
+
+	if !b.IsAssetTypeSupported(asset.Spot) {
+		t.Error("spot should be supported")
+	}
+	if b.IsAssetTypeSupported(asset.Index) {
+		t.Error("index shouldn't be supported")
+	}
+}
+
+func TestPrintEnabledPairs(t *testing.T) {
+	t.Parallel()
+
+	var b Base
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Enabled: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USD),
+		},
+	}
+
+	b.PrintEnabledPairs()
+}
+func TestGetBase(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		Name: "MEOW",
+	}
+
+	p := b.GetBase()
+	p.Name = "rawr"
+
+	if b.Name != "rawr" {
+		t.Error("name should be rawr")
 	}
 }

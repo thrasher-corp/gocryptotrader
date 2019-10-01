@@ -44,7 +44,10 @@ var (
 )
 
 const (
-	DBSQLite     = "sqlite"
-	DBSQLite3    = "sqlite3"
+	// DBSQLite const string for sqlite across code base
+	DBSQLite = "sqlite"
+	// DBSQLite3 const string for sqlite3 across code base
+	DBSQLite3 = "sqlite3"
+	// DBPostgreSQL const string for PostgreSQL across code base
 	DBPostgreSQL = "postgres"
 )

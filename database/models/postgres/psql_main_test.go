@@ -233,6 +233,9 @@ func (p *pgTester) conn() (*sql.DB, error) {
 	path := filepath.Join("..", "..", "migrations")
 	err = goose.Run("up", p.dbConn, "postgres", path, "")
 	if err != nil {
+		if err == goose.ErrNoNextVersion {
+			return p.dbConn, nil
+		}
 		return nil, err
 	}
 
