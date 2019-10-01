@@ -64,7 +64,8 @@ func DropWorker() error {
 		return errors.New(errNotInitialised)
 	}
 
-	return dispatcher.dropWorker()
+	dispatcher.dropWorker()
+	return nil
 }
 
 // SpawnWorker starts a new worker routine
@@ -152,18 +153,11 @@ func (d *Dispatcher) isRunning() bool {
 }
 
 // dropWorker deallocates a worker routine
-func (d *Dispatcher) dropWorker() error {
-	oldC := atomic.LoadInt64(&d.count)
+func (d *Dispatcher) dropWorker() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	d.shutdown <- &wg
 	wg.Wait()
-	newC := atomic.LoadInt64(&d.count)
-
-	if oldC == newC {
-		return errors.New("dispatcher worker counts are off")
-	}
-	return nil
 }
 
 // spawnWorker allocates a new worker for job processing
