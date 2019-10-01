@@ -79,11 +79,9 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 				err)
 		}
 
-		err = e.Requester.SetProxy(proxy)
-		if err != nil {
-			return fmt.Errorf("exchange.go - setting proxy address error %s",
-				err)
-		}
+		// No needs to check err here as the only err condition is an empty
+		// string which is already checked above
+		e.Requester.SetProxy(proxy)
 
 		if e.Websocket != nil {
 			err = e.Websocket.SetProxyAddress(addr)
@@ -253,12 +251,10 @@ func (e *Base) SetCurrencyPairFormat() {
 	}
 
 	e.Config.CurrencyPairs.UseGlobalFormat = e.CurrencyPairs.UseGlobalFormat
-
 	if e.Config.CurrencyPairs.UseGlobalFormat {
 		if e.Config.CurrencyPairs.ConfigFormat == nil {
 			e.Config.CurrencyPairs.ConfigFormat = e.CurrencyPairs.ConfigFormat
 		}
-
 		if e.Config.CurrencyPairs.RequestFormat == nil {
 			e.Config.CurrencyPairs.RequestFormat = e.CurrencyPairs.RequestFormat
 		}
@@ -268,7 +264,6 @@ func (e *Base) SetCurrencyPairFormat() {
 	if e.Config.CurrencyPairs.ConfigFormat != nil {
 		e.Config.CurrencyPairs.ConfigFormat = nil
 	}
-
 	if e.Config.CurrencyPairs.RequestFormat != nil {
 		e.Config.CurrencyPairs.RequestFormat = nil
 	}
@@ -401,6 +396,7 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
 			log.Warnf(log.ExchangeSys, warningBase64DecryptSecretKeyFailed, e.Name)
+			return
 		}
 		e.API.Credentials.Secret = string(result)
 	} else {
