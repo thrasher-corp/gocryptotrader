@@ -115,8 +115,119 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("Test failed. SetClientProxyAddress error", err)
 	}
 
+	// calling this again will cause the ws check to fail
+	err = newBase.SetClientProxyAddress("www.valid.com")
+	if err == nil {
+		t.Error("trying to set the same proxy addr should thrown an err for ws")
+	}
+
 	if newBase.Websocket.GetProxyAddress() != "www.valid.com" {
 		t.Error("Test failed. SetClientProxyAddress error", err)
+	}
+}
+
+func TestSetFeatureDefaults(t *testing.T) {
+	t.Parallel()
+
+	// Test nil features with basic support capabilities
+	b := Base{
+		Config: &config.ExchangeConfig{
+			CurrencyPairs: &currency.PairsManager{},
+		},
+		Features: Features{
+			Supports: FeaturesSupported{
+				REST: true,
+				RESTCapabilities: ProtocolFeatures{
+					TickerBatching: true,
+				},
+				Websocket: true,
+			},
+		},
+	}
+	b.SetFeatureDefaults()
+	if !b.Config.Features.Supports.REST && b.Config.CurrencyPairs.LastUpdated == 0 {
+		t.Error("incorrect values")
+	}
+
+	// Test upgrade when SupportsAutoPairUpdates is enabled
+	bptr := func(a bool) *bool { return &a }
+	b.Config.Features = nil
+	b.Config.SupportsAutoPairUpdates = bptr(true)
+	b.SetFeatureDefaults()
+	if !b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates &&
+		!b.Features.Enabled.AutoPairUpdates {
+		t.Error("incorrect values")
+	}
+
+	// Test non migrated features config
+	b.Config.Features.Supports.REST = false
+	b.Config.Features.Supports.RESTCapabilities.TickerBatching = false
+	b.Config.Features.Supports.Websocket = false
+	b.SetFeatureDefaults()
+
+	if !b.Features.Supports.REST ||
+		!b.Features.Supports.RESTCapabilities.TickerBatching ||
+		!b.Features.Supports.Websocket {
+		t.Error("incorrect values")
+	}
+}
+
+func TestSetAPICredentialDefaults(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		Config: &config.ExchangeConfig{},
+	}
+	b.API.CredentialsValidator.RequiresKey = true
+	b.API.CredentialsValidator.RequiresSecret = true
+	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+	b.API.CredentialsValidator.RequiresClientID = true
+	b.API.CredentialsValidator.RequiresPEM = true
+	b.SetAPICredentialDefaults()
+
+	if !b.Config.API.CredentialsValidator.RequiresKey ||
+		!b.Config.API.CredentialsValidator.RequiresSecret ||
+		!b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret ||
+		!b.Config.API.CredentialsValidator.RequiresClientID ||
+		!b.Config.API.CredentialsValidator.RequiresPEM {
+		t.Error("incorrect values")
+	}
+}
+
+func TestSetHTTPRateLimiter(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		Config: &config.ExchangeConfig{},
+		Requester: request.New("asdf",
+			request.NewRateLimit(time.Second*5, 10),
+			request.NewRateLimit(time.Second*10, 15),
+			common.NewHTTPClientWithTimeout(DefaultHTTPTimeout)),
+	}
+	b.SetHTTPRateLimiter()
+	if b.Requester.GetRateLimit(true).Duration.String() != "5s" &&
+		b.Requester.GetRateLimit(true).Rate != 10 &&
+		b.Requester.GetRateLimit(false).Duration.String() != "10s" &&
+		b.Requester.GetRateLimit(false).Rate != 15 {
+		t.Error("rate limiter not set properly")
+	}
+
+	b.Config.HTTPRateLimiter = &config.HTTPRateLimitConfig{
+		Unauthenticated: config.HTTPRateConfig{
+			Duration: time.Second * 100,
+			Rate:     100,
+		},
+		Authenticated: config.HTTPRateConfig{
+			Duration: time.Second * 110,
+			Rate:     150,
+		},
+	}
+	b.SetHTTPRateLimiter()
+	if b.Requester.GetRateLimit(true).Duration.String() != "1m50s" &&
+		b.Requester.GetRateLimit(true).Rate != 150 &&
+		b.Requester.GetRateLimit(false).Duration.String() != "1m40s" &&
+		b.Requester.GetRateLimit(false).Rate != 100 {
+		t.Error("rate limiter not set properly")
 	}
 }
 
@@ -183,42 +294,33 @@ func TestGetLastPairsUpdateTime(t *testing.T) {
 }
 
 func TestSetAssetTypes(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAssetTypes failed to load config file. Error: %s", err)
-	}
+	t.Parallel()
 
 	b := Base{
-		Name: "TESTNAME",
+		Config: &config.ExchangeConfig{
+			CurrencyPairs: &currency.PairsManager{},
+		},
+		CurrencyPairs: currency.PairsManager{
+			AssetTypes: asset.Items{
+				asset.Spot,
+				asset.Binary,
+				asset.Futures,
+			},
+		},
 	}
-
-	b.Name = "ANX"
-	b.CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
-	exch, err := cfg.GetExchangeConfig(b.Name)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAssetTypes load config failed. Error %s", err)
-	}
-
-	exch.CurrencyPairs.AssetTypes = asset.New("")
-	err = cfg.UpdateExchangeConfig(exch)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAssetTypes update config failed. Error %s", err)
-	}
-
-	exch, err = cfg.GetExchangeConfig(b.Name)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAssetTypes load config failed. Error %s", err)
-	}
-	b.Config = exch
-
-	if exch.CurrencyPairs.AssetTypes.JoinToString(",") != "" {
-		t.Fatal("Test failed. TestSetAssetTypes assetTypes != ''")
-	}
-
 	b.SetAssetTypes()
-	if !common.StringDataCompare(b.CurrencyPairs.AssetTypes.Strings(), asset.Spot.String()) {
-		t.Fatal("Test failed. TestSetAssetTypes assetTypes is not set")
+	if len(b.GetAssetTypes()) != 3 {
+		t.Error("incorrect assets len")
+	}
+
+	b.CurrencyPairs.AssetTypes = append(b.CurrencyPairs.AssetTypes,
+		asset.PerpetualSwap)
+	b.Config.CurrencyPairs.AssetTypes = asset.Items{
+		asset.Index,
+	}
+	b.SetAssetTypes()
+	if len(b.GetAssetTypes()) != 4 {
+		t.Error("incorrect assets len")
 	}
 }
 
@@ -241,49 +343,99 @@ func TestGetAssetTypes(t *testing.T) {
 	}
 }
 
-func TestSetCurrencyPairFormat(t *testing.T) {
-	t.Skip()
-	// TO-DO
+func TestGetClientBankAccounts(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile, true)
 	if err != nil {
-		t.Fatalf("Test failed. TestSetCurrencyPairFormat failed to load config file. Error: %s", err)
+		t.Fatal(err)
 	}
+
+	var b Base
+	var r config.BankAccount
+	r, err = b.GetClientBankAccounts("Kraken", "USD")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r.BankName != "test" {
+		t.Error("incorrect bank name")
+	}
+
+	r, err = b.GetClientBankAccounts("MEOW", "USD")
+	if err == nil {
+		t.Error("an error should of been thrown for a non-existent exchange")
+	}
+}
+
+func TestGetExchangeBankAccounts(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var b Base
+	var r config.BankAccount
+	r, err = b.GetExchangeBankAccounts("Bitfinex", "USD")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r.BankName != "Deutsche Bank Privat Und Geschaeftskunden AG" {
+		t.Error("incorrect bank name")
+	}
+
+	_, err = b.GetExchangeBankAccounts("MEOW", "USD")
+	if err == nil {
+		t.Error("an error should of been thrown for a non-existent exchange")
+	}
+}
+
+func TestSetCurrencyPairFormat(t *testing.T) {
+	t.Parallel()
 
 	b := Base{
-		Name: "TESTNAME",
+		Config: &config.ExchangeConfig{},
 	}
-
-	b.Name = "ANX"
-	exch, err := cfg.GetExchangeConfig(b.Name)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetCurrencyPairFormat load config failed. Error %s", err)
-	}
-	b.Config = exch
 	b.SetCurrencyPairFormat()
-	if exch.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter != "-" && !exch.CurrencyPairs.ConfigFormat.Uppercase {
-		t.Fatal("Test failed. TestSetCurrencyPairFormat exch values are not nil")
+	if b.Config.CurrencyPairs == nil {
+		t.Error("CurrencyPairs shouldn't be nil")
 	}
 
-	exch.CurrencyPairs.ConfigFormat = nil
-	exch.CurrencyPairs.RequestFormat = nil
-	err = cfg.UpdateExchangeConfig(exch)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetCurrencyPairFormat update config failed. Error %s", err)
+	// Test global format logic
+	b.Config.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.UseGlobalFormat = true
+	pFmt := &currency.PairFormat{
+		Delimiter: "#",
 	}
-
-	exch, err = cfg.GetExchangeConfig(b.Name)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetCurrencyPairFormat load config failed. Error %s", err)
-	}
-
-	if exch.CurrencyPairs.ConfigFormat != nil && exch.CurrencyPairs.RequestFormat != nil {
-		t.Fatal("Test failed. TestSetCurrencyPairFormat exch values are not nil")
-	}
-
+	b.CurrencyPairs.RequestFormat = pFmt
+	b.CurrencyPairs.ConfigFormat = pFmt
 	b.SetCurrencyPairFormat()
-	if exch.CurrencyPairs.Get(asset.Spot).ConfigFormat.Delimiter != "-" && !exch.CurrencyPairs.ConfigFormat.Uppercase {
-		t.Fatal("Test failed. TestSetCurrencyPairFormat exch values are not nil")
+	if b.GetPairFormat(asset.Spot, true).Delimiter != "#" {
+		t.Error("incorrect pair format delimiter")
+	}
+
+	// Test individual asset type formatting logic
+	b.CurrencyPairs.UseGlobalFormat = false
+	// This will generate a nil pair store
+	b.CurrencyPairs.AssetTypes = asset.Items{asset.Index}
+	// Store non-nil pair stores
+	b.CurrencyPairs.Store(asset.Spot, currency.PairStore{
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: "~",
+		},
+	})
+	b.CurrencyPairs.Store(asset.Futures, currency.PairStore{
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: ":)",
+		},
+	})
+	b.SetCurrencyPairFormat()
+	if b.GetPairFormat(asset.Spot, false).Delimiter != "~" {
+		t.Error("incorrect pair format delimiter")
+	}
+	if b.GetPairFormat(asset.Futures, false).Delimiter != ":)" {
+		t.Error("incorrect pair format delimiter")
 	}
 }
 
@@ -316,13 +468,76 @@ func TestGetAuthenticatedAPISupport(t *testing.T) {
 func TestGetName(t *testing.T) {
 	t.Parallel()
 
-	GetName := Base{
+	b := Base{
 		Name: "TESTNAME",
 	}
 
-	name := GetName.GetName()
+	name := b.GetName()
 	if name != "TESTNAME" {
 		t.Error("Test Failed - Exchange GetName() returned incorrect name")
+	}
+}
+
+func TestGetFeatures(t *testing.T) {
+	t.Parallel()
+
+	// Test GetEnabledFeatures
+	var b Base
+	if b.GetEnabledFeatures().AutoPairUpdates {
+		t.Error("auto pair updates should be disabled")
+	}
+	b.Features.Enabled.AutoPairUpdates = true
+	if !b.GetEnabledFeatures().AutoPairUpdates {
+		t.Error("auto pair updates should be enabled")
+	}
+
+	// Test GetSupportedFeatures
+	b.Features.Supports.RESTCapabilities.AutoPairUpdates = true
+	if !b.GetSupportedFeatures().RESTCapabilities.AutoPairUpdates {
+		t.Error("auto pair updates should be supported")
+	}
+	if b.GetSupportedFeatures().RESTCapabilities.TickerBatching {
+		t.Error("ticker batching shouldn't be supported")
+	}
+}
+
+func TestGetPairFormat(t *testing.T) {
+	t.Parallel()
+
+	// Test global formatting
+	var b Base
+	b.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.ConfigFormat = &currency.PairFormat{
+		Uppercase: true,
+	}
+	b.CurrencyPairs.RequestFormat = &currency.PairFormat{
+		Delimiter: "~",
+	}
+	pFmt := b.GetPairFormat(asset.Spot, true)
+	if pFmt.Delimiter != "~" && !pFmt.Uppercase {
+		t.Error("incorrect pair format values")
+	}
+	pFmt = b.GetPairFormat(asset.Spot, false)
+	if pFmt.Delimiter != "" && pFmt.Uppercase {
+		t.Error("incorrect pair format values")
+	}
+
+	// Test individual asset pair store formatting
+	b.CurrencyPairs.UseGlobalFormat = false
+	b.CurrencyPairs.Store(asset.Spot, currency.PairStore{
+		ConfigFormat: &pFmt,
+		RequestFormat: &currency.PairFormat{
+			Delimiter: "/",
+			Uppercase: true,
+		},
+	})
+	pFmt = b.GetPairFormat(asset.Spot, false)
+	if pFmt.Delimiter != "" && pFmt.Uppercase {
+		t.Error("incorrect pair format values")
+	}
+	pFmt = b.GetPairFormat(asset.Spot, true)
+	if pFmt.Delimiter != "~" && !pFmt.Uppercase {
+		t.Error("incorrect pair format values")
 	}
 }
 
@@ -606,7 +821,7 @@ func TestIsEnabled(t *testing.T) {
 func TestSetAPIKeys(t *testing.T) {
 	t.Parallel()
 
-	SetAPIKeys := Base{
+	b := Base{
 		Name:    "TESTNAME",
 		Enabled: false,
 		API: API{
@@ -615,9 +830,82 @@ func TestSetAPIKeys(t *testing.T) {
 		},
 	}
 
-	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007")
-	if SetAPIKeys.API.Credentials.Key != "RocketMan" && SetAPIKeys.API.Credentials.Secret != "Digereedoo" && SetAPIKeys.API.Credentials.ClientID != "007" {
-		t.Error("Test Failed - SetAPIKeys() unable to set API credentials")
+	b.SetAPIKeys("RocketMan", "Digereedoo", "007")
+	if b.API.Credentials.Key != "RocketMan" && b.API.Credentials.Secret != "Digereedoo" && b.API.Credentials.ClientID != "007" {
+		t.Error("invalid API credentials")
+	}
+
+	// Invalid secret
+	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+	b.API.AuthenticatedSupport = true
+	b.SetAPIKeys("RocketMan", "%%", "007")
+	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
+		t.Error("invalid secret should disable authenticated API support")
+	}
+
+	// valid secret
+	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+	b.API.AuthenticatedSupport = true
+	b.SetAPIKeys("RocketMan", "aGVsbG8gd29ybGQ=", "007")
+	if !b.API.AuthenticatedSupport && b.API.Credentials.Secret != "hello world" {
+		t.Error("invalid secret should disable authenticated API support")
+	}
+}
+
+func TestSetupDefaults(t *testing.T) {
+	t.Parallel()
+
+	var b Base
+	cfg := config.ExchangeConfig{
+		HTTPTimeout: time.Duration(-1),
+		API: config.APIConfig{
+			AuthenticatedSupport: true,
+		},
+	}
+	if err := b.SetupDefaults(&cfg); err != nil {
+		t.Error(err)
+	}
+	if cfg.HTTPTimeout.String() != "15s" {
+		t.Error("HTTP timeout should be set to 15s")
+	}
+
+	// Test custom HTTP timeout is set
+	cfg.HTTPTimeout = time.Second * 30
+	if err := b.SetupDefaults(&cfg); err != nil {
+		t.Error(err)
+	}
+	if cfg.HTTPTimeout.String() != "30s" {
+		t.Error("HTTP timeout should be set to 30s")
+	}
+
+	// Test asset types
+	p := currency.NewPairDelimiter(defaultTestCurrencyPair, "-")
+	b.CurrencyPairs.Store(asset.Spot,
+		currency.PairStore{
+			Enabled: currency.Pairs{
+				p,
+			},
+		},
+	)
+	if err := b.SetupDefaults(&cfg); err != nil {
+		t.Error(err)
+	}
+	ps := cfg.CurrencyPairs.Get(asset.Spot)
+	if !ps.Enabled.Contains(p, true) {
+		t.Error("default pair should be stored in the configs pair store")
+	}
+
+	// Test websocket support
+	b.Websocket = wshandler.New()
+	b.Features.Supports.Websocket = true
+	if err := b.SetupDefaults(&cfg); err != nil {
+		t.Error(err)
+	}
+	b.Websocket.Setup(&wshandler.WebsocketSetup{
+		Enabled: true,
+	})
+	if !b.IsWebsocketEnabled() {
+		t.Error("websocket should be enabled")
 	}
 }
 
@@ -628,16 +916,39 @@ func TestAllowAuthenticatedRequest(t *testing.T) {
 		SkipAuthCheck: true,
 	}
 
+	// Test SkipAuthCheck
 	if r := b.AllowAuthenticatedRequest(); !r {
 		t.Error("skip auth check should allow authenticated requests")
 	}
 
+	// Test credentials failure
 	b.SkipAuthCheck = false
 	b.API.CredentialsValidator.RequiresKey = true
 	if r := b.AllowAuthenticatedRequest(); r {
 		t.Error("should fail with an empty key")
 	}
 
+	// Test bot usage with authenticated API support disabled, but with
+	// valid credentials
+	b.LoadedByConfig = true
+	b.API.Credentials.Key = "k3y"
+	if r := b.AllowAuthenticatedRequest(); r {
+		t.Error("should fail when authenticated support is disabled")
+	}
+
+	// Test enabled authenticated API support and loaded by config
+	// but invalid credentials
+	b.API.AuthenticatedSupport = true
+	b.API.Credentials.Key = ""
+	if r := b.AllowAuthenticatedRequest(); r {
+		t.Error("should fail with invalid credentials")
+	}
+
+	// Finally a valid one
+	b.API.Credentials.Key = "k3y"
+	if r := b.AllowAuthenticatedRequest(); !r {
+		t.Error("show allow an authenticated request")
+	}
 }
 
 func TestValidateAPICredentials(t *testing.T) {
@@ -742,12 +1053,12 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal("Test failed. TestUpdatePairs failed to load config")
 	}
 
-	anxCfg, err := cfg.GetExchangeConfig("ANX")
+	anxCfg, err := cfg.GetExchangeConfig(defaultTestExchange)
 	if err != nil {
 		t.Fatal("Test failed. TestUpdatePairs failed to load config")
 	}
 
-	UAC := Base{Name: "ANX"}
+	UAC := Base{Name: defaultTestExchange}
 	UAC.Config = anxCfg
 	exchangeProducts := currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud", ""})
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
@@ -770,7 +1081,7 @@ func TestUpdatePairs(t *testing.T) {
 
 	// Test updating exchange products
 	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud"})
-	UAC.Name = "ANX"
+	UAC.Name = defaultTestExchange
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
 		t.Errorf("Test Failed - Exchange UpdatePairs() error: %s", err)
@@ -924,7 +1235,10 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	}
 
 	b.Websocket = wshandler.New()
-	b.Websocket.Setup(nil, nil, nil, "", true, false, "", "", false)
+	err := b.Websocket.Setup(&wshandler.WebsocketSetup{Enabled: true})
+	if err != nil {
+		t.Error(err)
+	}
 	if !b.IsWebsocketEnabled() {
 		t.Error("websocket should be enabled")
 	}
@@ -965,7 +1279,7 @@ func TestSupportsWithdrawPermissions(t *testing.T) {
 func TestFormatWithdrawPermissions(t *testing.T) {
 	t.Parallel()
 
-	UAC := Base{Name: "ANX"}
+	UAC := Base{Name: defaultTestExchange}
 	UAC.Features.Supports.WithdrawPermissions = AutoWithdrawCrypto |
 		AutoWithdrawCryptoWithAPIPermission |
 		AutoWithdrawCryptoWithSetup |

@@ -354,38 +354,11 @@ func Websocketshutdown(ws *wshandler.Websocket) error {
 	}
 }
 
-// streamDiversion is a diversion switch from websocket to REST or other
-// alternative feed
-func streamDiversion(ws *wshandler.Websocket) {
-	wg.Add(1)
-	defer wg.Done()
-
-	for {
-		select {
-		case <-shutdowner:
-			return
-
-		case <-ws.Connected:
-			if Bot.Settings.Verbose {
-				log.Debugf(log.WebsocketMgr, "exchange %s websocket feed connected\n", ws.GetName())
-			}
-
-		case <-ws.Disconnected:
-			if Bot.Settings.Verbose {
-				log.Debugf(log.WebsocketMgr, "exchange %s websocket feed disconnected, switching to REST functionality\n",
-					ws.GetName())
-			}
-		}
-	}
-}
-
 // WebsocketDataHandler handles websocket data coming from a websocket feed
 // associated with an exchange
 func WebsocketDataHandler(ws *wshandler.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
-
-	go streamDiversion(ws)
 
 	for {
 		select {
@@ -407,14 +380,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 				}
 
 			case error:
-				switch {
-				case strings.Contains(d.Error(), "close 1006"):
-					go ws.WebsocketReset()
-					continue
-				default:
-					log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
-				}
-
+				log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
 			case wshandler.TradeData:
 				// Trade Data
 				// if Bot.Settings.Verbose {

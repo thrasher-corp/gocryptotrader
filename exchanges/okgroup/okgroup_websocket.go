@@ -193,6 +193,9 @@ func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
 			return
 
 		case <-ticker.C:
+			if !o.Websocket.IsConnected() {
+				continue
+			}
 			err := o.WebsocketConn.Connection.WriteMessage(websocket.TextMessage, []byte("ping"))
 			if o.Verbose {
 				log.Debugf(log.ExchangeSys, "%v sending ping", o.GetName())
@@ -221,7 +224,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 		default:
 			resp, err := o.WebsocketConn.ReadMessage()
 			if err != nil {
-				o.Websocket.DataHandler <- err
+				o.Websocket.ReadMessageErrors <- err
 				return
 			}
 			o.Websocket.TrafficAlert <- struct{}{}
@@ -475,7 +478,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 		ExchangeName: o.GetName(),
 	}
 
-	err := o.Websocket.Orderbook.LoadSnapshot(&newOrderBook, true)
+	err := o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}

@@ -54,7 +54,7 @@ func (c *CoinbasePro) WsHandleData() {
 		default:
 			resp, err := c.WebsocketConn.ReadMessage()
 			if err != nil {
-				c.Websocket.DataHandler <- err
+				c.Websocket.ReadMessageErrors <- err
 				return
 			}
 			c.Websocket.TrafficAlert <- struct{}{}
@@ -217,7 +217,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	base.AssetType = asset.Spot
 	base.Pair = pair
 
-	err := c.Websocket.Orderbook.LoadSnapshot(&base, false)
+	err := c.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
 		return err
 	}
