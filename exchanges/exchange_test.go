@@ -924,7 +924,10 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	}
 
 	b.Websocket = wshandler.New()
-	b.Websocket.Setup(nil, nil, nil, "", true, false, "", "", false)
+	err := b.Websocket.Setup(&wshandler.WebsocketSetup{Enabled: true})
+	if err != nil {
+		t.Error(err)
+	}
 	if !b.IsWebsocketEnabled() {
 		t.Error("websocket should be enabled")
 	}
