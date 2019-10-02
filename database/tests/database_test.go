@@ -9,7 +9,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-
 	psqlConn "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	sqliteConn "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 )
@@ -56,21 +55,20 @@ func getConnectionDetails() *database.Config {
 		Enabled:           true,
 		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
-			//Host:     "localhost",
+			//Host:     "",
 			//Port:     5432,
-			//Username: "gct",
+			//Username: "",
 			//Password: "",
-			//Database: "gct-dev",
+			//Database: "",
 			//SSLMode:  "",
 		},
 	}
 }
 
 func TestMain(m *testing.M) {
-
+	var err error
 	postgresTestDatabase = getConnectionDetails()
 
-	var err error
 	tempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)

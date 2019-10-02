@@ -28,6 +28,20 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ##### Prerequisites
 
+[SQLBoiler](https://github.com/thrasher-corp/sqlboiler)
+```shell script
+go get -u https://github.com/thrasher-corp/sqlboiler
+```
+
+[Postgres Driver](https://github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql)
+```shell script
+go get -u https://github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql
+```
+
+[SQLite Driver](https://github.com/thrasher-corp/sqlboiler-sqlite3)
+```shell script
+go get -u https://github.com/thrasher-corp/sqlboiler-sqlite3
+```
 
 ##### Create and Run migrations
  Migrations are created using a modified version of [Goose](https://github.com/thrasher-corp/goose) 
@@ -36,24 +50,37 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
  
 + Check current database version with the "status" command
 ```shell script
-go run ./cmd/dbmigrate -command status
+dbmigrate -command status
 ```
+
+
 + Create a new migration
 ```sh
-go run ./cmd/dbmigrate -command "create" -args "somemodel"
+dbmigrate -command "create" -args "model"
 ```
 _This will create a folder in the ./database/migration folder that contains postgres.sql and sqlite.sql files_
  + Run dbmigrate command with -command up 
 ```shell script
-go run ./cmd/dbmigrate -command "up"
+dbmigrate -command "up"
 ```
+
+dbmigrate provides a -migrationdir flag override to tell it what path to look in for migrations
+
 ##### Adding a new model
 Model's are generated using [SQLBoiler](https://github.com/thrasher-corp/sqlboiler) 
-A helper tool has been made located in ./cmd/gen_sqlboiler_config that will parse your GoCryptoTrader config and output a SQLBoiler config
+A helper tool has been made located in gen_sqlboiler_config that will parse your GoCryptoTrader config and output a SQLBoiler config
 
 ```sh
-go run ./cmd/gen_sqlboiler_config
+gen_sqlboiler_config
 ```
+
+By default this will look in your gocryptotrader data folder and default config, these can be overwritten along with thel locatio nof the  sqlboiler generated config
+```shell script
+-config "configname.json"
+-datadir "~/.gocryptotrader/"
+-outdir "~/.gocryptotrader/"
+```
+
 
 Generate a new model that gets placed in ./database/models/<databasetype> folder
 

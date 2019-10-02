@@ -19,6 +19,7 @@ import (
 var (
 	configFile     string
 	defaultDataDir string
+	outputFolder   string
 )
 
 var sqlboilerConfig map[string]driverConfig
@@ -47,28 +48,30 @@ func main() {
 
 	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
+	flag.StringVar(&outputFolder, "outdir", "", "overwrite default output folder")
+	flag.Parse()
 
 	conf := config.GetConfig()
 
 	err = conf.LoadConfig(configFile, true)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	convertGCTtoSQLBoilerConfig(&conf.Database)
 
 	jsonOutput, err := json.MarshalIndent(sqlboilerConfig, "", " ")
-
 	if err != nil {
 		fmt.Printf("Marshal failed: %v", err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
-	err = ioutil.WriteFile("sqlboiler.json", jsonOutput, 0644)
+	path := filepath.Join(outputFolder, "sqlboiler.json")
+	err = ioutil.WriteFile(path, jsonOutput, 0644)
 	if err != nil {
 		fmt.Printf("Write failed: %v", err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 	fmt.Println("sqlboiler.json file created")
 }
