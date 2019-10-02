@@ -78,7 +78,7 @@ func writeAudit(t *testing.T) {
 	t.Helper()
 	var wg sync.WaitGroup
 
-	for x := 0; x < 200; x++ {
+	for x := 0; x < 20; x++ {
 		wg.Add(1)
 
 		go func(x int) {

@@ -35,7 +35,6 @@ func openDbConnection(driver string) (err error) {
 		return nil
 	} else if driver == database.DBSQLite || driver == database.DBSQLite3 {
 		dbConn, err = dbsqlite3.Connect()
-
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
