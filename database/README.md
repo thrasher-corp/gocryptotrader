@@ -53,7 +53,6 @@ go get -u https://github.com/thrasher-corp/sqlboiler-sqlite3
 dbmigrate -command status
 ```
 
-
 + Create a new migration
 ```sh
 dbmigrate -command "create" -args "model"
@@ -74,7 +73,9 @@ A helper tool has been made located in gen_sqlboiler_config that will parse your
 gen_sqlboiler_config
 ```
 
-By default this will look in your gocryptotrader data folder and default config, these can be overwritten along with thel locatio nof the  sqlboiler generated config
+By default this will look in your gocryptotrader data folder and default config, these can be overwritten 
+along with the location of the  sqlboiler generated config
+
 ```shell script
 -config "configname.json"
 -datadir "~/.gocryptotrader/"
