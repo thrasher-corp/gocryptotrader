@@ -26,6 +26,7 @@ const (
 
 func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, bids []orderbook.Item, err error) {
 	var snapShot1 orderbook.Base
+	snapShot1.ExchangeName = exchangeName
 	curr = currency.NewPairFromString("BTCUSD")
 	asks = []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 6},
@@ -37,19 +38,28 @@ func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, b
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = curr
-	obl = &WebsocketOrderbookLocal{}
+	obl = &WebsocketOrderbookLocal{exchangeName: exchangeName}
 	err = obl.LoadSnapshot(&snapShot1)
 	return
 }
 
-// BenchmarkBufferPerformance demonstrates buffer more performant than multi process calls
+// BenchmarkBufferPerformance demonstrates buffer more performant than multi
+// process calls
 func BenchmarkBufferPerformance(b *testing.B) {
 	obl, curr, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.sortBuffer = true
+	cp := currency.NewPairFromString("BTCUSD")
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
+	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
 	update := &WebsocketOrderbookUpdate{
 		Bids:         bids,
 		Asks:         asks,
@@ -74,7 +84,6 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.sortBuffer = true
 	obl.bufferEnabled = true
 	obl.obBufferLimit = 5
@@ -96,13 +105,22 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	}
 }
 
-// BenchmarkNoBufferPerformance demonstrates orderbook process less performant than buffer
+// BenchmarkNoBufferPerformance demonstrates orderbook process less performant
+// than buffer
 func BenchmarkNoBufferPerformance(b *testing.B) {
 	obl, curr, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
+	cp := currency.NewPairFromString("BTCUSD")
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
+	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
 	update := &WebsocketOrderbookUpdate{
 		Bids:         bids,
 		Asks:         asks,
@@ -127,7 +145,6 @@ func TestHittingTheBuffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.bufferEnabled = true
 	obl.obBufferLimit = 5
 	for i := 0; i < len(itemArray); i++ {
@@ -146,10 +163,12 @@ func TestHittingTheBuffer(t *testing.T) {
 	}
 	if len(obl.ob[curr][asset.Spot].Asks) != 3 {
 		t.Log(obl.ob[curr][asset.Spot])
-		t.Errorf("expected 3 entries, received: %v", len(obl.ob[curr][asset.Spot].Asks))
+		t.Errorf("expected 3 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Asks))
 	}
 	if len(obl.ob[curr][asset.Spot].Bids) != 3 {
-		t.Errorf("expected 3 entries, received: %v", len(obl.ob[curr][asset.Spot].Bids))
+		t.Errorf("expected 3 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Bids))
 	}
 }
 
@@ -159,7 +178,6 @@ func TestInsertWithIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.bufferEnabled = true
 	obl.updateEntriesByID = true
 	obl.obBufferLimit = 5
@@ -179,10 +197,12 @@ func TestInsertWithIDs(t *testing.T) {
 		}
 	}
 	if len(obl.ob[curr][asset.Spot].Asks) != 6 {
-		t.Errorf("expected 6 entries, received: %v", len(obl.ob[curr][asset.Spot].Asks))
+		t.Errorf("expected 6 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Asks))
 	}
 	if len(obl.ob[curr][asset.Spot].Bids) != 6 {
-		t.Errorf("expected 6 entries, received: %v", len(obl.ob[curr][asset.Spot].Bids))
+		t.Errorf("expected 6 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Bids))
 	}
 }
 
@@ -192,7 +212,6 @@ func TestSortIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.bufferEnabled = true
 	obl.sortBufferByUpdateIDs = true
 	obl.sortBuffer = true
@@ -212,10 +231,12 @@ func TestSortIDs(t *testing.T) {
 		}
 	}
 	if len(obl.ob[curr][asset.Spot].Asks) != 3 {
-		t.Errorf("expected 6 entries, received: %v", len(obl.ob[curr][asset.Spot].Asks))
+		t.Errorf("expected 3 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Asks))
 	}
 	if len(obl.ob[curr][asset.Spot].Bids) != 3 {
-		t.Errorf("expected 6 entries, received: %v", len(obl.ob[curr][asset.Spot].Bids))
+		t.Errorf("expected 3 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Bids))
 	}
 }
 
@@ -225,7 +246,16 @@ func TestDeleteWithIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
+
+	cp := currency.NewPairFromString("BTCUSD")
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
+	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
 	obl.updateEntriesByID = true
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
@@ -243,10 +273,12 @@ func TestDeleteWithIDs(t *testing.T) {
 		}
 	}
 	if len(obl.ob[curr][asset.Spot].Asks) != 0 {
-		t.Errorf("expected 0 entries, received: %v", len(obl.ob[curr][asset.Spot].Asks))
+		t.Errorf("expected 0 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Asks))
 	}
-	if len(obl.ob[curr][asset.Spot].Bids) != 0 {
-		t.Errorf("expected 0 entries, received: %v", len(obl.ob[curr][asset.Spot].Bids))
+	if len(obl.ob[curr][asset.Spot].Bids) != 1 {
+		t.Errorf("expected 1 entries, received: %v",
+			len(obl.ob[curr][asset.Spot].Bids))
 	}
 }
 
@@ -256,7 +288,6 @@ func TestUpdateWithIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.updateEntriesByID = true
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
@@ -288,11 +319,10 @@ func TestOutOfOrderIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6}
+	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6, 7}
 	if itemArray[0][0].Price != 1000 {
 		t.Errorf("expected sorted price to be 3000, received: %v", itemArray[1][0].Price)
 	}
-	obl.exchangeName = exchangeName
 	obl.bufferEnabled = true
 	obl.sortBuffer = true
 	obl.obBufferLimit = 5
@@ -366,7 +396,8 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error running update with no snapshot loaded")
 	}
-	if err.Error() != fmt.Sprintf("%v cannot have bids and ask targets both nil", exchangeName) {
+	if err.Error() != fmt.Sprintf("%v cannot have bids and ask targets both nil",
+		exchangeName) {
 		t.Fatal("expected nil asks and bids error")
 	}
 }
@@ -395,6 +426,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 func TestLoadSnapshot(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
+	snapShot1.ExchangeName = "SnapshotWithOverride"
 	curr := currency.NewPairFromString("BTCUSD")
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
@@ -432,6 +464,7 @@ func TestFlushCache(t *testing.T) {
 func TestInsertingSnapShots(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
+	snapShot1.ExchangeName = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
 		{Price: 6000, Amount: 1, ID: 1},
 		{Price: 6001, Amount: 0.5, ID: 2},
@@ -469,6 +502,7 @@ func TestInsertingSnapShots(t *testing.T) {
 		t.Fatal(err)
 	}
 	var snapShot2 orderbook.Base
+	snapShot2.ExchangeName = "WSORDERBOOKTEST2"
 	asks = []orderbook.Item{
 		{Price: 51, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},
@@ -506,6 +540,7 @@ func TestInsertingSnapShots(t *testing.T) {
 		t.Fatal(err)
 	}
 	var snapShot3 orderbook.Base
+	snapShot3.ExchangeName = "WSORDERBOOKTEST3"
 	asks = []orderbook.Item{
 		{Price: 511, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},

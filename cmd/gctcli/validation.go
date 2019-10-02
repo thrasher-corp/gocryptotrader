@@ -5,11 +5,13 @@ import (
 	"strings"
 
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 var (
 	errInvalidPair     = errors.New("invalid currency pair supplied")
 	errInvalidExchange = errors.New("invalid exchange supplied")
+	errInvalidAsset    = errors.New("invalid asset supplied")
 )
 
 func validPair(pair string) bool {
@@ -18,4 +20,8 @@ func validPair(pair string) bool {
 
 func validExchange(exch string) bool {
 	return exchange.IsSupported(exch)
+}
+
+func validAsset(i string) bool {
+	return asset.IsValid(asset.Item(i))
 }

@@ -329,6 +329,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	newOrderBook.Bids = bids
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.Pair = currency.NewPairFromString(symbol)
+	newOrderBook.ExchangeName = p.GetName()
 
 	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

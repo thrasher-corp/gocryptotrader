@@ -1,6 +1,7 @@
 package wsorderbook
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -205,6 +206,19 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
 		return fmt.Errorf("%v snapshot ask and bids are nil", w.exchangeName)
 	}
+
+	if newOrderbook.Pair.IsEmpty() {
+		return errors.New("websocket orderbook pair unset")
+	}
+
+	if newOrderbook.AssetType.String() == "" {
+		return errors.New("websocket orderbook asset type unset")
+	}
+
+	if newOrderbook.ExchangeName == "" {
+		return errors.New("websocket orderbook exchange name unset")
+	}
+
 	w.m.Lock()
 	defer w.m.Unlock()
 	if w.ob == nil {

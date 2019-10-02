@@ -216,6 +216,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	pair := currency.NewPairFromString(snapshot.ProductID)
 	base.AssetType = asset.Spot
 	base.Pair = pair
+	base.ExchangeName = c.GetName()
 
 	err := c.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
