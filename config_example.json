@@ -774,8 +774,8 @@
     "proxyAddress": "",
     "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
     "clientId": "ClientID",
-    "availablePairs": "btcusdt",
-    "enabledPairs": "btcusdt",
+    "availablePairs": "BTC/USDT",
+    "enabledPairs": "BTC/USDT",
     "baseCurrencies": "USD,GBP,EUR",
     "assetTypes": "SPOT",
     "supportsAutoPairUpdates": true,
@@ -784,7 +784,7 @@
     },
     "requestCurrencyPairFormat": {
      "uppercase": true,
-     "delimiter": "-"
+     "delimiter": "/"
     },
     "bankAccounts": [
      {

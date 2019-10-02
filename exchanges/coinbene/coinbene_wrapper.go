@@ -36,9 +36,9 @@ func (c *Coinbene) Run() {
 		log.Errorf("%s Failed to get available symbols.\n", c.GetName())
 	} else {
 		var newExchangeCurrencies currency.Pairs
-		for p := range exchangeCurrencies.Symbol {
+		for p := range exchangeCurrencies.Data {
 			newExchangeCurrencies = append(newExchangeCurrencies,
-				currency.NewPairFromString(exchangeCurrencies.Symbol[p].Symbol))
+				currency.NewPairFromString(exchangeCurrencies.Data[p].Symbol))
 		}
 		err = c.UpdateCurrencies(newExchangeCurrencies, false, true)
 		if err != nil {
@@ -61,15 +61,19 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 			return resp, err
 		}
 		resp.Pair = allPairs[x]
-		resp.Last = tempResp.TickerData[0].Last
-		resp.High = tempResp.TickerData[0].DailyHigh
-		resp.Low = tempResp.TickerData[0].DailyLow
-		resp.Bid = tempResp.TickerData[0].Bid
-		resp.Ask = tempResp.TickerData[0].Ask
-		resp.Volume = tempResp.TickerData[0].DailyVol
+		resp.Last = tempResp.TickerData.LatestPrice
+		resp.High = tempResp.TickerData.DailyHigh
+		resp.Low = tempResp.TickerData.DailyLow
+		resp.Bid = tempResp.TickerData.BestBid
+		resp.Ask = tempResp.TickerData.BestAsk
+		resp.Volume = tempResp.TickerData.DailyVol
 		resp.LastUpdated = time.Now()
-		ticker.ProcessTicker(c.Name, &resp, assetType)
+		err := ticker.ProcessTicker(c.Name, &resp, assetType)
+		if err != nil {
+			return ticker.Price{}, err
+		}
 	}
+	log.Println(resp)
 	resp, err = ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return resp, err
@@ -99,7 +103,7 @@ func (c *Coinbene) GetOrderbookEx(currency currency.Pair, assetType string) (ord
 func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var resp orderbook.Base
 	strPair := exchange.FormatExchangeCurrency(c.Name, p).String()
-	tempResp, err := c.FetchOrderbooks(strPair)
+	tempResp, err := c.FetchOrderbooks(strPair, "")
 	if err != nil {
 		return resp, err
 	}
@@ -108,14 +112,26 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType string) (orderbook
 	resp.AssetType = assetType
 	for i := range tempResp.Orderbook.Asks {
 		var tempAsks orderbook.Item
-		tempAsks.Amount = tempResp.Orderbook.Asks[i].Quantity
-		tempAsks.Price = tempResp.Orderbook.Asks[i].Price
+		tempAsks.Amount, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][2], 64)
+		if err != nil {
+			return resp, err
+		}
+		tempAsks.Price, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][1], 64)
+		if err != nil {
+			return resp, err
+		}
 		resp.Asks = append(resp.Asks, tempAsks)
 	}
 	for j := range tempResp.Orderbook.Bids {
 		var tempBids orderbook.Item
-		tempBids.Amount = tempResp.Orderbook.Bids[j].Quantity
-		tempBids.Price = tempResp.Orderbook.Bids[j].Price
+		tempBids.Amount, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][2], 64)
+		if err != nil {
+			return resp, err
+		}
+		tempBids.Price, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][1], 64)
+		if err != nil {
+			return resp, err
+		}
 		resp.Bids = append(resp.Bids, tempBids)
 	}
 	err = resp.Process()
@@ -134,10 +150,10 @@ func (c *Coinbene) GetAccountInfo() (exchange.AccountInfo, error) {
 		return info, err
 	}
 	var account exchange.Account
-	for key := range data.Balance {
-		c := currency.NewCode(data.Balance[key].Asset)
-		hold := data.Balance[key].Reserved
-		available := data.Balance[key].Available
+	for key := range data.Data {
+		c := currency.NewCode(data.Data[key].Asset)
+		hold := data.Data[key].Reserved
+		available := data.Data[key].Available
 		account.Currencies = append(account.Currencies,
 			exchange.AccountCurrencyInfo{CurrencyName: c,
 				TotalValue: hold + available,
@@ -165,7 +181,7 @@ func (c *Coinbene) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTy
 	if side != exchange.BuyOrderSide && side != exchange.SellOrderSide {
 		return resp, fmt.Errorf("%s orderside is not supported by this exchange", side)
 	}
-	tempResp, err := c.PlaceOrder(price, amount, p.Lower().String(), orderType.ToString())
+	tempResp, err := c.PlaceOrder(price, amount, p.Lower().String(), orderType.ToString(), "")
 	if err != nil {
 		return resp, err
 	}

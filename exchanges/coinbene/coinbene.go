@@ -2,10 +2,13 @@ package coinbene
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,29 +31,29 @@ const (
 	coinbeneAPIVersion = "v2"
 
 	// Public endpoints
-	coinbeneFetchTicker    = "/market/ticker"
-	coinbeneFetchOrderBook = "/market/orderbook"
+	coinbeneFetchTicker    = "/market/ticker/one"
+	coinbeneFetchOrderBook = "/market/orderBook"
 	coinbeneGetTrades      = "/market/trades"
-	coinbeneGetAllPairs    = "/market/symbol"
+	coinbeneGetAllPairs    = "/market/tradePair/list"
+	coinbenePairInfo       = "/market/tradePair/one"
 
 	// Authenticated endpoints
 	coinbeneGetUserBalance = "/account/list"
-	coinbenePlaceOrder     = "/trade/order/place"
-	coinbeneOrderInfo      = "/trade/order/info"
-	coinbeneRemoveOrder    = "/trade/order/cancel"
-	coinbeneOpenOrders     = "/trade/order/open-orders"
-	coinbeneWithdrawApply  = "/withdraw/apply"
+	coinbenePlaceOrder     = "/order/place"
+	coinbeneOrderInfo      = "/order/info"
+	coinbeneRemoveOrder    = "/order/cancel"
+	coinbeneOpenOrders     = "/order/openOrders"
 )
 
 // SetDefaults sets the basic defaults for Coinbene
 func (c *Coinbene) SetDefaults() {
 	c.Name = "Coinbene"
-	c.Enabled = false
+	c.Enabled = true
 	c.Verbose = false
 	c.RESTPollingDelay = 10
 	c.RequestCurrencyPairFormat.Delimiter = ""
 	c.RequestCurrencyPairFormat.Uppercase = true
-	c.ConfigCurrencyPairFormat.Delimiter = ""
+	c.ConfigCurrencyPairFormat.Delimiter = "/"
 	c.ConfigCurrencyPairFormat.Uppercase = true
 	c.AssetTypes = []string{ticker.Spot}
 	c.SupportsAutoPairUpdating = false
@@ -132,22 +135,31 @@ func (c *Coinbene) FetchTicker(symbol string) (TickerResponse, error) {
 }
 
 // FetchOrderbooks gets and stores orderbook data for given pair
-func (c *Coinbene) FetchOrderbooks(symbol string) (OrderbookResponse, error) {
+func (c *Coinbene) FetchOrderbooks(symbol, size string) (OrderbookResponse, error) {
 	var o OrderbookResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
+	params.Set("depth", size)
 	path := fmt.Sprintf("%s%s%s?%s", c.APIUrl, coinbeneAPIVersion, coinbeneFetchOrderBook, params.Encode())
 	return o, c.SendHTTPRequest(path, &o)
 }
 
 // GetTrades gets recent trades from the exchange
-func (c *Coinbene) GetTrades(symbol, size string) (TradeResponse, error) {
+func (c *Coinbene) GetTrades(symbol string) (TradeResponse, error) {
 	var t TradeResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("size", size)
 	path := fmt.Sprintf("%s%s%s?%s", c.APIUrl, coinbeneAPIVersion, coinbeneGetTrades, params.Encode())
 	return t, c.SendHTTPRequest(path, &t)
+}
+
+// GetPairInfo gets info about a single pair
+func (c *Coinbene) GetPairInfo(symbol string) (PairResponse, error) {
+	var resp PairResponse
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	path := fmt.Sprintf("%s%s%s?%s", c.APIUrl, coinbeneAPIVersion, coinbenePairInfo, params.Encode())
+	return resp, c.SendHTTPRequest(path, &resp)
 }
 
 // GetAllPairs gets all pairs on the exchange
@@ -161,22 +173,20 @@ func (c *Coinbene) GetAllPairs() (AllPairResponse, error) {
 func (c *Coinbene) GetUserBalance() (UserBalanceResponse, error) {
 	var resp UserBalanceResponse
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneGetUserBalance)
-	params := url.Values{}
-	params.Set("account", "exchange")
-	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, params, &resp)
+	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, nil, &resp, coinbeneGetUserBalance)
 }
 
 // PlaceOrder creates an order
-func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, orderType string) (PlaceOrderResponse, error) {
+func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, clientID string) (PlaceOrderResponse, error) {
 	var resp PlaceOrderResponse
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbenePlaceOrder)
 	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("direction", direction)
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
-	params.Set("symbol", symbol)
-	params.Set("type", orderType)
-	// params.Set("account", "exchange")
-	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
+	params.Set("clientId", clientID)
+	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, params, &resp, coinbenePlaceOrder)
 }
 
 // FetchOrderInfo gets order info
@@ -185,7 +195,7 @@ func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfoResponse, error) {
 	params := url.Values{}
 	params.Set("orderid", orderID)
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneOrderInfo)
-	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
+	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, params, &resp, coinbeneOrderInfo)
 }
 
 // RemoveOrder removes a given order
@@ -194,7 +204,7 @@ func (c *Coinbene) RemoveOrder(orderID string) (RemoveOrderResponse, error) {
 	params := url.Values{}
 	params.Set("orderid", orderID)
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneRemoveOrder)
-	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
+	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, params, &resp, coinbeneRemoveOrder)
 }
 
 // FetchOpenOrders finds open orders
@@ -203,20 +213,7 @@ func (c *Coinbene) FetchOpenOrders(symbol string) (OpenOrderResponse, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneOpenOrders)
-	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
-}
-
-// WithdrawApply sends a withdraw application
-func (c *Coinbene) WithdrawApply(amount float64, asset, address, tag, chain string) (WithdrawResponse, error) {
-	var resp WithdrawResponse
-	params := url.Values{}
-	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	params.Set("asset", asset)
-	params.Set("address", address)
-	params.Set("tag", tag)
-	params.Set("chain", chain)
-	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneWithdrawApply)
-	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
+	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, params, &resp, coinbeneOpenOrders)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -234,66 +231,42 @@ func (c *Coinbene) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (c *Coinbene) SendAuthHTTPRequest(method, path string, params url.Values, result interface{}) error {
+func (c *Coinbene) SendAuthHTTPRequest(method, path string, params url.Values, result interface{}, epPath string) error {
 	if params == nil {
 		params = url.Values{}
 	}
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
-	// timestamp := meowTimestamp[:len(meowTimestamp)-10] + "Z"
-	// meow := strings.Split(timestamp, "+")
-	// timestamp = meow[0] + "Z"
+	var finalBody io.Reader
+	var preSign string
+	if len(params) != 0 {
 
-	preSign := fmt.Sprintf("%s%s%s%s", timestamp, method, coinbeneAuthPath, coinbeneGetUserBalance)
-	log.Println(preSign)
-
+		m := make(map[string]string)
+		for k, v := range params {
+			m[k] = strings.Join(v, "")
+		}
+		tempBody, err := json.Marshal(m)
+		if err != nil {
+			return err
+		}
+		finalBody = bytes.NewBufferString(string(tempBody))
+		cats, _ := json.Marshal(m)
+		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, cats)
+	}
+	if len(params) == 0 {
+		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, params.Encode())
+	}
 	tempSign := common.GetHMAC(common.HashSHA256, []byte(preSign), []byte(c.APISecret))
-	hexEncodedd := string(tempSign)
-	// var temp, tempSlice []string
-	// for x := range params {
-	// 	if params[x][0] == "" {
-	// 		continue
-	// 	}
-	// 	temp = append(temp, x)
-	// }
-	// temp = append(temp, "SECRET")
-	// sort.Strings(temp)
-
-	// for y := range temp {
-	// 	if temp[y] == "SECRET" {
-	// 		tempSlice = append(tempSlice, strings.ToUpper(fmt.Sprintf("%s", temp[y], c.APISecret)))
-	// 	} else {
-	// 		tempSlice = append(tempSlice, strings.ToUpper(fmt.Sprintf("%s=%s", temp[y], params[temp[y]][0])))
-	// 	}
-	// // }
-	// sort.Strings(tempSlice)
-	// fmt.Println("THIS IS MY SORTED TEMP STRING", tempSlice)
-	// signMsg := strings.Join(tempSlice, "&")
-	// log.Println(signMsg)
-
-	// md5 := common.GetMD5([]byte(signMsg))
-	// hexEncoded := common.HexEncodeToString(md5)
-	// params.Set("sign", hexEncoded)
-
-	// path = common.EncodeURLValues(path, params)
-
+	hexEncodedd := common.HexEncodeToString(tempSign)
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	headers["ACCESS-KEY"] = c.APIKey
 	headers["ACCESS-SIGN"] = hexEncodedd
 	headers["ACCESS-TIMESTAMP"] = timestamp
-
-	var postbody string
-	for key, val := range params {
-		postbody = postbody + `"` + key + `":"` + val[0] + `",`
-	}
-	log.Println("KFJSLDJGLSDGJHOADFLJDSFsl")
-	log.Println(path)
-	postbody = `{` + postbody[0:len(postbody)-1] + `}`
-
+	log.Println(preSign)
 	return c.SendPayload(method,
 		path,
 		headers,
-		bytes.NewBufferString(postbody),
+		finalBody,
 		&result,
 		true,
 		false,

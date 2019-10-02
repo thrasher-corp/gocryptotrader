@@ -6,12 +6,13 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey    = "1b297a4a07afe3b7eb4ccbb90fe7343e"
-	testAPISecret = "97abfb041f194f82801f366aab4135ee"
+	testAPIKey    = ""
+	testAPISecret = ""
 )
 
 var c Coinbene
@@ -47,7 +48,7 @@ func TestSetup(t *testing.T) {
 func TestFetchTicker(t *testing.T) {
 	TestSetup(t)
 	c.Verbose = true
-	a, err := c.FetchTicker("btcusdt")
+	a, err := c.FetchTicker("BTC/USDT")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -57,7 +58,7 @@ func TestFetchTicker(t *testing.T) {
 func TestFetchOrderbooks(t *testing.T) {
 	TestSetup(t)
 	c.Verbose = true
-	a, err := c.FetchOrderbooks("btcusdt")
+	a, err := c.FetchOrderbooks("BTC/USDT", "5")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -67,7 +68,7 @@ func TestFetchOrderbooks(t *testing.T) {
 func TestGetTrades(t *testing.T) {
 	TestSetup(t)
 	c.Verbose = true
-	a, err := c.GetTrades("btcusdt", "")
+	a, err := c.GetTrades("BTC/USDT")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -78,6 +79,16 @@ func TestGetAllPairs(t *testing.T) {
 	TestSetup(t)
 	c.Verbose = true
 	a, err := c.GetAllPairs()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPairInfo(t *testing.T) {
+	TestSetup(t)
+	c.Verbose = true
+	a, err := c.GetPairInfo("BTC/USDT")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -97,7 +108,7 @@ func TestGetUserBalance(t *testing.T) {
 func TestPlaceOrder(t *testing.T) {
 	TestSetup(t)
 	c.Verbose = true
-	a, err := c.PlaceOrder(140, 1, "btcusdt", "buy-limit")
+	a, err := c.PlaceOrder(140, 1, "BTC/USDT", "1", "")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -127,17 +138,7 @@ func TestRemoveOrder(t *testing.T) {
 func TestFetchOpenOrders(t *testing.T) {
 	TestSetup(t)
 	c.Verbose = true
-	a, err := c.FetchOpenOrders("btcusdt")
-	t.Log(a)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWithdrawApply(t *testing.T) {
-	TestSetup(t)
-	c.Verbose = true
-	a, err := c.WithdrawApply(1000, "usd", "2394u23fm", "WTF", "usd-btc-ltc-usd")
+	a, err := c.FetchOpenOrders("BTC/USDT")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -147,8 +148,10 @@ func TestWithdrawApply(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	TestSetup(t)
 	c.Verbose = true
-	cp := currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	_, err := c.UpdateTicker(cp, "")
+	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
+	log.Println("IAFJLHONfksjfa")
+	log.Println(cp)
+	_, err := c.UpdateTicker(cp, "spot")
 	if err != nil {
 		t.Error(err)
 	}

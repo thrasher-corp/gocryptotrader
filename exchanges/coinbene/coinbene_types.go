@@ -2,77 +2,63 @@ package coinbene
 
 // TickerData stores ticker data
 type TickerData struct {
-	Symbol    string  `json:"symbol"`
-	Last      float64 `json:"last,string"`
-	Bid       float64 `json:"bid,string"`
-	Ask       float64 `json:"ask,string"`
-	DailyHigh float64 `json:"24hrHigh,string"`
-	DailyLow  float64 `json:"24hrLow,string"`
-	DailyVol  float64 `json:"24hrVol,string"`
-	DailyAmt  float64 `json:"24hrAmt,string"`
+	Symbol      string  `json:"symbol"`
+	LatestPrice float64 `json:"latestPrice,string"`
+	BestBid     float64 `json:"bestBid,string"`
+	BestAsk     float64 `json:"bestAsk,string"`
+	DailyHigh   float64 `json:"high24h,string"`
+	DailyLow    float64 `json:"low24h,string"`
+	DailyVol    float64 `json:"vol24h,string"`
 }
 
 // TickerResponse stores ticker response data
 type TickerResponse struct {
-	Status     string       `json:"status"`
-	Timestamp  int64        `json:"timestamp"`
-	TickerData []TickerData `json:"ticker"`
-}
-
-// OrderbookData stores data from orderbooks
-type OrderbookData struct {
-	Price    float64 `json:"price"`
-	Quantity float64 `json:"quantity"`
+	Code       int64      `json:"code"`
+	TickerData TickerData `json:"data"`
 }
 
 // Orderbook stores orderbook info
 type Orderbook struct {
-	Asks []OrderbookData `json:"asks"`
-	Bids []OrderbookData `json:"bids"`
+	Asks [][]string `json:"asks"`
+	Bids [][]string `json:"bids"`
 }
 
 // OrderbookResponse stores data from fetched orderbooks
 type OrderbookResponse struct {
-	Orderbook Orderbook `json:"orderbook"`
-	Status    string    `json:"status"`
-	Symbol    string    `json:"symbol"`
-	Timestamp int64     `json:"timestamp"`
-}
-
-// TradeData stores trade data
-type TradeData struct {
-	TradeID  string  `json:"tradeId"`
-	Price    float64 `json:"price,string"`
-	Quantity float64 `json:"quantity,string"`
-	Take     string  `json:"take"`
-	Time     int64   `json:"time"`
+	Code      int64     `json:"code"`
+	Orderbook Orderbook `json:"data"`
 }
 
 // TradeResponse stores trade data
 type TradeResponse struct {
-	Status    string      `json:"status"`
-	Timestamp int64       `json:"timestamp"`
-	Symbol    string      `json:"symbol"`
-	Trades    []TradeData `json:"trades"`
+	Code   int64      `json:"code"`
+	Trades [][]string `json:"data"`
 }
 
 // AllPairData stores pair data
 type AllPairData struct {
-	Symbol      string  `json:"ticker"`
-	BaseAsset   string  `json:"baseAsset"`
-	QuoteAsset  string  `json:"quoteAsset"`
-	TakerFee    float64 `json:"takerFee,string"`
-	MakerFee    float64 `json:"makerFee,string"`
-	TickSize    int     `json:"tickSize,string"`
-	LotStepSize int     `json:"lotStepSize,string"`
-	MinQuantity float64 `json:"minQuantity,string"`
+	Symbol           string  `json:"symbol"`
+	BaseAsset        string  `json:"baseAsset"`
+	QuoteAsset       string  `json:"quoteAsset"`
+	PricePrecision   int64   `json:"pricePrecision,string"`
+	AmountPrecision  int64   `json:"amountPrecision,string"`
+	TakerFeeRate     float64 `json:"takerFeeRate,string"`
+	MakerFeeRate     float64 `json:"makerFeeRate,string"`
+	MinAmount        float64 `json:"minAmount,string"`
+	Site             string  `json:"site"`
+	PriceFluctuation string  `json:"priceFluctuation"`
 }
 
 // AllPairResponse stores data for all pairs enabled on exchange
 type AllPairResponse struct {
-	Status    string        `json:"status"`
-	Timestamp int64         `json:"timestamp"`
-	Symbol    []AllPairData `json:"symbol"`
+	Code int64         `json:"code"`
+	Data []AllPairData `json:"data"`
+}
+
+// PairResponse stores data for a single queried pair
+type PairResponse struct {
+	Code int64       `json:"code"`
+	Data AllPairData `json:"data"`
 }
 
 // UserBalanceData stores user balance data
@@ -85,10 +71,8 @@ type UserBalanceData struct {
 
 // UserBalanceResponse stores user balance data
 type UserBalanceResponse struct {
-	Account   string            `json:"account"`
-	Balance   []UserBalanceData `json:"balance"`
-	Status    string            `json:"status"`
-	Timestamp int64             `json:"timestamp"`
+	Code int64             `json:"code"`
+	Data []UserBalanceData `json:"data"`
 }
 
 // PlaceOrderResponse stores data for a placed order
@@ -148,11 +132,4 @@ type OpenOrderResponse struct {
 	Status     string          `json:"status"`
 	Timestamp  int64           `json:"timestamp"`
 	OpenOrders []OpenOrderData `json:"orders"`
-}
-
-// WithdrawResponse stores response for a withdraw request
-type WithdrawResponse struct {
-	Status     string `json:"status"`
-	Timestamp  int64  `json:"timestamp"`
-	WithdrawID string `json:"withdrawid"`
 }
