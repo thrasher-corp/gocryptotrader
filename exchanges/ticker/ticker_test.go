@@ -1,55 +1,94 @@
 package ticker
 
 import (
+	"log"
 	"math/rand"
-	"reflect"
+	"os"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-func TestPriceToString(t *testing.T) {
-	newPair := currency.NewPairFromStrings("BTC", "USD")
-	priceStruct := Price{
-		Pair:     newPair,
-		Last:     1200,
-		High:     1298,
-		Low:      1148,
-		Bid:      1195,
-		Ask:      1220,
-		Volume:   5,
-		PriceATH: 1337,
+func TestMain(m *testing.M) {
+	err := dispatch.Start(1)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	newTicker := CreateNewTicker("ANX", &priceStruct, asset.Spot)
+	cpyMux = service.mux
 
-	if newTicker.PriceToString(newPair, "last", asset.Spot) != "1200" {
-		t.Error("Test Failed - ticker PriceToString last value is incorrect")
+	os.Exit(m.Run())
+}
+
+var cpyMux *dispatch.Mux
+
+func TestSubscribeTicker(t *testing.T) {
+	_, err := SubscribeTicker("", currency.Pair{}, asset.Item(""))
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
-	if newTicker.PriceToString(newPair, "high", asset.Spot) != "1298" {
-		t.Error("Test Failed - ticker PriceToString high value is incorrect")
+
+	p := currency.NewPair(currency.BTC, currency.USD)
+
+	// force error
+	service.mux = nil
+	err = ProcessTicker("subscribetest", &Price{Pair: p}, asset.Spot)
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
-	if newTicker.PriceToString(newPair, "low", asset.Spot) != "1148" {
-		t.Error("Test Failed - ticker PriceToString low value is incorrect")
+
+	sillyP := p
+	sillyP.Base = currency.GALA_NEO
+	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, asset.Spot)
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
-	if newTicker.PriceToString(newPair, "bid", asset.Spot) != "1195" {
-		t.Error("Test Failed - ticker PriceToString bid value is incorrect")
+
+	sillyP.Quote = currency.AAA
+	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, asset.Spot)
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
-	if newTicker.PriceToString(newPair, "ask", asset.Spot) != "1220" {
-		t.Error("Test Failed - ticker PriceToString ask value is incorrect")
+
+	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, "silly")
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
-	if newTicker.PriceToString(newPair, "volume", asset.Spot) != "5" {
-		t.Error("Test Failed - ticker PriceToString volume value is incorrect")
+	// reinstate mux
+	service.mux = cpyMux
+
+	err = ProcessTicker("subscribetest", &Price{Pair: p}, asset.Spot)
+	if err != nil {
+		t.Error("error cannot be nil")
 	}
-	if newTicker.PriceToString(newPair, "ath", asset.Spot) != "1337" {
-		t.Error("Test Failed - ticker PriceToString ath value is incorrect")
+
+	_, err = SubscribeTicker("subscribetest", p, asset.Spot)
+	if err != nil {
+		t.Error("cannot subscribe to ticker", err)
 	}
-	if newTicker.PriceToString(newPair, "obtuse", asset.Spot) != "" {
-		t.Error("Test Failed - ticker PriceToString obtuse value is incorrect")
+}
+
+func TestSubscribeToExchangeTickers(t *testing.T) {
+	_, err := SubscribeToExchangeTickers("")
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	p := currency.NewPair(currency.BTC, currency.USD)
+
+	err = ProcessTicker("subscribeExchangeTest", &Price{Pair: p}, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = SubscribeToExchangeTickers("subscribeExchangeTest")
+	if err != nil {
+		t.Error("error cannot be nil", err)
 	}
 }
 
@@ -111,142 +150,25 @@ func TestGetTicker(t *testing.T) {
 	if tickerPrice.PriceATH != 9001 {
 		t.Error("Test Failed - ticker tickerPrice.PriceATH value is incorrect")
 	}
-}
 
-func TestGetTickerByExchange(t *testing.T) {
-	newPair := currency.NewPairFromStrings("BTC", "USD")
-	priceStruct := Price{
-		Pair:     newPair,
-		Last:     1200,
-		High:     1298,
-		Low:      1148,
-		Bid:      1195,
-		Ask:      1220,
-		Volume:   5,
-		PriceATH: 1337,
+	_, err = GetTicker("bitfinex", newPair, "meowCats")
+	if err == nil {
+		t.Error("Test Failed - Ticker GetTicker error cannot be nil")
 	}
 
-	anxTicker := CreateNewTicker("ANX", &priceStruct, asset.Spot)
-	Tickers = append(Tickers, anxTicker)
-
-	tickerPtr, err := GetTickerByExchange("ANX")
+	err = ProcessTicker("bitfinex", &priceStruct, "meowCats")
 	if err != nil {
-		t.Errorf("Test Failed - GetTickerByExchange init error: %s", err)
-	}
-	if tickerPtr.ExchangeName != "ANX" {
-		t.Error("Test Failed - GetTickerByExchange ExchangeName value is incorrect")
-	}
-}
-
-func TestBaseCurrencyExists(t *testing.T) {
-	newPair := currency.NewPairFromStrings("BTC", "USD")
-	priceStruct := Price{
-		Pair:     newPair,
-		Last:     1200,
-		High:     1298,
-		Low:      1148,
-		Bid:      1195,
-		Ask:      1220,
-		Volume:   5,
-		PriceATH: 1337,
+		t.Fatal("Test failed. ProcessTicker error", err)
 	}
 
-	alphaTicker := CreateNewTicker("alphapoint", &priceStruct, asset.Spot)
-	Tickers = append(Tickers, alphaTicker)
-
-	if !BaseCurrencyExists("alphapoint", currency.BTC) {
-		t.Error("Test Failed - BaseCurrencyExists1 value return is incorrect")
-	}
-	if BaseCurrencyExists("alphapoint", currency.NewCode("CATS")) {
-		t.Error("Test Failed - BaseCurrencyExists2 value return is incorrect")
-	}
-}
-
-func TestQuoteCurrencyExists(t *testing.T) {
-	t.Parallel()
-
-	newPair := currency.NewPairFromStrings("BTC", "USD")
-	priceStruct := Price{
-		Pair:     newPair,
-		Last:     1200,
-		High:     1298,
-		Low:      1148,
-		Bid:      1195,
-		Ask:      1220,
-		Volume:   5,
-		PriceATH: 1337,
-	}
-
-	bitstampTicker := CreateNewTicker("bitstamp", &priceStruct, asset.Spot)
-	Tickers = append(Tickers, bitstampTicker)
-
-	if !QuoteCurrencyExists("bitstamp", newPair) {
-		t.Error("Test Failed - QuoteCurrencyExists1 value return is incorrect")
-	}
-
-	newPair.Quote = currency.NewCode("DOGS")
-	if QuoteCurrencyExists("bitstamp", newPair) {
-		t.Error("Test Failed - QuoteCurrencyExists2 value return is incorrect")
-	}
-}
-
-func TestCreateNewTicker(t *testing.T) {
-	const float64Type = "float64"
-	newPair := currency.NewPairFromStrings("BTC", "USD")
-	priceStruct := Price{
-		Pair:     newPair,
-		Last:     1200,
-		High:     1298,
-		Low:      1148,
-		Bid:      1195,
-		Ask:      1220,
-		Volume:   5,
-		PriceATH: 1337,
-	}
-
-	newTicker := CreateNewTicker("ANX", &priceStruct, asset.Spot)
-
-	if reflect.ValueOf(newTicker).NumField() != 2 {
-		t.Error("Test Failed - ticker CreateNewTicker struct change/or updated")
-	}
-	if reflect.TypeOf(newTicker.ExchangeName).String() != "string" {
-		t.Error("Test Failed - ticker CreateNewTicker.ExchangeName value is not a string")
-	}
-	if newTicker.ExchangeName != "ANX" {
-		t.Error("Test Failed - ticker CreateNewTicker.ExchangeName value is not ANX")
-	}
-
-	if !newTicker.Price[currency.BTC.Upper().String()][currency.USD.Upper().String()][asset.Spot.String()].Pair.Equal(newPair) {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Pair.Pair().String() value is not expected 'BTCUSD'")
-	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Ask).String() != float64Type {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Ask value is not a float64")
-	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Bid).String() != float64Type {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Bid value is not a float64")
-	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Pair).String() != "currency.Pair" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].CurrencyPair value is not a currency.Pair")
-	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].High).String() != float64Type {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].High value is not a float64")
-	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Last).String() != float64Type {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Last value is not a float64")
-	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Low).String() != float64Type {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Low value is not a float64")
-	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].PriceATH).String() != float64Type {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].PriceATH value is not a float64")
-	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][asset.Spot.String()].Volume).String() != float64Type {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Volume value is not a float64")
+	// process update again
+	err = ProcessTicker("bitfinex", &priceStruct, "meowCats")
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
 	}
 }
 
 func TestProcessTicker(t *testing.T) { // non-appending function to tickers
-	Tickers = []Ticker{}
 	exchName := "bitstamp"
 	newPair := currency.NewPairFromStrings("BTC", "USD")
 	priceStruct := Price{
@@ -259,8 +181,13 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		PriceATH: 1337,
 	}
 
+	err := ProcessTicker("", &priceStruct, asset.Spot)
+	if err == nil {
+		t.Fatal("empty exchange should throw an err")
+	}
+
 	// test for empty pair
-	err := ProcessTicker(exchName, &priceStruct, asset.Spot)
+	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
 	if err == nil {
 		t.Fatal("empty pair should throw an err")
 	}
@@ -389,5 +316,44 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		}
 	}
 	wg.Wait()
+}
 
+func TestSetItemID(t *testing.T) {
+	err := service.SetItemID(nil)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = service.SetItemID(&Price{})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	p := currency.NewPair(currency.CYC, currency.CYG)
+
+	service.mux = nil
+	err = service.SetItemID(&Price{Pair: p, ExchangeName: "SetItemID"})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	service.mux = cpyMux
+}
+
+func TestGetAssociation(t *testing.T) {
+	_, err := service.GetAssociations(nil)
+	if err == nil {
+		t.Error("error cannot be nil ")
+	}
+
+	p := currency.NewPair(currency.CYC, currency.CYG)
+
+	service.mux = nil
+
+	_, err = service.GetAssociations(&Price{Pair: p, ExchangeName: "GetAssociation"})
+	if err == nil {
+		t.Error("error cannot be nil ")
+	}
+
+	service.mux = cpyMux
 }

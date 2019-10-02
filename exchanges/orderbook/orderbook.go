@@ -2,235 +2,259 @@ package orderbook
 
 import (
 	"errors"
+	"fmt"
 	"sort"
-	"sync"
+	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// const values for orderbook package
-const (
-	errExchangeOrderbookNotFound = "orderbook for exchange does not exist"
-	errPairNotSet                = "orderbook currency pair not set"
-	errAssetTypeNotSet           = "orderbook asset type not set"
-	errBaseCurrencyNotFound      = "orderbook base currency not found"
-	errQuoteCurrencyNotFound     = "orderbook quote currency not found"
-)
-
-// Vars for the orderbook package
-var (
-	Orderbooks []Orderbook
-	m          sync.Mutex
-)
-
-// Item stores the amount and price values
-type Item struct {
-	Amount float64
-	Price  float64
-	ID     int64
+// Get checks and returns the orderbook given an exchange name and currency pair
+// if it exists
+func Get(exchange string, p currency.Pair, a asset.Item) (Base, error) {
+	o, err := service.Retrieve(exchange, p, a)
+	if err != nil {
+		return Base{}, err
+	}
+	return *o, nil
 }
 
-// Base holds the fields for the orderbook base
-type Base struct {
-	Pair         currency.Pair `json:"pair"`
-	Bids         []Item        `json:"bids"`
-	Asks         []Item        `json:"asks"`
-	LastUpdated  time.Time     `json:"lastUpdated"`
-	AssetType    asset.Item    `json:"assetType"`
-	ExchangeName string        `json:"exchangeName"`
+// SubscribeOrderbook subcribes to an orderbook and returns a communication
+// channel to stream orderbook data updates
+func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
+	service.RLock()
+	defer service.RUnlock()
+	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
+	if !ok {
+		return dispatch.Pipe{}, fmt.Errorf("orderbook item not found for %s %s %s",
+			exchange,
+			p,
+			a)
+	}
+
+	return service.mux.Subscribe(book.Main)
 }
 
-// Orderbook holds the orderbook information for a currency pair and type
-type Orderbook struct {
-	Orderbook    map[*currency.Item]map[*currency.Item]map[asset.Item]Base
-	ExchangeName string
+// SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
+func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
+	service.RLock()
+	defer service.RUnlock()
+	id, ok := service.Exchange[exchange]
+	if !ok {
+		return dispatch.Pipe{}, fmt.Errorf("%s exchange orderbooks not found",
+			exchange)
+	}
+
+	return service.mux.Subscribe(id)
 }
 
-type byOBPrice []Item
+// Update stores orderbook data
+func (s *Service) Update(b *Base) error {
+	var ids []uuid.UUID
 
-func (a byOBPrice) Len() int           { return len(a) }
-func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
-
-// Verify ensures that the orderbook items are correctly sorted
-// Bids should always go from a high price to a low price and
-// asks should always go from a low price to a higher price
-func (o *Base) Verify() {
-	var lastPrice float64
-	var sortBids, sortAsks bool
-	for x := range o.Bids {
-		if lastPrice != 0 && o.Bids[x].Price >= lastPrice {
-			sortBids = true
-			break
+	s.Lock()
+	switch {
+	case s.Books[b.ExchangeName] == nil:
+		s.Books[b.ExchangeName] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
+		s.Books[b.ExchangeName][b.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Book)
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] = make(map[asset.Item]*Book)
+		err := s.SetNewData(b)
+		if err != nil {
+			s.Unlock()
+			return err
 		}
-		lastPrice = o.Bids[x].Price
-	}
 
-	lastPrice = 0
-	for x := range o.Asks {
-		if lastPrice != 0 && o.Asks[x].Price <= lastPrice {
-			sortAsks = true
-			break
+	case s.Books[b.ExchangeName][b.Pair.Base.Item] == nil:
+		s.Books[b.ExchangeName][b.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Book)
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] = make(map[asset.Item]*Book)
+		err := s.SetNewData(b)
+		if err != nil {
+			s.Unlock()
+			return err
 		}
-		lastPrice = o.Asks[x].Price
+
+	case s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] == nil:
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item] = make(map[asset.Item]*Book)
+		err := s.SetNewData(b)
+		if err != nil {
+			s.Unlock()
+			return err
+		}
+
+	case s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] == nil:
+		err := s.SetNewData(b)
+		if err != nil {
+			s.Unlock()
+			return err
+		}
+
+	default:
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.Bids = b.Bids
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.Asks = b.Asks
+		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.LastUpdated = b.LastUpdated
+		ids = s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].Assoc
+		ids = append(ids, s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].Main)
+	}
+	s.Unlock()
+	return s.mux.Publish(ids, b)
+}
+
+// SetNewData sets new data
+func (s *Service) SetNewData(b *Base) error {
+	ids, err := s.GetAssociations(b)
+	if err != nil {
+		return err
+	}
+	singleID, err := s.mux.GetID()
+	if err != nil {
+		return err
 	}
 
-	if sortBids {
-		sort.Sort(sort.Reverse(byOBPrice(o.Bids)))
+	s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{b: b,
+		Main:  singleID,
+		Assoc: ids}
+	return nil
+}
+
+// GetAssociations links a singular book with it's dispatch associations
+func (s *Service) GetAssociations(b *Base) ([]uuid.UUID, error) {
+	if b == nil {
+		return nil, errors.New("orderbook is nil")
 	}
 
-	if sortAsks {
-		sort.Sort((byOBPrice(o.Asks)))
+	var ids []uuid.UUID
+	exchangeID, ok := s.Exchange[b.ExchangeName]
+	if !ok {
+		var err error
+		exchangeID, err = s.mux.GetID()
+		if err != nil {
+			return nil, err
+		}
+		s.Exchange[b.ExchangeName] = exchangeID
 	}
 
+	ids = append(ids, exchangeID)
+	return ids, nil
+}
+
+// Retrieve gets orderbook data from the slice
+func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+	exchange = strings.ToLower(exchange)
+	s.RLock()
+	defer s.RUnlock()
+	if s.Books[exchange] == nil {
+		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
+	}
+
+	if s.Books[exchange][p.Base.Item] == nil {
+		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+			p.Base)
+	}
+
+	if s.Books[exchange][p.Base.Item][p.Quote.Item] == nil {
+		return nil, fmt.Errorf("no orderbooks associated with quote currency %s",
+			p.Quote)
+	}
+
+	if s.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
+		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
+			a)
+	}
+
+	return s.Books[exchange][p.Base.Item][p.Quote.Item][a].b, nil
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
-func (o *Base) TotalBidsAmount() (amountCollated, total float64) {
-	for _, x := range o.Bids {
-		amountCollated += x.Amount
-		total += x.Amount * x.Price
+func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
+	for x := range b.Bids {
+		amountCollated += b.Bids[x].Amount
+		total += b.Bids[x].Amount * b.Bids[x].Price
 	}
 	return amountCollated, total
 }
 
 // TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
-func (o *Base) TotalAsksAmount() (amountCollated, total float64) {
-	for _, x := range o.Asks {
-		amountCollated += x.Amount
-		total += x.Amount * x.Price
+func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
+	for y := range b.Asks {
+		amountCollated += b.Asks[y].Amount
+		total += b.Asks[y].Amount * b.Asks[y].Price
 	}
 	return amountCollated, total
 }
 
 // Update updates the bids and asks
-func (o *Base) Update(bids, asks []Item) {
-	o.Bids = bids
-	o.Asks = asks
-	o.LastUpdated = time.Now()
+func (b *Base) Update(bids, asks []Item) {
+	b.Bids = bids
+	b.Asks = asks
+	b.LastUpdated = time.Now()
 }
 
-// Get checks and returns the orderbook given an exchange name and currency pair
-// if it exists
-func Get(exchange string, p currency.Pair, orderbookType asset.Item) (Base, error) {
-	orderbook, err := GetByExchange(exchange)
-	if err != nil {
-		return Base{}, err
-	}
-
-	if !BaseCurrencyExists(exchange, p.Base) {
-		return Base{}, errors.New(errBaseCurrencyNotFound)
-	}
-
-	if !QuoteCurrencyExists(exchange, p) {
-		return Base{}, errors.New(errQuoteCurrencyNotFound)
-	}
-
-	return orderbook.Orderbook[p.Base.Item][p.Quote.Item][orderbookType], nil
-}
-
-// GetByExchange returns an exchange orderbook
-func GetByExchange(exchange string) (*Orderbook, error) {
-	m.Lock()
-	defer m.Unlock()
-	for x := range Orderbooks {
-		if Orderbooks[x].ExchangeName == exchange {
-			return &Orderbooks[x], nil
+// Verify ensures that the orderbook items are correctly sorted
+// Bids should always go from a high price to a low price and
+// asks should always go from a low price to a higher price
+func (b *Base) Verify() {
+	var lastPrice float64
+	var sortBids, sortAsks bool
+	for x := range b.Bids {
+		if lastPrice != 0 && b.Bids[x].Price >= lastPrice {
+			sortBids = true
+			break
 		}
+		lastPrice = b.Bids[x].Price
 	}
-	return nil, errors.New(errExchangeOrderbookNotFound)
-}
 
-// BaseCurrencyExists checks to see if the base currency of the orderbook map
-// exists
-func BaseCurrencyExists(exchange string, currency currency.Code) bool {
-	m.Lock()
-	defer m.Unlock()
-	for _, y := range Orderbooks {
-		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[currency.Item]; ok {
-				return true
-			}
+	lastPrice = 0
+	for x := range b.Asks {
+		if lastPrice != 0 && b.Asks[x].Price <= lastPrice {
+			sortAsks = true
+			break
 		}
+		lastPrice = b.Asks[x].Price
 	}
-	return false
-}
 
-// QuoteCurrencyExists checks to see if the quote currency of the orderbook
-// map exists
-func QuoteCurrencyExists(exchange string, p currency.Pair) bool {
-	m.Lock()
-	defer m.Unlock()
-	for _, y := range Orderbooks {
-		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[p.Base.Item]; ok {
-				if _, ok := y.Orderbook[p.Base.Item][p.Quote.Item]; ok {
-					return true
-				}
-			}
-		}
+	if sortBids {
+		sort.Sort(sort.Reverse(byOBPrice(b.Bids)))
 	}
-	return false
-}
 
-// CreateNewOrderbook creates a new orderbook
-func CreateNewOrderbook(exchangeName string, orderbookNew *Base, orderbookType asset.Item) *Orderbook {
-	m.Lock()
-	defer m.Unlock()
-	orderbook := Orderbook{}
-	orderbook.ExchangeName = exchangeName
-	orderbook.Orderbook = make(map[*currency.Item]map[*currency.Item]map[asset.Item]Base)
-	a := make(map[*currency.Item]map[asset.Item]Base)
-	b := make(map[asset.Item]Base)
-	b[orderbookType] = *orderbookNew
-	a[orderbookNew.Pair.Quote.Item] = b
-	orderbook.Orderbook[orderbookNew.Pair.Base.Item] = a
-	Orderbooks = append(Orderbooks, orderbook)
-	return &orderbook
+	if sortAsks {
+		sort.Sort((byOBPrice(b.Asks)))
+	}
 }
 
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
-func (o *Base) Process() error {
-	if o.Pair.IsEmpty() {
+func (b *Base) Process() error {
+	if b.ExchangeName == "" {
+		return errors.New(errExchangeNameUnset)
+	}
+
+	b.ExchangeName = strings.ToLower(b.ExchangeName)
+
+	if b.Pair.IsEmpty() {
 		return errors.New(errPairNotSet)
 	}
 
-	if o.AssetType == "" {
+	if b.AssetType.String() == "" {
 		return errors.New(errAssetTypeNotSet)
 	}
 
-	if o.LastUpdated.IsZero() {
-		o.LastUpdated = time.Now()
+	if len(b.Asks) == 0 && len(b.Bids) == 0 {
+		return errors.New(errNoOrderbook)
 	}
 
-	o.Verify()
-
-	orderbook, err := GetByExchange(o.ExchangeName)
-	if err != nil {
-		CreateNewOrderbook(o.ExchangeName, o, o.AssetType)
-		return nil
+	if b.LastUpdated.IsZero() {
+		b.LastUpdated = time.Now()
 	}
 
-	if BaseCurrencyExists(o.ExchangeName, o.Pair.Base) {
-		m.Lock()
-		a := make(map[asset.Item]Base)
-		a[o.AssetType] = *o
-		orderbook.Orderbook[o.Pair.Base.Item][o.Pair.Quote.Item] = a
-		m.Unlock()
-		return nil
-	}
+	b.Verify()
 
-	m.Lock()
-	a := make(map[*currency.Item]map[asset.Item]Base)
-	b := make(map[asset.Item]Base)
-	b[o.AssetType] = *o
-	a[o.Pair.Quote.Item] = b
-	orderbook.Orderbook[o.Pair.Base.Item] = a
-	m.Unlock()
-	return nil
+	return service.Update(b)
 }

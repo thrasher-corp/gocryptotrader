@@ -17,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -25,6 +27,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+)
+
+const (
+	errExchangeNameUnset = "exchange name unset"
+	errCurrencyPairUnset = "currency pair unset"
+	errAssetTypeUnset    = "asset type unset"
+	errDispatchSystem    = "dispatch system offline"
 )
 
 // RPCServer struct
@@ -953,5 +962,200 @@ func (s *RPCServer) DisableExchangePair(ctx context.Context, r *gctrpc.ExchangeP
 	err = GetExchangeByName(r.Exchange).GetBase().CurrencyPairs.DisablePair(
 		asset.Item(r.AssetType), p)
 	return &gctrpc.GenericExchangeNameResponse{}, err
+}
 
+// GetOrderbookStream streams the requested updated orderbook
+func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetOrderbookStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New(errExchangeNameUnset)
+	}
+
+	if r.Pair.String() == "" {
+		return errors.New(errCurrencyPairUnset)
+	}
+
+	if r.AssetType == "" {
+		return errors.New(errAssetTypeUnset)
+	}
+
+	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+
+	pipe, err := orderbook.SubscribeOrderbook(r.Exchange, p, asset.Item(r.AssetType))
+	if err != nil {
+		return err
+	}
+
+	defer pipe.Release()
+
+	for {
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New(errDispatchSystem)
+		}
+
+		ob := (*data.(*interface{})).(orderbook.Base)
+		var bids, asks []*gctrpc.OrderbookItem
+		for i := range ob.Bids {
+			bids = append(bids, &gctrpc.OrderbookItem{
+				Amount: ob.Bids[i].Amount,
+				Price:  ob.Bids[i].Price,
+				Id:     ob.Bids[i].ID,
+			})
+		}
+		for i := range ob.Asks {
+			asks = append(asks, &gctrpc.OrderbookItem{
+				Amount: ob.Asks[i].Amount,
+				Price:  ob.Asks[i].Price,
+				Id:     ob.Asks[i].ID,
+			})
+		}
+		err := stream.Send(&gctrpc.OrderbookResponse{
+			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
+				Quote: ob.Pair.Quote.String()},
+			Bids:      bids,
+			Asks:      asks,
+			AssetType: ob.AssetType.String(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+}
+
+// GetExchangeOrderbookStream streams all orderbooks associated with an exchange
+func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New(errExchangeNameUnset)
+	}
+
+	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	defer pipe.Release()
+
+	for {
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New(errDispatchSystem)
+		}
+
+		ob := (*data.(*interface{})).(orderbook.Base)
+		var bids, asks []*gctrpc.OrderbookItem
+		for i := range ob.Bids {
+			bids = append(bids, &gctrpc.OrderbookItem{
+				Amount: ob.Bids[i].Amount,
+				Price:  ob.Bids[i].Price,
+				Id:     ob.Bids[i].ID,
+			})
+		}
+		for i := range ob.Asks {
+			asks = append(asks, &gctrpc.OrderbookItem{
+				Amount: ob.Asks[i].Amount,
+				Price:  ob.Asks[i].Price,
+				Id:     ob.Asks[i].ID,
+			})
+		}
+		err := stream.Send(&gctrpc.OrderbookResponse{
+			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
+				Quote: ob.Pair.Quote.String()},
+			Bids:      bids,
+			Asks:      asks,
+			AssetType: ob.AssetType.String(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+}
+
+// GetTickerStream streams the requested updated ticker
+func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetTickerStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New(errExchangeNameUnset)
+	}
+
+	if r.Pair.String() == "" {
+		return errors.New(errCurrencyPairUnset)
+	}
+
+	if r.AssetType == "" {
+		return errors.New(errAssetTypeUnset)
+	}
+
+	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+
+	pipe, err := ticker.SubscribeTicker(r.Exchange, p, asset.Item(r.AssetType))
+	if err != nil {
+		return err
+	}
+
+	defer pipe.Release()
+
+	for {
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New(errDispatchSystem)
+		}
+		t := (*data.(*interface{})).(ticker.Price)
+
+		err := stream.Send(&gctrpc.TickerResponse{
+			Pair: &gctrpc.CurrencyPair{
+				Base:      t.Pair.Base.String(),
+				Quote:     t.Pair.Quote.String(),
+				Delimiter: t.Pair.Delimiter},
+			LastUpdated: t.LastUpdated.Unix(),
+			Last:        t.Last,
+			High:        t.High,
+			Low:         t.Low,
+			Bid:         t.Bid,
+			Ask:         t.Ask,
+			Volume:      t.Volume,
+			PriceAth:    t.PriceATH,
+		})
+		if err != nil {
+			return err
+		}
+	}
+}
+
+// GetExchangeTickerStream streams all tickers associated with an exchange
+func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeTickerStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New(errExchangeNameUnset)
+	}
+
+	pipe, err := ticker.SubscribeToExchangeTickers(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	defer pipe.Release()
+
+	for {
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New(errDispatchSystem)
+		}
+		t := (*data.(*interface{})).(ticker.Price)
+
+		err := stream.Send(&gctrpc.TickerResponse{
+			Pair: &gctrpc.CurrencyPair{
+				Base:      t.Pair.Base.String(),
+				Quote:     t.Pair.Quote.String(),
+				Delimiter: t.Pair.Delimiter},
+			LastUpdated: t.LastUpdated.Unix(),
+			Last:        t.Last,
+			High:        t.High,
+			Low:         t.Low,
+			Bid:         t.Bid,
+			Ask:         t.Ask,
+			Volume:      t.Volume,
+			PriceAth:    t.PriceATH,
+		})
+		if err != nil {
+			return err
+		}
+	}
 }

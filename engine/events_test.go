@@ -149,12 +149,6 @@ func TestProcessTicker(t *testing.T) {
 		},
 	}
 
-	// this will throw an err with an unpopulated ticker
-	ticker.Tickers = nil
-	if r := e.processTicker(); r {
-		t.Error("unexpected result")
-	}
-
 	// now populate it with a 0 entry
 	tick := ticker.Price{
 		Pair: currency.NewPair(currency.BTC, currency.USD),
@@ -220,12 +214,6 @@ func TestProcessOrderbook(t *testing.T) {
 			CheckBidsAndAsks: true,
 			OrderbookAmount:  100,
 		},
-	}
-
-	// this will throw an err with an unpopulated orderbook
-	orderbook.Orderbooks = nil
-	if r := e.processOrderbook(); r {
-		t.Error("unexpected result")
 	}
 
 	// now populate it with a 0 entry

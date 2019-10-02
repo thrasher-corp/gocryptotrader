@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -111,6 +112,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
+	b.Settings.EnableDispatcher = s.EnableDispatcher
 
 	// TO-DO: FIXME
 	if flag.Lookup("grpc") != nil {
@@ -203,6 +205,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	}
 
 	b.Settings.GlobalHTTPProxy = s.GlobalHTTPProxy
+	b.Settings.DispatchMaxWorkerAmount = s.DispatchMaxWorkerAmount
 }
 
 // PrintSettings returns the engine settings
@@ -230,6 +233,8 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Enable orderbook syncing: %v", s.EnableOrderbookSyncing)
 	log.Debugf(log.Global, "\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
 	log.Debugf(log.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
+	log.Debugf(log.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
+	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugf(log.Global, "- FOREX SETTINGS:")
 	log.Debugf(log.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
 	log.Debugf(log.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
@@ -263,6 +268,12 @@ func (e *Engine) Start() error {
 	if e.Settings.EnableDatabaseManager {
 		if err := e.DatabaseManager.Start(); err != nil {
 			log.Errorf(log.Global, "Database manager unable to start: %v", err)
+		}
+	}
+
+	if e.Settings.EnableDispatcher {
+		if err := dispatch.Start(e.Settings.DispatchMaxWorkerAmount); err != nil {
+			log.Errorf(log.DispatchMgr, "Dispatcher unable to start: %v", err)
 		}
 	}
 
@@ -433,6 +444,12 @@ func (e *Engine) Stop() {
 	if e.DatabaseManager.Started() {
 		if err := e.DatabaseManager.Stop(); err != nil {
 			log.Errorf(log.Global, "Database manager unable to stop. Error: %v", err)
+		}
+	}
+
+	if dispatch.IsRunning() {
+		if err := dispatch.Stop(); err != nil {
+			log.Errorf(log.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
 		}
 	}
 
