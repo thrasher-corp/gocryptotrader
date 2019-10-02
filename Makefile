@@ -49,7 +49,7 @@ profile_cpu:
 
 gen_db_models:
 ifeq ($(DRIVER), psql)
-	sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps $(DRIVER)
+	sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps --wipe $(DRIVER)
 else
-	sqlboiler -o database/models/sqlite -p sqlite --no-auto-timestamps $(DRIVER)
+	sqlboiler -o database/models/sqlite -p sqlite --no-auto-timestamps --wipe $(DRIVER)
 endif

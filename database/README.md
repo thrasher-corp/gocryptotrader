@@ -48,7 +48,7 @@ _This will create a folder in the ./database/migration folder that contains post
 go run ./cmd/dbmigrate -command "up"
 ```
 ##### Adding a new model
-Model's are generated using [SQLBoiler](https://github.com/volatiletech/sqlboiler) 
+Model's are generated using [SQLBoiler](https://github.com/thrasher-corp/sqlboiler) 
 A helper tool has been made located in ./cmd/gen_sqlboiler_config that will parse your GoCryptoTrader config and output a SQLBoiler config
 
 ```sh
@@ -58,8 +58,14 @@ go run ./cmd/gen_sqlboiler_config
 Generate a new model that gets placed in ./database/models/<databasetype> folder
 
 ```shell script
-sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps psql
+sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps --wipe psql 
 ```
+
+Helpers have been provided in the Makefile for linux users 
+```
+make gen_db_models
+```
+And in the contrib/sqlboiler.cmd for windows users
 
 ##### Adding a Repository
 + Create Repository directory in github.com/thrasher-corp/gocryptotrader/database/repository/

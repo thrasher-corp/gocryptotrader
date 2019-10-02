@@ -15,6 +15,6 @@ IF %DRIVER%==psql (
     IF NOT DEFINED MODEL (SET MODEL=sqlite)
 )
 cd ..\
-start %GOPATH%\\bin\\sqlboiler -o database\\models\\%MODEL% -p %MODEL% --no-auto-timestamps %DRIVER%
+start %GOPATH%\\bin\\sqlboiler -o database\\models\\%MODEL% -p %MODEL% --no-auto-timestamps --wipe %DRIVER%
 
 pause
