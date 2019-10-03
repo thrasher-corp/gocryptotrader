@@ -289,6 +289,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 		c.GetPairFormat(asset.Spot, true),
 	)
 	newOrderBook.AssetType = asset.Spot
+	newOrderBook.ExchangeName = c.GetName()
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

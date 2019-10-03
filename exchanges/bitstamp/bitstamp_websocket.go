@@ -247,6 +247,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Bids = bids
 		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = asset.Spot
+		newOrderBook.ExchangeName = b.GetName()
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {

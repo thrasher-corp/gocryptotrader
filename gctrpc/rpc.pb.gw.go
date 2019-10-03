@@ -9,13 +9,13 @@ It translates gRPC into RESTful JSON APIs.
 package gctrpc
 
 import (
+	"context"
 	"io"
 	"net/http"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -54,7 +54,10 @@ func request_GoCryptoTrader_EnableSubsystem_0(ctx context.Context, marshaler run
 	var protoReq GenericSubsystemRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_EnableSubsystem_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_EnableSubsystem_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -71,7 +74,10 @@ func request_GoCryptoTrader_DisableSubsystem_0(ctx context.Context, marshaler ru
 	var protoReq GenericSubsystemRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_DisableSubsystem_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_DisableSubsystem_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -106,7 +112,10 @@ func request_GoCryptoTrader_GetExchanges_0(ctx context.Context, marshaler runtim
 	var protoReq GetExchangesRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetExchanges_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetExchanges_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -140,7 +149,10 @@ func request_GoCryptoTrader_GetExchangeInfo_0(ctx context.Context, marshaler run
 	var protoReq GenericExchangeNameRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetExchangeInfo_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetExchangeInfo_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -157,7 +169,10 @@ func request_GoCryptoTrader_GetExchangeOTPCode_0(ctx context.Context, marshaler 
 	var protoReq GenericExchangeNameRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetExchangeOTPCode_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetExchangeOTPCode_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -252,7 +267,10 @@ func request_GoCryptoTrader_GetAccountInfo_0(ctx context.Context, marshaler runt
 	var protoReq GetAccountInfoRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetAccountInfo_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetAccountInfo_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -578,7 +596,10 @@ func request_GoCryptoTrader_GetLoggerDetails_0(ctx context.Context, marshaler ru
 	var protoReq GetLoggerDetailsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_GetLoggerDetails_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetLoggerDetails_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -652,6 +673,118 @@ func request_GoCryptoTrader_DisableExchangePair_0(ctx context.Context, marshaler
 
 	msg, err := client.DisableExchangePair(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
+
+}
+
+var (
+	filter_GoCryptoTrader_GetOrderbookStream_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_GoCryptoTrader_GetOrderbookStream_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (GoCryptoTrader_GetOrderbookStreamClient, runtime.ServerMetadata, error) {
+	var protoReq GetOrderbookStreamRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetOrderbookStream_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.GetOrderbookStream(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
+var (
+	filter_GoCryptoTrader_GetExchangeOrderbookStream_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_GoCryptoTrader_GetExchangeOrderbookStream_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (GoCryptoTrader_GetExchangeOrderbookStreamClient, runtime.ServerMetadata, error) {
+	var protoReq GetExchangeOrderbookStreamRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetExchangeOrderbookStream_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.GetExchangeOrderbookStream(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
+var (
+	filter_GoCryptoTrader_GetTickerStream_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_GoCryptoTrader_GetTickerStream_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (GoCryptoTrader_GetTickerStreamClient, runtime.ServerMetadata, error) {
+	var protoReq GetTickerStreamRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetTickerStream_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.GetTickerStream(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
+var (
+	filter_GoCryptoTrader_GetExchangeTickerStream_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_GoCryptoTrader_GetExchangeTickerStream_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (GoCryptoTrader_GetExchangeTickerStreamClient, runtime.ServerMetadata, error) {
+	var protoReq GetExchangeTickerStreamRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GetExchangeTickerStream_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.GetExchangeTickerStream(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
 
 }
 
@@ -1553,95 +1686,183 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
+	mux.Handle("GET", pattern_GoCryptoTrader_GetOrderbookStream_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTrader_GetOrderbookStream_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_GetOrderbookStream_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_GoCryptoTrader_GetExchangeOrderbookStream_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTrader_GetExchangeOrderbookStream_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_GetExchangeOrderbookStream_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_GoCryptoTrader_GetTickerStream_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTrader_GetTickerStream_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_GetTickerStream_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_GoCryptoTrader_GetExchangeTickerStream_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTrader_GetExchangeTickerStream_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_GetExchangeTickerStream_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
 var (
-	pattern_GoCryptoTrader_GetInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getinfo"}, ""))
+	pattern_GoCryptoTrader_GetInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getinfo"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetSubsystems_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getsusbsystems"}, ""))
+	pattern_GoCryptoTrader_GetSubsystems_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getsusbsystems"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_EnableSubsystem_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enablesubsystem"}, ""))
+	pattern_GoCryptoTrader_EnableSubsystem_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enablesubsystem"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_DisableSubsystem_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "disablesubsystem"}, ""))
+	pattern_GoCryptoTrader_DisableSubsystem_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "disablesubsystem"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetRPCEndpoints_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getrpcendpoints"}, ""))
+	pattern_GoCryptoTrader_GetRPCEndpoints_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getrpcendpoints"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetCommunicationRelayers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcommunicationrelayers"}, ""))
+	pattern_GoCryptoTrader_GetCommunicationRelayers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcommunicationrelayers"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetExchanges_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchanges"}, ""))
+	pattern_GoCryptoTrader_GetExchanges_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchanges"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_DisableExchange_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "disableexchange"}, ""))
+	pattern_GoCryptoTrader_DisableExchange_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "disableexchange"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetExchangeInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeinfo"}, ""))
+	pattern_GoCryptoTrader_GetExchangeInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeinfo"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetExchangeOTPCode_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeotp"}, ""))
+	pattern_GoCryptoTrader_GetExchangeOTPCode_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeotp"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetExchangeOTPCodes_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeotps"}, ""))
+	pattern_GoCryptoTrader_GetExchangeOTPCodes_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeotps"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_EnableExchange_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enableexchange"}, ""))
+	pattern_GoCryptoTrader_EnableExchange_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enableexchange"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetTicker_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getticker"}, ""))
+	pattern_GoCryptoTrader_GetTicker_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getticker"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetTickers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "gettickers"}, ""))
+	pattern_GoCryptoTrader_GetTickers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "gettickers"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetOrderbook_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorderbook"}, ""))
+	pattern_GoCryptoTrader_GetOrderbook_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorderbook"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetOrderbooks_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorderbooks"}, ""))
+	pattern_GoCryptoTrader_GetOrderbooks_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorderbooks"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetAccountInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getaccountinfo"}, ""))
+	pattern_GoCryptoTrader_GetAccountInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getaccountinfo"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getconfig"}, ""))
+	pattern_GoCryptoTrader_GetConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getconfig"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetPortfolio_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getportfolio"}, ""))
+	pattern_GoCryptoTrader_GetPortfolio_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getportfolio"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetPortfolioSummary_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getportfoliosummary"}, ""))
+	pattern_GoCryptoTrader_GetPortfolioSummary_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getportfoliosummary"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_AddPortfolioAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "addportfolioaddress"}, ""))
+	pattern_GoCryptoTrader_AddPortfolioAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "addportfolioaddress"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_RemovePortfolioAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "removeportfolioaddress"}, ""))
+	pattern_GoCryptoTrader_RemovePortfolioAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "removeportfolioaddress"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetForexProviders_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getforexproviders"}, ""))
+	pattern_GoCryptoTrader_GetForexProviders_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getforexproviders"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetForexRates_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getforexrates"}, ""))
+	pattern_GoCryptoTrader_GetForexRates_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getforexrates"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetOrders_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorders"}, ""))
+	pattern_GoCryptoTrader_GetOrders_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorders"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetOrder_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorder"}, ""))
+	pattern_GoCryptoTrader_GetOrder_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorder"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_SubmitOrder_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "submitorder"}, ""))
+	pattern_GoCryptoTrader_SubmitOrder_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "submitorder"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_SimulateOrder_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "simulateorder"}, ""))
+	pattern_GoCryptoTrader_SimulateOrder_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "simulateorder"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_WhaleBomb_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "whalebomb"}, ""))
+	pattern_GoCryptoTrader_WhaleBomb_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "whalebomb"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_CancelOrder_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "cancelorder"}, ""))
+	pattern_GoCryptoTrader_CancelOrder_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "cancelorder"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_CancelAllOrders_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "cancelallorders"}, ""))
+	pattern_GoCryptoTrader_CancelAllOrders_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "cancelallorders"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetEvents_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getevents"}, ""))
+	pattern_GoCryptoTrader_GetEvents_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getevents"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_AddEvent_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "addevent"}, ""))
+	pattern_GoCryptoTrader_AddEvent_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "addevent"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_RemoveEvent_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "removeevent"}, ""))
+	pattern_GoCryptoTrader_RemoveEvent_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "removeevent"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetCryptocurrencyDepositAddresses_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcryptodepositaddresses"}, ""))
+	pattern_GoCryptoTrader_GetCryptocurrencyDepositAddresses_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcryptodepositaddresses"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetCryptocurrencyDepositAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcryptodepositaddress"}, ""))
+	pattern_GoCryptoTrader_GetCryptocurrencyDepositAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcryptodepositaddress"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_WithdrawCryptocurrencyFunds_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawcryptofunds"}, ""))
+	pattern_GoCryptoTrader_WithdrawCryptocurrencyFunds_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawcryptofunds"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_WithdrawFiatFunds_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawfiatfunds"}, ""))
+	pattern_GoCryptoTrader_WithdrawFiatFunds_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawfiatfunds"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetLoggerDetails_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getloggerdetails"}, ""))
+	pattern_GoCryptoTrader_GetLoggerDetails_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getloggerdetails"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_SetLoggerDetails_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "setloggerdetails"}, ""))
+	pattern_GoCryptoTrader_SetLoggerDetails_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "setloggerdetails"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetExchangePairs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangepairs"}, ""))
+	pattern_GoCryptoTrader_GetExchangePairs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangepairs"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_EnableExchangePair_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enableexchangepair"}, ""))
+	pattern_GoCryptoTrader_EnableExchangePair_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enableexchangepair"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_DisableExchangePair_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "disableexchangepair"}, ""))
+	pattern_GoCryptoTrader_DisableExchangePair_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "disableexchangepair"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_GoCryptoTrader_GetOrderbookStream_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorderbookstream"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_GoCryptoTrader_GetExchangeOrderbookStream_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeorderbookstream"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_GoCryptoTrader_GetTickerStream_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getTickerstream"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_GoCryptoTrader_GetExchangeTickerStream_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangetickerstream"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
@@ -1730,4 +1951,12 @@ var (
 	forward_GoCryptoTrader_EnableExchangePair_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTrader_DisableExchangePair_0 = runtime.ForwardResponseMessage
+
+	forward_GoCryptoTrader_GetOrderbookStream_0 = runtime.ForwardResponseStream
+
+	forward_GoCryptoTrader_GetExchangeOrderbookStream_0 = runtime.ForwardResponseStream
+
+	forward_GoCryptoTrader_GetTickerStream_0 = runtime.ForwardResponseStream
+
+	forward_GoCryptoTrader_GetExchangeTickerStream_0 = runtime.ForwardResponseStream
 )

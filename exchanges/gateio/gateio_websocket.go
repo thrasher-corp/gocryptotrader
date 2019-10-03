@@ -237,6 +237,7 @@ func (g *Gateio) WsHandleData() {
 					newOrderBook.Bids = bids
 					newOrderBook.AssetType = asset.Spot
 					newOrderBook.Pair = currency.NewPairFromString(c)
+					newOrderBook.ExchangeName = g.GetName()
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 					if err != nil {

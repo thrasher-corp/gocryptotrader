@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -544,6 +548,11 @@ func getTicker(c *cli.Context) error {
 		assetType = c.Args().Get(2)
 	}
 
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -650,6 +659,11 @@ func getOrderbook(c *cli.Context) error {
 		assetType = c.String("asset")
 	} else {
 		assetType = c.Args().Get(2)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
@@ -1064,6 +1078,11 @@ func getOrders(c *cli.Context) error {
 		assetType = c.String("asset_type")
 	} else {
 		assetType = c.Args().Get(1)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	if c.IsSet("pair") {
@@ -1559,6 +1578,11 @@ func cancelOrder(c *cli.Context) error {
 		assetType = c.String("asset_type")
 	}
 
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
 	if c.IsSet("wallet_address") {
 		walletAddress = c.String("wallet_address")
 	}
@@ -1780,6 +1804,11 @@ func addEvent(c *cli.Context) error {
 
 	if c.IsSet("asset_type") {
 		assetType = c.String("asset_type")
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	if c.IsSet("action") {
@@ -2172,6 +2201,11 @@ func getExchangePairs(c *cli.Context) error {
 		asset = c.Args().Get(1)
 	}
 
+	asset = strings.ToLower(asset)
+	if !validAsset(asset) {
+		return errInvalidAsset
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2247,6 +2281,11 @@ func enableExchangePair(c *cli.Context) error {
 		asset = c.String("asset")
 	} else {
 		asset = c.Args().Get(2)
+	}
+
+	asset = strings.ToLower(asset)
+	if !validAsset(asset) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
@@ -2332,6 +2371,11 @@ func disableExchangePair(c *cli.Context) error {
 		asset = c.Args().Get(2)
 	}
 
+	asset = strings.ToLower(asset)
+	if !validAsset(asset) {
+		return errInvalidAsset
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2356,4 +2400,408 @@ func disableExchangePair(c *cli.Context) error {
 	}
 	jsonOutput(result)
 	return nil
+}
+
+var getOrderbookStreamCommand = cli.Command{
+	Name:      "getorderbookstream",
+	Usage:     "gets the orderbook stream for a specific currency pair and exchange",
+	ArgsUsage: "<exchange> <currencyPair> <asset>",
+	Action:    getOrderbookStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the orderbook from",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "currency pair",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type of the currency pair",
+		},
+	},
+}
+
+func getOrderbookStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getorderbookstream")
+		return nil
+	}
+
+	var exchangeName string
+	var pair string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("pair") {
+		pair = c.String("pair")
+	} else {
+		pair = c.Args().Get(1)
+	}
+
+	if !validPair(pair) {
+		return errInvalidPair
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(2)
+	}
+
+	assetType = strings.ToLower(assetType)
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	p := currency.NewPairDelimiter(pair, pairDelimiter)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetOrderbookStream(context.Background(),
+		&gctrpc.GetOrderbookStreamRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+				Delimiter: p.Delimiter,
+			},
+			AssetType: assetType,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName,
+			resp.Pair.String())
+		fmt.Println("\t\tBids\t\t\t\tAsks")
+		fmt.Println()
+
+		bidLen := len(resp.Bids) - 1
+		askLen := len(resp.Asks) - 1
+
+		var maxLen int
+		if bidLen >= askLen {
+			maxLen = bidLen
+		} else {
+			maxLen = askLen
+		}
+
+		for i := 0; i < maxLen; i++ {
+			var bidAmount, bidPrice float64
+			if i <= bidLen {
+				bidAmount = resp.Bids[i].Amount
+				bidPrice = resp.Bids[i].Price
+			}
+
+			var askAmount, askPrice float64
+			if i <= askLen {
+				askAmount = resp.Asks[i].Amount
+				askPrice = resp.Asks[i].Price
+			}
+
+			fmt.Printf("%f %s @ %f %s\t\t%f %s @ %f %s\n",
+				bidAmount,
+				resp.Pair.Base,
+				bidPrice,
+				resp.Pair.Quote,
+				askAmount,
+				resp.Pair.Base,
+				askPrice,
+				resp.Pair.Quote)
+
+			if i >= 49 {
+				// limits orderbook display output
+				break
+			}
+		}
+	}
+}
+
+var getExchangeOrderbookStreamCommand = cli.Command{
+	Name:      "getexchangeorderbookstream",
+	Usage:     "gets a stream for all orderbooks associated with an exchange",
+	ArgsUsage: "<exchange>",
+	Action:    getExchangeOrderbookStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the orderbook from",
+		},
+	},
+}
+
+func getExchangeOrderbookStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getexchangeorderbookstream")
+		return nil
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetExchangeOrderbookStream(context.Background(),
+		&gctrpc.GetExchangeOrderbookStreamRequest{
+			Exchange: exchangeName,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Orderbook streamed for %s %s",
+			exchangeName,
+			resp.Pair.String())
+	}
+}
+
+var getTickerStreamCommand = cli.Command{
+	Name:      "gettickerstream",
+	Usage:     "gets the ticker stream for a specific currency pair and exchange",
+	ArgsUsage: "<exchange> <currencyPair> <asset>",
+	Action:    getTickerStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the ticker from",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "currency pair",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type of the currency pair",
+		},
+	},
+}
+
+func getTickerStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "gettickerstream")
+		return nil
+	}
+
+	var exchangeName string
+	var pair string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("pair") {
+		pair = c.String("pair")
+	} else {
+		pair = c.Args().Get(1)
+	}
+
+	if !validPair(pair) {
+		return errInvalidPair
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(2)
+	}
+
+	assetType = strings.ToLower(assetType)
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	p := currency.NewPairDelimiter(pair, pairDelimiter)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetTickerStream(context.Background(),
+		&gctrpc.GetTickerStreamRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+				Delimiter: p.Delimiter,
+			},
+			AssetType: assetType,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Ticker stream for %s %s:\n", exchangeName,
+			resp.Pair.String())
+		fmt.Println()
+
+		fmt.Printf("LAST: %f\n HIGH: %f\n LOW: %f\n BID: %f\n ASK: %f\n VOLUME: %f\n PRICEATH: %f\n LASTUPDATED: %d\n",
+			resp.Last,
+			resp.High,
+			resp.Low,
+			resp.Bid,
+			resp.Ask,
+			resp.Volume,
+			resp.PriceAth,
+			resp.LastUpdated)
+	}
+}
+
+var getExchangeTickerStreamCommand = cli.Command{
+	Name:      "getexchangetickerstream",
+	Usage:     "gets a stream for all tickers associated with an exchange",
+	ArgsUsage: "<exchange>",
+	Action:    getExchangeTickerStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the ticker from",
+		},
+	},
+}
+
+func getExchangeTickerStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getexchangetickerstream")
+		return nil
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetExchangeTickerStream(context.Background(),
+		&gctrpc.GetExchangeTickerStreamRequest{
+			Exchange: exchangeName,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Ticker stream for %s %s:\n",
+			exchangeName,
+			resp.Pair.String())
+
+		fmt.Printf("LAST: %f HIGH: %f LOW: %f BID: %f ASK: %f VOLUME: %f PRICEATH: %f LASTUPDATED: %d\n",
+			resp.Last,
+			resp.High,
+			resp.Low,
+			resp.Bid,
+			resp.Ask,
+			resp.Volume,
+			resp.PriceAth,
+			resp.LastUpdated)
+	}
+}
+
+func clearScreen() error {
+	switch runtime.GOOS {
+	case "windows":
+		cmd := exec.Command("cmd", "/c", "cls")
+		cmd.Stdout = os.Stdout
+		return cmd.Run()
+	default:
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		return cmd.Run()
+	}
 }
