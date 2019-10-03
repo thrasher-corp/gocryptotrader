@@ -13,11 +13,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/core"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
+func dostuff(err error) {
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
 func main() {
+
+	temp := gctscript.New()
+	terr := temp.Load("./gctscript/scripts/test.gctgo")
+	dostuff(terr)
+	terr = temp.Script.Add("b", 10)
+	dostuff(terr)
+	terr = temp.Compile()
+	dostuff(terr)
+	terr = temp.Run()
+	dostuff(terr)
+
+	a := temp.Compiled.Get("a").Int()
+	fmt.Println(a)
+
+	os.Exit(0)
+
 	// Handle flags
 	var settings engine.Settings
 	versionFlag := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
