@@ -5,6 +5,12 @@ package postgres
 
 var TableNames = struct {
 	AuditEvent string
+	Client     string
+	OrderEvent string
+	TradeEvent string
 }{
 	AuditEvent: "audit_event",
+	Client:     "client",
+	OrderEvent: "order_event",
+	TradeEvent: "trade_event",
 }

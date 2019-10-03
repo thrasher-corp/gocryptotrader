@@ -149,16 +149,16 @@ func (o *orderManager) run() {
 
 func (o *orderManager) CancelAllOrders() {}
 
-func (o *orderManager) Cancel(exchName string, order *order.Cancellation) error {
+func (o *orderManager) Cancel(exchName string, cancel *order.Cancellation) error {
 	if exchName == "" {
 		return errors.New("order exchange name is empty")
 	}
 
-	if order == nil {
+	if cancel == nil {
 		return errors.New("order cancel param is nil")
 	}
 
-	if order.OrderID == "" {
+	if cancel.OrderID == "" {
 		return errors.New("order id is empty")
 	}
 
@@ -167,11 +167,11 @@ func (o *orderManager) Cancel(exchName string, order *order.Cancellation) error 
 		return errors.New("unable to get exchange by name")
 	}
 
-	if order.AssetType.String() != "" && !exch.GetAssetTypes().Contains(order.AssetType) {
+	if cancel.AssetType.String() != "" && !exch.GetAssetTypes().Contains(cancel.AssetType) {
 		return errors.New("order asset type not supported by exchange")
 	}
 
-	return exch.CancelOrder(order)
+	return exch.CancelOrder(cancel)
 }
 
 func (o *orderManager) Submit(exchName string, newOrder *order.Submit) (*orderSubmitResponse, error) {

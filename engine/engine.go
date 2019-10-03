@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -376,6 +377,8 @@ func (e *Engine) Start() error {
 			log.Errorf(log.Global, "Order manager unable to start: %v", err)
 		}
 	}
+
+	os.Exit(1)
 
 	if e.Settings.EnableExchangeSyncManager {
 		exchangeSyncCfg := CurrencyPairSyncerConfig{

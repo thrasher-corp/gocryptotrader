@@ -13,56 +13,98 @@ import "testing"
 // Separating the tests thusly grants avoidance of Postgres deadlocks.
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
+	t.Run("Clients", testClients)
+	t.Run("OrderEvents", testOrderEvents)
+	t.Run("TradeEvents", testTradeEvents)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
+	t.Run("Clients", testClientsDelete)
+	t.Run("OrderEvents", testOrderEventsDelete)
+	t.Run("TradeEvents", testTradeEventsDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
+	t.Run("Clients", testClientsQueryDeleteAll)
+	t.Run("OrderEvents", testOrderEventsQueryDeleteAll)
+	t.Run("TradeEvents", testTradeEventsQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
+	t.Run("Clients", testClientsSliceDeleteAll)
+	t.Run("OrderEvents", testOrderEventsSliceDeleteAll)
+	t.Run("TradeEvents", testTradeEventsSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
+	t.Run("Clients", testClientsExists)
+	t.Run("OrderEvents", testOrderEventsExists)
+	t.Run("TradeEvents", testTradeEventsExists)
 }
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
+	t.Run("Clients", testClientsFind)
+	t.Run("OrderEvents", testOrderEventsFind)
+	t.Run("TradeEvents", testTradeEventsFind)
 }
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
+	t.Run("Clients", testClientsBind)
+	t.Run("OrderEvents", testOrderEventsBind)
+	t.Run("TradeEvents", testTradeEventsBind)
 }
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
+	t.Run("Clients", testClientsOne)
+	t.Run("OrderEvents", testOrderEventsOne)
+	t.Run("TradeEvents", testTradeEventsOne)
 }
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
+	t.Run("Clients", testClientsAll)
+	t.Run("OrderEvents", testOrderEventsAll)
+	t.Run("TradeEvents", testTradeEventsAll)
 }
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
+	t.Run("Clients", testClientsCount)
+	t.Run("OrderEvents", testOrderEventsCount)
+	t.Run("TradeEvents", testTradeEventsCount)
 }
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
+	t.Run("Clients", testClientsHooks)
+	t.Run("OrderEvents", testOrderEventsHooks)
+	t.Run("TradeEvents", testTradeEventsHooks)
 }
 
 func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsert)
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
+	t.Run("Clients", testClientsInsert)
+	t.Run("Clients", testClientsInsertWhitelist)
+	t.Run("OrderEvents", testOrderEventsInsert)
+	t.Run("OrderEvents", testOrderEventsInsertWhitelist)
+	t.Run("TradeEvents", testTradeEventsInsert)
+	t.Run("TradeEvents", testTradeEventsInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToOne(t *testing.T) {}
+func TestToOne(t *testing.T) {
+	t.Run("OrderEventToClientUsingClient", testOrderEventToOneClientUsingClient)
+	t.Run("TradeEventToOrderEventUsingOrder", testTradeEventToOneOrderEventUsingOrder)
+}
 
 // TestOneToOne tests cannot be run in parallel
 // or deadlocks can occur.
@@ -70,11 +112,17 @@ func TestOneToOne(t *testing.T) {}
 
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToMany(t *testing.T) {}
+func TestToMany(t *testing.T) {
+	t.Run("ClientToOrderEvents", testClientToManyOrderEvents)
+	t.Run("OrderEventToOrderTradeEvents", testOrderEventToManyOrderTradeEvents)
+}
 
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToOneSet(t *testing.T) {}
+func TestToOneSet(t *testing.T) {
+	t.Run("OrderEventToClientUsingOrderEvents", testOrderEventToOneSetOpClientUsingClient)
+	t.Run("TradeEventToOrderEventUsingOrderTradeEvents", testTradeEventToOneSetOpOrderEventUsingOrder)
+}
 
 // TestToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
@@ -90,7 +138,10 @@ func TestOneToOneRemove(t *testing.T) {}
 
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToManyAdd(t *testing.T) {}
+func TestToManyAdd(t *testing.T) {
+	t.Run("ClientToOrderEvents", testClientToManyAddOpOrderEvents)
+	t.Run("OrderEventToOrderTradeEvents", testOrderEventToManyAddOpOrderTradeEvents)
+}
 
 // TestToManySet tests cannot be run in parallel
 // or deadlocks can occur.
@@ -102,20 +153,35 @@ func TestToManyRemove(t *testing.T) {}
 
 func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
+	t.Run("Clients", testClientsReload)
+	t.Run("OrderEvents", testOrderEventsReload)
+	t.Run("TradeEvents", testTradeEventsReload)
 }
 
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
+	t.Run("Clients", testClientsReloadAll)
+	t.Run("OrderEvents", testOrderEventsReloadAll)
+	t.Run("TradeEvents", testTradeEventsReloadAll)
 }
 
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
+	t.Run("Clients", testClientsSelect)
+	t.Run("OrderEvents", testOrderEventsSelect)
+	t.Run("TradeEvents", testTradeEventsSelect)
 }
 
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
+	t.Run("Clients", testClientsUpdate)
+	t.Run("OrderEvents", testOrderEventsUpdate)
+	t.Run("TradeEvents", testTradeEventsUpdate)
 }
 
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
+	t.Run("Clients", testClientsSliceUpdateAll)
+	t.Run("OrderEvents", testOrderEventsSliceUpdateAll)
+	t.Run("TradeEvents", testTradeEventsSliceUpdateAll)
 }
