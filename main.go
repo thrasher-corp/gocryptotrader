@@ -26,7 +26,7 @@ func main() {
 	flag.StringVar(&settings.ConfigFile, "config", "", "config file to load")
 	flag.StringVar(&settings.DataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.StringVar(&settings.MigrationDir, "migrationdir", mg.MigrationDir, "override migration folder")
-	flag.IntVar(&settings.GoMaxProcs, "gomaxprocs", runtime.NumCPU(), "sets the runtime GOMAXPROCS value")
+	flag.IntVar(&settings.GoMaxProcs, "gomaxprocs", runtime.GOMAXPROCS(-1), "sets the runtime GOMAXPROCS value")
 	flag.BoolVar(&settings.EnableDryRun, "dryrun", false, "dry runs bot, doesn't save config file")
 	flag.BoolVar(&settings.EnableAllExchanges, "enableallexchanges", false, "enables all exchanges")
 	flag.BoolVar(&settings.EnableAllPairs, "enableallpairs", false, "enables all pairs for enabled exchanges")

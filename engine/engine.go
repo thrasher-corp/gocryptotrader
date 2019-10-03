@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 
@@ -293,6 +294,9 @@ func (e *Engine) Start() error {
 	e.Uptime = time.Now()
 	log.Debugf(log.Global, "Bot '%s' started.\n", e.Config.Name)
 	log.Debugf(log.Global, "Using data dir: %s\n", e.Settings.DataDir)
+	log.Debugf(log.Global,
+		"Using %d out of %d logical processors for runtime performance\n",
+		runtime.GOMAXPROCS(-1), runtime.NumCPU())
 
 	enabledExchanges := e.Config.CountEnabledExchanges()
 	if e.Settings.EnableAllExchanges {
