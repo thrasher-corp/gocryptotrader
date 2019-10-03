@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS audit_event
     type       varchar(255)  NOT NULL,
     identifier varchar(255)  NOT NULL,
     message    text          NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.

@@ -132,6 +132,7 @@ func main() {
 		getExchangeOrderbookStreamCommand,
 		getTickerStreamCommand,
 		getExchangeTickerStreamCommand,
+		getAuditEventCommand,
 	}
 
 	err := app.Run(os.Args)

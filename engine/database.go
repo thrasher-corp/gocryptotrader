@@ -36,23 +36,17 @@ func (a *databaseManager) Start() (err error) {
 
 	if Bot.Config.Database.Enabled {
 		if Bot.Config.Database.Driver == database.DBPostgreSQL {
-			log.Debugf(log.DatabaseMgr, "Attempting to established to host %s/%s utilising %s driver\n",
+			log.Debugf(log.DatabaseMgr, "Attempting to establish database connection to host %s/%s utilising %s driver\n",
 				Bot.Config.Database.Host, Bot.Config.Database.Database, Bot.Config.Database.Driver)
-
 			dbConn, err = dbpsql.Connect()
-			if err != nil {
-				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
-			}
 		} else if Bot.Config.Database.Driver == database.DBSQLite || Bot.Config.Database.Driver == database.DBSQLite3 {
-			log.Debugf(log.DatabaseMgr, "Attempting to established to database %s utilising %s driver\n",
+			log.Debugf(log.DatabaseMgr, "Attempting to establish database connection to %s utilising %s driver\n",
 				Bot.Config.Database.Database, Bot.Config.Database.Driver)
 			dbConn, err = dbsqlite3.Connect()
-
-			if err != nil {
-				return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
-			}
 		}
-
+		if err != nil {
+			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+		}
 		dbConn.Connected = true
 
 		go a.run()
@@ -106,6 +100,11 @@ func (a *databaseManager) run() {
 }
 
 func (a *databaseManager) checkConnection() {
+	//x := fmt.Sprintf("id-%v", rand.Int31())
+	//y := fmt.Sprintf("msgtype-%v", rand.Int31())
+	//z := fmt.Sprintf("msg-%v", rand.Int31())
+	//audit.Event(x, y, z)
+
 	dbConn.Mu.Lock()
 	defer dbConn.Mu.Unlock()
 

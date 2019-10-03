@@ -10,6 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite"
+
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1158,4 +1163,32 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return err
 		}
 	}
+}
+
+// GetAuditEvent returns matching audit events from database
+func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
+
+	events, err := audit.GetEvent(r.StartDate, r.EndDate, r.OrderBy, r.Limit)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := gctrpc.GetAuditEventResponse{}
+
+	switch v := events.(type) {
+	case postgres.AuditEventSlice:
+		for x := range v {
+			tempEvent := &gctrpc.AuditEvent{
+				Type:       v[x].Type,
+				Identifier: v[x].Identifier,
+				Message:    v[x].Message,
+				Timestamp:  v[x].CreatedAt.Format("2006/01/02 15:04:05"),
+			}
+			resp.Event = append(resp.Event, tempEvent)
+		}
+	case sqlite.AuditEventSlice:
+		fmt.Println(v)
+	}
+
+	return &resp, nil
 }

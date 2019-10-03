@@ -2,6 +2,8 @@ package audit
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
@@ -9,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 // Event inserts a new audit event to database
@@ -60,4 +63,31 @@ func Event(id, msgtype, message string) {
 		}
 		return
 	}
+}
+
+// GetEvent () returns list of order events matching query
+func GetEvent(starTime, endTime, order string, limit int64) (interface{}, error) {
+	if database.DB.SQL == nil {
+		return nil, errors.New("database is nil")
+	}
+	boil.DebugMode = true
+
+	query := qm.Where("created_at BETWEEN ? and ?", starTime, endTime)
+	orderby := qm.OrderBy("id desc")
+
+	fmt.Println(query)
+
+	ctx := context.Background()
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+		events, err := modelSQLite.AuditEvents().All(ctx, database.DB.SQL)
+		if err != nil {
+			return nil, err
+		}
+		return events, nil
+	}
+	events, err := modelPSQL.AuditEvents(query, orderby).All(ctx, database.DB.SQL)
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
 }

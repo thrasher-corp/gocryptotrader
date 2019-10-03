@@ -343,6 +343,49 @@
         ]
       }
     },
+    "/v1/getauditevent": {
+      "get": {
+        "operationId": "GetAuditEvent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAuditEventResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getcommunicationrelayers": {
       "get": {
         "operationId": "GetCommunicationRelayers",
@@ -1442,6 +1485,17 @@
         }
       }
     },
+    "gctrpcGetAuditEventResponse": {
+      "type": "object",
+      "properties": {
+        "Event": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcauditEvent"
+          }
+        }
+      }
+    },
     "gctrpcGetCommunicationRelayersResponse": {
       "type": "object",
       "properties": {
@@ -2316,6 +2370,23 @@
       "type": "object",
       "properties": {
         "result": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcauditEvent": {
+      "type": "object",
+      "properties": {
+        "Type": {
+          "type": "string"
+        },
+        "Identifier": {
+          "type": "string"
+        },
+        "Message": {
+          "type": "string"
+        },
+        "timestamp": {
           "type": "string"
         }
       }
