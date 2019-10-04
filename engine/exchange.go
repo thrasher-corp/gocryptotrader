@@ -200,7 +200,13 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	}
 
 	if Bot.Settings.EnableAllPairs {
-		exchCfg.EnabledPairs = exchCfg.AvailablePairs
+		if exchCfg.CurrencyPairs != nil {
+			assets := exchCfg.CurrencyPairs.GetAssetTypes()
+			for x := range assets {
+				pairs := exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+				exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
+			}
+		}
 	}
 
 	if Bot.Settings.EnableExchangeVerbose {

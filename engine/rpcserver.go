@@ -116,9 +116,6 @@ func StartRPCServer() {
 // StartRPCRESTProxy starts a gRPC proxy
 func StartRPCRESTProxy() {
 	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
@@ -134,9 +131,11 @@ func StartRPCRESTProxy() {
 			Password: Bot.Config.RemoteControl.Password,
 		}),
 	}
-	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(ctx, mux, Bot.Config.RemoteControl.GRPC.ListenAddress, opts)
+	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(context.Background(),
+		mux, Bot.Config.RemoteControl.GRPC.ListenAddress, opts)
 	if err != nil {
 		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
+		return
 	}
 
 	go func() {
@@ -568,7 +567,7 @@ func (s *RPCServer) GetForexProviders(ctx context.Context, r *gctrpc.GetForexPro
 			Name:             providers[x].Name,
 			Enabled:          providers[x].Enabled,
 			Verbose:          providers[x].Verbose,
-			RestRollingDelay: providers[x].RESTPollingDelay.String(),
+			RestPollingDelay: providers[x].RESTPollingDelay.String(),
 			ApiKey:           providers[x].APIKey,
 			ApiKeyLevel:      int64(providers[x].APIKeyLvl),
 			PrimaryProvider:  providers[x].PrimaryProvider,

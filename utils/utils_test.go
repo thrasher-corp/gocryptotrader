@@ -51,7 +51,7 @@ func TestAdjustGoMaxProcs(t *testing.T) {
 
 	for x := range tester {
 		if err := checker(tester[x].Setting, tester[x].Expected); err != nil {
-			t.Errorf("%d failed. %s", tester[x], err)
+			t.Errorf("%d failed. %s", x, err)
 		}
 	}
 }
