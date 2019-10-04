@@ -95,11 +95,12 @@ func (s *Service) Update(b *Base) error {
 		}
 
 	default:
-		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.Bids = b.Bids
-		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.Asks = b.Asks
-		s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].b.LastUpdated = b.LastUpdated
-		ids = s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].Assoc
-		ids = append(ids, s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType].Main)
+		book := s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType]
+		book.b.Bids = b.Bids
+		book.b.Asks = b.Asks
+		book.b.LastUpdated = b.LastUpdated
+		ids = book.Assoc
+		ids = append(ids, book.Main)
 	}
 	s.Unlock()
 	return s.mux.Publish(ids, b)
