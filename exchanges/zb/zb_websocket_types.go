@@ -77,7 +77,7 @@ type WsAddSubUserRequest struct {
 	Memo        string `json:"memo"`
 	Password    string `json:"password"`
 	SubUserName string `json:"subUserName"`
-	No          int64  `json:"no,string,omtempty"`
+	No          int64  `json:"no,string,omitempty"`
 	Sign        string `json:"sign,omitempty"`
 }
 

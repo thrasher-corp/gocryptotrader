@@ -16,9 +16,9 @@ var (
 )
 
 // AdjustGoMaxProcs sets the runtime GOMAXPROCS val
-// Since Go 1.5, Go will use the total number of logical processers that the
+// Since Go 1.5, Go will use the total number of logical processors that the
 // system has available. Caveats to this are if someone has set the GOMAXPROCS
-// env var set or wish to limit usage of the number of logical processers
+// env var set or wish to limit usage of the number of logical processors
 // between a range from 1 to NumCPUs
 func AdjustGoMaxProcs(procs int) error {
 	// Check for default settings, plus respecting GOMAXPROCS env but

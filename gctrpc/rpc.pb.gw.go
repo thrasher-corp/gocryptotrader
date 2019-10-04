@@ -1812,7 +1812,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 var (
 	pattern_GoCryptoTrader_GetInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getinfo"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetSubsystems_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getsusbsystems"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_GoCryptoTrader_GetSubsystems_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getsubsystems"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_GoCryptoTrader_EnableSubsystem_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enablesubsystem"}, "", runtime.AssumeColonVerbOpt(true)))
 
@@ -1900,7 +1900,7 @@ var (
 
 	pattern_GoCryptoTrader_GetExchangeOrderbookStream_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangeorderbookstream"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GetTickerStream_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getTickerstream"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_GoCryptoTrader_GetTickerStream_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "gettickerstream"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_GoCryptoTrader_GetExchangeTickerStream_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getexchangetickerstream"}, "", runtime.AssumeColonVerbOpt(true)))
 
