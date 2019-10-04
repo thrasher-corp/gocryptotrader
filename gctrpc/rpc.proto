@@ -514,6 +514,7 @@ message GetAuditEventRequest {
     string end_date = 2;
     string order_by = 3;
     int32 limit = 4;
+    int32 offset = 5;
 }
 
 message GetAuditEventResponse {

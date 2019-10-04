@@ -113,8 +113,7 @@ func writeAudit(t *testing.T) {
 func readHelper(t *testing.T) {
 	t.Helper()
 
-	_, err := audit.GetEvent(time.Now().Add(-time.Hour*60).Format(audit.TableTimeFormat), time.Now().Format(audit.TableTimeFormat), "asc", 1)
-
+	_, err := audit.GetEvent(time.Now().Add(-time.Hour*60), time.Now(), "asc", 1)
 	if err != nil {
 		t.Error(err)
 	}

@@ -2813,9 +2813,10 @@ var startTime, endTime, order string
 var limit int
 
 var getAuditEventCommand = cli.Command{
-	Name:   "getauditevent",
-	Usage:  "gets audit events matching query parameters",
-	Action: getAuditEvent,
+	Name:      "getauditevent",
+	Usage:     "gets audit events matching query parameters",
+	ArgsUsage: "<starttime> <endtime> <orderby> <limit>",
+	Action:    getAuditEvent,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:        "start, s",
@@ -2845,11 +2846,6 @@ var getAuditEventCommand = cli.Command{
 }
 
 func getAuditEvent(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getauditevent")
-		return nil
-	}
-
 	if !c.IsSet("start") {
 		if c.Args().Get(0) != "" {
 			startTime = c.Args().Get(0)
@@ -2900,12 +2896,14 @@ func getAuditEvent(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
+	_, offset := time.Now().Zone()
 	result, err := client.GetAuditEvent(context.Background(),
 		&gctrpc.GetAuditEventRequest{
 			StartDate: startTime,
 			EndDate:   endTime,
 			Limit:     int32(limit),
 			OrderBy:   order,
+			Offset:    int32(offset),
 		})
 
 	if err != nil {

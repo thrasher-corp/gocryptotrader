@@ -1165,8 +1165,12 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 // GetAuditEvent returns matching audit events from database
 func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
+	UTCStartTime, _ := time.Parse(audit.TableTimeFormat, r.StartDate)
+	UTCSEndTime, _ := time.Parse(audit.TableTimeFormat, r.EndDate)
 
-	events, err := audit.GetEvent(r.StartDate, r.EndDate, r.OrderBy, int(r.Limit))
+	loc := time.FixedZone("", int(r.Offset))
+
+	events, err := audit.GetEvent(UTCStartTime, UTCSEndTime, r.OrderBy, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
@@ -1180,8 +1184,9 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 				Type:       v[x].Type,
 				Identifier: v[x].Identifier,
 				Message:    v[x].Message,
-				Timestamp:  v[x].CreatedAt.Format(audit.TableTimeFormat),
+				Timestamp:  v[x].CreatedAt.In(loc).Format(audit.TableTimeFormat),
 			}
+
 			resp.Event = append(resp.Event, tempEvent)
 		}
 	case sqlite.AuditEventSlice:
