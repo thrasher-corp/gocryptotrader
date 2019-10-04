@@ -21,8 +21,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Current Features for database package
 
 + Establishes & Maintains database connection across program life cycle
-+ Multiple database support via simple repository model
-+ Run migration on connection to assure database is at correct version
++ Migration handed by [Goose](https://github.com/thrasher-corp/goose) 
++ Model generation handled by [SQLBoiler](https://github.com/thrasher-corp/sqlboiler) 
 
 ## How to use
 
@@ -41,6 +41,47 @@ go get -u https://github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql
 [SQLite Driver](https://github.com/thrasher-corp/sqlboiler-sqlite3)
 ```shell script
 go get -u https://github.com/thrasher-corp/sqlboiler-sqlite3
+```
+
+##### Configuration
+
+The database configuration struct is currently: 
+```shell script
+type Config struct {
+	Enabled                   bool   `json:"enabled"`
+	Verbose                   bool   `json:"verbose"`
+	Driver                    string `json:"driver"`
+	drivers.ConnectionDetails `json:"connectionDetails"`
+}
+```
+And Connection Details:
+```sh
+type ConnectionDetails struct {
+	Host     string `json:"host"`
+	Port     uint16 `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Database string `json:"database"`
+	SSLMode  string `json:"sslmode"`
+}
+```
+
+With an example configuration being:
+
+```sh
+ "database": {
+  "enabled": true,
+  "verbose": true,
+  "driver": "postgres",
+  "connectionDetails": {
+   "host": "localhost",
+   "port": 5432,
+   "username": "gct-dev",
+   "password": "gct-dev",
+   "database": "gct-dev",
+   "sslmode": "disable"
+  }
+ },
 ```
 
 ##### Create and Run migrations
