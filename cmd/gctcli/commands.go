@@ -2809,72 +2809,72 @@ func clearScreen() error {
 
 const timeFormat = "2006-01-02 15:04:05"
 
+var startTime, endTime, order string
+var limit int
+
 var getAuditEventCommand = cli.Command{
-	Name:      "getauditevent",
-	Usage:     "gets audit events matching query parameters",
-	ArgsUsage: "<exchange>",
-	Action:    getAuditEvent,
+	Name:   "getauditevent",
+	Usage:  "gets audit events matching query parameters",
+	Action: getAuditEvent,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name:  "start",
-			Usage: "start date to search",
-			Value: time.Now().Add(-time.Hour).Format(timeFormat),
+			Name:        "start, s",
+			Usage:       "start date to search",
+			Value:       time.Now().Add(-time.Hour).Format(timeFormat),
+			Destination: &startTime,
 		},
 		cli.StringFlag{
-			Name:  "end",
-			Usage: "end time to search",
-			Value: time.Now().Format(timeFormat),
+			Name:        "end, e",
+			Usage:       "end time to search",
+			Value:       time.Now().Format(timeFormat),
+			Destination: &endTime,
 		},
 		cli.StringFlag{
-			Name:  "order",
-			Usage: "order results asc/desc",
-			Value: "asc",
+			Name:        "order, o",
+			Usage:       "order results by asc/desc",
+			Value:       "asc",
+			Destination: &order,
 		},
 		cli.IntFlag{
-			Name:  "limit",
-			Usage: "how many orders to retrieve",
-			Value: 100,
+			Name:        "limit, l",
+			Usage:       "how many results to retrieve",
+			Value:       100,
+			Destination: &limit,
 		},
 	},
 }
 
 func getAuditEvent(c *cli.Context) error {
-	//if c.NArg() == 0 && c.NumFlags() == 0 {
-	//	cli.ShowCommandHelp(c, "getauditevent")
-	//	return nil
-	//}
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getauditevent")
+		return nil
+	}
 
-	var startTime, endTime, order string
-	var limit int64
-
-	if c.IsSet("start") {
-		startTime = c.String("start")
-	} else {
-		if startTime == "" {
-			startTime = time.Now().Add(-time.Hour).Format(timeFormat)
-		} else {
-			startTime = c.Args().First()
+	if !c.IsSet("start") {
+		if c.Args().Get(0) != "" {
+			startTime = c.Args().Get(0)
 		}
 	}
 
-	if c.IsSet("end") {
-		endTime = c.String("end")
-	} else {
-		if endTime == "" {
-			endTime = time.Now().Format(timeFormat)
-		} else {
+	if !c.IsSet("end") {
+		if c.Args().Get(1) != "" {
 			endTime = c.Args().Get(1)
 		}
 	}
 
-	if c.IsSet("limit") {
-		limit = c.Int64("limit")
-	} else {
-		xlimit, err := strconv.ParseInt(c.Args().Get(3), 10, 64)
-		if err != nil {
-			limit = 100
+	if !c.IsSet("order") {
+		if c.Args().Get(2) != "" {
+			order = c.Args().Get(2)
 		}
-		limit = xlimit
+	}
+
+	if !c.IsSet("limit") {
+		if c.Args().Get(3) != "" {
+			limitStr, err := strconv.ParseInt(c.Args().Get(3), 10, 32)
+			if err == nil {
+				limit = int(limitStr)
+			}
+		}
 	}
 
 	s, err := time.Parse(timeFormat, startTime)
@@ -2895,6 +2895,7 @@ func getAuditEvent(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
@@ -2903,7 +2904,7 @@ func getAuditEvent(c *cli.Context) error {
 		&gctrpc.GetAuditEventRequest{
 			StartDate: startTime,
 			EndDate:   endTime,
-			Limit:     limit,
+			Limit:     int32(limit),
 			OrderBy:   order,
 		})
 

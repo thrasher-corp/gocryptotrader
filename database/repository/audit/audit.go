@@ -3,7 +3,6 @@ package audit
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
@@ -13,6 +12,9 @@ import (
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
+
+// TableTimeFormat Go Time format conversion
+const TableTimeFormat = "2006-01-02 15:04:05"
 
 // Event inserts a new audit event to database
 func Event(id, msgtype, message string) {
@@ -66,28 +68,25 @@ func Event(id, msgtype, message string) {
 }
 
 // GetEvent () returns list of order events matching query
-func GetEvent(starTime, endTime, order string, limit int64) (interface{}, error) {
+func GetEvent(starTime, endTime, order string, limit int) (interface{}, error) {
 	if database.DB.SQL == nil {
 		return nil, errors.New("database is nil")
 	}
-	boil.DebugMode = true
 
-	query := qm.Where("created_at BETWEEN ? and ?", starTime, endTime)
-	orderby := qm.OrderBy("id desc")
+	query := qm.Where("created_at BETWEEN ? AND ?", starTime, endTime)
 
-	fmt.Println(query)
+	orderByQueryString := "id"
+	if order == "desc" {
+		orderByQueryString += " desc"
+	}
+
+	orderByQuery := qm.OrderBy(orderByQueryString)
+	limitQuery := qm.Limit(limit)
 
 	ctx := context.Background()
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		events, err := modelSQLite.AuditEvents().All(ctx, database.DB.SQL)
-		if err != nil {
-			return nil, err
-		}
-		return events, nil
+		return modelSQLite.AuditEvents(query, orderByQuery, limitQuery).All(ctx, database.DB.SQL)
 	}
-	events, err := modelPSQL.AuditEvents(query, orderby).All(ctx, database.DB.SQL)
-	if err != nil {
-		return nil, err
-	}
-	return events, nil
+
+	return modelPSQL.AuditEvents(query, orderByQuery, limitQuery).All(ctx, database.DB.SQL)
 }

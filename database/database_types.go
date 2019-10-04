@@ -22,6 +22,7 @@ type Db struct {
 // Config holds all database configurable options including enable/disabled & DSN settings
 type Config struct {
 	Enabled                   bool   `json:"enabled"`
+	Verbose                   bool   `json:"verbose"`
 	Driver                    string `json:"driver"`
 	drivers.ConnectionDetails `json:"connectionDetails"`
 }

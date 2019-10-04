@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/sqlboiler/boil"
+
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
@@ -48,6 +50,12 @@ func (a *databaseManager) Start() (err error) {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
 		dbConn.Connected = true
+
+		DBLogger := database.Logger{}
+		if Bot.Config.Database.Verbose {
+			boil.DebugMode = true
+			boil.DebugWriter = DBLogger
+		}
 
 		go a.run()
 		return nil
@@ -100,11 +108,6 @@ func (a *databaseManager) run() {
 }
 
 func (a *databaseManager) checkConnection() {
-	//x := fmt.Sprintf("id-%v", rand.Int31())
-	//y := fmt.Sprintf("msgtype-%v", rand.Int31())
-	//z := fmt.Sprintf("msg-%v", rand.Int31())
-	//audit.Event(x, y, z)
-
 	dbConn.Mu.Lock()
 	defer dbConn.Mu.Unlock()
 

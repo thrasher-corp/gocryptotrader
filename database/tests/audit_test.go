@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -22,7 +23,7 @@ func TestAudit(t *testing.T) {
 		output interface{}
 	}{
 		{
-			"SQLite",
+			"SQLite-Write",
 			&database.Config{
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
@@ -33,9 +34,27 @@ func TestAudit(t *testing.T) {
 			nil,
 		},
 		{
-			"Postgres",
+			"SQLite-Read",
+			&database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+
+			readHelper,
+			closeDatabase,
+			nil,
+		},
+		{
+			"Postgres-Write",
 			postgresTestDatabase,
 			writeAudit,
+			nil,
+			nil,
+		},
+		{
+			"Postgres-Read",
+			postgresTestDatabase,
+			readHelper,
 			nil,
 			nil,
 		},
@@ -89,4 +108,14 @@ func writeAudit(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func readHelper(t *testing.T) {
+	t.Helper()
+
+	_, err := audit.GetEvent(time.Now().Add(-time.Hour*60).Format(audit.TableTimeFormat), time.Now().Format(audit.TableTimeFormat), "asc", 1)
+
+	if err != nil {
+		t.Error(err)
+	}
 }

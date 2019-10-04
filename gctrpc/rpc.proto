@@ -513,7 +513,7 @@ message GetAuditEventRequest {
     string start_date = 1;
     string end_date = 2;
     string order_by = 3;
-    int64 limit = 4;
+    int32 limit = 4;
 }
 
 message GetAuditEventResponse {
