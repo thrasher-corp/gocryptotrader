@@ -27,7 +27,7 @@ func Event(id, msgtype, message string) {
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.Global, "transaction begin failed: %v", err)
+		log.Errorf(log.Global, "Event transaction begin failed: %v", err)
 		return
 	}
 
@@ -48,20 +48,20 @@ func Event(id, msgtype, message string) {
 	}
 
 	if err != nil {
-		log.Errorf(log.Global, "insert failed: %v", err)
+		log.Errorf(log.Global, "Event insert failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.Global, "transaction rollback failed: %v", err)
+			log.Errorf(log.Global, "Event Transaction rollback failed: %v", err)
 		}
 		return
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Errorf(log.Global, "transaction commit failed: %v", err)
+		log.Errorf(log.Global, "Event Transaction commit failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.Global, "transaction rollback failed: %v", err)
+			log.Errorf(log.Global, "Event Transaction rollback failed: %v", err)
 		}
 		return
 	}
