@@ -6,12 +6,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/sqlboiler/boil"
-
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 var (
