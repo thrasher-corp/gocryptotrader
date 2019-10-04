@@ -2831,7 +2831,7 @@ var getAuditEventCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:        "order, o",
-			Usage:       "order results by asc/desc",
+			Usage:       "order results by ascending/descending",
 			Value:       "asc",
 			Destination: &order,
 		},
