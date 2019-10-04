@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -97,15 +96,12 @@ func (w *WebsocketOrderbookLocal) processObUpdate(o *orderbook.Base, orderbookUp
 	if w.updateEntriesByID {
 		w.updateByIDAndAction(o, orderbookUpdate)
 	} else {
-		var wg sync.WaitGroup
-		wg.Add(2)
-		go w.updateAsksByPrice(o, orderbookUpdate, &wg)
-		go w.updateBidsByPrice(o, orderbookUpdate, &wg)
-		wg.Wait()
+		w.updateAsksByPrice(o, orderbookUpdate)
+		w.updateBidsByPrice(o, orderbookUpdate)
 	}
 }
 
-func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate, wg *sync.WaitGroup) {
+func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate) {
 	for j := 0; j < len(base.Asks); j++ {
 		found := false
 		for k := 0; k < len(o.Asks); k++ {
@@ -127,10 +123,9 @@ func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, base *Web
 	sort.Slice(o.Asks, func(i, j int) bool {
 		return o.Asks[i].Price < o.Asks[j].Price
 	})
-	wg.Done()
 }
 
-func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate, wg *sync.WaitGroup) {
+func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate) {
 	for j := 0; j < len(base.Bids); j++ {
 		found := false
 		for k := 0; k < len(o.Bids); k++ {
@@ -152,7 +147,6 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *Web
 	sort.Slice(o.Bids, func(i, j int) bool {
 		return o.Bids[i].Price > o.Bids[j].Price
 	})
-	wg.Done()
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook

@@ -3,7 +3,6 @@ package wsorderbook
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"testing"
 	"time"
 
@@ -46,7 +45,7 @@ func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, b
 
 func bidAskGenerator() []orderbook.Item {
 	var response []orderbook.Item
-	randIterator := rand.Intn(100)
+	randIterator := 100
 	for i := 0; i < randIterator; i++ {
 		price := float64(rand.Intn(1000))
 		if price == 0 {
@@ -66,19 +65,17 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 	if err != nil {
 		b.Error(err)
 	}
-	var wg sync.WaitGroup
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		bidAsks := bidAskGenerator()
 		update := &WebsocketOrderbookUpdate{
-			Bids:         bidAskGenerator(),
-			Asks:         bidAskGenerator(),
+			Bids:         bidAsks,
+			Asks:         bidAsks,
 			CurrencyPair: curr,
 			UpdateTime:   time.Now(),
 			AssetType:    asset.Spot,
 		}
-		wg.Add(1)
-		ob.updateBidsByPrice(ob.ob[curr][asset.Spot], update, &wg)
-		wg.Wait()
+		ob.updateBidsByPrice(ob.ob[curr][asset.Spot], update)
 	}
 }
 
@@ -87,19 +84,17 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 	if err != nil {
 		b.Error(err)
 	}
-	var wg sync.WaitGroup
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		bidAsks := bidAskGenerator()
 		update := &WebsocketOrderbookUpdate{
-			Bids:         bidAskGenerator(),
-			Asks:         bidAskGenerator(),
+			Bids:         bidAsks,
+			Asks:         bidAsks,
 			CurrencyPair: curr,
 			UpdateTime:   time.Now(),
 			AssetType:    asset.Spot,
 		}
-		wg.Add(1)
-		ob.updateAsksByPrice(ob.ob[curr][asset.Spot], update, &wg)
-		wg.Wait()
+		ob.updateAsksByPrice(ob.ob[curr][asset.Spot], update)
 	}
 }
 
