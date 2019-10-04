@@ -55,7 +55,7 @@ type Item struct {
 // Base holds the fields for the orderbook base
 type Base struct {
 	Pair         currency.Pair `json:"pair"`
-	Bids         []Item        `json:"bids"`
+	Bids         []Item        `json:"bids"` // make this a map[float64]float64 - prevents lookup times, minimises item complexity
 	Asks         []Item        `json:"asks"`
 	LastUpdated  time.Time     `json:"lastUpdated"`
 	AssetType    asset.Item    `json:"assetType"`

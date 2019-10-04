@@ -147,19 +147,20 @@ func (s *Service) Update(p *Price) error {
 		}
 
 	default:
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Last = p.Last
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].High = p.High
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Low = p.Low
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Bid = p.Bid
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Ask = p.Ask
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Volume = p.Volume
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].QuoteVolume = p.QuoteVolume
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].PriceATH = p.PriceATH
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Open = p.Open
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Close = p.Close
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].LastUpdated = p.LastUpdated
-		ids = s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Assoc
-		ids = append(ids, s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType].Main)
+		ticker := s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType]
+		ticker.Last = p.Last
+		ticker.High = p.High
+		ticker.Low = p.Low
+		ticker.Bid = p.Bid
+		ticker.Ask = p.Ask
+		ticker.Volume = p.Volume
+		ticker.QuoteVolume = p.QuoteVolume
+		ticker.PriceATH = p.PriceATH
+		ticker.Open = p.Open
+		ticker.Close = p.Close
+		ticker.LastUpdated = p.LastUpdated
+		ids = ticker.Assoc
+		ids = append(ids, ticker.Main)
 	}
 	s.Unlock()
 	return s.mux.Publish(ids, p)

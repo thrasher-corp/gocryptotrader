@@ -352,12 +352,13 @@ func TestManageSubscriptionsStartStop(t *testing.T) {
 		ShutdownC:     make(chan struct{}),
 		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
 	}
+	w.Wg.Add(1)
 	go w.manageSubscriptions()
 	close(w.ShutdownC)
 	w.Wg.Wait()
 }
 
-// TestManageSubscriptionsStartStop logic test
+// TestManageSubscriptions logic test
 func TestManageSubscriptions(t *testing.T) {
 	w := Websocket{
 		ShutdownC:     make(chan struct{}),

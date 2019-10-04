@@ -92,6 +92,7 @@ func (w *Websocket) Connect() error {
 		go w.connectionMonitor()
 	}
 	if w.SupportsFunctionality(WebsocketSubscribeSupported) || w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
+		w.Wg.Add(1)
 		go w.manageSubscriptions()
 	}
 
@@ -498,7 +499,6 @@ func (w *Websocket) manageSubscriptions() {
 		w.DataHandler <- fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
 		return
 	}
-	w.Wg.Add(1)
 	defer func() {
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%v ManageSubscriptions exiting", w.exchangeName)
