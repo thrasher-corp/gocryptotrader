@@ -49,7 +49,6 @@ func TestAudit(t *testing.T) {
 		test := tests
 
 		t.Run(test.name, func(t *testing.T) {
-
 			mg.MigrationDir = filepath.Join("../migration", "migrations")
 
 			if !checkValidConfig(t, &test.config.ConnectionDetails) {
@@ -88,7 +87,6 @@ func TestAudit(t *testing.T) {
 			}
 
 			switch v := test.output.(type) {
-
 			case error:
 				if v.Error() != test.output.(error).Error() {
 					t.Fatal(err)

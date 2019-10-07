@@ -345,7 +345,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			if err != nil {
 				msg = err.Error()
 				responseContainer.ErrorCount++
-
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
@@ -360,7 +359,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			if err != nil {
 				msg = err.Error()
 				responseContainer.ErrorCount++
-
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),

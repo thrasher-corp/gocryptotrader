@@ -55,7 +55,6 @@ func (b *BTSE) GetTrades(symbol string) (*Trades, error) {
 	var t Trades
 	endpoint := fmt.Sprintf("%s/%s", btseTrades, symbol)
 	return &t, b.SendHTTPRequest(http.MethodGet, endpoint, &t)
-
 }
 
 // GetTicker returns the ticker for a specified symbol

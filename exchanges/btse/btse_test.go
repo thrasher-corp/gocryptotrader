@@ -114,7 +114,6 @@ func TestGetFills(t *testing.T) {
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-
 }
 
 func TestGetActiveOrders(t *testing.T) {

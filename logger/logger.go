@@ -50,7 +50,6 @@ func CloseLogger() error {
 		return err
 	}
 	return nil
-
 }
 
 func validSubLogger(s string) (bool, *subLogger) {

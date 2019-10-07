@@ -46,6 +46,8 @@ linters:
 #   - gochecknoinits
 #   - gochecknoglobals
 #   - funlen
+    - dogsled
+    - whitespace
 
 linters-settings:
   govet:
@@ -79,4 +81,4 @@ issues:
         - gosec
 
 service:
-  golangci-lint-version: 1.16.x 
+  golangci-lint-version: 1.19.x

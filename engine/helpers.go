@@ -523,7 +523,6 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 		var currencies []exchange.AccountCurrencyInfo
 		for _, account := range exchangeData.Accounts {
 			for _, info := range account.Currencies {
-
 				var update bool
 				for i := range currencies {
 					if info.CurrencyName == currencies[i].CurrencyName {
@@ -566,7 +565,6 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 						CoinType:    currencyName,
 						Balance:     total,
 						Description: portfolio.PortfolioAddressExchange})
-
 			} else {
 				if total <= 0 {
 					log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
@@ -635,7 +633,6 @@ func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, en
 				cryptocurrencies = append(cryptocurrencies, pairs[y].Quote.String())
 			}
 		}
-
 	}
 	return cryptocurrencies, nil
 }

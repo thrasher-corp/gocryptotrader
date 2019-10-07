@@ -1085,7 +1085,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	err := o.CancelOrder(&orderCancellation)
 	testStandardErrorHandling(t, err)
-
 }
 
 // TestCancelAllExchangeOrders Wrapper test

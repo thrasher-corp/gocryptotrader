@@ -295,7 +295,6 @@ func SetupExchanges() {
 				continue
 			}
 			return
-
 		}
 		if !exch.Enabled && !Bot.Settings.EnableAllExchanges {
 			log.Debugf(log.ExchangeSys, "%s: Exchange support: Disabled\n", exch.Name)

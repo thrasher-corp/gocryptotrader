@@ -469,7 +469,6 @@ func (k *Kraken) GetTradeBalance(args ...TradeBalanceOptions) (TradeBalanceInfo,
 		if len(args[0].Asset) > 0 {
 			params.Set("asset", args[0].Asset)
 		}
-
 	}
 
 	var response struct {

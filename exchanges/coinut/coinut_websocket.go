@@ -102,7 +102,6 @@ func (c *COINUT) WsHandleData() {
 					}
 					c.wsProcessResponse(individualJSON)
 				}
-
 			} else {
 				var incoming wsResponse
 				err = common.JSONDecode(resp.Raw, &incoming)
@@ -113,7 +112,6 @@ func (c *COINUT) WsHandleData() {
 
 				c.wsProcessResponse(resp.Raw)
 			}
-
 		}
 	}
 }

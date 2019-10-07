@@ -143,7 +143,6 @@ func TestGetUsernameByID(t *testing.T) {
 	if username != "cranktakular" {
 		t.Error("test failed - slack GetUsernameByID() error")
 	}
-
 }
 
 func TestGetIDByName(t *testing.T) {
@@ -178,7 +177,6 @@ func TestGetGroupIDByName(t *testing.T) {
 		t.Errorf("test failed - slack GetGroupIDByName() Expected '11223344' Actual '%s' Error: %s",
 			id, err)
 	}
-
 }
 
 func TestGetChannelIDByName(t *testing.T) {

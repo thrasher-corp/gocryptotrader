@@ -926,7 +926,6 @@ func (s *RPCServer) EnableExchangePair(ctx context.Context, r *gctrpc.ExchangePa
 	err = GetExchangeByName(r.Exchange).GetBase().CurrencyPairs.EnablePair(
 		asset.Item(r.AssetType), p)
 	return &gctrpc.GenericExchangeNameResponse{}, err
-
 }
 
 // DisableExchangePair disables the specified pair on an exchange

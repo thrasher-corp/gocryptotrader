@@ -49,5 +49,4 @@ func (pg *auditRepo) AddEventTx(event []*models.AuditEvent) {
 		}
 		return
 	}
-
 }

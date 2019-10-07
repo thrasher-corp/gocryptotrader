@@ -643,7 +643,6 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 
 			for c := 0; c < tempData; c++ {
 				resp[p] = append(resp[p], tempResp.Orders[c].OrderID)
-
 			}
 			tempData = len(tempResp.Orders)
 			b++

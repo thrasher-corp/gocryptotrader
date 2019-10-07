@@ -108,7 +108,6 @@ func TestExchangeAddressExists(t *testing.T) {
 	if newbase.ExchangeAddressExists("TEST", currency.LTC) {
 		t.Error("Test Failed - portfolio_test.go - ExchangeAddressExists error")
 	}
-
 }
 
 func TestAddExchangeAddress(t *testing.T) {

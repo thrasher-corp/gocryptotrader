@@ -94,7 +94,6 @@ func (b *BTSE) SetDefaults() {
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -213,7 +212,6 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 		assetType).String())
 	if err != nil {
 		return tickerPrice, err
-
 	}
 
 	tickerPrice.Pair = p

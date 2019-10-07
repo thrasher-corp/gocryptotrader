@@ -219,7 +219,6 @@ func (s *Slack) WebsocketReader() {
 		}
 
 		switch data.Type {
-
 		case "error":
 			err = s.handleErrorResponse(data)
 			if err != nil {
