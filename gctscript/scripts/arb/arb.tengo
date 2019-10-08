@@ -1,2 +1,2 @@
-imp := import("./imp")
+imp := import("imp")
 fmt.print(imp(10))

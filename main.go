@@ -28,7 +28,7 @@ func dostuff(err error) {
 func main() {
 
 	temp := gctscript.New()
-	terr := temp.Load("./gctscript/scripts/test.gctgo")
+	terr := temp.Load("./gctscript/scripts/arb/arb/test.tengo")
 	dostuff(terr)
 	terr = temp.Script.Add("b", 10)
 	dostuff(terr)
