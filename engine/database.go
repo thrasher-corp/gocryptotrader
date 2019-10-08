@@ -8,7 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
-	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
+	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/sqlboiler/boil"
 )

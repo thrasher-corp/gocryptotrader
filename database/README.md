@@ -115,7 +115,7 @@ gen_sqlboiler_config
 ```
 
 By default this will look in your gocryptotrader data folder and default config, these can be overwritten 
-along with the location of the  sqlboiler generated config
+along with the location of the sqlboiler generated config
 
 ```shell script
 -config "configname.json"

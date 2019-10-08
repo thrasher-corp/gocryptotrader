@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
-	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite"
+	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1195,7 +1195,7 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 
 			resp.Events = append(resp.Events, tempEvent)
 		}
-	case sqlite.AuditEventSlice:
+	case sqlite3.AuditEventSlice:
 		for x := range v {
 			tempEvent := &gctrpc.AuditEvent{
 				Type:       v[x].Type,

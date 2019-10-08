@@ -12,7 +12,7 @@ IF NOT DEFINED DRIVER (
 IF %DRIVER%==psql (
     IF NOT DEFINED MODEL (SET MODEL=postgres)
 ) ELSE (
-    IF NOT DEFINED MODEL (SET MODEL=sqlite)
+    IF NOT DEFINED MODEL (SET MODEL=sqlite3)
 )
 cd ..\
 start %GOPATH%\\bin\\sqlboiler -o database\\models\\%MODEL% -p %MODEL% --no-auto-timestamps --wipe %DRIVER%

@@ -51,5 +51,5 @@ gen_db_models:
 ifeq ($(DRIVER), psql)
 	sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps --wipe $(DRIVER)
 else
-	sqlboiler -o database/models/sqlite -p sqlite --no-auto-timestamps --wipe $(DRIVER)
+	sqlboiler -o database/models/sqlite3 -p sqlite3 --no-auto-timestamps --wipe $(DRIVER)
 endif
