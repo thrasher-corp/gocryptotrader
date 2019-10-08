@@ -67,9 +67,9 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 		resp.Ask = tempResp.TickerData.BestAsk
 		resp.Volume = tempResp.TickerData.DailyVol
 		resp.LastUpdated = time.Now()
-		err := ticker.ProcessTicker(c.Name, &resp, assetType)
-		if err != nil {
-			return ticker.Price{}, err
+		err1 := ticker.ProcessTicker(c.Name, &resp, assetType)
+		if err1 != nil {
+			return ticker.Price{}, err1
 		}
 	}
 	resp, err = ticker.GetTicker(c.Name, p, assetType)
@@ -229,9 +229,6 @@ func (c *Coinbene) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	resp.ID = orderID
 	resp.CurrencyPair = currency.NewPairWithDelimiter(tempResp.Order.BaseAsset, "/", tempResp.Order.QuoteAsset)
 	timestamp := tempResp.Order.OrderTime
-	if err != nil {
-		return resp, err
-	}
 	resp.OrderDate = time.Unix(timestamp, 9)
 	resp.ExecutedAmount = tempResp.Order.FilledAmount
 	resp.Fee = tempResp.Order.TotalFee
@@ -271,7 +268,6 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 	var resp []exchange.OrderDetail
 	var tempResp exchange.OrderDetail
 	var tempData OpenOrderResponse
-	var err error
 	if len(getOrdersRequest.Currencies) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
@@ -281,6 +277,7 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, currency.NewPairFromString(allPairs.Data[a].Symbol))
 		}
 	}
+	var err error
 	for x := range getOrdersRequest.Currencies {
 		tempData, err = c.FetchOpenOrders(getOrdersRequest.Currencies[x].String())
 		if err != nil {
@@ -314,7 +311,6 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 	var resp []exchange.OrderDetail
 	var tempResp exchange.OrderDetail
 	var tempData ClosedOrderResponse
-	var err error
 	if len(getOrdersRequest.Currencies) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
@@ -324,6 +320,7 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, currency.NewPairFromString(allPairs.Data[a].Symbol))
 		}
 	}
+	var err error
 	for x := range getOrdersRequest.Currencies {
 		tempData, err = c.FetchClosedOrders(getOrdersRequest.Currencies[x].String(), "")
 		if err != nil {

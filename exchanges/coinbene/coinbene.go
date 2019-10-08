@@ -238,11 +238,11 @@ func (c *Coinbene) FetchOpenOrders(symbol string) (OpenOrderResponse, error) {
 }
 
 // FetchClosedOrders finds open orders
-func (c *Coinbene) FetchClosedOrders(symbol, LatestID string) (ClosedOrderResponse, error) {
+func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (ClosedOrderResponse, error) {
 	var resp ClosedOrderResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("latestOrderId", LatestID)
+	params.Set("latestOrderId", latestID)
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneClosedOrders)
 	for i := int64(1); ; i++ {
 		var temp ClosedOrderResponse
