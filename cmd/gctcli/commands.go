@@ -2897,10 +2897,12 @@ func getAuditEvent(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
 	_, offset := time.Now().Zone()
+	loc := time.FixedZone("", -offset)
+
 	result, err := client.GetAuditEvent(context.Background(),
 		&gctrpc.GetAuditEventRequest{
-			StartDate: s.Local().Format(timeFormat),
-			EndDate:   e.Local().Format(timeFormat),
+			StartDate: s.In(loc).Format(timeFormat),
+			EndDate:   e.In(loc).Format(timeFormat),
 			Limit:     int32(limit),
 			OrderBy:   order,
 			Offset:    int32(offset),

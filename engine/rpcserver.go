@@ -1176,7 +1176,7 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 
 	loc := time.FixedZone("", int(r.Offset))
 
-	events, err := audit.GetEvent(UTCStartTime.UTC(), UTCSEndTime.UTC(), r.OrderBy, int(r.Limit))
+	events, err := audit.GetEvent(UTCStartTime, UTCSEndTime, r.OrderBy, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
