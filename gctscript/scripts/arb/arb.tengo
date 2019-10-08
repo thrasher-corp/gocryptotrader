@@ -1,0 +1,2 @@
+imp := import("./imp")
+fmt.print(imp(10))

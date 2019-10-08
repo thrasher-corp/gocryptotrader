@@ -1,1 +1,4 @@
+fmt := import("fmt")
 a := b + 20
+
+fmt.println("hello")
