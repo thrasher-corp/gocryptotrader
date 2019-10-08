@@ -3,6 +3,7 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.12
 
 require (
+	github.com/d5/tengo v1.24.3
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-querystring v1.0.0
