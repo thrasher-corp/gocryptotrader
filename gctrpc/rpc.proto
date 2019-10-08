@@ -509,6 +509,25 @@ message GetExchangeTickerStreamRequest {
     string exchange = 1;
 }
 
+message GetAuditEventRequest {
+    string start_date = 1;
+    string end_date = 2;
+    string order_by = 3;
+    int32 limit = 4;
+    int32 offset = 5;
+}
+
+message GetAuditEventResponse {
+    repeated audit_event events = 1;
+}
+
+message audit_event {
+    string type = 1 ;
+    string identifier = 2;
+    string message = 3;
+    string timestamp = 4;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -813,6 +832,12 @@ service GoCryptoTrader {
     rpc GetExchangeTickerStream(GetExchangeTickerStreamRequest) returns (stream TickerResponse) {
         option (google.api.http) = {
             get: "/v1/getexchangetickerstream"
+        };
+    }
+
+    rpc GetAuditEvent(GetAuditEventRequest) returns (GetAuditEventResponse) {
+        option (google.api.http) = {
+            get: "/v1/getauditevent"
         };
     }
 }

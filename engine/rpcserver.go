@@ -15,6 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1157,4 +1160,52 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return err
 		}
 	}
+}
+
+// GetAuditEvent returns matching audit events from database
+func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
+	UTCStartTime, err := time.Parse(audit.TableTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, err
+	}
+
+	UTCSEndTime, err := time.Parse(audit.TableTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	loc := time.FixedZone("", int(r.Offset))
+
+	events, err := audit.GetEvent(UTCStartTime, UTCSEndTime, r.OrderBy, int(r.Limit))
+	if err != nil {
+		return nil, err
+	}
+
+	resp := gctrpc.GetAuditEventResponse{}
+
+	switch v := events.(type) {
+	case postgres.AuditEventSlice:
+		for x := range v {
+			tempEvent := &gctrpc.AuditEvent{
+				Type:       v[x].Type,
+				Identifier: v[x].Identifier,
+				Message:    v[x].Message,
+				Timestamp:  v[x].CreatedAt.In(loc).Format(audit.TableTimeFormat),
+			}
+
+			resp.Events = append(resp.Events, tempEvent)
+		}
+	case sqlite3.AuditEventSlice:
+		for x := range v {
+			tempEvent := &gctrpc.AuditEvent{
+				Type:       v[x].Type,
+				Identifier: v[x].Identifier,
+				Message:    v[x].Message,
+				Timestamp:  v[x].CreatedAt,
+			}
+			resp.Events = append(resp.Events, tempEvent)
+		}
+	}
+
+	return &resp, nil
 }

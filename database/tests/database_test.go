@@ -4,20 +4,54 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"reflect"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
-	dbsqlite "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite"
+	psqlConn "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	sqliteConn "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 )
 
 var (
-	tempDir string
+	tempDir              string
+	postgresTestDatabase *database.Config
+)
 
-	postgresTestDatabase = database.Config{
+func getConnectionDetails() *database.Config {
+	_, exists := os.LookupEnv("TRAVIS")
+	if exists {
+		return &database.Config{
+			Enabled: true,
+			Driver:  "postgres",
+			ConnectionDetails: drivers.ConnectionDetails{
+				Host:     "localhost",
+				Port:     5432,
+				Username: "postgres",
+				Password: "",
+				Database: "gct_dev_ci",
+				SSLMode:  "",
+			},
+		}
+	}
+
+	_, exists = os.LookupEnv("APPVEYOR")
+	if exists {
+		return &database.Config{
+			Enabled: true,
+			Driver:  "postgres",
+			ConnectionDetails: drivers.ConnectionDetails{
+				Host:     "localhost",
+				Port:     5432,
+				Username: "postgres",
+				Password: "Password12!",
+				Database: "gct_dev_ci",
+				SSLMode:  "",
+			},
+		}
+	}
+
+	return &database.Config{
 		Enabled:           true,
 		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
@@ -29,10 +63,12 @@ var (
 			//SSLMode:  "",
 		},
 	}
-)
+}
 
 func TestMain(m *testing.M) {
 	var err error
+	postgresTestDatabase = getConnectionDetails()
+
 	tempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
@@ -52,23 +88,23 @@ func TestMain(m *testing.M) {
 func TestDatabaseConnect(t *testing.T) {
 	testCases := []struct {
 		name   string
-		config database.Config
-		closer func(t *testing.T, dbConn *database.Database) error
+		config *database.Config
+		closer func(t *testing.T, dbConn *database.Db) error
 		output interface{}
 	}{
 		{
 			"SQLite",
-			database.Config{
-				Driver:            "sqlite",
-				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
+			&database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb.db"},
 			},
 			closeDatabase,
 			nil,
 		},
 		{
 			"SQliteNoDatabase",
-			database.Config{
-				Driver: "sqlite",
+			&database.Config{
+				Driver: database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{
 					Host: "localhost",
 				},
@@ -90,7 +126,7 @@ func TestDatabaseConnect(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := connectToDatabase(t, &test.config)
+			dbConn, err := connectToDatabase(t, test.config)
 			if err != nil {
 				switch v := test.output.(type) {
 				case error:
@@ -113,26 +149,28 @@ func TestDatabaseConnect(t *testing.T) {
 	}
 }
 
-func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Database, err error) {
+func connectToDatabase(t *testing.T, conn *database.Config) (dbConn *database.Db, err error) {
 	t.Helper()
-	database.Conn.Config = conn
+	database.DB.Config = conn
 
-	if conn.Driver == "postgres" {
-		dbConn, err = dbpsql.Connect()
+	if conn.Driver == database.DBPostgreSQL {
+		dbConn, err = psqlConn.Connect()
 		if err != nil {
-			return
+			return nil, err
 		}
-	} else if conn.Driver == "sqlite" {
-		dbConn, err = dbsqlite.Connect()
+	} else if conn.Driver == database.DBSQLite3 || conn.Driver == database.DBSQLite {
+		database.DB.DataPath = tempDir
+		dbConn, err = sqliteConn.Connect()
+
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
-	database.Conn.Connected = true
+	database.DB.Connected = true
 	return
 }
 
-func closeDatabase(t *testing.T, conn *database.Database) (err error) {
+func closeDatabase(t *testing.T, conn *database.Db) (err error) {
 	t.Helper()
 
 	if conn != nil {

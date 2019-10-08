@@ -1,0 +1,34 @@
+{
+  "psql": {
+    "dbname": "",
+    "host": "",
+    "port": 5432,
+    "user": "",
+    "pass": "",
+    "schema": "public",
+    "sslmode": "disable",
+    "blacklist": [
+      "goose_db_version"
+    ]
+  },
+  "mysql": {
+    "dbname": "",
+    "host": "",
+    "port": 3306,
+    "user": "",
+    "pass": "",
+    "sslmode": "false"
+  },
+  "mssql": {
+    "dbname": "",
+    "host": "",
+    "port": 1433,
+    "user": "",
+    "pass": "",
+    "sslmode": "disable",
+    "schema": ""
+  },
+  "sqlite": {
+    "dbname": "/.gocryptotrader/database/gocryptotrader.db"
+  }
+}

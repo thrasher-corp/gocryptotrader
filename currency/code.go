@@ -804,7 +804,7 @@ var (
 	STQ        = NewCode("STQ")
 	INK        = NewCode("INK")
 	HBZ        = NewCode("HBZ")
-	USDT_ETH   = NewCode("USDT_ETH") // nolint: golint
+	USDT_ETH   = NewCode("USDT_ETH") // nolint: golint,stylecheck
 	QTUM_ETH   = NewCode("QTUM_ETH") // nolint: golint
 	BTM_ETH    = NewCode("BTM_ETH")  // nolint: golint
 	FIL        = NewCode("FIL")

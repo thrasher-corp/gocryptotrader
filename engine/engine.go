@@ -234,6 +234,7 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Enable orderbook syncing: %v", s.EnableOrderbookSyncing)
 	log.Debugf(log.Global, "\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
 	log.Debugf(log.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
+	log.Debugf(log.Global, "\t Enable Database manager: %v", s.EnableDatabaseManager)
 	log.Debugf(log.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
 	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugf(log.Global, "- FOREX SETTINGS:")
