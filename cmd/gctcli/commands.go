@@ -2899,8 +2899,8 @@ func getAuditEvent(c *cli.Context) error {
 	_, offset := time.Now().Zone()
 	result, err := client.GetAuditEvent(context.Background(),
 		&gctrpc.GetAuditEventRequest{
-			StartDate: startTime,
-			EndDate:   endTime,
+			StartDate: s.Local().Format(timeFormat),
+			EndDate:   e.Local().Format(timeFormat),
 			Limit:     int32(limit),
 			OrderBy:   order,
 			Offset:    int32(offset),
