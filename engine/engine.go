@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 
@@ -233,6 +234,7 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Enable orderbook syncing: %v", s.EnableOrderbookSyncing)
 	log.Debugf(log.Global, "\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
 	log.Debugf(log.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
+	log.Debugf(log.Global, "\t Enable Database manager: %v", s.EnableDatabaseManager)
 	log.Debugf(log.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
 	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugf(log.Global, "- FOREX SETTINGS:")
@@ -293,6 +295,9 @@ func (e *Engine) Start() error {
 	e.Uptime = time.Now()
 	log.Debugf(log.Global, "Bot '%s' started.\n", e.Config.Name)
 	log.Debugf(log.Global, "Using data dir: %s\n", e.Settings.DataDir)
+	log.Debugf(log.Global,
+		"Using %d out of %d logical processors for runtime performance\n",
+		runtime.GOMAXPROCS(-1), runtime.NumCPU())
 
 	enabledExchanges := e.Config.CountEnabledExchanges()
 	if e.Settings.EnableAllExchanges {

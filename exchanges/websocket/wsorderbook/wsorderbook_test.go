@@ -43,6 +43,61 @@ func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, b
 	return
 }
 
+func bidAskGenerator() []orderbook.Item {
+	var response []orderbook.Item
+	randIterator := 100
+	for i := 0; i < randIterator; i++ {
+		price := float64(rand.Intn(1000))
+		if price == 0 {
+			price = 1
+		}
+		response = append(response, orderbook.Item{
+			Amount: float64(rand.Intn(1)),
+			Price:  price,
+			ID:     int64(i),
+		})
+	}
+	return response
+}
+
+func BenchmarkUpdateBidsByPrice(b *testing.B) {
+	ob, curr, _, _, err := createSnapshot()
+	if err != nil {
+		b.Error(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bidAsks := bidAskGenerator()
+		update := &WebsocketOrderbookUpdate{
+			Bids:         bidAsks,
+			Asks:         bidAsks,
+			CurrencyPair: curr,
+			UpdateTime:   time.Now(),
+			AssetType:    asset.Spot,
+		}
+		ob.updateBidsByPrice(ob.ob[curr][asset.Spot], update)
+	}
+}
+
+func BenchmarkUpdateAsksByPrice(b *testing.B) {
+	ob, curr, _, _, err := createSnapshot()
+	if err != nil {
+		b.Error(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bidAsks := bidAskGenerator()
+		update := &WebsocketOrderbookUpdate{
+			Bids:         bidAsks,
+			Asks:         bidAsks,
+			CurrencyPair: curr,
+			UpdateTime:   time.Now(),
+			AssetType:    asset.Spot,
+		}
+		ob.updateAsksByPrice(ob.ob[curr][asset.Spot], update)
+	}
+}
+
 // BenchmarkBufferPerformance demonstrates buffer more performant than multi
 // process calls
 func BenchmarkBufferPerformance(b *testing.B) {
@@ -50,6 +105,42 @@ func BenchmarkBufferPerformance(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	obl.bufferEnabled = true
+	cp := currency.NewPairFromString("BTCUSD")
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
+	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	update := &WebsocketOrderbookUpdate{
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: curr,
+		UpdateTime:   time.Now(),
+		AssetType:    asset.Spot,
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		randomIndex := rand.Intn(4)
+		update.Asks = itemArray[randomIndex]
+		update.Bids = itemArray[randomIndex]
+		err = obl.Update(update)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkBufferSortingPerformance benchmark
+func BenchmarkBufferSortingPerformance(b *testing.B) {
+	obl, curr, asks, bids, err := createSnapshot()
+	if err != nil {
+		b.Fatal(err)
+	}
+	obl.bufferEnabled = true
 	obl.sortBuffer = true
 	cp := currency.NewPairFromString("BTCUSD")
 	// This is to ensure we do not send in zero orderbook info to our main book
@@ -67,8 +158,9 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		UpdateTime:   time.Now(),
 		AssetType:    asset.Spot,
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(5)
+		randomIndex := rand.Intn(4)
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
@@ -79,14 +171,23 @@ func BenchmarkBufferPerformance(b *testing.B) {
 }
 
 // BenchmarkBufferSortingPerformance benchmark
-func BenchmarkBufferSortingPerformance(b *testing.B) {
+func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	obl, curr, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.sortBuffer = true
 	obl.bufferEnabled = true
-	obl.obBufferLimit = 5
+	obl.sortBuffer = true
+	obl.sortBufferByUpdateIDs = true
+	cp := currency.NewPairFromString("BTCUSD")
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
+	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
 	update := &WebsocketOrderbookUpdate{
 		Bids:         bids,
 		Asks:         asks,
@@ -94,8 +195,9 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		UpdateTime:   time.Now(),
 		AssetType:    asset.Spot,
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(5)
+		randomIndex := rand.Intn(4)
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
@@ -128,8 +230,9 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 		UpdateTime:   time.Now(),
 		AssetType:    asset.Spot,
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(5)
+		randomIndex := rand.Intn(4)
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)

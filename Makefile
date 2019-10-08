@@ -5,6 +5,7 @@ LINTBIN = $(GOPATH)/bin/golangci-lint
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
 CRON = $(TRAVIS_EVENT_TYPE)
+DRIVER ?= psql
 
 get:
 	GO111MODULE=on go get $(GCTPKG)
@@ -46,5 +47,9 @@ profile_heap:
 profile_cpu:
 	go tool pprof -http "localhost:$(GCTPROFILERLISTENPORT)" 'http://localhost:$(GCTLISTENPORT)/debug/pprof/profile'
 
-db_migrate:
-	go run ./cmd/dbmigrate
+gen_db_models:
+ifeq ($(DRIVER), psql)
+	sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps --wipe $(DRIVER)
+else
+	sqlboiler -o database/models/sqlite3 -p sqlite3 --no-auto-timestamps --wipe $(DRIVER)
+endif

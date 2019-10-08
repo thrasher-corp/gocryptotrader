@@ -25,3 +25,5 @@ gocryptotrader
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+sqlboiler.toml
+sqlboiler.json

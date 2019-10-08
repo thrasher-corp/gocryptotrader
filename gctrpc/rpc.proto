@@ -262,7 +262,7 @@ message ForexProvider {
     string name = 1;
     bool enabled = 2;
     bool verbose = 3;
-    string rest_rolling_delay = 4;
+    string rest_polling_delay = 4;
     string api_key = 5;
     int64 api_key_level =6;
     bool primary_provider = 7;
@@ -509,6 +509,25 @@ message GetExchangeTickerStreamRequest {
     string exchange = 1;
 }
 
+message GetAuditEventRequest {
+    string start_date = 1;
+    string end_date = 2;
+    string order_by = 3;
+    int32 limit = 4;
+    int32 offset = 5;
+}
+
+message GetAuditEventResponse {
+    repeated audit_event events = 1;
+}
+
+message audit_event {
+    string type = 1 ;
+    string identifier = 2;
+    string message = 3;
+    string timestamp = 4;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -518,7 +537,7 @@ service GoCryptoTrader {
 
     rpc GetSubsystems (GetSubsystemsRequest) returns (GetSusbsytemsResponse) {
         option (google.api.http) = {
-            get: "/v1/getsusbsystems"
+            get: "/v1/getsubsystems"
         };
     }
 
@@ -806,13 +825,19 @@ service GoCryptoTrader {
 
     rpc GetTickerStream(GetTickerStreamRequest) returns (stream TickerResponse) {
         option (google.api.http) = {
-            get: "/v1/getTickerstream"
+            get: "/v1/gettickerstream"
         };
     }
 
     rpc GetExchangeTickerStream(GetExchangeTickerStreamRequest) returns (stream TickerResponse) {
         option (google.api.http) = {
             get: "/v1/getexchangetickerstream"
+        };
+    }
+
+    rpc GetAuditEvent(GetAuditEventRequest) returns (GetAuditEventResponse) {
+        option (google.api.http) = {
+            get: "/v1/getauditevent"
         };
     }
 }

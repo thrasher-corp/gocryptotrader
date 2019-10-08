@@ -2,44 +2,59 @@ package tests
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	mg "github.com/thrasher-corp/gocryptotrader/database/migration"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
-	auditPSQL "github.com/thrasher-corp/gocryptotrader/database/repository/audit/postgres"
-	auditSQlite "github.com/thrasher-corp/gocryptotrader/database/repository/audit/sqlite"
+	"github.com/thrasher-corp/goose"
 )
 
 func TestAudit(t *testing.T) {
 	testCases := []struct {
 		name   string
-		config database.Config
-		audit  audit.Repository
+		config *database.Config
 		runner func(t *testing.T)
-		closer func(t *testing.T, dbConn *database.Database) error
+		closer func(t *testing.T, dbConn *database.Db) error
 		output interface{}
 	}{
 		{
-			"SQLite",
-			database.Config{
-				Driver:            "sqlite",
-				ConnectionDetails: drivers.ConnectionDetails{Database: path.Join(tempDir, "./testdb.db")},
+			"SQLite-Write",
+			&database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-			auditSQlite.Audit(),
+
 			writeAudit,
 			closeDatabase,
 			nil,
 		},
 		{
-			"Postgres",
+			"SQLite-Read",
+			&database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+
+			readHelper,
+			closeDatabase,
+			nil,
+		},
+		{
+			"Postgres-Write",
 			postgresTestDatabase,
-			auditPSQL.Audit(),
 			writeAudit,
+			nil,
+			nil,
+		},
+		{
+			"Postgres-Read",
+			postgresTestDatabase,
+			readHelper,
 			nil,
 			nil,
 		},
@@ -49,53 +64,23 @@ func TestAudit(t *testing.T) {
 		test := tests
 
 		t.Run(test.name, func(t *testing.T) {
-
-			mg.MigrationDir = filepath.Join("../migration", "migrations")
-
 			if !checkValidConfig(t, &test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := connectToDatabase(t, &test.config)
+			dbConn, err := connectToDatabase(t, test.config)
 
 			if err != nil {
 				t.Fatal(err)
 			}
-
-			mLogger := mg.MLogger{}
-			migrations := mg.Migrator{
-				Log: mLogger,
-			}
-
-			migrations.Conn = dbConn
-
-			err = migrations.LoadMigrations()
+			path := filepath.Join("..", "migrations")
+			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
 			if err != nil {
-				t.Fatal(err)
-			}
-
-			err = migrations.RunMigration()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if test.audit != nil {
-				audit.Audit = test.audit
+				t.Fatalf("failed to run migrations %v", err)
 			}
 
 			if test.runner != nil {
 				test.runner(t)
-			}
-
-			switch v := test.output.(type) {
-
-			case error:
-				if v.Error() != test.output.(error).Error() {
-					t.Fatal(err)
-				}
-				return
-			default:
-				break
 			}
 
 			if test.closer != nil {
@@ -112,7 +97,7 @@ func writeAudit(t *testing.T) {
 	t.Helper()
 	var wg sync.WaitGroup
 
-	for x := 0; x < 200; x++ {
+	for x := 0; x < 20; x++ {
 		wg.Add(1)
 
 		go func(x int) {
@@ -123,4 +108,13 @@ func writeAudit(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func readHelper(t *testing.T) {
+	t.Helper()
+
+	_, err := audit.GetEvent(time.Now().Add(-time.Hour*60), time.Now(), "asc", 1)
+	if err != nil {
+		t.Error(err)
+	}
 }
