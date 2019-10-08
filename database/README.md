@@ -126,8 +126,13 @@ along with the location of the sqlboiler generated config
 
 Generate a new model that gets placed in ./database/models/<databasetype> folder
 
+Linux:
 ```shell script
 sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps --wipe psql 
+```
+Windows: 
+```sh
+sqlboiler -o database\\models\\postgres -p postgres --no-auto-timestamps --wipe psql
 ```
 
 Helpers have been provided in the Makefile for linux users 
