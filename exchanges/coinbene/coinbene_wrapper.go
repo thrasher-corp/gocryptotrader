@@ -54,7 +54,6 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 	var tempResp TickerResponse
 	var err error
 	allPairs := c.GetEnabledCurrencies()
-	log.Println(allPairs)
 	for x := range allPairs {
 		tempResp, err = c.FetchTicker(exchange.FormatExchangeCurrency(c.Name, allPairs[x]).String())
 		if err != nil {
@@ -73,7 +72,6 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 			return ticker.Price{}, err
 		}
 	}
-	log.Println(resp)
 	resp, err = ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return resp, err
@@ -229,13 +227,14 @@ func (c *Coinbene) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	}
 	resp.Exchange = c.Name
 	resp.ID = orderID
-	resp.CurrencyPair = currency.NewPairFromString(tempResp.Order.Symbol)
-	timestamp, err := strconv.ParseInt(tempResp.Order.CreateTime, 10, 64)
+	resp.CurrencyPair = currency.NewPairWithDelimiter(tempResp.Order.BaseAsset, "/", tempResp.Order.QuoteAsset)
+	timestamp := tempResp.Order.OrderTime
 	if err != nil {
 		return resp, err
 	}
 	resp.OrderDate = time.Unix(timestamp, 9)
 	resp.ExecutedAmount = tempResp.Order.FilledAmount
+	resp.Fee = tempResp.Order.TotalFee
 	return resp, nil
 }
 
@@ -269,13 +268,87 @@ func (c *Coinbene) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *Coinbene) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var resp []exchange.OrderDetail
+	var tempResp exchange.OrderDetail
+	var tempData OpenOrderResponse
+	var err error
+	if len(getOrdersRequest.Currencies) == 0 {
+		allPairs, err := c.GetAllPairs()
+		if err != nil {
+			return resp, err
+		}
+		for a := range allPairs.Data {
+			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, currency.NewPairFromString(allPairs.Data[a].Symbol))
+		}
+	}
+	for x := range getOrdersRequest.Currencies {
+		tempData, err = c.FetchOpenOrders(getOrdersRequest.Currencies[x].String())
+		if err != nil {
+			return resp, err
+		}
+		for y := range tempData.OpenOrders {
+			tempResp.Exchange = c.Name
+			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
+			if tempData.OpenOrders[y].OrderType == "buy" {
+				tempResp.OrderSide = exchange.BuyOrderSide
+			}
+			if tempData.OpenOrders[y].OrderType == "sell" {
+				tempResp.OrderSide = exchange.SellOrderSide
+			}
+			tempResp.OrderDate = time.Unix(tempData.OpenOrders[y].OrderTime, 9)
+			tempResp.Status = tempData.OpenOrders[y].OrderStatus
+			tempResp.Price = tempData.OpenOrders[y].AvgPrice
+			tempResp.Amount = tempData.OpenOrders[y].Amount
+			tempResp.ExecutedAmount = tempData.OpenOrders[y].FilledAmount
+			tempResp.RemainingAmount = tempData.OpenOrders[y].Amount - tempData.OpenOrders[y].FilledAmount
+			tempResp.Fee = tempData.OpenOrders[y].TotalFee
+			resp = append(resp, tempResp)
+		}
+	}
+	return resp, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var resp []exchange.OrderDetail
+	var tempResp exchange.OrderDetail
+	var tempData ClosedOrderResponse
+	var err error
+	if len(getOrdersRequest.Currencies) == 0 {
+		allPairs, err := c.GetAllPairs()
+		if err != nil {
+			return resp, err
+		}
+		for a := range allPairs.Data {
+			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, currency.NewPairFromString(allPairs.Data[a].Symbol))
+		}
+	}
+	for x := range getOrdersRequest.Currencies {
+		tempData, err = c.FetchClosedOrders(getOrdersRequest.Currencies[x].String(), "")
+		if err != nil {
+			return resp, err
+		}
+		for y := range tempData.Data {
+			tempResp.Exchange = c.Name
+			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
+			if tempData.Data[y].OrderType == "buy" {
+				tempResp.OrderSide = exchange.BuyOrderSide
+			}
+			if tempData.Data[y].OrderType == "sell" {
+				tempResp.OrderSide = exchange.SellOrderSide
+			}
+			tempResp.OrderDate = time.Unix(tempData.Data[y].OrderTime, 9)
+			tempResp.Status = tempData.Data[y].OrderStatus
+			tempResp.Price = tempData.Data[y].AvgPrice
+			tempResp.Amount = tempData.Data[y].Amount
+			tempResp.ExecutedAmount = tempData.Data[y].FilledAmount
+			tempResp.RemainingAmount = tempData.Data[y].Amount - tempData.Data[y].FilledAmount
+			tempResp.Fee = tempData.Data[y].TotalFee
+			resp = append(resp, tempResp)
+		}
+	}
+	return resp, nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -304,14 +377,3 @@ func (c *Coinbene) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription,
 func (c *Coinbene) AuthenticateWebsocket() error {
 	return common.ErrNotYetImplemented
 }
-
-// // GetAllOpenOrderID returns all open orders by currency pairs
-// func (c *Coinbene) GetAllOpenOrderID() (map[string][]string, error) {
-// 	allPairs := c.GetEnabledCurrencies()
-// 	resp := make(map[string][]string)
-// 	for a := range allPairs {
-// 		p := exchange.FormatExchangeCurrency(c.Name, allPairs[a])
-// 		b := int64(1)
-// 		tempResp, err := c.FetchOpenOrders(p.String(), strconv.Format
-// 	}
-// }

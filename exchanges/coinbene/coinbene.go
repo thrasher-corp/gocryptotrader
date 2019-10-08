@@ -43,6 +43,7 @@ const (
 	coinbeneOrderInfo      = "/order/info"
 	coinbeneRemoveOrder    = "/order/cancel"
 	coinbeneOpenOrders     = "/order/openOrders"
+	coinbeneClosedOrders   = "/order/closedOrders"
 )
 
 // SetDefaults sets the basic defaults for Coinbene
@@ -213,7 +214,51 @@ func (c *Coinbene) FetchOpenOrders(symbol string) (OpenOrderResponse, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneOpenOrders)
-	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, params, &resp, coinbeneOpenOrders)
+
+	// err := c.SendAuthHTTPRequest(http.MethodGet, path, params, &temp, coinbeneOpenOrders)
+	// if err != nil {
+	// 	return resp, err
+	// }
+	for i := int64(1); ; i++ {
+		var temp OpenOrderResponse
+		params.Set("pageNum", strconv.FormatInt(i, 10))
+		err := c.SendAuthHTTPRequest(http.MethodGet, path, params, &temp, coinbeneOpenOrders)
+		if err != nil {
+			return resp, err
+		}
+		for j := range temp.OpenOrders {
+			resp.OpenOrders = append(resp.OpenOrders, temp.OpenOrders[j])
+		}
+
+		if len(temp.OpenOrders) != 20 {
+			break
+		}
+	}
+	return resp, nil
+}
+
+// FetchClosedOrders finds open orders
+func (c *Coinbene) FetchClosedOrders(symbol, LatestID string) (ClosedOrderResponse, error) {
+	var resp ClosedOrderResponse
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("latestOrderId", LatestID)
+	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneClosedOrders)
+	for i := int64(1); ; i++ {
+		var temp ClosedOrderResponse
+		params.Set("pageNum", strconv.FormatInt(i, 10))
+		err := c.SendAuthHTTPRequest(http.MethodGet, path, params, &temp, coinbeneOpenOrders)
+		if err != nil {
+			return resp, err
+		}
+		for j := range temp.Data {
+			resp.Data = append(resp.Data, temp.Data[j])
+		}
+		if len(temp.Data) != 20 {
+			break
+		}
+	}
+	return resp, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -262,7 +307,6 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path string, params url.Values, r
 	headers["ACCESS-KEY"] = c.APIKey
 	headers["ACCESS-SIGN"] = hexEncodedd
 	headers["ACCESS-TIMESTAMP"] = timestamp
-	log.Println(preSign)
 	return c.SendPayload(method,
 		path,
 		headers,

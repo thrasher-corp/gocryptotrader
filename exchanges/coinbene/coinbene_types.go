@@ -84,52 +84,41 @@ type PlaceOrderResponse struct {
 
 // OrderInfoData stores order info
 type OrderInfoData struct {
-	AvgPrice       float64 `json:"averagePrice,string"`
-	CreateTime     string  `json:"createTime"`
-	Fees           float64 `json:"fees"`
-	FilledAmount   float64 `json:"filledamount"`
-	FilledQuantity float64 `json:"filledquantity"`
-	LastModified   string  `json:"lastmodified"`
-	OrderID        string  `json:"orderid"`
-	OrderQuantity  float64 `json:"orderquantity"`
-	OrderStatus    string  `json:"orderstatus"`
-	Price          float64 `json:"price"`
-	Symbol         string  `json:"symbol"`
-	OrderType      string  `json:"type"`
+	OrderID      string  `json:"orderId"`
+	BaseAsset    string  `json:"baseAsset"`
+	QuoteAsset   string  `json:"quoteAsset"`
+	OrderType    string  `json:"orderDirection"`
+	Quantity     float64 `json:"quntity,string"`
+	Amount       float64 `json:"amout,string"`
+	FilledAmount float64 `json:"filledAmount"`
+	TakerRate    float64 `json:"takerFeeRate,string"`
+	MakerRate    float64 `json:"makerRate,string"`
+	AvgPrice     float64 `json:"avgPrice,string"`
+	OrderStatus  string  `json:"orderStatus"`
+	OrderTime    int64   `json:"orderTime,string"`
+	TotalFee     float64 `json:"totalFee"`
 }
 
 // OrderInfoResponse stores orderinfo data
 type OrderInfoResponse struct {
-	Order     OrderInfoData `json:"order"`
-	Status    string        `json:"status"`
-	Timestamp int64         `json:"timestamp"`
+	Order OrderInfoData `json:"data"`
+	Code  int64         `json:"code"`
 }
 
 // RemoveOrderResponse stores data for the remove request
 type RemoveOrderResponse struct {
-	Status    string `json:"status"`
-	Timestamp int64  `json:"timestamp"`
-	OrderID   string `json:"orderid"`
-}
-
-// OpenOrderData stores data for open orders
-type OpenOrderData struct {
-	OrderID        string  `json:"orderid"`
-	OrderStatus    string  `json:"orderstatus"`
-	Symbol         string  `json:"symbol"`
-	AvgPrice       float64 `json:"averagePrice,string"`
-	CreateTime     string  `json:"createTime"`
-	FilledAmount   float64 `json:"filledamount"`
-	FilledQuantity float64 `json:"filledquantity"`
-	LastModified   string  `json:"lastmodified"`
-	OrderQuantity  float64 `json:"orderquantity"`
-	Price          float64 `json:"price"`
-	OrderType      string  `json:"type"`
+	Code    int64  `json:"code"`
+	OrderID string `json:"data"`
 }
 
 // OpenOrderResponse stores data for open orders
 type OpenOrderResponse struct {
-	Status     string          `json:"status"`
-	Timestamp  int64           `json:"timestamp"`
-	OpenOrders []OpenOrderData `json:"orders"`
+	Code       int64           `json:"code"`
+	OpenOrders []OrderInfoData `json:"data"`
+}
+
+// ClosedOrderResponse stores data for closed orders
+type ClosedOrderResponse struct {
+	Code int64           `json:"code"`
+	Data []OrderInfoData `json:"data"`
 }
