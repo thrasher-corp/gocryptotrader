@@ -101,63 +101,44 @@ func (w *WebsocketOrderbookLocal) processObUpdate(o *orderbook.Base, orderbookUp
 	}
 }
 
-func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, update *WebsocketOrderbookUpdate) {
-	for j := 0; j < len(update.Asks); j++ {
+func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate) {
+	for j := 0; j < len(base.Asks); j++ {
 		found := false
 		for k := 0; k < len(o.Asks); k++ {
-			if o.Asks[k].Price == update.Asks[j].Price {
+			if o.Asks[k].Price == base.Asks[j].Price {
 				found = true
-				if update.Asks[j].Amount == 0 {
-					o.Asks = append(o.Asks[:k], o.Asks[k+1:]...)
+				if base.Asks[j].Amount == 0 {
+					o.Asks = append(o.Asks[:k],
+						o.Asks[k+1:]...)
 					break
 				}
-				o.Asks[k].Amount = update.Asks[j].Amount
-
-				break
-			}
-			if o.Asks[k].Price > update.Asks[j].Price {
-				found = true
-				if k == 0 {
-					o.Asks = append([]orderbook.Item{update.Asks[j]}, o.Asks...)
-					break
-				}
-				o.Asks = append(o.Asks, orderbook.Item{})
-				copy(o.Asks[k+1:], o.Asks[k:])
-				o.Asks[k] = update.Asks[j]
+				o.Asks[k].Amount = base.Asks[j].Amount
 				break
 			}
 		}
 		if !found {
-			o.Bids = append(o.Asks, update.Asks[j])
+			o.Asks = append(o.Asks, base.Asks[j])
 		}
 	}
 }
 
-func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, update *WebsocketOrderbookUpdate) {
-	for j := 0; j < len(update.Bids); j++ {
-		if update.Bids[j].Price > o.Bids[len(o.Bids)-1].Price {
-			o.Bids = append(o.Bids, update.Bids[j])
-			continue
-		}
+func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate) {
+	for j := 0; j < len(base.Bids); j++ {
+		found := false
 		for k := 0; k < len(o.Bids); k++ {
-			if o.Bids[k].Price == update.Bids[j].Price {
-				if update.Bids[j].Amount == 0 {
-					o.Bids = append(o.Bids[:k], o.Bids[k+1:]...)
+			if o.Bids[k].Price == base.Bids[j].Price {
+				found = true
+				if base.Bids[j].Amount == 0 {
+					o.Bids = append(o.Bids[:k],
+						o.Bids[k+1:]...)
 					break
 				}
-				o.Bids[k].Amount = update.Bids[j].Amount
+				o.Bids[k].Amount = base.Bids[j].Amount
 				break
 			}
-			if o.Bids[k].Price < update.Bids[j].Price {
-				if k == 0 {
-					o.Bids = append([]orderbook.Item{update.Bids[j]}, o.Bids...)
-					break
-				}
-				o.Bids = append(o.Bids, orderbook.Item{})
-				copy(o.Bids[k+1:], o.Bids[k:])
-				o.Bids[k] = update.Bids[j]
-				break
-			}
+		}
+		if !found {
+			o.Bids = append(o.Bids, base.Bids[j])
 		}
 	}
 }

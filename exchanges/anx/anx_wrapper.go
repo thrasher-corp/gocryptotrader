@@ -81,8 +81,19 @@ func (a *ANX) SetDefaults() {
 			REST:      true,
 			Websocket: false,
 			RESTCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:  true,
 				AutoPairUpdates: true,
-				TickerBatching:  false,
+				AccountInfo:     true,
+				CryptoDeposit:   true,
+				GetOrder:          true,
+				GetOrders:         true,
+				CancelOrders:      true,
+				CancelOrder:       true,
+				SubmitOrder:       true,
+				DepositHistory:    true,
+				WithdrawalHistory: true,
+				UserTradeHistory:  true,
+				TradeFee:          true,
 			},
 			WithdrawPermissions: exchange.WithdrawCryptoWithEmail |
 				exchange.AutoWithdrawCryptoWithSetup |
