@@ -12,14 +12,17 @@ An exchange interface wrapper for the GoCryptoTrader application.
 ## Current Coinbene Exchange Features
 
 + REST Support 
-+ Websocket Support 
++ Websocket currently not Supported
 
 + Can be used as a package
 
 ## Notes
 
-+ Please add notes here with any production issues
 + Please provide link to exchange website and API documentation
+
+https://www.coinbene.com/#/
+
+https://github.com/Coinbene/API-SPOT-v2-Documents/blob/master/openapi-spot-rest-en.md#public-interface---get-the-specified-ticker-information
 
 ## Contributors
 
@@ -27,4 +30,4 @@ An exchange interface wrapper for the GoCryptoTrader application.
 
 |User|Github|Contribution|
 |--|--|--|
-|AliasGoesHere|https://github.com/AliasGoesHere |WHAT-YOU-DID|
+|MadCozBadd|https://github.com/MadCozBadd |WHAT-YOU-DID|

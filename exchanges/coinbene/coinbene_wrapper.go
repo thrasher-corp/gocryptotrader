@@ -45,17 +45,14 @@ func (c *Coinbene) Run() {
 			log.Errorf("%s Failed to update available currencies %s.\n", c.GetName(), err)
 		}
 	}
-
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *Coinbene) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var resp ticker.Price
-	var tempResp TickerResponse
-	var err error
 	allPairs := c.GetEnabledCurrencies()
 	for x := range allPairs {
-		tempResp, err = c.FetchTicker(exchange.FormatExchangeCurrency(c.Name, allPairs[x]).String())
+		tempResp, err := c.FetchTicker(exchange.FormatExchangeCurrency(c.Name, allPairs[x]).String())
 		if err != nil {
 			return resp, err
 		}
@@ -67,16 +64,12 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 		resp.Ask = tempResp.TickerData.BestAsk
 		resp.Volume = tempResp.TickerData.DailyVol
 		resp.LastUpdated = time.Now()
-		err1 := ticker.ProcessTicker(c.Name, &resp, assetType)
-		if err1 != nil {
-			return ticker.Price{}, err1
+		err = ticker.ProcessTicker(c.Name, &resp, assetType)
+		if err != nil {
+			return resp, err
 		}
 	}
-	resp, err = ticker.GetTicker(c.Name, p, assetType)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return ticker.GetTicker(c.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
@@ -101,7 +94,7 @@ func (c *Coinbene) GetOrderbookEx(currency currency.Pair, assetType string) (ord
 func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var resp orderbook.Base
 	strPair := exchange.FormatExchangeCurrency(c.Name, p).String()
-	tempResp, err := c.FetchOrderbooks(strPair, "")
+	tempResp, err := c.FetchOrderbooks(strPair, "5")
 	if err != nil {
 		return resp, err
 	}
@@ -110,11 +103,11 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType string) (orderbook
 	resp.AssetType = assetType
 	for i := range tempResp.Orderbook.Asks {
 		var tempAsks orderbook.Item
-		tempAsks.Amount, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][2], 64)
+		tempAsks.Amount, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][1], 64)
 		if err != nil {
 			return resp, err
 		}
-		tempAsks.Price, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][1], 64)
+		tempAsks.Price, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][0], 64)
 		if err != nil {
 			return resp, err
 		}
@@ -122,11 +115,11 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType string) (orderbook
 	}
 	for j := range tempResp.Orderbook.Bids {
 		var tempBids orderbook.Item
-		tempBids.Amount, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][2], 64)
+		tempBids.Amount, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][1], 64)
 		if err != nil {
 			return resp, err
 		}
-		tempBids.Price, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][1], 64)
+		tempBids.Price, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][0], 64)
 		if err != nil {
 			return resp, err
 		}
@@ -136,7 +129,7 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType string) (orderbook
 	if err != nil {
 		return resp, err
 	}
-	return resp, nil
+	return orderbook.Get(c.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -165,12 +158,12 @@ func (c *Coinbene) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (c *Coinbene) GetFundingHistory() ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (c *Coinbene) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -179,7 +172,7 @@ func (c *Coinbene) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTy
 	if side != exchange.BuyOrderSide && side != exchange.SellOrderSide {
 		return resp, fmt.Errorf("%s orderside is not supported by this exchange", side)
 	}
-	tempResp, err := c.PlaceOrder(price, amount, p.Lower().String(), orderType.ToString(), "")
+	tempResp, err := c.PlaceOrder(price, amount, exchange.FormatExchangeCurrency(c.Name, p).String(), orderType.ToString(), "")
 	if err != nil {
 		return resp, err
 	}
@@ -191,7 +184,7 @@ func (c *Coinbene) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderTy
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (c *Coinbene) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -203,7 +196,7 @@ func (c *Coinbene) CancelOrder(order *exchange.OrderCancellation) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *Coinbene) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
-	orders, err := c.FetchOpenOrders(orderCancellation.CurrencyPair.Lower().String())
+	orders, err := c.FetchOpenOrders(exchange.FormatExchangeCurrency(c.Name, orderCancellation.CurrencyPair).String())
 	if err != nil {
 		return resp, err
 	}
@@ -229,7 +222,7 @@ func (c *Coinbene) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	resp.ID = orderID
 	resp.CurrencyPair = currency.NewPairWithDelimiter(tempResp.Order.BaseAsset, "/", tempResp.Order.QuoteAsset)
 	timestamp := tempResp.Order.OrderTime
-	resp.OrderDate = time.Unix(timestamp, 9)
+	resp.OrderDate = time.Unix(timestamp, 0)
 	resp.ExecutedAmount = tempResp.Order.FilledAmount
 	resp.Fee = tempResp.Order.TotalFee
 	return resp, nil
@@ -237,25 +230,25 @@ func (c *Coinbene) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (c *Coinbene) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (c *Coinbene) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (c *Coinbene) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (c *Coinbene) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
@@ -279,20 +272,20 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 	}
 	var err error
 	for x := range getOrdersRequest.Currencies {
-		tempData, err = c.FetchOpenOrders(getOrdersRequest.Currencies[x].String())
+		tempData, err = c.FetchOpenOrders(exchange.FormatExchangeCurrency(c.Name, getOrdersRequest.Currencies[x]).String())
 		if err != nil {
 			return resp, err
 		}
 		for y := range tempData.OpenOrders {
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
-			if tempData.OpenOrders[y].OrderType == "buy" {
+			if tempData.OpenOrders[y].OrderType == buy {
 				tempResp.OrderSide = exchange.BuyOrderSide
 			}
-			if tempData.OpenOrders[y].OrderType == "sell" {
+			if tempData.OpenOrders[y].OrderType == sell {
 				tempResp.OrderSide = exchange.SellOrderSide
 			}
-			tempResp.OrderDate = time.Unix(tempData.OpenOrders[y].OrderTime, 9)
+			tempResp.OrderDate = time.Unix(tempData.OpenOrders[y].OrderTime, 0)
 			tempResp.Status = tempData.OpenOrders[y].OrderStatus
 			tempResp.Price = tempData.OpenOrders[y].AvgPrice
 			tempResp.Amount = tempData.OpenOrders[y].Amount
@@ -322,20 +315,20 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 	}
 	var err error
 	for x := range getOrdersRequest.Currencies {
-		tempData, err = c.FetchClosedOrders(getOrdersRequest.Currencies[x].String(), "")
+		tempData, err = c.FetchClosedOrders(exchange.FormatExchangeCurrency(c.Name, getOrdersRequest.Currencies[x]).String(), "")
 		if err != nil {
 			return resp, err
 		}
 		for y := range tempData.Data {
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
-			if tempData.Data[y].OrderType == "buy" {
+			if tempData.Data[y].OrderType == buy {
 				tempResp.OrderSide = exchange.BuyOrderSide
 			}
-			if tempData.Data[y].OrderType == "sell" {
+			if tempData.Data[y].OrderType == sell {
 				tempResp.OrderSide = exchange.SellOrderSide
 			}
-			tempResp.OrderDate = time.Unix(tempData.Data[y].OrderTime, 9)
+			tempResp.OrderDate = time.Unix(tempData.Data[y].OrderTime, 0)
 			tempResp.Status = tempData.Data[y].OrderStatus
 			tempResp.Price = tempData.Data[y].AvgPrice
 			tempResp.Amount = tempData.Data[y].Amount
@@ -350,7 +343,7 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (c *Coinbene) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	return 0, common.ErrFunctionNotSupported
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe

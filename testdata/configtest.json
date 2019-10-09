@@ -1468,11 +1468,11 @@
    "apiUrlSecondary": "",
    "proxyAddress": "",
    "websocketUrl": "",
-   "availablePairs": "btcusdt",
-   "enabledPairs": "btcusdt",
+   "availablePairs": "BTC/USDT",
+   "enabledPairs": "BTC/USDT",
    "baseCurrencies": "",
    "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": false,
+   "supportsAutoPairUpdates": true,
    "configCurrencyPairFormat": {
     "uppercase": true
    },

@@ -13,8 +13,8 @@ type TickerData struct {
 
 // TickerResponse stores ticker response data
 type TickerResponse struct {
-	Code       int64      `json:"code"`
-	TickerData TickerData `json:"data"`
+	Code       int64 `json:"code"`
+	TickerData `json:"data"`
 }
 
 // Orderbook stores orderbook info
@@ -25,8 +25,8 @@ type Orderbook struct {
 
 // OrderbookResponse stores data from fetched orderbooks
 type OrderbookResponse struct {
-	Code      int64     `json:"code"`
-	Orderbook Orderbook `json:"data"`
+	Code      int64 `json:"code"`
+	Orderbook `json:"data"`
 }
 
 // TradeResponse stores trade data

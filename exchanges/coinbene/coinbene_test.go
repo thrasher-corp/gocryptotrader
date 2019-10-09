@@ -70,8 +70,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetAllPairs(t *testing.T) {
 	TestSetup(t)
-	a, err := c.GetAllPairs()
-	t.Log(a)
+	_, err := c.GetAllPairs()
 	if err != nil {
 		t.Error(err)
 	}
@@ -145,6 +144,15 @@ func TestUpdateTicker(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	TestSetup(t)
 	_, err := c.GetAccountInfo()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	TestSetup(t)
+	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
+	_, err := c.UpdateOrderbook(cp, "spot")
 	if err != nil {
 		t.Error(err)
 	}
