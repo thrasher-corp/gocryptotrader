@@ -54,7 +54,7 @@ func TestFetchTicker(t *testing.T) {
 
 func TestFetchOrderbooks(t *testing.T) {
 	TestSetup(t)
-	_, err := c.FetchOrderbooks("BTC/USDT", "5")
+	_, err := c.FetchOrderbooks("BTC/USDT", 100)
 	if err != nil {
 		t.Error(err)
 	}

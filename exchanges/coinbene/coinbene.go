@@ -138,11 +138,12 @@ func (c *Coinbene) FetchTicker(symbol string) (TickerResponse, error) {
 }
 
 // FetchOrderbooks gets and stores orderbook data for given pair
-func (c *Coinbene) FetchOrderbooks(symbol, size string) (OrderbookResponse, error) {
+func (c *Coinbene) FetchOrderbooks(symbol string, size int64) (OrderbookResponse, error) {
 	var o OrderbookResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("depth", size)
+	intSize := strconv.FormatInt(size, 10)
+	params.Set("depth", intSize)
 	path := fmt.Sprintf("%s%s%s?%s", c.APIUrl, coinbeneAPIVersion, coinbeneFetchOrderBook, params.Encode())
 	return o, c.SendHTTPRequest(path, &o)
 }
@@ -290,11 +291,7 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 			return err
 		}
 		finalBody = bytes.NewBufferString(string(tempBody))
-		paramsMarshalled, err := json.Marshal(m)
-		if err != nil {
-			return err
-		}
-		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, paramsMarshalled)
+		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, tempBody)
 	}
 	if len(params) == 0 {
 		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, params.Encode())

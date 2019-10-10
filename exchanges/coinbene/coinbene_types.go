@@ -8,7 +8,7 @@ type TickerData struct {
 	BestAsk     float64 `json:"bestAsk,string"`
 	DailyHigh   float64 `json:"high24h,string"`
 	DailyLow    float64 `json:"low24h,string"`
-	DailyVol    float64 `json:"vol24h,string"`
+	DailyVol    float64 `json:"volume24h,string"`
 }
 
 // TickerResponse stores ticker response data
@@ -95,7 +95,7 @@ type OrderInfoData struct {
 	MakerRate    float64 `json:"makerRate,string"`
 	AvgPrice     float64 `json:"avgPrice,string"`
 	OrderStatus  string  `json:"orderStatus"`
-	OrderTime    int64   `json:"orderTime,string"`
+	OrderTime    string  `json:"orderTime"`
 	TotalFee     float64 `json:"totalFee"`
 }
 
