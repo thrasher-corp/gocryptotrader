@@ -240,9 +240,6 @@ type ProtocolFeatures struct {
 	AutoPairUpdates   bool
 	// account features
 	AccountInfo       bool
-	CryptoDeposit     bool
-	CryptoWithdrawal  bool
-	FiatWithdraw      bool
 	GetOrder          bool
 	GetOrders         bool
 	CancelOrders      bool
@@ -253,6 +250,10 @@ type ProtocolFeatures struct {
 	DepositHistory    bool
 	WithdrawalHistory bool
 	UserTradeHistory  bool
+	CryptoDeposit     bool
+	CryptoWithdrawal  bool
+	FiatDeposit       bool
+	FiatWithdraw      bool
 	// fees
 	TradeFee            bool
 	FiatDepositFee      bool
