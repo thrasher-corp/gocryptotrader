@@ -29,6 +29,7 @@ type Settings struct {
 	EnableOrderManager          bool
 	EnableConnectivityMonitor   bool
 	EnableDatabaseManager       bool
+	EnableGCTScriptManager      bool
 	EnableNTPClient             bool
 	EnableWebsocketRoutine      bool
 	EventManagerDelay           time.Duration
@@ -66,3 +67,14 @@ type Settings struct {
 	EnableDispatcher        bool
 	DispatchMaxWorkerAmount int64
 }
+
+const (
+	ErrSubSystemAlreadyStarted = "manager already started"
+	ErrSubSystemAlreadyStopped = "already stopped"
+
+	MsgSubSystemStarting = "manager starting..."
+	MsgSubSystemStarted  = "started."
+
+	MsgSubSystemShuttingDown = "shutting down..."
+	MsgSubSystemShutdown     = "manager shutdown."
+)

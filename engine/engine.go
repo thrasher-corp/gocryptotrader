@@ -30,6 +30,7 @@ type Engine struct {
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
 	DatabaseManager             databaseManager
+	GctScriptManager            gctScriptManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
