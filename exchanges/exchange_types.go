@@ -231,30 +231,41 @@ type FeaturesEnabled struct {
 // ProtocolFeatures holds all variables for the exchanges supported features
 // for a protocol (e.g REST or Websocket)
 type ProtocolFeatures struct {
-	TickerBatching      bool
-	TickerFetching      bool
-	OrderbookFetching   bool
-	AutoPairUpdates     bool
-	AccountInfo         bool
-	CryptoDeposit       bool
-	CryptoWithdrawal    uint32
-	FiatWithdraw        bool
-	GetOrder            bool
-	GetOrders           bool
-	CancelOrders        bool
-	CancelOrder         bool
-	SubmitOrder         bool
-	SubmitOrders        bool
-	ModifyOrder         bool
-	DepositHistory      bool
-	WithdrawalHistory   bool
-	TradeHistory        bool
-	UserTradeHistory    bool
+	// market data
+	TickerBatching    bool
+	TickerFetching    bool
+	KlineFetching     bool
+	TradeFetching     bool
+	OrderbookFetching bool
+	AutoPairUpdates   bool
+	// account features
+	AccountInfo       bool
+	CryptoDeposit     bool
+	CryptoWithdrawal  bool
+	FiatWithdraw      bool
+	GetOrder          bool
+	GetOrders         bool
+	CancelOrders      bool
+	CancelOrder       bool
+	SubmitOrder       bool
+	SubmitOrders      bool
+	ModifyOrder       bool
+	DepositHistory    bool
+	WithdrawalHistory bool
+	UserTradeHistory  bool
+	// fees
 	TradeFee            bool
 	FiatDepositFee      bool
 	FiatWithdrawalFee   bool
 	CryptoDepositFee    bool
 	CryptoWithdrawalFee bool
+	// websocket exclusives
+	DeadMansSwitch         bool
+	Subscribe              bool
+	Unsubscribe            bool
+	AuthenticatedEndpoints bool
+	MessageCorrelation     bool
+	MessageSequenceNumbers bool
 }
 
 // FeaturesSupported stores the exchanges supported features

@@ -69,8 +69,12 @@ func (b *Bitflyer) SetDefaults() {
 			REST:      true,
 			Websocket: false,
 			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  false,
+				TickerFetching:    true,
+				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				TradeFee:          true,
+				FiatDepositFee:    true,
+				FiatWithdrawalFee: true,
 			},
 			WithdrawPermissions: exchange.WithdrawCryptoViaWebsiteOnly |
 				exchange.AutoWithdrawFiat,
