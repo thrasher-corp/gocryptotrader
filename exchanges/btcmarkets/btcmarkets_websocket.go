@@ -141,6 +141,8 @@ func (b *BTCMarkets) WsHandleData() {
 				b.Websocket.DataHandler <- wshandler.TickerData{
 					Exchange:  b.GetName(),
 					Volume:    tick.Volume,
+					High:      tick.High24,
+					Low:       tick.Low24h,
 					Bid:       tick.Bid,
 					Ask:       tick.Ask,
 					Last:      tick.Last,

@@ -155,12 +155,10 @@ type WsSubscribe struct {
 	MessageType string   `json:"messageType"`
 }
 
-
 // WsMessageType message sent via ws to determine type
 type WsMessageType struct {
 	MessageType string `json:"messageType"`
 }
-
 
 // WsTick message received for ticker data
 type WsTick struct {
@@ -170,9 +168,11 @@ type WsTick struct {
 	Ask         float64   `json:"bestAsk,string"`
 	Last        float64   `json:"lastPrice,string"`
 	Volume      float64   `json:"volume24h,string"`
+	Price24h    float64   `json:"price24h,string"`
+	Low24h      float64   `json:"low24h,string"`
+	High24      float64   `json:"high24h,string"`
 	MessageType string    `json:"messageType"`
 }
-
 
 // WsTrade message received for trade data
 type WsTrade struct {
@@ -183,7 +183,6 @@ type WsTrade struct {
 	Volume      float64   `json:"volume,string"`
 	MessageType string    `json:"messageType"`
 }
-
 
 // WsOrderbook message received for orderbook data
 type WsOrderbook struct {
