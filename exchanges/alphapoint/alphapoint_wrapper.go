@@ -45,7 +45,19 @@ func (a *Alphapoint) SetDefaults() {
 			},
 
 			WebsocketCapabilities: exchange.ProtocolFeatures{
-				TickerFetching: true,
+				TickerFetching:    true,
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				AccountInfo:       true,
+				GetOrders:         true,
+				CancelOrder:       true,
+				CancelOrders:      true,
+				SubmitOrder:       true,
+				ModifyOrder:       true,
+				UserTradeHistory:  true,
+				CryptoDeposit:     true,
+				CryptoWithdrawal:  true,
+				TradeFee:          true,
 			},
 
 			WithdrawPermissions: exchange.WithdrawCryptoWith2FA |
