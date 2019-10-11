@@ -41,14 +41,10 @@ func (a *Alphapoint) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
-				AccountInfo: true,
-			},
-
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+				AccountInfo:       true,
 				TickerFetching:    true,
 				TradeFetching:     true,
 				OrderbookFetching: true,
-				AccountInfo:       true,
 				GetOrders:         true,
 				CancelOrder:       true,
 				CancelOrders:      true,
@@ -58,6 +54,10 @@ func (a *Alphapoint) SetDefaults() {
 				CryptoDeposit:     true,
 				CryptoWithdrawal:  true,
 				TradeFee:          true,
+			},
+
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				AccountInfo:       true,
 			},
 
 			WithdrawPermissions: exchange.WithdrawCryptoWith2FA |
