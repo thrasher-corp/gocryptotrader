@@ -70,8 +70,21 @@ func (g *Gemini) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  false,
+				TickerFetching:      true,
+				TradeFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				CancelOrders:        true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				UserTradeHistory:    true,
+				CryptoDeposit:       true,
+				CryptoWithdrawal:    true,
+				TradeFee:            true,
+				FiatWithdrawalFee:   true,
+				CryptoWithdrawalFee: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawCryptoWithSetup |
