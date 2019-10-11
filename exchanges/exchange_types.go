@@ -242,8 +242,8 @@ type ProtocolFeatures struct {
 	AccountInfo       bool
 	GetOrder          bool
 	GetOrders         bool
-	CancelOrders      bool
 	CancelOrder       bool
+	CancelOrders      bool
 	SubmitOrder       bool
 	SubmitOrders      bool
 	ModifyOrder       bool
