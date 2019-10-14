@@ -85,6 +85,17 @@ func (z *ZB) SetDefaults() {
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:         true,
+				TradeFetching:          true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				CancelOrder:            true,
+				SubmitOrder:            true,
+				MessageCorrelation:     true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
 		},
@@ -104,15 +115,6 @@ func (z *ZB) SetDefaults() {
 	z.API.Endpoints.URLSecondary = z.API.Endpoints.URLSecondaryDefault
 	z.API.Endpoints.WebsocketURL = zbWebsocketAPI
 	z.Websocket = wshandler.New()
-	z.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketAccountDataSupported |
-		wshandler.WebsocketCancelOrderSupported |
-		wshandler.WebsocketSubmitOrderSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -140,6 +142,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        z.WsConnect,
 			Subscriber:                       z.Subscribe,
+			Features:                         &z.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

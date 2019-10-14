@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -150,6 +151,16 @@ func (b *BTCMarkets) WsHandleData() {
 					AssetType: asset.Spot,
 					Pair:      p,
 				}
+			case "error":
+				var wsErr WsError
+				err := common.JSONDecode(resp.Raw, &wsErr)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				b.Websocket.DataHandler <- fmt.Errorf("%v websocket error. Code: %v Message: %v", b.Name, wsErr.Code, wsErr.Message)
+			default:
+				b.Websocket.DataHandler <- fmt.Errorf("%v Unhandled websocket message %s", b.Name, resp.Raw)
 			}
 		}
 	}

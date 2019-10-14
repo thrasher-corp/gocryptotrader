@@ -85,6 +85,18 @@ func (c *COINUT) SetDefaults() {
 				FiatDepositFee:    true,
 				FiatWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				TradeFetching:          true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				SubmitOrder:            true,
+				SubmitOrders:           true,
+				CancelOrder:            true,
+				MessageCorrelation:     true,
+			},
 			WithdrawPermissions: exchange.WithdrawCryptoViaWebsiteOnly |
 				exchange.WithdrawFiatViaWebsiteOnly,
 		},
@@ -102,15 +114,6 @@ func (c *COINUT) SetDefaults() {
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
 	c.API.Endpoints.WebsocketURL = coinutWebsocketURL
 	c.Websocket = wshandler.New()
-	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSubmitOrderSupported |
-		wshandler.WebsocketCancelOrderSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -140,6 +143,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        c.WsConnect,
 			Subscriber:                       c.Subscribe,
 			UnSubscriber:                     c.Unsubscribe,
+			Features:                         &c.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

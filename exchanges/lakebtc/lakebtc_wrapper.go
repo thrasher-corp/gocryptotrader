@@ -86,6 +86,11 @@ func (l *LakeBTC) SetDefaults() {
 				TradeFee:          true,
 				CryptoDepositFee:  true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				Subscribe:         true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.WithdrawFiatViaWebsiteOnly,
 		},
@@ -103,9 +108,6 @@ func (l *LakeBTC) SetDefaults() {
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
 	l.Websocket = wshandler.New()
 	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
-	l.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported
 	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	l.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -134,6 +136,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        l.WsConnect,
 			Subscriber:                       l.Subscribe,
+			Features:                         &l.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

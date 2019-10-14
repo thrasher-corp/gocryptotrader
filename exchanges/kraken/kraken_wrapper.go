@@ -95,6 +95,15 @@ func (k *Kraken) SetDefaults() {
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:     true,
+				TradeFetching:      true,
+				KlineFetching:      true,
+				OrderbookFetching:  true,
+				Subscribe:          true,
+				Unsubscribe:        true,
+				MessageCorrelation: true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.WithdrawCryptoWith2FA |
 				exchange.AutoWithdrawFiatWithSetup |
@@ -114,13 +123,6 @@ func (k *Kraken) SetDefaults() {
 	k.API.Endpoints.URL = k.API.Endpoints.URLDefault
 	k.Websocket = wshandler.New()
 	k.API.Endpoints.WebsocketURL = krakenWSURL
-	k.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -150,6 +152,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        k.WsConnect,
 			Subscriber:                       k.Subscribe,
 			UnSubscriber:                     k.Unsubscribe,
+			Features:                         &k.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

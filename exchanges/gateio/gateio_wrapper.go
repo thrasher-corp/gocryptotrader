@@ -88,6 +88,16 @@ func (g *Gateio) SetDefaults() {
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				TradeFetching:          true,
+				KlineFetching:          true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				MessageCorrelation:     true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
 		},
@@ -107,14 +117,6 @@ func (g *Gateio) SetDefaults() {
 	g.API.Endpoints.URLSecondary = g.API.Endpoints.URLSecondaryDefault
 	g.API.Endpoints.WebsocketURL = gateioWebsocketEndpoint
 	g.Websocket = wshandler.New()
-	g.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -144,6 +146,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        g.WsConnect,
 			Subscriber:                       g.Subscribe,
 			UnSubscriber:                     g.Unsubscribe,
+			Features:                         &g.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

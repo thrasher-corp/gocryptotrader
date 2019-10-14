@@ -86,6 +86,16 @@ func (h *HUOBI) SetDefaults() {
 				CryptoWithdrawal:  true,
 				TradeFee:          true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				KlineFetching:          true,
+				OrderbookFetching:      true,
+				TradeFetching:          true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				MessageCorrelation:     true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
 		},
@@ -103,14 +113,6 @@ func (h *HUOBI) SetDefaults() {
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
 	h.API.Endpoints.WebsocketURL = wsMarketURL
 	h.Websocket = wshandler.New()
-	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketAccountDataSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -143,6 +145,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        h.WsConnect,
 			Subscriber:                       h.Subscribe,
 			UnSubscriber:                     h.Unsubscribe,
+			Features:                         &h.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

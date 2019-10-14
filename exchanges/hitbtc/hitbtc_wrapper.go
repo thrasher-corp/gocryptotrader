@@ -90,6 +90,16 @@ func (h *HitBTC) SetDefaults() {
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				SubmitOrder:            true,
+				CancelOrder:            true,
+				MessageSequenceNumbers: true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
 		},
@@ -107,14 +117,6 @@ func (h *HitBTC) SetDefaults() {
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
 	h.API.Endpoints.WebsocketURL = hitbtcWebsocketAddress
 	h.Websocket = wshandler.New()
-	h.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSubmitOrderSupported |
-		wshandler.WebsocketCancelOrderSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -144,6 +146,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        h.WsConnect,
 			Subscriber:                       h.Subscribe,
 			UnSubscriber:                     h.Unsubscribe,
+			Features:                         &h.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

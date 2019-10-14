@@ -112,12 +112,6 @@ func (b *BTCMarkets) SetDefaults() {
 
 	b.API.Endpoints.WebsocketURL = btcMarketsWSURL
 	b.Websocket = wshandler.New()
-	b.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketAccountDataSupported |
-		wshandler.WebsocketTickerSupported
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -146,6 +140,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        b.WsConnect,
 			Subscriber:                       b.Subscribe,
+			Features:                         &b.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

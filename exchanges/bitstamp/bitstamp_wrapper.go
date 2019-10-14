@@ -91,6 +91,12 @@ func (b *Bitstamp) SetDefaults() {
 				FiatWithdrawalFee: true,
 				CryptoDepositFee:  true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				Subscribe:         true,
+				Unsubscribe:       true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
 		},
@@ -108,10 +114,6 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 	b.API.Endpoints.WebsocketURL = bitstampWSURL
 	b.Websocket = wshandler.New()
-	b.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -141,6 +143,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        b.WsConnect,
 			Subscriber:                       b.Subscribe,
 			UnSubscriber:                     b.Unsubscribe,
+			Features:                         &b.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

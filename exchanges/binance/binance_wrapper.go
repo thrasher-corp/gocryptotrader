@@ -92,6 +92,12 @@ func (b *Binance) SetDefaults() {
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TradeFetching:     true,
+				TickerFetching:    true,
+				KlineFetching:     true,
+				OrderbookFetching: true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
 		},
@@ -109,10 +115,6 @@ func (b *Binance) SetDefaults() {
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 	b.Websocket = wshandler.New()
 	b.API.Endpoints.WebsocketURL = binanceDefaultWebsocketURL
-	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -140,6 +142,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        b.WsConnect,
+			Features:                         &b.Features.Supports.WebsocketCapabilities,
 		})
 
 	if err != nil {

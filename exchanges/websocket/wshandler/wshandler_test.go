@@ -193,49 +193,6 @@ func TestWebsocket(t *testing.T) {
 	ws.Wg.Wait()
 }
 
-func TestFunctionality(t *testing.T) {
-	ws := New()
-	if ws.FormatFunctionality() != NoWebsocketSupportText {
-		t.Fatalf("Test Failed - FormatFunctionality error expected %s but received %s",
-			NoWebsocketSupportText, ws.FormatFunctionality())
-	}
-
-	ws.Functionality = 1 << 31
-
-	if ws.FormatFunctionality() != UnknownWebsocketFunctionality+"[1<<31]" {
-		t.Fatal("Test Failed - GetFunctionality error incorrect error returned")
-	}
-
-	ws.Functionality = WebsocketOrderbookSupported
-
-	if ws.GetFunctionality() != WebsocketOrderbookSupported {
-		t.Fatal("Test Failed - GetFunctionality error incorrect bitmask returned")
-	}
-
-	if !ws.SupportsFunctionality(WebsocketOrderbookSupported) {
-		t.Fatal("Test Failed - SupportsFunctionality error should be true")
-	}
-
-	ws.Functionality = WebsocketTickerSupported | WebsocketOrderbookSupported | WebsocketKlineSupported |
-		WebsocketTradeDataSupported | WebsocketAccountSupported | WebsocketAllowsRequests |
-		WebsocketSubscribeSupported | WebsocketUnsubscribeSupported | WebsocketAuthenticatedEndpointsSupported |
-		WebsocketAccountDataSupported | WebsocketSubmitOrderSupported | WebsocketCancelOrderSupported |
-		WebsocketWithdrawSupported | WebsocketMessageCorrelationSupported | WebsocketSequenceNumberSupported |
-		WebsocketDeadMansSwitchSupported
-	formatted := ws.FormatFunctionality()
-
-	if !strings.Contains(formatted, WebsocketTickerSupportedText) || !strings.Contains(formatted, WebsocketOrderbookSupportedText) ||
-		!strings.Contains(formatted, WebsocketKlineSupportedText) || !strings.Contains(formatted, WebsocketTradeDataSupportedText) ||
-		!strings.Contains(formatted, WebsocketAccountSupportedText) || !strings.Contains(formatted, WebsocketAllowsRequestsText) ||
-		!strings.Contains(formatted, WebsocketSubscribeSupportedText) || !strings.Contains(formatted, WebsocketUnsubscribeSupportedText) ||
-		!strings.Contains(formatted, WebsocketAuthenticatedEndpointsSupportedText) || !strings.Contains(formatted, WebsocketAccountDataSupportedText) ||
-		!strings.Contains(formatted, WebsocketSubmitOrderSupportedText) || !strings.Contains(formatted, WebsocketCancelOrderSupportedText) ||
-		!strings.Contains(formatted, WebsocketWithdrawSupportedText) || !strings.Contains(formatted, WebsocketMessageCorrelationSupportedText) ||
-		!strings.Contains(formatted, WebsocketSequenceNumberSupportedText) || !strings.Contains(formatted, WebsocketDeadMansSwitchSupportedText) {
-		t.Error("Failed to format and include supported websocket features")
-	}
-}
-
 // placeholderSubscriber basic function to test subscriptions
 func placeholderSubscriber(channelToSubscribe WebsocketChannelSubscription) error {
 	return nil

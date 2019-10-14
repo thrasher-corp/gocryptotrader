@@ -112,6 +112,16 @@ func (o *OKEX) SetDefaults() {
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:         true,
+				TradeFetching:          true,
+				KlineFetching:          true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				MessageCorrelation:     true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
 		},
@@ -131,14 +141,6 @@ func (o *OKEX) SetDefaults() {
 	o.API.Endpoints.WebsocketURL = OkExWebsocketURL
 	o.Websocket = wshandler.New()
 	o.APIVersion = okExAPIVersion
-	o.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit

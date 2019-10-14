@@ -86,6 +86,12 @@ func (g *Gemini) SetDefaults() {
 				FiatWithdrawalFee:   true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				OrderbookFetching:      true,
+				TradeFetching:          true,
+				AuthenticatedEndpoints: true,
+				MessageSequenceNumbers: true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawCryptoWithSetup |
 				exchange.WithdrawFiatViaWebsiteOnly,
@@ -104,10 +110,6 @@ func (g *Gemini) SetDefaults() {
 	g.API.Endpoints.URL = g.API.Endpoints.URLDefault
 	g.API.Endpoints.WebsocketURL = geminiWebsocketEndpoint
 	g.Websocket = wshandler.New()
-	g.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSequenceNumberSupported
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -139,6 +141,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        g.WsConnect,
+			Features:                         &g.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

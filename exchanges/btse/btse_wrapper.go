@@ -86,6 +86,12 @@ func (b *BTSE) SetDefaults() {
 				FiatWithdrawalFee:   true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:    true,
+				OrderbookFetching: true,
+				Subscribe:         true,
+				Unsubscribe:       true,
+			},
 			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -101,10 +107,6 @@ func (b *BTSE) SetDefaults() {
 	b.API.Endpoints.URLDefault = btseAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 	b.Websocket = wshandler.New()
-	b.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -135,6 +137,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        b.WsConnect,
 			Subscriber:                       b.Subscribe,
 			UnSubscriber:                     b.Unsubscribe,
+			Features:                         &b.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

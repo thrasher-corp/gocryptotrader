@@ -90,6 +90,14 @@ func (p *Poloniex) SetDefaults() {
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:         true,
+				TradeFetching:          true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.NoFiatWithdrawals,
 		},
@@ -107,12 +115,6 @@ func (p *Poloniex) SetDefaults() {
 	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
 	p.API.Endpoints.WebsocketURL = poloniexWebsocketAddress
 	p.Websocket = wshandler.New()
-	p.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -142,6 +144,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        p.WsConnect,
 			Subscriber:                       p.Subscribe,
 			UnSubscriber:                     p.Unsubscribe,
+			Features:                         &p.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

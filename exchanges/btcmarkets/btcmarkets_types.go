@@ -192,3 +192,9 @@ type WsOrderbook struct {
 	Asks        [][]string `json:"asks"`
 	MessageType string     `json:"messageType"`
 }
+
+type WsError struct {
+	MessageType string `json:"messageType"`
+	Code        int64  `json:"code"`
+	Message     string `json:"message"`
+}

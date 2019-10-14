@@ -94,6 +94,14 @@ func (c *CoinbasePro) SetDefaults() {
 				FiatDepositFee:    true,
 				FiatWithdrawalFee: true,
 			},
+			WebsocketCapabilities: exchange.ProtocolFeatures{
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				MessageSequenceNumbers: true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
 		},
@@ -111,12 +119,6 @@ func (c *CoinbasePro) SetDefaults() {
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
 	c.API.Endpoints.WebsocketURL = coinbaseproWebsocketURL
 	c.Websocket = wshandler.New()
-	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSequenceNumberSupported
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -146,6 +148,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        c.WsConnect,
 			Subscriber:                       c.Subscribe,
 			UnSubscriber:                     c.Unsubscribe,
+			Features:                         &c.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
