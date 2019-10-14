@@ -13,6 +13,8 @@ const (
 	testAPIKey              = ""
 	testAPISecret           = ""
 	canManipulateRealOrders = false
+
+	btcusdt = "BTC/USDT"
 )
 
 var c Coinbene
@@ -55,7 +57,7 @@ func areTestAPIKeysSet() bool {
 
 func TestFetchTicker(t *testing.T) {
 	TestSetup(t)
-	_, err := c.FetchTicker("BTC/USDT")
+	_, err := c.FetchTicker(btcusdt)
 	if err != nil {
 		t.Error(err)
 	}
@@ -63,7 +65,7 @@ func TestFetchTicker(t *testing.T) {
 
 func TestFetchOrderbooks(t *testing.T) {
 	TestSetup(t)
-	_, err := c.FetchOrderbooks("BTC/USDT", 100)
+	_, err := c.FetchOrderbooks(btcusdt, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,7 +73,7 @@ func TestFetchOrderbooks(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	TestSetup(t)
-	_, err := c.GetTrades("BTC/USDT")
+	_, err := c.GetTrades(btcusdt)
 	if err != nil {
 		t.Error(err)
 	}
@@ -87,7 +89,7 @@ func TestGetAllPairs(t *testing.T) {
 
 func TestGetPairInfo(t *testing.T) {
 	TestSetup(t)
-	_, err := c.GetPairInfo("BTC/USDT")
+	_, err := c.GetPairInfo(btcusdt)
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,7 +111,7 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := c.PlaceOrder(140, 1, "BTC/USDT", "1", "")
+	_, err := c.PlaceOrder(140, 1, btcusdt, "1", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -142,7 +144,7 @@ func TestFetchOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.FetchOpenOrders("BTC/USDT")
+	_, err := c.FetchOpenOrders(btcusdt)
 	if err != nil {
 		t.Error(err)
 	}
@@ -153,7 +155,7 @@ func TestFetchClosedOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.FetchClosedOrders("BTC/USDT", "")
+	_, err := c.FetchClosedOrders(btcusdt, "")
 	if err != nil {
 		t.Error(err)
 	}

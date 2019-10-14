@@ -11,6 +11,8 @@ An exchange interface wrapper for the GoCryptoTrader application.
 
 ## Current Coinbene Exchange Features
 
+***Their SSL is currently not working, which means communications are sent unencrypted. Please use at your own risk***
+
 + REST Support 
 + Websocket currently not Supported
 

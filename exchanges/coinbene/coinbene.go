@@ -46,6 +46,9 @@ const (
 	coinbeneRemoveOrder    = "/order/cancel"
 	coinbeneOpenOrders     = "/order/openOrders"
 	coinbeneClosedOrders   = "/order/closedOrders"
+
+	authRateLimit   = 150
+	unauthRateLimit = 10
 )
 
 // SetDefaults sets the basic defaults for Coinbene
@@ -62,8 +65,8 @@ func (c *Coinbene) SetDefaults() {
 	c.SupportsAutoPairUpdating = true
 	c.SupportsRESTTickerBatching = false
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Second, 0),
-		request.NewRateLimit(time.Second, 0),
+		request.NewRateLimit(time.Minute, authRateLimit),
+		request.NewRateLimit(time.Second, unauthRateLimit),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.APIUrlDefault = coinbeneAPIURL
 	c.APIUrl = c.APIUrlDefault
@@ -197,7 +200,7 @@ func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, client
 func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfoResponse, error) {
 	var resp OrderInfoResponse
 	params := url.Values{}
-	params.Set("orderid", orderID)
+	params.Set("orderId", orderID)
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneOrderInfo)
 	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOrderInfo, params, &resp)
 }
@@ -206,7 +209,7 @@ func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfoResponse, error) {
 func (c *Coinbene) RemoveOrder(orderID string) (RemoveOrderResponse, error) {
 	var resp RemoveOrderResponse
 	params := url.Values{}
-	params.Set("orderid", orderID)
+	params.Set("orderId", orderID)
 	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneRemoveOrder)
 	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneRemoveOrder, params, &resp)
 }
@@ -281,7 +284,10 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
 	var finalBody io.Reader
 	var preSign string
-	if len(params) != 0 {
+	if len(params) != 0 && method == http.MethodGet {
+		preSign = fmt.Sprintf("%s%s%s%s?%s", timestamp, method, coinbeneAuthPath, epPath, params.Encode())
+		path += "?" + params.Encode()
+	} else if len(params) != 0 {
 		m := make(map[string]string)
 		for k, v := range params {
 			m[k] = strings.Join(v, "")
@@ -292,8 +298,7 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 		}
 		finalBody = bytes.NewBufferString(string(tempBody))
 		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, tempBody)
-	}
-	if len(params) == 0 {
+	} else if len(params) == 0 {
 		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, params.Encode())
 	}
 	tempSign := common.GetHMAC(common.HashSHA256, []byte(preSign), []byte(c.APISecret))
@@ -303,6 +308,7 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 	headers["ACCESS-KEY"] = c.APIKey
 	headers["ACCESS-SIGN"] = hexEncodedd
 	headers["ACCESS-TIMESTAMP"] = timestamp
+	headers["Cookie"] = "locale=zh_CN"
 	return c.SendPayload(method,
 		path,
 		headers,
