@@ -140,7 +140,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        b.WsConnect,
 			Subscriber:                       b.Subscribe,
-			Features:                         &b.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(b.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err

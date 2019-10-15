@@ -141,7 +141,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        g.WsConnect,
-			Features:                         &g.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(g.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err

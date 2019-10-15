@@ -136,7 +136,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        l.WsConnect,
 			Subscriber:                       l.Subscribe,
-			Features:                         &l.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(l.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err

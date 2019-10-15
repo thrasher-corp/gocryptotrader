@@ -148,7 +148,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        c.WsConnect,
 			Subscriber:                       c.Subscribe,
 			UnSubscriber:                     c.Unsubscribe,
-			Features:                         &c.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(c.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err

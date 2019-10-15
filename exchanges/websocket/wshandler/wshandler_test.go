@@ -306,8 +306,8 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 // TestManageSubscriptionsStartStop logic test
 func TestManageSubscriptionsStartStop(t *testing.T) {
 	w := Websocket{
-		ShutdownC:     make(chan struct{}),
-		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
+		ShutdownC: make(chan struct{}),
+		features:  ProtocolFeatures{Subscribe: true, Unsubscribe: true},
 	}
 	w.Wg.Add(1)
 	go w.manageSubscriptions()
@@ -318,8 +318,8 @@ func TestManageSubscriptionsStartStop(t *testing.T) {
 // TestManageSubscriptions logic test
 func TestManageSubscriptions(t *testing.T) {
 	w := Websocket{
-		ShutdownC:     make(chan struct{}),
-		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
+		ShutdownC: make(chan struct{}),
+		features:  ProtocolFeatures{Subscribe: true, Unsubscribe: true},
 		subscribedChannels: []WebsocketChannelSubscription{
 			{
 				Channel: "hello",

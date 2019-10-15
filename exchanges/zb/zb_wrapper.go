@@ -142,7 +142,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        z.WsConnect,
 			Subscriber:                       z.Subscribe,
-			Features:                         &z.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(z.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err

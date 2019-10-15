@@ -146,7 +146,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        g.WsConnect,
 			Subscriber:                       g.Subscribe,
 			UnSubscriber:                     g.Unsubscribe,
-			Features:                         &g.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(g.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err

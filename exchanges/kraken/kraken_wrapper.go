@@ -152,7 +152,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        k.WsConnect,
 			Subscriber:                       k.Subscribe,
 			UnSubscriber:                     k.Unsubscribe,
-			Features:                         &k.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(k.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err

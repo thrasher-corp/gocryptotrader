@@ -144,7 +144,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        p.WsConnect,
 			Subscriber:                       p.Subscribe,
 			UnSubscriber:                     p.Unsubscribe,
-			Features:                         &p.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(p.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err

@@ -143,7 +143,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        b.WsConnect,
 			Subscriber:                       b.Subscribe,
 			UnSubscriber:                     b.Unsubscribe,
-			Features:                         &b.Features.Supports.WebsocketCapabilities,
+			Features:                         wshandler.ProtocolFeatures(b.Features.Supports.WebsocketCapabilities),
 		})
 	if err != nil {
 		return err
