@@ -14,24 +14,6 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-const (
-	exchangeRatesAPI                 = "https://api.exchangeratesapi.io"
-	exchangeRatesLatest              = "latest"
-	exchangeRatesHistory             = "history"
-	exchangeRatesSupportedCurrencies = "EUR,CHF,USD,BRL,ISK,PHP,KRW,BGN,MXN," +
-		"RON,CAD,SGD,NZD,THB,HKD,JPY,NOK,HRK,ILS,GBP,DKK,HUF,MYR,RUB,TRY,IDR," +
-		"ZAR,INR,AUD,CZK,SEK,CNY,PLN"
-
-	authRate   = 0
-	unAuthRate = 0
-)
-
-// ExchangeRates stores the struct for the ExchangeRatesAPI API
-type ExchangeRates struct {
-	base.Base
-	Requester *request.Requester
-}
-
 // Setup sets appropriate values for CurrencyLayer
 func (e *ExchangeRates) Setup(config base.Settings) error {
 	e.Name = config.Name

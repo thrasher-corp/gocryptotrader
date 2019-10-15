@@ -1866,3 +1866,67 @@ func TestCheckNTPConfig(t *testing.T) {
 		t.Error("ntpclient with nil allowednegativedifference should default to sane value")
 	}
 }
+
+func TestCheckCurrencyConfigValues(t *testing.T) {
+	c := GetConfig()
+	c.Currency.ForexProviders = nil
+	c.Currency.CryptocurrencyProvider = CryptocurrencyProvider{}
+	err := c.CheckCurrencyConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+	if c.Currency.ForexProviders == nil {
+		t.Error("Failed to populate c.Currency.ForexProviders")
+	}
+	if c.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey {
+		t.Error("Failed to set the api key to the default key")
+	}
+	if c.Currency.CryptocurrencyProvider.Name != "CoinMarketCap" {
+		t.Error("Failed to set the  c.Currency.CryptocurrencyProvider.Name")
+	}
+
+	c.Currency.ForexProviders[0].Enabled = true
+	c.Currency.ForexProviders[0].Name = "CurrencyConverter"
+	c.Currency.ForexProviders[0].PrimaryProvider = true
+	c.Currency.Cryptocurrencies = nil
+	c.Cryptocurrencies = nil
+	c.Currency.CurrencyPairFormat = nil
+	c.CurrencyPairFormat = &CurrencyPairFormatConfig{
+		Uppercase: true,
+	}
+	c.Currency.FiatDisplayCurrency = currency.Code{}
+	c.FiatDisplayCurrency = &currency.BTC
+	c.Currency.CryptocurrencyProvider.Enabled = true
+	err = c.CheckCurrencyConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+	if c.Currency.ForexProviders[0].Enabled {
+		t.Error("Failed to disable invalid forex provider")
+	}
+	if !c.Currency.CurrencyPairFormat.Uppercase {
+		t.Error("Failed to apply c.CurrencyPairFormat format to c.Currency.CurrencyPairFormat")
+	}
+
+	c.Currency.CryptocurrencyProvider.Enabled = false
+	c.Currency.CryptocurrencyProvider.APIkey = ""
+	c.Currency.CryptocurrencyProvider.AccountPlan = ""
+	c.FiatDisplayCurrency = &currency.BTC
+	c.Currency.ForexProviders[0].Enabled = true
+	c.Currency.ForexProviders[0].Name = "Name"
+	c.Currency.ForexProviders[0].PrimaryProvider = true
+	c.Currency.Cryptocurrencies = currency.Currencies{}
+	c.Cryptocurrencies = &currency.Currencies{}
+	err = c.CheckCurrencyConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+	if c.FiatDisplayCurrency != nil {
+		t.Error("Failed to clear c.FiatDisplayCurrency")
+	}
+	if c.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey ||
+		c.Currency.CryptocurrencyProvider.AccountPlan != DefaultUnsetAccountPlan {
+		t.Error("Failed to set CryptocurrencyProvider.APIkey and AccountPlan")
+	}
+
+}

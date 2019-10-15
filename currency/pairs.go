@@ -22,9 +22,6 @@ func NewPairsFromStrings(pairs []string) Pairs {
 	return ps
 }
 
-// Pairs defines a list of pairs
-type Pairs []Pair
-
 // Strings returns a slice of strings referring to each currency pair
 func (p Pairs) Strings() []string {
 	var list []string
@@ -186,3 +183,6 @@ func (p Pairs) GetRandomPair() Pair {
 
 	return p[rand.Intn(pairsLen)]
 }
+
+// Pairs defines a list of pairs
+type Pairs []Pair
