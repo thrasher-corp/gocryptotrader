@@ -25,7 +25,7 @@ func (r Role) String() string {
 	}
 }
 
-// MarshalJSON conforms Roll to the marshaler interface
+// MarshalJSON conforms Roll to the marshaller interface
 func (r Role) MarshalJSON() ([]byte, error) {
 	return common.JSONEncode(r.String())
 }
@@ -79,7 +79,7 @@ func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 		case Contract:
 			file.Contracts = append(file.Contracts, *i)
 		default:
-			return file, errors.New("roll undefined")
+			return file, errors.New("role undefined")
 		}
 	}
 
