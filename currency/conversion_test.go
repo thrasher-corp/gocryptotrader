@@ -9,10 +9,10 @@ func TestNewConversionFromString(t *testing.T) {
 	expected := "AUDUSD"
 	conv, err := NewConversionFromString(expected)
 	if err != nil {
-		t.Error("Test Failed - NewConversionFromString() error", err)
+		t.Error("NewConversionFromString() error", err)
 	}
 	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
+		t.Errorf("NewConversion() error expected %s but received %s",
 			expected,
 			conv)
 	}
@@ -20,10 +20,10 @@ func TestNewConversionFromString(t *testing.T) {
 	newexpected := strings.ToLower(expected)
 	conv, err = NewConversionFromString(newexpected)
 	if err != nil {
-		t.Error("Test Failed - NewConversionFromString() error", err)
+		t.Error("NewConversionFromString() error", err)
 	}
 	if conv.String() != newexpected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
+		t.Errorf("NewConversion() error expected %s but received %s",
 			newexpected,
 			conv)
 	}
@@ -36,11 +36,11 @@ func TestNewConversionFromStrings(t *testing.T) {
 
 	conv, err := NewConversionFromStrings(from, to)
 	if err != nil {
-		t.Error("Test Failed - NewConversionFromString() error", err)
+		t.Error("NewConversionFromString() error", err)
 	}
 
 	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
+		t.Errorf("NewConversion() error expected %s but received %s",
 			expected,
 			conv)
 	}
@@ -53,11 +53,11 @@ func TestNewConversion(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Error("Test Failed - NewConversionFromCode() error", err)
+		t.Error("NewConversionFromCode() error", err)
 	}
 
 	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
+		t.Errorf("NewConversion() error expected %s but received %s",
 			expected,
 			conv)
 	}
@@ -69,18 +69,18 @@ func TestConversionIsInvalid(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Fatal("Test Failed - NewConversion() error", err)
+		t.Fatal("NewConversion() error", err)
 	}
 
 	if conv.IsInvalid() {
-		t.Errorf("Test Failed - IsInvalid() error expected false but received %v",
+		t.Errorf("IsInvalid() error expected false but received %v",
 			conv.IsInvalid())
 	}
 
 	to = AUD
 	conv, err = NewConversion(from, to)
 	if err == nil {
-		t.Fatal("Test Failed - NewConversion() error", err)
+		t.Fatal("NewConversion() error", err)
 	}
 }
 
@@ -90,18 +90,18 @@ func TestConversionIsFiatPair(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Fatal("Test Failed - NewConversion() error", err)
+		t.Fatal("NewConversion() error", err)
 	}
 
 	if !conv.IsFiat() {
-		t.Errorf("Test Failed - IsFiatPair() error expected true but received %v",
+		t.Errorf("IsFiatPair() error expected true but received %v",
 			conv.IsFiat())
 	}
 
 	to = LTC
 	conv, err = NewConversion(from, to)
 	if err == nil {
-		t.Fatal("Test Failed - NewConversion() error", err)
+		t.Fatal("NewConversion() error", err)
 	}
 }
 
@@ -109,7 +109,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 	var SuperDuperConversionSystem ConversionRates
 
 	if SuperDuperConversionSystem.HasData() {
-		t.Fatalf("Test Failed - HasData() error expected false but received %v",
+		t.Fatalf("HasData() error expected false but received %v",
 			SuperDuperConversionSystem.HasData())
 	}
 
@@ -141,16 +141,16 @@ func TestConversionsRatesSystem(t *testing.T) {
 
 	err := SuperDuperConversionSystem.Update(testmap)
 	if err != nil {
-		t.Fatal("Test Failed - Update() error", err)
+		t.Fatal("Update() error", err)
 	}
 
 	err = SuperDuperConversionSystem.Update(nil)
 	if err == nil {
-		t.Fatal("Test Failed - Update() error cannot be nil")
+		t.Fatal("Update() error cannot be nil")
 	}
 
 	if !SuperDuperConversionSystem.HasData() {
-		t.Fatalf("Test Failed - HasData() error expected true but received %v",
+		t.Fatalf("HasData() error expected true but received %v",
 			SuperDuperConversionSystem.HasData())
 	}
 
@@ -161,7 +161,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 	r := *p * 1000
 	expectedRate := 1396.9317581
 	if r != expectedRate {
-		t.Errorf("Test Failed - Convert() error expected %.13f but received %.13f",
+		t.Errorf("Convert() error expected %.13f but received %.13f",
 			expectedRate,
 			r)
 	}
@@ -169,8 +169,9 @@ func TestConversionsRatesSystem(t *testing.T) {
 	inverseR := *pi * expectedRate
 	expectedInverseRate := float64(1000)
 	if inverseR != expectedInverseRate {
-		t.Errorf("Test Failed - Convert() error expected %.13f but received %.13f",
+		t.Errorf("Convert() error expected %.13f but received %.13f",
 			expectedInverseRate,
 			inverseR)
 	}
 }
+

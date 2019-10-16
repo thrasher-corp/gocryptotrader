@@ -34,18 +34,18 @@ func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatalf("Test Failed - Lbank Setup() init error:, %v", err)
+		t.Fatalf("Lbank Setup() init error:, %v", err)
 	}
 	lbankConfig, err := cfg.GetExchangeConfig("Lbank")
 	if err != nil {
-		t.Fatalf("Test Failed - Lbank Setup() init error: %v", err)
+		t.Fatalf("Lbank Setup() init error: %v", err)
 	}
 	lbankConfig.API.AuthenticatedSupport = true
 	lbankConfig.API.Credentials.Secret = testAPISecret
 	lbankConfig.API.Credentials.Key = testAPIKey
 	err = l.Setup(lbankConfig)
 	if err != nil {
-		t.Fatal("Test Failed - LBank setup error", err)
+		t.Fatal("LBank setup error", err)
 	}
 	setupRan = true
 }
@@ -58,7 +58,7 @@ func TestGetTicker(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetTicker("btc_usdt")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestGetTickers(t *testing.T) {
 	TestSetup(t)
 	tickers, err := l.GetTickers()
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 	if len(tickers) <= 1 {
 		t.Errorf("Expected multiple tickers, received %v", len(tickers))
@@ -77,7 +77,7 @@ func TestGetCurrencyPairs(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetCurrencyPairs()
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -97,11 +97,11 @@ func TestGetTrades(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetTrades("btc_usdt", "600", fmt.Sprintf("%v", time.Now().Unix()))
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 	a, err := l.GetTrades("btc_usdt", "600", "0")
 	if len(a) != 600 && err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -109,7 +109,7 @@ func TestGetKlines(t *testing.T) {
 	TestSetup(t)
 	_, err := l.GetKlines("btc_usdt", "600", "minute1", fmt.Sprintf("%v", time.Now().Unix()))
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -145,15 +145,15 @@ func TestCreateOrder(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.CreateOrder(cp.Lower().String(), "what", 1231, 12314)
 	if err == nil {
-		t.Error("Test Failed - CreateOrder error cannot be nil")
+		t.Error("CreateOrder error cannot be nil")
 	}
 	_, err = l.CreateOrder(cp.Lower().String(), "buy", 0, 0)
 	if err == nil {
-		t.Error("Test Failed - CreateOrder error cannot be nil")
+		t.Error("CreateOrder error cannot be nil")
 	}
 	_, err = l.CreateOrder(cp.Lower().String(), "sell", 1231, 0)
 	if err == nil {
-		t.Error("Test Failed - CreateOrder error cannot be nil")
+		t.Error("CreateOrder error cannot be nil")
 	}
 	_, err = l.CreateOrder(cp.Lower().String(), "buy", 58, 681)
 	if err != nil {
@@ -193,7 +193,7 @@ func TestQueryOrderHistory(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.QueryOrderHistory(cp.Lower().String(), "1", "100")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -302,7 +302,7 @@ func TestSign(t *testing.T) {
 	l.loadPrivKey()
 	_, err := l.sign("hello123")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -343,7 +343,7 @@ func TestCancelOrder(t *testing.T) {
 	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -354,7 +354,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -365,7 +365,7 @@ func TestGetAllOpenOrderID(t *testing.T) {
 	}
 	_, err := l.getAllOpenOrderID()
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Errorf("%v", err)
 	}
 }
 
@@ -378,7 +378,7 @@ func TestGetFeeByType(t *testing.T) {
 	input.Pair = cp
 	a, err := l.GetFeeByType(&input)
 	if err != nil {
-		t.Errorf("test failed. couldnt get fee: %v", err)
+		t.Errorf("couldnt get fee: %v", err)
 	}
 	if a != 0.0005 {
 		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)

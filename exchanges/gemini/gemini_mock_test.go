@@ -22,11 +22,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Gemini load config error", err)
+		log.Fatal("Gemini load config error", err)
 	}
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
-		log.Fatal("Test Failed - Mock server error", err)
+		log.Fatal("Mock server error", err)
 	}
 	g.SkipAuthCheck = true
 	geminiConfig.API.AuthenticatedSupport = true
@@ -35,12 +35,12 @@ func TestMain(m *testing.M) {
 	g.SetDefaults()
 	err = g.Setup(geminiConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Gemini setup error", err)
+		log.Fatal("Gemini setup error", err)
 	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockFile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	g.HTTPClient = newClient

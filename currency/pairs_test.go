@@ -11,7 +11,7 @@ func TestPairsUpper(t *testing.T) {
 	expected := "BTC_USD,BTC_AUD,BTC_LTC"
 
 	if pairs.Upper().Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Join())
 	}
 }
@@ -22,7 +22,7 @@ func TestPairsString(t *testing.T) {
 
 	for i, p := range pairs {
 		if p.String() != expected[i] {
-			t.Errorf("Test Failed - Pairs String() error expected %s but received %s",
+			t.Errorf("Pairs String() error expected %s but received %s",
 				expected, p.String())
 		}
 	}
@@ -33,7 +33,7 @@ func TestPairsJoin(t *testing.T) {
 	expected := "btc_usd,btc_aud,btc_ltc"
 
 	if pairs.Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Join())
 	}
 }
@@ -43,25 +43,25 @@ func TestPairsFormat(t *testing.T) {
 
 	expected := "BTC-USD,BTC-AUD,BTC-LTC"
 	if pairs.Format("-", "", true).Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Format("-", "", true).Join())
 	}
 
 	expected = "btc:usd,btc:aud,btc:ltc"
 	if pairs.Format(":", "", false).Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Format(":", "", false).Join())
 	}
 
 	if pairs.Format(":", "KRW", false).Join() != "" {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Format(":", "KRW", true).Join())
 	}
 
 	pairs = NewPairsFromStrings([]string{"DASHKRW", "BTCKRW"})
 	expected = "dash-krw,btc-krw"
 	if pairs.Format("-", "KRW", false).Join() != expected {
-		t.Errorf("Test Failed - Pairs Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Format("-", "KRW", false).Join())
 	}
 }
@@ -72,21 +72,21 @@ func TestPairsUnmarshalJSON(t *testing.T) {
 
 	encoded, err := common.JSONEncode(configPairs)
 	if err != nil {
-		t.Fatal("Test Failed - Pairs UnmarshalJSON() error", err)
+		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}
 
 	err = common.JSONDecode(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Test Failed - Pairs UnmarshalJSON() error", err)
+		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}
 
 	err = common.JSONDecode(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Test Failed - Pairs UnmarshalJSON() error", err)
+		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}
 
 	if unmarshalHere.Join() != configPairs {
-		t.Errorf("Test Failed - Pairs UnmarshalJSON() error expected %s but received %s",
+		t.Errorf("Pairs UnmarshalJSON() error expected %s but received %s",
 			configPairs, unmarshalHere.Join())
 	}
 }
@@ -100,12 +100,12 @@ func TestPairsMarshalJSON(t *testing.T) {
 
 	encoded, err := common.JSONEncode(quickstruct)
 	if err != nil {
-		t.Fatal("Test Failed - Pairs MarshalJSON() error", err)
+		t.Fatal("Pairs MarshalJSON() error", err)
 	}
 
 	expected := `{"soManyPairs":"btc_usd,btc_aud,btc_ltc"}`
 	if string(encoded) != expected {
-		t.Errorf("Test Failed - Pairs MarshalJSON() error expected %s but received %s",
+		t.Errorf("Pairs MarshalJSON() error expected %s but received %s",
 			expected, string(encoded))
 	}
 }
@@ -119,7 +119,7 @@ func TestRemovePairsByFilter(t *testing.T) {
 
 	pairs = pairs.RemovePairsByFilter(USDT)
 	if pairs.Contains(NewPair(LTC, USDT), true) {
-		t.Error("Test failed. TestRemovePairsByFilter unexpected result")
+		t.Error("TestRemovePairsByFilter unexpected result")
 	}
 }
 
@@ -133,7 +133,7 @@ func TestRemove(t *testing.T) {
 	p := NewPair(BTC, USD)
 	pairs = pairs.Remove(p)
 	if pairs.Contains(p, true) || len(pairs) != 2 {
-		t.Error("Test failed. TestRemove unexpected result")
+		t.Error("TestRemove unexpected result")
 	}
 }
 
@@ -148,13 +148,13 @@ func TestAdd(t *testing.T) {
 	p := NewPair(BTC, USDT)
 	pairs = pairs.Add(p)
 	if !pairs.Contains(p, true) || len(pairs) != 4 {
-		t.Error("Test failed. TestAdd unexpected result")
+		t.Error("TestAdd unexpected result")
 	}
 
 	// Now test adding a pair which already exists
 	pairs = pairs.Add(p)
 	if len(pairs) != 4 {
-		t.Error("Test failed. TestAdd unexpected result")
+		t.Error("TestAdd unexpected result")
 	}
 }
 
@@ -165,10 +165,10 @@ func TestContains(t *testing.T) {
 	}
 
 	if !pairs.Contains(NewPair(BTC, USD), true) {
-		t.Errorf("Test failed. TestContains: Expected pair was not found")
+		t.Errorf("TestContains: Expected pair was not found")
 	}
 
 	if pairs.Contains(NewPair(ETH, USD), false) {
-		t.Errorf("Test failed. TestContains: Non-existent pair was found")
+		t.Errorf("TestContains: Non-existent pair was found")
 	}
 }

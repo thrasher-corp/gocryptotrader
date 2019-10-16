@@ -302,7 +302,7 @@ func (c Conversion) String() string {
 	return c.From.String() + c.To.String()
 }
 
-// GetRate returns system rate if availabled
+// GetRate returns system rate if available
 func (c Conversion) GetRate() (float64, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()

@@ -21,10 +21,10 @@ func TestSetDefaults(t *testing.T) {
 
 	SetDefaults.SetDefaults()
 	if SetDefaults.API.Endpoints.URL != "https://sim3.alphapoint.com:8400" {
-		t.Error("Test Failed - SetDefaults: String Incorrect -", SetDefaults.API.Endpoints.URL)
+		t.Error("SetDefaults: String Incorrect -", SetDefaults.API.Endpoints.URL)
 	}
 	if SetDefaults.API.Endpoints.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
-		t.Error("Test Failed - SetDefaults: String Incorrect -", SetDefaults.API.Endpoints.WebsocketURL)
+		t.Error("SetDefaults: String Incorrect -", SetDefaults.API.Endpoints.WebsocketURL)
 	}
 }
 
@@ -50,12 +50,12 @@ func TestGetTicker(t *testing.T) {
 	if onlineTest {
 		ticker, err = alpha.GetTicker("BTCUSD")
 		if err != nil {
-			t.Fatal("Test Failed - Alphapoint GetTicker init error: ", err)
+			t.Fatal("Alphapoint GetTicker init error: ", err)
 		}
 
 		_, err = alpha.GetTicker("wigwham")
 		if err == nil {
-			t.Error("Test Failed - Alphapoint GetTicker error")
+			t.Error("Alphapoint GetTicker error")
 		}
 	} else {
 		mockResp := []byte(
@@ -64,16 +64,16 @@ func TestGetTicker(t *testing.T) {
 
 		err = common.JSONDecode(mockResp, &ticker)
 		if err != nil {
-			t.Fatal("Test Failed - Alphapoint GetTicker unmarshalling error: ", err)
+			t.Fatal("Alphapoint GetTicker unmarshalling error: ", err)
 		}
 
 		if ticker.Last != 249.76 {
-			t.Error("Test failed - Alphapoint GetTicker expected last = 249.76")
+			t.Error("Alphapoint GetTicker expected last = 249.76")
 		}
 	}
 
 	if ticker.Last < 0 {
-		t.Error("Test failed - Alphapoint GetTicker last < 0")
+		t.Error("Alphapoint GetTicker last < 0")
 	}
 }
 
@@ -87,12 +87,12 @@ func TestGetTrades(t *testing.T) {
 	if onlineTest {
 		trades, err = alpha.GetTrades("BTCUSD", 0, 10)
 		if err != nil {
-			t.Fatalf("Test Failed - Init error: %s", err)
+			t.Fatalf("Init error: %s", err)
 		}
 
 		_, err = alpha.GetTrades("wigwham", 0, 10)
 		if err == nil {
-			t.Fatal("Test Failed - GetTrades error")
+			t.Fatal("GetTrades error")
 		}
 	} else {
 		mockResp := []byte(
@@ -101,20 +101,20 @@ func TestGetTrades(t *testing.T) {
 
 		err = common.JSONDecode(mockResp, &trades)
 		if err != nil {
-			t.Fatal("Test Failed - GetTrades unmarshalling error: ", err)
+			t.Fatal("GetTrades unmarshalling error: ", err)
 		}
 	}
 
 	if !trades.IsAccepted {
-		t.Error("Test Failed - GetTrades IsAccepted failed")
+		t.Error("GetTrades IsAccepted failed")
 	}
 
 	if trades.Count <= 0 {
-		t.Error("Test failed - GetTrades trades count is <= 0")
+		t.Error("GetTrades trades count is <= 0")
 	}
 
 	if trades.Instrument != "BTCUSD" {
-		t.Error("Test failed - GetTrades instrument is != BTCUSD")
+		t.Error("GetTrades instrument is != BTCUSD")
 	}
 }
 
@@ -128,11 +128,11 @@ func TestGetTradesByDate(t *testing.T) {
 	if onlineTest {
 		trades, err = alpha.GetTradesByDate("BTCUSD", 1414799400, 1414800000)
 		if err != nil {
-			t.Errorf("Test Failed - Init error: %s", err)
+			t.Errorf("Init error: %s", err)
 		}
 		_, err = alpha.GetTradesByDate("wigwham", 1414799400, 1414800000)
 		if err == nil {
-			t.Error("Test Failed - GetTradesByDate error")
+			t.Error("GetTradesByDate error")
 		}
 	} else {
 		mockResp := []byte(
@@ -141,27 +141,27 @@ func TestGetTradesByDate(t *testing.T) {
 
 		err = common.JSONDecode(mockResp, &trades)
 		if err != nil {
-			t.Fatal("Test Failed - GetTradesByDate unmarshalling error: ", err)
+			t.Fatal("GetTradesByDate unmarshalling error: ", err)
 		}
 	}
 
 	if trades.DateTimeUTC < 0 {
-		t.Error("Test Failed - Alphapoint trades.Count value is negative")
+		t.Error("Alphapoint trades.Count value is negative")
 	}
 	if trades.EndDate < 0 {
-		t.Error("Test Failed - Alphapoint trades.DateTimeUTC value is negative")
+		t.Error("Alphapoint trades.DateTimeUTC value is negative")
 	}
 	if trades.Instrument != "BTCUSD" {
-		t.Error("Test Failed - Alphapoint trades.Instrument value is incorrect")
+		t.Error("Alphapoint trades.Instrument value is incorrect")
 	}
 	if !trades.IsAccepted {
-		t.Error("Test Failed - Alphapoint trades.IsAccepted value is true")
+		t.Error("Alphapoint trades.IsAccepted value is true")
 	}
 	if len(trades.RejectReason) > 0 {
-		t.Error("Test Failed - Alphapoint trades.IsAccepted value has been returned")
+		t.Error("Alphapoint trades.IsAccepted value has been returned")
 	}
 	if trades.StartDate < 0 {
-		t.Error("Test Failed - Alphapoint trades.StartIndex value is negative")
+		t.Error("Alphapoint trades.StartIndex value is negative")
 	}
 }
 
@@ -175,12 +175,12 @@ func TestGetOrderbook(t *testing.T) {
 	if onlineTest {
 		orderBook, err = alpha.GetOrderbook("BTCUSD")
 		if err != nil {
-			t.Errorf("Test Failed - Init error: %s", err)
+			t.Errorf("Init error: %s", err)
 		}
 
 		_, err = alpha.GetOrderbook("wigwham")
 		if err == nil {
-			t.Error("Test Failed - GetOrderbook() error")
+			t.Error("GetOrderbook() error")
 		}
 	} else {
 		mockResp := []byte(
@@ -189,24 +189,24 @@ func TestGetOrderbook(t *testing.T) {
 
 		err = common.JSONDecode(mockResp, &orderBook)
 		if err != nil {
-			t.Fatal("Test Failed - TestGetOrderbook unmarshalling error: ", err)
+			t.Fatal("TestGetOrderbook unmarshalling error: ", err)
 		}
 
 		if orderBook.Bids[0].Quantity != 725 {
-			t.Error("Test Failed - TestGetOrderbook Bids[0].Quantity != 725")
+			t.Error("TestGetOrderbook Bids[0].Quantity != 725")
 		}
 	}
 
 	if !orderBook.IsAccepted {
-		t.Error("Test Failed - Alphapoint orderBook.IsAccepted value is negative")
+		t.Error("Alphapoint orderBook.IsAccepted value is negative")
 	}
 
 	if len(orderBook.Asks) == 0 {
-		t.Error("Test Failed - Alphapoint orderBook.Asks has len 0")
+		t.Error("Alphapoint orderBook.Asks has len 0")
 	}
 
 	if len(orderBook.Bids) == 0 {
-		t.Error("Test Failed - Alphapoint orderBook.Bids has len 0")
+		t.Error("Alphapoint orderBook.Bids has len 0")
 	}
 }
 
@@ -220,7 +220,7 @@ func TestGetProductPairs(t *testing.T) {
 	if onlineTest {
 		products, err = alpha.GetProductPairs()
 		if err != nil {
-			t.Errorf("Test Failed - Init error: %s", err)
+			t.Errorf("Init error: %s", err)
 		}
 	} else {
 		mockResp := []byte(
@@ -229,24 +229,24 @@ func TestGetProductPairs(t *testing.T) {
 
 		err = common.JSONDecode(mockResp, &products)
 		if err != nil {
-			t.Fatal("Test Failed - TestGetProductPairs unmarshalling error: ", err)
+			t.Fatal("TestGetProductPairs unmarshalling error: ", err)
 		}
 
 		if products.ProductPairs[0].Name != "LTCUSD" {
-			t.Error("Test Failed - Alphapoint ProductPairs 0 != LTCUSD")
+			t.Error("Alphapoint ProductPairs 0 != LTCUSD")
 		}
 
 		if products.ProductPairs[1].Product1Label != "BTC" {
-			t.Error("Test Failed - Alphapoint ProductPairs 1 != BTC")
+			t.Error("Alphapoint ProductPairs 1 != BTC")
 		}
 	}
 
 	if !products.IsAccepted {
-		t.Error("Test Failed - Alphapoint ProductPairs.IsAccepted value is negative")
+		t.Error("Alphapoint ProductPairs.IsAccepted value is negative")
 	}
 
 	if len(products.ProductPairs) == 0 {
-		t.Error("Test Failed - Alphapoint ProductPairs len is 0")
+		t.Error("Alphapoint ProductPairs len is 0")
 	}
 }
 
@@ -260,7 +260,7 @@ func TestGetProducts(t *testing.T) {
 	if onlineTest {
 		products, err = alpha.GetProducts()
 		if err != nil {
-			t.Errorf("Test Failed - Init error: %s", err)
+			t.Errorf("Init error: %s", err)
 		}
 	} else {
 		mockResp := []byte(
@@ -269,24 +269,24 @@ func TestGetProducts(t *testing.T) {
 
 		err = common.JSONDecode(mockResp, &products)
 		if err != nil {
-			t.Fatal("Test Failed - TestGetProducts unmarshalling error: ", err)
+			t.Fatal("TestGetProducts unmarshalling error: ", err)
 		}
 
 		if products.Products[0].Name != "USD" {
-			t.Error("Test Failed - Alphapoint Products 0 != USD")
+			t.Error("Alphapoint Products 0 != USD")
 		}
 
 		if products.Products[1].ProductCode != 1 {
-			t.Error("Test Failed - Alphapoint Products 1 product code != 1")
+			t.Error("Alphapoint Products 1 product code != 1")
 		}
 	}
 
 	if !products.IsAccepted {
-		t.Error("Test Failed - Alphapoint Products.IsAccepted value is negative")
+		t.Error("Alphapoint Products.IsAccepted value is negative")
 	}
 
 	if len(products.Products) == 0 {
-		t.Error("Test Failed - Alphapoint Products len is 0")
+		t.Error("Alphapoint Products len is 0")
 	}
 }
 
@@ -301,15 +301,15 @@ func TestCreateAccount(t *testing.T) {
 
 	err := a.CreateAccount("test", "account", "something@something.com", "0292383745", "lolcat123")
 	if err != nil {
-		t.Errorf("Test Failed - Init error: %s", err)
+		t.Errorf("Init error: %s", err)
 	}
 	err = a.CreateAccount("test", "account", "something@something.com", "0292383745", "bla")
 	if err == nil {
-		t.Errorf("Test Failed - CreateAccount() error")
+		t.Errorf("CreateAccount() error")
 	}
 	err = a.CreateAccount("", "", "", "", "lolcat123")
 	if err == nil {
-		t.Errorf("Test Failed - CreateAccount() error")
+		t.Errorf("CreateAccount() error")
 	}
 }
 
@@ -324,7 +324,7 @@ func TestGetUserInfo(t *testing.T) {
 
 	_, err := a.GetUserInfo()
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -339,7 +339,7 @@ func TestSetUserInfo(t *testing.T) {
 
 	_, err := a.SetUserInfo("bla", "bla", "1", "meh", true, true)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -354,7 +354,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 	_, err := a.GetAccountInfo()
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -369,7 +369,7 @@ func TestGetAccountTrades(t *testing.T) {
 
 	_, err := a.GetAccountTrades("", 1, 2)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -384,7 +384,7 @@ func TestGetDepositAddresses(t *testing.T) {
 
 	_, err := a.GetDepositAddresses()
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -399,7 +399,7 @@ func TestWithdrawCoins(t *testing.T) {
 
 	err := a.WithdrawCoins("", "", "", 0.01)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -414,7 +414,7 @@ func TestCreateOrder(t *testing.T) {
 
 	_, err := a.CreateOrder("", "", exchange.LimitOrderType.ToString(), 0.01, 0)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -429,7 +429,7 @@ func TestModifyExistingOrder(t *testing.T) {
 
 	_, err := a.ModifyExistingOrder("", 1, 1)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -444,7 +444,7 @@ func TestCancelAllExistingOrders(t *testing.T) {
 
 	err := a.CancelAllExistingOrders("")
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -459,7 +459,7 @@ func TestGetOrders(t *testing.T) {
 
 	_, err := a.GetOrders()
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -474,7 +474,7 @@ func TestGetOrderFee(t *testing.T) {
 
 	_, err := a.GetOrderFee("", "", 1, 1)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() error")
 	}
 }
 
@@ -626,7 +626,7 @@ func TestModifyOrder(t *testing.T) {
 
 	_, err := a.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+		t.Error("ModifyOrder() error")
 	}
 }
 

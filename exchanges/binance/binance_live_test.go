@@ -19,11 +19,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Binance load config error", err)
+		log.Fatal("Binance load config error", err)
 	}
 	binanceConfig, err := cfg.GetExchangeConfig("Binance")
 	if err != nil {
-		log.Fatal("Test Failed - Binance Setup() init error", err)
+		log.Fatal("Binance Setup() init error", err)
 	}
 	binanceConfig.API.AuthenticatedSupport = true
 	binanceConfig.API.Credentials.Key = apiKey
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	b.SetDefaults()
 	err = b.Setup(binanceConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Binance setup error", err)
+		log.Fatal("Binance setup error", err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, b.GetName(), b.API.Endpoints.URL)
 	os.Exit(m.Run())

@@ -126,7 +126,7 @@ func TestWebsocket(t *testing.T) {
 	ws = *New()
 	err = ws.SetProxyAddress("testProxy")
 	if err != nil {
-		t.Error("test failed - SetProxyAddress", err)
+		t.Error("SetProxyAddress", err)
 	}
 
 	err = ws.Setup(
@@ -146,49 +146,49 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	if ws.GetName() != "exchangeName" {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if !ws.IsEnabled() {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if ws.GetProxyAddress() != "testProxy" {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if ws.GetDefaultURL() != "testDefaultURL" {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if ws.GetWebsocketURL() != "testRunningURL" {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if ws.trafficTimeout != time.Duration(2) {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 	// -- Not connected shutdown
 	err = ws.Shutdown()
 	if err == nil {
-		t.Fatal("test failed - should not be connected to able to shut down")
+		t.Fatal("should not be connected to able to shut down")
 	}
 	ws.Wg.Wait()
 	// -- Normal connect
 	err = ws.Connect()
 	if err != nil {
-		t.Fatal("test failed - WebsocketSetup", err)
+		t.Fatal("WebsocketSetup", err)
 	}
 	ws.SetWebsocketURL("ws://demos.kaazing.com/echo")
 	// -- Already connected connect
 	err = ws.Connect()
 	if err == nil {
-		t.Fatal("test failed - should not connect, already connected")
+		t.Fatal("should not connect, already connected")
 	}
 	// -- Normal shutdown
 	err = ws.Shutdown()
 	if err != nil {
-		t.Fatal("test failed - WebsocketSetup", err)
+		t.Fatal("WebsocketSetup", err)
 	}
 	ws.Wg.Wait()
 }

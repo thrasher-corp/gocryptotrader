@@ -23,7 +23,7 @@ func TestNewComm(t *testing.T) {
 	}
 
 	if len(communications.IComm) != 4 {
-		t.Errorf("Test failed, communications NewComm, expected len 4, got len %d",
+		t.Errorf("communications NewComm, expected len 4, got len %d",
 			len(communications.IComm))
 	}
 }

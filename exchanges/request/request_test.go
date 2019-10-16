@@ -288,12 +288,12 @@ func TestDoRequest(t *testing.T) {
 
 	err = r.SetTimeoutRetryAttempts(1)
 	if err != nil {
-		t.Fatal("test failed - setting timeout retry attempts")
+		t.Fatal("setting timeout retry attempts")
 	}
 
 	err = r.SetTimeoutRetryAttempts(-1)
 	if err == nil {
-		t.Fatal("test failed - setting timeout retry attempts with negative value")
+		t.Fatal("setting timeout retry attempts with negative value")
 	}
 
 	r.HTTPClient.Timeout = 1 * time.Second

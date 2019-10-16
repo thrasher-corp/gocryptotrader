@@ -107,64 +107,64 @@ func TestGetTicker(t *testing.T) {
 
 	err := ProcessTicker("bitfinex", &priceStruct, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. ProcessTicker error", err)
+		t.Fatal("ProcessTicker error", err)
 	}
 
 	tickerPrice, err := GetTicker("bitfinex", newPair, asset.Spot)
 	if err != nil {
-		t.Errorf("Test Failed - Ticker GetTicker init error: %s", err)
+		t.Errorf("Ticker GetTicker init error: %s", err)
 	}
 	if !tickerPrice.Pair.Equal(newPair) {
-		t.Error("Test Failed - ticker tickerPrice.CurrencyPair value is incorrect")
+		t.Error("ticker tickerPrice.CurrencyPair value is incorrect")
 	}
 
 	_, err = GetTicker("blah", newPair, asset.Spot)
 	if err == nil {
-		t.Fatal("Test Failed. TestGetTicker returned nil error on invalid exchange")
+		t.Fatal("TestGetTicker returned nil error on invalid exchange")
 	}
 
 	newPair.Base = currency.ETH
 	_, err = GetTicker("bitfinex", newPair, asset.Spot)
 	if err == nil {
-		t.Fatal("Test Failed. TestGetTicker returned ticker for invalid first currency")
+		t.Fatal("TestGetTicker returned ticker for invalid first currency")
 	}
 
 	btcltcPair := currency.NewPairFromStrings("BTC", "LTC")
 	_, err = GetTicker("bitfinex", btcltcPair, asset.Spot)
 	if err == nil {
-		t.Fatal("Test Failed. TestGetTicker returned ticker for invalid second currency")
+		t.Fatal("TestGetTicker returned ticker for invalid second currency")
 	}
 
 	priceStruct.PriceATH = 9001
 	priceStruct.Pair.Base = currency.ETH
 	err = ProcessTicker("bitfinex", &priceStruct, "futures_3m")
 	if err != nil {
-		t.Fatal("Test failed. ProcessTicker error", err)
+		t.Fatal("ProcessTicker error", err)
 	}
 
 	tickerPrice, err = GetTicker("bitfinex", newPair, "futures_3m")
 	if err != nil {
-		t.Errorf("Test Failed - Ticker GetTicker init error: %s", err)
+		t.Errorf("Ticker GetTicker init error: %s", err)
 	}
 
 	if tickerPrice.PriceATH != 9001 {
-		t.Error("Test Failed - ticker tickerPrice.PriceATH value is incorrect")
+		t.Error("ticker tickerPrice.PriceATH value is incorrect")
 	}
 
 	_, err = GetTicker("bitfinex", newPair, "meowCats")
 	if err == nil {
-		t.Error("Test Failed - Ticker GetTicker error cannot be nil")
+		t.Error("Ticker GetTicker error cannot be nil")
 	}
 
 	err = ProcessTicker("bitfinex", &priceStruct, "meowCats")
 	if err != nil {
-		t.Fatal("Test failed. ProcessTicker error", err)
+		t.Fatal("ProcessTicker error", err)
 	}
 
 	// process update again
 	err = ProcessTicker("bitfinex", &priceStruct, "meowCats")
 	if err != nil {
-		t.Fatal("Test failed. ProcessTicker error", err)
+		t.Fatal("ProcessTicker error", err)
 	}
 }
 
@@ -196,20 +196,20 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	priceStruct.Pair = newPair
 	err = ProcessTicker(exchName, &priceStruct, "")
 	if err == nil {
-		t.Fatal("Test failed. ProcessTicker error cannot be nil")
+		t.Fatal("ProcessTicker error cannot be nil")
 	}
 
 	// now process a valid ticker
 	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. ProcessTicker error", err)
+		t.Fatal("ProcessTicker error", err)
 	}
 	result, err := GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
+		t.Fatal("TestProcessTicker failed to create and return a new ticker")
 	}
 	if !result.Pair.Equal(newPair) {
-		t.Fatal("Test failed. TestProcessTicker pair mismatch")
+		t.Fatal("TestProcessTicker pair mismatch")
 	}
 
 	// now test for processing a pair with a different quote currency
@@ -217,15 +217,15 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	priceStruct.Pair = newPair
 	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. ProcessTicker error", err)
+		t.Fatal("ProcessTicker error", err)
 	}
 	result, err = GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
+		t.Fatal("TestProcessTicker failed to create and return a new ticker")
 	}
 	result, err = GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestProcessTicker failed to return an existing ticker")
+		t.Fatal("TestProcessTicker failed to return an existing ticker")
 	}
 
 	// now test for processing a pair which has a different base currency
@@ -233,15 +233,15 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	priceStruct.Pair = newPair
 	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. ProcessTicker error", err)
+		t.Fatal("ProcessTicker error", err)
 	}
 	result, err = GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestProcessTicker failed to create and return a new ticker")
+		t.Fatal("TestProcessTicker failed to create and return a new ticker")
 	}
 	result, err = GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestProcessTicker failed to return an existing ticker")
+		t.Fatal("TestProcessTicker failed to return an existing ticker")
 	}
 
 	type quick struct {
@@ -289,7 +289,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	}
 
 	if catastrophicFailure {
-		t.Fatal("Test failed. ProcessTicker error")
+		t.Fatal("ProcessTicker error")
 	}
 
 	wg.Wait()
@@ -305,14 +305,14 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 			}
 
 			if result.Last != test.TP.Last {
-				t.Error("Test failed. TestProcessTicker failed bad values")
+				t.Error("TestProcessTicker failed bad values")
 			}
 
 			wg.Done()
 		}(test)
 
 		if fatalErr {
-			t.Fatal("Test failed. TestProcessTicker failed to retrieve new ticker")
+			t.Fatal("TestProcessTicker failed to retrieve new ticker")
 		}
 	}
 	wg.Wait()
