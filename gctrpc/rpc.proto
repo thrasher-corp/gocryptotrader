@@ -528,6 +528,26 @@ message audit_event {
     string timestamp = 4;
 }
 
+message GCTScriptExecuteRequest {
+    string script_name = 1;
+}
+
+message GCTScriptResponse {
+    string data = 1;
+    string error = 2;
+}
+
+message GCTScriptUploadRequest {
+    string script_name = 1;
+    string script_data = 2;
+    bool overwrite = 3;
+}
+
+message GCTScriptReadScriptRequest{
+    string script_name = 1;
+}
+
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -838,6 +858,27 @@ service GoCryptoTrader {
     rpc GetAuditEvent(GetAuditEventRequest) returns (GetAuditEventResponse) {
         option (google.api.http) = {
             get: "/v1/getauditevent"
+        };
+    }
+
+    rpc GCTScriptExecute(GCTScriptExecuteRequest) returns (GCTScriptResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/execute",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GCTScriptResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/upload",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptReadScript(GCTScriptReadScriptRequest) returns (GCTScriptResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/read",
+            body: "*"
         };
     }
 }

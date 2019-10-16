@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/gctscript"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -24,6 +26,7 @@ type Config struct {
 	ConnectionMonitor ConnectionMonitorConfig `json:"connectionMonitor"`
 	Profiler          ProfilerConfig          `json:"profiler"`
 	NTPClient         NTPClientConfig         `json:"ntpclient"`
+	GCTScript         gctscript.Config        `json:"gctscript"`
 	Currency          CurrencyConfig          `json:"currencyConfig"`
 	Communications    CommunicationsConfig    `json:"communications"`
 	RemoteControl     RemoteControlConfig     `json:"remoteControl"`

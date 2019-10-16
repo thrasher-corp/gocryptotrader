@@ -114,6 +114,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
+	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 
 	// TO-DO: FIXME
@@ -280,6 +281,11 @@ func (e *Engine) Start() error {
 		}
 	}
 
+	if e.Settings.EnableGCTScriptManager {
+		if err := e.GctScriptManager.Start(); err != nil {
+			log.Errorf(log.Global, "GCT Script manager unable to start: %v", err)
+		}
+	}
 	// Sets up internet connectivity monitor
 	if e.Settings.EnableConnectivityMonitor {
 		if err := e.ConnectionManager.Start(); err != nil {
@@ -417,6 +423,11 @@ func (e *Engine) Stop() {
 		e.Config.Portfolio = portfolio.Portfolio
 	}
 
+	if e.GctScriptManager.Started() {
+		if err := e.GctScriptManager.Stop(); err != nil {
+			log.Errorf(log.Global, "gctscript manager unable to stop. Error: %v", err)
+		}
+	}
 	if e.OrderManager.Started() {
 		if err := e.OrderManager.Stop(); err != nil {
 			log.Errorf(log.Global, "Order manager unable to stop. Error: %v", err)

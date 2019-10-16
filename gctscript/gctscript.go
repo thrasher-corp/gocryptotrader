@@ -1,9 +1,11 @@
-package core
+package gctscript
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/d5/tengo/stdlib"
 
@@ -19,18 +21,35 @@ func New() *VM {
 
 // Load parses and creates a new instance of tengo script vm
 func (vm *VM) Load(file string) error {
+	if !GCTScriptConfig.Enabled {
+		return &VMError{
+			Cause: ErrScriptingDisabled,
+		}
+	}
 	f, err := os.Open(file)
 	if err != nil {
-
-		return err
+		return &VMError{
+			Action: "Load -> Open",
+			Script: file,
+			Cause:  err,
+		}
 	}
+
 	code, err := ioutil.ReadAll(f)
 	if err != nil {
-		return err
+		return &VMError{
+			Action: "Load -> Read",
+			Script: file,
+			Cause:  err,
+		}
 	}
+
 	vm.Script = script.New(code)
-	vm.Script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
-	vm.Script.EnableFileImport(true)
+
+	if GCTScriptConfig.AllowImports {
+		vm.Script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
+		vm.Script.EnableFileImport(true)
+	}
 
 	return nil
 }
@@ -60,4 +79,21 @@ func (vm *VM) CompileAndRun() (err error) {
 		return
 	}
 	return vm.Run()
+}
+
+func (e VMError) Error() string {
+	var scriptName, action string
+	if e.Script != "" {
+		scriptName = fmt.Sprintf("(SCRIPT) %s ", filepath.Base(e.Script))
+	}
+
+	if e.Action != "" {
+		action = fmt.Sprintf("(ACTION) %s ", e.Action)
+	}
+
+	return fmt.Sprintf("%s: %s%s%s", gctScript, action, scriptName, e.Cause)
+}
+
+func (e VMError) Unwrap() error {
+	return e.Cause
 }

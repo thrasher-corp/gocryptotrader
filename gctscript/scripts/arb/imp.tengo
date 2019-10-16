@@ -1,5 +1,0 @@
-base := 5
-
-export func(x) {
-    return x + base
-}

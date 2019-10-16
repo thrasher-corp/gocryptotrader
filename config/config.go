@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/gctscript"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
@@ -1288,6 +1290,23 @@ func (c *Config) CheckLoggerConfig() error {
 	return nil
 }
 
+func (c *Config) checkGCTScriptConfig() error {
+	m.Lock()
+	defer m.Unlock()
+
+	scriptPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "scripts")
+	err := common.CreateDir(scriptPath)
+	if err != nil {
+		return err
+	}
+
+	gctscript.ScriptPath = scriptPath
+
+	gctscript.GCTScriptConfig = &c.GCTScript
+
+	return nil
+}
+
 func (c *Config) checkDatabaseConfig() error {
 	m.Lock()
 	defer m.Unlock()
@@ -1665,6 +1684,11 @@ func (c *Config) CheckConfig() error {
 	err = c.CheckExchangeConfigValues()
 	if err != nil {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
+	}
+
+	err = c.checkGCTScriptConfig()
+	if err != nil {
+		log.Errorf(log.Global, "Failed to configure gctscript, feature has been disabled: %s\n", err)
 	}
 
 	c.CheckConnectionMonitorConfig()

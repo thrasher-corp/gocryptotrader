@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/gctscript"
 
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -1208,4 +1212,61 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 	}
 
 	return &resp, nil
+}
+
+func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptResponse, error) {
+	return nil, nil
+}
+
+func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptResponse, error) {
+	if !gctscript.GCTScriptConfig.Enabled {
+		return nil, gctscript.ErrScriptingDisabled
+	}
+
+	filePath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
+
+	_, err := os.Stat(filePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	} else if !r.Overwrite {
+		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
+	}
+
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0777)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	n, err := file.WriteString(r.ScriptData)
+	if err != nil {
+		return nil, err
+	}
+	if n != len(r.ScriptData) {
+		return nil, fmt.Errorf("failed to write all lens expected: %v got %v", len(r.ScriptData), n)
+	}
+	return &gctrpc.GCTScriptResponse{
+		Data:  "ok",
+		Error: "0",
+	}, nil
+}
+
+func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptResponse, error) {
+	scriptPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
+
+	if filepath.Ext(scriptPath) != ".gctgo" {
+		scriptPath += ".gctgo"
+	}
+
+	data, err := ioutil.ReadFile(scriptPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GCTScriptResponse{
+		Data:  string(data),
+		Error: "0",
+	}, nil
 }

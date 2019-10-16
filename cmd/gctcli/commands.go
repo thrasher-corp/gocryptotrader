@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -2913,5 +2915,135 @@ func getAuditEvent(c *cli.Context) error {
 	}
 
 	jsonOutput(result)
+	return nil
+}
+
+var gctScriptUploadCommand = cli.Command{
+	Name:      "gctscriptupload",
+	Usage:     "upload script",
+	ArgsUsage: "./path/to/script",
+	Action:    gctScriptUpload,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "script",
+			Usage: "path to script",
+		},
+		cli.BoolFlag{
+			Name:  "overwrite",
+			Usage: "true/false",
+		},
+	},
+}
+
+func gctScriptUpload(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowCommandHelp(c, "gctscriptupload")
+		return nil
+	}
+
+	var scriptPath string
+	var overwrite bool
+
+	if c.IsSet("script") {
+		scriptPath = c.String("script")
+	} else {
+		scriptPath = c.Args().Get(0)
+	}
+
+	if c.IsSet("overwrite") {
+		overwrite = c.Bool("overwrite")
+	} else {
+		ow, err := strconv.ParseBool(c.Args().Get(1))
+		if err == nil {
+			overwrite = ow
+		}
+	}
+
+	if filepath.Ext(scriptPath) != ".gctgo" {
+		return errors.New("extension must be .gctgo")
+	}
+
+	file, err := os.Open(scriptPath)
+	if err != nil {
+		return err
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	result, err := client.GCTScriptUpload(context.Background(),
+		&gctrpc.GCTScriptUploadRequest{
+			ScriptName: filepath.Base(file.Name()),
+			ScriptData: string(data),
+			Overwrite:  overwrite,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+
+	return nil
+}
+
+var gctScriptReadScriptCommand = cli.Command{
+	Name:      "gctscriptread",
+	Usage:     "script",
+	ArgsUsage: "<script name>",
+	Action:    gctScriptRead,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "script",
+			Usage: "script name",
+		},
+	},
+}
+
+func gctScriptRead(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowCommandHelp(c, "gctscriptread")
+		return nil
+	}
+
+	var scriptName string
+
+	if c.IsSet("script") {
+		scriptName = c.String("script")
+	} else {
+		scriptName = c.Args().Get(0)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.GCTScriptReadScript(context.Background(),
+		&gctrpc.GCTScriptReadScriptRequest{
+			ScriptName: scriptName,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Script contents:")
+	fmt.Println()
+	fmt.Println(result.Data)
+
 	return nil
 }

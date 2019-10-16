@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/core"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
@@ -25,22 +24,6 @@ func dostuff(err error) {
 }
 
 func main() {
-
-	temp := gctscript.New()
-	terr := temp.Load("./gctscript/scripts/arb/arb/test.tengo")
-	dostuff(terr)
-	terr = temp.Script.Add("b", 10)
-	dostuff(terr)
-	terr = temp.Compile()
-	dostuff(terr)
-	terr = temp.Run()
-	dostuff(terr)
-
-	a := temp.Compiled.Get("a").Int()
-	fmt.Println(a)
-
-	os.Exit(0)
-
 	// Handle flags
 	var settings engine.Settings
 	versionFlag := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
@@ -69,6 +52,7 @@ func main() {
 	flag.BoolVar(&settings.EnableDepositAddressManager, "depositaddressmanager", true, "enables the deposit address manager")
 	flag.BoolVar(&settings.EnableConnectivityMonitor, "connectivitymonitor", true, "enables the connectivity monitor")
 	flag.BoolVar(&settings.EnableDatabaseManager, "databasemanager", true, "enables database manager")
+	flag.BoolVar(&settings.EnableGCTScriptManager, "gctscriptmanager", true, "enables gctscript manager")
 	flag.DurationVar(&settings.EventManagerDelay, "eventmanagerdelay", time.Duration(0), "sets the event managers sleep delay between event checking")
 	flag.BoolVar(&settings.EnableNTPClient, "ntpclient", true, "enables the NTP client to check system clock drift")
 	flag.BoolVar(&settings.EnableDispatcher, "dispatch", true, "enables the dispatch system")
