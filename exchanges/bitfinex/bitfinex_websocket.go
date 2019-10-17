@@ -548,6 +548,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 			params := make(map[string]interface{})
 			if channels[i] == "book" {
 				params["prec"] = "P0"
+				params["len"] = "100"
 			}
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],
