@@ -99,12 +99,13 @@ func (c *Coinbene) WsDataHandler() {
 				c.Websocket.DataHandler <- err
 			}
 			_, ok := result["event"]
-			if ok && result["event"].(string) == "subscribe" {
+			switch {
+			case ok && result["event"].(string) == "subscribe":
 				continue
-			} else if ok && result["event"].(string) == "unsubscribe" {
+			case ok && result["event"].(string) == "unsubscribe":
 				continue
-			} else if ok && result["event"].(string) == "error" {
-				c.Websocket.DataHandler <- fmt.Errorf("Message: %s. Code: %v", result["message"], result["code"])
+			case ok && result["event"].(string) == "error":
+				c.Websocket.DataHandler <- fmt.Errorf("message: %s. code: %v", result["message"], result["code"])
 				continue
 			}
 			if ok && strings.Contains(result["event"].(string), "login") {
@@ -113,7 +114,8 @@ func (c *Coinbene) WsDataHandler() {
 				}
 				continue
 			}
-			if strings.Contains(result["topic"].(string), "ticker") {
+			switch {
+			case strings.Contains(result["topic"].(string), "ticker"):
 				var ticker WsTicker
 				err = common.JSONDecode(stream.Raw, &ticker)
 				if err != nil {
@@ -130,23 +132,23 @@ func (c *Coinbene) WsDataHandler() {
 						AssetType:  orderbook.Swap,
 					}
 				}
-			} else if strings.Contains(result["topic"].(string), "tradeList") {
+			case strings.Contains(result["topic"].(string), "tradeList"):
 				var tradeList WsTradeList
 				err = common.JSONDecode(stream.Raw, &tradeList)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
-				time, err := time.Parse(time.RFC3339, tradeList.Data[0][3])
-				if err != nil {
-					c.Websocket.DataHandler <- err
+				time, err1 := time.Parse(time.RFC3339, tradeList.Data[0][3])
+				if err1 != nil {
+					c.Websocket.DataHandler <- err1
 				}
-				price, err := strconv.ParseFloat(tradeList.Data[0][0], 64)
-				if err != nil {
-					c.Websocket.DataHandler <- err
+				price, err2 := strconv.ParseFloat(tradeList.Data[0][0], 64)
+				if err2 != nil {
+					c.Websocket.DataHandler <- err2
 				}
-				amount, err := strconv.ParseFloat(tradeList.Data[0][2], 64)
-				if err != nil {
-					c.Websocket.DataHandler <- err
+				amount, err3 := strconv.ParseFloat(tradeList.Data[0][2], 64)
+				if err3 != nil {
+					c.Websocket.DataHandler <- err3
 				}
 				c.Websocket.DataHandler <- wshandler.TradeData{
 					CurrencyPair: currency.NewPairFromString(strings.Replace(tradeList.Topic, "tradeList.", "", 1)),
@@ -157,7 +159,7 @@ func (c *Coinbene) WsDataHandler() {
 					AssetType:    orderbook.Swap,
 					Side:         tradeList.Data[0][1],
 				}
-			} else if strings.Contains(result["topic"].(string), "orderBook") {
+			case strings.Contains(result["topic"].(string), "orderBook"):
 				var orderBook WsOrderbook
 				err = common.JSONDecode(stream.Raw, &orderBook)
 				if err != nil {
@@ -220,7 +222,7 @@ func (c *Coinbene) WsDataHandler() {
 						Exchange: c.Name,
 					}
 				}
-			} else if strings.Contains(result["topic"].(string), "kline") {
+			case strings.Contains(result["topic"].(string), "kline"):
 				var kline WsKline
 				var tempFloat float64
 				var tempKline []float64
@@ -246,7 +248,7 @@ func (c *Coinbene) WsDataHandler() {
 					LowPrice:   tempKline[3],
 					Volume:     tempKline[4],
 				}
-			} else if strings.Contains(result["topic"].(string), "user.account") {
+			case strings.Contains(result["topic"].(string), "user.account"):
 				var userinfo WsUserInfo
 				err = common.JSONDecode(stream.Raw, &userinfo)
 				if err != nil {
@@ -254,22 +256,22 @@ func (c *Coinbene) WsDataHandler() {
 				}
 				c.Websocket.DataHandler <- userinfo
 				log.Println(userinfo)
-			} else if strings.Contains(result["topic"].(string), "user.position") {
+			case strings.Contains(result["topic"].(string), "user.position"):
 				var position WsPosition
 				err = common.JSONDecode(stream.Raw, &position)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
 				c.Websocket.DataHandler <- position
-			} else if strings.Contains(result["topic"].(string), "user.order") {
+			case strings.Contains(result["topic"].(string), "user.order"):
 				var orders WsUserOrders
 				err = common.JSONDecode(stream.Raw, &orders)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
 				c.Websocket.DataHandler <- orders
-			} else {
-				c.Websocket.DataHandler <- fmt.Errorf("Unhandled response '%s'", stream.Raw)
+			default:
+				c.Websocket.DataHandler <- fmt.Errorf("unhandled response '%s'", stream.Raw)
 			}
 		}
 	}

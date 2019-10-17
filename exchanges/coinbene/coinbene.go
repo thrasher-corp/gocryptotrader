@@ -306,10 +306,11 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
 	var finalBody io.Reader
 	var preSign string
-	if len(params) != 0 && method == http.MethodGet {
+	switch {
+	case len(params) != 0 && method == http.MethodGet:
 		preSign = fmt.Sprintf("%s%s%s%s?%s", timestamp, method, coinbeneAuthPath, epPath, params.Encode())
 		path += "?" + params.Encode()
-	} else if len(params) != 0 {
+	case len(params) != 0:
 		m := make(map[string]string)
 		for k, v := range params {
 			m[k] = strings.Join(v, "")
@@ -320,7 +321,7 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 		}
 		finalBody = bytes.NewBufferString(string(tempBody))
 		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, tempBody)
-	} else if len(params) == 0 {
+	case len(params) == 0:
 		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, params.Encode())
 	}
 	tempSign := common.GetHMAC(common.HashSHA256, []byte(preSign), []byte(c.APISecret))

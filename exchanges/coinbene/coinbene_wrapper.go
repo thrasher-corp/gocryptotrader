@@ -196,7 +196,7 @@ func (c *Coinbene) CancelOrder(order *exchange.OrderCancellation) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *Coinbene) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
-	var tempMap map[string]string
+	tempMap := make(map[string]string)
 	orders, err := c.FetchOpenOrders(exchange.FormatExchangeCurrency(c.Name, orderCancellation.CurrencyPair).String())
 	if err != nil {
 		return resp, err
