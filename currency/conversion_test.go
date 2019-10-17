@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -9,7 +10,7 @@ func TestNewConversionFromString(t *testing.T) {
 	expected := "AUDUSD"
 	conv, err := NewConversionFromString(expected)
 	if err != nil {
-		t.Error("NewConversionFromString() error", err)
+		t.Error(err)
 	}
 	if conv.String() != expected {
 		t.Errorf("NewConversion() error expected %s but received %s",
@@ -20,7 +21,7 @@ func TestNewConversionFromString(t *testing.T) {
 	newexpected := strings.ToLower(expected)
 	conv, err = NewConversionFromString(newexpected)
 	if err != nil {
-		t.Error("NewConversionFromString() error", err)
+		t.Error(err)
 	}
 	if conv.String() != newexpected {
 		t.Errorf("NewConversion() error expected %s but received %s",
@@ -36,7 +37,7 @@ func TestNewConversionFromStrings(t *testing.T) {
 
 	conv, err := NewConversionFromStrings(from, to)
 	if err != nil {
-		t.Error("NewConversionFromString() error", err)
+		t.Error(err)
 	}
 
 	if conv.String() != expected {
@@ -53,7 +54,7 @@ func TestNewConversion(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Error("NewConversionFromCode() error", err)
+		t.Error(err)
 	}
 
 	if conv.String() != expected {
@@ -69,7 +70,7 @@ func TestConversionIsInvalid(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Fatal("NewConversion() error", err)
+		t.Fatal(err)
 	}
 
 	if conv.IsInvalid() {
@@ -80,7 +81,7 @@ func TestConversionIsInvalid(t *testing.T) {
 	to = AUD
 	conv, err = NewConversion(from, to)
 	if err == nil {
-		t.Fatal("NewConversion() error", err)
+		t.Fatal(err)
 	}
 }
 
@@ -90,7 +91,7 @@ func TestConversionIsFiatPair(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Fatal("NewConversion() error", err)
+		t.Fatal(err)
 	}
 
 	if !conv.IsFiat() {
@@ -101,7 +102,7 @@ func TestConversionIsFiatPair(t *testing.T) {
 	to = LTC
 	conv, err = NewConversion(from, to)
 	if err == nil {
-		t.Fatal("NewConversion() error", err)
+		t.Fatal(err)
 	}
 }
 
@@ -141,7 +142,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 
 	err := SuperDuperConversionSystem.Update(testmap)
 	if err != nil {
-		t.Fatal("Update() error", err)
+		t.Fatal(err)
 	}
 
 	err = SuperDuperConversionSystem.Update(nil)
@@ -175,3 +176,62 @@ func TestConversionsRatesSystem(t *testing.T) {
 	}
 }
 
+func TestGetRate(t *testing.T) {
+	from := NewCode("AUD")
+	to := NewCode("USD")
+
+	c, err := NewConversion(from, to)
+	if err != nil {
+		t.Error(err)
+	}
+	rate, err := c.GetRate()
+	if err != nil {
+		t.Error(err)
+	}
+	if rate == 0 {
+		t.Error("Rate not set")
+	}
+	inv, err := c.GetInversionRate()
+	if err != nil {
+		t.Error(err)
+	}
+	if inv == 0 {
+		t.Error("Inverted rate not set")
+	}
+	conv, err := c.Convert(1)
+	if err != nil {
+		t.Error(err)
+	}
+	if rate != conv {
+		t.Errorf("Incorrect rate %v %v", rate, conv)
+	}
+	invConv, err := c.ConvertInverse(1)
+	if err != nil {
+		t.Error(err)
+	}
+	if inv != invConv {
+		t.Errorf("Incorrect rate %v %v", conv, invConv)
+	}
+
+	var convs ConversionRates
+	_, err = convs.GetRate(BTC, USDT)
+	if err == nil {
+		t.Errorf("Expected %s", fmt.Errorf("rate not found for from %s to %s conversion",
+			BTC,
+			USD))
+	}
+	convRate, err := convs.GetRate(USDT, USD)
+	if convRate != 1 {
+		t.Errorf("Expected rate to be 1")
+	}
+
+	convRate, err = convs.GetRate(RUR, RUB)
+	if convRate != 1 {
+		t.Errorf("Expected rate to be 1")
+	}
+
+	convRate, err = convs.GetRate(RUB, RUR)
+	if convRate != 1 {
+		t.Errorf("Expected rate to be 1")
+	}
+}
