@@ -1,0 +1,11 @@
+times := import("times")
+
+name := "run"
+
+timer := "hello"
+
+load := func() {
+
+}
+
+load()

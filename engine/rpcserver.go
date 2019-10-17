@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/gctscript"
-
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -1215,12 +1214,35 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 }
 
 func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptResponse, error) {
-	return nil, nil
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
+	}
+
+	gctVM := gctscript.New()
+	err := gctVM.Load(r.ScriptName)
+	if err != nil {
+		return &gctrpc.GCTScriptResponse{
+			Status: "error",
+			Data:   err.Error(),
+		}, nil
+	}
+
+	err = gctVM.CompileAndRun()
+	if err != nil {
+		return &gctrpc.GCTScriptResponse{
+			Status: "error",
+			Data:   err.Error(),
+		}, nil
+	}
+
+	return &gctrpc.GCTScriptResponse{
+		Status: "ok",
+	}, nil
 }
 
 func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return nil, gctscript.ErrScriptingDisabled
+		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	filePath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
@@ -1234,10 +1256,11 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
 	}
 
-	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0777)
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
 	}
+
 	defer file.Close()
 
 	n, err := file.WriteString(r.ScriptData)
@@ -1247,15 +1270,19 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	if n != len(r.ScriptData) {
 		return nil, fmt.Errorf("failed to write all lens expected: %v got %v", len(r.ScriptData), n)
 	}
+
 	return &gctrpc.GCTScriptResponse{
-		Data:  "ok",
-		Error: "0",
+		Status: "ok",
+		Data:   fmt.Sprintf("script %s written", file.Name()),
 	}, nil
 }
 
 func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptResponse, error) {
-	scriptPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
+	}
 
+	scriptPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
 	if filepath.Ext(scriptPath) != ".gctgo" {
 		scriptPath += ".gctgo"
 	}
@@ -1266,7 +1293,7 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 	}
 
 	return &gctrpc.GCTScriptResponse{
-		Data:  string(data),
-		Error: "0",
+		Status: "ok",
+		Data:   string(data),
 	}, nil
 }

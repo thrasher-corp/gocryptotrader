@@ -1561,10 +1561,10 @@
     "gctrpcGCTScriptResponse": {
       "type": "object",
       "properties": {
-        "data": {
+        "status": {
           "type": "string"
         },
-        "error": {
+        "data": {
           "type": "string"
         }
       }

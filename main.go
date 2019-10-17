@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/gctscript"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
@@ -100,6 +101,8 @@ func main() {
 		log.Errorf(log.Global, "Unable to initialise bot engine. Error: %s\n", err)
 		os.Exit(1)
 	}
+
+	gctscript.Setup()
 
 	engine.PrintSettings(&engine.Bot.Settings)
 	if err = engine.Bot.Start(); err != nil {

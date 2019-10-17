@@ -2918,6 +2918,53 @@ func getAuditEvent(c *cli.Context) error {
 	return nil
 }
 
+var gctScriptExecuteCommand = cli.Command{
+	Name:   "gctscriptexecute",
+	Action: gctScriptExecute,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "script",
+			Usage: "name script to execute",
+		},
+	},
+}
+
+func gctScriptExecute(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "gctscriptexecute")
+		return nil
+	}
+
+	var script string
+
+	if c.IsSet("script") {
+		script = c.String("script")
+	} else {
+		script = c.Args().First()
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.GCTScriptExecute(context.Background(),
+		&gctrpc.GCTScriptExecuteRequest{
+			ScriptName: script,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+
+	return nil
+}
+
 var gctScriptUploadCommand = cli.Command{
 	Name:      "gctscriptupload",
 	Usage:     "upload script",
@@ -2926,7 +2973,7 @@ var gctScriptUploadCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "script",
-			Usage: "path to script",
+			Usage: "local path to script",
 		},
 		cli.BoolFlag{
 			Name:  "overwrite",

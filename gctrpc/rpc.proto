@@ -533,8 +533,8 @@ message GCTScriptExecuteRequest {
 }
 
 message GCTScriptResponse {
-    string data = 1;
-    string error = 2;
+    string status = 1;
+    string data = 2;
 }
 
 message GCTScriptUploadRequest {
