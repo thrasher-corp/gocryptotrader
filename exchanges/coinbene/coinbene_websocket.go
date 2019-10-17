@@ -192,7 +192,7 @@ func (c *Coinbene) WsDataHandler() {
 					var newOB orderbook.Base
 					newOB.Asks = asks
 					newOB.Bids = bids
-					newOB.AssetType = "SWAP"
+					newOB.AssetType = orderbook.Swap
 					newOB.Pair = currency.NewPairFromString(strings.Replace(orderBook.Topic, "tradeList.", "", 1))
 					newOB.ExchangeName = c.Name
 					err = c.Websocket.Orderbook.LoadSnapshot(&newOB, true)
@@ -200,14 +200,14 @@ func (c *Coinbene) WsDataHandler() {
 						c.Websocket.DataHandler <- err
 					}
 					c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
-						Asset:    "SWAP",
+						Asset:    orderbook.Swap,
 						Exchange: c.Name,
 					}
 				} else if orderBook.Action == "update" {
 					newOB := wsorderbook.WebsocketOrderbookUpdate{
 						Asks:         asks,
 						Bids:         bids,
-						AssetType:    "SWAP",
+						AssetType:    orderbook.Swap,
 						CurrencyPair: currency.NewPairFromString(strings.Replace(orderBook.Topic, "tradeList.", "", 1)),
 						UpdateID:     orderBook.Version,
 					}
@@ -216,7 +216,7 @@ func (c *Coinbene) WsDataHandler() {
 						c.Websocket.DataHandler <- err
 					}
 					c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.CurrencyPair,
-						Asset:    "SWAP",
+						Asset:    orderbook.Swap,
 						Exchange: c.Name,
 					}
 				}
@@ -238,7 +238,7 @@ func (c *Coinbene) WsDataHandler() {
 				c.Websocket.DataHandler <- wshandler.KlineData{
 					Timestamp:  time.Unix(int64(kline.Data[0][1].(float64)), 0),
 					Pair:       currency.NewPairFromString(kline.Data[0][0].(string)),
-					AssetType:  "SWAP",
+					AssetType:  orderbook.Swap,
 					Exchange:   c.Name,
 					OpenPrice:  tempKline[0],
 					ClosePrice: tempKline[1],
