@@ -23,6 +23,7 @@ import (
 // Coinbene is the overarching type across this package
 type Coinbene struct {
 	exchange.Base
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (
@@ -71,6 +72,16 @@ func (c *Coinbene) SetDefaults() {
 	c.APIUrlDefault = coinbeneAPIURL
 	c.APIUrl = c.APIUrlDefault
 	c.Websocket = wshandler.New()
+	c.WebsocketURL = coinbeneWsURL
+	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported
+	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -81,6 +92,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) {
 		c.Enabled = true
 		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		c.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
+		log.Println(exch.APISecret)
 		c.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		c.SetHTTPClientTimeout(exch.HTTPTimeout)
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
@@ -111,23 +123,33 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 
-		// If the exchange supports websocket, update the below block
-		// err = c.WebsocketSetup(c.WsConnect,
-		//	exch.Name,
-		//	exch.Websocket,
-		//	coinbeneWebsocket,
-		//	exch.WebsocketURL)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// c.WebsocketConn = &wshandler.WebsocketConnection{
-		// 		ExchangeName:         c.Name,
-		// 		URL:                  c.Websocket.GetWebsocketURL(),
-		// 		ProxyURL:             c.Websocket.GetProxyAddress(),
-		// 		Verbose:              c.Verbose,
-		// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		// }
+		err = c.Websocket.Setup(c.WsConnect,
+			c.Subscribe,
+			c.Unsubscribe,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			coinbeneWsURL,
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
+		if err != nil {
+			log.Fatal(err)
+		}
+		c.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         c.Name,
+			URL:                  c.Websocket.GetWebsocketURL(),
+			ProxyURL:             c.Websocket.GetProxyAddress(),
+			Verbose:              c.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		c.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			false,
+			false,
+			exch.Name)
 	}
 }
 

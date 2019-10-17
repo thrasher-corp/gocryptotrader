@@ -258,7 +258,7 @@ func (c *Coinbene) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchang
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (c *Coinbene) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return c.Websocket, nil
 }
 
 // GetActiveOrders retrieves any orders that are active/open

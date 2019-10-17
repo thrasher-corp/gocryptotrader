@@ -122,3 +122,114 @@ type ClosedOrderResponse struct {
 	Code int64           `json:"code"`
 	Data []OrderInfoData `json:"data"`
 }
+
+// WsSub stores subscription data
+type WsSub struct {
+	Operation string   `json:"op"`
+	Arguments []string `json:"args"`
+}
+
+// WsTickerData stores websocket ticker data
+type WsTickerData struct {
+	Symbol        string  `json:"symbol"`
+	LastPrice     float64 `json:"lastPrice,string"`
+	MarkPrice     float64 `json:"markPrice,string"`
+	BestAskPrice  float64 `json:"bestAskPrice,string"`
+	BestBidPrice  float64 `json:"bestBidPrice,string"`
+	BestAskVolume float64 `json:"bestAskVolume,string"`
+	BestBidVolume float64 `json:"bestBidVolume,string"`
+	High24h       float64 `json:"high24h,string"`
+	Low24h        float64 `json:"low24h,string"`
+	Volume24h     float64 `json:"volume,string"`
+	Timestamp     string  `json:"timestamp"`
+}
+
+// WsTicker stores websocket ticker
+type WsTicker struct {
+	Topic string         `json:"topic"`
+	Data  []WsTickerData `json:"data"`
+}
+
+// WsTradeList stores websocket tradelist data
+type WsTradeList struct {
+	Topic string     `json:"topic"`
+	Data  [][]string `json:"data"`
+}
+
+// WsOrderbook stores websocket orderbook data
+type WsOrderbook struct {
+	Topic     string      `json:"topic"`
+	Action    string      `json:"action"`
+	Data      []Orderbook `json:"data"`
+	Version   int64       `json:"version,string"`
+	Timestamp string      `json:"timestamp"`
+}
+
+// WsKline stores websocket kline data
+type WsKline struct {
+	Topic string          `json:"topic"`
+	Data  [][]interface{} `json:"data"`
+}
+
+// WsUserData stores websocket user data
+type WsUserData struct {
+	Asset     string  `json:"string"`
+	Available float64 `json:"availableBalance"`
+	Locked    float64 `json:"frozenBalance"`
+	Total     float64 `json:"balance"`
+	Timestamp string  `json:"timestamp"`
+}
+
+// WsUserInfo stores websocket user info
+type WsUserInfo struct {
+	Topic string       `json:"topic"`
+	Data  []WsUserData `json:"data"`
+}
+
+// WsPositionData stores websocket info on user's position
+type WsPositionData struct {
+	AvailableQuantity float64 `json:"availableQuantity"`
+	AvgPrice          float64 `json:"avgPrice"`
+	Leverage          float64 `json:"leverage"`
+	LiquidationPrice  float64 `json:"liquidationPrice"`
+	MarkPrice         float64 `json:"markPrice"`
+	PositionMargin    float64 `json:"positionMargin"`
+	Quantity          float64 `json:"quantity"`
+	RealisedPNL       float64 `json:"realisedPnl"`
+	Side              string  `json:"side"`
+	Symbol            string  `json:"symbol"`
+	MarginMode        int64   `json:"marginMode"`
+	CreateTime        string  `json:"createTime"`
+}
+
+// WsPosition stores websocket info on user's positions
+type WsPosition struct {
+	Topic string           `json:"topic"`
+	Data  []WsPositionData `json:"data"`
+}
+
+// WsOrderData stores websocket user order data
+type WsOrderData struct {
+	OrderID          string  `json:"orderId"`
+	Direction        string  `json:"direction"`
+	Leverage         float64 `json:"leverage"`
+	Symbol           string  `json:"symbol"`
+	OrderType        string  `json:"orderType"`
+	Quantity         float64 `json:"quantity"`
+	OrderPrice       float64 `json:"orderPrice"`
+	OrderValue       float64 `json:"orderValue"`
+	Fee              float64 `json:"fee"`
+	FilledQuantity   float64 `json:"filledQuantity"`
+	AveragePrice     float64 `json:"averagePrice"`
+	OrderTime        string  `json:"orderTime"`
+	Status           string  `json:"status"`
+	LastFillQuantity float64 `json:"lastFillQuantity"`
+	LastFillPrice    float64 `json:"lastFillPrice"`
+	LastFillTime     string  `json:"lastFillTime"`
+}
+
+// WsUserOrders stores websocket user orders' data
+type WsUserOrders struct {
+	Topic string        `json:"topic"`
+	Data  []WsOrderData `json:"data"`
+}
