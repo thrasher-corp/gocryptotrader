@@ -754,7 +754,7 @@
   },
   {
     "name": "Coinbene",
-    "enabled": false,
+    "enabled": true,
     "verbose": false,
     "websocket": false,
     "useSandbox": false,

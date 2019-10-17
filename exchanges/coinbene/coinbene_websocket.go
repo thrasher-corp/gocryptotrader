@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -255,7 +254,6 @@ func (c *Coinbene) WsDataHandler() {
 					c.Websocket.DataHandler <- err
 				}
 				c.Websocket.DataHandler <- userinfo
-				log.Println(userinfo)
 			case strings.Contains(result["topic"].(string), "user.position"):
 				var position WsPosition
 				err = common.JSONDecode(stream.Raw, &position)
