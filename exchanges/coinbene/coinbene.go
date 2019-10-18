@@ -58,7 +58,7 @@ func (c *Coinbene) SetDefaults() {
 	c.Enabled = false
 	c.Verbose = false
 	c.RESTPollingDelay = 10
-	c.RequestCurrencyPairFormat.Delimiter = ""
+	c.RequestCurrencyPairFormat.Delimiter = "/"
 	c.RequestCurrencyPairFormat.Uppercase = true
 	c.ConfigCurrencyPairFormat.Delimiter = "/"
 	c.ConfigCurrencyPairFormat.Uppercase = true
