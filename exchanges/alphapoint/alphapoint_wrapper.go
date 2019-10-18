@@ -57,7 +57,7 @@ func (a *Alphapoint) SetDefaults() {
 			},
 
 			WebsocketCapabilities: exchange.ProtocolFeatures{
-				AccountInfo:       true,
+				AccountInfo: true,
 			},
 
 			WithdrawPermissions: exchange.WithdrawCryptoWith2FA |
