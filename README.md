@@ -66,7 +66,7 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 + Database support (Postgres and SQLite3). See [database](/database/README.md).
 + OTP generation tool. See [gen otp](/cmd/gen_otp).
 + Connection monitor package.
-+ gRPC service and JSON RPC proxy. See [gRPC server](/gctrpc/README.md).
++ gRPC service and JSON RPC proxy. See [gRPC service](/gctrpc/README.md).
 + gRPC client. See [gctcli](/cmd/gctcli/README.md).
 + Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates)
 + Packages for handling currency pairs, tickers and orderbooks.
