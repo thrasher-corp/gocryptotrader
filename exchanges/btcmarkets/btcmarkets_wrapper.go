@@ -2,8 +2,6 @@ package btcmarkets
 
 import (
 	"errors"
-	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -49,7 +47,7 @@ func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
 func (b *BTCMarkets) SetDefaults() {
 	b.Name = "BTC Markets"
 	b.Enabled = true
-	b.Verbose = true
+	b.Verbose = false
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
@@ -62,6 +60,7 @@ func (b *BTCMarkets) SetDefaults() {
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
+			Delimiter: "-",
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
@@ -172,19 +171,49 @@ func (b *BTCMarkets) Start(wg *sync.WaitGroup) {
 // Run implements the BTC Markets wrapper
 func (b *BTCMarkets) Run() {
 	if b.Verbose {
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s (url: %s).\n",
+			b.Name,
+			common.IsEnabled(b.Websocket.IsEnabled()),
+			btcMarketsWSURL)
 		b.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
-		enabledPairs := []string{"BTC-AUD"}
-		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
+	var forceUpdate bool
+	if common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "CNY") ||
+		common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "CNY") {
 		forceUpdate = true
+	}
 
-		err := b.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
+	if common.StringDataContains(b.BaseCurrencies.Strings(), "CNY") {
+		cfg := config.GetConfig()
+		exchCfg, err := cfg.GetExchangeConfig(b.Name)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s", b.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%s failed to get exchange config. %s\n",
+				b.Name,
+				err)
+			return
+		}
+		exchCfg.BaseCurrencies = currency.Currencies{currency.USD}
+		b.BaseCurrencies = currency.Currencies{currency.USD}
+	}
+
+	if forceUpdate {
+		enabledPairs := currency.Pairs{currency.Pair{
+			Base:      currency.BTC.Lower(),
+			Quote:     currency.USDT.Lower(),
+			Delimiter: "-",
+		},
+		}
+		log.Warn(log.ExchangeSys,
+			"Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
+
+		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s Failed to update enabled currencies.\n",
+				b.GetName())
 		}
 	}
 
@@ -194,12 +223,15 @@ func (b *BTCMarkets) Run() {
 
 	err := b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			b.Name,
+			err)
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTCMarkets) FetchTradablePairs(asset asset.Item) ([]string, error) {
+func (b *BTCMarkets) FetchTradablePairs(a asset.Item) ([]string, error) {
 	markets, err := b.GetMarkets()
 	if err != nil {
 		return nil, err
@@ -207,9 +239,8 @@ func (b *BTCMarkets) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var pairs []string
 	for x := range markets {
-		pairs = append(pairs, fmt.Sprintf("%v%v%v", markets[x].Instrument, b.GetPairFormat(asset, false).Delimiter, markets[x].Currency))
+		pairs = append(pairs, markets[x].MarketID)
 	}
-
 	return pairs, nil
 }
 
@@ -226,28 +257,29 @@ func (b *BTCMarkets) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
-	tick, err := b.GetTicker(p.Base.String(), p.Quote.String())
+	var resp ticker.Price
+	allPairs, err := b.GetMarkets()
 	if err != nil {
-		return tickerPrice, err
+		return resp, err
 	}
-
-	tickerPrice = ticker.Price{
-		Last:        tick.LastPrice,
-		High:        tick.High24h,
-		Low:         tick.Low24h,
-		Bid:         tick.BestBid,
-		Ask:         tick.BestAsk,
-		Volume:      tick.Volume24h,
-		Pair:        p,
-		LastUpdated: time.Unix(tick.Timestamp, 0),
+	for x := range allPairs {
+		tick, err := b.GetTicker(allPairs[x].MarketID)
+		if err != nil {
+			return resp, err
+		}
+		resp.Pair = currency.NewPairFromString(allPairs[x].MarketID)
+		resp.Last = tick.LastPrice
+		resp.High = tick.High24h
+		resp.Low = tick.Low24h
+		resp.Bid = tick.BestBID
+		resp.Ask = tick.BestAsk
+		resp.Volume = tick.Volume
+		resp.LastUpdated = time.Now()
+		err = ticker.ProcessTicker(b.Name, &resp, assetType)
+		if err != nil {
+			return resp, err
+		}
 	}
-
-	err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
-	if err != nil {
-		return tickerPrice, err
-	}
-
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
@@ -272,60 +304,54 @@ func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (orde
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := b.GetOrderbook(p.Base.String(),
-		p.Quote.String())
+	strPair := b.FormatExchangeCurrency(p, assetType).String()
+	tempResp, err := b.GetOrderbook(strPair, 2)
 	if err != nil {
 		return orderBook, err
 	}
 
-	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data[1], Price: data[0]})
+	for x := range tempResp.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: tempResp.Bids[x].Volume,
+			Price:  tempResp.Bids[x].Price})
 	}
 
-	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
+	for y := range tempResp.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: tempResp.Asks[y].Volume,
+			Price:  tempResp.Asks[y].Price})
+		orderBook.Pair = p
+		orderBook.ExchangeName = b.Name
+		orderBook.AssetType = assetType
+
+		err = orderBook.Process()
+		if err != nil {
+			return orderBook, err
+		}
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
-	if err != nil {
-		return orderBook, err
-	}
-
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
-// BTCMarkets exchange
+// GetAccountInfo retrieves balances for all enabled currencies
 func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	response.Exchange = b.Name
-
-	accountBalance, err := b.GetAccountBalance()
+	var resp exchange.AccountInfo
+	data, err := b.GetAccountBalance()
 	if err != nil {
-		return response, err
+		return resp, err
 	}
-
-	var currencies []exchange.AccountCurrencyInfo
-	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance[i].Balance
-		exchangeCurrency.Hold = accountBalance[i].PendingFunds
-
-		currencies = append(currencies, exchangeCurrency)
+	var account exchange.Account
+	for key := range data {
+		c := currency.NewCode(data[key].AssetName)
+		hold := data[key].Locked
+		total := data[key].Balance
+		account.Currencies = append(account.Currencies,
+			exchange.AccountCurrencyInfo{CurrencyName: c,
+				TotalValue: total,
+				Hold:       hold})
 	}
-
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: currencies,
-	})
-
-	return response, nil
+	resp.Accounts = append(resp.Accounts, account)
+	resp.Exchange = b.Name
+	return resp, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -342,35 +368,35 @@ func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType asset.Item) (
 
 // SubmitOrder submits a new order
 func (b *BTCMarkets) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+	var resp order.SubmitResponse
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return resp, err
 	}
 
-	if strings.EqualFold(s.OrderSide.String(), order.Sell.String()) {
+	if s.OrderSide == order.Sell {
 		s.OrderSide = order.Ask
 	}
-	if strings.EqualFold(s.OrderSide.String(), order.Buy.String()) {
+	if s.OrderSide == order.Buy {
 		s.OrderSide = order.Bid
 	}
 
-	response, err := b.NewOrder(s.Pair.Base.Upper().String(),
-		s.Pair.Quote.Upper().String(),
-		s.Price,
+	tempResp, err := b.NewOrder(b.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
 		s.Amount,
+		s.Price,
 		s.OrderSide.String(),
 		s.OrderType.String(),
+		s.TriggerPrice,
+		s.TargetAmount,
+		"",
+		false,
+		"",
 		s.ClientID)
-
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+	if err != nil {
+		return resp, err
 	}
-
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-
-	return submitOrderResponse, err
+	resp.IsOrderPlaced = true
+	resp.OrderID = tempResp.OrderID
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -380,93 +406,82 @@ func (b *BTCMarkets) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *BTCMarkets) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-	if err != nil {
-		return err
-	}
-
-	_, err = b.CancelExistingOrder([]int64{orderIDInt})
+func (b *BTCMarkets) CancelOrder(o *order.Cancel) error {
+	_, err := b.RemoveOrder(o.OrderID)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
-	}
-	openOrders, err := b.GetOpenOrders()
+	var resp order.CancelAllResponse
+	tempMap := make(map[string]string)
+	orders, err := b.GetOrders("", "", "", "", "")
 	if err != nil {
-		return cancelAllOrdersResponse, err
+		return resp, err
 	}
-
-	var orderList []int64
-	for i := range openOrders {
-		orderList = append(orderList, openOrders[i].ID)
-	}
-
-	if len(orderList) > 0 {
-		orders, err := b.CancelExistingOrder(orderList)
+	for x := range orders {
+		_, err := b.RemoveOrder(orders[x].OrderID)
 		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
-
-		for i := range orders {
-			if !orders[i].Success {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(orders[i].ID, 10)] = orders[i].ErrorMessage
-			}
+			tempMap[orders[x].OrderID] = "Failed"
+		} else {
+			tempMap[orders[x].OrderID] = "Success"
 		}
 	}
-	return cancelAllOrdersResponse, nil
+	return resp, nil
 }
 
 // GetOrderInfo returns information on a current open order
 func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
-	var OrderDetail order.Detail
-
-	o, err := strconv.ParseInt(orderID, 10, 64)
+	var resp order.Detail
+	o, err := b.FetchOrder(orderID)
 	if err != nil {
-		return OrderDetail, err
+		return resp, err
 	}
-
-	orders, err := b.GetOrderDetail([]int64{o})
+	var t time.Time
+	resp.Exchange = b.Name
+	resp.ID = orderID
+	resp.CurrencyPair = currency.NewPairFromString(o.MarketID)
+	t, err = time.Parse(time.RFC3339, o.CreationTime)
 	if err != nil {
-		return OrderDetail, err
+		return resp, err
 	}
-
-	if len(orders) > 1 {
-		return OrderDetail, errors.New("too many orders returned")
+	resp.Price = o.Price
+	resp.OrderDate = t
+	resp.ExecutedAmount = o.Amount - o.OpenAmount
+	resp.OrderSide = order.Bid
+	if o.Side == "Ask" {
+		resp.OrderSide = order.Ask
 	}
-
-	if len(orders) == 0 {
-		return OrderDetail, errors.New("no orders found")
+	switch o.Type {
+	case "Limit":
+		resp.OrderType = order.Limit
+	case "Market":
+		resp.OrderType = order.Market
+	case "Stop Limit":
+		resp.OrderType = order.Stop
+	case "Stop":
+		resp.OrderType = order.Stop
+	case "Take Profit":
+		resp.OrderType = order.ImmediateOrCancel
 	}
-
-	for i := range orders {
-		var side order.Side
-		if strings.EqualFold(orders[i].OrderSide, order.Ask.String()) {
-			side = order.Sell
-		} else if strings.EqualFold(orders[i].OrderSide, order.Bid.String()) {
-			side = order.Buy
-		}
-		orderDate := time.Unix(int64(orders[i].CreationTime), 0)
-		orderType := order.Type(strings.ToUpper(orders[i].OrderType))
-
-		OrderDetail.Amount = orders[i].Volume
-		OrderDetail.OrderDate = orderDate
-		OrderDetail.Exchange = b.Name
-		OrderDetail.ID = strconv.FormatInt(orders[i].ID, 10)
-		OrderDetail.RemainingAmount = orders[i].OpenVolume
-		OrderDetail.OrderSide = side
-		OrderDetail.OrderType = orderType
-		OrderDetail.Price = orders[i].Price
-		OrderDetail.Status = order.Status(orders[i].Status)
-		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[i].Instrument,
-			orders[i].Currency,
-			b.GetPairFormat(asset.Spot, false).Delimiter)
+	resp.RemainingAmount = o.OpenAmount
+	switch o.Status {
+	case "Accepted":
+		resp.Status = order.Active
+	case "Placed":
+		resp.Status = order.Active
+	case "Partially Matched":
+		resp.Status = order.PartiallyFilled
+	case "FullyMatched":
+		resp.Status = order.Filled
+	case "Cancelled":
+		resp.Status = order.Cancelled
+	case "Partially Cancelled":
+		resp.Status = order.PartiallyFilled
+	case "Failed":
+		resp.Status = order.Rejected
 	}
-
-	return OrderDetail, nil
+	return resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -476,7 +491,15 @@ func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID s
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	return b.WithdrawCrypto(withdrawRequest.Amount, withdrawRequest.Currency.String(), withdrawRequest.Address)
+	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(), withdrawRequest.Amount,
+		withdrawRequest.Address, "",
+		"",
+		"",
+		"")
+	if err != nil {
+		return "", err
+	}
+	return a.Status, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -485,11 +508,17 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReq
 	if withdrawRequest.Currency != currency.AUD {
 		return "", errors.New("only AUD is supported for withdrawals")
 	}
-	return b.WithdrawAUD(withdrawRequest.BankAccountName,
-		strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64),
-		withdrawRequest.BankName,
-		strconv.FormatFloat(withdrawRequest.BankCode, 'f', -1, 64),
-		withdrawRequest.Amount)
+	a, err := b.RequestWithdraw(withdrawRequest.GenericWithdrawRequestInfo.Currency.String(),
+		withdrawRequest.GenericWithdrawRequestInfo.Amount,
+		"",
+		withdrawRequest.BankAccountName,
+		withdrawRequest.BankAccountNumber,
+		"",
+		withdrawRequest.BankName)
+	if err != nil {
+		return "", err
+	}
+	return a.Status, nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
@@ -514,124 +543,115 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	resp, err := b.GetOpenOrders()
-	if err != nil {
-		return nil, err
+	var resp []order.Detail
+	var tempResp order.Detail
+	var tempData []OrderData
+	if len(req.Currencies) == 0 {
+		allPairs, err := b.GetMarkets()
+		if err != nil {
+			return resp, err
+		}
+		for a := range allPairs {
+			req.Currencies = append(req.Currencies,
+				currency.NewPairFromString(allPairs[a].MarketID))
+		}
+	}
+	var err error
+	for x := range req.Currencies {
+		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), "", "", "", "")
+		if err != nil {
+			return resp, err
+		}
+		var t time.Time
+		for y := range tempData {
+			tempResp.Exchange = b.Name
+			tempResp.CurrencyPair = req.Currencies[x]
+			tempResp.OrderSide = order.Bid
+			if tempData[y].Side == "Ask" {
+				tempResp.OrderSide = order.Ask
+			}
+			t, err = time.Parse(time.RFC3339, tempData[y].CreationTime)
+			if err != nil {
+				return resp, err
+			}
+			tempResp.OrderDate = t
+			switch tempData[y].Status {
+			case "Accepted":
+				tempResp.Status = order.Active
+			case "Placed":
+				tempResp.Status = order.Active
+			case "Partially Matched":
+				tempResp.Status = order.PartiallyFilled
+			case "FullyMatched":
+				tempResp.Status = order.Filled
+			case "Cancelled":
+				tempResp.Status = order.Cancelled
+			case "Partially Cancelled":
+				tempResp.Status = order.PartiallyFilled
+			case "Failed":
+				tempResp.Status = order.Rejected
+			}
+			tempResp.Price = tempData[y].Price
+			tempResp.Amount = tempData[y].Amount
+			tempResp.ExecutedAmount = tempData[y].Amount - tempData[y].OpenAmount
+			tempResp.RemainingAmount = tempData[y].OpenAmount
+			resp = append(resp, tempResp)
+		}
+		return resp, nil
 	}
 
-	var orders []order.Detail
-	for i := range resp {
-		var side order.Side
-		if strings.EqualFold(resp[i].OrderSide, order.Ask.String()) {
-			side = order.Sell
-		} else if strings.EqualFold(resp[i].OrderSide, order.Bid.String()) {
-			side = order.Buy
-		}
-		orderDate := time.Unix(int64(resp[i].CreationTime), 0)
-		orderType := order.Type(strings.ToUpper(resp[i].OrderType))
-
-		openOrder := order.Detail{
-			ID:              strconv.FormatInt(resp[i].ID, 10),
-			Amount:          resp[i].Volume,
-			Exchange:        b.Name,
-			RemainingAmount: resp[i].OpenVolume,
-			OrderDate:       orderDate,
-			OrderSide:       side,
-			OrderType:       orderType,
-			Price:           resp[i].Price,
-			Status:          order.Status(resp[i].Status),
-			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Instrument,
-				resp[i].Currency,
-				b.GetPairFormat(asset.Spot, false).Delimiter),
-		}
-
-		for j := range resp[i].Trades {
-			tradeDate := time.Unix(int64(resp[i].Trades[j].CreationTime), 0)
-			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
-				Amount:      resp[i].Trades[j].Volume,
-				Exchange:    b.Name,
-				Price:       resp[i].Trades[j].Price,
-				TID:         resp[i].Trades[j].ID,
-				Timestamp:   tradeDate,
-				Fee:         resp[i].Trades[j].Fee,
-				Description: resp[i].Trades[j].Description,
-			})
-		}
-
-		orders = append(orders, openOrder)
-	}
-
-	order.FilterOrdersByType(&orders, req.OrderType)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	return orders, nil
+	order.FilterOrdersByType(&resp, req.OrderType)
+	order.FilterOrdersByTickRange(&resp, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&resp, req.OrderSide)
+	return resp, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	var resp []order.Detail
+	var tempResp order.Detail
+	var tempArray []string
 	if len(req.Currencies) == 0 {
-		return nil, errors.New("requires at least one currency pair to retrieve history")
-	}
-
-	var respOrders []Order
-	for i := range req.Currencies {
-		resp, err := b.GetOrders(req.Currencies[i].Base.String(),
-			req.Currencies[i].Quote.String(),
-			200,
-			0,
-			true)
+		orders, err := b.GetOrders("", "", "", "", "")
 		if err != nil {
-			return nil, err
+			return resp, err
 		}
-		respOrders = append(respOrders, resp...)
+		for x := range orders {
+			tempArray = append(tempArray, orders[x].OrderID)
+		}
 	}
-
-	var orders []order.Detail
-	for i := range respOrders {
-		var side order.Side
-		if strings.EqualFold(respOrders[i].OrderSide, order.Ask.String()) {
-			side = order.Sell
-		} else if strings.EqualFold(respOrders[i].OrderSide, order.Bid.String()) {
-			side = order.Buy
+	for y := range req.Currencies {
+		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(),
+			"", "", "", "")
+		if err != nil {
+			return resp, err
 		}
-		orderDate := time.Unix(int64(respOrders[i].CreationTime), 0)
-		orderType := order.Type(strings.ToUpper(respOrders[i].OrderType))
-
-		openOrder := order.Detail{
-			ID:              strconv.FormatInt(respOrders[i].ID, 10),
-			Amount:          respOrders[i].Volume,
-			Exchange:        b.Name,
-			RemainingAmount: respOrders[i].OpenVolume,
-			OrderDate:       orderDate,
-			OrderSide:       side,
-			OrderType:       orderType,
-			Price:           respOrders[i].Price,
-			Status:          order.Status(respOrders[i].Status),
-			CurrencyPair: currency.NewPairWithDelimiter(respOrders[i].Instrument,
-				respOrders[i].Currency,
-				b.GetPairFormat(asset.Spot, false).Delimiter),
+		for z := range orders {
+			tempArray = append(tempArray, orders[z].OrderID)
 		}
-
-		for j := range respOrders[i].Trades {
-			tradeDate := time.Unix(int64(respOrders[i].Trades[j].CreationTime), 0)
-			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
-				Amount:      respOrders[i].Trades[j].Volume,
-				Exchange:    b.Name,
-				Price:       respOrders[i].Trades[j].Price,
-				TID:         respOrders[i].Trades[j].ID,
-				Timestamp:   tradeDate,
-				Fee:         respOrders[i].Trades[j].Fee,
-				Description: respOrders[i].Trades[j].Description,
-			})
-		}
-		orders = append(orders, openOrder)
 	}
-
-	order.FilterOrdersByType(&orders, req.OrderType)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	return orders, nil
+	stringIDs := strings.Join(tempArray, ",")
+	tempData, err := b.GetBatchTrades(stringIDs)
+	var t time.Time
+	for c := range tempData.Orders {
+		tempResp.Exchange = b.Name
+		tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
+		tempResp.OrderSide = order.Bid
+		if tempData.Orders[c].Side == "Ask" {
+			tempResp.OrderSide = order.Ask
+		}
+		t, err = time.Parse(time.RFC3339, tempData.Orders[c].CreationTime)
+		if err != nil {
+			return resp, err
+		}
+		tempResp.OrderDate = t
+		tempResp.Status = order.Filled
+		tempResp.Price = tempData.Orders[c].Price
+		tempResp.ExecutedAmount = tempData.Orders[c].Amount
+		resp = append(resp, tempResp)
+	}
+	return resp, nil
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe

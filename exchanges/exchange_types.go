@@ -193,7 +193,7 @@ type FiatWithdrawRequest struct {
 	GenericWithdrawRequestInfo
 	// FIAT related information
 	BankAccountName   string
-	BankAccountNumber float64
+	BankAccountNumber string
 	BankName          string
 	BankAddress       string
 	BankCity          string
