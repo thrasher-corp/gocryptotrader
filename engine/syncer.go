@@ -397,10 +397,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 											if e.Cfg.Verbose {
 												log.Debugf(log.SyncMgr, "%s Using recent batching cache\n", exchangeName)
 											}
-											result, err = Bot.Exchanges[x].FetchTicker(c.Pair, c.AssetType)
+											result, err = Bot.Exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 										}
 									} else {
-										result, err = Bot.Exchanges[x].FetchTicker(c.Pair, c.AssetType)
+										result, err = Bot.Exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 									}
 									printTickerSummary(&result, c.Pair, c.AssetType, exchangeName, err)
 									if err == nil {
