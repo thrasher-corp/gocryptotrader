@@ -917,7 +917,7 @@ func TestWithdrawFiat(t *testing.T) {
 			Description: "WITHDRAW IT ALL",
 		},
 		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        12345,
+		BankAccountNumber:        "12345",
 		BankAddress:              "123 Fake St",
 		BankCity:                 "Tarry Town",
 		BankCountry:              "Hyrule",
