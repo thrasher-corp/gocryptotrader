@@ -31,15 +31,22 @@ type Instruments struct {
 
 // Ticker holds ticker information
 type Ticker struct {
-	HighestBuy   float64 `json:"highest_buy,string"`
-	InstrumentID int     `json:"inst_id"`
-	Last         float64 `json:"last,string"`
-	LowestSell   float64 `json:"lowest_sell,string"`
-	OpenInterest float64 `json:"open_interest,string"`
-	Timestamp    int64   `json:"timestamp"`
-	TransID      int64   `json:"trans_id"`
-	Volume       float64 `json:"volume,string"`
-	Volume24     float64 `json:"volume24,string"`
+	High24        float64 `json:"high24,string"`
+	HighestBuy    float64 `json:"highest_buy,string"`
+	InstrumentID  int     `json:"inst_id"`
+	Last          float64 `json:"last,string"`
+	Low24         float64 `json:"low24,string"`
+	LowestSell    float64 `json:"lowest_sell,string"`
+	PrevTransID   int64   `json:"prev_trans_id"`
+	PriceChange24 float64 `json:"price_change_24"`
+	Reply         string  `json:"reply"`
+	OpenInterest  float64 `json:"open_interest,string"`
+	Timestamp     int64   `json:"timestamp"`
+	TransID       int64   `json:"trans_id"`
+	Volume        float64 `json:"volume,string"`
+	Volume24      float64 `json:"volume24,string"`
+	Volume24Quote float64 `json:"volume24_quote,string"`
+	VolumeQuote   float64 `json:"volume_quote,string"`
 }
 
 // OrderbookBase is a sub-type holding price and quantity

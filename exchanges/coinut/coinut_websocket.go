@@ -136,13 +136,16 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
+
 		currencyPair := wsInstrumentMap.LookupInstrument(ticker.InstID)
 		c.Websocket.DataHandler <- wshandler.TickerData{
 			Exchange:    c.Name,
-			Volume:      ticker.Volume,
+			Volume:      ticker.Volume24,
 			QuoteVolume: ticker.VolumeQuote,
-			High:        ticker.HighestBuy,
-			Low:         ticker.LowestSell,
+			Bid:         ticker.HighestBuy,
+			Ask:         ticker.LowestSell,
+			High:        ticker.High24,
+			Low:         ticker.Low24,
 			Last:        ticker.Last,
 			Timestamp:   time.Unix(0, ticker.Timestamp),
 			AssetType:   asset.Spot,
