@@ -10,10 +10,10 @@ a regular basis.
 
 Each exchange supports public API endpoints which don't require any authentication
 (fetching ticker, orderbook, trade data) and also private API endpoints (which
-require authentication). Some examples include submitting, canceling and fetching
+require authentication). Some examples include submitting, cancelling and fetching
 open orders). To use the authenticated API endpoints, you'll need to set your API
 credentials in either the `config.json` file or when you initialise an exchange in
-your application, and also have the approriate key permissions set for the exchange.
+your application, and also have the appropriate key permissions set for the exchange.
 Each exchange has a credentials validator which ensures that the API credentials
 supplied meet the requirements to make an authenticated request.
 

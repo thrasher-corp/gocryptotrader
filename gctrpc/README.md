@@ -35,7 +35,7 @@ Make sure that your `$GOBIN` is in your `$PATH`.
 
 ## Usage
 
-After the above depenancies are required, make necessary changes to the `rpc.proto`
+After the above dependencies are required, make necessary changes to the `rpc.proto`
 spec file and run the generation scripts:
 
 ### Windows
