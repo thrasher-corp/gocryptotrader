@@ -1,4 +1,4 @@
-# GoCryptoTrader gRPC client
+# GoCryptoTrader File Hierarchy
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -16,21 +16,34 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Background
+## Default data directory
 
-GoCryptoTrader utilises gRPC for client/server interaction. Authentication is done
-by a self signed TLS cert, which only supports connections from localhost and also
-through basic authorisation specified by the users config file.
+By default, GoCryptoTrader uses the following data directores:
 
-## Usage
+Operating System | Path | Translated
+--- | --- | ----
+| Windows | %APPDATA%\GoCryptoTrader | C:\Users\User\AppData\Roaming\GoCryptoTrader
+| Linux | ~./gocryptotrader | /home/user/.gocryptotrader
+| macOS | ~./gocryptotrader | /Users/User/.gocryptotrader
 
-GoCryptoTrader must be running with gRPC enabled in order to use  the client features.
+This can be overridden by running GoCryptoTrader with the `-datadir` command line
+parameter.
 
-```bash
-go build or go run main.go
-```
+## Subdirectories
 
-For a full list of commands, you can run `gctcli --help`. Alternatively, you can also
-visit our [GoCryptoTrader API reference.](https://api.gocryptotrader.app/)
+Depending on the features enabled, you'll see the following directories created
+inside the data directory:
 
-Bash/ZSH autocomplete entries can be found [here](/contrib).
+Directory | Reason
+--- | ---
+| database | Used to store the database file (if using Sqlite3) and sqlboiler config files
+| database/migrations | Used to store database migration files
+| logs | Used to store the debug log file (`log.txt` by default), if logging is enabled
+| tls | Used to store the generated self-signed certificate and key for gRPC authentication
+
+## Files
+
+File | Reason
+--- | ---
+config.json | Config file which GoCryptoTrader loads from (can be overridden by the `-config` command line parameter).
+currency.json | Cached currency list of fiat and cryptocurrency details
