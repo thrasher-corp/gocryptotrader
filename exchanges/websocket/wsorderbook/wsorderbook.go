@@ -120,6 +120,9 @@ func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, base *Web
 			o.Asks = append(o.Asks, base.Asks[j])
 		}
 	}
+	sort.Slice(o.Asks, func(i, j int) bool {
+		return o.Asks[i].Price < o.Asks[j].Price
+	})
 }
 
 func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate) {
@@ -141,6 +144,9 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *Web
 			o.Bids = append(o.Bids, base.Bids[j])
 		}
 	}
+	sort.Slice(o.Bids, func(i, j int) bool {
+		return o.Bids[i].Price > o.Bids[j].Price
+	})
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
