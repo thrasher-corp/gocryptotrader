@@ -247,13 +247,47 @@ func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data interf
 	lowData := tickerData["l"].([]interface{})
 	highData := tickerData["h"].([]interface{})
 	volumeData := tickerData["v"].([]interface{})
-	closePrice, _ := strconv.ParseFloat(closeData[0].(string), 64)
-	openPrice, _ := strconv.ParseFloat(openData[0].(string), 64)
-	highPrice, _ := strconv.ParseFloat(highData[0].(string), 64)
-	lowPrice, _ := strconv.ParseFloat(lowData[0].(string), 64)
-	quantity, _ := strconv.ParseFloat(volumeData[0].(string), 64)
-	ask, _ := strconv.ParseFloat(askData[0].(string), 64)
-	bid, _ := strconv.ParseFloat(bidData[0].(string), 64)
+	closePrice, err := strconv.ParseFloat(closeData[0].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	openPrice, err := strconv.ParseFloat(openData[0].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	highPrice, err := strconv.ParseFloat(highData[0].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	lowPrice, err := strconv.ParseFloat(lowData[0].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	quantity, err := strconv.ParseFloat(volumeData[0].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	ask, err := strconv.ParseFloat(askData[0].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	bid, err := strconv.ParseFloat(bidData[0].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
 
 	k.Websocket.DataHandler <- wshandler.TickerData{
 		Exchange:  k.Name,
@@ -275,7 +309,12 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data interfa
 	spreadData := data.([]interface{})
 	bestBid := spreadData[0].(string)
 	bestAsk := spreadData[1].(string)
-	timeData, _ := strconv.ParseFloat(spreadData[2].(string), 64)
+	timeData, err := strconv.ParseFloat(spreadData[2].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
 	bidVolume := spreadData[3].(string)
 	askVolume := spreadData[4].(string)
 	sec, dec := math.Modf(timeData)
@@ -298,10 +337,20 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data interfa
 	tradeData := data.([]interface{})
 	for i := range tradeData {
 		trade := tradeData[i].([]interface{})
-		timeData, _ := strconv.ParseInt(trade[2].(string), 10, 64)
+		timeData, err := strconv.ParseInt(trade[2].(string), 10, 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
+
 		timeUnix := time.Unix(timeData, 0)
-		price, _ := strconv.ParseFloat(trade[0].(string), 64)
-		amount, _ := strconv.ParseFloat(trade[1].(string), 64)
+		price, err := strconv.ParseFloat(trade[0].(string), 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
+
+		amount, err := strconv.ParseFloat(trade[1].(string), 64)
 
 		k.Websocket.DataHandler <- wshandler.TradeData{
 			AssetType:    asset.Spot,
@@ -346,19 +395,32 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 		Pair:      channelData.Pair,
 		AssetType: asset.Spot,
 	}
-	// Kraken ob data is timestamped per price, GCT orderbook data is timestamped per entry
-	// Using the highest last update time, we can attempt to respect both within a reasonable degree
+	// Kraken ob data is timestamped per price, GCT orderbook data is
+	// timestamped per entry using the highest last update time, we can attempt
+	// to respect both within a reasonable degree
 	var highestLastUpdate time.Time
 	askData := obData["as"].([]interface{})
 	for i := range askData {
 		asks := askData[i].([]interface{})
-		price, _ := strconv.ParseFloat(asks[0].(string), 64)
-		amount, _ := strconv.ParseFloat(asks[1].(string), 64)
+		price, err := strconv.ParseFloat(asks[0].(string), 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
+		amount, err := strconv.ParseFloat(asks[1].(string), 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
 		base.Asks = append(base.Asks, orderbook.Item{
 			Amount: amount,
 			Price:  price,
 		})
-		timeData, _ := strconv.ParseFloat(asks[2].(string), 64)
+		timeData, err := strconv.ParseFloat(asks[2].(string), 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
 		sec, dec := math.Modf(timeData)
 		askUpdatedTime := time.Unix(int64(sec), int64(dec*(1e9)))
 		if highestLastUpdate.Before(askUpdatedTime) {
@@ -368,13 +430,25 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 	bidData := obData["bs"].([]interface{})
 	for i := range bidData {
 		bids := bidData[i].([]interface{})
-		price, _ := strconv.ParseFloat(bids[0].(string), 64)
-		amount, _ := strconv.ParseFloat(bids[1].(string), 64)
+		price, err := strconv.ParseFloat(bids[0].(string), 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
+		amount, err := strconv.ParseFloat(bids[1].(string), 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
 		base.Bids = append(base.Bids, orderbook.Item{
 			Amount: amount,
 			Price:  price,
 		})
-		timeData, _ := strconv.ParseFloat(bids[2].(string), 64)
+		timeData, err := strconv.ParseFloat(bids[2].(string), 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
 		sec, dec := math.Modf(timeData)
 		bidUpdateTime := time.Unix(int64(sec), int64(dec*(1e9)))
 		if highestLastUpdate.Before(bidUpdateTime) {
@@ -382,6 +456,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, ob
 		}
 	}
 	base.LastUpdated = highestLastUpdate
+	base.ExchangeName = k.Name
 	err := k.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
 		k.Websocket.DataHandler <- err
@@ -400,19 +475,32 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obD
 		AssetType:    asset.Spot,
 		CurrencyPair: channelData.Pair,
 	}
+
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
 	if _, ok := obData["a"]; ok {
 		askData := obData["a"].([]interface{})
 		for i := range askData {
 			asks := askData[i].([]interface{})
-			price, _ := strconv.ParseFloat(asks[0].(string), 64)
-			amount, _ := strconv.ParseFloat(asks[1].(string), 64)
+			price, err := strconv.ParseFloat(asks[0].(string), 64)
+			if err != nil {
+				return err
+			}
+
+			amount, err := strconv.ParseFloat(asks[1].(string), 64)
+			if err != nil {
+				return err
+			}
+
 			update.Asks = append(update.Asks, orderbook.Item{
 				Amount: amount,
 				Price:  price,
 			})
-			timeData, _ := strconv.ParseFloat(asks[2].(string), 64)
+			timeData, err := strconv.ParseFloat(asks[2].(string), 64)
+			if err != nil {
+				return err
+			}
+
 			sec, dec := math.Modf(timeData)
 			askUpdatedTime := time.Unix(int64(sec), int64(dec*(1e9)))
 			if highestLastUpdate.Before(askUpdatedTime) {
@@ -420,18 +508,31 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obD
 			}
 		}
 	}
+
 	// Bid data is not always sent
 	if _, ok := obData["b"]; ok {
 		bidData := obData["b"].([]interface{})
 		for i := range bidData {
 			bids := bidData[i].([]interface{})
-			price, _ := strconv.ParseFloat(bids[0].(string), 64)
-			amount, _ := strconv.ParseFloat(bids[1].(string), 64)
+			price, err := strconv.ParseFloat(bids[0].(string), 64)
+			if err != nil {
+				return err
+			}
+
+			amount, err := strconv.ParseFloat(bids[1].(string), 64)
+			if err != nil {
+				return err
+			}
+
 			update.Bids = append(update.Bids, orderbook.Item{
 				Amount: amount,
 				Price:  price,
 			})
-			timeData, _ := strconv.ParseFloat(bids[2].(string), 64)
+			timeData, err := strconv.ParseFloat(bids[2].(string), 64)
+			if err != nil {
+				return err
+			}
+
 			sec, dec := math.Modf(timeData)
 			bidUpdatedTime := time.Unix(int64(sec), int64(dec*(1e9)))
 			if highestLastUpdate.Before(bidUpdatedTime) {
@@ -456,15 +557,49 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obD
 // wsProcessCandles converts candle data and sends it to the data handler
 func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interface{}) {
 	candleData := data.([]interface{})
-	startTimeData, _ := strconv.ParseInt(candleData[0].(string), 10, 64)
+	startTimeData, err := strconv.ParseInt(candleData[0].(string), 10, 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
 	startTimeUnix := time.Unix(startTimeData, 0)
-	endTimeData, _ := strconv.ParseInt(candleData[1].(string), 10, 64)
+	endTimeData, err := strconv.ParseInt(candleData[1].(string), 10, 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
 	endTimeUnix := time.Unix(endTimeData, 0)
-	openPrice, _ := strconv.ParseFloat(candleData[2].(string), 64)
-	highPrice, _ := strconv.ParseFloat(candleData[3].(string), 64)
-	lowPrice, _ := strconv.ParseFloat(candleData[4].(string), 64)
-	closePrice, _ := strconv.ParseFloat(candleData[5].(string), 64)
-	volume, _ := strconv.ParseFloat(candleData[7].(string), 64)
+	openPrice, err := strconv.ParseFloat(candleData[2].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	highPrice, err := strconv.ParseFloat(candleData[3].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	lowPrice, err := strconv.ParseFloat(candleData[4].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	closePrice, err := strconv.ParseFloat(candleData[5].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
+
+	volume, err := strconv.ParseFloat(candleData[7].(string), 64)
+	if err != nil {
+		k.Websocket.DataHandler <- err
+		return
+	}
 
 	k.Websocket.DataHandler <- wshandler.KlineData{
 		AssetType: asset.Spot,
@@ -501,11 +636,17 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (k *Kraken) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	var depth int64
+	if channelToSubscribe.Channel == "book" {
+		depth = 1000
+	}
+
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsSubscribe,
 		Pairs: []string{channelToSubscribe.Currency.String()},
 		Subscription: WebsocketSubscriptionData{
-			Name: channelToSubscribe.Channel,
+			Name:  channelToSubscribe.Channel,
+			Depth: depth,
 		},
 		RequestID: k.WebsocketConn.GenerateMessageID(false),
 	}
