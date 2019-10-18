@@ -54,19 +54,26 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 
 ## Current Features
 
-+ Support for all Exchange fiat and digital currencies, with the ability to individually toggle them on/off.
++ Support for all exchange fiat and digital currencies, with the ability to individually toggle them on/off.
 + AES256 encrypted config file.
 + REST API support for all exchanges.
 + Websocket support for applicable exchanges.
 + Ability to turn off/on certain exchanges.
-+ Ability to adjust manual polling timer for exchanges.
 + Communication packages (Slack, SMS via SMSGlobal, Telegram and SMTP)
 + HTTP rate limiter package.
++ Unified API for exchange usage.
++ Customisation of HTTP client features including setting a proxy, user agent and adjusting transport settings.
++ NTP client package.
++ Database support (Postgres and SQLite3). See [database](/database/README.md).
++ OTP generation tool. See[gen otp](/cmd/gen_otp).
++ Connection monitor package.
++ gRPC service and JSON RPC proxy. See [gRPC server](/gctrpc/README.md).
++ gRPC client. See [gctcli](/cmd/gctcli/README.md).
 + Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates)
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
-+ WebGUI.
++ WebGUI (discontinued).
 
 ## Planned Features
 
