@@ -1,30 +1,16 @@
 package vm
 
 import (
-	"context"
 	"errors"
-	"sync"
-	"time"
-
-	"github.com/d5/tengo/script"
 )
 
 const gctScript = "GCT Script"
 
-// VM pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
-type VM struct {
-	name  string
-	timer time.Time
-
-	Script   *script.Script
-	Compiled *script.Compiled
-	ctx      context.Context
-}
-
 // Config user configurable options for gctscript
 type Config struct {
-	Enabled      bool `json:"enabled"`
-	AllowImports bool `json:"allow_imports"`
+	Enabled      bool     `json:"enabled"`
+	AllowImports bool     `json:"allow_imports"`
+	AutoStart    []string `json:"auto_start"`
 }
 
 // Error error interface for VM
@@ -47,21 +33,3 @@ var (
 	// ErrNoVMLoaded error message displayed if a virtual machine has not been initialised
 	ErrNoVMLoaded = errors.New("no virtual machine loaded")
 )
-
-var (
-	// VMPool stuff
-	VMPool = &sync.Pool{
-		New: func() interface{} {
-			return new(script.Script)
-		},
-	}
-)
-
-var VMList []*VM
-
-var scheduledItem []vmtask
-
-type vmtask struct {
-	name    string
-	nextRun time.Time
-}

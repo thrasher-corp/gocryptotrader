@@ -140,6 +140,7 @@ func init() {
 	CommunicationMgr = registerNewSubLogger("comms")
 	ConfigMgr = registerNewSubLogger("config")
 	DatabaseMgr = registerNewSubLogger("database")
+	GCTScriptMgr = registerNewSubLogger("gctscript")
 	OrderMgr = registerNewSubLogger("order")
 	PortfolioMgr = registerNewSubLogger("portfolio")
 	SyncMgr = registerNewSubLogger("sync")

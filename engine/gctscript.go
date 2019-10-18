@@ -3,7 +3,6 @@ package engine
 import (
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 
@@ -49,33 +48,32 @@ func (g *gctScriptManager) Stop() error {
 }
 
 func (g *gctScriptManager) run() {
-	log.Debugf(log.Global, "%s %s", name, MsgSubSystemStarted)
+	log.Debugf(log.GCTScriptMgr, "%s %s", name, MsgSubSystemStarted)
 
 	Bot.ServicesWG.Add(1)
 	g.running.Store(true)
-	t := time.NewTicker(time.Nanosecond)
+	//t := time.NewTicker(time.Microsecond)
 
 	defer func() {
 		g.running.Store(false)
 		Bot.ServicesWG.Done()
-		t.Stop()
-		log.Debugf(log.Global, "%s %s", name, MsgSubSystemShutdown)
+		//t.Stop()
+		log.Debugf(log.GCTScriptMgr, "%s %s", name, MsgSubSystemShutdown)
 	}()
 
 	for {
 		select {
 		case <-g.shutdown:
 			return
-		case <-t.C:
-			g.scheduler()
+
 		}
 	}
 }
 
 func (g *gctScriptManager) scheduler() {
-	err := vm.RunVMTasks()
-	if err != nil {
-		fmt.Println(err)
-	}
+	//err := vm.RunVMTasks()
+	//if err != nil {
+	//	log.Errorln(log.GCTScriptMgr, err)
+	//}
 	return
 }

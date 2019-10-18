@@ -2,9 +2,8 @@ fmt := import("fmt")
 exch := import("exchange")
 
 load := func() {
-   ob := exch.orderbook("BTSE", "BTC-USD", "-", "SPOT")
-   fmt.println(ob)
-
+   pairs := exch.pairs("btse", false, "SPOT")
+   fmt.print(pairs)
 }
 
 load()

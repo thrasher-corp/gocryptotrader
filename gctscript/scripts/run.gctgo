@@ -1,11 +1,14 @@
-times := import("times")
+fmt := import("fmt")
+exch := import("exchange")
 
 name := "run"
-
-timer := "hello"
+timer := "5s"
 
 load := func() {
-
+    tx := exch.ticker("BTSE", "BTC-USD", "-", "SPOT")
+    fmt.printf("TICKER DATA: %v\n", tx)
+    cb := exch.ticker("CoinbasePro", "BTC-USD", "-", "SPOT")
+    fmt.printf("TICKER DATA: %v\n", cb)
 }
 
 load()

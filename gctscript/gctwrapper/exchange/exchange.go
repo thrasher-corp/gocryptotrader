@@ -3,6 +3,8 @@ package exchange
 import (
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
+
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -40,7 +42,7 @@ func (e Exchange) IsEnabled(exch string) (rtn bool) {
 	return ex.IsEnabled()
 }
 
-func (e *Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
+func (e Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
@@ -54,7 +56,7 @@ func (e *Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (
 }
 
 // Ticker returns ticker for provided currency pair & asset type
-func (e *Exchange) Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+func (e Exchange) Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
@@ -66,4 +68,42 @@ func (e *Exchange) Ticker(exch string, pair currency.Pair, item asset.Item) (*ti
 	}
 
 	return &tx, nil
+}
+
+func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error) {
+	x, err := engine.Bot.Config.GetExchangeConfig(exch)
+	if err != nil {
+		return nil, err
+	}
+
+	if enabledOnly {
+		return x.CurrencyPairs.Get(item).Enabled, nil
+	}
+	return x.CurrencyPairs.Get(item).Available, nil
+}
+
+func (e Exchange) QueryOrder() error {
+
+	return nil
+}
+
+func (e Exchange) SubmitOrder() error {
+	return nil
+}
+
+func (e Exchange) CancelOrder() error {
+	return nil
+}
+
+func (e Exchange) AccountInformation(exch string) (modules.AccountInfo, error) {
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return modules.AccountInfo{}, err
+	}
+
+	r, _ := ex.GetAccountInfo()
+
+	fmt.Println(r)
+
+	return modules.AccountInfo{}, nil
 }

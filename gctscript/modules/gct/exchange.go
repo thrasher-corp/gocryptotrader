@@ -1,6 +1,8 @@
 package gct
 
 import (
+	"strings"
+
 	"github.com/d5/tengo/objects"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -11,6 +13,7 @@ var exchangeModule = map[string]objects.Object{
 	"orderbook": &objects.UserFunction{Name: "orderbook", Value: exchangeOrderbook},
 	"ticker":    &objects.UserFunction{Name: "ticker", Value: exchangeTicker},
 	"exchanges": &objects.UserFunction{Name: "exchanges", Value: exchangeExchanges},
+	"pairs":     &objects.UserFunction{Name: "pairs", Value: exchangePairs},
 }
 
 func exchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
@@ -116,6 +119,30 @@ func exchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
 	r := objects.Array{}
 	for x := range rtnValue {
 		r.Value = append(r.Value, &objects.String{Value: rtnValue[x]})
+	}
+
+	return &r, nil
+}
+
+func exchangePairs(args ...objects.Object) (ret objects.Object, err error) {
+	if len(args) != 3 {
+		err = objects.ErrWrongNumArguments
+		return
+	}
+
+	exchangeName, _ := objects.ToString(args[0])
+	enabledOnly, _ := objects.ToBool(args[1])
+	assetTypeParam, _ := objects.ToString(args[2])
+	assetType := asset.Item(strings.ToLower(assetTypeParam))
+
+	rtnValue, err := modules.Wrapper.Pairs(exchangeName, enabledOnly, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	r := objects.Array{}
+	for x := range rtnValue {
+		r.Value = append(r.Value, &objects.String{Value: rtnValue[x].String()})
 	}
 
 	return &r, nil

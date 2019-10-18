@@ -1,0 +1,11 @@
+fmt := import("fmt")
+t := import("times")
+
+name := "run"
+timer := "30s"
+
+load := func() {
+    fmt.printf("30s %s\n",t.now())
+}
+
+load()
