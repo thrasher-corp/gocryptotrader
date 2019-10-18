@@ -236,12 +236,16 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	}
 
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids = append(newOrderBook.Bids,
-			orderbook.Item{Amount: orderbookNew.Bids[i].Quantity, Price: orderbookNew.Bids[i].Price})
+		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[i].Quantity,
+			Price:  orderbookNew.Bids[i].Price,
+		})
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks = append(newOrderBook.Asks,
-			orderbook.Item{Amount: orderbookNew.Asks[i].Quantity, Price: orderbookNew.Asks[i].Price})
+		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[i].Quantity,
+			Price:  orderbookNew.Asks[i].Price,
+		})
 	}
 
 	newOrderBook.LastUpdated = time.Unix(orderbookNew.LastUpdateID, 0)
@@ -256,29 +260,29 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 	var updateBid, updateAsk []orderbook.Item
 	for i := range wsdp.UpdateBids {
-		var priceToBeUpdated orderbook.Item
-		for i, bids := range wsdp.UpdateBids[i].([]interface{}) {
-			switch i {
-			case 0:
-				priceToBeUpdated.Price, _ = strconv.ParseFloat(bids.(string), 64)
-			case 1:
-				priceToBeUpdated.Amount, _ = strconv.ParseFloat(bids.(string), 64)
+		var floaties []float64
+		for _, bids := range wsdp.UpdateBids[i].([]interface{}) {
+			val, err := strconv.ParseFloat(bids.(string), 64)
+			if err != nil {
+				return err
 			}
+			floaties = append(floaties, val)
 		}
-		updateBid = append(updateBid, priceToBeUpdated)
+		updateBid = append(updateBid, orderbook.Item{Price: floaties[0],
+			Amount: floaties[1]})
 	}
 
 	for i := range wsdp.UpdateAsks {
-		var priceToBeUpdated orderbook.Item
-		for i, asks := range wsdp.UpdateAsks[i].([]interface{}) {
-			switch i {
-			case 0:
-				priceToBeUpdated.Price, _ = strconv.ParseFloat(asks.(string), 64)
-			case 1:
-				priceToBeUpdated.Amount, _ = strconv.ParseFloat(asks.(string), 64)
+		var floaties []float64
+		for _, asks := range wsdp.UpdateAsks[i].([]interface{}) {
+			val, err := strconv.ParseFloat(asks.(string), 64)
+			if err != nil {
+				return err
 			}
+			floaties = append(floaties, val)
 		}
-		updateAsk = append(updateAsk, priceToBeUpdated)
+		updateAsk = append(updateAsk, orderbook.Item{Price: floaties[0],
+			Amount: floaties[1]})
 	}
 	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair, b.GetEnabledPairs(asset.Spot),
 		b.GetPairFormat(asset.Spot, true))

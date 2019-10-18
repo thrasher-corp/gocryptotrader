@@ -117,6 +117,9 @@ func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, base *Web
 			}
 		}
 		if !found {
+			if base.Asks[j].Amount == 0 {
+				continue
+			}
 			o.Asks = append(o.Asks, base.Asks[j])
 		}
 	}
@@ -141,6 +144,9 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *Web
 			}
 		}
 		if !found {
+			if base.Bids[j].Amount == 0 {
+				continue
+			}
 			o.Bids = append(o.Bids, base.Bids[j])
 		}
 	}
