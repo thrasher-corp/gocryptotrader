@@ -60,7 +60,7 @@ func TestRoleMarshalJSON(t *testing.T) {
 	}
 }
 
-//func TestRole
+// TestRoleUnmarshalJSON logic test
 func TestRoleUnmarshalJSON(t *testing.T) {
 	type AllTheRoles struct {
 		RoleOne     Role `json:"RoleOne"`

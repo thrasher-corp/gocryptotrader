@@ -1022,32 +1022,32 @@ func (c *Config) CheckCurrencyConfigValues() error {
 
 	count := 0
 	for i := range c.Currency.ForexProviders {
-		if c.Currency.ForexProviders[i].Name == "CurrencyConverter" &&
-			c.Currency.ForexProviders[i].Enabled &&
-			c.Currency.ForexProviders[i].PrimaryProvider &&
-			(c.Currency.ForexProviders[i].APIKey == "" ||
-				c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-			log.Warnln(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
-			c.Currency.ForexProviders[i].Enabled = false
-			c.Currency.ForexProviders[i].PrimaryProvider = false
-			c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
-			c.Currency.ForexProviders[i].APIKeyLvl = -1
-			continue
-		}
-		if c.Currency.ForexProviders[i].Enabled &&
-			c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey &&
-			c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-			log.Warnf(log.Global, "%s enabled forex provider API key not set. Please set this in your config.json file\n", c.Currency.ForexProviders[i].Name)
-			c.Currency.ForexProviders[i].Enabled = false
-			c.Currency.ForexProviders[i].PrimaryProvider = false
-			continue
-		}
+		if c.Currency.ForexProviders[i].Enabled {
+			if c.Currency.ForexProviders[i].Name == "CurrencyConverter" &&
+				c.Currency.ForexProviders[i].PrimaryProvider &&
+				(c.Currency.ForexProviders[i].APIKey == "" ||
+					c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
+				log.Warnln(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
+				c.Currency.ForexProviders[i].Enabled = false
+				c.Currency.ForexProviders[i].PrimaryProvider = false
+				c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
+				c.Currency.ForexProviders[i].APIKeyLvl = -1
+				continue
+			}
+			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey &&
+				c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
+				log.Warnf(log.Global, "%s enabled forex provider API key not set. Please set this in your config.json file\n", c.Currency.ForexProviders[i].Name)
+				c.Currency.ForexProviders[i].Enabled = false
+				c.Currency.ForexProviders[i].PrimaryProvider = false
+				continue
+			}
 
-		if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-			log.Warnf(log.Global, "%s APIKey Level not set, functions limited. Please set this in your config.json file\n",
-				c.Currency.ForexProviders[i].Name)
+			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
+				log.Warnf(log.Global, "%s APIKey Level not set, functions limited. Please set this in your config.json file\n",
+					c.Currency.ForexProviders[i].Name)
+			}
+			count++
 		}
-		count++
 	}
 
 	if count == 0 {

@@ -88,11 +88,6 @@ func (c Currencies) Match(other Currencies) bool {
 	return true
 }
 
-// Slice exposes the underlying type
-func (c Currencies) Slice() []Code {
-	return c
-}
-
 // HasData checks to see if Currencies type has actual currencies
 func (c Currencies) HasData() bool {
 	return len(c) != 0

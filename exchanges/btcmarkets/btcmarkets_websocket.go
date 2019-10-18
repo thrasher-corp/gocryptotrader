@@ -82,7 +82,15 @@ func (b *BTCMarkets) WsHandleData() {
 				for x := range ob.Bids {
 					var price, amount float64
 					price, err = strconv.ParseFloat(ob.Bids[x][0], 64)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
 					amount, err = strconv.ParseFloat(ob.Bids[x][1], 64)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
 					bids = append(bids, orderbook.Item{
 						Amount: amount,
 						Price:  price,
@@ -91,8 +99,16 @@ func (b *BTCMarkets) WsHandleData() {
 				for x := range ob.Asks {
 					var price, amount float64
 					price, err = strconv.ParseFloat(ob.Asks[x][0], 64)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
 					amount, err = strconv.ParseFloat(ob.Asks[x][1], 64)
-					asks = append(bids, orderbook.Item{
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					asks = append(asks, orderbook.Item{
 						Amount: amount,
 						Price:  price,
 					})
@@ -183,8 +199,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	var req WsSubscribe
-	req = WsSubscribe{
+	req := WsSubscribe{
 		MarketIDs:   []string{channelToSubscribe.Currency.String()},
 		Channels:    []string{channelToSubscribe.Channel},
 		MessageType: "subscribe",

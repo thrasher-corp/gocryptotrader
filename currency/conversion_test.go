@@ -214,23 +214,33 @@ func TestGetRate(t *testing.T) {
 	}
 
 	var convs ConversionRates
+	var convRate float64
 	_, err = convs.GetRate(BTC, USDT)
 	if err == nil {
 		t.Errorf("Expected %s", fmt.Errorf("rate not found for from %s to %s conversion",
 			BTC,
 			USD))
 	}
-	convRate, err := convs.GetRate(USDT, USD)
+	convRate, err = convs.GetRate(USDT, USD)
+	if err != nil {
+		t.Error(err)
+	}
 	if convRate != 1 {
 		t.Errorf("Expected rate to be 1")
 	}
 
 	convRate, err = convs.GetRate(RUR, RUB)
+	if err != nil {
+		t.Error(err)
+	}
 	if convRate != 1 {
 		t.Errorf("Expected rate to be 1")
 	}
 
 	convRate, err = convs.GetRate(RUB, RUR)
+	if err != nil {
+		t.Error(err)
+	}
 	if convRate != 1 {
 		t.Errorf("Expected rate to be 1")
 	}
