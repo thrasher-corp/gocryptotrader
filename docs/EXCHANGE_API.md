@@ -4,7 +4,7 @@ GoCryptoTrader supports a unified API for dealing with exchanges. Each exchange
 has its own wrapper file which maps the exchanges own RESTful endpoints into a
 standardised way which allows an easy way for the bot and developers to work with.
 
-A full breakdown of all the supported wrapper funcs can be found [here](https://github.com/thrasher-corp/gocryptotrader/blob/engine/exchanges/interfaces.go#L16)
+A full breakdown of all the supported wrapper funcs can be found [here.](https://github.com/thrasher-corp/gocryptotrader/blob/engine/exchanges/interfaces.go#L16)
 Please note that these change on a regular basis as more features get added on
 a regular basis.
 

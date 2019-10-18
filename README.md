@@ -64,7 +64,7 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 + Customisation of HTTP client features including setting a proxy, user agent and adjusting transport settings.
 + NTP client package.
 + Database support (Postgres and SQLite3). See [database](/database/README.md).
-+ OTP generation tool. See[gen otp](/cmd/gen_otp).
++ OTP generation tool. See [gen otp](/cmd/gen_otp).
 + Connection monitor package.
 + gRPC service and JSON RPC proxy. See [gRPC server](/gctrpc/README.md).
 + gRPC client. See [gctcli](/cmd/gctcli/README.md).
