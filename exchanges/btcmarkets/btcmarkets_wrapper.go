@@ -48,7 +48,7 @@ func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
 func (b *BTCMarkets) SetDefaults() {
 	b.Name = "BTC Markets"
 	b.Enabled = true
-	b.Verbose = true
+	b.Verbose = false
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
@@ -303,15 +303,6 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
 			Amount: tempResp.Asks[y].Volume,
 			Price:  tempResp.Asks[y].Price})
-<<<<<<< HEAD
-		orderBook.Pair = p
-		orderBook.ExchangeName = b.Name
-		orderBook.AssetType = assetType
-		err = orderBook.Process()
-		if err != nil {
-			return orderBook, err
-		}
-=======
 	}
 	orderBook.Pair = p
 	orderBook.ExchangeName = b.Name
@@ -319,7 +310,6 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
->>>>>>> PR Changes
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }

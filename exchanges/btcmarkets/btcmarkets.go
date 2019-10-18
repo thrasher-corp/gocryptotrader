@@ -549,7 +549,7 @@ func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
 		path,
 		nil,
 		nil,
-		result,
+		&result,
 		false,
 		false,
 		b.Verbose,
