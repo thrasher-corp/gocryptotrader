@@ -337,13 +337,15 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data interfa
 	tradeData := data.([]interface{})
 	for i := range tradeData {
 		trade := tradeData[i].([]interface{})
-		timeData, err := strconv.ParseInt(trade[2].(string), 10, 64)
+
+		timeData, err := strconv.ParseFloat(trade[2].(string), 64)
 		if err != nil {
 			k.Websocket.DataHandler <- err
 			return
 		}
+		sec, dec := math.Modf(timeData)
+		timeUnix := time.Unix(int64(sec), int64(dec*(1e9)))
 
-		timeUnix := time.Unix(timeData, 0)
 		price, err := strconv.ParseFloat(trade[0].(string), 64)
 		if err != nil {
 			k.Websocket.DataHandler <- err
@@ -557,20 +559,23 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, obD
 // wsProcessCandles converts candle data and sends it to the data handler
 func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data interface{}) {
 	candleData := data.([]interface{})
-	startTimeData, err := strconv.ParseInt(candleData[0].(string), 10, 64)
+
+	startTime, err := strconv.ParseFloat(candleData[0].(string), 64)
 	if err != nil {
 		k.Websocket.DataHandler <- err
 		return
 	}
+	sec, dec := math.Modf(startTime)
+	startTimeUnix := time.Unix(int64(sec), int64(dec*(1e9)))
 
-	startTimeUnix := time.Unix(startTimeData, 0)
-	endTimeData, err := strconv.ParseInt(candleData[1].(string), 10, 64)
+	endTime, err := strconv.ParseFloat(candleData[1].(string), 64)
 	if err != nil {
 		k.Websocket.DataHandler <- err
 		return
 	}
+	sec, dec = math.Modf(endTime)
+	endTimeUnix := time.Unix(int64(sec), int64(dec*(1e9)))
 
-	endTimeUnix := time.Unix(endTimeData, 0)
 	openPrice, err := strconv.ParseFloat(candleData[2].(string), 64)
 	if err != nil {
 		k.Websocket.DataHandler <- err
