@@ -206,8 +206,16 @@ func (b *Bitmex) wsHandleIncomingData() {
 					}
 
 					p := currency.NewPairFromString(orderbooks.Data[0].Symbol)
-					// TODO: update this to support multiple asset types
-					err = b.processOrderbook(orderbooks.Data, orderbooks.Action, p, "CONTRACT")
+					asset, err := b.GetPairAssetType(p)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+
+					err = b.processOrderbook(orderbooks.Data,
+						orderbooks.Action,
+						p,
+						asset)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -345,12 +353,14 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 				asks = append(asks, orderbook.Item{
 					Price:  data[i].Price,
 					Amount: float64(data[i].Size),
+					ID:     data[i].ID,
 				})
 				continue
 			}
 			bids = append(bids, orderbook.Item{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
+				ID:     data[i].ID,
 			})
 		}
 
@@ -379,14 +389,14 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		for i := range data {
 			if strings.EqualFold(data[i].Side, "Sell") {
 				asks = append(asks, orderbook.Item{
-					Price:  data[i].Price,
 					Amount: float64(data[i].Size),
+					ID:     data[i].ID,
 				})
 				continue
 			}
 			bids = append(bids, orderbook.Item{
-				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
+				ID:     data[i].ID,
 			})
 		}
 
@@ -394,7 +404,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			Bids:         bids,
 			Asks:         asks,
 			CurrencyPair: currencyPair,
-			UpdateTime:   time.Now(),
 			AssetType:    assetType,
 			Action:       action,
 		})
@@ -413,7 +422,16 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateDefaultSubscriptions() {
-	contracts := b.GetEnabledPairs(asset.PerpetualContract)
+	assets := b.GetAssetTypes()
+	var allPairs currency.Pairs
+
+	for x := range assets {
+		contracts := b.GetEnabledPairs(assets[x])
+		for y := range contracts {
+			allPairs = allPairs.Add(contracts[y])
+		}
+	}
+
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
 	subscriptions := []wshandler.WebsocketChannelSubscription{
 		{
@@ -422,10 +440,10 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 	}
 
 	for i := range channels {
-		for j := range contracts {
+		for j := range allPairs {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
-				Currency: contracts[j],
+				Channel:  fmt.Sprintf("%v:%v", channels[i], allPairs[j].String()),
+				Currency: allPairs[j],
 			})
 		}
 	}

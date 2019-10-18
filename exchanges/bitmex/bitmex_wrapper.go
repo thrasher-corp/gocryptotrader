@@ -188,7 +188,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 
 	b.Websocket.Orderbook.Setup(
 		exch.WebsocketOrderbookBufferLimit,
-		true,
+		false,
 		false,
 		false,
 		true,

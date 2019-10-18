@@ -108,8 +108,7 @@ func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, base *Web
 			if o.Asks[k].Price == base.Asks[j].Price {
 				found = true
 				if base.Asks[j].Amount == 0 {
-					o.Asks = append(o.Asks[:k],
-						o.Asks[k+1:]...)
+					o.Asks = append(o.Asks[:k], o.Asks[k+1:]...)
 					break
 				}
 				o.Asks[k].Amount = base.Asks[j].Amount
@@ -135,8 +134,7 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *Web
 			if o.Bids[k].Price == base.Bids[j].Price {
 				found = true
 				if base.Bids[j].Amount == 0 {
-					o.Bids = append(o.Bids[:k],
-						o.Bids[k+1:]...)
+					o.Bids = append(o.Bids[:k], o.Bids[k+1:]...)
 					break
 				}
 				o.Bids[k].Amount = base.Bids[j].Amount
@@ -160,46 +158,51 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *Web
 func (w *WebsocketOrderbookLocal) updateByIDAndAction(o *orderbook.Base, orderbookUpdate *WebsocketOrderbookUpdate) {
 	switch orderbookUpdate.Action {
 	case "update":
-		for _, target := range orderbookUpdate.Bids {
-			for i := range o.Bids {
-				if o.Bids[i].ID == target.ID {
-					o.Bids[i].Amount = target.Amount
+		for x := range orderbookUpdate.Bids {
+			for y := range o.Bids {
+				if o.Bids[y].ID == orderbookUpdate.Bids[x].ID {
+					o.Bids[y].Amount = orderbookUpdate.Bids[x].Amount
 					break
 				}
 			}
 		}
-		for _, target := range orderbookUpdate.Asks {
-			for i := range o.Asks {
-				if o.Asks[i].ID == target.ID {
-					o.Asks[i].Amount = target.Amount
+		for x := range orderbookUpdate.Asks {
+			for y := range o.Asks {
+				if o.Asks[y].ID == orderbookUpdate.Asks[x].ID {
+					o.Asks[y].Amount = orderbookUpdate.Asks[x].Amount
 					break
 				}
 			}
 		}
 	case "delete":
-		for _, target := range orderbookUpdate.Bids {
-			for i := 0; i < len(o.Bids); i++ {
-				if o.Bids[i].ID == target.ID {
-					o.Bids = append(o.Bids[:i],
-						o.Bids[i+1:]...)
-					i--
+		for x := range orderbookUpdate.Bids {
+			for y := 0; y < len(o.Bids); {
+				if o.Bids[y].ID == orderbookUpdate.Bids[x].ID {
+					o.Bids = append(o.Bids[:y], o.Bids[y+1:]...)
 					break
 				}
+				y++
 			}
 		}
-		for _, target := range orderbookUpdate.Asks {
-			for i := 0; i < len(o.Asks); i++ {
-				if o.Asks[i].ID == target.ID {
-					o.Asks = append(o.Asks[:i],
-						o.Asks[i+1:]...)
-					i--
+		for x := range orderbookUpdate.Asks {
+			for y := 0; y < len(o.Asks); {
+				if o.Asks[y].ID == orderbookUpdate.Asks[x].ID {
+					o.Asks = append(o.Asks[:y], o.Asks[y+1:]...)
 					break
 				}
+				y++
 			}
 		}
 	case "insert":
 		o.Bids = append(o.Bids, orderbookUpdate.Bids...)
+		sort.Slice(o.Bids, func(i, j int) bool {
+			return o.Bids[i].Price > o.Bids[j].Price
+		})
+
 		o.Asks = append(o.Asks, orderbookUpdate.Asks...)
+		sort.Slice(o.Asks, func(i, j int) bool {
+			return o.Asks[i].Price < o.Asks[j].Price
+		})
 	}
 }
 
