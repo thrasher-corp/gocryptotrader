@@ -547,7 +547,7 @@ func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawReque
 	req["walletselected"] = walletType
 	req["amount"] = strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
 	req["account_name"] = withdrawRequest.BankAccountName
-	req["account_number"] = strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64)
+	req["account_number"] = withdrawRequest.BankAccountNumber
 	req["bank_name"] = withdrawRequest.BankName
 	req["bank_address"] = withdrawRequest.BankAddress
 	req["bank_city"] = withdrawRequest.BankCity

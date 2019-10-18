@@ -37,12 +37,14 @@ var (
 
 // Submit contains the order submission data
 type Submit struct {
-	Pair      currency.Pair
-	OrderType Type
-	OrderSide Side
-	Price     float64
-	Amount    float64
-	ClientID  string
+	Pair         currency.Pair
+	OrderType    Type
+	OrderSide    Side
+	TriggerPrice float64
+	TargetAmount float64
+	Price        float64
+	Amount       float64
+	ClientID     string
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
