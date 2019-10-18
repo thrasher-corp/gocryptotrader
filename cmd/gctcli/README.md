@@ -24,7 +24,7 @@ through basic authorisation specified by the users config file.
 
 ## Usage
 
-GoCryptoTrader must be running with gRPC enabled in order to use  the client features.
+GoCryptoTrader must be running with gRPC enabled in order to use the client features.
 
 ```bash
 go build or go run main.go
@@ -32,5 +32,7 @@ go build or go run main.go
 
 For a full list of commands, you can run `gctcli --help`. Alternatively, you can also
 visit our [GoCryptoTrader API reference.](https://api.gocryptotrader.app/)
+
+## Autocomplete
 
 Bash/ZSH autocomplete entries can be found [here](/contrib).

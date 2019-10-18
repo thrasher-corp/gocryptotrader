@@ -36,7 +36,7 @@ inside the data directory:
 
 Directory | Reason
 --- | ---
-| database | Used to store the database file (if using Sqlite3) and sqlboiler config files
+| database | Used to store the database file (if using SQLite3) and sqlboiler config files
 | database/migrations | Used to store database migration files
 | logs | Used to store the debug log file (`log.txt` by default), if logging is enabled
 | tls | Used to store the generated self-signed certificate and key for gRPC authentication
@@ -45,5 +45,5 @@ Directory | Reason
 
 File | Reason
 --- | ---
-config.json | Config file which GoCryptoTrader loads from (can be overridden by the `-config` command line parameter).
-currency.json | Cached currency list of fiat and cryptocurrency details
+config.json or config.dat (encrypted config) | Config file which GoCryptoTrader loads from (can be overridden by the `-config` command line parameter).
+currency.json | Cached list of fiat and digital currencies
