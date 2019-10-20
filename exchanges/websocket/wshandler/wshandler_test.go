@@ -87,6 +87,42 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.DataHandler = make(chan interface{})
 	ws.ShutdownC = make(chan struct{})
 	ws.connector = func() error { return nil }
+	ws.features = &protocol.Features{
+		TickerBatching:         false,
+		AutoPairUpdates:        false,
+		AccountBalance:         false,
+		CryptoDeposit:          false,
+		CryptoWithdrawal:       false,
+		FiatWithdraw:           false,
+		GetOrder:               false,
+		GetOrders:              false,
+		CancelOrders:           false,
+		CancelOrder:            false,
+		SubmitOrder:            false,
+		SubmitOrders:           false,
+		ModifyOrder:            false,
+		DepositHistory:         false,
+		WithdrawalHistory:      false,
+		TradeHistory:           false,
+		UserTradeHistory:       false,
+		TradeFee:               false,
+		FiatDepositFee:         false,
+		FiatWithdrawalFee:      false,
+		CryptoDepositFee:       false,
+		CryptoWithdrawalFee:    false,
+		TickerFetching:         false,
+		KlineFetching:          false,
+		TradeFetching:          false,
+		OrderbookFetching:      false,
+		AccountInfo:            false,
+		FiatDeposit:            false,
+		DeadMansSwitch:         false,
+		Subscribe:              false,
+		Unsubscribe:            false,
+		AuthenticatedEndpoints: false,
+		MessageCorrelation:     false,
+		MessageSequenceNumbers: false,
+	}
 	go ws.connectionMonitor()
 	timer := time.NewTimer(900 * time.Millisecond)
 	ws.ReadMessageErrors <- errors.New("errorText")
@@ -142,6 +178,7 @@ func TestWebsocket(t *testing.T) {
 			Connector:                        func() error { return nil },
 			Subscriber:                       func(test WebsocketChannelSubscription) error { return nil },
 			UnSubscriber:                     func(test WebsocketChannelSubscription) error { return nil },
+			Features:                         &protocol.Features{},
 		})
 	if err != nil {
 		t.Error(err)
