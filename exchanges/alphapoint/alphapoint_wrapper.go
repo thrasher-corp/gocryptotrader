@@ -12,6 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -40,7 +41,7 @@ func (a *Alphapoint) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				AccountInfo:       true,
 				TickerFetching:    true,
 				TradeFetching:     true,
@@ -56,7 +57,7 @@ func (a *Alphapoint) SetDefaults() {
 				TradeFee:          true,
 			},
 
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				AccountInfo: true,
 			},
 

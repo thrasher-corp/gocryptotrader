@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -69,7 +70,7 @@ func (l *LakeBTC) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerBatching:    true,
 				TickerFetching:    true,
 				TradeFetching:     true,
@@ -86,7 +87,7 @@ func (l *LakeBTC) SetDefaults() {
 				TradeFee:          true,
 				CryptoDepositFee:  true,
 			},
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				TradeFetching:     true,
 				OrderbookFetching: true,
 				Subscribe:         true,
@@ -136,7 +137,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        l.WsConnect,
 			Subscriber:                       l.Subscribe,
-			Features:                         wshandler.ProtocolFeatures(l.Features.Supports.WebsocketCapabilities),
+			Features:                         &l.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

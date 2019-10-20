@@ -187,28 +187,28 @@ func TestSendHTTPRequest(t *testing.T) {
 		strings.NewReader(""),
 	)
 	if err == nil {
-		t.Error("")
+		t.Error("Expected error 'invalid HTTP method specified'")
 	}
 	_, err = SendHTTPRequest(
 		methodPost, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
-		t.Errorf("%s ", err)
+		t.Error(err)
 	}
 	_, err = SendHTTPRequest(
 		methodGet, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
-		t.Errorf("%s ", err)
+		t.Error(err)
 	}
 	_, err = SendHTTPRequest(
 		methodDelete, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
-		t.Errorf("%s ", err)
+		t.Error(err)
 	}
 	_, err = SendHTTPRequest(
 		methodGet, ":missingprotocolscheme", headers,

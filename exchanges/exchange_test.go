@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -27,7 +29,7 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 		Features: Features{
 			Supports: FeaturesSupported{
 				REST: true,
-				RESTCapabilities: ProtocolFeatures{
+				RESTCapabilities: protocol.Features{
 					TickerBatching: true,
 				},
 			},
@@ -137,7 +139,7 @@ func TestSetFeatureDefaults(t *testing.T) {
 		Features: Features{
 			Supports: FeaturesSupported{
 				REST: true,
-				RESTCapabilities: ProtocolFeatures{
+				RESTCapabilities: protocol.Features{
 					TickerBatching: true,
 				},
 				Websocket: true,
@@ -1667,20 +1669,5 @@ func TestGetBase(t *testing.T) {
 
 	if b.Name != "rawr" {
 		t.Error("name should be rawr")
-	}
-}
-
-func TestEnsureMatchingData(t *testing.T) {
-	one := config.ProtocolFeaturesConfig{
-		SubmitOrder: true,
-	}
-	var two ProtocolFeatures
-	var three wshandler.ProtocolFeatures
-	two = ProtocolFeatures(one)
-	three = wshandler.ProtocolFeatures(two)
-	if !two.SubmitOrder || !three.SubmitOrder {
-		// Technically won't get hit, but this will prevent tests from running if there is a mismatch
-		t.Error("There is an issue with the consistency between the ProtocolFeatures structs." +
-			"Please ensure they all contain the same properties with the same variable names")
 	}
 }

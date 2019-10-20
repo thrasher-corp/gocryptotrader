@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -69,7 +70,7 @@ func (g *Gateio) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,
 				KlineFetching:       true,
@@ -88,7 +89,7 @@ func (g *Gateio) SetDefaults() {
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
 			},
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
 				OrderbookFetching:      true,
 				TradeFetching:          true,
@@ -146,7 +147,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        g.WsConnect,
 			Subscriber:                       g.Subscribe,
 			UnSubscriber:                     g.Unsubscribe,
-			Features:                         wshandler.ProtocolFeatures(g.Features.Supports.WebsocketCapabilities),
+			Features:                         &g.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

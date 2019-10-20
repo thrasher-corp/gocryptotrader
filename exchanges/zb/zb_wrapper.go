@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -69,7 +70,7 @@ func (z *ZB) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,
 				KlineFetching:       true,
@@ -85,7 +86,7 @@ func (z *ZB) SetDefaults() {
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
 			},
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
 				TradeFetching:          true,
 				OrderbookFetching:      true,
@@ -142,7 +143,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        z.WsConnect,
 			Subscriber:                       z.Subscribe,
-			Features:                         wshandler.ProtocolFeatures(z.Features.Supports.WebsocketCapabilities),
+			Features:                         &z.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -72,7 +73,7 @@ func (y *Yobit) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: false,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,
 				TradeFetching:       true,

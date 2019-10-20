@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -69,7 +70,7 @@ func (c *COINUT) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
 				TradeFetching:     true,
 				OrderbookFetching: true,
@@ -85,7 +86,7 @@ func (c *COINUT) SetDefaults() {
 				FiatDepositFee:    true,
 				FiatWithdrawalFee: true,
 			},
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
 				OrderbookFetching:      true,
 				TradeFetching:          true,
@@ -143,7 +144,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        c.WsConnect,
 			Subscriber:                       c.Subscribe,
 			UnSubscriber:                     c.Unsubscribe,
-			Features:                         wshandler.ProtocolFeatures(c.Features.Supports.WebsocketCapabilities),
+			Features:                         &c.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

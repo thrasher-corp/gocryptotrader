@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -72,7 +73,7 @@ func (k *Kraken) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: false,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,
 				KlineFetching:       true,
@@ -95,7 +96,7 @@ func (k *Kraken) SetDefaults() {
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
 			},
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				TickerFetching:     true,
 				TradeFetching:      true,
 				KlineFetching:      true,
@@ -152,7 +153,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        k.WsConnect,
 			Subscriber:                       k.Subscribe,
 			UnSubscriber:                     k.Unsubscribe,
-			Features:                         wshandler.ProtocolFeatures(k.Features.Supports.WebsocketCapabilities),
+			Features:                         &k.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

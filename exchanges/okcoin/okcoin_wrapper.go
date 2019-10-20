@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -73,7 +74,7 @@ func (o *OKCoin) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,
 				KlineFetching:       true,
@@ -95,7 +96,7 @@ func (o *OKCoin) SetDefaults() {
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
 			},
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
 				TradeFetching:          true,
 				KlineFetching:          true,

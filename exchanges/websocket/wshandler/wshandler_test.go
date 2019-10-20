@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -307,7 +309,7 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 func TestManageSubscriptionsStartStop(t *testing.T) {
 	w := Websocket{
 		ShutdownC: make(chan struct{}),
-		features:  ProtocolFeatures{Subscribe: true, Unsubscribe: true},
+		features:  &protocol.Features{Subscribe: true, Unsubscribe: true},
 	}
 	w.Wg.Add(1)
 	go w.manageSubscriptions()
@@ -319,7 +321,7 @@ func TestManageSubscriptionsStartStop(t *testing.T) {
 func TestManageSubscriptions(t *testing.T) {
 	w := Websocket{
 		ShutdownC: make(chan struct{}),
-		features:  ProtocolFeatures{Subscribe: true, Unsubscribe: true},
+		features:  &protocol.Features{Subscribe: true, Unsubscribe: true},
 		subscribedChannels: []WebsocketChannelSubscription{
 			{
 				Channel: "hello",

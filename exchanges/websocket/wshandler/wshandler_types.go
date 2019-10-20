@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
 
@@ -55,7 +56,7 @@ type Websocket struct {
 	TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
 	ReadMessageErrors chan error
-	features          ProtocolFeatures
+	features          *protocol.Features
 }
 
 type WebsocketSetup struct {
@@ -69,7 +70,7 @@ type WebsocketSetup struct {
 	Connector                        func() error
 	Subscriber                       func(channelToSubscribe WebsocketChannelSubscription) error
 	UnSubscriber                     func(channelToUnsubscribe WebsocketChannelSubscription) error
-	Features                         ProtocolFeatures
+	Features                         *protocol.Features
 }
 
 // WebsocketChannelSubscription container for websocket subscriptions
@@ -167,43 +168,4 @@ type WebsocketConnection struct {
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration
-}
-
-// ProtocolFeatures holds all variables for the exchanges supported features
-// for a protocol
-type ProtocolFeatures struct {
-	TickerBatching         bool
-	AutoPairUpdates        bool
-	AccountBalance         bool
-	CryptoDeposit          bool
-	CryptoWithdrawal       bool
-	FiatWithdraw           bool
-	GetOrder               bool
-	GetOrders              bool
-	CancelOrders           bool
-	CancelOrder            bool
-	SubmitOrder            bool
-	SubmitOrders           bool
-	ModifyOrder            bool
-	DepositHistory         bool
-	WithdrawalHistory      bool
-	TradeHistory           bool
-	UserTradeHistory       bool
-	TradeFee               bool
-	FiatDepositFee         bool
-	FiatWithdrawalFee      bool
-	CryptoDepositFee       bool
-	CryptoWithdrawalFee    bool
-	TickerFetching         bool
-	KlineFetching          bool
-	TradeFetching          bool
-	OrderbookFetching      bool
-	AccountInfo            bool
-	FiatDeposit            bool
-	DeadMansSwitch         bool
-	Subscribe              bool
-	Unsubscribe            bool
-	AuthenticatedEndpoints bool
-	MessageCorrelation     bool
-	MessageSequenceNumbers bool
 }

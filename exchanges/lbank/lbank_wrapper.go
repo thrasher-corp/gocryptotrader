@@ -67,7 +67,7 @@ func (l *Lbank) SetDefaults() {
 	l.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,
 				KlineFetching:       true,

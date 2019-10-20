@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -69,7 +70,7 @@ func (g *Gemini) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerFetching:      true,
 				TradeFetching:       true,
 				OrderbookFetching:   true,
@@ -86,7 +87,7 @@ func (g *Gemini) SetDefaults() {
 				FiatWithdrawalFee:   true,
 				CryptoWithdrawalFee: true,
 			},
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				OrderbookFetching:      true,
 				TradeFetching:          true,
 				AuthenticatedEndpoints: true,
@@ -141,7 +142,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        g.WsConnect,
-			Features:                         wshandler.ProtocolFeatures(g.Features.Supports.WebsocketCapabilities),
+			Features:                         &g.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

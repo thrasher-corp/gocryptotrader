@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -70,7 +71,7 @@ func (h *HUOBI) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
+			RESTCapabilities: protocol.Features{
 				TickerBatching:    true,
 				TickerFetching:    true,
 				KlineFetching:     true,
@@ -86,7 +87,7 @@ func (h *HUOBI) SetDefaults() {
 				CryptoWithdrawal:  true,
 				TradeFee:          true,
 			},
-			WebsocketCapabilities: exchange.ProtocolFeatures{
+			WebsocketCapabilities: protocol.Features{
 				KlineFetching:          true,
 				OrderbookFetching:      true,
 				TradeFetching:          true,
@@ -145,7 +146,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        h.WsConnect,
 			Subscriber:                       h.Subscribe,
 			UnSubscriber:                     h.Unsubscribe,
-			Features:                         wshandler.ProtocolFeatures(h.Features.Supports.WebsocketCapabilities),
+			Features:                         &h.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
