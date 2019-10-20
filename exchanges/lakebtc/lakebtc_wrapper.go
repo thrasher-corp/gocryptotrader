@@ -214,18 +214,19 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 
 	pairs := l.GetEnabledPairs(assetType)
 	for i := range pairs {
-		currency := l.FormatExchangeCurrency(pairs[i], assetType).String()
-		if _, ok := ticks[currency]; !ok {
+		c, ok := ticks[l.FormatExchangeCurrency(pairs[i], assetType).String()]
+		if !ok {
 			continue
 		}
+
 		var tickerPrice ticker.Price
 		tickerPrice.Pair = pairs[i]
-		tickerPrice.Ask = ticks[currency].Ask
-		tickerPrice.Bid = ticks[currency].Bid
-		tickerPrice.Volume = ticks[currency].Volume
-		tickerPrice.High = ticks[currency].High
-		tickerPrice.Low = ticks[currency].Low
-		tickerPrice.Last = ticks[currency].Last
+		tickerPrice.Ask = c.Ask
+		tickerPrice.Bid = c.Bid
+		tickerPrice.Volume = c.Volume
+		tickerPrice.High = c.High
+		tickerPrice.Low = c.Low
+		tickerPrice.Last = c.Last
 
 		err = ticker.ProcessTicker(l.GetName(), &tickerPrice, assetType)
 		if err != nil {
