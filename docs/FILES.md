@@ -23,8 +23,8 @@ By default, GoCryptoTrader uses the following data directores:
 Operating System | Path | Translated
 --- | --- | ----
 | Windows | %APPDATA%\GoCryptoTrader | C:\Users\User\AppData\Roaming\GoCryptoTrader
-| Linux | ~./gocryptotrader | /home/user/.gocryptotrader
-| macOS | ~./gocryptotrader | /Users/User/.gocryptotrader
+| Linux | ~/.gocryptotrader | /home/user/.gocryptotrader
+| macOS | ~/.gocryptotrader | /Users/User/.gocryptotrader
 
 This can be overridden by running GoCryptoTrader with the `-datadir` command line
 parameter.
@@ -37,8 +37,7 @@ inside the data directory:
 Directory | Reason
 --- | ---
 | database | Used to store the database file (if using SQLite3) and sqlboiler config files
-| database/migrations | Used to store database migration files
-| logs | Used to store the debug log file (`log.txt` by default), if logging is enabled
+| logs | Used to store the debug log file (`log.txt` by default), if file output and logging is enabled
 | tls | Used to store the generated self-signed certificate and key for gRPC authentication
 
 ## Files
