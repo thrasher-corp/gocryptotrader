@@ -3,9 +3,9 @@
 
 ### A very special thank you to all who have contributed to this program:
 
-|User|Github|Contribution Amount|
-|--|--|--|
+|User|Contribution Amount|
+|--|--|
 {{- range $contributor := .Contributors -}}
-| {{$contributor.Login}} | {{$contributor.URL}} | {{$contributor.Contributions}} |
+| [{{$contributor.Login}}]({{$contributor.URL}}) | {{$contributor.Contributions}} |
 {{end}}
 {{end}}
