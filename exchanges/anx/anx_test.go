@@ -319,7 +319,7 @@ func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := a.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
