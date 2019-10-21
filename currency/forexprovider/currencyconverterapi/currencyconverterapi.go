@@ -14,29 +14,6 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-// const declarations consist of endpoints
-const (
-	APIEndpointURL     = "https://currencyconverterapi.com/api/"
-	APIEndpointFreeURL = "https://free.currencyconverterapi.com/api/"
-	APIEndpointVersion = "v5"
-
-	APIEndpointConvert    = "convert"
-	APIEndpointCurrencies = "currencies"
-	APIEndpointCountries  = "countries"
-	APIEndpointUsage      = "usage"
-
-	defaultAPIKey = "Key"
-
-	authRate   = 0
-	unAuthRate = 0
-)
-
-// CurrencyConverter stores the struct for the CurrencyConverter API
-type CurrencyConverter struct {
-	base.Base
-	Requester *request.Requester
-}
-
 // Setup sets appropriate values for CurrencyLayer
 func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.Name = config.Name

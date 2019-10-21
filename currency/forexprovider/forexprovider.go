@@ -13,13 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/openexchangerates"
 )
 
-// ForexProviders is a foreign exchange handler type
-type ForexProviders struct {
-	base.FXHandler
-}
-
-// GetAvailableForexProviders returns a list of supported forex providers
-func GetAvailableForexProviders() []string {
+// GetSupportedForexProviders returns a list of supported forex providers
+func GetSupportedForexProviders() []string {
 	return []string{"CurrencyConverter",
 		"CurrencyLayer",
 		"ExchangeRates",
@@ -134,4 +129,9 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 	}
 
 	return handler, nil
+}
+
+// ForexProviders is a foreign exchange handler type
+type ForexProviders struct {
+	base.FXHandler
 }

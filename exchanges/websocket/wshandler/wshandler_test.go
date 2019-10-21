@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
 
 func TestTrafficMonitorTimeout(t *testing.T) {
@@ -85,6 +86,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.DataHandler = make(chan interface{})
 	ws.ShutdownC = make(chan struct{})
 	ws.connector = func() error { return nil }
+	ws.features = &protocol.Features{}
 	go ws.connectionMonitor()
 	timer := time.NewTimer(900 * time.Millisecond)
 	ws.ReadMessageErrors <- errors.New("errorText")
@@ -126,7 +128,7 @@ func TestWebsocket(t *testing.T) {
 	ws = *New()
 	err = ws.SetProxyAddress("testProxy")
 	if err != nil {
-		t.Error("test failed - SetProxyAddress", err)
+		t.Error("SetProxyAddress", err)
 	}
 
 	err = ws.Setup(
@@ -140,100 +142,58 @@ func TestWebsocket(t *testing.T) {
 			Connector:                        func() error { return nil },
 			Subscriber:                       func(test WebsocketChannelSubscription) error { return nil },
 			UnSubscriber:                     func(test WebsocketChannelSubscription) error { return nil },
+			Features:                         &protocol.Features{},
 		})
 	if err != nil {
 		t.Error(err)
 	}
 
 	if ws.GetName() != "exchangeName" {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if !ws.IsEnabled() {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if ws.GetProxyAddress() != "testProxy" {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if ws.GetDefaultURL() != "testDefaultURL" {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if ws.GetWebsocketURL() != "testRunningURL" {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 
 	if ws.trafficTimeout != time.Duration(2) {
-		t.Error("test failed - WebsocketSetup")
+		t.Error("WebsocketSetup")
 	}
 	// -- Not connected shutdown
 	err = ws.Shutdown()
 	if err == nil {
-		t.Fatal("test failed - should not be connected to able to shut down")
+		t.Fatal("should not be connected to able to shut down")
 	}
 	ws.Wg.Wait()
 	// -- Normal connect
 	err = ws.Connect()
 	if err != nil {
-		t.Fatal("test failed - WebsocketSetup", err)
+		t.Fatal("WebsocketSetup", err)
 	}
 	ws.SetWebsocketURL("ws://demos.kaazing.com/echo")
 	// -- Already connected connect
 	err = ws.Connect()
 	if err == nil {
-		t.Fatal("test failed - should not connect, already connected")
+		t.Fatal("should not connect, already connected")
 	}
 	// -- Normal shutdown
 	err = ws.Shutdown()
 	if err != nil {
-		t.Fatal("test failed - WebsocketSetup", err)
+		t.Fatal("WebsocketSetup", err)
 	}
 	ws.Wg.Wait()
-}
-
-func TestFunctionality(t *testing.T) {
-	ws := New()
-	if ws.FormatFunctionality() != NoWebsocketSupportText {
-		t.Fatalf("Test Failed - FormatFunctionality error expected %s but received %s",
-			NoWebsocketSupportText, ws.FormatFunctionality())
-	}
-
-	ws.Functionality = 1 << 31
-
-	if ws.FormatFunctionality() != UnknownWebsocketFunctionality+"[1<<31]" {
-		t.Fatal("Test Failed - GetFunctionality error incorrect error returned")
-	}
-
-	ws.Functionality = WebsocketOrderbookSupported
-
-	if ws.GetFunctionality() != WebsocketOrderbookSupported {
-		t.Fatal("Test Failed - GetFunctionality error incorrect bitmask returned")
-	}
-
-	if !ws.SupportsFunctionality(WebsocketOrderbookSupported) {
-		t.Fatal("Test Failed - SupportsFunctionality error should be true")
-	}
-
-	ws.Functionality = WebsocketTickerSupported | WebsocketOrderbookSupported | WebsocketKlineSupported |
-		WebsocketTradeDataSupported | WebsocketAccountSupported | WebsocketAllowsRequests |
-		WebsocketSubscribeSupported | WebsocketUnsubscribeSupported | WebsocketAuthenticatedEndpointsSupported |
-		WebsocketAccountDataSupported | WebsocketSubmitOrderSupported | WebsocketCancelOrderSupported |
-		WebsocketWithdrawSupported | WebsocketMessageCorrelationSupported | WebsocketSequenceNumberSupported |
-		WebsocketDeadMansSwitchSupported
-	formatted := ws.FormatFunctionality()
-
-	if !strings.Contains(formatted, WebsocketTickerSupportedText) || !strings.Contains(formatted, WebsocketOrderbookSupportedText) ||
-		!strings.Contains(formatted, WebsocketKlineSupportedText) || !strings.Contains(formatted, WebsocketTradeDataSupportedText) ||
-		!strings.Contains(formatted, WebsocketAccountSupportedText) || !strings.Contains(formatted, WebsocketAllowsRequestsText) ||
-		!strings.Contains(formatted, WebsocketSubscribeSupportedText) || !strings.Contains(formatted, WebsocketUnsubscribeSupportedText) ||
-		!strings.Contains(formatted, WebsocketAuthenticatedEndpointsSupportedText) || !strings.Contains(formatted, WebsocketAccountDataSupportedText) ||
-		!strings.Contains(formatted, WebsocketSubmitOrderSupportedText) || !strings.Contains(formatted, WebsocketCancelOrderSupportedText) ||
-		!strings.Contains(formatted, WebsocketWithdrawSupportedText) || !strings.Contains(formatted, WebsocketMessageCorrelationSupportedText) ||
-		!strings.Contains(formatted, WebsocketSequenceNumberSupportedText) || !strings.Contains(formatted, WebsocketDeadMansSwitchSupportedText) {
-		t.Error("Failed to format and include supported websocket features")
-	}
 }
 
 // placeholderSubscriber basic function to test subscriptions
@@ -349,8 +309,8 @@ func TestUnsubscriptionWithExistingEntry(t *testing.T) {
 // TestManageSubscriptionsStartStop logic test
 func TestManageSubscriptionsStartStop(t *testing.T) {
 	w := Websocket{
-		ShutdownC:     make(chan struct{}),
-		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
+		ShutdownC: make(chan struct{}),
+		features:  &protocol.Features{Subscribe: true, Unsubscribe: true},
 	}
 	w.Wg.Add(1)
 	go w.manageSubscriptions()
@@ -361,8 +321,8 @@ func TestManageSubscriptionsStartStop(t *testing.T) {
 // TestManageSubscriptions logic test
 func TestManageSubscriptions(t *testing.T) {
 	w := Websocket{
-		ShutdownC:     make(chan struct{}),
-		Functionality: WebsocketSubscribeSupported | WebsocketUnsubscribeSupported,
+		ShutdownC: make(chan struct{}),
+		features:  &protocol.Features{Subscribe: true, Unsubscribe: true},
 		subscribedChannels: []WebsocketChannelSubscription{
 			{
 				Channel: "hello",

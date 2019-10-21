@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -27,7 +28,7 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 		Features: Features{
 			Supports: FeaturesSupported{
 				REST: true,
-				RESTCapabilities: ProtocolFeatures{
+				RESTCapabilities: protocol.Features{
 					TickerBatching: true,
 				},
 			},
@@ -35,7 +36,7 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	}
 
 	if !b.SupportsRESTTickerBatchUpdates() {
-		t.Fatal("Test failed. TestSupportsRESTTickerBatchUpdates returned false")
+		t.Fatal("TestSupportsRESTTickerBatchUpdates returned false")
 	}
 }
 
@@ -46,7 +47,7 @@ func TestHTTPClient(t *testing.T) {
 	r.SetHTTPClientTimeout(time.Second * 5)
 
 	if r.GetHTTPClient().Timeout != time.Second*5 {
-		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+		t.Fatalf("TestHTTPClient unexpected value")
 	}
 
 	r.Requester = nil
@@ -55,12 +56,12 @@ func TestHTTPClient(t *testing.T) {
 
 	r.SetHTTPClient(newClient)
 	if r.GetHTTPClient().Timeout != time.Second*10 {
-		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+		t.Fatalf("TestHTTPClient unexpected value")
 	}
 
 	r.Requester = nil
 	if r.GetHTTPClient() == nil {
-		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+		t.Fatalf("TestHTTPClient unexpected value")
 	}
 
 	b := Base{Name: "RAWR"}
@@ -71,7 +72,7 @@ func TestHTTPClient(t *testing.T) {
 
 	b.SetHTTPClientTimeout(time.Second * 5)
 	if b.GetHTTPClient().Timeout != time.Second*5 {
-		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+		t.Fatalf("TestHTTPClient unexpected value")
 	}
 
 	newClient = new(http.Client)
@@ -79,7 +80,7 @@ func TestHTTPClient(t *testing.T) {
 
 	b.SetHTTPClient(newClient)
 	if b.GetHTTPClient().Timeout != time.Second*10 {
-		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+		t.Fatalf("TestHTTPClient unexpected value")
 	}
 
 	b.SetHTTPClientUserAgent("epicUserAgent")
@@ -103,16 +104,16 @@ func TestSetClientProxyAddress(t *testing.T) {
 	newBase.Websocket = wshandler.New()
 	err := newBase.SetClientProxyAddress(":invalid")
 	if err == nil {
-		t.Error("Test failed. SetClientProxyAddress parsed invalid URL")
+		t.Error("SetClientProxyAddress parsed invalid URL")
 	}
 
 	if newBase.Websocket.GetProxyAddress() != "" {
-		t.Error("Test failed. SetClientProxyAddress error", err)
+		t.Error("SetClientProxyAddress error", err)
 	}
 
 	err = newBase.SetClientProxyAddress("www.valid.com")
 	if err != nil {
-		t.Error("Test failed. SetClientProxyAddress error", err)
+		t.Error("SetClientProxyAddress error", err)
 	}
 
 	// calling this again will cause the ws check to fail
@@ -122,7 +123,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 	}
 
 	if newBase.Websocket.GetProxyAddress() != "www.valid.com" {
-		t.Error("Test failed. SetClientProxyAddress error", err)
+		t.Error("SetClientProxyAddress error", err)
 	}
 }
 
@@ -137,7 +138,7 @@ func TestSetFeatureDefaults(t *testing.T) {
 		Features: Features{
 			Supports: FeaturesSupported{
 				REST: true,
-				RESTCapabilities: ProtocolFeatures{
+				RESTCapabilities: protocol.Features{
 					TickerBatching: true,
 				},
 				Websocket: true,
@@ -233,22 +234,22 @@ func TestSetHTTPRateLimiter(t *testing.T) {
 
 func TestSetAutoPairDefaults(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults failed to load config file. Error: %s", err)
+		t.Fatalf("TestSetAutoPairDefaults failed to load config file. Error: %s", err)
 	}
 
 	exch, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults load config failed. Error %s", err)
+		t.Fatalf("TestSetAutoPairDefaults load config failed. Error %s", err)
 	}
 
 	if !exch.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults Incorrect value")
+		t.Fatalf("TestSetAutoPairDefaults Incorrect value")
 	}
 
 	if exch.CurrencyPairs.LastUpdated != 0 {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults Incorrect value")
+		t.Fatalf("TestSetAutoPairDefaults Incorrect value")
 	}
 
 	exch.Features.Supports.RESTCapabilities.AutoPairUpdates = false
@@ -256,11 +257,11 @@ func TestSetAutoPairDefaults(t *testing.T) {
 
 	exch, err = cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults load config failed. Error %s", err)
+		t.Fatalf("TestSetAutoPairDefaults load config failed. Error %s", err)
 	}
 
 	if exch.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		t.Fatal("Test failed. TestSetAutoPairDefaults Incorrect value")
+		t.Fatal("TestSetAutoPairDefaults Incorrect value")
 	}
 }
 
@@ -289,7 +290,7 @@ func TestGetLastPairsUpdateTime(t *testing.T) {
 	b.CurrencyPairs.LastUpdated = testTime
 
 	if b.GetLastPairsUpdateTime() != testTime {
-		t.Fatal("Test failed. TestGetLastPairsUpdateTim Incorrect value")
+		t.Fatal("TestGetLastPairsUpdateTim Incorrect value")
 	}
 }
 
@@ -339,13 +340,13 @@ func TestGetAssetTypes(t *testing.T) {
 
 	aT := testExchange.GetAssetTypes()
 	if len(aT) != 3 {
-		t.Error("Test failed. TestGetAssetTypes failed")
+		t.Error("TestGetAssetTypes failed")
 	}
 }
 
 func TestGetClientBankAccounts(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -363,13 +364,13 @@ func TestGetClientBankAccounts(t *testing.T) {
 
 	r, err = b.GetClientBankAccounts("MEOW", "USD")
 	if err == nil {
-		t.Error("an error should of been thrown for a non-existent exchange")
+		t.Error("an error should have been thrown for a non-existent exchange")
 	}
 }
 
 func TestGetExchangeBankAccounts(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,7 +388,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 
 	_, err = b.GetExchangeBankAccounts("MEOW", "USD")
 	if err == nil {
-		t.Error("an error should of been thrown for a non-existent exchange")
+		t.Error("an error should have been thrown for a non-existent exchange")
 	}
 }
 
@@ -451,17 +452,17 @@ func TestGetAuthenticatedAPISupport(t *testing.T) {
 	}
 
 	if !base.GetAuthenticatedAPISupport(RestAuthentication) {
-		t.Fatal("Test failed. Expected RestAuthentication to return true")
+		t.Fatal("Expected RestAuthentication to return true")
 	}
 	if base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
-		t.Fatal("Test failed. Expected WebsocketAuthentication to return false")
+		t.Fatal("Expected WebsocketAuthentication to return false")
 	}
 	base.API.AuthenticatedWebsocketSupport = true
 	if !base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
-		t.Fatal("Test failed. Expected WebsocketAuthentication to return true")
+		t.Fatal("Expected WebsocketAuthentication to return true")
 	}
 	if base.GetAuthenticatedAPISupport(2) {
-		t.Fatal("Test failed. Expected default case of 'false' to be returned")
+		t.Fatal("Expected default case of 'false' to be returned")
 	}
 }
 
@@ -474,7 +475,7 @@ func TestGetName(t *testing.T) {
 
 	name := b.GetName()
 	if name != "TESTNAME" {
-		t.Error("Test Failed - Exchange GetName() returned incorrect name")
+		t.Error("Exchange GetName() returned incorrect name")
 	}
 }
 
@@ -563,21 +564,21 @@ func TestGetEnabledPairs(t *testing.T) {
 
 	c := b.GetEnabledPairs(assetType)
 	if c[0].String() != defaultTestCurrencyPair {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	format.Delimiter = "~"
 	b.CurrencyPairs.RequestFormat = &format
 	c = b.GetEnabledPairs(assetType)
 	if c[0].String() != "BTC~USD" {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	format.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat = &format
 	c = b.GetEnabledPairs(assetType)
 	if c[0].String() != "BTCUSD" {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
@@ -586,7 +587,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat = &format
 	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
@@ -595,7 +596,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
@@ -605,7 +606,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
 	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
@@ -613,7 +614,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 }
 
@@ -639,21 +640,21 @@ func TestGetAvailablePairs(t *testing.T) {
 
 	c := b.GetAvailablePairs(assetType)
 	if c[0].String() != defaultTestCurrencyPair {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	format.Delimiter = "~"
 	b.CurrencyPairs.RequestFormat = &format
 	c = b.GetAvailablePairs(assetType)
 	if c[0].String() != "BTC~USD" {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	format.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat = &format
 	c = b.GetAvailablePairs(assetType)
 	if c[0].String() != "BTCUSD" {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
@@ -662,7 +663,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat = &format
 	c = b.GetAvailablePairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
@@ -671,7 +672,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	c = b.GetAvailablePairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
@@ -681,7 +682,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
 	c = b.GetAvailablePairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
@@ -689,7 +690,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c = b.GetAvailablePairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
-		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 }
 
@@ -717,15 +718,15 @@ func TestSupportsPair(t *testing.T) {
 	assetType := asset.Spot
 
 	if !b.SupportsPair(currency.NewPair(currency.BTC, currency.USD), true, assetType) {
-		t.Error("Test Failed - Exchange SupportsPair() incorrect value")
+		t.Error("Exchange SupportsPair() incorrect value")
 	}
 
 	if !b.SupportsPair(currency.NewPair(currency.ETH, currency.USD), false, assetType) {
-		t.Error("Test Failed - Exchange SupportsPair() incorrect value")
+		t.Error("Exchange SupportsPair() incorrect value")
 	}
 
 	if b.SupportsPair(currency.NewPairFromStrings("ASD", "ASDF"), true, assetType) {
-		t.Error("Test Failed - Exchange SupportsPair() incorrect value")
+		t.Error("Exchange SupportsPair() incorrect value")
 	}
 }
 
@@ -756,11 +757,11 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 
 	actual, err := e.FormatExchangeCurrencies(pairs, asset.Spot)
 	if err != nil {
-		t.Errorf("Test failed - Exchange TestFormatExchangeCurrencies error %s", err)
+		t.Errorf("Exchange TestFormatExchangeCurrencies error %s", err)
 	}
 	expected := "btc~usd^ltc~btc"
 	if actual != expected {
-		t.Errorf("Test failed - Exchange TestFormatExchangeCurrencies %s != %s",
+		t.Errorf("Exchange TestFormatExchangeCurrencies %s != %s",
 			actual, expected)
 	}
 
@@ -785,7 +786,7 @@ func TestFormatExchangeCurrency(t *testing.T) {
 	actual := b.FormatExchangeCurrency(p, asset.Spot)
 
 	if actual.String() != expected {
-		t.Errorf("Test failed - Exchange TestFormatExchangeCurrency %s != %s",
+		t.Errorf("Exchange TestFormatExchangeCurrency %s != %s",
 			actual, expected)
 	}
 }
@@ -800,7 +801,7 @@ func TestSetEnabled(t *testing.T) {
 
 	SetEnabled.SetEnabled(true)
 	if !SetEnabled.Enabled {
-		t.Error("Test Failed - Exchange SetEnabled(true) did not set boolean")
+		t.Error("Exchange SetEnabled(true) did not set boolean")
 	}
 }
 
@@ -813,7 +814,7 @@ func TestIsEnabled(t *testing.T) {
 	}
 
 	if IsEnabled.IsEnabled() {
-		t.Error("Test Failed - Exchange IsEnabled() did not return correct boolean")
+		t.Error("Exchange IsEnabled() did not return correct boolean")
 	}
 }
 
@@ -1048,14 +1049,14 @@ func TestSetPairs(t *testing.T) {
 
 func TestUpdatePairs(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
-		t.Fatal("Test failed. TestUpdatePairs failed to load config")
+		t.Fatal("TestUpdatePairs failed to load config")
 	}
 
 	anxCfg, err := cfg.GetExchangeConfig(defaultTestExchange)
 	if err != nil {
-		t.Fatal("Test failed. TestUpdatePairs failed to load config")
+		t.Fatal("TestUpdatePairs failed to load config")
 	}
 
 	UAC := Base{Name: defaultTestExchange}
@@ -1063,20 +1064,20 @@ func TestUpdatePairs(t *testing.T) {
 	exchangeProducts := currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud", ""})
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
 	if err != nil {
-		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
+		t.Errorf("TestUpdatePairs error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
 	if err != nil {
-		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
+		t.Errorf("TestUpdatePairs error: %s", err)
 	}
 
 	// Test force updating to only one product
 	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, true)
 	if err != nil {
-		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
+		t.Errorf("TestUpdatePairs error: %s", err)
 	}
 
 	// Test updating exchange products
@@ -1084,34 +1085,34 @@ func TestUpdatePairs(t *testing.T) {
 	UAC.Name = defaultTestExchange
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange UpdatePairs() error: %s", err)
+		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange UpdatePairs() error: %s", err)
+		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test force updating to only one product
 	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, true)
 	if err != nil {
-		t.Errorf("Test Failed - Forced Exchange UpdatePairs() error: %s", err)
+		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test update currency pairs with btc excluded
 	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "eth"})
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
-		t.Errorf("Test Failed - Forced Exchange UpdatePairs() error: %s", err)
+		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test that empty exchange products should return an error
 	exchangeProducts = nil
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err == nil {
-		t.Errorf("Test failed - empty available pairs should return an error")
+		t.Errorf("empty available pairs should return an error")
 	}
 
 	// Test empty pair
@@ -1122,7 +1123,7 @@ func TestUpdatePairs(t *testing.T) {
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
 	if err != nil {
-		t.Errorf("Test Failed - Forced Exchange UpdatePairs() error: %s", err)
+		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
 	}
 	UAC.CurrencyPairs.UseGlobalFormat = true
 	UAC.CurrencyPairs.ConfigFormat = &currency.PairFormat{
@@ -1146,7 +1147,7 @@ func TestSetAPIURL(t *testing.T) {
 
 	err := tester.SetAPIURL()
 	if err == nil {
-		t.Error("test failed - setting zero value config")
+		t.Error("setting zero value config")
 	}
 
 	tester.Config.API.Endpoints.URL = testURL
@@ -1157,23 +1158,23 @@ func TestSetAPIURL(t *testing.T) {
 
 	err = tester.SetAPIURL()
 	if err != nil {
-		t.Error("test failed", err)
+		t.Error(err)
 	}
 
 	if tester.GetAPIURL() != testURL {
-		t.Error("test failed - incorrect return URL")
+		t.Error("incorrect return URL")
 	}
 
 	if tester.GetSecondaryAPIURL() != testURLSecondary {
-		t.Error("test failed - incorrect return URL")
+		t.Error("incorrect return URL")
 	}
 
 	if tester.GetAPIURLDefault() != testURLDefault {
-		t.Error("test failed - incorrect return URL")
+		t.Error("incorrect return URL")
 	}
 
 	if tester.GetAPIURLSecondaryDefault() != testURLSecondaryDefault {
-		t.Error("test failed - incorrect return URL")
+		t.Error("incorrect return URL")
 	}
 }
 
@@ -1318,11 +1319,11 @@ func TestOrderSides(t *testing.T) {
 
 	var os = BuyOrderSide
 	if os.ToString() != "BUY" {
-		t.Errorf("test failed - unexpected string %s", os.ToString())
+		t.Errorf("unexpected string %s", os.ToString())
 	}
 
 	if os.ToLower() != "buy" {
-		t.Errorf("test failed - unexpected string %s", os.ToString())
+		t.Errorf("unexpected string %s", os.ToString())
 	}
 }
 
@@ -1332,11 +1333,11 @@ func TestOrderTypes(t *testing.T) {
 	var ot OrderType = "Mo'Money"
 
 	if ot.ToString() != "Mo'Money" {
-		t.Errorf("test failed - unexpected string %s", ot.ToString())
+		t.Errorf("unexpected string %s", ot.ToString())
 	}
 
 	if ot.ToLower() != "mo'money" {
-		t.Errorf("test failed - unexpected string %s", ot.ToString())
+		t.Errorf("unexpected string %s", ot.ToString())
 	}
 }
 
@@ -1491,12 +1492,12 @@ func TestSortOrdersByPrice(t *testing.T) {
 
 	SortOrdersByPrice(&orders, false)
 	if orders[0].Price != 0 {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", 0, orders[0].Price)
+		t.Errorf("Expected: '%v', received: '%v'", 0, orders[0].Price)
 	}
 
 	SortOrdersByPrice(&orders, true)
 	if orders[0].Price != 100 {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", 100, orders[0].Price)
+		t.Errorf("Expected: '%v', received: '%v'", 100, orders[0].Price)
 	}
 }
 
@@ -1515,14 +1516,14 @@ func TestSortOrdersByDate(t *testing.T) {
 
 	SortOrdersByDate(&orders, false)
 	if orders[0].OrderDate.Unix() != time.Unix(0, 0).Unix() {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+		t.Errorf("Expected: '%v', received: '%v'",
 			time.Unix(0, 0).Unix(),
 			orders[0].OrderDate.Unix())
 	}
 
 	SortOrdersByDate(&orders, true)
 	if orders[0].OrderDate.Unix() != time.Unix(2, 0).Unix() {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+		t.Errorf("Expected: '%v', received: '%v'",
 			time.Unix(2, 0).Unix(),
 			orders[0].OrderDate.Unix())
 	}
@@ -1557,14 +1558,14 @@ func TestSortOrdersByCurrency(t *testing.T) {
 
 	SortOrdersByCurrency(&orders, false)
 	if orders[0].CurrencyPair.String() != currency.BTC.String()+"-"+currency.RUB.String() {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+		t.Errorf("Expected: '%v', received: '%v'",
 			currency.BTC.String()+"-"+currency.RUB.String(),
 			orders[0].CurrencyPair.String())
 	}
 
 	SortOrdersByCurrency(&orders, true)
 	if orders[0].CurrencyPair.String() != currency.LTC.String()+"-"+currency.EUR.String() {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+		t.Errorf("Expected: '%v', received: '%v'",
 			currency.LTC.String()+"-"+currency.EUR.String(),
 			orders[0].CurrencyPair.String())
 	}
@@ -1587,14 +1588,14 @@ func TestSortOrdersByOrderSide(t *testing.T) {
 
 	SortOrdersBySide(&orders, false)
 	if !strings.EqualFold(orders[0].OrderSide.ToString(), BuyOrderSide.ToString()) {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+		t.Errorf("Expected: '%v', received: '%v'",
 			BuyOrderSide,
 			orders[0].OrderSide)
 	}
 
 	SortOrdersBySide(&orders, true)
 	if !strings.EqualFold(orders[0].OrderSide.ToString(), SellOrderSide.ToString()) {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'",
+		t.Errorf("Expected: '%v', received: '%v'",
 			SellOrderSide,
 			orders[0].OrderSide)
 	}
@@ -1617,12 +1618,12 @@ func TestSortOrdersByOrderType(t *testing.T) {
 
 	SortOrdersByType(&orders, false)
 	if !strings.EqualFold(orders[0].OrderType.ToString(), ImmediateOrCancelOrderType.ToString()) {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", ImmediateOrCancelOrderType, orders[0].OrderType)
+		t.Errorf("Expected: '%v', received: '%v'", ImmediateOrCancelOrderType, orders[0].OrderType)
 	}
 
 	SortOrdersByType(&orders, true)
 	if !strings.EqualFold(orders[0].OrderType.ToString(), TrailingStopOrderType.ToString()) {
-		t.Errorf("Test failed. Expected: '%v', received: '%v'", TrailingStopOrderType, orders[0].OrderType)
+		t.Errorf("Expected: '%v', received: '%v'", TrailingStopOrderType, orders[0].OrderType)
 	}
 }
 

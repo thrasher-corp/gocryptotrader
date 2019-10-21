@@ -22,11 +22,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Binance load config error", err)
+		log.Fatal("Binance load config error", err)
 	}
 	binanceConfig, err := cfg.GetExchangeConfig("Binance")
 	if err != nil {
-		log.Fatal("Test Failed - Binance Setup() init error", err)
+		log.Fatal("Binance Setup() init error", err)
 	}
 	b.SkipAuthCheck = true
 	binanceConfig.API.AuthenticatedSupport = true
@@ -35,12 +35,12 @@ func TestMain(m *testing.M) {
 	b.SetDefaults()
 	err = b.Setup(binanceConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Binance setup error", err)
+		log.Fatal("Binance setup error", err)
 	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	b.HTTPClient = newClient

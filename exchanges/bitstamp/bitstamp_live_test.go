@@ -19,11 +19,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Bitstamp load config error", err)
+		log.Fatal("Bitstamp load config error", err)
 	}
 	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
-		log.Fatal("Test Failed - Bitstamp Setup() init error", err)
+		log.Fatal("Bitstamp Setup() init error", err)
 	}
 	bitstampConfig.API.AuthenticatedSupport = true
 	bitstampConfig.API.Credentials.Key = apiKey
@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 	b.SetDefaults()
 	err = b.Setup(bitstampConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Bitstamp setup error", err)
+		log.Fatal("Bitstamp setup error", err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, b.GetName(), b.API.Endpoints.URL)
 	os.Exit(m.Run())

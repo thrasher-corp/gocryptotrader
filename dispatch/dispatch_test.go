@@ -116,9 +116,9 @@ func TestDispatcher(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	id, errrrrrrrr := dispatcher.getNewID()
-	if errrrrrrrr != nil {
-		t.Error(errrrrrrrr)
+	id, err := dispatcher.getNewID()
+	if err != nil {
+		t.Error(err)
 	}
 
 	err = dispatcher.publish(id, &payload)
@@ -159,18 +159,18 @@ func TestDispatcher(t *testing.T) {
 	randomChan := make(chan interface{})
 	err = dispatcher.unsubscribe(someID, randomChan)
 	if err == nil {
-		t.Error(err)
+		t.Error("Expected error")
 	}
 
 	err = dispatcher.unsubscribe(id, randomChan)
 	if err == nil {
-		t.Error(err)
+		t.Error("Expected error")
 	}
 
 	close(randomChan)
 	err = dispatcher.unsubscribe(id, randomChan)
 	if err == nil {
-		t.Error(err)
+		t.Error("Expected error")
 	}
 }
 

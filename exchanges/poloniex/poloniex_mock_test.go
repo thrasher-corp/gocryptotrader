@@ -22,11 +22,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Poloniex load config error", err)
+		log.Fatal("Poloniex load config error", err)
 	}
 	poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
 	if err != nil {
-		log.Fatal("Test Failed - Poloniex Setup() init error", err)
+		log.Fatal("Poloniex Setup() init error", err)
 	}
 	p.SkipAuthCheck = true
 	poloniexConfig.API.AuthenticatedSupport = true
@@ -35,12 +35,12 @@ func TestMain(m *testing.M) {
 	p.SetDefaults()
 	err = p.Setup(poloniexConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Poloniex setup error", err)
+		log.Fatal("Poloniex setup error", err)
 	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	p.HTTPClient = newClient

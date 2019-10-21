@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
 	if err != nil {
-		log.Fatal("Test Failed - your_current_exchange_name Setup() init error", err)
+		log.Fatal("your_current_exchange_name Setup() init error", err)
 	}
 	your_current_exchange_nameConfig.AuthenticatedAPISupport = true
 	your_current_exchange_nameConfig.APIKey = apiKey
@@ -96,7 +96,7 @@ func TestMain(m *testing.M) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
 	if err != nil {
-		log.Fatal("Test Failed - your_current_exchange_name Setup() init error", err)
+		log.Fatal("your_current_exchange_name Setup() init error", err)
 	}
 	your_current_exchange_nameConfig.AuthenticatedAPISupport = true
 	your_current_exchange_nameConfig.APIKey = apiKey
@@ -106,7 +106,7 @@ func TestMain(m *testing.M) {
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	g.HTTPClient = newClient

@@ -56,7 +56,7 @@ func TestSubscribeOrderbook(t *testing.T) {
 
 	err = b.Process()
 	if err != nil {
-		t.Error("test failed - process error", err)
+		t.Error("process error", err)
 	}
 
 	_, err = SubscribeOrderbook("SubscribeOBTest", p, asset.Spot)
@@ -67,7 +67,7 @@ func TestSubscribeOrderbook(t *testing.T) {
 	// process redundant update
 	err = b.Process()
 	if err != nil {
-		t.Error("test failed - process error", err)
+		t.Error("process error", err)
 	}
 }
 
@@ -125,7 +125,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 
 	err = b.Process()
 	if err != nil {
-		t.Error("test failed:", err)
+		t.Error("", err)
 	}
 
 	_, err = SubscribeToExchangeOrderbooks("SubscribeToExchangeOrderbooks")
@@ -167,7 +167,7 @@ func TestCalculateTotalBids(t *testing.T) {
 
 	a, b := base.TotalBidsAmount()
 	if a != 10 && b != 1000 {
-		t.Fatal("Test failed. TestCalculateTotalBids expected a = 10 and b = 1000")
+		t.Fatal("TestCalculateTotalBids expected a = 10 and b = 1000")
 	}
 }
 
@@ -181,7 +181,7 @@ func TestCalculateTotaAsks(t *testing.T) {
 
 	a, b := base.TotalAsksAmount()
 	if a != 10 && b != 1000 {
-		t.Fatal("Test failed. TestCalculateTotalAsks expected a = 10 and b = 1000")
+		t.Fatal("TestCalculateTotalAsks expected a = 10 and b = 1000")
 	}
 }
 
@@ -202,17 +202,17 @@ func TestUpdate(t *testing.T) {
 	base.Update(bids, asks)
 
 	if !base.LastUpdated.After(timeNow) {
-		t.Fatal("test failed. TestUpdate expected LastUpdated to be greater then original time")
+		t.Fatal("TestUpdate expected LastUpdated to be greater then original time")
 	}
 
 	a, b := base.TotalAsksAmount()
 	if a != 100 && b != 20200 {
-		t.Fatal("Test failed. TestUpdate expected a = 100 and b = 20100")
+		t.Fatal("TestUpdate expected a = 100 and b = 20100")
 	}
 
 	a, b = base.TotalBidsAmount()
 	if a != 100 && b != 20100 {
-		t.Fatal("Test failed. TestUpdate expected a = 100 and b = 20100")
+		t.Fatal("TestUpdate expected a = 100 and b = 20100")
 	}
 }
 
@@ -233,28 +233,28 @@ func TestGetOrderbook(t *testing.T) {
 
 	result, err := Get("Exchange", c, asset.Spot)
 	if err != nil {
-		t.Fatalf("Test failed. TestGetOrderbook failed to get orderbook. Error %s",
+		t.Fatalf("TestGetOrderbook failed to get orderbook. Error %s",
 			err)
 	}
 	if !result.Pair.Equal(c) {
-		t.Fatal("Test failed. TestGetOrderbook failed. Mismatched pairs")
+		t.Fatal("TestGetOrderbook failed. Mismatched pairs")
 	}
 
 	_, err = Get("nonexistent", c, asset.Spot)
 	if err == nil {
-		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook")
+		t.Fatal("TestGetOrderbook retrieved non-existent orderbook")
 	}
 
 	c.Base = currency.NewCode("blah")
 	_, err = Get("Exchange", c, asset.Spot)
 	if err == nil {
-		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid first currency")
+		t.Fatal("TestGetOrderbook retrieved non-existent orderbook using invalid first currency")
 	}
 
 	newCurrency := currency.NewPairFromStrings("BTC", "AUD")
 	_, err = Get("Exchange", newCurrency, asset.Spot)
 	if err == nil {
-		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid second currency")
+		t.Fatal("TestGetOrderbook retrieved non-existent orderbook using invalid second currency")
 	}
 
 	base.Pair = newCurrency
@@ -286,21 +286,21 @@ func TestCreateNewOrderbook(t *testing.T) {
 
 	result, err := Get("testCreateNewOrderbook", c, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestCreateNewOrderbook failed to create new orderbook", err)
+		t.Fatal("TestCreateNewOrderbook failed to create new orderbook", err)
 	}
 
 	if !result.Pair.Equal(c) {
-		t.Fatal("Test failed. TestCreateNewOrderbook result pair is incorrect")
+		t.Fatal("TestCreateNewOrderbook result pair is incorrect")
 	}
 
 	a, b := result.TotalAsksAmount()
 	if a != 10 && b != 1000 {
-		t.Fatal("Test failed. TestCreateNewOrderbook CalculateTotalAsks value is incorrect")
+		t.Fatal("TestCreateNewOrderbook CalculateTotalAsks value is incorrect")
 	}
 
 	a, b = result.TotalBidsAmount()
 	if a != 10 && b != 2000 {
-		t.Fatal("Test failed. TestCreateNewOrderbook CalculateTotalBids value is incorrect")
+		t.Fatal("TestCreateNewOrderbook CalculateTotalBids value is incorrect")
 	}
 }
 
@@ -334,10 +334,10 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 	result, err := Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
+		t.Fatal("TestProcessOrderbook failed to create new orderbook")
 	}
 	if !result.Pair.Equal(c) {
-		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
+		t.Fatal("TestProcessOrderbook result pair is incorrect")
 	}
 
 	// now test for processing a pair with a different quote currency
@@ -345,14 +345,14 @@ func TestProcessOrderbook(t *testing.T) {
 	base.Pair = c
 	err = base.Process()
 	if err != nil {
-		t.Error("Test Failed - Process() error", err)
+		t.Error("Process() error", err)
 	}
 	result, err = Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
+		t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
 	}
 	if !result.Pair.Equal(c) {
-		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
+		t.Fatal("TestProcessOrderbook result pair is incorrect")
 	}
 
 	// now test for processing a pair which has a different base currency
@@ -360,31 +360,31 @@ func TestProcessOrderbook(t *testing.T) {
 	base.Pair = c
 	err = base.Process()
 	if err != nil {
-		t.Error("Test Failed - Process() error", err)
+		t.Error("Process() error", err)
 	}
 	result, err = Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
+		t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
 	}
 	if !result.Pair.Equal(c) {
-		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
+		t.Fatal("TestProcessOrderbook result pair is incorrect")
 	}
 
 	base.Asks = []Item{{Price: 200, Amount: 200}}
 	base.AssetType = "monthly"
 	err = base.Process()
 	if err != nil {
-		t.Error("Test Failed - Process() error", err)
+		t.Error("Process() error", err)
 	}
 
 	result, err = Get("ProcessOrderbook", c, "monthly")
 	if err != nil {
-		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
+		t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
 	}
 
 	a, b := result.TotalAsksAmount()
 	if a != 200 && b != 40000 {
-		t.Fatal("Test failed. TestProcessOrderbook CalculateTotalsAsks incorrect values")
+		t.Fatal("TestProcessOrderbook CalculateTotalsAsks incorrect values")
 	}
 
 	base.Bids = []Item{{Price: 420, Amount: 200}}
@@ -392,16 +392,16 @@ func TestProcessOrderbook(t *testing.T) {
 	base.AssetType = "quarterly"
 	err = base.Process()
 	if err != nil {
-		t.Error("Test Failed - Process() error", err)
+		t.Error("Process() error", err)
 	}
 
 	result, err = Get("Blah", c, "quarterly")
 	if err != nil {
-		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
+		t.Fatal("TestProcessOrderbook failed to create new orderbook")
 	}
 
 	if a != 200 && b != 84000 {
-		t.Fatal("Test failed. TestProcessOrderbook CalculateTotalsBids incorrect values")
+		t.Fatal("TestProcessOrderbook CalculateTotalsBids incorrect values")
 	}
 
 	type quick struct {
@@ -456,7 +456,7 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	if catastrophicFailure {
-		t.Fatal("Test Failed - Process() error", err)
+		t.Fatal("Process() error", err)
 	}
 
 	wg.Wait()
@@ -472,18 +472,18 @@ func TestProcessOrderbook(t *testing.T) {
 			}
 
 			if result.Asks[0] != test.Asks[0] {
-				t.Error("Test failed. TestProcessOrderbook failed bad values")
+				t.Error("TestProcessOrderbook failed bad values")
 			}
 
 			if result.Bids[0] != test.Bids[0] {
-				t.Error("Test failed. TestProcessOrderbook failed bad values")
+				t.Error("TestProcessOrderbook failed bad values")
 			}
 
 			wg.Done()
 		}(test)
 
 		if fatalErr {
-			t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
+			t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
 		}
 	}
 
@@ -493,13 +493,13 @@ func TestProcessOrderbook(t *testing.T) {
 func TestSetNewData(t *testing.T) {
 	err := service.SetNewData(nil)
 	if err == nil {
-		t.Error("error cannot be nil ")
+		t.Error("error cannot be nil")
 	}
 }
 
 func TestGetAssociations(t *testing.T) {
 	_, err := service.GetAssociations(nil)
 	if err == nil {
-		t.Error("error cannot be nil ")
+		t.Error("error cannot be nil")
 	}
 }

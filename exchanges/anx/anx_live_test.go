@@ -19,11 +19,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatalf("Test Failed - ANX Setup() load config error: %s", err)
+		log.Fatalf("ANX Setup() load config error: %s", err)
 	}
 	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
-		log.Fatalf("Test Failed - ANX Setup() init error: %s", err)
+		log.Fatalf("ANX Setup() init error: %s", err)
 	}
 	anxConfig.API.AuthenticatedSupport = true
 	anxConfig.API.Credentials.Key = apiKey
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	a.SetDefaults()
 	err = a.Setup(anxConfig)
 	if err != nil {
-		log.Fatal("Test Failed - ANX setup error", err)
+		log.Fatal("ANX setup error", err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, a.GetName(), a.API.Endpoints.URL)
 	os.Exit(m.Run())

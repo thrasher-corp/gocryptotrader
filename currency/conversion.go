@@ -254,11 +254,6 @@ func (c *ConversionRates) GetFullRates() Conversions {
 // Conversions define a list of conversion data
 type Conversions []Conversion
 
-// Slice exposes the underlying Conversion slice type
-func (c Conversions) Slice() []Conversion {
-	return c
-}
-
 // NewConversionFromString splits a string from a foreign exchange provider
 func NewConversionFromString(p string) (Conversion, error) {
 	return NewConversionFromStrings(p[:3], p[3:])
@@ -302,7 +297,7 @@ func (c Conversion) String() string {
 	return c.From.String() + c.To.String()
 }
 
-// GetRate returns system rate if availabled
+// GetRate returns system rate if available
 func (c Conversion) GetRate() (float64, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()

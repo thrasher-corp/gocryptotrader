@@ -17,7 +17,7 @@ func TestLower(t *testing.T) {
 	actual := pair.Lower()
 	expected := NewPairFromString(defaultPair).Lower()
 	if actual != expected {
-		t.Errorf("Test failed. Lower(): %s was not equal to expected value: %s",
+		t.Errorf("Lower(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
 }
@@ -28,7 +28,7 @@ func TestUpper(t *testing.T) {
 	actual := pair.Upper()
 	expected := NewPairFromString(defaultPair)
 	if actual != expected {
-		t.Errorf("Test failed. Upper(): %s was not equal to expected value: %s",
+		t.Errorf("Upper(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
 }
@@ -39,21 +39,21 @@ func TestPairUnmarshalJSON(t *testing.T) {
 
 	encoded, err := common.JSONEncode(configPair)
 	if err != nil {
-		t.Fatal("Test Failed - Pair UnmarshalJSON() error", err)
+		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
 	err = common.JSONDecode(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Test Failed - Pair UnmarshalJSON() error", err)
+		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
 	err = common.JSONDecode(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Test Failed - Pair UnmarshalJSON() error", err)
+		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
 	if !unmarshalHere.Equal(configPair) {
-		t.Errorf("Test Failed - Pairs UnmarshalJSON() error expected %s but received %s",
+		t.Errorf("Pairs UnmarshalJSON() error expected %s but received %s",
 			configPair, unmarshalHere)
 	}
 }
@@ -67,43 +67,43 @@ func TestPairMarshalJSON(t *testing.T) {
 
 	encoded, err := common.JSONEncode(quickstruct)
 	if err != nil {
-		t.Fatal("Test Failed - Pair MarshalJSON() error", err)
+		t.Fatal("Pair MarshalJSON() error", err)
 	}
 
 	expected := `{"superPair":"BTC-USD"}`
 	if string(encoded) != expected {
-		t.Errorf("Test Failed - Pair MarshalJSON() error expected %s but received %s",
+		t.Errorf("Pair MarshalJSON() error expected %s but received %s",
 			expected, string(encoded))
 	}
 }
 
 func TestIsCryptoPair(t *testing.T) {
 	if !NewPair(BTC, LTC).IsCryptoPair() {
-		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
+		t.Error("TestIsCryptoPair. Expected true result")
 	}
 
 	if NewPair(BTC, USD).IsCryptoPair() {
-		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
+		t.Error("TestIsCryptoPair. Expected false result")
 	}
 }
 
 func TestIsCryptoFiatPair(t *testing.T) {
 	if !NewPair(BTC, USD).IsCryptoFiatPair() {
-		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
+		t.Error("TestIsCryptoPair. Expected true result")
 	}
 
 	if NewPair(BTC, LTC).IsCryptoFiatPair() {
-		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
+		t.Error("TestIsCryptoPair. Expected false result")
 	}
 }
 
 func TestIsFiatPair(t *testing.T) {
 	if !NewPair(AUD, USD).IsFiatPair() {
-		t.Error("Test Failed. TestIsFiatPair. Expected true result")
+		t.Error("TestIsFiatPair. Expected true result")
 	}
 
 	if NewPair(BTC, AUD).IsFiatPair() {
-		t.Error("Test Failed. TestIsFiatPair. Expected false result")
+		t.Error("TestIsFiatPair. Expected false result")
 	}
 }
 
@@ -113,7 +113,7 @@ func TestString(t *testing.T) {
 	actual := defaultPair
 	expected := pair.String()
 	if actual != expected {
-		t.Errorf("Test failed. String(): %s was not equal to expected value: %s",
+		t.Errorf("String(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
 }
@@ -125,7 +125,7 @@ func TestFirstCurrency(t *testing.T) {
 	expected := BTC
 	if actual != expected {
 		t.Errorf(
-			"Test failed. GetFirstCurrency(): %s was not equal to expected value: %s",
+			"GetFirstCurrency(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -138,7 +138,7 @@ func TestSecondCurrency(t *testing.T) {
 	expected := USD
 	if actual != expected {
 		t.Errorf(
-			"Test failed. GetSecondCurrency(): %s was not equal to expected value: %s",
+			"GetSecondCurrency(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -151,7 +151,7 @@ func TestPair(t *testing.T) {
 	expected := defaultPair
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -164,7 +164,7 @@ func TestDisplay(t *testing.T) {
 	expected := defaultPairWDelimiter
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -173,7 +173,7 @@ func TestDisplay(t *testing.T) {
 	expected = "btcusd"
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -182,7 +182,7 @@ func TestDisplay(t *testing.T) {
 	expected = "BTC~USD"
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -196,7 +196,7 @@ func TestEquall(t *testing.T) {
 	expected := true
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Equal(): %v was not equal to expected value: %v",
+			"Equal(): %v was not equal to expected value: %v",
 			actual, expected,
 		)
 	}
@@ -206,7 +206,7 @@ func TestEquall(t *testing.T) {
 	expected = false
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Equal(): %v was not equal to expected value: %v",
+			"Equal(): %v was not equal to expected value: %v",
 			actual, expected,
 		)
 	}
@@ -216,7 +216,7 @@ func TestEquall(t *testing.T) {
 	expected = false
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Equal(): %v was not equal to expected value: %v",
+			"Equal(): %v was not equal to expected value: %v",
 			actual, expected,
 		)
 	}
@@ -230,7 +230,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 	expected := true
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Equal(): %v was not equal to expected value: %v",
+			"Equal(): %v was not equal to expected value: %v",
 			actual, expected,
 		)
 	}
@@ -240,7 +240,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 	expected = false
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Equal(): %v was not equal to expected value: %v",
+			"Equal(): %v was not equal to expected value: %v",
 			actual, expected,
 		)
 	}
@@ -250,7 +250,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 	expected = true
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Equal(): %v was not equal to expected value: %v",
+			"Equal(): %v was not equal to expected value: %v",
 			actual, expected,
 		)
 	}
@@ -263,7 +263,7 @@ func TestSwap(t *testing.T) {
 	expected := "USDBTC"
 	if actual != expected {
 		t.Errorf(
-			"Test failed. TestSwap: %s was not equal to expected value: %s",
+			"TestSwap: %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -273,12 +273,12 @@ func TestEmpty(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
 	if pair.IsEmpty() {
-		t.Error("Test failed. Empty() returned true when the pair was initialised")
+		t.Error("Empty() returned true when the pair was initialised")
 	}
 
 	p := NewPair(NewCode(""), NewCode(""))
 	if !p.IsEmpty() {
-		t.Error("Test failed. Empty() returned true when the pair wasn't initialised")
+		t.Error("Empty() returned true when the pair wasn't initialised")
 	}
 }
 
@@ -289,7 +289,7 @@ func TestNewPair(t *testing.T) {
 	expected := defaultPair
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -302,7 +302,7 @@ func TestNewPairWithDelimiter(t *testing.T) {
 	expected := "BTC-test-USD"
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -312,7 +312,7 @@ func TestNewPairWithDelimiter(t *testing.T) {
 	expected = defaultPair
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -325,7 +325,7 @@ func TestNewPairDelimiter(t *testing.T) {
 	expected := defaultPairWDelimiter
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -334,7 +334,7 @@ func TestNewPairDelimiter(t *testing.T) {
 	expected = "-"
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Delmiter: %s was not equal to expected value: %s",
+			"Delmiter: %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -349,7 +349,7 @@ func TestNewPairFromIndex(t *testing.T) {
 
 	pair, err := NewPairFromIndex(currency, index)
 	if err != nil {
-		t.Error("test failed - NewPairFromIndex() error", err)
+		t.Error("NewPairFromIndex() error", err)
 	}
 
 	pair.Delimiter = "-"
@@ -358,7 +358,7 @@ func TestNewPairFromIndex(t *testing.T) {
 	expected := defaultPairWDelimiter
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -367,7 +367,7 @@ func TestNewPairFromIndex(t *testing.T) {
 
 	pair, err = NewPairFromIndex(currency, index)
 	if err != nil {
-		t.Error("test failed - NewPairFromIndex() error", err)
+		t.Error("NewPairFromIndex() error", err)
 	}
 
 	pair.Delimiter = "-"
@@ -376,7 +376,7 @@ func TestNewPairFromIndex(t *testing.T) {
 	expected = "DOGE-BTC"
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -390,7 +390,7 @@ func TestNewPairFromString(t *testing.T) {
 	expected := defaultPairWDelimiter
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -401,7 +401,7 @@ func TestNewPairFromString(t *testing.T) {
 	expected = defaultPair
 	if actual != expected {
 		t.Errorf(
-			"Test failed. Pair(): %s was not equal to expected value: %s",
+			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -416,18 +416,18 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 
 	p := NewPairFromFormattedPairs("BTCUSDT", pairs, PairFormat{Uppercase: true})
 	if p.String() != "BTC-USDT" {
-		t.Error("Test failed. TestNewPairFromFormattedPairs: Expected currency was not found")
+		t.Error("TestNewPairFromFormattedPairs: Expected currency was not found")
 	}
 
 	p = NewPairFromFormattedPairs("btcusdt", pairs, PairFormat{Uppercase: false})
 	if p.String() != "BTC-USDT" {
-		t.Error("Test failed. TestNewPairFromFormattedPairs: Expected currency was not found")
+		t.Error("TestNewPairFromFormattedPairs: Expected currency was not found")
 	}
 
 	// Now a wrong one, will default to NewPairFromString
 	p = NewPairFromFormattedPairs("ethusdt", pairs, PairFormat{})
 	if p.String() != "ethusdt" && p.Base.String() != "eth" {
-		t.Error("Test failed. TestNewPairFromFormattedPairs: Expected currency was not found")
+		t.Error("TestNewPairFromFormattedPairs: Expected currency was not found")
 	}
 }
 
@@ -435,48 +435,48 @@ func TestContainsCurrency(t *testing.T) {
 	p := NewPair(BTC, USD)
 
 	if !p.ContainsCurrency(BTC) {
-		t.Error("Test failed. TestContainsCurrency: Expected currency was not found")
+		t.Error("TestContainsCurrency: Expected currency was not found")
 	}
 
 	if p.ContainsCurrency(ETH) {
-		t.Error("Test failed. TestContainsCurrency: Non-existent currency was found")
+		t.Error("TestContainsCurrency: Non-existent currency was found")
 	}
 }
 
 func TestFormatPairs(t *testing.T) {
 	newP, err := FormatPairs([]string{""}, "-", "")
 	if err != nil {
-		t.Error("Test Failed - FormatPairs() error", err)
+		t.Error("FormatPairs() error", err)
 	}
 
 	if len(newP) > 0 {
-		t.Error("Test failed. TestFormatPairs: Empty string returned a valid pair")
+		t.Error("TestFormatPairs: Empty string returned a valid pair")
 	}
 
 	newP, err = FormatPairs([]string{defaultPairWDelimiter}, "-", "")
 	if err != nil {
-		t.Error("Test Failed - FormatPairs() error", err)
+		t.Error("FormatPairs() error", err)
 	}
 
 	if newP[0].String() != defaultPairWDelimiter {
-		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+		t.Error("TestFormatPairs: Expected pair was not found")
 	}
 
 	newP, err = FormatPairs([]string{defaultPair}, "", "BTC")
 	if err != nil {
-		t.Error("Test Failed - FormatPairs() error", err)
+		t.Error("FormatPairs() error", err)
 	}
 
 	if newP[0].String() != defaultPair {
-		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+		t.Error("TestFormatPairs: Expected pair was not found")
 	}
 	newP, err = FormatPairs([]string{"ETHUSD"}, "", "")
 	if err != nil {
-		t.Error("Test Failed - FormatPairs() error", err)
+		t.Error("FormatPairs() error", err)
 	}
 
 	if newP[0].String() != "ETHUSD" {
-		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+		t.Error("TestFormatPairs: Expected pair was not found")
 	}
 }
 
@@ -492,12 +492,12 @@ func TestCopyPairFormat(t *testing.T) {
 
 	result := CopyPairFormat(testPair, pairs, false)
 	if result.String() != defaultPairWDelimiter {
-		t.Error("Test failed. TestCopyPairFormat: Expected pair was not found")
+		t.Error("TestCopyPairFormat: Expected pair was not found")
 	}
 
 	result = CopyPairFormat(NewPair(ETH, USD), pairs, true)
 	if result.String() != "" {
-		t.Error("Test failed. TestCopyPairFormat: Unexpected non empty pair returned")
+		t.Error("TestCopyPairFormat: Unexpected non empty pair returned")
 	}
 }
 
@@ -507,26 +507,26 @@ func TestFindPairDifferences(t *testing.T) {
 	// Test new pair update
 	newPairs, removedPairs := pairList.FindDifferences(NewPairsFromStrings([]string{"DASH-USD"}))
 	if len(newPairs) != 1 && len(removedPairs) != 3 {
-		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
+		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that we don't allow empty strings for new pairs
 	newPairs, removedPairs = pairList.FindDifferences(NewPairsFromStrings([]string{""}))
 	if len(newPairs) != 0 && len(removedPairs) != 3 {
-		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
+		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that we don't allow empty strings for new pairs
 	newPairs, removedPairs = NewPairsFromStrings([]string{""}).FindDifferences(pairList)
 	if len(newPairs) != 3 && len(removedPairs) != 0 {
-		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
+		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that the supplied pair lists are the same, so
 	// no newPairs or removedPairs
 	newPairs, removedPairs = pairList.FindDifferences(pairList)
 	if len(newPairs) != 0 && len(removedPairs) != 0 {
-		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
+		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 }
 
@@ -538,7 +538,7 @@ func TestPairsToStringArray(t *testing.T) {
 	actual := pairs.Strings()
 
 	if actual[0] != expected[0] {
-		t.Error("Test failed. TestPairsToStringArray: Unexpected values")
+		t.Error("TestPairsToStringArray: Unexpected values")
 	}
 }
 
@@ -547,7 +547,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	var emptyPairs Pairs
 	result := emptyPairs.GetRandomPair()
 	if !result.IsEmpty() {
-		t.Error("Test failed. TestRandomPairFromPairs: Unexpected values")
+		t.Error("TestRandomPairFromPairs: Unexpected values")
 	}
 
 	// Test that a populated pairs array returns a non-empty currency pair
@@ -556,7 +556,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	result = pairs.GetRandomPair()
 
 	if result.IsEmpty() {
-		t.Error("Test failed. TestRandomPairFromPairs: Unexpected values")
+		t.Error("TestRandomPairFromPairs: Unexpected values")
 	}
 
 	// Test that a populated pairs array over a number of attempts returns ALL
@@ -574,7 +574,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	for x := range pairs {
 		_, ok := expectedResults[pairs[x].String()]
 		if !ok {
-			t.Error("Test failed. TestRandomPairFromPairs: Unexpected values")
+			t.Error("TestRandomPairFromPairs: Unexpected values")
 		}
 	}
 }
@@ -582,6 +582,6 @@ func TestRandomPairFromPairs(t *testing.T) {
 func TestIsInvalid(t *testing.T) {
 	p := NewPair(LTC, LTC)
 	if !p.IsInvalid() {
-		t.Error("Test Failed - IsInvalid() error expect true but received false")
+		t.Error("IsInvalid() error expect true but received false")
 	}
 }

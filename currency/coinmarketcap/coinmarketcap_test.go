@@ -58,32 +58,32 @@ func TestCheckAccountPlan(t *testing.T) {
 	if areAPICredtionalsSet(Basic) {
 		err := c.CheckAccountPlan(Enterprise)
 		if err == nil {
-			t.Error("Test Failed - CheckAccountPlan() error cannot be nil")
+			t.Error("CheckAccountPlan() error cannot be nil")
 		}
 
 		err = c.CheckAccountPlan(Professional)
 		if err == nil {
-			t.Error("Test Failed - CheckAccountPlan() error cannot be nil")
+			t.Error("CheckAccountPlan() error cannot be nil")
 		}
 
 		err = c.CheckAccountPlan(Standard)
 		if err == nil {
-			t.Error("Test Failed - CheckAccountPlan() error cannot be nil")
+			t.Error("CheckAccountPlan() error cannot be nil")
 		}
 
 		err = c.CheckAccountPlan(Hobbyist)
 		if err == nil {
-			t.Error("Test Failed - CheckAccountPlan() error cannot be nil")
+			t.Error("CheckAccountPlan() error cannot be nil")
 		}
 
 		err = c.CheckAccountPlan(Startup)
 		if err == nil {
-			t.Error("Test Failed - CheckAccountPlan() error cannot be nil")
+			t.Error("CheckAccountPlan() error cannot be nil")
 		}
 
 		err = c.CheckAccountPlan(Basic)
 		if err != nil {
-			t.Error("Test Failed - CheckAccountPlan() error", err)
+			t.Error("CheckAccountPlan() error", err)
 		}
 	}
 }
@@ -94,11 +94,11 @@ func TestGetCryptocurrencyInfo(t *testing.T) {
 	_, err := c.GetCryptocurrencyInfo(1)
 	if areAPICredtionalsSet(Basic) {
 		if err != nil {
-			t.Error("Test Failed - GetCryptocurrencyInfo() error", err)
+			t.Error("GetCryptocurrencyInfo() error", err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetCryptocurrencyInfo() error cannot be nil")
+			t.Error("GetCryptocurrencyInfo() error cannot be nil")
 		}
 	}
 }
@@ -109,11 +109,11 @@ func TestGetCryptocurrencyIDMap(t *testing.T) {
 	_, err := c.GetCryptocurrencyIDMap()
 	if areAPICredtionalsSet(Basic) {
 		if err != nil {
-			t.Error("Test Failed - GetCryptocurrencyIDMap() error", err)
+			t.Error("GetCryptocurrencyIDMap() error", err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetCryptocurrencyIDMap() error cannot be nil")
+			t.Error("GetCryptocurrencyIDMap() error cannot be nil")
 		}
 	}
 }
@@ -123,7 +123,7 @@ func TestGetCryptocurrencyHistoricalListings(t *testing.T) {
 	TestSetup(t)
 	_, err := c.GetCryptocurrencyHistoricalListings()
 	if err == nil {
-		t.Error("Test Failed - GetCryptocurrencyHistoricalListings() error cannot be nil")
+		t.Error("GetCryptocurrencyHistoricalListings() error cannot be nil")
 	}
 }
 
@@ -133,11 +133,11 @@ func TestGetCryptocurrencyLatestListing(t *testing.T) {
 	_, err := c.GetCryptocurrencyLatestListing(0, 0)
 	if areAPICredtionalsSet(Basic) {
 		if err != nil {
-			t.Error("Test Failed - GetCryptocurrencyLatestListing() error", err)
+			t.Error("GetCryptocurrencyLatestListing() error", err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetCryptocurrencyLatestListing() error cannot be nil")
+			t.Error("GetCryptocurrencyLatestListing() error cannot be nil")
 		}
 	}
 }
@@ -148,12 +148,12 @@ func TestGetCryptocurrencyLatestMarketPairs(t *testing.T) {
 	_, err := c.GetCryptocurrencyLatestMarketPairs(1, 0, 0)
 	if areAPICredtionalsSet(Standard) {
 		if err != nil {
-			t.Error("Test Failed - GetCryptocurrencyLatestMarketPairs() error",
+			t.Error("GetCryptocurrencyLatestMarketPairs() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetCryptocurrencyLatestMarketPairs() error cannot be nil")
+			t.Error("GetCryptocurrencyLatestMarketPairs() error cannot be nil")
 		}
 	}
 }
@@ -164,12 +164,12 @@ func TestGetCryptocurrencyOHLCHistorical(t *testing.T) {
 	_, err := c.GetCryptocurrencyOHLCHistorical(1, time.Now(), time.Now())
 	if areAPICredtionalsSet(Standard) {
 		if err != nil {
-			t.Error("Test Failed - GetCryptocurrencyOHLCHistorical() error",
+			t.Error("GetCryptocurrencyOHLCHistorical() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetCryptocurrencyOHLCHistorical() error cannot be nil")
+			t.Error("GetCryptocurrencyOHLCHistorical() error cannot be nil")
 		}
 	}
 }
@@ -180,12 +180,12 @@ func TestGetCryptocurrencyOHLCLatest(t *testing.T) {
 	_, err := c.GetCryptocurrencyOHLCLatest(1)
 	if areAPICredtionalsSet(Startup) {
 		if err != nil {
-			t.Error("Test Failed - GetCryptocurrencyOHLCLatest() error",
+			t.Error("GetCryptocurrencyOHLCLatest() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetCryptocurrencyOHLCLatest() error cannot be nil")
+			t.Error("GetCryptocurrencyOHLCLatest() error cannot be nil")
 		}
 	}
 }
@@ -196,12 +196,12 @@ func TestGetCryptocurrencyLatestQuotes(t *testing.T) {
 	_, err := c.GetCryptocurrencyLatestQuotes(1)
 	if areAPICredtionalsSet(Basic) {
 		if err != nil {
-			t.Error("Test Failed - GetCryptocurrencyLatestQuotes() error",
+			t.Error("GetCryptocurrencyLatestQuotes() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetCryptocurrencyLatestQuotes() error cannot be nil")
+			t.Error("GetCryptocurrencyLatestQuotes() error cannot be nil")
 		}
 	}
 }
@@ -212,12 +212,12 @@ func TestGetCryptocurrencyHistoricalQuotes(t *testing.T) {
 	_, err := c.GetCryptocurrencyHistoricalQuotes(1, time.Now(), time.Now())
 	if areAPICredtionalsSet(Standard) {
 		if err != nil {
-			t.Error("Test Failed - GetCryptocurrencyHistoricalQuotes() error",
+			t.Error("GetCryptocurrencyHistoricalQuotes() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetCryptocurrencyHistoricalQuotes() error cannot be nil")
+			t.Error("GetCryptocurrencyHistoricalQuotes() error cannot be nil")
 		}
 	}
 }
@@ -228,12 +228,12 @@ func TestGetExchangeInfo(t *testing.T) {
 	_, err := c.GetExchangeInfo(1)
 	if areAPICredtionalsSet(Startup) {
 		if err != nil {
-			t.Error("Test Failed - GetExchangeInfo() error",
+			t.Error("GetExchangeInfo() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetExchangeInfo() error cannot be nil")
+			t.Error("GetExchangeInfo() error cannot be nil")
 		}
 	}
 }
@@ -244,12 +244,12 @@ func TestGetExchangeMap(t *testing.T) {
 	_, err := c.GetExchangeMap(0, 0)
 	if areAPICredtionalsSet(Startup) {
 		if err != nil {
-			t.Error("Test Failed - GetExchangeMap() error",
+			t.Error("GetExchangeMap() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetExchangeMap() error cannot be nil")
+			t.Error("GetExchangeMap() error cannot be nil")
 		}
 	}
 }
@@ -260,7 +260,7 @@ func TestGetExchangeHistoricalListings(t *testing.T) {
 	_, err := c.GetExchangeHistoricalListings()
 	if err == nil {
 		// TODO: update this once the feature above is implemented
-		t.Error("Test Failed - GetExchangeHistoricalListings() error cannot be nil")
+		t.Error("GetExchangeHistoricalListings() error cannot be nil")
 	}
 }
 
@@ -270,7 +270,7 @@ func TestGetExchangeLatestListings(t *testing.T) {
 	_, err := c.GetExchangeLatestListings()
 	if err == nil {
 		// TODO: update this once the feature above is implemented
-		t.Error("Test Failed - GetExchangeHistoricalListings() error cannot be nil")
+		t.Error("GetExchangeHistoricalListings() error cannot be nil")
 	}
 }
 
@@ -280,12 +280,12 @@ func TestGetExchangeLatestMarketPairs(t *testing.T) {
 	_, err := c.GetExchangeLatestMarketPairs(1, 0, 0)
 	if areAPICredtionalsSet(Standard) {
 		if err != nil {
-			t.Error("Test Failed - GetExchangeLatestMarketPairs() error",
+			t.Error("GetExchangeLatestMarketPairs() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetExchangeLatestMarketPairs() error cannot be nil")
+			t.Error("GetExchangeLatestMarketPairs() error cannot be nil")
 		}
 	}
 }
@@ -296,12 +296,12 @@ func TestGetExchangeLatestQuotes(t *testing.T) {
 	_, err := c.GetExchangeLatestQuotes(1)
 	if areAPICredtionalsSet(Standard) {
 		if err != nil {
-			t.Error("Test Failed - GetExchangeLatestQuotes() error",
+			t.Error("GetExchangeLatestQuotes() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetExchangeLatestQuotes() error cannot be nil")
+			t.Error("GetExchangeLatestQuotes() error cannot be nil")
 		}
 	}
 }
@@ -312,12 +312,12 @@ func TestGetExchangeHistoricalQuotes(t *testing.T) {
 	_, err := c.GetExchangeHistoricalQuotes(1, time.Now(), time.Now())
 	if areAPICredtionalsSet(Standard) {
 		if err != nil {
-			t.Error("Test Failed - GetExchangeHistoricalQuotes() error",
+			t.Error("GetExchangeHistoricalQuotes() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetExchangeHistoricalQuotes() error cannot be nil")
+			t.Error("GetExchangeHistoricalQuotes() error cannot be nil")
 		}
 	}
 }
@@ -328,12 +328,12 @@ func TestGetGlobalMeticLatestQuotes(t *testing.T) {
 	_, err := c.GetGlobalMeticLatestQuotes()
 	if areAPICredtionalsSet(Basic) {
 		if err != nil {
-			t.Error("Test Failed - GetGlobalMeticLatestQuotes() error",
+			t.Error("GetGlobalMeticLatestQuotes() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetGlobalMeticLatestQuotes() error cannot be nil")
+			t.Error("GetGlobalMeticLatestQuotes() error cannot be nil")
 		}
 	}
 }
@@ -344,12 +344,12 @@ func TestGetGlobalMeticHistoricalQuotes(t *testing.T) {
 	_, err := c.GetGlobalMeticHistoricalQuotes(time.Now(), time.Now())
 	if areAPICredtionalsSet(Standard) {
 		if err != nil {
-			t.Error("Test Failed - GetGlobalMeticHistoricalQuotes() error",
+			t.Error("GetGlobalMeticHistoricalQuotes() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetGlobalMeticHistoricalQuotes() error cannot be nil")
+			t.Error("GetGlobalMeticHistoricalQuotes() error cannot be nil")
 		}
 	}
 }
@@ -360,12 +360,12 @@ func TestGetPriceConversion(t *testing.T) {
 	_, err := c.GetPriceConversion(0, 1, time.Now())
 	if areAPICredtionalsSet(Hobbyist) {
 		if err != nil {
-			t.Error("Test Failed - GetPriceConversion() error",
+			t.Error("GetPriceConversion() error",
 				err)
 		}
 	} else {
 		if err == nil {
-			t.Error("Test Failed - GetPriceConversion() error cannot be nil")
+			t.Error("GetPriceConversion() error cannot be nil")
 		}
 	}
 }
@@ -375,38 +375,38 @@ func TestSetAccountPlan(t *testing.T) {
 	for _, plan := range accPlans {
 		err := c.SetAccountPlan(plan)
 		if err != nil {
-			t.Error("Test Failed - SetAccountPlan() error", err)
+			t.Error("SetAccountPlan() error", err)
 		}
 
 		switch plan {
 		case "basic":
 			if c.Plan != Basic {
-				t.Error("Test Failed - SetAccountPlan() error basic plan not set correctly")
+				t.Error("SetAccountPlan() error basic plan not set correctly")
 			}
 		case "startup":
 			if c.Plan != Startup {
-				t.Error("Test Failed - SetAccountPlan() error startup plan not set correctly")
+				t.Error("SetAccountPlan() error startup plan not set correctly")
 			}
 		case "hobbyist":
 			if c.Plan != Hobbyist {
-				t.Error("Test Failed - SetAccountPlan() error hobbyist plan not set correctly")
+				t.Error("SetAccountPlan() error hobbyist plan not set correctly")
 			}
 		case "standard":
 			if c.Plan != Standard {
-				t.Error("Test Failed - SetAccountPlan() error standard plan not set correctly")
+				t.Error("SetAccountPlan() error standard plan not set correctly")
 			}
 		case "professional":
 			if c.Plan != Professional {
-				t.Error("Test Failed - SetAccountPlan() error professional plan not set correctly")
+				t.Error("SetAccountPlan() error professional plan not set correctly")
 			}
 		case "enterprise":
 			if c.Plan != Enterprise {
-				t.Error("Test Failed - SetAccountPlan() error enterprise plan not set correctly")
+				t.Error("SetAccountPlan() error enterprise plan not set correctly")
 			}
 		}
 	}
 
 	if err := c.SetAccountPlan("bra"); err == nil {
-		t.Error("Test Failed - SetAccountPlan() error cannot be nil")
+		t.Error("SetAccountPlan() error cannot be nil")
 	}
 }

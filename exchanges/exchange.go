@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -101,7 +102,7 @@ func (e *Base) SetFeatureDefaults() {
 			Supports: config.FeaturesSupportedConfig{
 				Websocket: e.Features.Supports.Websocket,
 				REST:      e.Features.Supports.REST,
-				RESTCapabilities: config.ProtocolFeaturesConfig{
+				RESTCapabilities: protocol.Features{
 					AutoPairUpdates: e.Features.Supports.RESTCapabilities.AutoPairUpdates,
 				},
 			},

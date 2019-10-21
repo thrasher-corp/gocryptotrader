@@ -16,7 +16,7 @@ func SetupTest(t *testing.T) {
 		Bot.Config = &config.Cfg
 		err := Bot.Config.LoadConfig("", true)
 		if err != nil {
-			t.Fatalf("Test failed. SetupTest: Failed to load config: %s", err)
+			t.Fatalf("SetupTest: Failed to load config: %s", err)
 		}
 		testSetup = true
 	}
@@ -26,7 +26,7 @@ func SetupTest(t *testing.T) {
 	}
 	err := LoadExchange("Bitfinex", false, nil)
 	if err != nil {
-		t.Errorf("Test failed. SetupTest: Failed to load exchange: %s", err)
+		t.Errorf("SetupTest: Failed to load exchange: %s", err)
 	}
 }
 
@@ -37,7 +37,7 @@ func CleanupTest(t *testing.T) {
 
 	err := UnloadExchange("Bitfinex")
 	if err != nil {
-		t.Fatalf("Test failed. CleanupTest: Failed to unload exchange: %s",
+		t.Fatalf("CleanupTest: Failed to unload exchange: %s",
 			err)
 	}
 }
@@ -46,11 +46,11 @@ func TestCheckExchangeExists(t *testing.T) {
 	SetupTest(t)
 
 	if !CheckExchangeExists("Bitfinex") {
-		t.Errorf("Test failed. TestGetExchangeExists: Unable to find exchange")
+		t.Errorf("TestGetExchangeExists: Unable to find exchange")
 	}
 
 	if CheckExchangeExists("Asdsad") {
-		t.Errorf("Test failed. TestGetExchangeExists: Non-existent exchange found")
+		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
 	}
 
 	CleanupTest(t)
@@ -61,26 +61,26 @@ func TestGetExchangeByName(t *testing.T) {
 
 	exch := GetExchangeByName("Bitfinex")
 	if exch == nil {
-		t.Errorf("Test failed. TestGetExchangeByName: Failed to get exchange")
+		t.Errorf("TestGetExchangeByName: Failed to get exchange")
 	}
 
 	if !exch.IsEnabled() {
-		t.Errorf("Test failed. TestGetExchangeByName: Unexpected result")
+		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
 
 	exch.SetEnabled(false)
 	bfx := GetExchangeByName("Bitfinex")
 	if bfx.IsEnabled() {
-		t.Errorf("Test failed. TestGetExchangeByName: Unexpected result")
+		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
 
 	if exch.GetName() != "Bitfinex" {
-		t.Errorf("Test failed. TestGetExchangeByName: Unexpected result")
+		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
 
 	exch = GetExchangeByName("Asdasd")
 	if exch != nil {
-		t.Errorf("Test failed. TestGetExchangeByName: Non-existent exchange found")
+		t.Errorf("TestGetExchangeByName: Non-existent exchange found")
 	}
 
 	CleanupTest(t)
@@ -91,13 +91,13 @@ func TestReloadExchange(t *testing.T) {
 
 	err := ReloadExchange("asdf")
 	if err != ErrExchangeNotFound {
-		t.Errorf("Test failed. TestReloadExchange: Incorrect result: %s",
+		t.Errorf("TestReloadExchange: Incorrect result: %s",
 			err)
 	}
 
 	err = ReloadExchange("Bitfinex")
 	if err != nil {
-		t.Errorf("Test failed. TestReloadExchange: Incorrect result: %s",
+		t.Errorf("TestReloadExchange: Incorrect result: %s",
 			err)
 	}
 
@@ -105,7 +105,7 @@ func TestReloadExchange(t *testing.T) {
 
 	err = ReloadExchange("asdf")
 	if err != ErrNoExchangesLoaded {
-		t.Errorf("Test failed. TestReloadExchange: Incorrect result: %s",
+		t.Errorf("TestReloadExchange: Incorrect result: %s",
 			err)
 	}
 }
@@ -115,19 +115,19 @@ func TestUnloadExchange(t *testing.T) {
 
 	err := UnloadExchange("asdf")
 	if err != ErrExchangeNotFound {
-		t.Errorf("Test failed. TestUnloadExchange: Incorrect result: %s",
+		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
 	}
 
 	err = UnloadExchange("Bitfinex")
 	if err != nil {
-		t.Errorf("Test failed. TestUnloadExchange: Failed to get exchange. %s",
+		t.Errorf("TestUnloadExchange: Failed to get exchange. %s",
 			err)
 	}
 
 	err = UnloadExchange("asdf")
 	if err != ErrNoExchangesLoaded {
-		t.Errorf("Test failed. TestUnloadExchange: Incorrect result: %s",
+		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
 	}
 

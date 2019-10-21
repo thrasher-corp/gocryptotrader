@@ -7,47 +7,12 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
 
 // Websocket functionality list and state consts
 const (
-	NoWebsocketSupport       uint32 = 0
-	WebsocketTickerSupported uint32 = 1 << (iota - 1)
-	WebsocketOrderbookSupported
-	WebsocketKlineSupported
-	WebsocketTradeDataSupported
-	WebsocketAccountSupported
-	WebsocketAllowsRequests
-	WebsocketSubscribeSupported
-	WebsocketUnsubscribeSupported
-	WebsocketAuthenticatedEndpointsSupported
-	WebsocketAccountDataSupported
-	WebsocketSubmitOrderSupported
-	WebsocketCancelOrderSupported
-	WebsocketWithdrawSupported
-	WebsocketMessageCorrelationSupported
-	WebsocketSequenceNumberSupported
-	WebsocketDeadMansSwitchSupported
-
-	WebsocketTickerSupportedText                 = "TICKER STREAMING SUPPORTED"
-	WebsocketOrderbookSupportedText              = "ORDERBOOK STREAMING SUPPORTED"
-	WebsocketKlineSupportedText                  = "KLINE STREAMING SUPPORTED"
-	WebsocketTradeDataSupportedText              = "TRADE STREAMING SUPPORTED"
-	WebsocketAccountSupportedText                = "ACCOUNT STREAMING SUPPORTED"
-	WebsocketAllowsRequestsText                  = "WEBSOCKET REQUESTS SUPPORTED"
-	NoWebsocketSupportText                       = "WEBSOCKET NOT SUPPORTED"
-	UnknownWebsocketFunctionality                = "UNKNOWN FUNCTIONALITY BITMASK"
-	WebsocketSubscribeSupportedText              = "WEBSOCKET SUBSCRIBE SUPPORTED"
-	WebsocketUnsubscribeSupportedText            = "WEBSOCKET UNSUBSCRIBE SUPPORTED"
-	WebsocketAuthenticatedEndpointsSupportedText = "WEBSOCKET AUTHENTICATED ENDPOINTS SUPPORTED"
-	WebsocketAccountDataSupportedText            = "WEBSOCKET ACCOUNT DATA SUPPORTED"
-	WebsocketSubmitOrderSupportedText            = "WEBSOCKET SUBMIT ORDER SUPPORTED"
-	WebsocketCancelOrderSupportedText            = "WEBSOCKET CANCEL ORDER SUPPORTED"
-	WebsocketWithdrawSupportedText               = "WEBSOCKET WITHDRAW SUPPORTED"
-	WebsocketMessageCorrelationSupportedText     = "WEBSOCKET MESSAGE CORRELATION SUPPORTED"
-	WebsocketSequenceNumberSupportedText         = "WEBSOCKET SEQUENCE NUMBER SUPPORTED"
-	WebsocketDeadMansSwitchSupportedText         = "WEBSOCKET DEAD MANS SWITCH SUPPORTED"
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled      = "exchange_websocket_not_enabled"
 	manageSubscriptionsDelay = 5 * time.Second
@@ -58,8 +23,6 @@ const (
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing in routines.go
 type Websocket struct {
-	// Functionality defines websocket stream capabilities
-	Functionality                uint32
 	canUseAuthenticatedEndpoints bool
 	enabled                      bool
 	init                         bool
@@ -93,6 +56,7 @@ type Websocket struct {
 	TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
 	ReadMessageErrors chan error
+	features          *protocol.Features
 }
 
 type WebsocketSetup struct {
@@ -106,6 +70,7 @@ type WebsocketSetup struct {
 	Connector                        func() error
 	Subscriber                       func(channelToSubscribe WebsocketChannelSubscription) error
 	UnSubscriber                     func(channelToUnsubscribe WebsocketChannelSubscription) error
+	Features                         *protocol.Features
 }
 
 // WebsocketChannelSubscription container for websocket subscriptions

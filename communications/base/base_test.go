@@ -19,19 +19,19 @@ func TestStart(t *testing.T) {
 
 func TestIsEnabled(t *testing.T) {
 	if !b.IsEnabled() {
-		t.Error("test failed - base IsEnabled() error")
+		t.Error("base IsEnabled() error")
 	}
 }
 
 func TestIsConnected(t *testing.T) {
 	if !b.IsConnected() {
-		t.Error("test failed - base IsConnected() error")
+		t.Error("base IsConnected() error")
 	}
 }
 
 func TestGetName(t *testing.T) {
 	if b.GetName() != "test" {
-		t.Error("test failed - base GetName() error")
+		t.Error("base GetName() error")
 	}
 }
 

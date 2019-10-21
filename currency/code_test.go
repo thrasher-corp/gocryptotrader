@@ -8,31 +8,31 @@ import (
 
 func TestRoleString(t *testing.T) {
 	if Unset.String() != UnsetRollString {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			UnsetRollString,
 			Unset)
 	}
 
 	if Fiat.String() != FiatCurrencyString {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			FiatCurrencyString,
 			Fiat)
 	}
 
 	if Cryptocurrency.String() != CryptocurrencyString {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			CryptocurrencyString,
 			Cryptocurrency)
 	}
 
 	if Token.String() != TokenString {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			TokenString,
 			Token)
 	}
 
 	if Contract.String() != ContractString {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			ContractString,
 			Contract)
 	}
@@ -40,7 +40,7 @@ func TestRoleString(t *testing.T) {
 	var random Role = 1 << 7
 
 	if random.String() != "UNKNOWN" {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			"UNKNOWN",
 			random)
 	}
@@ -49,17 +49,18 @@ func TestRoleString(t *testing.T) {
 func TestRoleMarshalJSON(t *testing.T) {
 	d, err := common.JSONEncode(Fiat)
 	if err != nil {
-		t.Error("Test Failed - Role MarshalJSON() error", err)
+		t.Error("Role MarshalJSON() error", err)
 	}
 
 	expected := `"fiatCurrency"`
 	if string(d) != expected {
-		t.Errorf("Test Failed - Role MarshalJSON() error expected %s but received %s",
+		t.Errorf("Role MarshalJSON() error expected %s but received %s",
 			expected,
 			string(d))
 	}
 }
 
+// TestRoleUnmarshalJSON logic test
 func TestRoleUnmarshalJSON(t *testing.T) {
 	type AllTheRoles struct {
 		RoleOne     Role `json:"RoleOne"`
@@ -80,136 +81,158 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 
 	e, err := common.JSONEncode(1337)
 	if err != nil {
-		t.Fatal("Test Failed - Role UnmarshalJSON() error", err)
+		t.Fatal("Role UnmarshalJSON() error", err)
 	}
 
 	var incoming AllTheRoles
 	err = common.JSONDecode(e, &incoming)
 	if err == nil {
-		t.Fatal("Test Failed - Role UnmarshalJSON() error", err)
+		t.Fatal("Role UnmarshalJSON() Expected error")
 	}
 
 	e, err = common.JSONEncode(outgoing)
 	if err != nil {
-		t.Fatal("Test Failed - Role UnmarshalJSON() error", err)
+		t.Fatal("Role UnmarshalJSON() error", err)
 	}
 
 	err = common.JSONDecode(e, &incoming)
 	if err != nil {
-		t.Fatal("Test Failed - Role UnmarshalJSON() error", err)
+		t.Fatal("Role UnmarshalJSON() error", err)
 	}
 
 	if incoming.RoleOne != Unset {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			Unset,
 			incoming.RoleOne)
 	}
 
 	if incoming.RoleTwo != Cryptocurrency {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			Cryptocurrency,
 			incoming.RoleTwo)
 	}
 
 	if incoming.RoleThree != Fiat {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			Fiat,
 			incoming.RoleThree)
 	}
 
 	if incoming.RoleFour != Token {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			Token,
 			incoming.RoleFour)
 	}
 
 	if incoming.RoleFive != Contract {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			Contract,
 			incoming.RoleFive)
 	}
 
 	if incoming.RoleUnknown != Unset {
-		t.Errorf("Test Failed - Role String() error expected %s but received %s",
+		t.Errorf("Role String() error expected %s but received %s",
 			incoming.RoleFive,
 			incoming.RoleUnknown)
+	}
+	var unhandled Role
+	err = unhandled.UnmarshalJSON([]byte("\"ThisIsntReal\""))
+	if err == nil {
+		t.Error("Expected unmarshall error")
 	}
 }
 
 func TestBaseCode(t *testing.T) {
 	var main BaseCodes
 	if main.HasData() {
-		t.Errorf("Test Failed - BaseCode HasData() error expected false but received %v",
+		t.Errorf("BaseCode HasData() error expected false but received %v",
 			main.HasData())
 	}
 
 	catsCode := main.Register("CATS")
 	if !main.HasData() {
-		t.Errorf("Test Failed - BaseCode HasData() error expected true but received %v",
+		t.Errorf("BaseCode HasData() error expected true but received %v",
 			main.HasData())
 	}
 
 	if !main.Register("CATS").Match(catsCode) {
-		t.Errorf("Test Failed - BaseCode Match() error expected true but received %v",
+		t.Errorf("BaseCode Match() error expected true but received %v",
 			false)
 	}
 
 	if main.Register("DOGS").Match(catsCode) {
-		t.Errorf("Test Failed - BaseCode Match() error expected false but received %v",
+		t.Errorf("BaseCode Match() error expected false but received %v",
 			true)
 	}
 
 	loadedCurrencies := main.GetCurrencies()
 
 	if loadedCurrencies.Contains(main.Register("OWLS")) {
-		t.Errorf("Test Failed - BaseCode Contains() error expected false but received %v",
+		t.Errorf("BaseCode Contains() error expected false but received %v",
 			true)
 	}
 
 	if !loadedCurrencies.Contains(catsCode) {
-		t.Errorf("Test Failed - BaseCode Contains() error expected true but received %v",
+		t.Errorf("BaseCode Contains() error expected true but received %v",
 			false)
 	}
 
 	err := main.UpdateContract("Bitcoin Perpetual", "XBTUSD", "Bitmex")
 	if err != nil {
-		t.Error("Test Failed - BaseCode UpdateContract error", err)
+		t.Error("BaseCode UpdateContract error", err)
 	}
 
 	err = main.UpdateCryptocurrency("Bitcoin", "BTC", 1337)
 	if err != nil {
-		t.Error("Test Failed - BaseCode UpdateContract error", err)
+		t.Error("BaseCode UpdateContract error", err)
+	}
+
+	err = main.UpdateFiatCurrency("Unreal Dollar", "AUD", 1111)
+	if err != nil {
+		t.Error("BaseCode UpdateContract error", err)
+	}
+	if main.Items[5].FullName != "Unreal Dollar" {
+		t.Error("Expected fullname to update for AUD")
 	}
 
 	err = main.UpdateFiatCurrency("Australian Dollar", "AUD", 1336)
 	if err != nil {
-		t.Error("Test Failed - BaseCode UpdateContract error", err)
+		t.Error("BaseCode UpdateContract error", err)
+	}
+
+	main.Items[5].Role = Unset
+	err = main.UpdateFiatCurrency("Australian Dollar", "AUD", 1336)
+	if err != nil {
+		t.Error("BaseCode UpdateContract error", err)
+	}
+	if main.Items[5].Role != Fiat {
+		t.Error("Expected role to change to Fiat")
 	}
 
 	err = main.UpdateToken("Populous", "PPT", "ETH", 1335)
 	if err != nil {
-		t.Error("Test Failed - BaseCode UpdateContract error", err)
+		t.Error("BaseCode UpdateContract error", err)
 	}
 
 	contract := main.Register("XBTUSD")
 
 	if contract.IsFiatCurrency() {
-		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but received %v",
+		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",
 			true)
 	}
 
 	if contract.IsCryptocurrency() {
-		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but received %v",
+		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",
 			true)
 	}
 
 	if contract.IsDefaultFiatCurrency() {
-		t.Errorf("Test Failed - BaseCode IsDefaultFiatCurrency() error expected false but received %v",
+		t.Errorf("BaseCode IsDefaultFiatCurrency() error expected false but received %v",
 			true)
 	}
 
 	if contract.IsDefaultFiatCurrency() {
-		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but received %v",
+		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",
 			true)
 	}
 
@@ -220,42 +243,93 @@ func TestBaseCode(t *testing.T) {
 		Symbol:   "ADA",
 	})
 	if err != nil {
-		t.Error("Test Failed - BaseCode LoadItem() error", err)
+		t.Error("BaseCode LoadItem() error", err)
 	}
 
 	full, err := main.GetFullCurrencyData()
 	if err != nil {
-		t.Error("Test Failed - BaseCode GetFullCurrencyData error", err)
+		t.Error("BaseCode GetFullCurrencyData error", err)
 	}
 
 	if len(full.Contracts) != 1 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but received %v",
+		t.Errorf("BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.Contracts))
 	}
 
 	if len(full.Cryptocurrency) != 2 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but received %v",
+		t.Errorf("BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.Cryptocurrency))
 	}
 
 	if len(full.FiatCurrency) != 1 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but received %v",
+		t.Errorf("BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.FiatCurrency))
 	}
 
 	if len(full.Token) != 1 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but received %v",
+		t.Errorf("BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.Token))
 	}
 
 	if len(full.UnsetCurrency) != 3 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 3 but received %v",
+		t.Errorf("BaseCode GetFullCurrencyData() error expected 3 but received %v",
 			len(full.UnsetCurrency))
 	}
 
 	if !full.LastMainUpdate.IsZero() {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 0 but received %s",
+		t.Errorf("BaseCode GetFullCurrencyData() error expected 0 but received %s",
 			full.LastMainUpdate)
+	}
+
+	err = main.LoadItem(&Item{
+		ID:       0,
+		FullName: "Cardano",
+		Role:     Role(99),
+		Symbol:   "ADA",
+	})
+	if err != nil {
+		t.Error("BaseCode LoadItem() error", err)
+	}
+	_, err = main.GetFullCurrencyData()
+	if err == nil {
+		t.Error("Expected 'Role undefined'")
+	}
+
+	main.Items[0].FullName = "Hello"
+	err = main.UpdateCryptocurrency("MEWOW", "CATS", 1338)
+	if err != nil {
+		t.Error("BaseCode UpdateContract error", err)
+	}
+	if main.Items[0].FullName != "MEWOW" {
+		t.Error("Fullname not updated")
+	}
+	err = main.UpdateCryptocurrency("MEWOW", "CATS", 1338)
+	if err != nil {
+		t.Error("BaseCode UpdateContract error", err)
+	}
+
+	main.Items[0].Role = Cryptocurrency
+	err = main.UpdateCryptocurrency("MEWOW", "CATS", 3)
+	if err != nil {
+		t.Error("BaseCode UpdateContract error", err)
+	}
+	if main.Items[0].ID != 3 {
+		t.Error("ID not updated")
+	}
+
+	main.Items[0].Role = Unset
+	err = main.UpdateCryptocurrency("MEWOW", "CATS", 1338)
+	if err != nil {
+		t.Error("BaseCode UpdateContract error", err)
+	}
+	if main.Items[0].ID != 1338 {
+		t.Error("ID not updated")
+	}
+
+	main.Items[0].Role = Token
+	err = main.UpdateCryptocurrency("MEWOW", "CATS", 3)
+	if err == nil {
+		t.Error("Expecting cryptocurrency to already exist")
 	}
 }
 
@@ -263,7 +337,7 @@ func TestCodeString(t *testing.T) {
 	expected := "TEST"
 	cc := NewCode("TEST")
 	if cc.String() != expected {
-		t.Errorf("Test Failed - Currency Code String() error expected %s but received %s",
+		t.Errorf("Currency Code String() error expected %s but received %s",
 			expected, cc)
 	}
 }
@@ -272,7 +346,7 @@ func TestCodeLower(t *testing.T) {
 	expected := "test"
 	cc := NewCode("TEST")
 	if cc.Lower().String() != expected {
-		t.Errorf("Test Failed - Currency Code Lower() error expected %s but received %s",
+		t.Errorf("Currency Code Lower() error expected %s but received %s",
 			expected,
 			cc.Lower())
 	}
@@ -282,7 +356,7 @@ func TestCodeUpper(t *testing.T) {
 	expected := "TEST"
 	cc := NewCode("test")
 	if cc.Upper().String() != expected {
-		t.Errorf("Test Failed - Currency Code Upper() error expected %s but received %s",
+		t.Errorf("Currency Code Upper() error expected %s but received %s",
 			expected,
 			cc.Upper())
 	}
@@ -293,21 +367,21 @@ func TestCodeUnmarshalJSON(t *testing.T) {
 	expected := "BRO"
 	encoded, err := common.JSONEncode(expected)
 	if err != nil {
-		t.Fatal("Test Failed - Currency Code UnmarshalJSON error", err)
+		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
 
 	err = common.JSONDecode(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Test Failed - Currency Code UnmarshalJSON error", err)
+		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
 
 	err = common.JSONDecode(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Test Failed - Currency Code UnmarshalJSON error", err)
+		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
 
 	if unmarshalHere.String() != expected {
-		t.Errorf("Test Failed - Currency Code Upper() error expected %s but received %s",
+		t.Errorf("Currency Code Upper() error expected %s but received %s",
 			expected,
 			unmarshalHere)
 	}
@@ -324,11 +398,11 @@ func TestCodeMarshalJSON(t *testing.T) {
 
 	encoded, err := common.JSONEncode(quickstruct)
 	if err != nil {
-		t.Fatal("Test Failed - Currency Code UnmarshalJSON error", err)
+		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
 
 	if string(encoded) != expectedJSON {
-		t.Errorf("Test Failed - Currency Code Upper() error expected %s but received %s",
+		t.Errorf("Currency Code Upper() error expected %s but received %s",
 			expectedJSON,
 			string(encoded))
 	}
@@ -341,42 +415,42 @@ func TestCodeMarshalJSON(t *testing.T) {
 
 	encoded, err = common.JSONEncode(quickstruct)
 	if err != nil {
-		t.Fatal("Test Failed - Currency Code UnmarshalJSON error", err)
+		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
 
 	newExpectedJSON := `{"sweetCodes":""}`
 	if string(encoded) != newExpectedJSON {
-		t.Errorf("Test Failed - Currency Code Upper() error expected %s but received %s",
+		t.Errorf("Currency Code Upper() error expected %s but received %s",
 			newExpectedJSON, string(encoded))
 	}
 }
 
 func TestIsDefaultCurrency(t *testing.T) {
 	if !USD.IsDefaultFiatCurrency() {
-		t.Errorf("Test Failed. TestIsDefaultCurrency Cannot match currency %s.",
+		t.Errorf("TestIsDefaultCurrency Cannot match currency %s.",
 			USD)
 	}
 	if !AUD.IsDefaultFiatCurrency() {
-		t.Errorf("Test Failed. TestIsDefaultCurrency Cannot match currency, %s.",
+		t.Errorf("TestIsDefaultCurrency Cannot match currency, %s.",
 			AUD)
 	}
 	if LTC.IsDefaultFiatCurrency() {
-		t.Errorf("Test Failed. TestIsDefaultCurrency Function return is incorrect with, %s.",
+		t.Errorf("TestIsDefaultCurrency Function return is incorrect with, %s.",
 			LTC)
 	}
 }
 
 func TestIsDefaultCryptocurrency(t *testing.T) {
 	if !BTC.IsDefaultCryptocurrency() {
-		t.Errorf("Test Failed. TestIsDefaultCryptocurrency cannot match currency, %s.",
+		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
 			BTC)
 	}
 	if !LTC.IsDefaultCryptocurrency() {
-		t.Errorf("Test Failed. TestIsDefaultCryptocurrency cannot match currency, %s.",
+		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
 			LTC)
 	}
 	if AUD.IsDefaultCryptocurrency() {
-		t.Errorf("Test Failed. TestIsDefaultCryptocurrency function return is incorrect with, %s.",
+		t.Errorf("TestIsDefaultCryptocurrency function return is incorrect with, %s.",
 			AUD)
 	}
 }
@@ -384,30 +458,30 @@ func TestIsDefaultCryptocurrency(t *testing.T) {
 func TestIsFiatCurrency(t *testing.T) {
 	if !USD.IsFiatCurrency() {
 		t.Errorf(
-			"Test Failed. TestIsFiatCurrency cannot match currency, %s.", USD)
+			"TestIsFiatCurrency cannot match currency, %s.", USD)
 	}
 	if !CNY.IsFiatCurrency() {
 		t.Errorf(
-			"Test Failed. TestIsFiatCurrency cannot match currency, %s.", CNY)
+			"TestIsFiatCurrency cannot match currency, %s.", CNY)
 	}
 	if LINO.IsFiatCurrency() {
 		t.Errorf(
-			"Test Failed. TestIsFiatCurrency cannot match currency, %s.", LINO,
+			"TestIsFiatCurrency cannot match currency, %s.", LINO,
 		)
 	}
 }
 
 func TestIsCryptocurrency(t *testing.T) {
 	if !BTC.IsCryptocurrency() {
-		t.Errorf("Test Failed. TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
 			BTC)
 	}
 	if !LTC.IsCryptocurrency() {
-		t.Errorf("Test Failed. TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
 			LTC)
 	}
 	if AUD.IsCryptocurrency() {
-		t.Errorf("Test Failed. TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
 			AUD)
 	}
 }
@@ -419,7 +493,7 @@ func TestItemString(t *testing.T) {
 	}
 
 	if newItem.String() != expected {
-		t.Errorf("Test Failed - Item String() error expected %s but received %s",
+		t.Errorf("Item String() error expected %s but received %s",
 			expected,
 			&newItem)
 	}
