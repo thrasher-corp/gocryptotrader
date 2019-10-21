@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"

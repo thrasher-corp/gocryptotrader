@@ -23,20 +23,20 @@ func TestPromptForConfigKey(t *testing.T) {
 
 	_, err = PromptForConfigKey(false)
 	if err == nil {
-		t.Fatal(err)
+		t.Error("Expected error")
 	}
 }
 
 func TestEncryptConfigFile(t *testing.T) {
 	_, err := EncryptConfigFile([]byte("test"), nil)
 	if err == nil {
-		t.Fatal("Expected different result")
+		t.Fatal("Expected error")
 	}
 
 	sessionDK = []byte("a")
 	_, err = EncryptConfigFile([]byte("test"), nil)
 	if err == nil {
-		t.Fatal("Expected different result")
+		t.Fatal("Expected error")
 	}
 
 	sessionDK, err = makeNewSessionDK([]byte("asdf"))
@@ -60,12 +60,12 @@ func TestDecryptConfigFile(t *testing.T) {
 
 	_, err = DecryptConfigFile(result, nil)
 	if err == nil {
-		t.Fatal("Expected different result")
+		t.Fatal("Expected error")
 	}
 
 	_, err = DecryptConfigFile([]byte("test"), nil)
 	if err == nil {
-		t.Fatal("Expected different result")
+		t.Fatal("Expected error")
 	}
 
 	_, err = DecryptConfigFile([]byte("test"), []byte("AAAAAAAAAAAAAAAA"))
@@ -86,7 +86,7 @@ func TestDecryptConfigFile(t *testing.T) {
 
 func TestConfirmConfigJSON(t *testing.T) {
 	var result interface{}
-	testConfirmJSON, err := ioutil.ReadFile(ConfigTestFile)
+	testConfirmJSON, err := ioutil.ReadFile(TestFile)
 	if err != nil {
 		t.Errorf("testConfirmJSON: %s", err)
 	}

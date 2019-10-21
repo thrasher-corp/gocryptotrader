@@ -6,12 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -235,7 +234,7 @@ func TestSetHTTPRateLimiter(t *testing.T) {
 
 func TestSetAutoPairDefaults(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatalf("TestSetAutoPairDefaults failed to load config file. Error: %s", err)
 	}
@@ -347,7 +346,7 @@ func TestGetAssetTypes(t *testing.T) {
 
 func TestGetClientBankAccounts(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -365,13 +364,13 @@ func TestGetClientBankAccounts(t *testing.T) {
 
 	r, err = b.GetClientBankAccounts("MEOW", "USD")
 	if err == nil {
-		t.Error("an error should of been thrown for a non-existent exchange")
+		t.Error("an error should have been thrown for a non-existent exchange")
 	}
 }
 
 func TestGetExchangeBankAccounts(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +388,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 
 	_, err = b.GetExchangeBankAccounts("MEOW", "USD")
 	if err == nil {
-		t.Error("an error should of been thrown for a non-existent exchange")
+		t.Error("an error should have been thrown for a non-existent exchange")
 	}
 }
 
@@ -1050,7 +1049,7 @@ func TestSetPairs(t *testing.T) {
 
 func TestUpdatePairs(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile, true)
+	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatal("TestUpdatePairs failed to load config")
 	}

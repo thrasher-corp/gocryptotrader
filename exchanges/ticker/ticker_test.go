@@ -343,7 +343,7 @@ func TestSetItemID(t *testing.T) {
 func TestGetAssociation(t *testing.T) {
 	_, err := service.GetAssociations(nil)
 	if err == nil {
-		t.Error("error cannot be nil ")
+		t.Error("error cannot be nil")
 	}
 
 	p := currency.NewPair(currency.CYC, currency.CYG)
@@ -352,7 +352,7 @@ func TestGetAssociation(t *testing.T) {
 
 	_, err = service.GetAssociations(&Price{Pair: p, ExchangeName: "GetAssociation"})
 	if err == nil {
-		t.Error("error cannot be nil ")
+		t.Error("error cannot be nil")
 	}
 
 	service.mux = cpyMux

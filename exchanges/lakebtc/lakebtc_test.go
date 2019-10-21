@@ -93,7 +93,7 @@ func TestTrade(t *testing.T) {
 	}
 	_, err := l.Trade(false, 0, 0, "USD")
 	if err == nil {
-		t.Error("Trade() error", err)
+		t.Error("Trade() Expected error")
 	}
 }
 
@@ -104,7 +104,7 @@ func TestGetOpenOrders(t *testing.T) {
 	}
 	_, err := l.GetOpenOrders()
 	if err == nil {
-		t.Error("GetOpenOrders() error", err)
+		t.Error("GetOpenOrders() Expected error")
 	}
 }
 
@@ -115,7 +115,7 @@ func TestGetOrders(t *testing.T) {
 	}
 	_, err := l.GetOrders([]int64{1, 2})
 	if err == nil {
-		t.Error("GetOrders() error", err)
+		t.Error("GetOrders() Expected error")
 	}
 }
 
@@ -126,7 +126,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 	err := l.CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("CancelExistingOrder() error", err)
+		t.Error("CancelExistingOrder() Expected error")
 	}
 }
 
@@ -137,7 +137,7 @@ func TestGetTrades(t *testing.T) {
 	}
 	_, err := l.GetTrades(1337)
 	if err == nil {
-		t.Error("GetTrades() error", err)
+		t.Error("GetTrades() Expected error")
 	}
 }
 
@@ -148,7 +148,7 @@ func TestGetExternalAccounts(t *testing.T) {
 	}
 	_, err := l.GetExternalAccounts()
 	if err == nil {
-		t.Error("GetExternalAccounts() error", err)
+		t.Error("GetExternalAccounts() Expected error")
 	}
 }
 
@@ -393,7 +393,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := l.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

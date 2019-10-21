@@ -40,7 +40,7 @@ func TestUpdateBaseCurrency(t *testing.T) {
 
 	err = UpdateBaseCurrency(LTC)
 	if err == nil {
-		t.Error("UpdateBaseCurrency() cannot be nil")
+		t.Error("UpdateBaseCurrency() error cannot be nil")
 	}
 
 	if GetBaseCurrency() != AUD {

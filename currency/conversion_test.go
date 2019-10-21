@@ -81,7 +81,7 @@ func TestConversionIsInvalid(t *testing.T) {
 	to = AUD
 	conv, err = NewConversion(from, to)
 	if err == nil {
-		t.Fatal(err)
+		t.Error("Expected error")
 	}
 }
 
@@ -102,7 +102,7 @@ func TestConversionIsFiatPair(t *testing.T) {
 	to = LTC
 	conv, err = NewConversion(from, to)
 	if err == nil {
-		t.Fatal(err)
+		t.Error("Expected error")
 	}
 }
 

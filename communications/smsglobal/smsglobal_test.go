@@ -84,7 +84,7 @@ func TestRemoveContact(t *testing.T) {
 	}
 	err = s.RemoveContact(Contact{Name: "frieda", Number: "243453", Enabled: true})
 	if err == nil {
-		t.Error("SMSGlobal RemoveContact() error", err)
+		t.Error("SMSGlobal RemoveContact() Expected error")
 	}
 }
 

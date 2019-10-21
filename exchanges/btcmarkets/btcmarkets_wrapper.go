@@ -156,13 +156,6 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
 
-	b.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		true,
-		true,
-		false,
-		false,
-		exch.Name)
 	return nil
 }
 

@@ -295,7 +295,7 @@ func TestHandleMessageResponse(t *testing.T) {
 
 	err = s.handleMessageResponse(resp, data)
 	if err == nil {
-		t.Errorf("slack handleMessageResponse() Error: %s", err)
+		t.Errorf("slack handleMessageResponse() Expected error")
 	}
 }
 

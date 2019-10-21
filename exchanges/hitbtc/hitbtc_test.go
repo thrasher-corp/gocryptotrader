@@ -355,7 +355,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := h.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

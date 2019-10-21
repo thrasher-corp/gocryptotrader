@@ -87,7 +87,7 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 	var incoming AllTheRoles
 	err = common.JSONDecode(e, &incoming)
 	if err == nil {
-		t.Fatal("Role UnmarshalJSON() error", err)
+		t.Fatal("Role UnmarshalJSON() Expected error")
 	}
 
 	e, err = common.JSONEncode(outgoing)
@@ -292,7 +292,7 @@ func TestBaseCode(t *testing.T) {
 	}
 	_, err = main.GetFullCurrencyData()
 	if err == nil {
-		t.Error("Expected 'Role undefined'", err)
+		t.Error("Expected 'Role undefined'")
 	}
 
 	main.Items[0].FullName = "Hello"
@@ -329,7 +329,7 @@ func TestBaseCode(t *testing.T) {
 	main.Items[0].Role = Token
 	err = main.UpdateCryptocurrency("MEWOW", "CATS", 3)
 	if err == nil {
-		t.Error("Expecting cryptocurrency to already exist", err)
+		t.Error("Expecting cryptocurrency to already exist")
 	}
 }
 

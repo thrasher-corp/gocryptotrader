@@ -89,7 +89,7 @@ func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	_, err := y.GetAccountInfo()
 	if err == nil {
-		t.Error("GetAccountInfo() error", err)
+		t.Error("GetAccountInfo() Expected error")
 	}
 }
 
@@ -97,7 +97,7 @@ func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 	_, err := y.GetOpenOrders("")
 	if err == nil {
-		t.Error("GetOpenOrders() error", err)
+		t.Error("GetOpenOrders() Expected error")
 	}
 }
 
@@ -105,7 +105,7 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	_, err := y.GetOrderInfo("6196974")
 	if err == nil {
-		t.Error("GetOrderInfo() error", err)
+		t.Error("GetOrderInfo() Expected error")
 	}
 }
 
@@ -113,7 +113,7 @@ func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	_, err := y.CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("CancelOrder() error", err)
+		t.Error("CancelOrder() Expected error")
 	}
 }
 
@@ -121,7 +121,7 @@ func TestTrade(t *testing.T) {
 	t.Parallel()
 	_, err := y.Trade("", exchange.BuyOrderSide.ToLower().ToString(), 0, 0)
 	if err == nil {
-		t.Error("Trade() error", err)
+		t.Error("Trade() Expected error")
 	}
 }
 
@@ -129,7 +129,7 @@ func TestWithdrawCoinsToAddress(t *testing.T) {
 	t.Parallel()
 	_, err := y.WithdrawCoinsToAddress("", 0, "")
 	if err == nil {
-		t.Error("WithdrawCoinsToAddress() error", err)
+		t.Error("WithdrawCoinsToAddress() Expected error")
 	}
 }
 
@@ -137,7 +137,7 @@ func TestCreateYobicode(t *testing.T) {
 	t.Parallel()
 	_, err := y.CreateCoupon("bla", 0)
 	if err == nil {
-		t.Error("CreateYobicode() error", err)
+		t.Error("CreateYobicode() Expected error")
 	}
 }
 
@@ -145,7 +145,7 @@ func TestRedeemYobicode(t *testing.T) {
 	t.Parallel()
 	_, err := y.RedeemCoupon("bla2")
 	if err == nil {
-		t.Error("RedeemYobicode() error", err)
+		t.Error("RedeemYobicode() Expected error")
 	}
 }
 
@@ -458,7 +458,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := y.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
@@ -521,7 +521,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if apiKey != "" || apiSecret != "" {
 		_, err := y.GetDepositAddress(currency.BTC, "")
 		if err != nil {
-			t.Error("GetDepositAddress() error", err)
+			t.Error("GetDepositAddress() Expected error")
 		}
 	} else {
 		_, err := y.GetDepositAddress(currency.BTC, "")

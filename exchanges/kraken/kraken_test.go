@@ -139,7 +139,7 @@ func TestGetBalance(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetBalance()
 	if err == nil {
-		t.Error("GetBalance() error", err)
+		t.Error("GetBalance() Expected error")
 	}
 }
 
@@ -149,7 +149,7 @@ func TestGetTradeBalance(t *testing.T) {
 	args := TradeBalanceOptions{Asset: "ZEUR"}
 	_, err := k.GetTradeBalance(args)
 	if err == nil {
-		t.Error("GetTradeBalance() error", err)
+		t.Error("GetTradeBalance() Expected error")
 	}
 }
 
@@ -159,7 +159,7 @@ func TestGetOpenOrders(t *testing.T) {
 	args := OrderInfoOptions{Trades: true}
 	_, err := k.GetOpenOrders(args)
 	if err == nil {
-		t.Error("GetOpenOrders() error", err)
+		t.Error("GetOpenOrders() Expected error")
 	}
 }
 
@@ -169,7 +169,7 @@ func TestGetClosedOrders(t *testing.T) {
 	args := GetClosedOrdersOptions{Trades: true, Start: "OE4KV4-4FVQ5-V7XGPU"}
 	_, err := k.GetClosedOrders(args)
 	if err == nil {
-		t.Error("GetClosedOrders() error", err)
+		t.Error("GetClosedOrders() Expected error")
 	}
 }
 
@@ -179,7 +179,7 @@ func TestQueryOrdersInfo(t *testing.T) {
 	args := OrderInfoOptions{Trades: true}
 	_, err := k.QueryOrdersInfo(args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
 	if err == nil {
-		t.Error("QueryOrdersInfo() error", err)
+		t.Error("QueryOrdersInfo() Expected error")
 	}
 }
 
@@ -189,7 +189,7 @@ func TestGetTradesHistory(t *testing.T) {
 	args := GetTradesHistoryOptions{Trades: true, Start: "TMZEDR-VBJN2-NGY6DX", End: "TVRXG2-R62VE-RWP3UW"}
 	_, err := k.GetTradesHistory(args)
 	if err == nil {
-		t.Error("GetTradesHistory() error", err)
+		t.Error("GetTradesHistory() Expected error")
 	}
 }
 
@@ -198,7 +198,7 @@ func TestQueryTrades(t *testing.T) {
 	t.Parallel()
 	_, err := k.QueryTrades(true, "TMZEDR-VBJN2-NGY6DX", "TFLWIB-KTT7L-4TWR3L", "TDVRAH-2H6OS-SLSXRX")
 	if err == nil {
-		t.Error("QueryTrades() error", err)
+		t.Error("QueryTrades() Expected error")
 	}
 }
 
@@ -207,7 +207,7 @@ func TestOpenPositions(t *testing.T) {
 	t.Parallel()
 	_, err := k.OpenPositions(false)
 	if err == nil {
-		t.Error("OpenPositions() error", err)
+		t.Error("OpenPositions() Expected error")
 	}
 }
 
@@ -217,7 +217,7 @@ func TestGetLedgers(t *testing.T) {
 	args := GetLedgersOptions{Start: "LRUHXI-IWECY-K4JYGO", End: "L5NIY7-JZQJD-3J4M2V", Ofs: 15}
 	_, err := k.GetLedgers(args)
 	if err == nil {
-		t.Error("GetLedgers() error", err)
+		t.Error("GetLedgers() Expected error")
 	}
 }
 
@@ -226,7 +226,7 @@ func TestQueryLedgers(t *testing.T) {
 	t.Parallel()
 	_, err := k.QueryLedgers("LVTSFS-NHZVM-EXNZ5M")
 	if err == nil {
-		t.Error("QueryLedgers() error", err)
+		t.Error("QueryLedgers() Expected error")
 	}
 }
 
@@ -235,7 +235,7 @@ func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetTradeVolume(true, "OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
-		t.Error("GetTradeVolume() error", err)
+		t.Error("GetTradeVolume() Expected error")
 	}
 }
 
@@ -247,7 +247,7 @@ func TestAddOrder(t *testing.T) {
 		exchange.SellOrderSide.ToLower().ToString(), exchange.LimitOrderType.ToLower().ToString(),
 		0.00000001, 0, 0, 0, &args)
 	if err == nil {
-		t.Error("AddOrder() error", err)
+		t.Error("AddOrder() Expected error")
 	}
 }
 
@@ -256,7 +256,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	_, err := k.CancelExistingOrder("OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
-		t.Error("CancelExistingOrder() error", err)
+		t.Error("CancelExistingOrder() Expected error")
 	}
 }
 
@@ -519,7 +519,7 @@ func TestGetAccountInfo(t *testing.T) {
 	} else {
 		_, err := k.GetAccountInfo()
 		if err == nil {
-			t.Error("GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	}
 }
@@ -528,7 +528,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := k.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
@@ -642,7 +642,7 @@ func TestWithdrawStatus(t *testing.T) {
 	} else {
 		_, err := k.WithdrawStatus(currency.BTC, "")
 		if err == nil {
-			t.Error("GetDepositAddress() error can not be nil", err)
+			t.Error("GetDepositAddress() error can not be nil")
 		}
 	}
 }

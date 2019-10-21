@@ -42,7 +42,7 @@ func TestGetTicker(t *testing.T) {
 	}
 	_, err = g.GetTicker("bla")
 	if err == nil {
-		t.Error("GetTicker() error", err)
+		t.Error("GetTicker() Expected error")
 	}
 }
 
@@ -172,7 +172,7 @@ func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetCryptoDepositAddress("LOL123", "btc")
 	if err == nil {
-		t.Error("GetCryptoDepositAddress() error", err)
+		t.Error("GetCryptoDepositAddress() Expected error")
 	}
 }
 
@@ -180,7 +180,7 @@ func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
 	_, err := g.WithdrawCrypto("LOL123", "btc", 1)
 	if err == nil {
-		t.Error("WithdrawCrypto() error", err)
+		t.Error("WithdrawCrypto() Expected error")
 	}
 }
 
@@ -470,7 +470,7 @@ func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := g.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

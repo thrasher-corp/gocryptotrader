@@ -72,42 +72,42 @@ func TestGetTradeHistory(t *testing.T) {
 func TestGetWallets(t *testing.T) {
 	_, err := i.GetWallets(url.Values{})
 	if err == nil {
-		t.Error("GetWallets() error", err)
+		t.Error("GetWallets() Expected error")
 	}
 }
 
 func TestCreateWallet(t *testing.T) {
 	_, err := i.CreateWallet("test")
 	if err == nil {
-		t.Error("CreateWallet() error", err)
+		t.Error("CreateWallet() Expected error")
 	}
 }
 
 func TestGetWallet(t *testing.T) {
 	_, err := i.GetWallet("1337")
 	if err == nil {
-		t.Error("GetWallet() error", err)
+		t.Error("GetWallet() Expected error")
 	}
 }
 
 func TestGetWalletBalance(t *testing.T) {
 	_, err := i.GetWalletBalance("1337", "XRT")
 	if err == nil {
-		t.Error("GetWalletBalance() error", err)
+		t.Error("GetWalletBalance() Expected error")
 	}
 }
 
 func TestGetWalletTrades(t *testing.T) {
 	_, err := i.GetWalletTrades("1337", url.Values{})
 	if err == nil {
-		t.Error("GetWalletTrades() error", err)
+		t.Error("GetWalletTrades() Expected error")
 	}
 }
 
 func TestGetFundingHistory(t *testing.T) {
 	_, err := i.GetFundingHistoryForWallet("1337", url.Values{})
 	if err == nil {
-		t.Error("GetFundingHistory() error", err)
+		t.Error("GetFundingHistory() Expected error")
 	}
 }
 
@@ -116,14 +116,14 @@ func TestPlaceOrder(t *testing.T) {
 		exchange.LimitOrderType.ToLower().ToString(), "USD", 1, 0.2, "banjo",
 		"sauce")
 	if err == nil {
-		t.Error("PlaceOrder() error", err)
+		t.Error("PlaceOrder() Expected error")
 	}
 }
 
 func TestGetOrder(t *testing.T) {
 	_, err := i.GetOrder("1337", url.Values{})
 	if err == nil {
-		t.Error("GetOrder() error", err)
+		t.Error("GetOrder() Expected error")
 	}
 }
 
@@ -131,21 +131,21 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Skip()
 	err := i.CancelExistingOrder("1337", "1337order")
 	if err == nil {
-		t.Error("CancelOrder() error", err)
+		t.Error("CancelOrder() Expected error")
 	}
 }
 
 func TestGetCryptoDepositAddress(t *testing.T) {
 	_, err := i.GetCryptoDepositAddress("1337", "AUD")
 	if err == nil {
-		t.Error("GetCryptoDepositAddress() error", err)
+		t.Error("GetCryptoDepositAddress() Expected error")
 	}
 }
 
 func TestWalletTransfer(t *testing.T) {
 	_, err := i.WalletTransfer("1337", "mywallet", "anotherwallet", 200, "USD")
 	if err == nil {
-		t.Error("WalletTransfer() error", err)
+		t.Error("WalletTransfer() Expected error")
 	}
 }
 
@@ -390,7 +390,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if apiKey != "" || apiSecret != "" || clientID != "" {
 		_, err := i.GetAccountInfo()
 		if err == nil {
-			t.Error("GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	}
 }
@@ -398,7 +398,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := i.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

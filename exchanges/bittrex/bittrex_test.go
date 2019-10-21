@@ -117,7 +117,7 @@ func TestPlaceBuyLimit(t *testing.T) {
 
 	_, err := b.PlaceBuyLimit("btc-ltc", 1, 1)
 	if err == nil {
-		t.Error("Bittrex - PlaceBuyLimit() error")
+		t.Error("Bittrex - PlaceBuyLimit() Expected error")
 	}
 }
 
@@ -126,7 +126,7 @@ func TestPlaceSellLimit(t *testing.T) {
 
 	_, err := b.PlaceSellLimit("btc-ltc", 1, 1)
 	if err == nil {
-		t.Error("Bittrex - PlaceSellLimit() error")
+		t.Error("Bittrex - PlaceSellLimit() Expected error")
 	}
 }
 
@@ -135,11 +135,11 @@ func TestGetOpenOrders(t *testing.T) {
 
 	_, err := b.GetOpenOrders("")
 	if err == nil {
-		t.Error("Bittrex - GetOrder() error")
+		t.Error("Bittrex - GetOrder() Expected error")
 	}
 	_, err = b.GetOpenOrders("btc-ltc")
 	if err == nil {
-		t.Error("Bittrex - GetOrder() error")
+		t.Error("Bittrex - GetOrder() Expected error")
 	}
 }
 
@@ -148,7 +148,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 	_, err := b.CancelExistingOrder("blaaaaaaa")
 	if err == nil {
-		t.Error("Bittrex - CancelExistingOrder() error")
+		t.Error("Bittrex - CancelExistingOrder() Expected error")
 	}
 }
 
@@ -157,7 +157,7 @@ func TestGetAccountBalances(t *testing.T) {
 
 	_, err := b.GetAccountBalances()
 	if err == nil {
-		t.Error("Bittrex - GetAccountBalances() error")
+		t.Error("Bittrex - GetAccountBalances() Expected error")
 	}
 }
 
@@ -166,7 +166,7 @@ func TestGetAccountBalanceByCurrency(t *testing.T) {
 
 	_, err := b.GetAccountBalanceByCurrency("btc")
 	if err == nil {
-		t.Error("Bittrex - GetAccountBalanceByCurrency() error")
+		t.Error("Bittrex - GetAccountBalanceByCurrency() Expected error")
 	}
 }
 
@@ -175,11 +175,11 @@ func TestGetOrder(t *testing.T) {
 
 	_, err := b.GetOrder("0cb4c4e4-bdc7-4e13-8c13-430e587d2cc1")
 	if err == nil {
-		t.Error("Bittrex - GetOrder() error")
+		t.Error("Bittrex - GetOrder() Expected error")
 	}
 	_, err = b.GetOrder("")
 	if err == nil {
-		t.Error("Bittrex - GetOrder() error")
+		t.Error("Bittrex - GetOrder() Expected error")
 	}
 }
 
@@ -188,11 +188,11 @@ func TestGetOrderHistoryForCurrency(t *testing.T) {
 
 	_, err := b.GetOrderHistoryForCurrency("")
 	if err == nil {
-		t.Error("Bittrex - GetOrderHistory() error")
+		t.Error("Bittrex - GetOrderHistory() Expected error")
 	}
 	_, err = b.GetOrderHistoryForCurrency("btc-ltc")
 	if err == nil {
-		t.Error("Bittrex - GetOrderHistory() error")
+		t.Error("Bittrex - GetOrderHistory() Expected error")
 	}
 }
 
@@ -201,11 +201,11 @@ func TestGetwithdrawalHistory(t *testing.T) {
 
 	_, err := b.GetWithdrawalHistory("")
 	if err == nil {
-		t.Error("Bittrex - GetWithdrawalHistory() error")
+		t.Error("Bittrex - GetWithdrawalHistory() Expected error")
 	}
 	_, err = b.GetWithdrawalHistory("btc-ltc")
 	if err == nil {
-		t.Error("Bittrex - GetWithdrawalHistory() error")
+		t.Error("Bittrex - GetWithdrawalHistory() Expected error")
 	}
 }
 
@@ -214,11 +214,11 @@ func TestGetDepositHistory(t *testing.T) {
 
 	_, err := b.GetDepositHistory("")
 	if err == nil {
-		t.Error("Bittrex - GetDepositHistory() error")
+		t.Error("Bittrex - GetDepositHistory() Expected error")
 	}
 	_, err = b.GetDepositHistory("btc-ltc")
 	if err == nil {
-		t.Error("Bittrex - GetDepositHistory() error")
+		t.Error("Bittrex - GetDepositHistory() Expected error")
 	}
 }
 
@@ -459,7 +459,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := b.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

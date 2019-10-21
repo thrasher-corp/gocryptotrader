@@ -98,7 +98,7 @@ func TestGetTicker(t *testing.T) {
 
 	_, err = b.GetTicker("wigwham")
 	if err == nil {
-		t.Error("GetTicker() error")
+		t.Error("GetTicker() Expected error")
 	}
 }
 
@@ -132,7 +132,7 @@ func TestGetStats(t *testing.T) {
 
 	_, err = b.GetStats("wigwham")
 	if err == nil {
-		t.Error("GetStats() error")
+		t.Error("GetStats() Expected error")
 	}
 }
 
@@ -144,7 +144,7 @@ func TestGetFundingBook(t *testing.T) {
 	}
 	_, err = b.GetFundingBook("wigwham")
 	if err == nil {
-		t.Error("Testing Failed - GetFundingBook() error")
+		t.Error("Testing Failed - GetFundingBook() Expected error")
 	}
 }
 
@@ -283,7 +283,7 @@ func TestGetAccountFees(t *testing.T) {
 
 	_, err := b.GetAccountFees()
 	if err == nil {
-		t.Error("GetAccountFees error")
+		t.Error("GetAccountFees Expected error")
 	}
 }
 
@@ -295,7 +295,7 @@ func TestGetAccountSummary(t *testing.T) {
 
 	_, err := b.GetAccountSummary()
 	if err == nil {
-		t.Error("GetAccountSummary() error:")
+		t.Error("GetAccountSummary() Expected error")
 	}
 }
 
@@ -307,7 +307,7 @@ func TestNewDeposit(t *testing.T) {
 
 	_, err := b.NewDeposit("blabla", "testwallet", 1)
 	if err == nil {
-		t.Error("NewDeposit() error:", err)
+		t.Error("NewDeposit() Expected error")
 	}
 }
 
@@ -319,7 +319,7 @@ func TestGetKeyPermissions(t *testing.T) {
 
 	_, err := b.GetKeyPermissions()
 	if err == nil {
-		t.Error("GetKeyPermissions() error:")
+		t.Error("GetKeyPermissions() Expected error")
 	}
 }
 
@@ -331,7 +331,7 @@ func TestGetMarginInfo(t *testing.T) {
 
 	_, err := b.GetMarginInfo()
 	if err == nil {
-		t.Error("GetMarginInfo() error")
+		t.Error("GetMarginInfo() Expected error")
 	}
 }
 
@@ -343,7 +343,7 @@ func TestGetAccountBalance(t *testing.T) {
 
 	_, err := b.GetAccountBalance()
 	if err == nil {
-		t.Error("GetAccountBalance() error")
+		t.Error("GetAccountBalance() Expected error")
 	}
 }
 
@@ -355,7 +355,7 @@ func TestWalletTransfer(t *testing.T) {
 
 	_, err := b.WalletTransfer(0.01, "bla", "bla", "bla")
 	if err == nil {
-		t.Error("WalletTransfer() error")
+		t.Error("WalletTransfer() Expected error")
 	}
 }
 
@@ -368,7 +368,7 @@ func TestNewOrder(t *testing.T) {
 	_, err := b.NewOrder("BTCUSD", 1, 2, true,
 		exchange.LimitOrderType.ToLower().ToString(), false)
 	if err == nil {
-		t.Error("NewOrder() error")
+		t.Error("NewOrder() Expected error")
 	}
 }
 
@@ -391,7 +391,7 @@ func TestNewOrderMulti(t *testing.T) {
 
 	_, err := b.NewOrderMulti(newOrder)
 	if err == nil {
-		t.Error("NewOrderMulti() error")
+		t.Error("NewOrderMulti() Expected error")
 	}
 }
 
@@ -403,7 +403,7 @@ func TestCancelOrder(t *testing.T) {
 
 	_, err := b.CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("CancelExistingOrder() error")
+		t.Error("CancelExistingOrder() Expected error")
 	}
 }
 
@@ -415,7 +415,7 @@ func TestCancelMultipleOrders(t *testing.T) {
 
 	_, err := b.CancelMultipleOrders([]int64{1337, 1336})
 	if err == nil {
-		t.Error("CancelMultipleOrders() error")
+		t.Error("CancelMultipleOrders() Expected error")
 	}
 }
 
@@ -427,7 +427,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 	_, err := b.CancelAllExistingOrders()
 	if err == nil {
-		t.Error("CancelAllExistingOrders() error")
+		t.Error("CancelAllExistingOrders() Expected error")
 	}
 }
 
@@ -440,7 +440,7 @@ func TestReplaceOrder(t *testing.T) {
 	_, err := b.ReplaceOrder(1337, "BTCUSD",
 		1, 1, true, exchange.LimitOrderType.ToLower().ToString(), false)
 	if err == nil {
-		t.Error("ReplaceOrder() error")
+		t.Error("ReplaceOrder() Expected error")
 	}
 }
 
@@ -452,7 +452,7 @@ func TestGetOrderStatus(t *testing.T) {
 
 	_, err := b.GetOrderStatus(1337)
 	if err == nil {
-		t.Error("GetOrderStatus() error")
+		t.Error("GetOrderStatus() Expected error")
 	}
 }
 
@@ -464,7 +464,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 	_, err := b.GetOpenOrders()
 	if err == nil {
-		t.Error("GetOpenOrders() error")
+		t.Error("GetOpenOrders() Expectederror")
 	}
 }
 
@@ -476,7 +476,7 @@ func TestGetActivePositions(t *testing.T) {
 
 	_, err := b.GetActivePositions()
 	if err == nil {
-		t.Error("GetActivePositions() error")
+		t.Error("GetActivePositions() Expected error")
 	}
 }
 
@@ -488,7 +488,7 @@ func TestClaimPosition(t *testing.T) {
 
 	_, err := b.ClaimPosition(1337)
 	if err == nil {
-		t.Error("ClaimPosition() error")
+		t.Error("ClaimPosition() Expected error")
 	}
 }
 
@@ -500,7 +500,7 @@ func TestGetBalanceHistory(t *testing.T) {
 
 	_, err := b.GetBalanceHistory("USD", time.Time{}, time.Time{}, 1, "deposit")
 	if err == nil {
-		t.Error("GetBalanceHistory() error")
+		t.Error("GetBalanceHistory() Expected error")
 	}
 }
 
@@ -512,7 +512,7 @@ func TestGetMovementHistory(t *testing.T) {
 
 	_, err := b.GetMovementHistory("USD", "bitcoin", time.Time{}, time.Time{}, 1)
 	if err == nil {
-		t.Error("GetMovementHistory() error")
+		t.Error("GetMovementHistory() Expected error")
 	}
 }
 
@@ -524,7 +524,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 	_, err := b.GetTradeHistory("BTCUSD", time.Time{}, time.Time{}, 1, 0)
 	if err == nil {
-		t.Error("GetTradeHistory() error")
+		t.Error("GetTradeHistory() Expected error")
 	}
 }
 
@@ -536,7 +536,7 @@ func TestNewOffer(t *testing.T) {
 
 	_, err := b.NewOffer("BTC", 1, 1, 1, "loan")
 	if err == nil {
-		t.Error("NewOffer() error")
+		t.Error("NewOffer() Expected error")
 	}
 }
 
@@ -548,7 +548,7 @@ func TestCancelOffer(t *testing.T) {
 
 	_, err := b.CancelOffer(1337)
 	if err == nil {
-		t.Error("CancelOffer() error")
+		t.Error("CancelOffer() Expected error")
 	}
 }
 
@@ -560,7 +560,7 @@ func TestGetOfferStatus(t *testing.T) {
 
 	_, err := b.GetOfferStatus(1337)
 	if err == nil {
-		t.Error("NewOffer() error")
+		t.Error("NewOffer() Expected error")
 	}
 }
 
@@ -572,7 +572,7 @@ func TestGetActiveCredits(t *testing.T) {
 
 	_, err := b.GetActiveCredits()
 	if err == nil {
-		t.Error("GetActiveCredits() error", err)
+		t.Error("GetActiveCredits() Expected error")
 	}
 }
 
@@ -584,7 +584,7 @@ func TestGetActiveOffers(t *testing.T) {
 
 	_, err := b.GetActiveOffers()
 	if err == nil {
-		t.Error("GetActiveOffers() error", err)
+		t.Error("GetActiveOffers() Expected error")
 	}
 }
 
@@ -596,7 +596,7 @@ func TestGetActiveMarginFunding(t *testing.T) {
 
 	_, err := b.GetActiveMarginFunding()
 	if err == nil {
-		t.Error("GetActiveMarginFunding() error", err)
+		t.Error("GetActiveMarginFunding() Expected error")
 	}
 }
 
@@ -608,7 +608,7 @@ func TestGetUnusedMarginFunds(t *testing.T) {
 
 	_, err := b.GetUnusedMarginFunds()
 	if err == nil {
-		t.Error("GetUnusedMarginFunds() error", err)
+		t.Error("GetUnusedMarginFunds() Expected error")
 	}
 }
 
@@ -620,7 +620,7 @@ func TestGetMarginTotalTakenFunds(t *testing.T) {
 
 	_, err := b.GetMarginTotalTakenFunds()
 	if err == nil {
-		t.Error("GetMarginTotalTakenFunds() error", err)
+		t.Error("GetMarginTotalTakenFunds() Expected error")
 	}
 }
 
@@ -632,7 +632,7 @@ func TestCloseMarginFunding(t *testing.T) {
 
 	_, err := b.CloseMarginFunding(1337)
 	if err == nil {
-		t.Error("CloseMarginFunding() error")
+		t.Error("CloseMarginFunding() Expected error")
 	}
 }
 
@@ -869,7 +869,7 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := b.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

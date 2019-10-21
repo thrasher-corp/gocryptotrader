@@ -87,7 +87,7 @@ func TestNewOrder(t *testing.T) {
 	_, err := b.NewOrder("AUD", "BTC", 0, 0, "Bid",
 		exchange.LimitOrderType.ToLower().ToString(), "testTest")
 	if err == nil {
-		t.Error("NewOrder() error", err)
+		t.Error("NewOrder() Expected error")
 	}
 }
 
@@ -95,7 +95,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.CancelExistingOrder([]int64{1337})
 	if err == nil {
-		t.Error("CancelExistingOrder() error", err)
+		t.Error("CancelExistingOrder() Expected error")
 	}
 }
 
@@ -103,11 +103,11 @@ func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetOrders("AUD", "BTC", 10, 0, false)
 	if err == nil {
-		t.Error("GetOrders() error", err)
+		t.Error("GetOrders() Expected error")
 	}
 	_, err = b.GetOrders("AUD", "BTC", 10, 0, true)
 	if err == nil {
-		t.Error("GetOrders() error", err)
+		t.Error("GetOrders() Expected error")
 	}
 }
 
@@ -115,7 +115,7 @@ func TestGetOrderDetail(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetOrderDetail([]int64{1337})
 	if err == nil {
-		t.Error("GetOrderDetail() error", err)
+		t.Error("GetOrderDetail() Expected error")
 	}
 }
 
@@ -123,7 +123,7 @@ func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetAccountBalance()
 	if err == nil {
-		t.Error("GetAccountBalance() error", err)
+		t.Error("GetAccountBalance() Expected error")
 	}
 }
 
@@ -131,7 +131,7 @@ func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
 	_, err := b.WithdrawCrypto(0, "BTC", "LOLOLOL")
 	if err == nil {
-		t.Error("WithdrawCrypto() error", err)
+		t.Error("WithdrawCrypto() Expected error")
 	}
 }
 
@@ -139,21 +139,21 @@ func TestWithdrawAUD(t *testing.T) {
 	t.Parallel()
 	_, err := b.WithdrawAUD("BLA", "1337", "blawest", "1336", 10000000)
 	if err == nil {
-		t.Error("WithdrawAUD() error", err)
+		t.Error("WithdrawAUD() Expected error")
 	}
 }
 
 func TestGetAccountInfo(t *testing.T) {
 	_, err := b.GetAccountInfo()
 	if err == nil {
-		t.Error("GetAccountInfo() error", err)
+		t.Error("GetAccountInfo() Expected error")
 	}
 }
 
 func TestGetFundingHistory(t *testing.T) {
 	_, err := b.GetFundingHistory()
 	if err == nil {
-		t.Error("GetAccountInfo() error", err)
+		t.Error("GetAccountInfo() Expected error")
 	}
 }
 
@@ -161,14 +161,14 @@ func TestCancelOrder(t *testing.T) {
 	_, err := b.CancelExistingOrder([]int64{1337})
 
 	if err == nil {
-		t.Error("CancelgOrder() error", err)
+		t.Error("CancelgOrder() Expected error")
 	}
 }
 
 func TestGetOrderInfo(t *testing.T) {
 	_, err := b.GetOrderInfo("1337")
 	if err == nil {
-		t.Error("GetOrderInfo() error", err)
+		t.Error("GetOrderInfo() Expected error")
 	}
 }
 

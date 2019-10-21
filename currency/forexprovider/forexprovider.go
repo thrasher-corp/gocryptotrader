@@ -13,8 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/openexchangerates"
 )
 
-// GetAvailableForexProviders returns a list of supported forex providers
-func GetAvailableForexProviders() []string {
+// GetSupportedForexProviders returns a list of supported forex providers
+func GetSupportedForexProviders() []string {
 	return []string{"CurrencyConverter",
 		"CurrencyLayer",
 		"ExchangeRates",

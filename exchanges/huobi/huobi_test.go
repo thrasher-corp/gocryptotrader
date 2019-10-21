@@ -263,7 +263,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 	_, err := h.CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("Huobi TestCancelExistingOrder: Invalid orderID returned true")
+		t.Error("Huobi TestCancelExistingOrder Expected error")
 	}
 }
 
@@ -272,7 +272,7 @@ func TestGetOrder(t *testing.T) {
 
 	_, err := h.GetOrder(1337)
 	if err == nil {
-		t.Error("Huobi TestCancelOrder: Invalid orderID returned true")
+		t.Error("Huobi TestCancelOrder Expected error")
 	}
 }
 
@@ -307,7 +307,7 @@ func TestCancelWithdraw(t *testing.T) {
 
 	_, err := h.CancelWithdraw(1337)
 	if err == nil {
-		t.Error("Huobi TestCancelWithdraw: Invalid withdraw-ID was valid")
+		t.Error("Huobi TestCancelWithdraw Expected error")
 	}
 }
 
@@ -586,7 +586,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if apiKey == "" || apiSecret == "" {
 		_, err := h.GetAccountInfo()
 		if err == nil {
-			t.Error("GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
 		_, err := h.GetAccountInfo()
@@ -599,7 +599,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := h.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

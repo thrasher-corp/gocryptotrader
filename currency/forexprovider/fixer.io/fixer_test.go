@@ -32,7 +32,7 @@ func TestGetRates(t *testing.T) {
 	setup(t)
 	_, err := f.GetRates("EUR", "AUD")
 	if err == nil {
-		t.Error("fixer GetRates() error", err)
+		t.Error("fixer GetRates() Expected error")
 	}
 }
 
@@ -40,7 +40,7 @@ func TestGetLatestRates(t *testing.T) {
 	setup(t)
 	_, err := f.GetLatestRates("EUR", "AUD")
 	if err == nil {
-		t.Error("fixer GetLatestRates() error", err)
+		t.Error("fixer GetLatestRates() Expected error")
 	}
 }
 
@@ -48,7 +48,7 @@ func TestGetHistoricalRates(t *testing.T) {
 	setup(t)
 	_, err := f.GetHistoricalRates("2013-12-24", "EUR", []string{"AUD,KRW"})
 	if err == nil {
-		t.Error("fixer GetHistoricalRates() error", err)
+		t.Error("fixer GetHistoricalRates() Expected error")
 	}
 }
 
@@ -56,7 +56,7 @@ func TestConvertCurrency(t *testing.T) {
 	setup(t)
 	_, err := f.ConvertCurrency("AUD", "EUR", "", 1337)
 	if err == nil {
-		t.Error("fixer ConvertCurrency() error", err)
+		t.Error("fixer ConvertCurrency() Expected error")
 	}
 }
 
@@ -64,7 +64,7 @@ func TestGetTimeSeriesData(t *testing.T) {
 	setup(t)
 	_, err := f.GetTimeSeriesData("2013-12-24", "2013-12-25", "EUR", []string{"AUD,KRW"})
 	if err == nil {
-		t.Error("fixer GetTimeSeriesData() error", err)
+		t.Error("fixer GetTimeSeriesData() Expected error")
 	}
 }
 
@@ -72,6 +72,6 @@ func TestGetFluctuationData(t *testing.T) {
 	setup(t)
 	_, err := f.GetFluctuationData("2013-12-24", "2013-12-25", "EUR", []string{"AUD,KRW"})
 	if err == nil {
-		t.Error("fixer GetFluctuationData() error", err)
+		t.Error("fixer GetFluctuationData() Expected error")
 	}
 }

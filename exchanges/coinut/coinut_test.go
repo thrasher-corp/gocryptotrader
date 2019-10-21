@@ -389,7 +389,7 @@ func TestGetAccountInfo(t *testing.T) {
 	} else {
 		_, err := c.GetAccountInfo()
 		if err == nil {
-			t.Error("GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	}
 }
@@ -397,7 +397,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := c.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

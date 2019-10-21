@@ -60,13 +60,13 @@ func TestGetAPIKey(t *testing.T) {
 	t.Parallel()
 	apiKey, apiSecret, err := a.GetAPIKey("userName", "passWord", "", "1337")
 	if err == nil {
-		t.Error("ANX GetAPIKey() Incorrect")
+		t.Error("ANX GetAPIKey() Expected error")
 	}
 	if apiKey != "" {
-		t.Error("ANX GetAPIKey() Incorrect")
+		t.Error("ANX GetAPIKey() Expected error")
 	}
 	if apiSecret != "" {
-		t.Error("ANX GetAPIKey() Incorrect")
+		t.Error("ANX GetAPIKey() Expected error")
 	}
 }
 

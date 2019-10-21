@@ -55,7 +55,7 @@ func TestGetTicker(t *testing.T) {
 
 		_, err = alpha.GetTicker("wigwham")
 		if err == nil {
-			t.Error("Alphapoint GetTicker error")
+			t.Error("Alphapoint GetTicker Expected error")
 		}
 	} else {
 		mockResp := []byte(
@@ -92,7 +92,7 @@ func TestGetTrades(t *testing.T) {
 
 		_, err = alpha.GetTrades("wigwham", 0, 10)
 		if err == nil {
-			t.Fatal("GetTrades error")
+			t.Fatal("GetTrades Expected error")
 		}
 	} else {
 		mockResp := []byte(
@@ -132,7 +132,7 @@ func TestGetTradesByDate(t *testing.T) {
 		}
 		_, err = alpha.GetTradesByDate("wigwham", 1414799400, 1414800000)
 		if err == nil {
-			t.Error("GetTradesByDate error")
+			t.Error("GetTradesByDate Expected error")
 		}
 	} else {
 		mockResp := []byte(
@@ -180,7 +180,7 @@ func TestGetOrderbook(t *testing.T) {
 
 		_, err = alpha.GetOrderbook("wigwham")
 		if err == nil {
-			t.Error("GetOrderbook() error")
+			t.Error("GetOrderbook() Expected error")
 		}
 	} else {
 		mockResp := []byte(
@@ -305,11 +305,11 @@ func TestCreateAccount(t *testing.T) {
 	}
 	err = a.CreateAccount("test", "account", "something@something.com", "0292383745", "bla")
 	if err == nil {
-		t.Errorf("CreateAccount() error")
+		t.Errorf("CreateAccount() Expected error")
 	}
 	err = a.CreateAccount("", "", "", "", "lolcat123")
 	if err == nil {
-		t.Errorf("CreateAccount() error")
+		t.Errorf("CreateAccount() Expected error")
 	}
 }
 
@@ -324,7 +324,7 @@ func TestGetUserInfo(t *testing.T) {
 
 	_, err := a.GetUserInfo()
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -339,7 +339,7 @@ func TestSetUserInfo(t *testing.T) {
 
 	_, err := a.SetUserInfo("bla", "bla", "1", "meh", true, true)
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -354,7 +354,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 	_, err := a.GetAccountInfo()
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -369,7 +369,7 @@ func TestGetAccountTrades(t *testing.T) {
 
 	_, err := a.GetAccountTrades("", 1, 2)
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -384,7 +384,7 @@ func TestGetDepositAddresses(t *testing.T) {
 
 	_, err := a.GetDepositAddresses()
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -399,7 +399,7 @@ func TestWithdrawCoins(t *testing.T) {
 
 	err := a.WithdrawCoins("", "", "", 0.01)
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -414,7 +414,7 @@ func TestCreateOrder(t *testing.T) {
 
 	_, err := a.CreateOrder("", "", exchange.LimitOrderType.ToString(), 0.01, 0)
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -429,7 +429,7 @@ func TestModifyExistingOrder(t *testing.T) {
 
 	_, err := a.ModifyExistingOrder("", 1, 1)
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -444,7 +444,7 @@ func TestCancelAllExistingOrders(t *testing.T) {
 
 	err := a.CancelAllExistingOrders("")
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -459,7 +459,7 @@ func TestGetOrders(t *testing.T) {
 
 	_, err := a.GetOrders()
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -474,7 +474,7 @@ func TestGetOrderFee(t *testing.T) {
 
 	_, err := a.GetOrderFee("", "", 1, 1)
 	if err == nil {
-		t.Error("GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
@@ -626,7 +626,7 @@ func TestModifyOrder(t *testing.T) {
 
 	_, err := a.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

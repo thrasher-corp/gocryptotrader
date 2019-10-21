@@ -405,7 +405,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if apiSecret == "" || apiKey == "" {
 		_, err := g.GetAccountInfo()
 		if err == nil {
-			t.Error("GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
 		_, err := g.GetAccountInfo()
@@ -418,7 +418,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := g.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

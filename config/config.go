@@ -920,14 +920,14 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates && !c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
 				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
-				lastUpdated = lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
+				lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Warnf(log.ExchangeSys, WarningPairsLastUpdatedThresholdExceeded, c.Exchanges[i].Name, configPairsLastUpdatedWarningThreshold)
+					log.Warnf(log.ExchangeSys, WarningPairsLastUpdatedThresholdExceeded, c.Exchanges[i].Name, pairsLastUpdatedWarningThreshold)
 				}
 			}
 			if c.Exchanges[i].HTTPTimeout <= 0 {
-				log.Warnf(log.ExchangeSys, "Exchange %s HTTP Timeout value not set, defaulting to %v.\n", c.Exchanges[i].Name, configDefaultHTTPTimeout)
-				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
+				log.Warnf(log.ExchangeSys, "Exchange %s HTTP Timeout value not set, defaulting to %v.\n", c.Exchanges[i].Name, defaultHTTPTimeout)
+				c.Exchanges[i].HTTPTimeout = defaultHTTPTimeout
 			}
 
 			if c.Exchanges[i].HTTPRateLimiter != nil {
@@ -954,24 +954,24 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response check timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name, configDefaultWebsocketResponseCheckTimeout)
-				c.Exchanges[i].WebsocketResponseCheckTimeout = configDefaultWebsocketResponseCheckTimeout
+					c.Exchanges[i].Name, defaultWebsocketResponseCheckTimeout)
+				c.Exchanges[i].WebsocketResponseCheckTimeout = defaultWebsocketResponseCheckTimeout
 			}
 
 			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response max limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name, configDefaultWebsocketResponseMaxLimit)
-				c.Exchanges[i].WebsocketResponseMaxLimit = configDefaultWebsocketResponseMaxLimit
+					c.Exchanges[i].Name, defaultWebsocketResponseMaxLimit)
+				c.Exchanges[i].WebsocketResponseMaxLimit = defaultWebsocketResponseMaxLimit
 			}
 			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name, configDefaultWebsocketTrafficTimeout)
-				c.Exchanges[i].WebsocketTrafficTimeout = configDefaultWebsocketTrafficTimeout
+					c.Exchanges[i].Name, defaultWebsocketTrafficTimeout)
+				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
 			}
 			if c.Exchanges[i].WebsocketOrderbookBufferLimit <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name, configDefaultWebsocketOrderbookBufferLimit)
-				c.Exchanges[i].WebsocketOrderbookBufferLimit = configDefaultWebsocketOrderbookBufferLimit
+					c.Exchanges[i].Name, defaultWebsocketOrderbookBufferLimit)
+				c.Exchanges[i].WebsocketOrderbookBufferLimit = defaultWebsocketOrderbookBufferLimit
 			}
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
@@ -1003,7 +1003,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not
 func (c *Config) CheckCurrencyConfigValues() error {
-	fxProviders := forexprovider.GetAvailableForexProviders()
+	fxProviders := forexprovider.GetSupportedForexProviders()
 
 	if len(fxProviders) != len(c.Currency.ForexProviders) {
 		for x := range fxProviders {
@@ -1339,7 +1339,7 @@ func GetFilePath(file string) (string, error) {
 	}
 
 	if flag.Lookup("test.v") != nil && !testBypass {
-		return ConfigTestFile, nil
+		return TestFile, nil
 	}
 
 	exePath, err := common.GetExecutablePath()
@@ -1348,8 +1348,8 @@ func GetFilePath(file string) (string, error) {
 	}
 
 	oldDirs := []string{
-		filepath.Join(exePath, ConfigFile),
-		filepath.Join(exePath, EncryptedConfigFile),
+		filepath.Join(exePath, File),
+		filepath.Join(exePath, EncryptedFile),
 	}
 
 	newDir := common.GetDefaultDataDir(runtime.GOOS)
@@ -1358,8 +1358,8 @@ func GetFilePath(file string) (string, error) {
 		return "", err
 	}
 	newDirs := []string{
-		filepath.Join(newDir, ConfigFile),
-		filepath.Join(newDir, EncryptedConfigFile),
+		filepath.Join(newDir, File),
+		filepath.Join(newDir, EncryptedFile),
 	}
 
 	// First upgrade the old dir config file if it exists to the corresponding
@@ -1455,23 +1455,23 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 			return err
 		}
 
-		if c.EncryptConfig == configFileEncryptionDisabled {
+		if c.EncryptConfig == fileEncryptionDisabled {
 			return nil
 		}
 
-		if c.EncryptConfig == configFileEncryptionPrompt {
+		if c.EncryptConfig == fileEncryptionPrompt {
 			m.Lock()
 			IsInitialSetup = true
 			m.Unlock()
 			if c.PromptForConfigEncryption(configPath, dryrun) {
-				c.EncryptConfig = configFileEncryptionEnabled
+				c.EncryptConfig = fileEncryptionEnabled
 				return c.SaveConfig(defaultPath, dryrun)
 			}
 		}
 	} else {
 		errCounter := 0
 		for {
-			if errCounter >= configMaxAuthFailures {
+			if errCounter >= maxAuthFailures {
 				return errors.New("failed to decrypt config after 3 attempts")
 			}
 			key, err := PromptForConfigKey(IsInitialSetup)
@@ -1492,7 +1492,7 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 
 			err = ConfirmConfigJSON(data, &c)
 			if err != nil {
-				if errCounter < configMaxAuthFailures {
+				if errCounter < maxAuthFailures {
 					log.Error(log.ConfigMgr, "Invalid password.")
 				}
 				errCounter++
@@ -1520,7 +1520,7 @@ func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 		return err
 	}
 
-	if c.EncryptConfig == configFileEncryptionEnabled {
+	if c.EncryptConfig == fileEncryptionEnabled {
 		var key []byte
 
 		if IsInitialSetup {
@@ -1611,8 +1611,8 @@ func (c *Config) CheckConfig() error {
 	}
 
 	if c.GlobalHTTPTimeout <= 0 {
-		log.Warnf(log.ConfigMgr, "Global HTTP Timeout value not set, defaulting to %v.\n", configDefaultHTTPTimeout)
-		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
+		log.Warnf(log.ConfigMgr, "Global HTTP Timeout value not set, defaulting to %v.\n", defaultHTTPTimeout)
+		c.GlobalHTTPTimeout = defaultHTTPTimeout
 	}
 
 	if c.NTPClient.Level != 0 {

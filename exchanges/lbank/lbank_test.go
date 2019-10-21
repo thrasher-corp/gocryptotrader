@@ -289,7 +289,7 @@ func TestLoadPrivKey(t *testing.T) {
 	l.API.Credentials.Secret = "errortest"
 	err = l.loadPrivKey()
 	if err == nil {
-		t.Errorf("expected error due to pemblock nil, got err: %v", err)
+		t.Errorf("Expected error due to pemblock nil")
 	}
 }
 

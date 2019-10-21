@@ -16,26 +16,25 @@ import (
 
 // Constants declared here are filename strings and test strings
 const (
-	FXProviderFixer                            = "fixer"
-	EncryptedConfigFile                        = "config.dat"
-	ConfigFile                                 = "config.json"
-	ConfigTestFile                             = "../testdata/configtest.json"
-	configFileEncryptionPrompt                 = 0
-	configFileEncryptionEnabled                = 1
-	configFileEncryptionDisabled               = -1
-	configPairsLastUpdatedWarningThreshold     = 30 // 30 days
-	configDefaultHTTPTimeout                   = time.Second * 15
-	configDefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
-	configDefaultWebsocketResponseMaxLimit     = time.Second * 7
-	configDefaultWebsocketOrderbookBufferLimit = 5
-	configDefaultWebsocketTrafficTimeout       = time.Second * 30
-	configMaxAuthFailures                      = 3
-	defaultNTPAllowedDifference                = 50000000
-	defaultNTPAllowedNegativeDifference        = 50000000
-
-	DefaultAPIKey      = "Key"
-	DefaultAPISecret   = "Secret"
-	DefaultAPIClientID = "ClientID"
+	FXProviderFixer                      = "fixer"
+	EncryptedFile                        = "config.dat"
+	File                                 = "config.json"
+	TestFile                             = "../testdata/configtest.json"
+	fileEncryptionPrompt                 = 0
+	fileEncryptionEnabled                = 1
+	fileEncryptionDisabled               = -1
+	pairsLastUpdatedWarningThreshold     = 30 // 30 days
+	defaultHTTPTimeout                   = time.Second * 15
+	defaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	defaultWebsocketResponseMaxLimit     = time.Second * 7
+	defaultWebsocketOrderbookBufferLimit = 5
+	defaultWebsocketTrafficTimeout       = time.Second * 30
+	maxAuthFailures                      = 3
+	defaultNTPAllowedDifference          = 50000000
+	defaultNTPAllowedNegativeDifference  = 50000000
+	DefaultAPIKey                        = "Key"
+	DefaultAPISecret                     = "Secret"
+	DefaultAPIClientID                   = "ClientID"
 )
 
 // Constants here hold some messages

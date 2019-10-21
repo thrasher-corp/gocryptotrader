@@ -418,7 +418,7 @@ func TestGetAccountInfo(t *testing.T) {
 	} else {
 		_, err := z.GetAccountInfo()
 		if err == nil {
-			t.Error("GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	}
 }
@@ -426,7 +426,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := z.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
@@ -496,7 +496,7 @@ func TestGetDepositAddress(t *testing.T) {
 	} else {
 		_, err := z.GetDepositAddress(currency.BTC, "")
 		if err == nil {
-			t.Error("GetDepositAddress() error")
+			t.Error("GetDepositAddress() Expected error")
 		}
 	}
 }
