@@ -71,7 +71,6 @@ func (b *BTSE) WsHandleData() {
 			result := Result{}
 			err = common.JSONDecode(resp.Raw, &result)
 			if err != nil {
-				log.Println("\n\n\n\nWTF\n")
 				b.Websocket.DataHandler <- err
 				continue
 			}
@@ -83,7 +82,7 @@ func (b *BTSE) WsHandleData() {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-				b.Websocket.DataHandler <- tradeHistory
+				b.Websocket.DataHandler <- wshandler.TradeData{}
 			case strings.Contains(result["topic"].(string), "orderBookApi"):
 				var t wsOrderBook
 				err = common.JSONDecode(resp.Raw, &t)
