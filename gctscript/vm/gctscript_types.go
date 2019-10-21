@@ -2,15 +2,17 @@ package vm
 
 import (
 	"errors"
+	"time"
 )
 
 const gctScript = "GCT Script"
 
 // Config user configurable options for gctscript
 type Config struct {
-	Enabled      bool     `json:"enabled"`
-	AllowImports bool     `json:"allow_imports"`
-	AutoStart    []string `json:"auto_start"`
+	Enabled       bool          `json:"enabled"`
+	ScriptTimeout time.Duration `json:"timeout"`
+	AllowImports  bool          `json:"allow_imports"`
+	AutoLoad      []string      `json:"auto_load"`
 }
 
 // Error error interface for VM

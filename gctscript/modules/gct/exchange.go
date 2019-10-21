@@ -1,6 +1,7 @@
 package gct
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/d5/tengo/objects"
@@ -10,10 +11,11 @@ import (
 )
 
 var exchangeModule = map[string]objects.Object{
-	"orderbook": &objects.UserFunction{Name: "orderbook", Value: exchangeOrderbook},
-	"ticker":    &objects.UserFunction{Name: "ticker", Value: exchangeTicker},
-	"exchanges": &objects.UserFunction{Name: "exchanges", Value: exchangeExchanges},
-	"pairs":     &objects.UserFunction{Name: "pairs", Value: exchangePairs},
+	"orderbook":   &objects.UserFunction{Name: "orderbook", Value: exchangeOrderbook},
+	"ticker":      &objects.UserFunction{Name: "ticker", Value: exchangeTicker},
+	"exchanges":   &objects.UserFunction{Name: "exchanges", Value: exchangeExchanges},
+	"pairs":       &objects.UserFunction{Name: "pairs", Value: exchangePairs},
+	"accountinfo": &objects.UserFunction{Name: "accountinfo", Value: exchangeAccountInfo},
 }
 
 func exchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
@@ -146,4 +148,21 @@ func exchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 	}
 
 	return &r, nil
+}
+
+func exchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error) {
+	if len(args) != 1 {
+		err = objects.ErrWrongNumArguments
+		return
+	}
+
+	exchangeName, _ := objects.ToString(args[0])
+	rtnValue, err := modules.Wrapper.AccountInformation(exchangeName)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(rtnValue)
+
+	return nil, nil
 }

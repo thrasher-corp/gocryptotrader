@@ -3,6 +3,7 @@ package vm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
@@ -15,10 +16,6 @@ func newVM() *VM {
 	return &VM{
 		Script: VMPool.Get().(*script.Script),
 	}
-}
-
-func TemrinateAllVM() error {
-	return nil
 }
 
 // Load parses and creates a new instance of tengo script vm
@@ -51,7 +48,6 @@ func (vm *VM) Load(file string) error {
 	vm.Script.SetImports(loader.GetModuleMap())
 
 	if GCTScriptConfig.AllowImports {
-
 		vm.Script.EnableFileImport(true)
 	}
 
@@ -96,18 +92,24 @@ func (vm *VM) RunCtx() (err error) {
 		vm.ctx = context.Background()
 	}
 
-	err = vm.Compiled.RunContext(vm.ctx)
+	ct, cancel := context.WithTimeout(vm.ctx, 1*time.Millisecond)
+	defer cancel()
+
+	err = vm.Compiled.RunContext(ct)
+
 	return
 }
 
 // CompileAndRun Compile and Run script
 func (vm *VM) CompileAndRun() (err error) {
+	vm.runner()
+
 	err = vm.Compile()
 	if err != nil {
 		return
 	}
 
-	err = vm.Run()
+	err = vm.RunCtx()
 	if err != nil {
 		return err
 	}
@@ -128,4 +130,15 @@ func (vm *VM) CompileAndRun() (err error) {
 	}
 
 	return err
+}
+
+func (vm *VM) Shutdown() error {
+	if vm == nil {
+		return &Error{
+			Action: "Run",
+			Cause:  ErrNoVMLoaded,
+		}
+	}
+	fmt.Printf("VM: %+v\n", vm)
+	return nil
 }

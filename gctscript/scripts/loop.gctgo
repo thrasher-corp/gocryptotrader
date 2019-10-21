@@ -1,0 +1,4 @@
+fmt := import("fmt")
+for {
+    fmt.println("hello")
+}

@@ -82,8 +82,17 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (currenc
 	return x.CurrencyPairs.Get(item).Available, nil
 }
 
-func (e Exchange) QueryOrder() error {
-
+func (e Exchange) QueryOrder(exch string) error {
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return err
+	}
+	temp := &exchange.OrderSubmission{}
+	r, err := ex.SubmitOrder(temp)
+	if err != nil {
+		return err
+	}
+	fmt.Println(r)
 	return nil
 }
 
@@ -103,7 +112,7 @@ func (e Exchange) AccountInformation(exch string) (modules.AccountInfo, error) {
 
 	r, _ := ex.GetAccountInfo()
 
-	fmt.Println(r)
+	fmt.Printf("ACCOUNTINFO: %+v", r)
 
 	return modules.AccountInfo{}, nil
 }

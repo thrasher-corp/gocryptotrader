@@ -1,7 +1,5 @@
 package vm
 
-import "fmt"
-
 // New returns a new instance of VM
 func New() *VM {
 	vm := newVM()
@@ -10,8 +8,9 @@ func New() *VM {
 	return vm
 }
 
-func Running() {
+func ShutdownAll() error {
 	for x := range VMList {
-		fmt.Println(VMList[x].name)
+		_ = VMList[x].Shutdown()
 	}
+	return nil
 }

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
@@ -39,7 +40,7 @@ func (g *gctScriptManager) Stop() error {
 
 	log.Debugf(log.Global, "%s %s", name, MsgSubSystemShuttingDown)
 	close(g.shutdown)
-	err := vm.TemrinateAllVM()
+	err := vm.ShutdownAll()
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -52,12 +53,12 @@ func (g *gctScriptManager) run() {
 
 	Bot.ServicesWG.Add(1)
 	g.running.Store(true)
-	//t := time.NewTicker(time.Microsecond)
+
+	g.autoLoad()
 
 	defer func() {
 		g.running.Store(false)
 		Bot.ServicesWG.Done()
-		//t.Stop()
 		log.Debugf(log.GCTScriptMgr, "%s %s", name, MsgSubSystemShutdown)
 	}()
 
@@ -65,15 +66,19 @@ func (g *gctScriptManager) run() {
 		select {
 		case <-g.shutdown:
 			return
-
 		}
 	}
 }
 
-func (g *gctScriptManager) scheduler() {
-	//err := vm.RunVMTasks()
-	//if err != nil {
-	//	log.Errorln(log.GCTScriptMgr, err)
-	//}
-	return
+func (g *gctScriptManager) autoLoad() {
+	for x := range Bot.Config.GCTScript.AutoLoad {
+		temp := vm.New()
+		scriptPath := filepath.Join(vm.ScriptPath, Bot.Config.GCTScript.AutoLoad[x]+".gctgo")
+		err := temp.Load(scriptPath)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		go temp.CompileAndRun()
+	}
 }

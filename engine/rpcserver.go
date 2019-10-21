@@ -1227,13 +1227,7 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 		}, nil
 	}
 
-	err = gctVM.CompileAndRun()
-	if err != nil {
-		return &gctrpc.GCTScriptResponse{
-			Status: "error",
-			Data:   err.Error(),
-		}, nil
-	}
+	go gctVM.CompileAndRun()
 
 	return &gctrpc.GCTScriptResponse{
 		Status: "ok",

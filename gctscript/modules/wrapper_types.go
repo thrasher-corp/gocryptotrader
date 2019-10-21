@@ -22,7 +22,7 @@ type Exchange interface {
 	Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error)
 
-	QueryOrder() error
+	QueryOrder(exch string) error
 	SubmitOrder() error
 	CancelOrder() error
 
@@ -55,10 +55,10 @@ type AccountCurrencyInfo struct {
 }
 
 /*
-Orderbook
-Ticker
-Enabled pairs
-Enabled exchanges
+Orderbook - done
+Ticker - done
+Enabled pairs - done
+Enabled exchanges - done
 Submit order
 Cancel order
 Query Order

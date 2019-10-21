@@ -14,12 +14,15 @@ type VM struct {
 
 	Script   *script.Script
 	Compiled *script.Compiled
-	ctx      context.Context
+
+	ctx context.Context
 
 	t time.Duration
+
 	c chan struct{}
 }
 
+// VMList stores all current Virtual Machine instances
 var VMList []VM
 
 var (
