@@ -163,7 +163,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 
 	p.Websocket.Orderbook.Setup(
 		exch.WebsocketOrderbookBufferLimit,
-		true,
+		false,
 		true,
 		true,
 		false,
