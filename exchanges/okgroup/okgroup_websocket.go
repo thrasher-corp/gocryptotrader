@@ -549,6 +549,10 @@ func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) (err error
 				c,
 				a)
 		} else if response.Action == okGroupWsOrderbookUpdate {
+			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
+				continue
+			}
+
 			err = o.WsProcessUpdateOrderbook(&response.Data[i],
 				c,
 				a)
