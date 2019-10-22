@@ -25,7 +25,7 @@ func init() {
 }
 
 // Start starts the dispatch system by spawning workers and allocating memory
-func Start(workers int64) error {
+func Start(workers int) error {
 	if dispatcher == nil {
 		return errors.New(errNotInitialised)
 	}
@@ -78,7 +78,7 @@ func SpawnWorker() error {
 
 // start compares atomic running value, sets defaults, overides with
 // configuration, then spawns workers
-func (d *Dispatcher) start(workers int64) error {
+func (d *Dispatcher) start(workers int) error {
 	if atomic.LoadUint32(&d.running) == 1 {
 		return errors.New(errAlreadyStarted)
 	}
@@ -89,14 +89,14 @@ func (d *Dispatcher) start(workers int64) error {
 		workers = DefaultMaxWorkers
 	}
 
-	d.maxWorkers = workers
+	d.maxWorkers = int32(workers)
 	d.shutdown = make(chan *sync.WaitGroup)
 
-	if atomic.LoadInt64(&d.count) != 0 {
+	if atomic.LoadInt32(&d.count) != 0 {
 		return errors.New("dispatcher leaked workers found")
 	}
 
-	for i := int64(0); i < d.maxWorkers; i++ {
+	for i := int32(0); i < d.maxWorkers; i++ {
 		err := d.spawnWorker()
 		if err != nil {
 			return err
@@ -162,7 +162,7 @@ func (d *Dispatcher) dropWorker() {
 
 // spawnWorker allocates a new worker for job processing
 func (d *Dispatcher) spawnWorker() error {
-	if atomic.LoadInt64(&d.count) >= d.maxWorkers {
+	if atomic.LoadInt32(&d.count) >= d.maxWorkers {
 		return errors.New("dispatcher cannot spawn more workers; ceiling reached")
 	}
 	var spawnWg sync.WaitGroup
@@ -174,7 +174,7 @@ func (d *Dispatcher) spawnWorker() error {
 
 // Relayer routine relays communications across the defined routes
 func (d *Dispatcher) relayer(i *sync.WaitGroup) {
-	atomic.AddInt64(&d.count, 1)
+	atomic.AddInt32(&d.count, 1)
 	d.wg.Add(1)
 	timeout := time.NewTimer(0)
 	i.Done()
@@ -219,7 +219,7 @@ func (d *Dispatcher) relayer(i *sync.WaitGroup) {
 				default:
 				}
 			}
-			atomic.AddInt64(&d.count, -1)
+			atomic.AddInt32(&d.count, -1)
 			if v != nil {
 				v.Done()
 			}
@@ -255,7 +255,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	default:
 		return fmt.Errorf("dispatcher buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x",
 			len(d.jobs),
-			atomic.LoadInt64(&d.count))
+			atomic.LoadInt32(&d.count))
 	}
 
 	return nil
