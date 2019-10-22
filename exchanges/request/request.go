@@ -277,8 +277,13 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 				reader = resp.Body
 
 			default:
-				log.Warnf(log.ExchangeSys, "%s request response content type differs from JSON; received %v [path: %s]\n",
-					r.Name, resp.Header.Get("Content-Type"), path)
+				if verbose {
+					log.Warnf(log.ExchangeSys,
+						"%s request response content type differs from JSON; received %v [path: %s]\n",
+						r.Name,
+						resp.Header.Get("Content-Type"),
+						path)
+				}
 				reader = resp.Body
 			}
 		}
