@@ -353,6 +353,10 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data interfa
 		}
 
 		amount, err := strconv.ParseFloat(trade[1].(string), 64)
+		if err != nil {
+			k.Websocket.DataHandler <- err
+			return
+		}
 
 		k.Websocket.DataHandler <- wshandler.TradeData{
 			AssetType:    asset.Spot,
