@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -396,15 +397,14 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 		Status: make(map[string]string),
 	}
 	var allOpenOrders []Order
-	enabledPairs := z.GetEnabledPairs(asset.Spot)
-	for x := range enabledPairs {
-		// Limiting to 10 pages
-		for pageNumber := int64(0); pageNumber < 11; pageNumber++ {
-			fCurr := z.FormatExchangeCurrency(enabledPairs[x], asset.Spot).String()
-			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(fCurr,
-				pageNumber,
-				10)
+	for _, currency := range z.GetEnabledPairs(asset.Spot) {
+		fPair := z.FormatExchangeCurrency(currency, asset.Spot).String()
+		for i := int64(1); ; i++ {
+			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair, i, 10)
 			if err != nil {
+				if strings.Contains(err.Error(), "3001") {
+					break
+				}
 				return cancelAllOrdersResponse, err
 			}
 
@@ -413,6 +413,10 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 			}
 
 			allOpenOrders = append(allOpenOrders, openOrders...)
+
+			if len(openOrders) != 10 {
+				break
+			}
 		}
 	}
 
@@ -480,21 +484,25 @@ func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var allOrders []Order
-	for x := range req.Currencies {
-		// Limiting to 10 pages
-		for pageNumber := int64(0); pageNumber < 11; pageNumber++ {
-			fCurr := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(fCurr,
-				pageNumber,
-				10)
+	for _, currency := range req.Currencies {
+		for i := int64(1); ; i++ {
+			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(z.FormatExchangeCurrency(currency, asset.Spot).String(), i, 10)
 			if err != nil {
+				if strings.Contains(err.Error(), "3001") {
+					break
+				}
 				return nil, err
 			}
+
 			if len(resp) == 0 {
 				break
 			}
 
 			allOrders = append(allOrders, resp...)
+
+			if len(resp) != 10 {
+				break
+			}
 		}
 	}
 
@@ -535,11 +543,10 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 		side = 1
 	}
 
-	for x := range req.Currencies {
-		// Limiting to 10 pages
-		for pageNumber := int64(0); pageNumber < 11; pageNumber++ {
-			fCurr := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-			resp, err := z.GetOrders(fCurr, pageNumber, side)
+	for _, currency := range req.Currencies {
+		for i := int64(1); ; i++ {
+			fPair := z.FormatExchangeCurrency(currency, asset.Spot).String()
+			resp, err := z.GetOrders(fPair, i, side)
 			if err != nil {
 				return nil, err
 			}
@@ -549,6 +556,10 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 			}
 
 			allOrders = append(allOrders, resp...)
+
+			if len(resp) != 10 {
+				break
+			}
 		}
 	}
 
