@@ -32,7 +32,7 @@ func (b *Bitstamp) WsConnect() error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.GetName())
+		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
 
 	err = b.seedOrderBook()
@@ -76,7 +76,7 @@ func (b *Bitstamp) WsHandleData() {
 			switch wsResponse.Event {
 			case "bts:request_reconnect":
 				if b.Verbose {
-					log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.GetName())
+					log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.Name)
 				}
 				go b.Websocket.Shutdown() // Connection monitor will reconnect
 
@@ -113,7 +113,7 @@ func (b *Bitstamp) WsHandleData() {
 					Price:        wsTradeTemp.Data.Price,
 					Amount:       wsTradeTemp.Data.Amount,
 					CurrencyPair: p,
-					Exchange:     b.GetName(),
+					Exchange:     b.Name,
 					AssetType:    asset.Spot,
 				}
 			}
@@ -201,7 +201,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		Pair:         p,
 		LastUpdated:  time.Unix(update.Timestamp, 0),
 		AssetType:    asset.Spot,
-		ExchangeName: b.GetName(),
+		ExchangeName: b.Name,
 	})
 	if err != nil {
 		return err
@@ -210,7 +210,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    assetType,
-		Exchange: b.GetName(),
+		Exchange: b.Name,
 	}
 
 	return nil
@@ -245,7 +245,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Bids = bids
 		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = asset.Spot
-		newOrderBook.ExchangeName = b.GetName()
+		newOrderBook.ExchangeName = b.Name
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
@@ -255,7 +255,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     p[x],
 			Asset:    asset.Spot,
-			Exchange: b.GetName(),
+			Exchange: b.Name,
 		}
 	}
 	return nil
