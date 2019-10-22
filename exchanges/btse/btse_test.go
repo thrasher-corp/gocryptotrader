@@ -47,7 +47,6 @@ func TestGetMarketsSummary(t *testing.T) {
 
 func TestGetMarkets(t *testing.T) {
 	b.SetDefaults()
-	b.Verbose = true
 	_, err := b.GetMarkets()
 	if err != nil {
 		t.Error(err)
