@@ -77,12 +77,26 @@ func (b *BTSE) WsHandleData() {
 			switch {
 			case strings.Contains(result["topic"].(string), "tradeHistory"):
 				var tradeHistory wsTradeHistory
-				err := common.JSONDecode(resp.Raw, &tradeHistory)
+				err = common.JSONDecode(resp.Raw, &tradeHistory)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-				b.Websocket.DataHandler <- wshandler.TradeData{}
+				for x := range tradeHistory.Data {
+					side := "buy"
+					if tradeHistory.Data[x].Gain == -1 {
+						side = "sell"
+					}
+					b.Websocket.DataHandler <- wshandler.TradeData{
+						Timestamp:    time.Unix(tradeHistory.Data[x].TrasnsactionTime, 0),
+						CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory", "", 1)),
+						AssetType:    orderbook.Spot,
+						Exchange:     b.Name,
+						Price:        tradeHistory.Data[x].Price,
+						Amount:       tradeHistory.Data[x].Amount,
+						Side:         side,
+					}
+				}
 			case strings.Contains(result["topic"].(string), "orderBookApi"):
 				var t wsOrderBook
 				err = common.JSONDecode(resp.Raw, &t)
@@ -90,46 +104,39 @@ func (b *BTSE) WsHandleData() {
 					b.Websocket.DataHandler <- err
 					continue
 				}
+				var price, amount float64
 				var asks, bids []orderbook.Item
 				for i := range t.Data.BuyQuote {
-					var tempAsks orderbook.Item
 					p := strings.Replace(t.Data.BuyQuote[i].Price, ",", "", -1)
-					price, err := strconv.ParseFloat(p, 64)
+					price, err = strconv.ParseFloat(p, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 					}
 					a := strings.Replace(t.Data.BuyQuote[i].Size, ",", "", -1)
-					amount, err := strconv.ParseFloat(a, 64)
+					amount, err = strconv.ParseFloat(a, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 					}
-					tempAsks.Amount = amount
-					tempAsks.Price = price
-					asks = append(asks, tempAsks)
+					asks = append(asks, orderbook.Item{Price: price, Amount: amount})
 				}
 				for j := range t.Data.SellQuote {
-					var tempBids orderbook.Item
 					p := strings.Replace(t.Data.SellQuote[j].Price, ",", "", -1)
-					price, err := strconv.ParseFloat(p, 64)
+					price, err = strconv.ParseFloat(p, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 					}
 					a := strings.Replace(t.Data.SellQuote[j].Size, ",", "", -1)
-					amount, err := strconv.ParseFloat(a, 64)
+					amount, err = strconv.ParseFloat(a, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 					}
-					tempBids.Amount = amount
-					tempBids.Price = price
-					bids = append(bids, tempBids)
+					bids = append(bids, orderbook.Item{Price: price, Amount: amount})
 				}
 				var newOB orderbook.Base
 				newOB.Asks = asks
 				newOB.Bids = bids
 				newOB.AssetType = orderbook.Spot
-				pair := strings.Replace(t.Topic, "orderBookApi:", "", 1)
-				pair = strings.Replace(pair, "_0", "", 1)
-				newOB.Pair = currency.NewPairFromString(pair)
+				newOB.Pair = currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
 				newOB.ExchangeName = b.Name
 				err = b.Websocket.Orderbook.LoadSnapshot(&newOB, true)
 				if err != nil {

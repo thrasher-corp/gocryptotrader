@@ -29,9 +29,6 @@ type Market struct {
 	Status              string  `json:"status"`
 }
 
-// Markets stores an array of market data
-type Markets []Market
-
 // Trade stores trade data
 type Trade struct {
 	SerialID string  `json:"serial_id"`

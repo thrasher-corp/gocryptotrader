@@ -33,16 +33,16 @@ func (b *BTSE) Run() {
 		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	markets, err := b.GetMarkets()
+	m, err := b.GetMarkets()
 	if err != nil {
 		log.Errorf("%s failed to get trading pairs. Err: %s", b.Name, err)
 	} else {
 		var currencies []string
-		for _, m := range *markets {
-			if m.Status != "active" {
+		for x := range m {
+			if m[x].Status != "active" {
 				continue
 			}
-			currencies = append(currencies, currency.NewPairFromStrings(m.BaseCurrency, m.QuoteCurrency).String())
+			currencies = append(currencies, currency.NewPairFromStrings(m[x].BaseCurrency, m[x].QuoteCurrency).String())
 		}
 		err = b.UpdateCurrencies(currency.NewPairsFromStrings(currencies),
 			false,
@@ -172,7 +172,7 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange
 func (b *BTSE) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var resp exchange.SubmitOrderResponse
 	r, err := b.CreateOrder(amount, price, side.ToString(),
-		orderType.ToString(), exchange.FormatExchangeCurrency(b.Name, p).String(), "LIGMA", clientID)
+		orderType.ToString(), exchange.FormatExchangeCurrency(b.Name, p).String(), "", clientID)
 	if err != nil {
 		return resp, err
 	}

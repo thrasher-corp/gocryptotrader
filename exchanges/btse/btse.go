@@ -150,9 +150,9 @@ func (b *BTSE) GetMarketsSummary() (*HighLevelMarketData, error) {
 }
 
 // GetMarkets returns a list of markets available on BTSE
-func (b *BTSE) GetMarkets() (*Markets, error) {
-	var m Markets
-	return &m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m)
+func (b *BTSE) GetMarkets() ([]Market, error) {
+	var m []Market
+	return m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m)
 }
 
 // FetchOrderBook gets orderbook data for a given pair
@@ -221,42 +221,42 @@ func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeI
 }
 
 // GetOrders returns all pending orders
-func (b *BTSE) GetOrders(productID string) (*OpenOrders, error) {
+func (b *BTSE) GetOrders(symbol string) (*OpenOrders, error) {
 	req := make(map[string]interface{})
-	if productID != "" {
-		req["product_id"] = productID
+	if symbol != "" {
+		req["symbol"] = symbol
 	}
 	var o OpenOrders
 	return &o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o)
 }
 
 // CancelExistingOrder cancels an order
-func (b *BTSE) CancelExistingOrder(orderID, productID string) (*CancelOrder, error) {
+func (b *BTSE) CancelExistingOrder(orderID, symbol string) (*CancelOrder, error) {
 	var c CancelOrder
 	req := make(map[string]interface{})
 	req["order_id"] = orderID
-	req["product_id"] = productID
+	req["symbol"] = symbol
 	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, req, &c)
 }
 
 // CancelOrders cancels all orders
 // productID optional. If product ID is sent, all orders of that specified market
 // will be cancelled. If not specified, all orders of all markets will be cancelled
-func (b *BTSE) CancelOrders(productID string) (*CancelOrder, error) {
+func (b *BTSE) CancelOrders(symbol string) (*CancelOrder, error) {
 	var c CancelOrder
 	req := make(map[string]interface{})
-	if productID != "" {
-		req["product_id"] = productID
+	if symbol != "" {
+		req["symbol"] = symbol
 	}
 	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrders, req, &c)
 }
 
 // GetFills gets all filled orders
-func (b *BTSE) GetFills(orderID, productID, before, after, limit, username string) (*FilledOrders, error) {
-	if orderID != "" && productID != "" {
-		return nil, errors.New("orderID and productID cannot co-exist in the same query")
-	} else if orderID == "" && productID == "" {
-		return nil, errors.New("orderID OR productID must be set")
+func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) (*FilledOrders, error) {
+	if orderID != "" && symbol != "" {
+		return nil, errors.New("orderID and symbol cannot co-exist in the same query")
+	} else if orderID == "" && symbol == "" {
+		return nil, errors.New("orderID OR symbol must be set")
 	}
 
 	req := make(map[string]interface{})
@@ -264,8 +264,8 @@ func (b *BTSE) GetFills(orderID, productID, before, after, limit, username strin
 		req["order_id"] = orderID
 	}
 
-	if productID != "" {
-		req["product_id"] = productID
+	if symbol != "" {
+		req["symbol"] = symbol
 	}
 
 	if before != "" {
@@ -278,6 +278,9 @@ func (b *BTSE) GetFills(orderID, productID, before, after, limit, username strin
 
 	if limit != "" {
 		req["limit"] = limit
+	}
+	if username != "" {
+		req["username"] = username
 	}
 
 	var o FilledOrders
@@ -303,7 +306,6 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 	if !b.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-	b.HTTPDebugging = true
 	path := fmt.Sprintf("%s%s", btseAPIPath, endpoint)
 
 	payload, err := common.JSONEncode(req)
@@ -320,16 +322,15 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 	headers["btse-nonce"] = nonce
 
-	var meow []byte
+	var temp []byte
 
 	if string(payload) == "{}" || string(payload) == "null" {
-		meow = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce)), []byte(b.APISecret))
+		temp = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce)), []byte(b.APISecret))
 	} else {
-		meow = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce + string(payload))), []byte(b.APISecret))
-		fmt.Printf("%s", common.HexEncodeToString(meow))
+		temp = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce + string(payload))), []byte(b.APISecret))
 	}
 
-	headers["btse-sign"] = common.HexEncodeToString(meow)
+	headers["btse-sign"] = common.HexEncodeToString(temp)
 
 	if len(payload) > 0 {
 		headers["Accept"] = "application/json"
