@@ -780,7 +780,8 @@
     "assetTypes": "SPOT",
     "supportsAutoPairUpdates": true,
     "configCurrencyPairFormat": {
-     "uppercase": true
+      "uppercase": true,
+      "delimiter": "/"
     },
     "requestCurrencyPairFormat": {
      "uppercase": true,

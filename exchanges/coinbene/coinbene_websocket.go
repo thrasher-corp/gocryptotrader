@@ -119,6 +119,7 @@ func (c *Coinbene) WsDataHandler() {
 				err = common.JSONDecode(stream.Raw, &ticker)
 				if err != nil {
 					c.Websocket.DataHandler <- err
+					continue
 				}
 				for x := range ticker.Data {
 					c.Websocket.DataHandler <- wshandler.TickerData{
@@ -136,18 +137,22 @@ func (c *Coinbene) WsDataHandler() {
 				err = common.JSONDecode(stream.Raw, &tradeList)
 				if err != nil {
 					c.Websocket.DataHandler <- err
+					continue
 				}
 				time, err1 := time.Parse(time.RFC3339, tradeList.Data[0][3])
 				if err1 != nil {
 					c.Websocket.DataHandler <- err1
+					continue
 				}
 				price, err2 := strconv.ParseFloat(tradeList.Data[0][0], 64)
 				if err2 != nil {
 					c.Websocket.DataHandler <- err2
+					continue
 				}
 				amount, err3 := strconv.ParseFloat(tradeList.Data[0][2], 64)
 				if err3 != nil {
 					c.Websocket.DataHandler <- err3
+					continue
 				}
 				c.Websocket.DataHandler <- wshandler.TradeData{
 					CurrencyPair: currency.NewPairFromString(strings.Replace(tradeList.Topic, "tradeList.", "", 1)),
@@ -163,6 +168,7 @@ func (c *Coinbene) WsDataHandler() {
 				err = common.JSONDecode(stream.Raw, &orderBook)
 				if err != nil {
 					c.Websocket.DataHandler <- err
+					continue
 				}
 				var asks, bids []orderbook.Item
 				for i := range orderBook.Data[0].Asks {
@@ -170,10 +176,12 @@ func (c *Coinbene) WsDataHandler() {
 					tempAsks.Amount, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][1], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
+						continue
 					}
 					tempAsks.Price, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][0], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
+						continue
 					}
 					asks = append(asks, tempAsks)
 				}
@@ -182,10 +190,12 @@ func (c *Coinbene) WsDataHandler() {
 					tempBids.Amount, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][1], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
+						continue
 					}
 					tempBids.Price, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][0], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
+						continue
 					}
 					bids = append(bids, tempBids)
 				}
@@ -199,6 +209,7 @@ func (c *Coinbene) WsDataHandler() {
 					err = c.Websocket.Orderbook.LoadSnapshot(&newOB, true)
 					if err != nil {
 						c.Websocket.DataHandler <- err
+						continue
 					}
 					c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
 						Asset:    orderbook.Swap,
@@ -215,6 +226,7 @@ func (c *Coinbene) WsDataHandler() {
 					err = c.Websocket.Orderbook.Update(&newOB)
 					if err != nil {
 						c.Websocket.DataHandler <- err
+						continue
 					}
 					c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.CurrencyPair,
 						Asset:    orderbook.Swap,
@@ -228,11 +240,13 @@ func (c *Coinbene) WsDataHandler() {
 				err = common.JSONDecode(stream.Raw, &kline)
 				if err != nil {
 					c.Websocket.DataHandler <- err
+					continue
 				}
 				for x := 2; x < len(kline.Data[0]); x++ {
 					tempFloat, err = strconv.ParseFloat(kline.Data[0][x].(string), 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
+						continue
 					}
 					tempKline = append(tempKline, tempFloat)
 				}
@@ -252,6 +266,7 @@ func (c *Coinbene) WsDataHandler() {
 				err = common.JSONDecode(stream.Raw, &userinfo)
 				if err != nil {
 					c.Websocket.DataHandler <- err
+					continue
 				}
 				c.Websocket.DataHandler <- userinfo
 			case strings.Contains(result["topic"].(string), "user.position"):
@@ -259,6 +274,7 @@ func (c *Coinbene) WsDataHandler() {
 				err = common.JSONDecode(stream.Raw, &position)
 				if err != nil {
 					c.Websocket.DataHandler <- err
+					continue
 				}
 				c.Websocket.DataHandler <- position
 			case strings.Contains(result["topic"].(string), "user.order"):
@@ -266,6 +282,7 @@ func (c *Coinbene) WsDataHandler() {
 				err = common.JSONDecode(stream.Raw, &orders)
 				if err != nil {
 					c.Websocket.DataHandler <- err
+					continue
 				}
 				c.Websocket.DataHandler <- orders
 			default:
@@ -294,9 +311,8 @@ func (c *Coinbene) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 // Login logs in
 func (c *Coinbene) Login() error {
 	var sub WsSub
-	path := "/login"
 	expTime := time.Now().Add(time.Minute * 10).Format("2006-01-02T15:04:05Z")
-	signMsg := fmt.Sprintf("%s%s%s", expTime, http.MethodGet, path)
+	signMsg := fmt.Sprintf("%s%s%s", expTime, http.MethodGet, "/login")
 	tempSign := common.GetHMAC(common.HashSHA256, []byte(signMsg), []byte(c.APISecret))
 	sign := common.HexEncodeToString(tempSign)
 	sub.Operation = "login"
