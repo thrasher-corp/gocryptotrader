@@ -316,40 +316,36 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 	path := fmt.Sprintf("%s%s", btseAPIPath, endpoint)
-
-	payload, err := common.JSONEncode(req)
-	if err != nil {
-		return errors.New("sendAuthenticatedAPIRequest: unable to JSON request")
-	}
-
-	var body io.Reader
-	if len(req) != 0 {
-		body = bytes.NewBufferString(string(payload))
-	}
 	headers := make(map[string]string)
 	headers["btse-api"] = b.APIKey
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 	headers["btse-nonce"] = nonce
-
-	var temp []byte
-
-	if string(payload) == "{}" || string(payload) == "null" {
-		temp = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce)), []byte(b.APISecret))
+	var body io.Reader
+	var hmac []byte
+	var payload []byte
+	if len(req) != 0 {
+		var err error
+		payload, err = common.JSONEncode(req)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewBufferString(string(payload))
+		hmac = common.GetHMAC(
+			common.HashSHA512_384,
+			[]byte((path + nonce + string(payload))),
+			[]byte(b.APISecret),
+		)
 	} else {
-		temp = common.GetHMAC(common.HashSHA512_384, []byte((path + nonce + string(payload))), []byte(b.APISecret))
+		hmac = common.GetHMAC(
+			common.HashSHA512_384,
+			[]byte((path + nonce)),
+			[]byte(b.APISecret),
+		)
 	}
-
-	headers["btse-sign"] = common.HexEncodeToString(temp)
-
-	if len(payload) > 0 {
-		headers["Accept"] = "application/json"
-		headers["Content-Type"] = "application/json"
-	}
-
+	headers["btse-sign"] = common.HexEncodeToString(hmac)
 	if b.Verbose {
 		log.Debugf("Sending %s request to URL %s with params %s\n", method, path, string(payload))
 	}
-
 	return b.SendPayload(method,
 		btseAPIURL+path,
 		headers,
