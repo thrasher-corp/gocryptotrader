@@ -205,12 +205,21 @@ func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeI
 	req := make(map[string]interface{})
 	req["amount"] = amount
 	req["price"] = price
-	if req["side"] != "" {
+	if side != "" {
 		req["side"] = side
 	}
-	req["side"] = side
-	req["type"] = orderType
-	req["symbol"] = symbol
+	if orderType != "" {
+		req["type"] = orderType
+	}
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	if timeInForce != "" {
+		req["timeInForce"] = timeInForce
+	}
+	if tag != "" {
+		req["tag"] = tag
+	}
 
 	type orderResp struct {
 		ID string `json:"id"`
@@ -290,7 +299,7 @@ func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
 	return b.SendPayload(method,
-		fmt.Sprintf("%s%s%s", btseAPIURL, btseAPIPath, endpoint),
+		btseAPIURL+btseAPIPath+endpoint,
 		nil,
 		nil,
 		&result,
