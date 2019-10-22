@@ -701,14 +701,14 @@ type GetFuturesOrderBookResponse struct {
 
 // GetFuturesTokenInfoResponse response data for GetFuturesOrderBook
 type GetFuturesTokenInfoResponse struct {
-	BestAsk      float64       `json:"best_ask,string"`
-	BestBid      float64       `json:"best_bid,string"`
-	High24h      float64       `json:"high_24h,string"`
-	InstrumentID currency.Pair `json:"instrument_id"`
-	Last         float64       `json:"last,string"`
-	Low24h       float64       `json:"low_24h,string"`
-	Timestamp    time.Time     `json:"timestamp"`
-	Volume24h    float64       `json:"volume_24h,string"`
+	BestAsk      float64   `json:"best_ask,string"`
+	BestBid      float64   `json:"best_bid,string"`
+	High24h      float64   `json:"high_24h,string"`
+	InstrumentID string    `json:"instrument_id"`
+	Last         float64   `json:"last,string"`
+	Low24h       float64   `json:"low_24h,string"`
+	Timestamp    time.Time `json:"timestamp"`
+	Volume24h    float64   `json:"volume_24h,string"`
 }
 
 // GetFuturesFilledOrderRequest request data for GetFuturesFilledOrder
@@ -1059,14 +1059,14 @@ type GetSwapOrderBookResponse struct {
 
 // GetAllSwapTokensInformationResponse response data for GetAllSwapTokensInformation
 type GetAllSwapTokensInformationResponse struct {
-	InstrumentID currency.Pair `json:"instrument_id"`
-	Last         float64       `json:"last,string"`
-	High24H      float64       `json:"high_24h,string"`
-	Low24H       float64       `json:"low_24h,string"`
-	BestBid      float64       `json:"best_bid,string"`
-	BestAsk      float64       `json:"best_ask,string"`
-	Volume24H    float64       `json:"volume_24h,string"`
-	Timestamp    time.Time     `json:"timestamp"`
+	InstrumentID string    `json:"instrument_id"`
+	Last         float64   `json:"last,string"`
+	High24H      float64   `json:"high_24h,string"`
+	Low24H       float64   `json:"low_24h,string"`
+	BestBid      float64   `json:"best_bid,string"`
+	BestAsk      float64   `json:"best_ask,string"`
+	Volume24H    float64   `json:"volume_24h,string"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // GetSwapFilledOrdersDataRequest request data for GetSwapFilledOrdersData

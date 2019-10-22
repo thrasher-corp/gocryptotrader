@@ -1,6 +1,7 @@
 package okgroup
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -79,26 +80,27 @@ func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (resp or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType asset.Item) (resp orderbook.Base, err error) {
-	orderbookNew, err := o.GetSpotOrderBook(GetSpotOrderBookRequest{
-		InstrumentID: o.FormatExchangeCurrency(p, assetType).String(),
-	})
-	if err != nil {
-		return
+func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (orderbook.Base, error) {
+	if a == asset.Index {
+		return orderbook.Base{}, errors.New("no orderbooks for index")
 	}
 
+	orderbookNew, err := o.GetOrderBook(GetSpotOrderBookRequest{
+		InstrumentID: o.FormatExchangeCurrency(p, a).String(),
+	}, a)
+	if err != nil {
+		return orderbook.Base{}, err
+	}
+
+	var resp orderbook.Base
 	for x := range orderbookNew.Bids {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if convErr != nil {
-			log.Errorf(log.ExchangeSys,
-				"Could not convert %v to float64",
-				orderbookNew.Bids[x][1])
+			return resp, err
 		}
 		price, convErr := strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
 		if convErr != nil {
-			log.Errorf(log.ExchangeSys,
-				"Could not convert %v to float64",
-				orderbookNew.Bids[x][0])
+			return resp, err
 		}
 		resp.Bids = append(resp.Bids, orderbook.Item{
 			Amount: amount,
@@ -109,15 +111,11 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType asset.Item) (resp o
 	for x := range orderbookNew.Asks {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if convErr != nil {
-			log.Errorf(log.ExchangeSys,
-				"Could not convert %v to float64",
-				orderbookNew.Asks[x][1])
+			return resp, err
 		}
 		price, convErr := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
 		if convErr != nil {
-			log.Errorf(log.ExchangeSys,
-				"Could not convert %v to float64",
-				orderbookNew.Asks[x][0])
+			return resp, err
 		}
 		resp.Asks = append(resp.Asks, orderbook.Item{
 			Amount: amount,
@@ -126,15 +124,15 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType asset.Item) (resp o
 	}
 
 	resp.Pair = p
-	resp.AssetType = assetType
+	resp.AssetType = a
 	resp.ExchangeName = o.Name
 
 	err = resp.Process()
 	if err != nil {
-		return
+		return resp, err
 	}
 
-	return orderbook.Get(o.Name, p, assetType)
+	return orderbook.Get(o.Name, p, a)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies

@@ -286,9 +286,6 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 						eventResponse.Event,
 						eventResponse.Channel)
 				}
-				// fmt.Println(string(resp.Raw))
-				// o.Websocket.DataHandler <- eventResponse
-				// continue
 			}
 		}
 	}
@@ -413,12 +410,16 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
-		if a == asset.Futures {
-			wow := strings.Split(response.Data[i].InstrumentID, "-")
-			c = currency.NewPairWithDelimiter(wow[0]+wow[1], wow[2], "-")
-		} else {
-			wow := strings.Split(response.Data[i].InstrumentID, "-")
-			c = currency.NewPairWithDelimiter(wow[0], wow[1], "-")
+		switch a {
+		case asset.Futures:
+			f := strings.Split(response.Data[i].InstrumentID, "-")
+			c = currency.NewPairWithDelimiter(f[0]+"-"+f[1], f[2], "_")
+		case asset.PerpetualSwap:
+			f := strings.Split(response.Data[i].InstrumentID, "-")
+			c = currency.NewPairWithDelimiter(f[0]+"-"+f[1], f[2], "_")
+		default:
+			f := strings.Split(response.Data[i].InstrumentID, "-")
+			c = currency.NewPairWithDelimiter(f[0], f[1], "-")
 		}
 
 		o.Websocket.DataHandler <- wshandler.TickerData{
@@ -444,10 +445,14 @@ func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
-		if a == asset.Futures {
+		switch a {
+		case asset.Futures:
 			f := strings.Split(response.Data[i].InstrumentID, "-")
-			c = currency.NewPairWithDelimiter(f[0]+f[1], f[2], "-")
-		} else {
+			c = currency.NewPairWithDelimiter(f[0]+"-"+f[1], f[2], "_")
+		case asset.PerpetualSwap:
+			f := strings.Split(response.Data[i].InstrumentID, "-")
+			c = currency.NewPairWithDelimiter(f[0]+"-"+f[1], f[2], "_")
+		default:
 			f := strings.Split(response.Data[i].InstrumentID, "-")
 			c = currency.NewPairWithDelimiter(f[0], f[1], "-")
 		}
@@ -470,10 +475,14 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
-		if a == asset.Futures {
+		switch a {
+		case asset.Futures:
 			f := strings.Split(response.Data[i].InstrumentID, "-")
-			c = currency.NewPairWithDelimiter(f[0]+f[1], f[2], "-")
-		} else {
+			c = currency.NewPairWithDelimiter(f[0]+"-"+f[1], f[2], "_")
+		case asset.PerpetualSwap:
+			f := strings.Split(response.Data[i].InstrumentID, "-")
+			c = currency.NewPairWithDelimiter(f[0]+"-"+f[1], f[2], "_")
+		default:
 			f := strings.Split(response.Data[i].InstrumentID, "-")
 			c = currency.NewPairWithDelimiter(f[0], f[1], "-")
 		}
@@ -536,12 +545,16 @@ func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) (err error
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
-		if a == asset.Futures {
-			wow := strings.Split(response.Data[i].InstrumentID, "-")
-			c = currency.NewPairWithDelimiter(wow[0]+wow[1], wow[2], "-")
-		} else {
-			wow := strings.Split(response.Data[i].InstrumentID, "-")
-			c = currency.NewPairWithDelimiter(wow[0], wow[1], "-")
+		switch a {
+		case asset.Futures:
+			f := strings.Split(response.Data[i].InstrumentID, "-")
+			c = currency.NewPairWithDelimiter(f[0]+"-"+f[1], f[2], "_")
+		case asset.PerpetualSwap:
+			f := strings.Split(response.Data[i].InstrumentID, "-")
+			c = currency.NewPairWithDelimiter(f[0]+"-"+f[1], f[2], "_")
+		default:
+			f := strings.Split(response.Data[i].InstrumentID, "-")
+			c = currency.NewPairWithDelimiter(f[0], f[1], "-")
 		}
 
 		if response.Action == okGroupWsOrderbookPartial {
@@ -723,12 +736,11 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 		switch assets[x] {
 		case asset.Spot:
 			for _, c := range enabledCurrencies {
-				c.Delimiter = "-"
 				for y := range defaultSpotSubscribedChannels {
 					subscriptions = append(subscriptions,
 						wshandler.WebsocketChannelSubscription{
 							Channel:  defaultSpotSubscribedChannels[y],
-							Currency: c,
+							Currency: o.FormatExchangeCurrency(c, asset.Spot),
 						})
 				}
 			}
@@ -747,17 +759,11 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 			}
 		case asset.Futures:
 			for _, c := range enabledCurrencies {
-				// Pain and suffering
-				c.Delimiter = "-"
-				newBase := c.Base.String()[:3] + "-" + c.Base.String()[3:]
-				c.Base = currency.NewCode(newBase)
-				newQuote := strings.Replace(c.Quote.String(), "-", "", -1)
-				c.Quote = currency.NewCode(newQuote[2:])
 				for y := range defaultFuturesSubscribedChannels {
 					subscriptions = append(subscriptions,
 						wshandler.WebsocketChannelSubscription{
 							Channel:  defaultFuturesSubscribedChannels[y],
-							Currency: c,
+							Currency: o.FormatExchangeCurrency(c, asset.Futures),
 						})
 				}
 			}
@@ -776,12 +782,11 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 			}
 		case asset.PerpetualSwap:
 			for _, c := range enabledCurrencies {
-				c.Delimiter = "-"
 				for y := range defaultSwapSubscribedChannels {
 					subscriptions = append(subscriptions,
 						wshandler.WebsocketChannelSubscription{
 							Channel:  defaultSwapSubscribedChannels[y],
-							Currency: c,
+							Currency: o.FormatExchangeCurrency(c, asset.PerpetualSwap),
 						})
 				}
 			}
@@ -801,12 +806,11 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 			}
 		case asset.Index:
 			for _, c := range enabledCurrencies {
-				c.Delimiter = "-"
 				for y := range defaultIndexSubscribedChannels {
 					subscriptions = append(subscriptions,
 						wshandler.WebsocketChannelSubscription{
 							Channel:  defaultIndexSubscribedChannels[y],
-							Currency: c,
+							Currency: o.FormatExchangeCurrency(c, asset.Index),
 						})
 				}
 			}
@@ -821,10 +825,6 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 // Subscribe sends a websocket message to receive data from the channel
 func (o *OKGroup) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	c := channelToSubscribe.Currency.String()
-	if o.GetAssetTypeFromTableName(channelToSubscribe.Channel) == asset.PerpetualSwap {
-		c += "-SWAP"
-	}
-
 	request := WebsocketEventRequest{
 		Operation: "subscribe",
 		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, c)},

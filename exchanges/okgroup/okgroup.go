@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -307,11 +308,49 @@ func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsRespo
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, OKGroupInstruments, nil, &resp, false)
 }
 
-// GetSpotOrderBook Getting the order book of a trading pair. Pagination is not supported here.
+// GetOrderBook Getting the order book of a trading pair. Pagination is not supported here.
 // The whole book will be returned for one request. Websocket is recommended here.
-func (o *OKGroup) GetSpotOrderBook(request GetSpotOrderBookRequest) (resp GetSpotOrderBookResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotOrderBook, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
+func (o *OKGroup) GetOrderBook(request GetSpotOrderBookRequest, a asset.Item) (resp GetSpotOrderBookResponse, _ error) {
+	switch a {
+	case asset.Spot:
+		requestURL := fmt.Sprintf("%v/%v/%v%v",
+			OKGroupInstruments,
+			request.InstrumentID,
+			OKGroupGetSpotOrderBook,
+			FormatParameters(request))
+		return resp, o.SendHTTPRequest(http.MethodGet,
+			okGroupTokenSubsection,
+			requestURL,
+			nil,
+			&resp,
+			false)
+	case asset.Futures:
+		requestURL := fmt.Sprintf("%v/%v/%v%v",
+			OKGroupInstruments,
+			request.InstrumentID,
+			"book",
+			FormatParameters(request))
+		return resp, o.SendHTTPRequest(http.MethodGet,
+			"futures",
+			requestURL,
+			nil,
+			&resp,
+			false)
+	case asset.PerpetualSwap:
+		requestURL := fmt.Sprintf("%v/%v/%v%v",
+			OKGroupInstruments,
+			request.InstrumentID,
+			"depth",
+			FormatParameters(request))
+		return resp, o.SendHTTPRequest(http.MethodGet,
+			"swap",
+			requestURL,
+			nil,
+			&resp,
+			false)
+	default:
+		return resp, errors.New("unhandled asset type")
+	}
 }
 
 // GetSpotAllTokenPairsInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all trading pairs.
