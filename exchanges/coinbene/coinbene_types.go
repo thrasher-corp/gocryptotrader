@@ -46,7 +46,7 @@ type AllPairData struct {
 	MakerFeeRate     float64 `json:"makerFeeRate,string"`
 	MinAmount        float64 `json:"minAmount,string"`
 	Site             string  `json:"site"`
-	PriceFluctuation string  `json:"priceFluctuation"`
+	PriceFluctuation float64 `json:"priceFluctuation,string"`
 }
 
 // AllPairResponse stores data for all pairs enabled on exchange

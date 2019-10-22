@@ -29,7 +29,7 @@ func (c *Coinbene) Run() {
 	if c.Verbose {
 		log.Debugf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), c.Websocket.GetWebsocketURL())
 		log.Debugf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
+		log.Debugf("%s %d currencies enabled: %s.\n", c.Name, len(c.EnabledPairs), c.EnabledPairs)
 	}
 	exchangeCurrencies, err := c.GetAllPairs()
 	if err != nil {
@@ -40,7 +40,7 @@ func (c *Coinbene) Run() {
 			newExchangeCurrencies = append(newExchangeCurrencies,
 				currency.NewPairFromString(exchangeCurrencies.Data[p].Symbol))
 		}
-		err = c.UpdateCurrencies(newExchangeCurrencies, false, true)
+		err = c.UpdateCurrencies(newExchangeCurrencies, false, false)
 		if err != nil {
 			log.Errorf("%s Failed to update available currencies %s.\n", c.GetName(), err)
 		}
@@ -362,21 +362,23 @@ func (c *Coinbene) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (c *Coinbene) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrNotYetImplemented
+	c.Websocket.SubscribeToChannels(channels)
+	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (c *Coinbene) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrNotYetImplemented
+	c.Websocket.RemoveSubscribedChannels(channels)
+	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
 func (c *Coinbene) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrNotYetImplemented
+	return c.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (c *Coinbene) AuthenticateWebsocket() error {
-	return common.ErrNotYetImplemented
+	return c.Login()
 }

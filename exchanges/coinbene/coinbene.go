@@ -320,16 +320,15 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 			return err
 		}
 		finalBody = bytes.NewBufferString(string(tempBody))
-		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, tempBody)
+		preSign = timestamp + method + coinbeneAuthPath + epPath + string(tempBody)
 	case len(params) == 0:
-		preSign = fmt.Sprintf("%s%s%s%s%s", timestamp, method, coinbeneAuthPath, epPath, params.Encode())
+		preSign = timestamp + method + coinbeneAuthPath + epPath
 	}
 	tempSign := common.GetHMAC(common.HashSHA256, []byte(preSign), []byte(c.APISecret))
-	hexEncodedd := common.HexEncodeToString(tempSign)
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	headers["ACCESS-KEY"] = c.APIKey
-	headers["ACCESS-SIGN"] = hexEncodedd
+	headers["ACCESS-SIGN"] = common.HexEncodeToString(tempSign)
 	headers["ACCESS-TIMESTAMP"] = timestamp
 	headers["Cookie"] = "locale=zh_CN"
 	return c.SendPayload(method,

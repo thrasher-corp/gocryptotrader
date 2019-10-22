@@ -312,7 +312,7 @@ func (c *Coinbene) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 func (c *Coinbene) Login() error {
 	var sub WsSub
 	expTime := time.Now().Add(time.Minute * 10).Format("2006-01-02T15:04:05Z")
-	signMsg := fmt.Sprintf("%s%s%s", expTime, http.MethodGet, "/login")
+	signMsg := expTime + http.MethodGet + "/login"
 	tempSign := common.GetHMAC(common.HashSHA256, []byte(signMsg), []byte(c.APISecret))
 	sign := common.HexEncodeToString(tempSign)
 	sub.Operation = "login"
