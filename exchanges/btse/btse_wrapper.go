@@ -139,12 +139,12 @@ func (b *BTSE) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var currencies []exchange.AccountCurrencyInfo
-	for _, b := range *balance {
+	for b := range balance {
 		currencies = append(currencies,
 			exchange.AccountCurrencyInfo{
-				CurrencyName: currency.NewCode(b.Currency),
-				TotalValue:   b.Total,
-				Hold:         b.Available,
+				CurrencyName: currency.NewCode(balance[b].Currency),
+				TotalValue:   balance[b].Total,
+				Hold:         balance[b].Available,
 			},
 		)
 	}
@@ -214,8 +214,6 @@ func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
-	var orders []OpenOrder
-	var err error
 	a, err := b.GetMarkets()
 	if err != nil {
 		return resp, err
@@ -226,14 +224,14 @@ func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (e
 		if strPair != "" && strPair != checkPair {
 			continue
 		} else {
-			orders, err = b.GetOrders(checkPair)
-			if err != nil {
+			orders, err2 := b.GetOrders(checkPair)
+			if err2 != nil {
 				return resp, err
 			}
 			for y := range orders {
 				success := "Order Cancelled"
-				_, err2 := b.CancelExistingOrder(orders[y].Order.ID, checkPair)
-				if err2 != nil {
+				_, err3 := b.CancelExistingOrder(orders[y].Order.ID, checkPair)
+				if err3 != nil {
 					success = "Order Cancellation Failed"
 				}
 				resp.OrderStatus[orders[y].Order.ID] = success
@@ -256,43 +254,41 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	}
 
 	for i := range o {
-		o := (o)[i]
-		if o.ID != orderID {
+		if o[i].ID != orderID {
 			continue
 		}
 
 		var side = exchange.BuyOrderSide
-		if strings.EqualFold(o.Side, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(o[i].Side, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
 		}
 
-		od.CurrencyPair = currency.NewPairDelimiter(o.Symbol,
+		od.CurrencyPair = currency.NewPairDelimiter(o[i].Symbol,
 			b.ConfigCurrencyPairFormat.Delimiter)
 		od.Exchange = b.Name
-		od.Amount = o.Amount
-		od.ID = o.ID
-		od.OrderDate = parseOrderTime(o.CreatedAt)
+		od.Amount = o[i].Amount
+		od.ID = o[i].ID
+		od.OrderDate = parseOrderTime(o[i].CreatedAt)
 		od.OrderSide = side
-		od.OrderType = exchange.OrderType(strings.ToUpper(o.Type))
-		od.Price = o.Price
-		od.Status = o.Status
+		od.OrderType = exchange.OrderType(strings.ToUpper(o[i].Type))
+		od.Price = o[i].Price
+		od.Status = o[i].Status
 
 		fills, err := b.GetFills(orderID, "", "", "", "", "")
 		if err != nil {
 			return od, fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
 
-		for i := range *fills {
-			f := (*fills)[i]
-			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+		for i := range fills {
+			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
 			od.Trades = append(od.Trades, exchange.TradeHistory{
 				Timestamp: createdAt,
-				TID:       f.ID,
-				Price:     f.Price,
-				Amount:    f.Amount,
+				TID:       fills[i].ID,
+				Price:     fills[i].Price,
+				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      exchange.OrderSide(f.Side).ToString(),
-				Fee:       f.Fee,
+				Type:      exchange.OrderSide(fills[i].Side).ToString(),
+				Fee:       fills[i].Fee,
 			})
 		}
 	}
@@ -361,17 +357,16 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 			continue
 		}
 
-		for i := range *fills {
-			f := (*fills)[i]
-			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+		for i := range fills {
+			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
 			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
 				Timestamp: createdAt,
-				TID:       f.ID,
-				Price:     f.Price,
-				Amount:    f.Amount,
+				TID:       fills[i].ID,
+				Price:     fills[i].Price,
+				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      exchange.OrderSide(f.Side).ToString(),
-				Fee:       f.Fee,
+				Type:      exchange.OrderSide(fills[i].Side).ToString(),
+				Fee:       fills[i].Fee,
 			})
 		}
 		orders = append(orders, openOrder)

@@ -53,9 +53,6 @@ type Orderbook struct {
 	Timestamp int64       `json:"timestamp"`
 }
 
-// Trades stores an array of trade data
-type Trades []Trade
-
 // Ticker stores the ticker data
 type Ticker struct {
 	Price  float64 `json:"price,string"`
@@ -88,9 +85,6 @@ type CurrencyBalance struct {
 	Total     float64 `json:"total,string"`
 	Available float64 `json:"available,string"`
 }
-
-// AccountBalance stores an array of currency balances
-type AccountBalance []CurrencyBalance
 
 // Order stores the order info
 type Order struct {
@@ -129,9 +123,6 @@ type FilledOrder struct {
 	OrderID   string  `json:"order_id"`
 	CreatedAt string  `json:"created_at"`
 }
-
-// FilledOrders stores an array of filled orders
-type FilledOrders []FilledOrder
 
 type wsSub struct {
 	Operation string   `json:"op"`

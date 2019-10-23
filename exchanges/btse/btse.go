@@ -163,10 +163,10 @@ func (b *BTSE) FetchOrderBook(symbol string) (*Orderbook, error) {
 }
 
 // GetTrades returns a list of trades for the specified symbol
-func (b *BTSE) GetTrades(symbol string) (*Trades, error) {
-	var t Trades
+func (b *BTSE) GetTrades(symbol string) ([]Trade, error) {
+	var t []Trade
 	endpoint := fmt.Sprintf("%s/%s", btseTrades, symbol)
-	return &t, b.SendHTTPRequest(http.MethodGet, endpoint, &t)
+	return t, b.SendHTTPRequest(http.MethodGet, endpoint, &t)
 
 }
 
@@ -195,9 +195,9 @@ func (b *BTSE) GetServerTime() (*ServerTime, error) {
 }
 
 // GetAccountBalance returns the users account balance
-func (b *BTSE) GetAccountBalance() (*AccountBalance, error) {
-	var a AccountBalance
-	return &a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseAccount, nil, &a)
+func (b *BTSE) GetAccountBalance() ([]CurrencyBalance, error) {
+	var a []CurrencyBalance
+	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseAccount, nil, &a)
 }
 
 // CreateOrder creates an order
@@ -249,7 +249,7 @@ func (b *BTSE) CancelExistingOrder(orderID, symbol string) (*CancelOrder, error)
 }
 
 // GetFills gets all filled orders
-func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) (*FilledOrders, error) {
+func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) ([]FilledOrder, error) {
 	if orderID != "" && symbol != "" {
 		return nil, errors.New("orderID and symbol cannot co-exist in the same query")
 	} else if orderID == "" && symbol == "" {
@@ -280,8 +280,8 @@ func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) 
 		req["username"] = username
 	}
 
-	var o FilledOrders
-	return &o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, req, &o)
+	var o []FilledOrder
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, req, &o)
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
