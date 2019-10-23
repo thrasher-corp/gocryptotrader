@@ -28,11 +28,11 @@ func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("Test Failed - Bitflyer load config error", err)
+		t.Fatal("Bitflyer load config error", err)
 	}
 	bitflyerConfig, err := cfg.GetExchangeConfig("Bitflyer")
 	if err != nil {
-		t.Error("Test Failed - bitflyer Setup() init error")
+		t.Error("bitflyer Setup() init error")
 	}
 
 	bitflyerConfig.API.AuthenticatedSupport = true
@@ -41,7 +41,7 @@ func TestSetup(t *testing.T) {
 
 	err = b.Setup(bitflyerConfig)
 	if err != nil {
-		t.Fatal("Test Failed - Bitflyer setup error", err)
+		t.Fatal("Bitflyer setup error", err)
 	}
 }
 
@@ -49,7 +49,7 @@ func TestGetLatestBlockCA(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetLatestBlockCA()
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetLatestBlockCA() error:", err)
+		t.Error("Bitflyer - GetLatestBlockCA() error:", err)
 	}
 }
 
@@ -57,7 +57,7 @@ func TestGetBlockCA(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetBlockCA("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetBlockCA() error:", err)
+		t.Error("Bitflyer - GetBlockCA() error:", err)
 	}
 }
 
@@ -65,7 +65,7 @@ func TestGetBlockbyHeightCA(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetBlockbyHeightCA(0)
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetBlockbyHeightCA() error:", err)
+		t.Error("Bitflyer - GetBlockbyHeightCA() error:", err)
 	}
 }
 
@@ -73,7 +73,7 @@ func TestGetTransactionByHashCA(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTransactionByHashCA("0562d1f063cd4127053d838b165630445af5e480ceb24e1fd9ecea52903cb772")
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetTransactionByHashCA() error:", err)
+		t.Error("Bitflyer - GetTransactionByHashCA() error:", err)
 	}
 }
 
@@ -81,7 +81,7 @@ func TestGetAddressInfoCA(t *testing.T) {
 	t.Parallel()
 	v, err := b.GetAddressInfoCA("1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB")
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetAddressInfoCA() error:", err)
+		t.Error("Bitflyer - GetAddressInfoCA() error:", err)
 	}
 	if v.UnconfirmedBalance == 0 || v.ConfirmedBalance == 0 {
 		log.Warn(log.ExchangeSys, "Donation wallet is empty :( - please consider donating")
@@ -92,7 +92,7 @@ func TestGetMarkets(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMarkets()
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetMarkets() error:", err)
+		t.Error("Bitflyer - GetMarkets() error:", err)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetOrderBook("BTC_JPY")
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetOrderBook() error:", err)
+		t.Error("Bitflyer - GetOrderBook() error:", err)
 	}
 }
 
@@ -108,7 +108,7 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTicker("BTC_JPY")
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetTicker() error:", err)
+		t.Error("Bitflyer - GetTicker() error:", err)
 	}
 }
 
@@ -116,7 +116,7 @@ func TestGetExecutionHistory(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetExecutionHistory("BTC_JPY")
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetExecutionHistory() error:", err)
+		t.Error("Bitflyer - GetExecutionHistory() error:", err)
 	}
 }
 
@@ -124,7 +124,7 @@ func TestGetExchangeStatus(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetExchangeStatus()
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetExchangeStatus() error:", err)
+		t.Error("Bitflyer - GetExchangeStatus() error:", err)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestCheckFXString(t *testing.T) {
 	p := currency.NewPairDelimiter("FXBTC_JPY", "_")
 	p = b.CheckFXString(p)
 	if p.Base.String() != "FX_BTC" {
-		t.Error("test failed - Bitflyer - CheckFXString() error")
+		t.Error("Bitflyer - CheckFXString() error")
 	}
 }
 
@@ -151,7 +151,7 @@ func TestFetchTicker(t *testing.T) {
 
 	_, err := b.FetchTicker(p, asset.Spot)
 	if err != nil {
-		t.Error("test failed - Bitflyer - FetchTicker() error", err)
+		t.Error("Bitflyer - FetchTicker() error", err)
 	}
 }
 
@@ -190,7 +190,7 @@ func TestGetFee(t *testing.T) {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
 			t.Error(err)
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
@@ -198,7 +198,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
 
@@ -206,7 +206,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.1) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.1), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.1), resp)
 			t.Error(err)
 		}
 
@@ -214,7 +214,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
 
@@ -222,7 +222,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
 	}
@@ -231,7 +231,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -240,7 +240,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.JPY
 	if resp, err := b.GetFee(feeBuilder); resp != float64(324) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(324), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(324), resp)
 		t.Error(err)
 	}
 
@@ -249,7 +249,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.JPY
 	if resp, err := b.GetFee(feeBuilder); resp != float64(540) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(540), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(540), resp)
 		t.Error(err)
 	}
 }
@@ -397,7 +397,7 @@ func TestWithdraw(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := b.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

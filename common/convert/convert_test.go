@@ -12,20 +12,20 @@ func TestFloatFromString(t *testing.T) {
 
 	actualOutput, err := FloatFromString(testString)
 	if actualOutput != expectedOutput || err != nil {
-		t.Errorf("Test failed. Common FloatFromString. Expected '%v'. Actual '%v'. Error: %s",
+		t.Errorf("Common FloatFromString. Expected '%v'. Actual '%v'. Error: %s",
 			expectedOutput, actualOutput, err)
 	}
 
 	var testByte []byte
 	_, err = FloatFromString(testByte)
 	if err == nil {
-		t.Error("Test failed. Common FloatFromString. Converted non-string.")
+		t.Error("Common FloatFromString. Converted non-string.")
 	}
 
 	testString = "   something unconvertible  "
 	_, err = FloatFromString(testString)
 	if err == nil {
-		t.Error("Test failed. Common FloatFromString. Converted invalid syntax.")
+		t.Error("Common FloatFromString. Converted invalid syntax.")
 	}
 }
 
@@ -36,20 +36,20 @@ func TestIntFromString(t *testing.T) {
 
 	actualOutput, err := IntFromString(testString)
 	if actualOutput != expectedOutput || err != nil {
-		t.Errorf("Test failed. Common IntFromString. Expected '%v'. Actual '%v'. Error: %s",
+		t.Errorf("Common IntFromString. Expected '%v'. Actual '%v'. Error: %s",
 			expectedOutput, actualOutput, err)
 	}
 
 	var testByte []byte
 	_, err = IntFromString(testByte)
 	if err == nil {
-		t.Error("Test failed. Common IntFromString. Converted non-string.")
+		t.Error("Common IntFromString. Converted non-string.")
 	}
 
 	testString = "1.41421356237"
 	_, err = IntFromString(testString)
 	if err == nil {
-		t.Error("Test failed. Common IntFromString. Converted invalid syntax.")
+		t.Error("Common IntFromString. Converted invalid syntax.")
 	}
 }
 
@@ -60,20 +60,20 @@ func TestInt64FromString(t *testing.T) {
 
 	actualOutput, err := Int64FromString(testString)
 	if actualOutput != expectedOutput || err != nil {
-		t.Errorf("Test failed. Common Int64FromString. Expected '%v'. Actual '%v'. Error: %s",
+		t.Errorf("Common Int64FromString. Expected '%v'. Actual '%v'. Error: %s",
 			expectedOutput, actualOutput, err)
 	}
 
 	var testByte []byte
 	_, err = Int64FromString(testByte)
 	if err == nil {
-		t.Error("Test failed. Common Int64FromString. Converted non-string.")
+		t.Error("Common Int64FromString. Converted non-string.")
 	}
 
 	testString = "1.41421356237"
 	_, err = Int64FromString(testString)
 	if err == nil {
-		t.Error("Test failed. Common Int64FromString. Converted invalid syntax.")
+		t.Error("Common Int64FromString. Converted invalid syntax.")
 	}
 }
 
@@ -84,14 +84,14 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 
 	actualOutput, err := TimeFromUnixTimestampFloat(testTimestamp)
 	if actualOutput.UTC().String() != expectedOutput.UTC().String() || err != nil {
-		t.Errorf("Test failed. Common TimeFromUnixTimestampFloat. Expected '%v'. Actual '%v'. Error: %s",
+		t.Errorf("Common TimeFromUnixTimestampFloat. Expected '%v'. Actual '%v'. Error: %s",
 			expectedOutput, actualOutput, err)
 	}
 
 	testString := "Time"
 	_, err = TimeFromUnixTimestampFloat(testString)
 	if err == nil {
-		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
+		t.Error("Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
 	}
 }
 
@@ -103,7 +103,7 @@ func TestUnixTimestampToTime(t *testing.T) {
 	actualResult := UnixTimestampToTime(testTime)
 	if tm.String() != actualResult.String() {
 		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
+			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 }
 
@@ -118,11 +118,11 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 	}
 	if actualResult.UTC().String() != expectedOutput {
 		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
+			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 	actualResult, err = UnixTimestampStrToTime(incorrectTime)
 	if err == nil {
-		t.Error("Test failed. Common UnixTimestampStrToTime error")
+		t.Error("Common UnixTimestampStrToTime error")
 	}
 }
 
@@ -133,7 +133,7 @@ func TestUnixMillis(t *testing.T) {
 
 	actualOutput := UnixMillis(testTime)
 	if actualOutput != expectedOutput {
-		t.Errorf("Test failed. Common UnixMillis. Expected '%d'. Actual '%d'.",
+		t.Errorf("Common UnixMillis. Expected '%d'. Actual '%d'.",
 			expectedOutput, actualOutput)
 	}
 }
@@ -145,7 +145,7 @@ func TestRecvWindow(t *testing.T) {
 
 	actualOutput := RecvWindow(testTime)
 	if actualOutput != expectedOutput {
-		t.Errorf("Test failed. Common RecvWindow. Expected '%d'. Actual '%d'",
+		t.Errorf("Common RecvWindow. Expected '%d'. Actual '%d'",
 			expectedOutput, actualOutput)
 	}
 }

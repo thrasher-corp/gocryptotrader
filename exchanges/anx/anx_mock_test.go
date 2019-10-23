@@ -22,11 +22,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - ANX load config error", err)
+		log.Fatal("ANX load config error", err)
 	}
 	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
-		log.Fatal("Test Failed - Mock server error", err)
+		log.Fatal("Mock server error", err)
 	}
 	a.SkipAuthCheck = true
 	anxConfig.API.AuthenticatedSupport = true
@@ -35,12 +35,12 @@ func TestMain(m *testing.M) {
 	a.SetDefaults()
 	err = a.Setup(anxConfig)
 	if err != nil {
-		log.Fatal("Test Failed - ANX setup error", err)
+		log.Fatal("ANX setup error", err)
 	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockFile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	a.HTTPClient = newClient

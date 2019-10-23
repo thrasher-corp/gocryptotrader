@@ -108,7 +108,7 @@ func TestLevel(t *testing.T) {
 
 	_, err = Level("totallyinvalidlogger")
 	if err == nil {
-		t.Error("expected error on invalid logger")
+		t.Error("Expected error on invalid logger")
 	}
 }
 
@@ -141,7 +141,7 @@ func TestValidSubLogger(t *testing.T) {
 		t.Skip("validSubLogger() should return found, pointer if valid logger found")
 	}
 	if logPtr == nil {
-		t.Error("validSubLogger() should return a pointer and not nil ")
+		t.Error("validSubLogger() should return a pointer and not nil")
 	}
 }
 

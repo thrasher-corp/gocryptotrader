@@ -242,6 +242,39 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 	}
 }
 
+func TestUpdates(t *testing.T) {
+	obl, curr, _, _, err := createSnapshot()
+	if err != nil {
+		t.Error(err)
+	}
+
+	obl.updateAsksByPrice(obl.ob[curr][asset.Spot], &WebsocketOrderbookUpdate{
+		Bids:         itemArray[5],
+		Asks:         itemArray[5],
+		CurrencyPair: curr,
+		UpdateTime:   time.Now(),
+		AssetType:    asset.Spot,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	obl.updateAsksByPrice(obl.ob[curr][asset.Spot], &WebsocketOrderbookUpdate{
+		Bids:         itemArray[0],
+		Asks:         itemArray[0],
+		CurrencyPair: curr,
+		UpdateTime:   time.Now(),
+		AssetType:    asset.Spot,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(obl.ob[curr][asset.Spot].Asks) != 3 {
+		t.Error("Did not update")
+	}
+}
+
 // TestHittingTheBuffer logic test
 func TestHittingTheBuffer(t *testing.T) {
 	obl, curr, _, _, err := createSnapshot()

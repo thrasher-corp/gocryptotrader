@@ -8,7 +8,7 @@ func TestRunUpdater(t *testing.T) {
 	emptyMainConfig := MainConfiguration{}
 	err := newStorage.RunUpdater(BotOverrides{}, &emptyMainConfig, "", false)
 	if err == nil {
-		t.Fatal("Test Failed storage RunUpdater() error cannot be nil")
+		t.Fatal("storage RunUpdater() error cannot be nil")
 	}
 
 	mainConfig := MainConfiguration{
@@ -18,11 +18,11 @@ func TestRunUpdater(t *testing.T) {
 
 	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "", false)
 	if err == nil {
-		t.Fatal("Test Failed storage RunUpdater() error cannot be nil")
+		t.Fatal("storage RunUpdater() error cannot be nil")
 	}
 
 	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "/bla", false)
 	if err != nil {
-		t.Fatal("Test Failed storage RunUpdater() error", err)
+		t.Fatal("storage RunUpdater() error", err)
 	}
 }

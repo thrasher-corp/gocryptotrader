@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -72,9 +73,37 @@ func (k *Kraken) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: false,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  true,
+			RESTCapabilities: protocol.Features{
+				TickerBatching:      true,
+				TickerFetching:      true,
+				KlineFetching:       true,
+				TradeFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				UserTradeHistory:    true,
+				CryptoDeposit:       true,
+				CryptoWithdrawal:    true,
+				FiatDeposit:         true,
+				FiatWithdraw:        true,
+				TradeFee:            true,
+				FiatDepositFee:      true,
+				FiatWithdrawalFee:   true,
+				CryptoDepositFee:    true,
+				CryptoWithdrawalFee: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				TickerFetching:     true,
+				TradeFetching:      true,
+				KlineFetching:      true,
+				OrderbookFetching:  true,
+				Subscribe:          true,
+				Unsubscribe:        true,
+				MessageCorrelation: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.WithdrawCryptoWith2FA |
@@ -95,13 +124,6 @@ func (k *Kraken) SetDefaults() {
 	k.API.Endpoints.URL = k.API.Endpoints.URLDefault
 	k.Websocket = wshandler.New()
 	k.API.Endpoints.WebsocketURL = krakenWSURL
-	k.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -131,6 +153,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        k.WsConnect,
 			Subscriber:                       k.Subscribe,
 			UnSubscriber:                     k.Unsubscribe,
+			Features:                         &k.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

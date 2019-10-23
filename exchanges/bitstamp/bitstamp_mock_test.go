@@ -22,11 +22,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Bitstamp load config error", err)
+		log.Fatal("Bitstamp load config error", err)
 	}
 	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
-		log.Fatal("Test Failed - Bitstamp Setup() init error", err)
+		log.Fatal("Bitstamp Setup() init error", err)
 	}
 	b.SkipAuthCheck = true
 	bitstampConfig.API.AuthenticatedSupport = true
@@ -36,12 +36,12 @@ func TestMain(m *testing.M) {
 	b.SetDefaults()
 	err = b.Setup(bitstampConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Bitstamp setup error", err)
+		log.Fatal("Bitstamp setup error", err)
 	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	b.HTTPClient = newClient

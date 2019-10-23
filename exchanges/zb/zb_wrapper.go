@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -69,9 +70,32 @@ func (z *ZB) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  true,
+			RESTCapabilities: protocol.Features{
+				TickerBatching:      true,
+				TickerFetching:      true,
+				KlineFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrder:         true,
+				CryptoDeposit:       true,
+				CryptoWithdrawal:    true,
+				TradeFee:            true,
+				CryptoDepositFee:    true,
+				CryptoWithdrawalFee: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				TickerFetching:         true,
+				TradeFetching:          true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				CancelOrder:            true,
+				SubmitOrder:            true,
+				MessageCorrelation:     true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -92,15 +116,6 @@ func (z *ZB) SetDefaults() {
 	z.API.Endpoints.URLSecondary = z.API.Endpoints.URLSecondaryDefault
 	z.API.Endpoints.WebsocketURL = zbWebsocketAPI
 	z.Websocket = wshandler.New()
-	z.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketAccountDataSupported |
-		wshandler.WebsocketCancelOrderSupported |
-		wshandler.WebsocketSubmitOrderSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -128,6 +143,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        z.WsConnect,
 			Subscriber:                       z.Subscribe,
+			Features:                         &z.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

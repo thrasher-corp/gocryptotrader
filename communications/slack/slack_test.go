@@ -54,7 +54,7 @@ func TestSetup(t *testing.T) {
 func TestConnect(t *testing.T) {
 	err := s.Connect()
 	if err == nil {
-		t.Error("test failed - slack Connect() error cannot be nil")
+		t.Error("slack Connect() error cannot be nil")
 	}
 }
 
@@ -62,7 +62,7 @@ func TestPushEvent(t *testing.T) {
 	t.Parallel()
 	err := s.PushEvent(base.Event{})
 	if err == nil {
-		t.Error("test failed - slack PushEvent() error cannot be nil")
+		t.Error("slack PushEvent() error cannot be nil")
 	}
 }
 
@@ -70,7 +70,7 @@ func TestBuildURL(t *testing.T) {
 	t.Parallel()
 	v := s.BuildURL("lol123")
 	if v != "https://slack.com/api/rtm.start?token=lol123" {
-		t.Error("test failed - slack BuildURL() error")
+		t.Error("slack BuildURL() error")
 	}
 }
 
@@ -101,14 +101,14 @@ func TestGetChannelsString(t *testing.T) {
 		}
 	}
 	if !testpassed {
-		t.Error("test failed - slack GetChannelsString() error")
+		t.Error("slack GetChannelsString() error")
 	}
 }
 
 func TestGetUsernameByID(t *testing.T) {
 	username := s.GetUsernameByID("1337")
 	if username != "" {
-		t.Error("test failed - slack GetUsernameByID() error")
+		t.Error("slack GetUsernameByID() error")
 	}
 
 	s.Details.Users = append(s.Details.Users, struct {
@@ -141,7 +141,7 @@ func TestGetUsernameByID(t *testing.T) {
 
 	username = s.GetUsernameByID("1337")
 	if username != "cranktakular" {
-		t.Error("test failed - slack GetUsernameByID() error")
+		t.Error("slack GetUsernameByID() error")
 	}
 
 }
@@ -149,7 +149,7 @@ func TestGetUsernameByID(t *testing.T) {
 func TestGetIDByName(t *testing.T) {
 	id, err := s.GetIDByName("batman")
 	if err == nil || id != "" {
-		t.Error("test failed - slack GetIDByName() error")
+		t.Error("slack GetIDByName() error")
 	}
 
 	s.Details.Groups = append(s.Details.Groups, group{
@@ -158,7 +158,7 @@ func TestGetIDByName(t *testing.T) {
 	})
 	id, err = s.GetIDByName("this is a group")
 	if err != nil || id != "210314" {
-		t.Errorf("test failed - slack GetIDByName() Expected '210314' Actual '%s' Error: %s",
+		t.Errorf("slack GetIDByName() Expected '210314' Actual '%s' Error: %s",
 			id, err)
 	}
 }
@@ -166,7 +166,7 @@ func TestGetIDByName(t *testing.T) {
 func TestGetGroupIDByName(t *testing.T) {
 	id, err := s.GetGroupIDByName("batman")
 	if err == nil || id != "" {
-		t.Error("test failed - slack GetGroupIDByName() error")
+		t.Error("slack GetGroupIDByName() error")
 	}
 
 	s.Details.Groups = append(s.Details.Groups, group{
@@ -175,7 +175,7 @@ func TestGetGroupIDByName(t *testing.T) {
 	})
 	id, err = s.GetGroupIDByName("another group")
 	if err != nil || id != "11223344" {
-		t.Errorf("test failed - slack GetGroupIDByName() Expected '11223344' Actual '%s' Error: %s",
+		t.Errorf("slack GetGroupIDByName() Expected '11223344' Actual '%s' Error: %s",
 			id, err)
 	}
 
@@ -184,7 +184,7 @@ func TestGetGroupIDByName(t *testing.T) {
 func TestGetChannelIDByName(t *testing.T) {
 	id, err := s.GetChannelIDByName("1337")
 	if err == nil || id != "" {
-		t.Error("test failed - slack GetChannelIDByName() error")
+		t.Error("slack GetChannelIDByName() error")
 	}
 
 	s.Details.Channels = append(s.Details.Channels, struct {
@@ -208,7 +208,7 @@ func TestGetChannelIDByName(t *testing.T) {
 
 	id, err = s.GetChannelIDByName("Slack Test")
 	if err != nil || id != "2048" {
-		t.Errorf("test failed - slack GetChannelIDByName() Expected '2048' Actual '%s' Error: %s",
+		t.Errorf("slack GetChannelIDByName() Expected '2048' Actual '%s' Error: %s",
 			id, err)
 	}
 }
@@ -216,7 +216,7 @@ func TestGetChannelIDByName(t *testing.T) {
 func TestGetUsersInGroup(t *testing.T) {
 	username := s.GetUsersInGroup("supergroup")
 	if len(username) != 0 {
-		t.Error("test failed - slack GetUsersInGroup() error")
+		t.Error("slack GetUsersInGroup() error")
 	}
 
 	s.Details.Groups = append(s.Details.Groups, group{
@@ -227,7 +227,7 @@ func TestGetUsersInGroup(t *testing.T) {
 
 	username = s.GetUsersInGroup("three guys")
 	if len(username) != 3 {
-		t.Errorf("test failed - slack GetUsersInGroup() Expected '3' Actual '%s'",
+		t.Errorf("slack GetUsersInGroup() Expected '3' Actual '%s'",
 			username)
 	}
 }
@@ -235,14 +235,14 @@ func TestGetUsersInGroup(t *testing.T) {
 func TestNewConnection(t *testing.T) {
 	err := s.NewConnection()
 	if err == nil {
-		t.Error("test failed - slack NewConnection() error")
+		t.Error("slack NewConnection() error")
 	}
 }
 
 func TestWebsocketConnect(t *testing.T) {
 	err := s.WebsocketConnect()
 	if err == nil {
-		t.Error("test failed - slack WebsocketConnect() error")
+		t.Error("slack WebsocketConnect() error")
 	}
 }
 
@@ -253,13 +253,13 @@ func TestHandlePresenceChange(t *testing.T) {
 
 	err := s.handlePresenceChange([]byte(`{"malformedjson}`))
 	if err == nil {
-		t.Error("test failed - slack handlePresenceChange(), unmarshalled malformed json")
+		t.Error("slack handlePresenceChange(), unmarshalled malformed json")
 	}
 
 	data, _ := common.JSONEncode(pres)
 	err = s.handlePresenceChange(data)
 	if err != nil {
-		t.Errorf("test failed - slack handlePresenceChange() Error: %s", err)
+		t.Errorf("slack handlePresenceChange() Error: %s", err)
 	}
 }
 
@@ -269,7 +269,7 @@ func TestHandleMessageResponse(t *testing.T) {
 
 	err := s.handleMessageResponse(nil, data)
 	if err.Error() != "reply to is != 0" {
-		t.Errorf("test failed - slack handleMessageResponse(), Incorrect Error: %s",
+		t.Errorf("slack handleMessageResponse(), Incorrect Error: %s",
 			err)
 	}
 
@@ -277,7 +277,7 @@ func TestHandleMessageResponse(t *testing.T) {
 
 	err = s.handleMessageResponse([]byte(`{"malformedjson}`), data)
 	if err == nil {
-		t.Error("test failed - slack handleMessageResponse(), unmarshalled malformed json")
+		t.Error("slack handleMessageResponse(), unmarshalled malformed json")
 	}
 
 	var msg Message
@@ -287,7 +287,7 @@ func TestHandleMessageResponse(t *testing.T) {
 
 	err = s.handleMessageResponse(resp, data)
 	if err != nil {
-		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
+		t.Error("slack HandleMessage(), Sent message through nil websocket")
 	}
 
 	msg.Text = "!notacommand"
@@ -295,7 +295,7 @@ func TestHandleMessageResponse(t *testing.T) {
 
 	err = s.handleMessageResponse(resp, data)
 	if err == nil {
-		t.Errorf("test failed - slack handleMessageResponse() Error: %s", err)
+		t.Errorf("slack handleMessageResponse() Expected error")
 	}
 }
 
@@ -303,13 +303,13 @@ func TestHandleErrorResponse(t *testing.T) {
 	var data WebsocketResponse
 	err := s.handleErrorResponse(data)
 	if err == nil {
-		t.Error("test failed - slack handleErrorResponse() Ignored strange input")
+		t.Error("slack handleErrorResponse() Ignored strange input")
 	}
 
 	data.Error.Msg = "Socket URL has expired"
 	err = s.handleErrorResponse(data)
 	if err == nil {
-		t.Error("test failed - slack handleErrorResponse() Didn't error on nil websocket")
+		t.Error("slack handleErrorResponse() Didn't error on nil websocket")
 	}
 }
 
@@ -320,7 +320,7 @@ func TestHandleHelloResponse(t *testing.T) {
 func TestHandleReconnectResponse(t *testing.T) {
 	err := s.handleReconnectResponse([]byte(`{"malformedjson}`))
 	if err == nil {
-		t.Error("test failed - slack handleReconnectResponse(), unmarshalled malformed json")
+		t.Error("slack handleReconnectResponse(), unmarshalled malformed json")
 	}
 
 	var testURL struct {
@@ -332,7 +332,7 @@ func TestHandleReconnectResponse(t *testing.T) {
 
 	err = s.handleReconnectResponse(data)
 	if err != nil || s.ReconnectURL != "https://www.thrasher.io" {
-		t.Errorf("test failed - slack handleReconnectResponse() Expected 'https://www.thrasher.io' Actual '%s' Error: %s",
+		t.Errorf("slack handleReconnectResponse() Expected 'https://www.thrasher.io' Actual '%s' Error: %s",
 			s.ReconnectURL, err)
 	}
 }
@@ -340,7 +340,7 @@ func TestHandleReconnectResponse(t *testing.T) {
 func TestWebsocketSend(t *testing.T) {
 	err := s.WebsocketSend("test", "Hello World!")
 	if err == nil {
-		t.Error("test failed - slack WebsocketSend(), Sent message through nil websocket")
+		t.Error("slack WebsocketSend(), Sent message through nil websocket")
 	}
 }
 
@@ -348,16 +348,16 @@ func TestHandleMessage(t *testing.T) {
 	msg := &Message{}
 	err := s.HandleMessage(msg)
 	if err == nil {
-		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
+		t.Error("slack HandleMessage(), Sent message through nil websocket")
 	}
 	msg.Text = cmdStatus
 	err = s.HandleMessage(msg)
 	if err == nil {
-		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
+		t.Error("slack HandleMessage(), Sent message through nil websocket")
 	}
 	msg.Text = cmdHelp
 	err = s.HandleMessage(msg)
 	if err == nil {
-		t.Error("test failed - slack HandleMessage(), Sent message through nil websocket")
+		t.Error("slack HandleMessage(), Sent message through nil websocket")
 	}
 }

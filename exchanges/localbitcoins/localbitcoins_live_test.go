@@ -19,11 +19,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - LocalBitcoins load config error", err)
+		log.Fatal("LocalBitcoins load config error", err)
 	}
 	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
 	if err != nil {
-		log.Fatal("Test Failed - LocalBitcoins Setup() init error", err)
+		log.Fatal("LocalBitcoins Setup() init error", err)
 	}
 	localbitcoinsConfig.API.AuthenticatedSupport = true
 	localbitcoinsConfig.API.Credentials.Key = apiKey
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	l.SetDefaults()
 	err = l.Setup(localbitcoinsConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Localbitcoins setup error", err)
+		log.Fatal("Localbitcoins setup error", err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, l.GetName(), l.API.Endpoints.URL)
 	os.Exit(m.Run())

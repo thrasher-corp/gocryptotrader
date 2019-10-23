@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -69,9 +70,27 @@ func (l *LakeBTC) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  true,
+			RESTCapabilities: protocol.Features{
+				TickerBatching:    true,
+				TickerFetching:    true,
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				AccountInfo:       true,
+				GetOrder:          true,
+				GetOrders:         true,
+				CancelOrders:      true,
+				CancelOrder:       true,
+				SubmitOrder:       true,
+				UserTradeHistory:  true,
+				CryptoWithdrawal:  true,
+				TradeFee:          true,
+				CryptoDepositFee:  true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				Subscribe:         true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.WithdrawFiatViaWebsiteOnly,
@@ -90,9 +109,6 @@ func (l *LakeBTC) SetDefaults() {
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
 	l.Websocket = wshandler.New()
 	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
-	l.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported
 	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	l.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -121,6 +137,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        l.WsConnect,
 			Subscriber:                       l.Subscribe,
+			Features:                         &l.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

@@ -16,13 +16,13 @@ func TestIsEnabled(t *testing.T) {
 	expected := "Enabled"
 	actual := IsEnabled(true)
 	if actual != expected {
-		t.Errorf("Test failed. Expected %s. Actual %s", expected, actual)
+		t.Errorf("Expected %s. Actual %s", expected, actual)
 	}
 
 	expected = "Disabled"
 	actual = IsEnabled(false)
 	if actual != expected {
-		t.Errorf("Test failed. Expected %s. Actual %s", expected, actual)
+		t.Errorf("Expected %s. Actual %s", expected, actual)
 	}
 }
 
@@ -30,44 +30,44 @@ func TestIsValidCryptoAddress(t *testing.T) {
 	t.Parallel()
 	b, err := IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC")
 	if err != nil && !b {
-		t.Errorf("Test Failed - Common IsValidCryptoAddress error: %s", err)
+		t.Errorf("Common IsValidCryptoAddress error: %s", err)
 	}
 	b, err = IsValidCryptoAddress("0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "btc")
 	if err == nil && b {
-		t.Error("Test Failed - Common IsValidCryptoAddress error")
+		t.Error("Common IsValidCryptoAddress error")
 	}
 	b, err = IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "lTc")
 	if err == nil && b {
-		t.Error("Test Failed - Common IsValidCryptoAddress error")
+		t.Error("Common IsValidCryptoAddress error")
 	}
 	b, err = IsValidCryptoAddress("3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "ltc")
 	if err != nil && !b {
-		t.Errorf("Test Failed - Common IsValidCryptoAddress error: %s", err)
+		t.Errorf("Common IsValidCryptoAddress error: %s", err)
 	}
 	b, err = IsValidCryptoAddress("NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc")
 	if err == nil && b {
-		t.Error("Test Failed - Common IsValidCryptoAddress error")
+		t.Error("Common IsValidCryptoAddress error")
 	}
 	b, err = IsValidCryptoAddress(
 		"0xb794f5ea0ba39494ce839613fffba74279579268",
 		"eth",
 	)
 	if err != nil && b {
-		t.Errorf("Test Failed - Common IsValidCryptoAddress error: %s", err)
+		t.Errorf("Common IsValidCryptoAddress error: %s", err)
 	}
 	b, err = IsValidCryptoAddress(
 		"xxb794f5ea0ba39494ce839613fffba74279579268",
 		"eTh",
 	)
 	if err == nil && b {
-		t.Error("Test Failed - Common IsValidCryptoAddress error")
+		t.Error("Common IsValidCryptoAddress error")
 	}
 	b, err = IsValidCryptoAddress(
 		"xxb794f5ea0ba39494ce839613fffba74279579268",
 		"ding",
 	)
 	if err == nil && b {
-		t.Error("Test Failed - Common IsValidCryptoAddress error")
+		t.Error("Common IsValidCryptoAddress error")
 	}
 }
 
@@ -78,7 +78,7 @@ func TestStringSliceDifference(t *testing.T) {
 	expectedOutput := []string{"hello moto"}
 	actualResult := StringSliceDifference(originalInputOne, originalInputTwo)
 	if reflect.DeepEqual(expectedOutput, actualResult) {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+		t.Errorf("Expected '%s'. Actual '%s'",
 			expectedOutput, actualResult)
 	}
 }
@@ -92,12 +92,12 @@ func TestStringDataContains(t *testing.T) {
 	expectedOutputTwo := false
 	actualResult := StringDataContains(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataContains(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 }
@@ -111,12 +111,12 @@ func TestStringDataCompare(t *testing.T) {
 	expectedOutputTwo := false
 	actualResult := StringDataCompare(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataCompare(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 }
@@ -130,13 +130,13 @@ func TestStringDataCompareUpper(t *testing.T) {
 	expectedOutputTwo := false
 	actualResult := StringDataCompareInsensitive(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 
 	actualResult = StringDataCompareInsensitive(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 }
@@ -150,12 +150,12 @@ func TestStringDataContainsUpper(t *testing.T) {
 	expectedOutputTwo := false
 	actualResult := StringDataContainsInsensitive(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataContainsInsensitive(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
-		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 }
@@ -163,13 +163,13 @@ func TestStringDataContainsUpper(t *testing.T) {
 func TestYesOrNo(t *testing.T) {
 	t.Parallel()
 	if !YesOrNo("y") {
-		t.Error("Test failed - Common YesOrNo Error.")
+		t.Error("Common YesOrNo Error.")
 	}
 	if !YesOrNo("yes") {
-		t.Error("Test failed - Common YesOrNo Error.")
+		t.Error("Common YesOrNo Error.")
 	}
 	if YesOrNo("ding") {
-		t.Error("Test failed - Common YesOrNo Error.")
+		t.Error("Common YesOrNo Error.")
 	}
 }
 
@@ -187,42 +187,42 @@ func TestSendHTTPRequest(t *testing.T) {
 		strings.NewReader(""),
 	)
 	if err == nil {
-		t.Error("Test failed. ")
+		t.Error("Expected error 'invalid HTTP method specified'")
 	}
 	_, err = SendHTTPRequest(
 		methodPost, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
-		t.Errorf("Test failed. %s ", err)
+		t.Error(err)
 	}
 	_, err = SendHTTPRequest(
 		methodGet, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
-		t.Errorf("Test failed. %s ", err)
+		t.Error(err)
 	}
 	_, err = SendHTTPRequest(
 		methodDelete, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
-		t.Errorf("Test failed. %s ", err)
+		t.Error(err)
 	}
 	_, err = SendHTTPRequest(
 		methodGet, ":missingprotocolscheme", headers,
 		strings.NewReader(""),
 	)
 	if err == nil {
-		t.Error("Test failed. Common HTTPRequest accepted missing protocol")
+		t.Error("Common HTTPRequest accepted missing protocol")
 	}
 	_, err = SendHTTPRequest(
 		methodGet, "test://unsupportedprotocolscheme", headers,
 		strings.NewReader(""),
 	)
 	if err == nil {
-		t.Error("Test failed. Common HTTPRequest accepted invalid protocol")
+		t.Error("Common HTTPRequest accepted invalid protocol")
 	}
 }
 
@@ -243,23 +243,23 @@ func TestSendHTTPGetRequest(t *testing.T) {
 
 	err := SendHTTPGetRequest(ethURL, true, true, &result)
 	if err != nil {
-		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
+		t.Errorf("common SendHTTPGetRequest error: %s", err)
 	}
 	err = SendHTTPGetRequest("DINGDONG", true, false, &result)
 	if err == nil {
-		t.Error("Test failed - common SendHTTPGetRequest error")
+		t.Error("common SendHTTPGetRequest error")
 	}
 	err = SendHTTPGetRequest(ethURL, false, false, &result)
 	if err != nil {
-		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
+		t.Errorf("common SendHTTPGetRequest error: %s", err)
 	}
 	err = SendHTTPGetRequest("https://httpstat.us/202", false, false, &result)
 	if err == nil {
-		t.Error("Test failed = common SendHTTPGetRequest error: Ignored unexpected status code")
+		t.Error("= common SendHTTPGetRequest error: Ignored unexpected status code")
 	}
 	err = SendHTTPGetRequest(ethURL, true, false, &badresult)
 	if err == nil {
-		t.Error("Test failed - common SendHTTPGetRequest error: Unmarshalled into bad type")
+		t.Error("common SendHTTPGetRequest error: Unmarshalled into bad type")
 	}
 }
 
@@ -282,14 +282,14 @@ func TestJSONEncode(t *testing.T) {
 
 	bitey, err := JSONEncode(v)
 	if err != nil {
-		t.Errorf("Test failed - common JSONEncode error: %s", err)
+		t.Errorf("common JSONEncode error: %s", err)
 	}
 	if string(bitey) != expectOutputString {
-		t.Error("Test failed - common JSONEncode error")
+		t.Error("common JSONEncode error")
 	}
 	_, err = JSONEncode("WigWham")
 	if err != nil {
-		t.Errorf("Test failed - common JSONEncode error: %s", err)
+		t.Errorf("common JSONEncode error: %s", err)
 	}
 }
 
@@ -299,7 +299,7 @@ func TestJSONDecode(t *testing.T) {
 	result := "Not a memory address"
 	err := JSONDecode(data, result)
 	if err == nil {
-		t.Error("Test failed. Common JSONDecode, unmarshalled when address not supplied")
+		t.Error("Common JSONDecode, unmarshalled when address not supplied")
 	}
 
 	type test struct {
@@ -314,7 +314,7 @@ func TestJSONDecode(t *testing.T) {
 	data = []byte(`{"status":1,"data":null}`)
 	err = JSONDecode(data, &v)
 	if err != nil || v.Status != 1 {
-		t.Errorf("Test failed. Common JSONDecode. Data: %v \nError: %s",
+		t.Errorf("Common JSONDecode. Data: %v \nError: %s",
 			v, err)
 	}
 }
@@ -329,7 +329,7 @@ func TestEncodeURLValues(t *testing.T) {
 
 	output := EncodeURLValues(urlstring, values)
 	if output != expectedOutput {
-		t.Error("Test Failed - common EncodeURLValues error")
+		t.Error("common EncodeURLValues error")
 	}
 }
 
@@ -341,12 +341,12 @@ func TestExtractHost(t *testing.T) {
 	actualResult := ExtractHost(address)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
+			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 	actualResultTwo := ExtractHost(addresstwo)
 	if expectedOutput != actualResultTwo {
 		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
+			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 
 	address = "192.168.1.100:1337"
@@ -354,7 +354,7 @@ func TestExtractHost(t *testing.T) {
 	actualResult = ExtractHost(address)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
+			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 }
 
@@ -365,7 +365,7 @@ func TestExtractPort(t *testing.T) {
 	actualResult := ExtractPort(address)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Test failed. Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
+			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
 	}
 }
 
@@ -378,11 +378,11 @@ func TestOutputCSV(t *testing.T) {
 
 	err := OutputCSV(path, data)
 	if err != nil {
-		t.Errorf("Test failed - common OutputCSV error: %s", err)
+		t.Errorf("common OutputCSV error: %s", err)
 	}
 	err = OutputCSV("/:::notapath:::", data)
 	if err == nil {
-		t.Error("Test failed - common OutputCSV, tried writing to invalid path")
+		t.Error("common OutputCSV, tried writing to invalid path")
 	}
 }
 
@@ -397,7 +397,7 @@ func TestGetURIPath(t *testing.T) {
 	for testInput, expectedOutput := range testTable {
 		actualOutput := GetURIPath(testInput)
 		if actualOutput != expectedOutput {
-			t.Errorf("Test failed. Expected '%s'. Actual '%s'.",
+			t.Errorf("Expected '%s'. Actual '%s'.",
 				expectedOutput, actualOutput)
 		}
 	}
@@ -407,7 +407,7 @@ func TestGetExecutablePath(t *testing.T) {
 	t.Parallel()
 	_, err := GetExecutablePath()
 	if err != nil {
-		t.Errorf("Test failed. Common GetExecutablePath. Error: %s", err)
+		t.Errorf("Common GetExecutablePath. Error: %s", err)
 	}
 }
 

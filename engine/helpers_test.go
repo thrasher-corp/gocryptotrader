@@ -31,7 +31,7 @@ func SetupTestHelpers(t *testing.T) {
 			Bot.Config = &config.Cfg
 			err := Bot.Config.LoadConfig("../testdata/configtest.json", true)
 			if err != nil {
-				t.Fatalf("Test failed. SetupTest: Failed to load config: %s", err)
+				t.Fatalf("SetupTest: Failed to load config: %s", err)
 			}
 			testSetup = true
 		}
@@ -428,7 +428,7 @@ func TestGetSpecificTicker(t *testing.T) {
 		&ticker.Price{Pair: p, Last: 1000},
 		asset.Spot)
 	if err != nil {
-		t.Fatal("Test failed. ProcessTicker error", err)
+		t.Fatal("ProcessTicker error", err)
 	}
 
 	tick, err := GetSpecificTicker(currency.NewPairFromStrings("BTC", "USD"), "Bitstamp",
@@ -587,6 +587,6 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 
 	_, err := GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
 	if err != nil {
-		t.Fatalf("Test failed. Err %s", err)
+		t.Fatalf("Err %s", err)
 	}
 }

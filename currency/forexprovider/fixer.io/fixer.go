@@ -22,32 +22,6 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-const (
-	fixerAPIFree = iota
-	fixerAPIBasic
-	fixerAPIProfessional
-	fixerAPIProfessionalPlus
-	fixerAPIEnterprise
-
-	fixerAPI                 = "http://data.fixer.io/api/"
-	fixerAPISSL              = "https://data.fixer.io/api/"
-	fixerAPILatest           = "latest"
-	fixerAPIConvert          = "convert"
-	fixerAPITimeSeries       = "timeseries"
-	fixerAPIFluctuation      = "fluctuation"
-	fixerSupportedCurrencies = "symbols"
-
-	authRate   = 0
-	unAuthRate = 0
-)
-
-// Fixer is a foreign exchange rate provider at https://fixer.io/
-// NOTE DEFAULT BASE CURRENCY IS EUR upgrade to basic to change
-type Fixer struct {
-	base.Base
-	Requester *request.Requester
-}
-
 // Setup sets appropriate values for fixer object
 func (f *Fixer) Setup(config base.Settings) error {
 	if config.APIKeyLvl < 0 || config.APIKeyLvl > 4 {

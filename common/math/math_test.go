@@ -10,7 +10,7 @@ func TestCalculateFee(t *testing.T) {
 	actualResult := CalculateFee(originalInput, fee)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -22,7 +22,7 @@ func TestCalculateAmountWithFee(t *testing.T) {
 	actualResult := CalculateAmountWithFee(originalInput, fee)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -34,7 +34,7 @@ func TestCalculatePercentageGainOrLoss(t *testing.T) {
 	actualResult := CalculatePercentageGainOrLoss(originalInput, secondInput)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -46,7 +46,7 @@ func TestCalculatePercentageDifference(t *testing.T) {
 	actualResult := CalculatePercentageDifference(originalInput, secondAmount)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -60,7 +60,7 @@ func TestCalculateNetProfit(t *testing.T) {
 	actualResult := CalculateNetProfit(amount, priceThen, priceNow, costs)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -74,7 +74,7 @@ func TestRoundFloat(t *testing.T) {
 	for testInput, expectedOutput := range testTable {
 		actualOutput := RoundFloat(testInput, 2)
 		if actualOutput != expectedOutput {
-			t.Errorf("Test failed. RoundFloat Expected '%f'. Actual '%f'.",
+			t.Errorf("RoundFloat Expected '%f'. Actual '%f'.",
 				expectedOutput, actualOutput)
 		}
 	}

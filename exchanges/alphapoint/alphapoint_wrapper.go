@@ -12,6 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -40,12 +41,24 @@ func (a *Alphapoint) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AccountInfo: true,
+			RESTCapabilities: protocol.Features{
+				AccountInfo:       true,
+				TickerFetching:    true,
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				GetOrders:         true,
+				CancelOrder:       true,
+				CancelOrders:      true,
+				SubmitOrder:       true,
+				ModifyOrder:       true,
+				UserTradeHistory:  true,
+				CryptoDeposit:     true,
+				CryptoWithdrawal:  true,
+				TradeFee:          true,
 			},
 
-			WebsocketCapabilities: exchange.ProtocolFeatures{
-				TickerFetching: true,
+			WebsocketCapabilities: protocol.Features{
+				AccountInfo: true,
 			},
 
 			WithdrawPermissions: exchange.WithdrawCryptoWith2FA |

@@ -43,7 +43,7 @@ func (c *Config) PromptForConfigEncryption(configPath string, dryrun bool) bool 
 	}
 
 	if !common.YesOrNo(input) {
-		c.EncryptConfig = configFileEncryptionDisabled
+		c.EncryptConfig = fileEncryptionDisabled
 		err := c.SaveConfig(configPath, dryrun)
 		if err != nil {
 			log.Errorf(log.ConfigMgr, "cannot save config %s", err)

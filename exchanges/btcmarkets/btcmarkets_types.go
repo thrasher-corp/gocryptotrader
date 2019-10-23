@@ -1,6 +1,10 @@
 package btcmarkets
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // Response is the genralized response type
 type Response struct {
@@ -142,4 +146,55 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.BCH:  0.0001,
 	currency.OMG:  0.15,
 	currency.POWR: 5,
+}
+
+// WsSubscribe message sent via ws to subscribe
+type WsSubscribe struct {
+	MarketIDs   []string `json:"marketIds,omitempty"`
+	Channels    []string `json:"channels"`
+	MessageType string   `json:"messageType"`
+}
+
+// WsMessageType message sent via ws to determine type
+type WsMessageType struct {
+	MessageType string `json:"messageType"`
+}
+
+// WsTick message received for ticker data
+type WsTick struct {
+	Currency    string    `json:"marketId"`
+	Timestamp   time.Time `json:"timestamp"`
+	Bid         float64   `json:"bestBid,string"`
+	Ask         float64   `json:"bestAsk,string"`
+	Last        float64   `json:"lastPrice,string"`
+	Volume      float64   `json:"volume24h,string"`
+	Price24h    float64   `json:"price24h,string"`
+	Low24h      float64   `json:"low24h,string"`
+	High24      float64   `json:"high24h,string"`
+	MessageType string    `json:"messageType"`
+}
+
+// WsTrade message received for trade data
+type WsTrade struct {
+	Currency    string    `json:"marketId"`
+	Timestamp   time.Time `json:"timestamp"`
+	TradeID     int64     `json:"tradeId"`
+	Price       float64   `json:"price,string"`
+	Volume      float64   `json:"volume,string"`
+	MessageType string    `json:"messageType"`
+}
+
+// WsOrderbook message received for orderbook data
+type WsOrderbook struct {
+	Currency    string     `json:"marketId"`
+	Timestamp   time.Time  `json:"timestamp"`
+	Bids        [][]string `json:"bids"`
+	Asks        [][]string `json:"asks"`
+	MessageType string     `json:"messageType"`
+}
+
+type WsError struct {
+	MessageType string `json:"messageType"`
+	Code        int64  `json:"code"`
+	Message     string `json:"message"`
 }

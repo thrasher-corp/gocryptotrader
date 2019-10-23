@@ -29,11 +29,11 @@ func TestGetAssetTypes(t *testing.T) {
 
 	a := p.GetAssetTypes()
 	if len(a) == 0 {
-		t.Errorf("Test failed. GetAssetTypes shouldn't be nil")
+		t.Errorf("GetAssetTypes shouldn't be nil")
 	}
 
 	if !a.Contains(asset.Spot) {
-		t.Errorf("Test failed. AssetTypeSpot should be in the assets list")
+		t.Errorf("AssetTypeSpot should be in the assets list")
 	}
 }
 
@@ -41,11 +41,11 @@ func TestGet(t *testing.T) {
 	initTest()
 
 	if p.Get(asset.Spot) == nil {
-		t.Error("Test failed. Spot assets shouldn't be nil")
+		t.Error("Spot assets shouldn't be nil")
 	}
 
 	if p.Get(asset.Futures) != nil {
-		t.Error("Test Failed. Futures should be nil")
+		t.Error("Futures should be nil")
 	}
 }
 
@@ -65,7 +65,7 @@ func TestStore(t *testing.T) {
 	)
 
 	if p.Get(asset.Futures) == nil {
-		t.Error("Test failed. Futures assets shouldn't be nil")
+		t.Error("Futures assets shouldn't be nil")
 	}
 }
 
@@ -80,12 +80,12 @@ func TestDelete(t *testing.T) {
 	)
 	p.Delete(asset.UpsideProfitContract)
 	if p.Get(asset.Spot) == nil {
-		t.Error("Test failed. AssetTypeSpot should exist")
+		t.Error("AssetTypeSpot should exist")
 	}
 
 	p.Delete(asset.Spot)
 	if p.Get(asset.Spot) != nil {
-		t.Error("Test failed. Delete should have deleted AssetTypeSpot")
+		t.Error("Delete should have deleted AssetTypeSpot")
 	}
 
 }

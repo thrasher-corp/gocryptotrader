@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -46,6 +47,7 @@ const (
 // BTCMarkets is the overarching type across the BTCMarkets package
 type BTCMarkets struct {
 	exchange.Base
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // GetMarkets returns the BTCMarkets instruments

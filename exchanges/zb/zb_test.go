@@ -31,11 +31,11 @@ func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("Test Failed - ZB load config error", err)
+		t.Fatal("ZB load config error", err)
 	}
 	zbConfig, err := cfg.GetExchangeConfig("ZB")
 	if err != nil {
-		t.Fatal("Test Failed - ZB Setup() init error", err)
+		t.Fatal("ZB Setup() init error", err)
 	}
 	zbConfig.API.AuthenticatedSupport = true
 	zbConfig.API.AuthenticatedWebsocketSupport = true
@@ -44,7 +44,7 @@ func TestSetup(t *testing.T) {
 
 	err = z.Setup(zbConfig)
 	if err != nil {
-		t.Fatal("Test Failed - ZB setup error", err)
+		t.Fatal("ZB setup error", err)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestSpotNewOrder(t *testing.T) {
 	}
 	orderid, err := z.SpotNewOrder(arg)
 	if err != nil {
-		t.Errorf("Test failed - ZB SpotNewOrder: %s", err)
+		t.Errorf("ZB SpotNewOrder: %s", err)
 	} else {
 		t.Log(orderid)
 	}
@@ -105,7 +105,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 	err := z.CancelExistingOrder(20180629145864850, "btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - ZB CancelExistingOrder: %s", err)
+		t.Errorf("ZB CancelExistingOrder: %s", err)
 	}
 }
 
@@ -113,7 +113,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
 	_, err := z.GetLatestSpotPrice("btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - ZB GetLatestSpotPrice: %s", err)
+		t.Errorf("ZB GetLatestSpotPrice: %s", err)
 	}
 }
 
@@ -121,7 +121,7 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := z.GetTicker("btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - ZB GetTicker: %s", err)
+		t.Errorf("ZB GetTicker: %s", err)
 	}
 }
 
@@ -129,7 +129,7 @@ func TestGetTickers(t *testing.T) {
 	t.Parallel()
 	_, err := z.GetTickers()
 	if err != nil {
-		t.Errorf("Test failed - ZB GetTicker: %s", err)
+		t.Errorf("ZB GetTicker: %s", err)
 	}
 }
 
@@ -137,7 +137,7 @@ func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := z.GetOrderbook("btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - ZB GetTicker: %s", err)
+		t.Errorf("ZB GetTicker: %s", err)
 	}
 }
 
@@ -145,7 +145,7 @@ func TestGetMarkets(t *testing.T) {
 	t.Parallel()
 	_, err := z.GetMarkets()
 	if err != nil {
-		t.Errorf("Test failed - ZB GetMarkets: %s", err)
+		t.Errorf("ZB GetMarkets: %s", err)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestGetSpotKline(t *testing.T) {
 	}
 	_, err := z.GetSpotKline(arg)
 	if err != nil {
-		t.Errorf("Test failed - ZB GetSpotKline: %s", err)
+		t.Errorf("ZB GetSpotKline: %s", err)
 	}
 }
 
@@ -199,7 +199,7 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee Basic
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
 		t.Error(err)
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0015), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0015), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
@@ -207,7 +207,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
 	if resp, err := z.GetFee(feeBuilder); resp != float64(2000) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
 		t.Error(err)
 	}
 
@@ -215,7 +215,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 		t.Error(err)
 	}
 
@@ -223,14 +223,14 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0.005) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.005), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.005), resp)
 		t.Error(err)
 	}
 
@@ -239,7 +239,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -247,7 +247,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -255,7 +255,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -264,7 +264,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
 	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 }
@@ -413,12 +413,12 @@ func TestGetAccountInfo(t *testing.T) {
 	if z.ValidateAPICredentials() {
 		_, err := z.GetAccountInfo()
 		if err != nil {
-			t.Error("Test Failed - GetAccountInfo() error", err)
+			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
 		_, err := z.GetAccountInfo()
 		if err == nil {
-			t.Error("Test Failed - GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	}
 }
@@ -426,7 +426,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := z.ModifyOrder(&exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
@@ -490,13 +490,13 @@ func TestGetDepositAddress(t *testing.T) {
 	if apiKey != "" || apiSecret != "" {
 		_, err := z.GetDepositAddress(currency.BTC, "")
 		if err != nil {
-			t.Error("Test Failed - GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
+			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
 				err)
 		}
 	} else {
 		_, err := z.GetDepositAddress(currency.BTC, "")
 		if err == nil {
-			t.Error("Test Failed - GetDepositAddress() error")
+			t.Error("GetDepositAddress() Expected error")
 		}
 	}
 }

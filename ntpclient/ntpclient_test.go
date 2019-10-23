@@ -14,7 +14,7 @@ func TestNTPClient(t *testing.T) {
 	invalidpool := []string{"pool.thisisinvalid.org"}
 	_, err = NTPClient(invalidpool)
 	if err == nil {
-		t.Errorf("failed to get time %v", err)
+		t.Errorf("Expected error")
 	}
 
 	firstInvalid := []string{"pool.thisisinvalid.org", "pool.ntp.org:123", "0.pool.ntp.org:123"}
