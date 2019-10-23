@@ -4,13 +4,13 @@ import "time"
 
 // OverviewData stores market overview data
 type OverviewData struct {
-	High24Hr         string `json:"high24hr"`
-	HighestBid       string `json:"highestbid"`
-	Last             string `json:"last"`
-	Low24Hr          string `json:"low24hr"`
-	LowestAsk        string `json:"lowest_ask"`
-	PercentageChange string `json:"percentage_change"`
-	Volume           string `json:"volume"`
+	High24Hr         float64 `json:"high24hr,string"`
+	HighestBid       float64 `json:"highestbid,string"`
+	Last             float64 `json:"last,string"`
+	Low24Hr          float64 `json:"low24hr,string"`
+	LowestAsk        float64 `json:"lowest_ask,string"`
+	PercentageChange float64 `json:"percentage_change,string"`
+	Volume           float64 `json:"volume,string"`
 }
 
 // HighLevelMarketData stores market overview data
