@@ -92,7 +92,7 @@ func (vm *VM) RunCtx() (err error) {
 		vm.ctx = context.Background()
 	}
 
-	ct, cancel := context.WithTimeout(vm.ctx, 1*time.Millisecond)
+	ct, cancel := context.WithTimeout(vm.ctx, 60*time.Second)
 	defer cancel()
 
 	err = vm.Compiled.RunContext(ct)

@@ -9,11 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/database"
-<<<<<<< HEAD
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-=======
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
->>>>>>> upstream/engine
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
