@@ -110,9 +110,6 @@ type OpenOrder struct {
 	Status string `json:"status"`
 }
 
-// OpenOrders stores an array of orders
-type OpenOrders []OpenOrder
-
 // CancelOrder stores the cancel order response data
 type CancelOrder struct {
 	Code int   `json:"code"`

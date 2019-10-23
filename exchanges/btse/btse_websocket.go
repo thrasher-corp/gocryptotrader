@@ -59,15 +59,6 @@ func (b *BTSE) WsHandleData() {
 			b.Websocket.TrafficAlert <- struct{}{}
 
 			type Result map[string]interface{}
-
-			if strings.Contains(string(resp.Raw), "Connected. Welcome to BTSE!") {
-				if b.Verbose {
-					log.Debugf("%s websocket client successfully connected to %s",
-						b.Name, b.Websocket.GetWebsocketURL())
-				}
-				continue
-			}
-
 			result := Result{}
 			err = common.JSONDecode(resp.Raw, &result)
 			if err != nil {
@@ -145,6 +136,8 @@ func (b *BTSE) WsHandleData() {
 				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
 					Asset:    orderbook.Spot,
 					Exchange: b.Name}
+			default:
+				log.Warnf("Unhandled websocket response: %s", resp.Raw)
 			}
 		}
 	}
@@ -183,20 +176,18 @@ func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 
 // Pinger pings
 func (b *BTSE) Pinger() {
-	b.Websocket.Wg.Add(1)
-
-	defer b.Websocket.Wg.Done()
 	count := 57 * time.Second
-	timer := time.NewTimer(count)
+	ticker := time.NewTicker(count)
 
 	for {
 		select {
 		case <-b.Websocket.ShutdownC:
+			ticker.Stop()
 			return
 
-		case <-timer.C:
-			b.WebsocketConn.Connection.WriteMessage(websocket.TextMessage, []byte("ping"))
-			timer.Reset(count)
+		case <-ticker.C:
+			log.Debug("Sending ping")
+			b.WebsocketConn.Connection.WriteMessage(websocket.PingMessage, nil)
 		}
 	}
 }

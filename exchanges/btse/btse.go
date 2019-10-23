@@ -230,13 +230,13 @@ func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeI
 }
 
 // GetOrders returns all pending orders
-func (b *BTSE) GetOrders(symbol string) (*OpenOrders, error) {
+func (b *BTSE) GetOrders(symbol string) ([]OpenOrder, error) {
 	req := make(map[string]interface{})
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	var o OpenOrders
-	return &o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o)
+	var o []OpenOrder
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o)
 }
 
 // CancelExistingOrder cancels an order
@@ -246,18 +246,6 @@ func (b *BTSE) CancelExistingOrder(orderID, symbol string) (*CancelOrder, error)
 	req["order_id"] = orderID
 	req["symbol"] = symbol
 	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, req, &c)
-}
-
-// CancelOrders cancels all orders
-// productID optional. If product ID is sent, all orders of that specified market
-// will be cancelled. If not specified, all orders of all markets will be cancelled
-func (b *BTSE) CancelOrders(symbol string) (*CancelOrder, error) {
-	var c CancelOrder
-	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
-	}
-	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrders, req, &c)
 }
 
 // GetFills gets all filled orders
@@ -315,7 +303,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 	if !b.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-	path := fmt.Sprintf("%s%s", btseAPIPath, endpoint)
+	path := btseAPIPath + endpoint
 	headers := make(map[string]string)
 	headers["btse-api"] = b.APIKey
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
@@ -329,7 +317,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 		if err != nil {
 			return err
 		}
-		body = bytes.NewBufferString(string(payload))
+		body = bytes.NewBuffer(payload)
 		hmac = common.GetHMAC(
 			common.HashSHA512_384,
 			[]byte((path + nonce + string(payload))),
@@ -383,7 +371,7 @@ func (b *BTSE) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
 func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0015 * price * amount
+	return 0.001 * price * amount
 }
 
 // getInternationalBankDepositFee returns international deposit fee

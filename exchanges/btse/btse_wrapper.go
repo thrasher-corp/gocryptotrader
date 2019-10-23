@@ -42,7 +42,7 @@ func (b *BTSE) Run() {
 			if m[x].Status != "active" {
 				continue
 			}
-			currencies = append(currencies, currency.NewPairFromStrings(m[x].BaseCurrency, m[x].QuoteCurrency).String())
+			currencies = append(currencies, currency.NewPairWithDelimiter(m[x].BaseCurrency, m[x].QuoteCurrency, "-").String())
 		}
 		err = b.UpdateCurrencies(currency.NewPairsFromStrings(currencies),
 			false,
@@ -214,19 +214,29 @@ func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
-	r, err := b.CancelOrders(exchange.FormatExchangeCurrency(b.Name,
-		orderCancellation.CurrencyPair).String())
-	if err != nil {
-		return resp, err
+	var orders []OpenOrder
+	var err error
+	a, err := b.GetMarkets()
+	for x := range a {
+		strPair := exchange.FormatExchangeCurrency(b.Name, orderCancellation.CurrencyPair).String()
+		checkPair := currency.NewPairWithDelimiter(a[x].BaseCurrency, a[x].QuoteCurrency, "-").String()
+		if strPair != "" && strPair != checkPair {
+			continue
+		} else {
+			orders, err = b.GetOrders(checkPair)
+			if err != nil {
+				return resp, err
+			}
+			for y := range orders {
+				success := "Order Cancelled"
+				_, err2 := b.CancelExistingOrder(orders[y].Order.ID, checkPair)
+				if err2 != nil {
+					success = "Order Cancellation Failed"
+				}
+				resp.OrderStatus[orders[y].Order.ID] = success
+			}
+		}
 	}
-
-	switch r.Code {
-	case -1:
-		return resp, errors.New("order cancellation unsuccessful")
-	case 4:
-		return resp, errors.New("order cancellation timeout")
-	}
-
 	return resp, nil
 }
 
@@ -238,12 +248,12 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	}
 
 	var od exchange.OrderDetail
-	if len(*o) == 0 {
+	if len(o) == 0 {
 		return od, errors.New("no orders found")
 	}
 
-	for i := range *o {
-		o := (*o)[i]
+	for i := range o {
+		o := (o)[i]
 		if o.ID != orderID {
 			continue
 		}
@@ -322,8 +332,8 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 	}
 
 	var orders []exchange.OrderDetail
-	for i := range *resp {
-		order := (*resp)[i]
+	for i := range resp {
+		order := (resp)[i]
 		var side = exchange.BuyOrderSide
 		if strings.EqualFold(order.Side, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide

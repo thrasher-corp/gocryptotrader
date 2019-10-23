@@ -98,7 +98,7 @@ func TestGetAccount(t *testing.T) {
 	TestSetup(t)
 	_, err := b.GetAccountBalance()
 	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get account balance: %s", err)
+		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -109,7 +109,7 @@ func TestGetFills(t *testing.T) {
 	TestSetup(t)
 	_, err := b.GetFills("", "BTC-USD", "", "", "", "")
 	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get fills: %s", err)
+		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -120,8 +120,10 @@ func TestCreateOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	_, err := b.CreateOrder(4.5, 3.4, "buy", "limit", "BTC-USD", "", "")
-	if err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -130,7 +132,7 @@ func TestGetOrders(t *testing.T) {
 	TestSetup(t)
 	_, err := b.GetOrders("")
 	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get open orders: %s", err)
+		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -145,7 +147,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get open orders: %s", err)
+		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
