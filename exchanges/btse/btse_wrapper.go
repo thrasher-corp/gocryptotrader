@@ -42,7 +42,7 @@ func (b *BTSE) Run() {
 			if m[x].Status != "active" {
 				continue
 			}
-			currencies = append(currencies, currency.NewPairWithDelimiter(m[x].BaseCurrency, m[x].QuoteCurrency, "-").String())
+			currencies = append(currencies, currency.NewPairWithDelimiter(m[x].BaseCurrency, m[x].QuoteCurrency, b.RequestCurrencyPairFormat.Delimiter).String())
 		}
 		err = b.UpdateCurrencies(currency.NewPairsFromStrings(currencies),
 			false,
@@ -220,18 +220,18 @@ func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (e
 	}
 	for x := range a {
 		strPair := exchange.FormatExchangeCurrency(b.Name, orderCancellation.CurrencyPair).String()
-		checkPair := currency.NewPairWithDelimiter(a[x].BaseCurrency, a[x].QuoteCurrency, "-").String()
+		checkPair := currency.NewPairWithDelimiter(a[x].BaseCurrency, a[x].QuoteCurrency, b.RequestCurrencyPairFormat.Delimiter).String()
 		if strPair != "" && strPair != checkPair {
 			continue
 		} else {
-			orders, err2 := b.GetOrders(checkPair)
-			if err2 != nil {
+			orders, err := b.GetOrders(checkPair)
+			if err != nil {
 				return resp, err
 			}
 			for y := range orders {
 				success := "Order Cancelled"
-				_, err3 := b.CancelExistingOrder(orders[y].Order.ID, checkPair)
-				if err3 != nil {
+				_, err = b.CancelExistingOrder(orders[y].Order.ID, checkPair)
+				if err != nil {
 					success = "Order Cancellation Failed"
 				}
 				resp.OrderStatus[orders[y].Order.ID] = success
@@ -287,7 +287,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 				Price:     fills[i].Price,
 				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      exchange.OrderSide(fills[i].Side).ToString(),
+				Type:      fills[i].Side,
 				Fee:       fills[i].Fee,
 			})
 		}
@@ -365,7 +365,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 				Price:     fills[i].Price,
 				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      exchange.OrderSide(fills[i].Side).ToString(),
+				Type:      fills[i].Side,
 				Fee:       fills[i].Fee,
 			})
 		}
