@@ -217,6 +217,9 @@ func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (e
 	var orders []OpenOrder
 	var err error
 	a, err := b.GetMarkets()
+	if err != nil {
+		return resp, err
+	}
 	for x := range a {
 		strPair := exchange.FormatExchangeCurrency(b.Name, orderCancellation.CurrencyPair).String()
 		checkPair := currency.NewPairWithDelimiter(a[x].BaseCurrency, a[x].QuoteCurrency, "-").String()

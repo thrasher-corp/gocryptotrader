@@ -102,11 +102,13 @@ func (b *BTSE) WsHandleData() {
 					price, err = strconv.ParseFloat(p, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
+						continue
 					}
 					a := strings.Replace(t.Data.BuyQuote[i].Size, ",", "", -1)
 					amount, err = strconv.ParseFloat(a, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
+						continue
 					}
 					asks = append(asks, orderbook.Item{Price: price, Amount: amount})
 				}
@@ -115,11 +117,13 @@ func (b *BTSE) WsHandleData() {
 					price, err = strconv.ParseFloat(p, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
+						continue
 					}
 					a := strings.Replace(t.Data.SellQuote[j].Size, ",", "", -1)
 					amount, err = strconv.ParseFloat(a, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
+						continue
 					}
 					bids = append(bids, orderbook.Item{Price: price, Amount: amount})
 				}
@@ -132,6 +136,7 @@ func (b *BTSE) WsHandleData() {
 				err = b.Websocket.Orderbook.LoadSnapshot(&newOB, true)
 				if err != nil {
 					b.Websocket.DataHandler <- err
+					continue
 				}
 				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
 					Asset:    orderbook.Spot,
