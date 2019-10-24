@@ -549,6 +549,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 
 	PayloadJSON, err := common.JSONEncode(data)
 	if err != nil {
+		a.Requester.FifoUnlock()
 		return errors.New("unable to JSON request")
 	}
 

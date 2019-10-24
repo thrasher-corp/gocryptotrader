@@ -11,7 +11,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -19,71 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
-
-var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead,
-	http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodConnect}
-
-// Const vars for rate limiter
-const (
-	DefaultMaxRequestJobs       = 50
-	DefaultTimeoutRetryAttempts = 3
-
-	proxyTLSTimeout = 15 * time.Second
-)
-
-// Vars for rate limiter
-var (
-	MaxRequestJobs       = DefaultMaxRequestJobs
-	TimeoutRetryAttempts = DefaultTimeoutRetryAttempts
-	DisableRateLimiter   bool
-)
-
-// Requester struct for the request client
-type Requester struct {
-	HTTPClient           *http.Client
-	UnauthLimit          *RateLimit
-	AuthLimit            *RateLimit
-	Name                 string
-	UserAgent            string
-	Cycle                time.Time
-	timeoutRetryAttempts int
-	m                    sync.Mutex
-	Jobs                 chan Job
-	disengage            chan struct{}
-	WorkerStarted        bool
-	Nonce                nonce.Nonce
-	fifoLock             sync.Mutex
-	DisableRateLimiter   bool
-}
-
-// RateLimit struct
-type RateLimit struct {
-	Duration time.Duration
-	Rate     int
-	Requests int
-	Mutex    sync.Mutex
-}
-
-// JobResult holds a request job result
-type JobResult struct {
-	Error  error
-	Result interface{}
-}
-
-// Job holds a request job
-type Job struct {
-	Request       *http.Request
-	Method        string
-	Path          string
-	Headers       map[string]string
-	Body          io.Reader
-	Result        interface{}
-	JobResult     chan *JobResult
-	AuthRequest   bool
-	Verbose       bool
-	HTTPDebugging bool
-	Record        bool
-}
 
 // NewRateLimit creates a new RateLimit
 func NewRateLimit(d time.Duration, rate int) *RateLimit {
@@ -237,7 +171,6 @@ func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Cli
 		AuthLimit:            authLimit,
 		Name:                 name,
 		Jobs:                 make(chan Job, MaxRequestJobs),
-		disengage:            make(chan struct{}, 1),
 		timeoutRetryAttempts: TimeoutRetryAttempts,
 	}
 }
@@ -443,33 +376,34 @@ func (r *Requester) worker() {
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose, httpDebugging, record bool) error {
 	if !nonceEnabled {
-		r.lock()
+		r.fifoLock.Lock()
 	}
 
 	if r == nil || r.Name == "" {
-		r.unlock()
+		r.FifoUnlock()
 		return errors.New("not initiliased, SetDefaults() called before making request?")
 	}
 
 	if !IsValidMethod(method) {
-		r.unlock()
+		r.FifoUnlock()
 		return fmt.Errorf("incorrect method supplied %s: supported %s", method, supportedMethods)
 	}
 
 	if path == "" {
-		r.unlock()
+		r.FifoUnlock()
 		return errors.New("invalid path")
 	}
 
 	req, err := r.checkRequest(method, path, body, headers)
 	if err != nil {
-		r.unlock()
+		r.FifoUnlock()
 		return err
 	}
 
 	if httpDebugging {
 		dump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
+			r.FifoUnlock()
 			log.Errorf(log.Global,
 				"DumpRequest invalid response %v:", err)
 		}
@@ -478,12 +412,12 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	}
 
 	if !r.RequiresRateLimiter() {
-		r.unlock()
+		r.FifoUnlock()
 		return r.DoRequest(req, path, body, result, authRequest, verbose, httpDebugging, record)
 	}
 
 	if len(r.Jobs) == MaxRequestJobs {
-		r.unlock()
+		r.FifoUnlock()
 		return errors.New("max request jobs reached")
 	}
 
@@ -515,7 +449,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		log.Debugf(log.ExchangeSys, "%s request. Attaching new job.", r.Name)
 	}
 	r.Jobs <- newJob
-	r.unlock()
+	r.FifoUnlock()
 
 	if verbose {
 		log.Debugf(log.ExchangeSys, "%s request. Waiting for job to complete.", r.Name)
@@ -532,7 +466,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel
 func (r *Requester) GetNonce(isNano bool) nonce.Value {
-	r.lock()
+	r.fifoLock.Lock()
 	if r.Nonce.Get() == 0 {
 		if isNano {
 			r.Nonce.Set(time.Now().UnixNano())
@@ -548,7 +482,7 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 // GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel this is for millisecond
 func (r *Requester) GetNonceMilli() nonce.Value {
-	r.lock()
+	r.fifoLock.Lock()
 	if r.Nonce.Get() == 0 {
 		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
 		return r.Nonce.Get()
@@ -570,32 +504,9 @@ func (r *Requester) SetProxy(p *url.URL) error {
 	return nil
 }
 
-// lock locks and sets up an issue timer, if something errors out of scope it
-// automatically unlocks
-func (r *Requester) lock() {
-	if r.disengage == nil {
-		r.disengage = make(chan struct{}, 1)
-	}
-	var wg sync.WaitGroup
-	r.fifoLock.Lock()
-	wg.Add(1)
-	go func() {
-		timer := time.NewTimer(50 * time.Millisecond)
-		wg.Done()
-		select {
-		case <-timer.C:
-			log.Errorf(log.ExchangeSys, "Unlocking due to possible error for %s", r.Name)
-			r.fifoLock.Unlock()
-
-		case <-r.disengage:
-			return
-		}
-	}()
-	wg.Wait()
-}
-
-// unlock unlocks mtx and shuts down a timer
-func (r *Requester) unlock() {
-	r.disengage <- struct{}{}
+// FifoUnlock is used to unlock the send request mutex
+// It must be placed before returning any errors between 
+// GetNonce/Milli and SendPayload to prevent request lockups
+func (r *Requester) FifoUnlock() {
 	r.fifoLock.Unlock()
 }

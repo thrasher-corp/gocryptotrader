@@ -319,6 +319,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 	message, err := common.JSONEncode([]string{method, urlPath, string(PayloadJSON), n, timestamp})
 	if err != nil {
+		i.Requester.FifoUnlock()
 		return err
 	}
 

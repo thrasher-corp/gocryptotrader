@@ -393,6 +393,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 	if data != nil {
 		payload, err = common.JSONEncode(data)
 		if err != nil {
+			b.Requester.FifoUnlock()
 			return err
 		}
 		req = path + "\n" + n + "\n" + string(payload)
