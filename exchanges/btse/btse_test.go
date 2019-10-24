@@ -3,7 +3,6 @@ package btse
 import (
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -96,22 +95,24 @@ func TestGetServerTime(t *testing.T) {
 func TestGetAccount(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
 	_, err := b.GetAccountBalance()
-	if areTestAPIKeysSet() && err != nil {
+	if err != nil {
 		t.Error(err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestGetFills(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
 	_, err := b.GetFills("", "BTC-USD", "", "", "", "")
-	if areTestAPIKeysSet() && err != nil {
+	if err != nil {
 		t.Error(err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
 	}
 
 }
@@ -119,50 +120,58 @@ func TestGetFills(t *testing.T) {
 func TestCreateOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CreateOrder(4.5, 3.4, "buy", "limit", "BTC-USD", "", "")
-	if areTestAPIKeysSet() && err != nil {
+	if err != nil {
 		t.Error(err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestGetOrders(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
 	_, err := b.GetOrders("")
-	if areTestAPIKeysSet() && err != nil {
+	if err != nil {
 		t.Error(err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
+	if err != nil {
 		t.Error(err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType: exchange.AnyOrderType,
 	}
-
 	_, err := b.GetOrderHistory(&getOrdersRequest)
-	if err != common.ErrFunctionNotSupported {
-		t.Fatal("Expected different result")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
