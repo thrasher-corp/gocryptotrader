@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	btseWebsocket = "wss://ws.btse.com/spotWS"
+	btseWebsocket      = "wss://ws.btse.com/spotWS"
+	btseWebsocketTimer = 57
 )
 
 // WsConnect connects the websocket client
@@ -68,6 +69,7 @@ func (b *BTSE) WsHandleData() {
 			}
 			switch {
 			case strings.Contains(result["topic"].(string), "tradeHistory"):
+				log.Warnf("%s: Buy/Sell side functionality is broken for this exchange currently! 'gain' has no correlation with buyside or sell side", b.Name)
 				var tradeHistory wsTradeHistory
 				err = common.JSONDecode(resp.Raw, &tradeHistory)
 				if err != nil {
@@ -98,14 +100,14 @@ func (b *BTSE) WsHandleData() {
 				}
 				var price, amount float64
 				var asks, bids []orderbook.Item
-				for i := range t.Data.BuyQuote {
-					p := strings.Replace(t.Data.BuyQuote[i].Price, ",", "", -1)
+				for i := range t.Data.SellQuote {
+					p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
 					price, err = strconv.ParseFloat(p, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
 					}
-					a := strings.Replace(t.Data.BuyQuote[i].Size, ",", "", -1)
+					a := strings.Replace(t.Data.SellQuote[i].Size, ",", "", -1)
 					amount, err = strconv.ParseFloat(a, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
@@ -113,14 +115,14 @@ func (b *BTSE) WsHandleData() {
 					}
 					asks = append(asks, orderbook.Item{Price: price, Amount: amount})
 				}
-				for j := range t.Data.SellQuote {
-					p := strings.Replace(t.Data.SellQuote[j].Price, ",", "", -1)
+				for j := range t.Data.BuyQuote {
+					p := strings.Replace(t.Data.BuyQuote[j].Price, ",", "", -1)
 					price, err = strconv.ParseFloat(p, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
 					}
-					a := strings.Replace(t.Data.SellQuote[j].Size, ",", "", -1)
+					a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
 					amount, err = strconv.ParseFloat(a, 64)
 					if err != nil {
 						b.Websocket.DataHandler <- err
@@ -143,7 +145,7 @@ func (b *BTSE) WsHandleData() {
 					Asset:    orderbook.Spot,
 					Exchange: b.Name}
 			default:
-				log.Warnf("Unhandled websocket response: %s", resp.Raw)
+				log.Warnf("%s: unhandled websocket response: %s", b.Name, resp.Raw)
 			}
 		}
 	}
@@ -182,7 +184,7 @@ func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 
 // Pinger pings
 func (b *BTSE) Pinger() {
-	count := 57 * time.Second
+	count := btseWebsocketTimer * time.Second
 	ticker := time.NewTicker(count)
 
 	for {
@@ -192,7 +194,6 @@ func (b *BTSE) Pinger() {
 			return
 
 		case <-ticker.C:
-			log.Debug("Sending ping")
 			b.WebsocketConn.Connection.WriteMessage(websocket.PingMessage, nil)
 		}
 	}

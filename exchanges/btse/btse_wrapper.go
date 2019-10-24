@@ -111,13 +111,13 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Bas
 	}
 	for x := range a.BuyQuote {
 		resp.Asks = append(resp.Asks, orderbook.Item{
-			Price:  a.BuyQuote[x].Price,
-			Amount: a.BuyQuote[x].Size})
+			Price:  a.SellQuote[x].Price,
+			Amount: a.SellQuote[x].Size})
 	}
 	for x := range a.SellQuote {
 		resp.Bids = append(resp.Bids, orderbook.Item{
-			Price:  a.SellQuote[x].Price,
-			Amount: a.SellQuote[x].Size})
+			Price:  a.BuyQuote[x].Price,
+			Amount: a.BuyQuote[x].Size})
 	}
 	resp.Pair = p
 	resp.ExchangeName = b.Name
@@ -332,28 +332,27 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 
 	var orders []exchange.OrderDetail
 	for i := range resp {
-		order := (resp)[i]
 		var side = exchange.BuyOrderSide
-		if strings.EqualFold(order.Side, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(resp[i].Side, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
 		}
 
 		openOrder := exchange.OrderDetail{
-			CurrencyPair: currency.NewPairDelimiter(order.Symbol,
+			CurrencyPair: currency.NewPairDelimiter(resp[i].Symbol,
 				b.ConfigCurrencyPairFormat.Delimiter),
 			Exchange:  b.Name,
-			Amount:    order.Amount,
-			ID:        order.ID,
-			OrderDate: parseOrderTime(order.CreatedAt),
+			Amount:    resp[i].Amount,
+			ID:        resp[i].ID,
+			OrderDate: parseOrderTime(resp[i].CreatedAt),
 			OrderSide: side,
-			OrderType: exchange.OrderType(strings.ToUpper(order.Type)),
-			Price:     order.Price,
-			Status:    order.Status,
+			OrderType: exchange.OrderType(strings.ToUpper(resp[i].Type)),
+			Price:     resp[i].Price,
+			Status:    resp[i].Status,
 		}
 
-		fills, err := b.GetFills(order.ID, "", "", "", "", "")
+		fills, err := b.GetFills(resp[i].ID, "", "", "", "", "")
 		if err != nil {
-			log.Errorf("unable to get order fills for orderID %s", order.ID)
+			log.Errorf("unable to get order fills for orderID %s", resp[i].ID)
 			continue
 		}
 

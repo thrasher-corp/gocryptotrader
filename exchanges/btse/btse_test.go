@@ -1,11 +1,13 @@
 package btse
 
 import (
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Please supply your own keys here to do better tests
@@ -17,16 +19,13 @@ const (
 
 var b BTSE
 
-func TestSetDefaults(t *testing.T) {
+func TestMain(m *testing.M) {
 	b.SetDefaults()
-}
-
-func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
 	btseConfig, err := cfg.GetExchangeConfig("BTSE")
 	if err != nil {
-		t.Error("BTSE Setup() init error")
+		log.Fatal("BTSE Setup() init error", err)
 	}
 
 	btseConfig.AuthenticatedAPISupport = true
@@ -34,10 +33,11 @@ func TestSetup(t *testing.T) {
 	btseConfig.APISecret = apiSecret
 
 	b.Setup(&btseConfig)
+	os.Exit(m.Run())
 }
 
 func TestGetMarketsSummary(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	_, err := b.GetMarketsSummary()
 	if err != nil {
 		t.Error(err)
@@ -45,7 +45,7 @@ func TestGetMarketsSummary(t *testing.T) {
 }
 
 func TestGetMarkets(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	_, err := b.GetMarkets()
 	if err != nil {
 		t.Error(err)
@@ -53,7 +53,7 @@ func TestGetMarkets(t *testing.T) {
 }
 
 func TestFetchOrderBook(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	_, err := b.FetchOrderBook("BTC-USD")
 	if err != nil {
 		t.Error(err)
@@ -61,7 +61,7 @@ func TestFetchOrderBook(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	_, err := b.GetTrades("BTC-USD")
 	if err != nil {
 		t.Error(err)
@@ -69,7 +69,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	_, err := b.GetTicker("BTC-USD")
 	if err != nil {
 		t.Error(err)
@@ -77,7 +77,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetMarketStatistics(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	_, err := b.GetMarketStatistics("BTC-USD")
 	if err != nil {
 		t.Error(err)
@@ -85,7 +85,7 @@ func TestGetMarketStatistics(t *testing.T) {
 }
 
 func TestGetServerTime(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	_, err := b.GetServerTime()
 	if err != nil {
 		t.Error(err)
@@ -93,8 +93,7 @@ func TestGetServerTime(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -105,8 +104,7 @@ func TestGetAccount(t *testing.T) {
 }
 
 func TestGetFills(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -118,8 +116,7 @@ func TestGetFills(t *testing.T) {
 }
 
 func TestCreateOrder(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -133,8 +130,7 @@ func TestCreateOrder(t *testing.T) {
 }
 
 func TestGetOrders(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -145,8 +141,7 @@ func TestGetOrders(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -161,8 +156,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -176,7 +170,7 @@ func TestGetOrderHistory(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	expected := exchange.NoAPIWithdrawalMethodsText
 	actual := b.FormatWithdrawPermissions()
 	if actual != expected {
@@ -206,8 +200,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 
 	feeBuilder := &exchange.FeeBuilder{
 		FeeType: exchange.CryptocurrencyTradeFee,
@@ -283,8 +276,7 @@ func areTestAPIKeysSet() bool {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func TestSubmitOrder(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -303,8 +295,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
@@ -331,8 +322,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
