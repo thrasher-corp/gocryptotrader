@@ -465,6 +465,8 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel
+// If an error occurs between GetNonce and SendPayload you MUST
+// call r.FifoUnlock() before returning
 func (r *Requester) GetNonce(isNano bool) nonce.Value {
 	r.fifoLock.Lock()
 	if r.Nonce.Get() == 0 {
@@ -481,6 +483,8 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 
 // GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel this is for millisecond
+// If an error occurs between GetNonceMilli and SendPayload you MUST
+// call r.FifoUnlock() before returning
 func (r *Requester) GetNonceMilli() nonce.Value {
 	r.fifoLock.Lock()
 	if r.Nonce.Get() == 0 {
@@ -505,7 +509,7 @@ func (r *Requester) SetProxy(p *url.URL) error {
 }
 
 // FifoUnlock is used to unlock the send request mutex
-// It must be placed before returning any errors between 
+// It must be placed before returning any errors between
 // GetNonce/Milli and SendPayload to prevent request lockups
 func (r *Requester) FifoUnlock() {
 	r.fifoLock.Unlock()
