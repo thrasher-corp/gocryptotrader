@@ -403,7 +403,6 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	if httpDebugging {
 		dump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			r.FifoUnlock()
 			log.Errorf(log.Global,
 				"DumpRequest invalid response %v:", err)
 		}
