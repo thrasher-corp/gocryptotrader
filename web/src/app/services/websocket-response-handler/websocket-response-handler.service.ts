@@ -5,7 +5,7 @@ import { Observable, Subject } from 'rxjs/Rx';
 import { WebsocketService } from './../../services/websocket/websocket.service';
 import { WebSocketMessage } from './../../shared/classes/websocket';
 
-const WEBSOCKET_URL = 'ws://localhost:9050/ws';
+const WEBSOCKET_URL = 'ws://localhost:9051/ws';
 
 @NgModule({
   })

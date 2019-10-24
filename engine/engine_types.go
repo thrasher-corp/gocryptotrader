@@ -4,11 +4,12 @@ import "time"
 
 // Settings stores engine params
 type Settings struct {
-	ConfigFile   string
-	DataDir      string
-	MigrationDir string
-	LogFile      string
-	GoMaxProcs   int
+	ConfigFile            string
+	DataDir               string
+	MigrationDir          string
+	LogFile               string
+	GoMaxProcs            int
+	CheckParamInteraction bool
 
 	// Core Settings
 	EnableDryRun                bool

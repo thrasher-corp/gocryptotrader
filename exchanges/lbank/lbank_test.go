@@ -147,7 +147,8 @@ func TestCreateOrder(t *testing.T) {
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
-	_, err = l.CreateOrder(cp.Lower().String(), "buy", 0, 0)
+	_, err = l.CreateOrder(cp.Lower().String(),
+		exchange.BuyOrderSide.ToLower().ToString(), 0, 0)
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
@@ -155,7 +156,8 @@ func TestCreateOrder(t *testing.T) {
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
-	_, err = l.CreateOrder(cp.Lower().String(), "buy", 58, 681)
+	_, err = l.CreateOrder(cp.Lower().String(),
+		exchange.BuyOrderSide.ToLower().ToString(), 58, 681)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

@@ -18,6 +18,7 @@ const (
 	// added or removed
 	defaultEnabledExchanges = 27
 	testFakeExchangeName    = "Stampbit"
+	testPair                = "BTC-USD"
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
@@ -669,7 +670,7 @@ func TestCheckPairConfigFormats(t *testing.T) {
 				Index:     "USD",
 			},
 			Available: currency.Pairs{
-				currency.NewPairDelimiter("BTC-USD", "-"),
+				currency.NewPairDelimiter(testPair, "-"),
 			},
 			Enabled: currency.Pairs{
 				currency.NewPairDelimiter("BTC~USD", "~"),
@@ -1328,7 +1329,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	setupPairs := func(emptyAssets bool) {
 		cfg.Exchanges[0].CurrencyPairs = nil
 		p := currency.Pairs{
-			currency.NewPairDelimiter("BTC-USD", "-"),
+			currency.NewPairDelimiter(testPair, "-"),
 		}
 		cfg.Exchanges[0].PairsLastUpdated = int64ptr(1234567)
 
@@ -1382,12 +1383,12 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	pairs := cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, true)
-	if len(pairs) == 0 || pairs.Join() != "BTC-USD" {
+	if len(pairs) == 0 || pairs.Join() != testPair {
 		t.Error("pairs not set properly")
 	}
 
 	pairs = cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, false)
-	if len(pairs) == 0 || pairs.Join() != "BTC-USD" {
+	if len(pairs) == 0 || pairs.Join() != testPair {
 		t.Error("pairs not set properly")
 	}
 

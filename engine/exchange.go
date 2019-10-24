@@ -45,6 +45,20 @@ var (
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 )
 
+func dryrunParamInteraction(param string) {
+	if !Bot.Settings.CheckParamInteraction {
+		return
+	}
+
+	if !Bot.Settings.EnableDryRun && !flagSet["dryrun"] {
+		log.Warnf(log.Global,
+			"Command line argument '-%s' induces dry run mode."+
+				" Set -dryrun=false if you wish to override this.",
+			param)
+		Bot.Settings.EnableDryRun = true
+	}
+}
+
 // CheckExchangeExists returns true whether or not an exchange has already
 // been loaded
 func CheckExchangeExists(exchName string) bool {
@@ -201,6 +215,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 
 	if Bot.Settings.EnableAllPairs {
 		if exchCfg.CurrencyPairs != nil {
+			dryrunParamInteraction("enableallpairs")
 			assets := exchCfg.CurrencyPairs.GetAssetTypes()
 			for x := range assets {
 				pairs := exchCfg.CurrencyPairs.GetPairs(assets[x], false)
@@ -210,10 +225,12 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	}
 
 	if Bot.Settings.EnableExchangeVerbose {
+		dryrunParamInteraction("exchangeverbose")
 		exchCfg.Verbose = true
 	}
 
 	if Bot.Settings.EnableExchangeWebsocketSupport {
+		dryrunParamInteraction("exchangewebsocketsupport")
 		if exchCfg.Features != nil {
 			if exchCfg.Features.Supports.Websocket {
 				exchCfg.Features.Enabled.Websocket = true
@@ -222,6 +239,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	}
 
 	if Bot.Settings.EnableExchangeAutoPairUpdates {
+		dryrunParamInteraction("exchangeautopairupdates")
 		if exchCfg.Features != nil {
 			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
 				exchCfg.Features.Enabled.AutoPairUpdates = true
@@ -230,6 +248,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	}
 
 	if Bot.Settings.DisableExchangeAutoPairUpdates {
+		dryrunParamInteraction("exchangedisableautopairupdates")
 		if exchCfg.Features != nil {
 			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
 				exchCfg.Features.Enabled.AutoPairUpdates = false
@@ -238,19 +257,27 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	}
 
 	if Bot.Settings.ExchangeHTTPUserAgent != "" {
+		dryrunParamInteraction("exchangehttpuseragent")
 		exchCfg.HTTPUserAgent = Bot.Settings.ExchangeHTTPUserAgent
 	}
 
 	if Bot.Settings.ExchangeHTTPProxy != "" {
+		dryrunParamInteraction("exchangehttpproxy")
 		exchCfg.ProxyAddress = Bot.Settings.ExchangeHTTPProxy
 	}
 
 	if Bot.Settings.ExchangeHTTPTimeout != exchange.DefaultHTTPTimeout {
+		dryrunParamInteraction("exchangehttptimeout")
 		exchCfg.HTTPTimeout = Bot.Settings.ExchangeHTTPTimeout
 	}
 
 	if Bot.Settings.EnableExchangeHTTPDebugging {
+		dryrunParamInteraction("exchangehttpdebugging")
 		exchCfg.HTTPDebugging = Bot.Settings.EnableExchangeHTTPDebugging
+	}
+
+	if Bot.Settings.EnableAllExchanges {
+		dryrunParamInteraction("enableallexchanges")
 	}
 
 	exchCfg.Enabled = true

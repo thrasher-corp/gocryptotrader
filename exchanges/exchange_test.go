@@ -550,7 +550,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTC-USD"}), true)
+		currency.NewPairsFromStrings([]string{defaultTestCurrencyPair}), true)
 	format := currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",

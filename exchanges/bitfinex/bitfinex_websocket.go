@@ -436,10 +436,10 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 
 						if len(trades) > 0 {
-							side := "BUY"
+							side := exchange.BuyOrderSide
 							newAmount := trades[0].Amount
 							if newAmount < 0 {
-								side = "SELL"
+								side = exchange.SellOrderSide
 								newAmount *= -1
 							}
 
@@ -450,7 +450,7 @@ func (b *Bitfinex) WsDataHandler() {
 								Amount:       newAmount,
 								Exchange:     b.GetName(),
 								AssetType:    asset.Spot,
-								Side:         side,
+								Side:         side.ToString(),
 							}
 						}
 					}

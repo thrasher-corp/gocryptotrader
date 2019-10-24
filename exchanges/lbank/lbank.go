@@ -196,7 +196,8 @@ func (l *Lbank) GetUserInfo() (InfoFinalResponse, error) {
 // CreateOrder creates an order
 func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (CreateOrderResponse, error) {
 	var resp CreateOrderResponse
-	if !strings.EqualFold(side, "buy") && !strings.EqualFold(side, "sell") {
+	if !strings.EqualFold(side, exchange.BuyOrderSide.ToLower().ToString()) &&
+		!strings.EqualFold(side, exchange.SellOrderSide.ToLower().ToString()) {
 		return resp, errors.New("side type invalid can only be 'buy' or 'sell'")
 	}
 	if amount <= 0 {

@@ -90,7 +90,8 @@ func TestGetAuctionHistory(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.NewOrder(testCurrency, 1, 9000, "buy", "exchange limit")
+	_, err := g.NewOrder(testCurrency, 1, 9000000,
+		exchange.SellOrderSide.ToLower().ToString(), "exchange limit")
 	if err != nil && mockTests {
 		t.Error("NewOrder() error", err)
 	} else if err == nil && !mockTests {

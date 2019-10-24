@@ -87,6 +87,7 @@ func main() {
 	fmt.Println(core.Version(false))
 
 	var err error
+	settings.CheckParamInteraction = true
 	engine.Bot, err = engine.NewFromSettings(&settings)
 	if engine.Bot == nil || err != nil {
 		log.Errorf(log.Global, "Unable to initialise bot engine. Error: %s\n", err)

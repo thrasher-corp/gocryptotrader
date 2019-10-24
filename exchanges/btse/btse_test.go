@@ -15,6 +15,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+	testPair                = "BTC-USD"
 )
 
 var b BTSE
@@ -54,7 +55,7 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	b.SetDefaults()
-	_, err := b.GetTrades("BTC-USD")
+	_, err := b.GetTrades(testPair)
 	if err != nil {
 		t.Fatalf("Err: %s", err)
 	}
@@ -62,7 +63,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	b.SetDefaults()
-	_, err := b.GetTicker("BTC-USD")
+	_, err := b.GetTicker(testPair)
 	if err != nil {
 		t.Fatalf("Err: %s", err)
 	}
@@ -70,7 +71,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	b.SetDefaults()
-	_, err := b.GetOrderbook("BTC-USD", 0, 0, 0)
+	_, err := b.GetOrderbook(testPair, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("Err: %s", err)
 	}
@@ -78,7 +79,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarketStatistics(t *testing.T) {
 	b.SetDefaults()
-	_, err := b.GetMarketStatistics("BTC-USD")
+	_, err := b.GetMarketStatistics(testPair)
 	if err != nil {
 		t.Fatalf("Err: %s", err)
 	}
@@ -108,7 +109,7 @@ func TestGetFills(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	_, err := b.GetFills("", "BTC-USD", "", "", "")
+	_, err := b.GetFills("", testPair, "", "", "")
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get fills: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
