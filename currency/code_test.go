@@ -8,31 +8,31 @@ import (
 
 func TestRoleString(t *testing.T) {
 	if Unset.String() != UnsetRollString {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			UnsetRollString,
 			Unset)
 	}
 
 	if Fiat.String() != FiatCurrencyString {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			FiatCurrencyString,
 			Fiat)
 	}
 
 	if Cryptocurrency.String() != CryptocurrencyString {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			CryptocurrencyString,
 			Cryptocurrency)
 	}
 
 	if Token.String() != TokenString {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			TokenString,
 			Token)
 	}
 
 	if Contract.String() != ContractString {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			ContractString,
 			Contract)
 	}
@@ -40,7 +40,7 @@ func TestRoleString(t *testing.T) {
 	var random Role = 1 << 7
 
 	if random.String() != "UNKNOWN" {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			"UNKNOWN",
 			random)
 	}
@@ -54,7 +54,7 @@ func TestRoleMarshalJSON(t *testing.T) {
 
 	expected := `"fiatCurrency"`
 	if string(d) != expected {
-		t.Errorf("Test Failed - Role MarshalJSON() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role MarshalJSON() error expected %s but received %s",
 			expected,
 			string(d))
 	}
@@ -100,37 +100,37 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 	}
 
 	if incoming.RoleOne != Unset {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			Unset,
 			incoming.RoleOne)
 	}
 
 	if incoming.RoleTwo != Cryptocurrency {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			Cryptocurrency,
 			incoming.RoleTwo)
 	}
 
 	if incoming.RoleThree != Fiat {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			Fiat,
 			incoming.RoleThree)
 	}
 
 	if incoming.RoleFour != Token {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			Token,
 			incoming.RoleFour)
 	}
 
 	if incoming.RoleFive != Contract {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			Contract,
 			incoming.RoleFive)
 	}
 
 	if incoming.RoleUnknown != Unset {
-		t.Errorf("Test Failed - Role String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Role String() error expected %s but received %s",
 			incoming.RoleFive,
 			incoming.RoleUnknown)
 	}
@@ -139,35 +139,35 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 func TestBaseCode(t *testing.T) {
 	var main BaseCodes
 	if main.HasData() {
-		t.Errorf("Test Failed - BaseCode HasData() error expected false but recieved %v",
+		t.Errorf("Test Failed - BaseCode HasData() error expected false but received %v",
 			main.HasData())
 	}
 
 	catsCode := main.Register("CATS")
 	if !main.HasData() {
-		t.Errorf("Test Failed - BaseCode HasData() error expected true but recieved %v",
+		t.Errorf("Test Failed - BaseCode HasData() error expected true but received %v",
 			main.HasData())
 	}
 
 	if !main.Register("CATS").Match(catsCode) {
-		t.Errorf("Test Failed - BaseCode Match() error expected true but recieved %v",
+		t.Errorf("Test Failed - BaseCode Match() error expected true but received %v",
 			false)
 	}
 
 	if main.Register("DOGS").Match(catsCode) {
-		t.Errorf("Test Failed - BaseCode Match() error expected false but recieved %v",
+		t.Errorf("Test Failed - BaseCode Match() error expected false but received %v",
 			true)
 	}
 
 	loadedCurrencies := main.GetCurrencies()
 
 	if loadedCurrencies.Contains(main.Register("OWLS")) {
-		t.Errorf("Test Failed - BaseCode Contains() error expected false but recieved %v",
+		t.Errorf("Test Failed - BaseCode Contains() error expected false but received %v",
 			true)
 	}
 
 	if !loadedCurrencies.Contains(catsCode) {
-		t.Errorf("Test Failed - BaseCode Contains() error expected true but recieved %v",
+		t.Errorf("Test Failed - BaseCode Contains() error expected true but received %v",
 			false)
 	}
 
@@ -194,22 +194,22 @@ func TestBaseCode(t *testing.T) {
 	contract := main.Register("XBTUSD")
 
 	if contract.IsFiatCurrency() {
-		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but recieved %v",
+		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but received %v",
 			true)
 	}
 
 	if contract.IsCryptocurrency() {
-		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but recieved %v",
+		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but received %v",
 			true)
 	}
 
 	if contract.IsDefaultFiatCurrency() {
-		t.Errorf("Test Failed - BaseCode IsDefaultFiatCurrency() error expected false but recieved %v",
+		t.Errorf("Test Failed - BaseCode IsDefaultFiatCurrency() error expected false but received %v",
 			true)
 	}
 
 	if contract.IsDefaultFiatCurrency() {
-		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but recieved %v",
+		t.Errorf("Test Failed - BaseCode IsFiatCurrency() error expected false but received %v",
 			true)
 	}
 
@@ -229,32 +229,32 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	if len(full.Contracts) != 1 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but recieved %v",
+		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.Contracts))
 	}
 
 	if len(full.Cryptocurrency) != 2 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but recieved %v",
+		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.Cryptocurrency))
 	}
 
 	if len(full.FiatCurrency) != 1 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but recieved %v",
+		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.FiatCurrency))
 	}
 
 	if len(full.Token) != 1 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but recieved %v",
+		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.Token))
 	}
 
 	if len(full.UnsetCurrency) != 3 {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 3 but recieved %v",
+		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 3 but received %v",
 			len(full.UnsetCurrency))
 	}
 
 	if !full.LastMainUpdate.IsZero() {
-		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 0 but recieved %s",
+		t.Errorf("Test Failed - BaseCode GetFullCurrencyData() error expected 0 but received %s",
 			full.LastMainUpdate)
 	}
 }
@@ -263,7 +263,7 @@ func TestCodeString(t *testing.T) {
 	expected := "TEST"
 	cc := NewCode("TEST")
 	if cc.String() != expected {
-		t.Errorf("Test Failed - Currency Code String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Currency Code String() error expected %s but received %s",
 			expected, cc)
 	}
 }
@@ -272,7 +272,7 @@ func TestCodeLower(t *testing.T) {
 	expected := "test"
 	cc := NewCode("TEST")
 	if cc.Lower().String() != expected {
-		t.Errorf("Test Failed - Currency Code Lower() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Currency Code Lower() error expected %s but received %s",
 			expected,
 			cc.Lower())
 	}
@@ -282,7 +282,7 @@ func TestCodeUpper(t *testing.T) {
 	expected := "TEST"
 	cc := NewCode("test")
 	if cc.Upper().String() != expected {
-		t.Errorf("Test Failed - Currency Code Upper() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Currency Code Upper() error expected %s but received %s",
 			expected,
 			cc.Upper())
 	}
@@ -307,7 +307,7 @@ func TestCodeUnmarshalJSON(t *testing.T) {
 	}
 
 	if unmarshalHere.String() != expected {
-		t.Errorf("Test Failed - Currency Code Upper() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Currency Code Upper() error expected %s but received %s",
 			expected,
 			unmarshalHere)
 	}
@@ -328,7 +328,7 @@ func TestCodeMarshalJSON(t *testing.T) {
 	}
 
 	if string(encoded) != expectedJSON {
-		t.Errorf("Test Failed - Currency Code Upper() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Currency Code Upper() error expected %s but received %s",
 			expectedJSON,
 			string(encoded))
 	}
@@ -346,7 +346,7 @@ func TestCodeMarshalJSON(t *testing.T) {
 
 	newExpectedJSON := `{"sweetCodes":""}`
 	if string(encoded) != newExpectedJSON {
-		t.Errorf("Test Failed - Currency Code Upper() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Currency Code Upper() error expected %s but received %s",
 			newExpectedJSON, string(encoded))
 	}
 }
@@ -419,7 +419,7 @@ func TestItemString(t *testing.T) {
 	}
 
 	if newItem.String() != expected {
-		t.Errorf("Test Failed - Item String() error expected %s but recieved %s",
+		t.Errorf("Test Failed - Item String() error expected %s but received %s",
 			expected,
 			&newItem)
 	}

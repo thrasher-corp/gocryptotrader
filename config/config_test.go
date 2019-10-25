@@ -13,7 +13,7 @@ import (
 const (
 	// Default number of enabled exchanges. Modify this whenever an exchange is
 	// added or removed
-	defaultEnabledExchanges = 28
+	defaultEnabledExchanges = 27
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
@@ -1030,8 +1030,8 @@ func TestDisableNTPCheck(t *testing.T) {
 	}
 
 	disable, _ := c.DisableNTPCheck(strings.NewReader("d\n"))
-	if disable != "Future notications for out time sync have been disabled" {
-		t.Errorf("failed expected %v got %v", "Future notications for out time sync have been disabled", disable)
+	if disable != "Future notifications for out of time sync has been disabled" {
+		t.Errorf("failed expected %v got %v", "Future notifications for out of time sync has been disabled", disable)
 	}
 
 	_, err = c.DisableNTPCheck(strings.NewReader(" "))

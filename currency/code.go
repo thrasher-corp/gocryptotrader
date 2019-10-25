@@ -546,7 +546,7 @@ var (
 	BAT        = NewCode("BAT")
 	ETP        = NewCode("ETP")
 	HOT        = NewCode("HOT")
-	STRAT      = NewCode("STRAT")
+	STRAT      = NewCode("STRAT") // nolint: misspell
 	GNT        = NewCode("GNT")
 	REP        = NewCode("REP")
 	SNT        = NewCode("SNT")

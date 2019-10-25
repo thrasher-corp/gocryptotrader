@@ -18,7 +18,7 @@ matrix:
       dist: xenial
       name: 'GoCryptoTrader [back-end] [linux]'
       go:
-        - 1.12.x
+        - 1.13.x
       env:
         - GO111MODULE=on
       install: true
@@ -35,7 +35,7 @@ matrix:
       os: osx
       name: 'GoCryptoTrader [back-end] [darwin]'
       go:
-        - 1.12.x
+        - 1.13.x
       env:
         - GO111MODULE=on
       install: true
