@@ -42,7 +42,7 @@ func (b *BTSE) Run() {
 			if m[x].Status != "active" {
 				continue
 			}
-			currencies = append(currencies, currency.NewPairWithDelimiter(m[x].BaseCurrency, m[x].QuoteCurrency, b.RequestCurrencyPairFormat.Delimiter).String())
+			currencies = append(currencies, m[x].Symbol)
 		}
 		err = b.UpdateCurrencies(currency.NewPairsFromStrings(currencies),
 			false,

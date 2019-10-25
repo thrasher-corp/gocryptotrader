@@ -18,6 +18,7 @@ type HighLevelMarketData map[string]OverviewData
 
 // Market stores market data
 type Market struct {
+	Symbol              string  `json:"symbol"`
 	ID                  string  `json:"id"`
 	BaseCurrency        string  `json:"base_currency"`
 	QuoteCurrency       string  `json:"quote_currency"`

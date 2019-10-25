@@ -19,7 +19,7 @@ import (
 
 const (
 	btseWebsocket      = "wss://ws.btse.com/spotWS"
-	btseWebsocketTimer = 57
+	btseWebsocketTimer = 57 * time.Second
 )
 
 // WsConnect connects the websocket client
@@ -69,7 +69,7 @@ func (b *BTSE) WsHandleData() {
 			}
 			switch {
 			case strings.Contains(result["topic"].(string), "tradeHistory"):
-				log.Warnf("%s: Buy/Sell side functionality is broken for this exchange currently! 'gain' has no correlation with buyside or sell side", b.Name)
+				log.Warnf("%s: Buy/Sell side functionality is broken for this exchange currently! 'gain' has no correlation with buy side or sell side", b.Name)
 				var tradeHistory wsTradeHistory
 				err = common.JSONDecode(resp.Raw, &tradeHistory)
 				if err != nil {
@@ -184,8 +184,7 @@ func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 
 // Pinger pings
 func (b *BTSE) Pinger() {
-	count := btseWebsocketTimer * time.Second
-	ticker := time.NewTicker(count)
+	ticker := time.NewTicker(btseWebsocketTimer)
 
 	for {
 		select {
