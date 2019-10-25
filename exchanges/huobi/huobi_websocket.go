@@ -309,15 +309,15 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	var bids, asks []orderbook.Item
 	for i := range update.Tick.Bids {
 		bids = append(bids, orderbook.Item{
-			Price:  update.Tick.Bids[i].([]interface{})[0].(float64),
-			Amount: update.Tick.Bids[i].([]interface{})[1].(float64),
+			Price:  update.Tick.Bids[i][0].(float64),
+			Amount: update.Tick.Bids[i][1].(float64),
 		})
 	}
 
 	for i := range update.Tick.Asks {
 		asks = append(asks, orderbook.Item{
-			Price:  update.Tick.Asks[i].([]interface{})[0].(float64),
-			Amount: update.Tick.Asks[i].([]interface{})[1].(float64),
+			Price:  update.Tick.Asks[i][0].(float64),
+			Amount: update.Tick.Asks[i][1].(float64),
 		})
 	}
 

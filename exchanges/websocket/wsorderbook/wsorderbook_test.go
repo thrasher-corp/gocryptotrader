@@ -392,6 +392,9 @@ func TestDeleteWithIDs(t *testing.T) {
 		ID:     1337,
 	}
 	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	obl.ob[cp][asset.Spot].Asks = append(obl.ob[cp][asset.Spot].Asks, itemArray[2][0])
+	obl.ob[cp][asset.Spot].Asks = append(obl.ob[cp][asset.Spot].Asks, itemArray[1][0])
+
 	obl.updateEntriesByID = true
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
@@ -408,6 +411,7 @@ func TestDeleteWithIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+
 	if len(obl.ob[curr][asset.Spot].Asks) != 0 {
 		t.Errorf("expected 0 entries, received: %v",
 			len(obl.ob[curr][asset.Spot].Asks))

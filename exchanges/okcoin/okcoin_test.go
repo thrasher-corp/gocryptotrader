@@ -494,7 +494,7 @@ func TestGetSpotOrderBook(t *testing.T) {
 	request := okgroup.GetSpotOrderBookRequest{
 		InstrumentID: spotCurrency,
 	}
-	_, err := o.GetSpotOrderBook(request)
+	_, err := o.GetOrderBook(request, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

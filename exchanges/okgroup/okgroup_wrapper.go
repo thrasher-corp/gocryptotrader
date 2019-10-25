@@ -81,18 +81,18 @@ func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (resp or
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (orderbook.Base, error) {
+	var resp orderbook.Base
 	if a == asset.Index {
-		return orderbook.Base{}, errors.New("no orderbooks for index")
+		return resp, errors.New("no orderbooks for index")
 	}
 
-	orderbookNew, err := o.GetOrderBook(GetSpotOrderBookRequest{
+	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
 		InstrumentID: o.FormatExchangeCurrency(p, a).String(),
 	}, a)
 	if err != nil {
-		return orderbook.Base{}, err
+		return resp, err
 	}
 
-	var resp orderbook.Base
 	for x := range orderbookNew.Bids {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if convErr != nil {
@@ -102,9 +102,26 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (orderbook.Base
 		if convErr != nil {
 			return resp, err
 		}
+
+		var liquidationOrders, orderCount int64
+		// Contract specific variables
+		if len(orderbookNew.Bids[x]) == 4 {
+			liquidationOrders, convErr = strconv.ParseInt(orderbookNew.Bids[x][2], 10, 64)
+			if convErr != nil {
+				return resp, err
+			}
+
+			orderCount, convErr = strconv.ParseInt(orderbookNew.Bids[x][3], 10, 64)
+			if convErr != nil {
+				return resp, err
+			}
+		}
+
 		resp.Bids = append(resp.Bids, orderbook.Item{
-			Amount: amount,
-			Price:  price,
+			Amount:            amount,
+			Price:             price,
+			LiquidationOrders: liquidationOrders,
+			OrderCount:        orderCount,
 		})
 	}
 
@@ -117,9 +134,26 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (orderbook.Base
 		if convErr != nil {
 			return resp, err
 		}
+
+		var liquidationOrders, orderCount int64
+		// Contract specific variables
+		if len(orderbookNew.Asks[x]) == 4 {
+			liquidationOrders, convErr = strconv.ParseInt(orderbookNew.Asks[x][2], 10, 64)
+			if convErr != nil {
+				return resp, err
+			}
+
+			orderCount, convErr = strconv.ParseInt(orderbookNew.Asks[x][3], 10, 64)
+			if convErr != nil {
+				return resp, err
+			}
+		}
+
 		resp.Asks = append(resp.Asks, orderbook.Item{
-			Amount: amount,
-			Price:  price,
+			Amount:            amount,
+			Price:             price,
+			LiquidationOrders: liquidationOrders,
+			OrderCount:        orderCount,
 		})
 	}
 

@@ -320,10 +320,10 @@ type WsDepth struct {
 	Channel   string `json:"ch"`
 	Timestamp int64  `json:"ts"`
 	Tick      struct {
-		Bids      []interface{} `json:"bids"`
-		Asks      []interface{} `json:"asks"`
-		Timestamp int64         `json:"ts"`
-		Version   int64         `json:"version"`
+		Bids      [][]interface{} `json:"bids"`
+		Asks      [][]interface{} `json:"asks"`
+		Timestamp int64           `json:"ts"`
+		Version   int64           `json:"version"`
 	} `json:"tick"`
 }
 

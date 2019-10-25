@@ -529,7 +529,7 @@ func TestGetSpotOrderBook(t *testing.T) {
 	request := okgroup.GetSpotOrderBookRequest{
 		InstrumentID: spotCurrency,
 	}
-	_, err := o.GetOrderBook(request, asset.Spot)
+	_, err := o.GetSpotOrderBook(request, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1036,9 +1036,9 @@ func TestGetFuturesContractInformation(t *testing.T) {
 }
 
 // TestGetFuturesContractInformation API endpoint test
-func TestGetFuturesOrderBook(t *testing.T) {
+func TestGetContractOrderBook(t *testing.T) {
 	TestSetDefaults(t)
-	_, err := o.GetFuturesOrderBook(okgroup.GetFuturesOrderBookRequest{
+	_, err := o.GetContractOrderBook(okgroup.GetContractOrderBookRequest{
 		InstrumentID: getFutureInstrumentID(),
 		Size:         10,
 	})
@@ -1310,19 +1310,6 @@ func TestGetSwapContractInformation(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapContractInformation()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// TestGetSwapOrderBook API endpoint test
-func TestGetSwapOrderBook(t *testing.T) {
-	TestSetDefaults(t)
-	t.Parallel()
-	_, err := o.GetSwapOrderBook(okgroup.GetSwapOrderBookRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
-		Size:         200,
-	})
 	if err != nil {
 		t.Error(err)
 	}

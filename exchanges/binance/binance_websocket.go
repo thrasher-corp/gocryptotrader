@@ -260,29 +260,29 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 	var updateBid, updateAsk []orderbook.Item
 	for i := range wsdp.UpdateBids {
-		var floaties []float64
-		for _, bids := range wsdp.UpdateBids[i].([]interface{}) {
-			val, err := strconv.ParseFloat(bids.(string), 64)
-			if err != nil {
-				return err
-			}
-			floaties = append(floaties, val)
+		p, err := strconv.ParseFloat(wsdp.UpdateBids[i][0].(string), 64)
+		if err != nil {
+			return err
 		}
-		updateBid = append(updateBid, orderbook.Item{Price: floaties[0],
-			Amount: floaties[1]})
+		a, err := strconv.ParseFloat(wsdp.UpdateBids[i][1].(string), 64)
+		if err != nil {
+			return err
+		}
+
+		updateBid = append(updateBid, orderbook.Item{Price: p, Amount: a})
 	}
 
 	for i := range wsdp.UpdateAsks {
-		var floaties []float64
-		for _, asks := range wsdp.UpdateAsks[i].([]interface{}) {
-			val, err := strconv.ParseFloat(asks.(string), 64)
-			if err != nil {
-				return err
-			}
-			floaties = append(floaties, val)
+		p, err := strconv.ParseFloat(wsdp.UpdateAsks[i][0].(string), 64)
+		if err != nil {
+			return err
 		}
-		updateAsk = append(updateAsk, orderbook.Item{Price: floaties[0],
-			Amount: floaties[1]})
+		a, err := strconv.ParseFloat(wsdp.UpdateAsks[i][1].(string), 64)
+		if err != nil {
+			return err
+		}
+
+		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
 	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair, b.GetEnabledPairs(asset.Spot),
 		b.GetPairFormat(asset.Spot, true))

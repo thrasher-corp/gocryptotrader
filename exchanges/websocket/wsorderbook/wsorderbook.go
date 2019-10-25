@@ -176,21 +176,19 @@ func (w *WebsocketOrderbookLocal) updateByIDAndAction(o *orderbook.Base, orderbo
 		}
 	case "delete":
 		for x := range orderbookUpdate.Bids {
-			for y := 0; y < len(o.Bids); {
+			for y := 0; y < len(o.Bids); y++ {
 				if o.Bids[y].ID == orderbookUpdate.Bids[x].ID {
 					o.Bids = append(o.Bids[:y], o.Bids[y+1:]...)
 					break
 				}
-				y++
 			}
 		}
 		for x := range orderbookUpdate.Asks {
-			for y := 0; y < len(o.Asks); {
+			for y := 0; y < len(o.Asks); y++ {
 				if o.Asks[y].ID == orderbookUpdate.Asks[x].ID {
 					o.Asks = append(o.Asks[:y], o.Asks[y+1:]...)
 					break
 				}
-				y++
 			}
 		}
 	case "insert":

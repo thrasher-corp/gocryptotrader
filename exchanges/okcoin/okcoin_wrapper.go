@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -128,6 +129,7 @@ func (o *OKCoin) SetDefaults() {
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	o.LocalOB = make(map[string]orderbook.Base)
 }
 
 // Start starts the OKGroup go routine
@@ -142,7 +144,11 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s. (url: %s).\n",
+			o.GetName(),
+			common.IsEnabled(o.Websocket.IsEnabled()),
+			o.WebsocketURL)
 	}
 
 	forceUpdate := false
@@ -161,7 +167,9 @@ func (o *OKCoin) Run() {
 
 		err := o.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies.\n", o.GetName())
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies.\n",
+				o.GetName())
 			return
 		}
 	}
@@ -172,7 +180,10 @@ func (o *OKCoin) Run() {
 
 	err := o.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", o.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			o.Name,
+			err)
 	}
 }
 

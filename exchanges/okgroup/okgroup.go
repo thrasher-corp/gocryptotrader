@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -99,6 +100,9 @@ type OKGroup struct {
 	APIURL       string
 	APIVersion   string
 	WebsocketURL string
+
+	// copy of last known valid orderbook
+	LocalOB map[string]orderbook.Base
 }
 
 // GetAccountCurrencies returns a list of tradable spot instruments and their properties
@@ -308,9 +312,10 @@ func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsRespo
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, OKGroupInstruments, nil, &resp, false)
 }
 
-// GetOrderBook Getting the order book of a trading pair. Pagination is not supported here.
-// The whole book will be returned for one request. Websocket is recommended here.
-func (o *OKGroup) GetOrderBook(request GetSpotOrderBookRequest, a asset.Item) (resp GetSpotOrderBookResponse, _ error) {
+// GetOrderBook Getting the order book of a trading pair. Pagination is not
+// supported here. The whole book will be returned for one request. Websocket is
+// recommended here.
+func (o *OKGroup) GetOrderBook(request GetOrderBookRequest, a asset.Item) (resp GetOrderBookResponse, _ error) {
 	switch a {
 	case asset.Spot:
 		requestURL := fmt.Sprintf("%v/%v/%v%v",

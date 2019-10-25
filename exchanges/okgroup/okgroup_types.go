@@ -274,15 +274,15 @@ type GetSpotTokenPairDetailsResponse struct {
 	TickSize      string `json:"tick_size"`
 }
 
-// GetSpotOrderBookRequest request data for GetSpotOrderBook
-type GetSpotOrderBookRequest struct {
+// GetOrderBookRequest request data for GetOrderBook
+type GetOrderBookRequest struct {
 	Size         int64   `url:"size,string,omitempty"`  // [optional] number of results per request. Maximum 200
 	Depth        float64 `url:"depth,string,omitempty"` // [optional] the aggregation of the book. e.g . 0.1,0.001
 	InstrumentID string  `url:"-"`                      // [required] trading pairs
 }
 
-// GetSpotOrderBookResponse response data for GetSpotOrderBook
-type GetSpotOrderBookResponse struct {
+// GetOrderBookResponse response data
+type GetOrderBookResponse struct {
 	Timestamp time.Time  `json:"timestamp"`
 	Asks      [][]string `json:"asks"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
 	Bids      [][]string `json:"bids"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
@@ -676,27 +676,6 @@ type GetFuturesContractInformationResponse struct {
 	TickSize        float64 `json:"tick_size,string"`
 	TradeIncrement  int64   `json:"trade_increment,string"`
 	UnderlyingIndex string  `json:"underlying_index"`
-}
-
-// GetFuturesOrderBookRequest request data for GetFuturesOrderBook
-type GetFuturesOrderBookRequest struct {
-	InstrumentID string `url:"-"`              // [required] Contract ID, e.g. "BTC-USD-180213"
-	Size         int64  `url:"size,omitempty"` // [optional] The size of the price range (max: 200)
-}
-
-// FuturesOrderbookItem stores an individual futures orderbook item
-type FuturesOrderbookItem struct {
-	Price                 float64
-	Size                  int64
-	ForceLiquidatedOrders int64 // Number of force liquidated orders
-	NumberOrders          int64 // Number of orders on the price
-}
-
-// GetFuturesOrderBookResponse response data for GetFuturesOrderBook
-type GetFuturesOrderBookResponse struct {
-	Asks      []FuturesOrderbookItem
-	Bids      []FuturesOrderbookItem
-	Timestamp time.Time
 }
 
 // GetFuturesTokenInfoResponse response data for GetFuturesOrderBook
