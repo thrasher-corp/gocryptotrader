@@ -2,21 +2,33 @@ package btse
 
 import "time"
 
-// Market stores market data
-type Market struct {
-	Symbol              string  `json:"symbol"`
-	BaseCurrency        string  `json:"base_currency"`
-	QuoteCurrency       string  `json:"quote_currency"`
-	BaseMinSize         float64 `json:"base_min_size"`
-	BaseMaxSize         float64 `json:"base_max_size"`
-	BaseIncremementSize float64 `json:"base_increment_size"`
-	QuoteMinPrice       float64 `json:"quote_min_price"`
-	QuoteIncrement      float64 `json:"quote_increment"`
-	Status              string  `json:"status"`
+// OverviewData stores market overview data
+type OverviewData struct {
+	High24Hr         float64 `json:"high24hr,string"`
+	HighestBid       float64 `json:"highestbid,string"`
+	Last             float64 `json:"last,string"`
+	Low24Hr          float64 `json:"low24hr,string"`
+	LowestAsk        float64 `json:"lowest_ask,string"`
+	PercentageChange float64 `json:"percent_change,string"`
+	Volume           float64 `json:"volume,string"`
 }
 
-// Markets stores an array of market data
-type Markets []Market
+// HighLevelMarketData stores market overview data
+type HighLevelMarketData map[string]OverviewData
+
+// Market stores market data
+type Market struct {
+	Symbol            string  `json:"symbol"`
+	ID                string  `json:"id"`
+	BaseCurrency      string  `json:"base_currency"`
+	QuoteCurrency     string  `json:"quote_currency"`
+	BaseMinSize       float64 `json:"base_min_size"`
+	BaseMaxSize       float64 `json:"base_max_size"`
+	BaseIncrementSize float64 `json:"base_increment_size"`
+	QuoteMinPrice     float64 `json:"quote_min_price"`
+	QuoteIncrement    float64 `json:"quote_increment"`
+	Status            string  `json:"status"`
+}
 
 // Trade stores trade data
 type Trade struct {
@@ -28,8 +40,19 @@ type Trade struct {
 	Type     string  `json:"type"`
 }
 
-// Trades stores an array of trade data
-type Trades []Trade
+// QuoteData stores quote data
+type QuoteData struct {
+	Price float64 `json:"price,string"`
+	Size  float64 `json:"size,string"`
+}
+
+// Orderbook stores orderbook info
+type Orderbook struct {
+	BuyQuote  []QuoteData `json:"buyQuote"`
+	SellQuote []QuoteData `json:"sellQuote"`
+	Symbol    string      `json:"symbol"`
+	Timestamp int64       `json:"timestamp"`
+}
 
 // Ticker stores the ticker data
 type Ticker struct {
@@ -64,9 +87,6 @@ type CurrencyBalance struct {
 	Available float64 `json:"available,string"`
 }
 
-// AccountBalance stores an array of currency balances
-type AccountBalance []CurrencyBalance
-
 // Order stores the order info
 type Order struct {
 	ID        string  `json:"id"`
@@ -75,7 +95,7 @@ type Order struct {
 	Price     float64 `json:"price"`
 	Amount    float64 `json:"amount"`
 	Tag       string  `json:"tag"`
-	ProductID string  `json:"product_id"`
+	Symbol    string  `json:"symbol"`
 	CreatedAt string  `json:"created_at"`
 }
 
@@ -84,9 +104,6 @@ type OpenOrder struct {
 	Order
 	Status string `json:"status"`
 }
-
-// OpenOrders stores an array of orders
-type OpenOrders []OpenOrder
 
 // CancelOrder stores the cancel order response data
 type CancelOrder struct {
@@ -103,35 +120,43 @@ type FilledOrder struct {
 	Tag       string  `json:"tag"`
 	ID        int64   `json:"id"`
 	TradeID   string  `json:"trade_id"`
-	ProductID string  `json:"product_id"`
+	Symbol    string  `json:"symbol"`
 	OrderID   string  `json:"order_id"`
 	CreatedAt string  `json:"created_at"`
 }
 
-// FilledOrders stores an array of filled orders
-type FilledOrders []FilledOrder
-
-type websocketSubscribe struct {
-	Type     string             `json:"type"`
-	Channels []websocketChannel `json:"channels"`
+type wsSub struct {
+	Operation string   `json:"op"`
+	Arguments []string `json:"args"`
 }
 
-type websocketChannel struct {
-	Name       string   `json:"name"`
-	ProductIDs []string `json:"product_ids"`
+type wsQuoteData struct {
+	Total string `json:"cumulativeTotal"`
+	Price string `json:"price"`
+	Size  string `json:"size"`
 }
 
-type wsTicker struct {
-	BestAsk   float64     `json:"best_ask,string"`
-	BestBids  float64     `json:"best_bid,string"`
-	LastSize  float64     `json:"last_size,string"`
-	Price     interface{} `json:"price"`
-	ProductID string      `json:"product_id"`
+type wsOBData struct {
+	Currency  string        `json:"currency"`
+	BuyQuote  []wsQuoteData `json:"buyQuote"`
+	SellQuote []wsQuoteData `json:"sellQuote"`
 }
 
-type websocketOrderbookSnapshot struct {
-	ProductID string          `json:"product_id"`
-	Type      string          `json:"type"`
-	Bids      [][]interface{} `json:"bids"`
-	Asks      [][]interface{} `json:"asks"`
+type wsOrderBook struct {
+	Topic string   `json:"topic"`
+	Data  wsOBData `json:"data"`
+}
+
+type wsTradeData struct {
+	Amount          float64 `json:"amount"`
+	Gain            int64   `json:"gain"`
+	Newest          int64   `json:"newest"`
+	Price           float64 `json:"price"`
+	ID              int64   `json:"serialId"`
+	TransactionTime int64   `json:"transactionUnixTime"`
+}
+
+type wsTradeHistory struct {
+	Topic string        `json:"topic"`
+	Data  []wsTradeData `json:"data"`
 }
