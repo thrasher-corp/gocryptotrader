@@ -215,8 +215,8 @@ func TestGetFee(t *testing.T) {
 	}
 
 	feeBuilder.IsMaker = false
-	if resp, err := b.GetFee(feeBuilder); resp != 0.0015 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 0.0015, resp)
+	if resp, err := b.GetFee(feeBuilder); resp != 0.001000 || err != nil {
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", 0.001000, resp)
 		t.Error(err)
 	}
 
@@ -227,8 +227,8 @@ func TestGetFee(t *testing.T) {
 	}
 
 	feeBuilder.Pair.Base = currency.USDT
-	if resp, err := b.GetFee(feeBuilder); resp != float64(5) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(5), resp)
+	if resp, err := b.GetFee(feeBuilder); resp != 1.080000 || err != nil {
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", 1.080000, resp)
 		t.Error(err)
 	}
 
