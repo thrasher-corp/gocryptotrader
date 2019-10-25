@@ -338,16 +338,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
-
 	resp, err := b.CancelAllOrders(orderCancellation)
 
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
+	if err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
-
 	if len(resp.OrderStatus) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
