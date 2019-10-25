@@ -43,7 +43,6 @@ const (
 	btseOrder         = "order"
 	btsePendingOrders = "pending"
 	btseDeleteOrder   = "deleteOrder"
-	btseDeleteOrders  = "deleteOrders"
 	btseFills         = "fills"
 )
 
