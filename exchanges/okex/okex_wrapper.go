@@ -82,7 +82,17 @@ func (o *OKEX) SetDefaults() {
 	o.CurrencyPairs.Store(asset.PerpetualSwap, fmt1)
 	o.CurrencyPairs.Store(asset.Futures, fmt1)
 
-	fmt2 := currency.PairStore{
+	index := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: delimiterDash,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	}
+
+	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: delimiterDash,
@@ -92,8 +102,8 @@ func (o *OKEX) SetDefaults() {
 			Delimiter: delimiterDash,
 		},
 	}
-	o.CurrencyPairs.Store(asset.Spot, fmt2)
-	o.CurrencyPairs.Store(asset.Index, fmt2)
+	o.CurrencyPairs.Store(asset.Spot, spot)
+	o.CurrencyPairs.Store(asset.Index, index)
 
 	o.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

@@ -568,11 +568,17 @@ func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) (err error
 
 		if response.Action == okGroupWsOrderbookPartial {
 			err = o.WsProcessPartialOrderBook(&response.Data[i], c, a)
+			if err != nil {
+				return
+			}
 		} else if response.Action == okGroupWsOrderbookUpdate {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
 				continue
 			}
 			err = o.WsProcessUpdateOrderbook(&response.Data[i], c, a)
+			if err != nil {
+				return
+			}
 		}
 	}
 	return
@@ -652,6 +658,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		CurrencyPair: instrument,
 		UpdateTime:   wsEventData.Timestamp,
 	}
+
 	var err error
 	update.Asks, err = o.AppendWsOrderbookItems(wsEventData.Asks)
 	if err != nil {
@@ -671,8 +678,8 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		return nil
 	}
 
-	QuickRun(scopedOB.Asks, update.Asks, true)
-	QuickRun(scopedOB.Bids, update.Bids, false)
+	scopedOB.Asks = ProcessOB(scopedOB.Asks, update.Asks, true)
+	scopedOB.Bids = ProcessOB(scopedOB.Bids, update.Bids, false)
 	scopedOB.LastUpdated = update.UpdateTime
 
 	checksum := o.CalculateUpdateOrderbookChecksum(&scopedOB)
@@ -695,8 +702,8 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 	return nil
 }
 
-// QuickRun updates orderbook items
-func QuickRun(ob []orderbook.Item, changes []orderbook.Item, ask bool) {
+// ProcessOB updates orderbook items
+func ProcessOB(ob []orderbook.Item, changes []orderbook.Item, ask bool) []orderbook.Item {
 changes:
 	for x := range changes {
 		for y := range ob {
@@ -720,6 +727,7 @@ changes:
 			return ob[i].Price > ob[j].Price
 		})
 	}
+	return ob
 }
 
 // CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask

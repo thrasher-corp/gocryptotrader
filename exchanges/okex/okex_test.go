@@ -522,19 +522,6 @@ func TestGetSpotTokenPairDetails(t *testing.T) {
 	}
 }
 
-// TestGetSpotOrderBook API endpoint test
-func TestGetSpotOrderBook(t *testing.T) {
-	TestSetDefaults(t)
-	t.Parallel()
-	request := okgroup.GetSpotOrderBookRequest{
-		InstrumentID: spotCurrency,
-	}
-	_, err := o.GetSpotOrderBook(request, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 // TestGetSpotAllTokenPairsInformation API endpoint test
 func TestGetSpotAllTokenPairsInformation(t *testing.T) {
 	TestSetDefaults(t)
@@ -1030,18 +1017,6 @@ func TestGetFuturesContractInformation(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetFuturesContractInformation()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// TestGetFuturesContractInformation API endpoint test
-func TestGetContractOrderBook(t *testing.T) {
-	TestSetDefaults(t)
-	_, err := o.GetContractOrderBook(okgroup.GetContractOrderBookRequest{
-		InstrumentID: getFutureInstrumentID(),
-		Size:         10,
-	})
 	if err != nil {
 		t.Error(err)
 	}
