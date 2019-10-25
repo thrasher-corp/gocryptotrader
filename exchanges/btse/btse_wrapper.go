@@ -110,12 +110,12 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Bas
 		return resp, err
 	}
 	for x := range a.BuyQuote {
-		resp.Asks = append(resp.Asks, orderbook.Item{
+		resp.Bids = append(resp.Asks, orderbook.Item{
 			Price:  a.SellQuote[x].Price,
 			Amount: a.SellQuote[x].Size})
 	}
 	for x := range a.SellQuote {
-		resp.Bids = append(resp.Bids, orderbook.Item{
+		resp.Asks = append(resp.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
 			Amount: a.BuyQuote[x].Size})
 	}
@@ -352,7 +352,7 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 
 		fills, err := b.GetFills(resp[i].ID, "", "", "", "", "")
 		if err != nil {
-			log.Errorf("unable to get order fills for orderID %s", resp[i].ID)
+			log.Errorf("%s: unable to get order fills for orderID %s", b.Name, resp[i].ID)
 			continue
 		}
 
