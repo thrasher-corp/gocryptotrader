@@ -36,6 +36,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func areTestAPIKeysSet() bool {
+	if b.APIKey != "" && b.APIKey != "Key" &&
+		b.APISecret != "" && b.APISecret != "Secret" {
+		return true
+	}
+	return false
+}
+
 func TestGetMarketsSummary(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMarketsSummary()
@@ -117,10 +125,7 @@ func TestGetFills(t *testing.T) {
 
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys not set, skipping test")
-	}
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	_, err := b.CreateOrder(4.5, 3.4, "buy", "limit", "BTC-USD", "", "")
@@ -265,22 +270,13 @@ func TestParseOrderTime(t *testing.T) {
 	}
 }
 
-func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
-}
-
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
 	var p = currency.Pair{
 		Delimiter: "",
 		Base:      currency.BTC,
@@ -296,11 +292,9 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
 	currencyPair := currency.NewPairWithDelimiter(currency.BTC.String(),
 		currency.USD.String(),
 		"-")
@@ -311,7 +305,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
-
 	err := b.CancelOrder(orderCancellation)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -323,11 +316,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
 	currencyPair := currency.NewPairWithDelimiter(currency.BTC.String(),
 		currency.USD.String(),
 		"-")
