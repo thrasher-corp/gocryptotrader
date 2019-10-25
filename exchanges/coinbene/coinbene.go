@@ -92,7 +92,6 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) {
 		c.Enabled = true
 		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		c.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
-		log.Println(exch.APISecret)
 		c.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		c.SetHTTPClientTimeout(exch.HTTPTimeout)
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
@@ -330,7 +329,6 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 	headers["ACCESS-KEY"] = c.APIKey
 	headers["ACCESS-SIGN"] = common.HexEncodeToString(tempSign)
 	headers["ACCESS-TIMESTAMP"] = timestamp
-	headers["Cookie"] = "locale=zh_CN"
 	return c.SendPayload(method,
 		path,
 		headers,
