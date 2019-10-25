@@ -9,7 +9,7 @@ type OverviewData struct {
 	Last             float64 `json:"last,string"`
 	Low24Hr          float64 `json:"low24hr,string"`
 	LowestAsk        float64 `json:"lowest_ask,string"`
-	PercentageChange float64 `json:"percentage_change,string"`
+	PercentageChange float64 `json:"percent_change,string"`
 	Volume           float64 `json:"volume,string"`
 }
 
@@ -18,16 +18,16 @@ type HighLevelMarketData map[string]OverviewData
 
 // Market stores market data
 type Market struct {
-	Symbol              string  `json:"symbol"`
-	ID                  string  `json:"id"`
-	BaseCurrency        string  `json:"base_currency"`
-	QuoteCurrency       string  `json:"quote_currency"`
-	BaseMinSize         float64 `json:"base_min_size"`
-	BaseMaxSize         float64 `json:"base_max_size"`
-	BaseIncremementSize float64 `json:"base_increment_size"`
-	QuoteMinPrice       float64 `json:"quote_min_price"`
-	QuoteIncrement      float64 `json:"quote_increment"`
-	Status              string  `json:"status"`
+	Symbol            string  `json:"symbol"`
+	ID                string  `json:"id"`
+	BaseCurrency      string  `json:"base_currency"`
+	QuoteCurrency     string  `json:"quote_currency"`
+	BaseMinSize       float64 `json:"base_min_size"`
+	BaseMaxSize       float64 `json:"base_max_size"`
+	BaseIncrementSize float64 `json:"base_increment_size"`
+	QuoteMinPrice     float64 `json:"quote_min_price"`
+	QuoteIncrement    float64 `json:"quote_increment"`
+	Status            string  `json:"status"`
 }
 
 // Trade stores trade data
@@ -148,12 +148,12 @@ type wsOrderBook struct {
 }
 
 type wsTradeData struct {
-	Amount           float64 `json:"amount"`
-	Gain             int64   `json:"gain"`
-	Newest           int64   `json:"newest"`
-	Price            float64 `json:"price"`
-	ID               int64   `json:"serialId"`
-	TrasnsactionTime int64   `json:"transactionUnixTime"`
+	Amount          float64 `json:"amount"`
+	Gain            int64   `json:"gain"`
+	Newest          int64   `json:"newest"`
+	Price           float64 `json:"price"`
+	ID              int64   `json:"serialId"`
+	TransactionTime int64   `json:"transactionUnixTime"`
 }
 
 type wsTradeHistory struct {

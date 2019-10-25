@@ -82,7 +82,7 @@ func (b *BTSE) WsHandleData() {
 						side = exchange.SellOrderSide.ToString()
 					}
 					b.Websocket.DataHandler <- wshandler.TradeData{
-						Timestamp:    time.Unix(tradeHistory.Data[x].TrasnsactionTime, 0),
+						Timestamp:    time.Unix(tradeHistory.Data[x].TransactionTime, 0),
 						CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory", "", 1)),
 						AssetType:    orderbook.Spot,
 						Exchange:     b.Name,

@@ -351,7 +351,7 @@ func (b *BTSE) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = calculateTradingFee(feeBuilder.IsMaker)
+		fee = calculateTradingFee(feeBuilder.IsMaker) * feeBuilder.Amount * feeBuilder.PurchasePrice
 	case exchange.CryptocurrencyWithdrawalFee:
 		switch feeBuilder.Pair.Base {
 		case currency.USDT:
@@ -386,7 +386,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 // The small deposit fee is charged in whatever currency it comes in.
 func getInternationalBankDepositFee(amount float64) float64 {
 	var fee float64
-	if amount <= 1000 {
+	if amount <= 100 {
 		fee = amount * 0.0025
 		if fee < 3 {
 			return 3
@@ -398,7 +398,7 @@ func getInternationalBankDepositFee(amount float64) float64 {
 // getInternationalBankWithdrawalFee returns international withdrawal fee
 // 0.1% (min25 USD)
 func getInternationalBankWithdrawalFee(amount float64) float64 {
-	fee := amount * 0.001
+	fee := amount * 0.0009
 
 	if fee < 25 {
 		return 25
