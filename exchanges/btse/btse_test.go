@@ -186,10 +186,11 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := &exchange.FeeBuilder{
-		FeeType: exchange.CryptocurrencyTradeFee,
-		Pair:    currency.NewPair(currency.BTC, currency.USD),
-		IsMaker: true,
-		Amount:  1000,
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		Pair:          currency.NewPair(currency.BTC, currency.USD),
+		IsMaker:       true,
+		Amount:        1,
+		PurchasePrice: 1000,
 	}
 
 	b.GetFeeByType(feeBuilder)
@@ -208,20 +209,21 @@ func TestGetFee(t *testing.T) {
 	t.Parallel()
 
 	feeBuilder := &exchange.FeeBuilder{
-		FeeType: exchange.CryptocurrencyTradeFee,
-		Pair:    currency.NewPair(currency.BTC, currency.USD),
-		IsMaker: true,
-		Amount:  1000,
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		Pair:          currency.NewPair(currency.BTC, currency.USD),
+		IsMaker:       true,
+		Amount:        1,
+		PurchasePrice: 1000,
 	}
 
-	if resp, err := b.GetFee(feeBuilder); resp != 0.00050 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 0.00050, resp)
+	if resp, err := b.GetFee(feeBuilder); resp != 0.500000 || err != nil {
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", 0.500000, resp)
 		t.Error(err)
 	}
 
 	feeBuilder.IsMaker = false
-	if resp, err := b.GetFee(feeBuilder); resp != 0.001000 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 0.001000, resp)
+	if resp, err := b.GetFee(feeBuilder); resp != 1.00000 || err != nil {
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", 1.00000, resp)
 		t.Error(err)
 	}
 
@@ -250,8 +252,8 @@ func TestGetFee(t *testing.T) {
 	}
 
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	if resp, err := b.GetFee(feeBuilder); resp != float64(1000) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(1000), resp)
+	if resp, err := b.GetFee(feeBuilder); resp != float64(900) || err != nil {
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(900), resp)
 		t.Error(err)
 	}
 
