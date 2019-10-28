@@ -92,6 +92,8 @@ func (b *BTSE) SetDefaults() {
 				OrderbookFetching: true,
 				Subscribe:         true,
 				Unsubscribe:       true,
+				// TradeHistory is supported but it is currently broken on BTSE's
+				// API so it has been left as unsupported
 			},
 			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
 		},
@@ -184,26 +186,26 @@ func (b *BTSE) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update tradable pairs. Error: %s", b.Name, err)
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTSE) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	markets, err := b.GetMarkets()
+	m, err := b.GetMarkets()
 	if err != nil {
 		return nil, err
 	}
 
-	var pairs []string
-	for _, m := range *markets {
-		if m.Status != "active" {
+	var currencies []string
+	for x := range m {
+		if m[x].Status != "active" {
 			continue
 		}
-		pairs = append(pairs, m.Symbol)
+		currencies = append(currencies, m[x].Symbol)
 	}
-
-	return pairs, nil
+	return currencies, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -270,40 +272,28 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
-	obNew, err := b.GetOrderbook(
-		b.FormatExchangeCurrency(p, assetType).String(), 0, 0, 0)
+	var resp orderbook.Base
+	a, err := b.FetchOrderBook(b.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
-		return orderBook, err
+		return resp, err
 	}
-
-	for x := range obNew.Bids {
-		orderBook.Bids = append(orderBook.Bids,
-			orderbook.Item{
-				Amount: obNew.Bids[x].Size,
-				Price:  obNew.Bids[x].Price,
-			},
-		)
+	for x := range a.BuyQuote {
+		resp.Bids = append(resp.Bids, orderbook.Item{
+			Price:  a.BuyQuote[x].Price,
+			Amount: a.BuyQuote[x].Size})
 	}
-
-	for x := range obNew.Asks {
-		orderBook.Asks = append(orderBook.Asks,
-			orderbook.Item{
-				Amount: obNew.Asks[x].Size,
-				Price:  obNew.Asks[x].Price,
-			},
-		)
+	for x := range a.SellQuote {
+		resp.Asks = append(resp.Asks, orderbook.Item{
+			Price:  a.SellQuote[x].Price,
+			Amount: a.SellQuote[x].Size})
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	resp.Pair = p
+	resp.ExchangeName = b.Name
+	resp.AssetType = assetType
+	err = resp.Process()
 	if err != nil {
-		return orderBook, err
+		return resp, err
 	}
-
 	return orderbook.Get(b.Name, p, assetType)
 }
 
@@ -317,12 +307,12 @@ func (b *BTSE) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var currencies []exchange.AccountCurrencyInfo
-	for _, b := range *balance {
+	for b := range balance {
 		currencies = append(currencies,
 			exchange.AccountCurrencyInfo{
-				CurrencyName: currency.NewCode(b.Currency),
-				TotalValue:   b.Total,
-				Hold:         b.Available,
+				CurrencyName: currency.NewCode(balance[b].Currency),
+				TotalValue:   balance[b].Total,
+				Hold:         balance[b].Available,
 			},
 		)
 	}
@@ -357,9 +347,13 @@ func (b *BTSE) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrde
 		return resp, err
 	}
 
-	r, err := b.CreateOrder(order.Amount, order.Price, order.OrderSide.ToString(),
-		order.OrderType.ToString(), b.FormatExchangeCurrency(order.Pair,
-			asset.Spot).String(), "GTC", order.ClientID)
+	r, err := b.CreateOrder(order.Amount,
+		order.Price,
+		order.OrderSide.ToString(),
+		order.OrderType.ToString(),
+		b.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
+		goodTillCancel,
+		order.ClientID)
 	if err != nil {
 		return resp, err
 	}
@@ -402,19 +396,35 @@ func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
-	r, err := b.CancelOrders(b.FormatExchangeCurrency(
-		orderCancellation.CurrencyPair, asset.Spot).String())
+	markets, err := b.GetMarkets()
 	if err != nil {
 		return resp, err
 	}
 
-	switch r.Code {
-	case -1:
-		return resp, errors.New("order cancellation unsuccessful")
-	case 4:
-		return resp, errors.New("order cancellation timeout")
+	resp.OrderStatus = make(map[string]string)
+	for x := range markets {
+		strPair := b.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+			orderCancellation.AssetType).String()
+		checkPair := currency.NewPairWithDelimiter(markets[x].BaseCurrency,
+			markets[x].QuoteCurrency,
+			b.GetPairFormat(asset.Spot, false).Delimiter).String()
+		if strPair != "" && strPair != checkPair {
+			continue
+		} else {
+			orders, err := b.GetOrders(checkPair)
+			if err != nil {
+				return resp, err
+			}
+			for y := range orders {
+				success := "Order Cancelled"
+				_, err = b.CancelExistingOrder(orders[y].Order.ID, checkPair)
+				if err != nil {
+					success = "Order Cancellation Failed"
+				}
+				resp.OrderStatus[orders[y].Order.ID] = success
+			}
+		}
 	}
-
 	return resp, nil
 }
 
@@ -426,48 +436,46 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	}
 
 	var od exchange.OrderDetail
-	if len(*o) == 0 {
+	if len(o) == 0 {
 		return od, errors.New("no orders found")
 	}
 
-	for i := range *o {
-		o := (*o)[i]
-		if o.ID != orderID {
+	for i := range o {
+		if o[i].ID != orderID {
 			continue
 		}
 
 		var side = exchange.BuyOrderSide
-		if strings.EqualFold(o.Side, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(o[i].Side, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
 		}
 
-		od.CurrencyPair = currency.NewPairDelimiter(o.ProductID,
+		od.CurrencyPair = currency.NewPairDelimiter(o[i].Symbol,
 			b.GetPairFormat(asset.Spot, false).Delimiter)
 		od.Exchange = b.Name
-		od.Amount = o.Amount
-		od.ID = o.ID
-		od.OrderDate = parseOrderTime(o.CreatedAt)
+		od.Amount = o[i].Amount
+		od.ID = o[i].ID
+		od.OrderDate = parseOrderTime(o[i].CreatedAt)
 		od.OrderSide = side
-		od.OrderType = exchange.OrderType(strings.ToUpper(o.Type))
-		od.Price = o.Price
-		od.Status = o.Status
+		od.OrderType = exchange.OrderType(strings.ToUpper(o[i].Type))
+		od.Price = o[i].Price
+		od.Status = o[i].Status
 
-		fills, err := b.GetFills(orderID, "", "", "", "")
+		fills, err := b.GetFills(orderID, "", "", "", "", "")
 		if err != nil {
 			return od, fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
 
-		for i := range *fills {
-			f := (*fills)[i]
-			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+		for i := range fills {
+			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
 			od.Trades = append(od.Trades, exchange.TradeHistory{
 				Timestamp: createdAt,
-				TID:       f.ID,
-				Price:     f.Price,
-				Amount:    f.Amount,
+				TID:       fills[i].ID,
+				Price:     fills[i].Price,
+				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      exchange.OrderSide(f.Side).ToString(),
-				Fee:       f.Fee,
+				Type:      fills[i].Side,
+				Fee:       fills[i].Fee,
 			})
 		}
 	}
@@ -510,43 +518,43 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 	}
 
 	var orders []exchange.OrderDetail
-	for i := range *resp {
-		order := (*resp)[i]
+	for i := range resp {
 		var side = exchange.BuyOrderSide
-		if strings.EqualFold(order.Side, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(resp[i].Side, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
 		}
 
 		openOrder := exchange.OrderDetail{
-			CurrencyPair: currency.NewPairDelimiter(order.ProductID,
+			CurrencyPair: currency.NewPairDelimiter(resp[i].Symbol,
 				b.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange:  b.Name,
-			Amount:    order.Amount,
-			ID:        order.ID,
-			OrderDate: parseOrderTime(order.CreatedAt),
+			Amount:    resp[i].Amount,
+			ID:        resp[i].ID,
+			OrderDate: parseOrderTime(resp[i].CreatedAt),
 			OrderSide: side,
-			OrderType: exchange.OrderType(strings.ToUpper(order.Type)),
-			Price:     order.Price,
-			Status:    order.Status,
+			OrderType: exchange.OrderType(strings.ToUpper(resp[i].Type)),
+			Price:     resp[i].Price,
+			Status:    resp[i].Status,
 		}
 
-		fills, err := b.GetFills(order.ID, "", "", "", "")
+		fills, err := b.GetFills(resp[i].ID, "", "", "", "", "")
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "unable to get order fills for orderID %s", order.ID)
+			log.Errorf(log.ExchangeSys,
+				"%s: Unable to get order fills for orderID %s", b.Name,
+				resp[i].ID)
 			continue
 		}
 
-		for i := range *fills {
-			f := (*fills)[i]
-			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+		for i := range fills {
+			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
 			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
 				Timestamp: createdAt,
-				TID:       f.ID,
-				Price:     f.Price,
-				Amount:    f.Amount,
+				TID:       fills[i].ID,
+				Price:     fills[i].Price,
+				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      exchange.OrderSide(f.Side).ToString(),
-				Fee:       f.Fee,
+				Type:      fills[i].Side,
+				Fee:       fills[i].Fee,
 			})
 		}
 		orders = append(orders, openOrder)
