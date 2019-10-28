@@ -5,12 +5,17 @@ import (
 	"time"
 )
 
+// NewTimedMutex creates a new timed mutex with a
+// specified duration
 func NewTimedMutex(length time.Duration) *TimedMutex {
 	return &TimedMutex{
 		duration: length,
 	}
 }
 
+// LockForDuration will start a timer, lock the mutex,
+// then allow the caller to continue
+// After the duration, the mutex will be unlocked
 func (t *TimedMutex) LockForDuration() {
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -25,7 +30,6 @@ func (t *TimedMutex) lockAndSetTimer(wg *sync.WaitGroup) {
 }
 
 // UnlockIfLocked will unlock the mutex if its currently locked
-// The timer will be nil if the timeout has been hit
 // Will return true if successfully unlocked
 func (t *TimedMutex) UnlockIfLocked() bool {
 	if t.isTimerNil() {
@@ -39,12 +43,14 @@ func (t *TimedMutex) UnlockIfLocked() bool {
 	return true
 }
 
+// stopTimer will return true if timer has been stopped by this command
+// If the timer has expired, clear the channel
 func (t *TimedMutex) stopTimer() bool {
 	t.timerLock.Lock()
 	defer t.timerLock.Unlock()
-	if !t.Timer.Stop() {
+	if !t.timer.Stop() {
 		select {
-		case <-t.Timer.C:
+		case <-t.timer.C:
 		default:
 		}
 		return false
@@ -52,15 +58,19 @@ func (t *TimedMutex) stopTimer() bool {
 	return true
 }
 
+// isTimerNil safely read locks to detect nil
 func (t *TimedMutex) isTimerNil() bool {
 	t.timerLock.RLock()
 	defer t.timerLock.RUnlock()
-	return t.Timer == nil
+	return t.timer == nil
 }
 
+// setTimer safely locks and sets a timer
+// which will automatically execute a mutex unlock
+// once timer expires
 func (t *TimedMutex) setTimer() {
 	t.timerLock.Lock()
-	t.Timer = time.AfterFunc(t.duration, func() {
+	t.timer = time.AfterFunc(t.duration, func() {
 		t.mtx.Unlock()
 	})
 	t.timerLock.Unlock()

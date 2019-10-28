@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func BenchmarkThreePlatesLightWeight(b *testing.B) {
+func BenchmarkTimedMutexTime(b *testing.B) {
 	tm := NewTimedMutex(20 * time.Millisecond)
 	for i := 0; i < b.N; i++ {
 		tm.LockForDuration()
