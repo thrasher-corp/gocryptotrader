@@ -149,7 +149,7 @@ const (
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be
-//processed at a time
+// processed at a time
 var orderbookMutex sync.Mutex
 
 var defaultSpotSubscribedChannels = []string{okGroupWsSpotDepth,
@@ -400,7 +400,6 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 					Currency: c,
 				}
 				o.Websocket.ResubscribeToChannel(channelToResubscribe)
-				break
 			}
 		}
 		orderbookMutex.Unlock()
@@ -703,7 +702,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 }
 
 // ProcessOB updates orderbook items
-func ProcessOB(ob []orderbook.Item, changes []orderbook.Item, ask bool) []orderbook.Item {
+func ProcessOB(ob, changes []orderbook.Item, ask bool) []orderbook.Item {
 changes:
 	for x := range changes {
 		for y := range ob {

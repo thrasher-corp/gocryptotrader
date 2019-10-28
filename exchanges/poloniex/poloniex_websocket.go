@@ -148,7 +148,7 @@ func (p *Poloniex) WsHandleData() {
 									continue
 								}
 
-								err := p.WsProcessOrderbookSnapshot(orderbookData,
+								err = p.WsProcessOrderbookSnapshot(orderbookData,
 									currencyPair)
 								if err != nil {
 									p.Websocket.DataHandler <- err
@@ -162,7 +162,7 @@ func (p *Poloniex) WsHandleData() {
 								}
 							case "o":
 								currencyPair := currencyIDMap[chanID]
-								err := p.WsProcessOrderbookUpdate(int64(data[1].(float64)),
+								err = p.WsProcessOrderbookUpdate(int64(data[1].(float64)),
 									dataL3,
 									currencyPair)
 								if err != nil {
