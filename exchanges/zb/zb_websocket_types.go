@@ -43,9 +43,9 @@ type WsTicker struct {
 
 // WsDepth defines websocket orderbook data
 type WsDepth struct {
-	Timestamp int64         `json:"timestamp"`
-	Asks      []interface{} `json:"asks"`
-	Bids      []interface{} `json:"bids"`
+	Timestamp int64           `json:"timestamp"`
+	Asks      [][]interface{} `json:"asks"`
+	Bids      [][]interface{} `json:"bids"`
 }
 
 // WsTrades defines websocket trade data

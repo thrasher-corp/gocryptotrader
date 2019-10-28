@@ -316,46 +316,31 @@ func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsRespo
 // supported here. The whole book will be returned for one request. Websocket is
 // recommended here.
 func (o *OKGroup) GetOrderBook(request GetOrderBookRequest, a asset.Item) (resp GetOrderBookResponse, _ error) {
+	var requestType, endpoint string
 	switch a {
 	case asset.Spot:
-		requestURL := fmt.Sprintf("%v/%v/%v%v",
-			OKGroupInstruments,
-			request.InstrumentID,
-			OKGroupGetSpotOrderBook,
-			FormatParameters(request))
-		return resp, o.SendHTTPRequest(http.MethodGet,
-			okGroupTokenSubsection,
-			requestURL,
-			nil,
-			&resp,
-			false)
+		endpoint = OKGroupGetSpotOrderBook
+		requestType = okGroupTokenSubsection
 	case asset.Futures:
-		requestURL := fmt.Sprintf("%v/%v/%v%v",
-			OKGroupInstruments,
-			request.InstrumentID,
-			"book",
-			FormatParameters(request))
-		return resp, o.SendHTTPRequest(http.MethodGet,
-			"futures",
-			requestURL,
-			nil,
-			&resp,
-			false)
+		endpoint = OKGroupGetSpotOrderBook
+		requestType = "futures"
 	case asset.PerpetualSwap:
-		requestURL := fmt.Sprintf("%v/%v/%v%v",
-			OKGroupInstruments,
-			request.InstrumentID,
-			"depth",
-			FormatParameters(request))
-		return resp, o.SendHTTPRequest(http.MethodGet,
-			"swap",
-			requestURL,
-			nil,
-			&resp,
-			false)
+		endpoint = "depth"
+		requestType = "swap"
 	default:
 		return resp, errors.New("unhandled asset type")
 	}
+	requestURL := fmt.Sprintf("%v/%v/%v%v",
+		OKGroupInstruments,
+		request.InstrumentID,
+		endpoint,
+		FormatParameters(request))
+	return resp, o.SendHTTPRequest(http.MethodGet,
+		requestType,
+		requestURL,
+		nil,
+		&resp,
+		false)
 }
 
 // GetSpotAllTokenPairsInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all trading pairs.

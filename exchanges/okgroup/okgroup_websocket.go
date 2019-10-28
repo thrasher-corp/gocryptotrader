@@ -679,7 +679,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 
 	scopedOB.Asks = ProcessOB(scopedOB.Asks, update.Asks, true)
 	scopedOB.Bids = ProcessOB(scopedOB.Bids, update.Bids, false)
-	scopedOB.LastUpdated = update.UpdateTime
+	scopedOB.LastUpdated = wsEventData.Timestamp
 
 	checksum := o.CalculateUpdateOrderbookChecksum(&scopedOB)
 	if checksum != wsEventData.Checksum {
@@ -698,6 +698,13 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 
 	// assign new verified orderbook
 	o.LocalOB[wsEventData.InstrumentID] = scopedOB
+
+	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+		Exchange: o.GetName(),
+		Asset:    a,
+		Pair:     instrument,
+	}
+
 	return nil
 }
 

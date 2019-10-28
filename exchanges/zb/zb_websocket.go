@@ -120,16 +120,16 @@ func (z *ZB) WsHandleData() {
 				var asks []orderbook.Item
 				for i := range depth.Asks {
 					asks = append(asks, orderbook.Item{
-						Amount: depth.Asks[i].([]interface{})[1].(float64),
-						Price:  depth.Asks[i].([]interface{})[0].(float64),
+						Amount: depth.Asks[i][1].(float64),
+						Price:  depth.Asks[i][0].(float64),
 					})
 				}
 
 				var bids []orderbook.Item
 				for i := range depth.Bids {
 					bids = append(bids, orderbook.Item{
-						Amount: depth.Bids[i].([]interface{})[1].(float64),
-						Price:  depth.Bids[i].([]interface{})[0].(float64),
+						Amount: depth.Bids[i][1].(float64),
+						Price:  depth.Bids[i][0].(float64),
 					})
 				}
 
