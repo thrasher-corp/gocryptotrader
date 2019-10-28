@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -385,7 +386,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 			b.Name)
 	}
 
-	n := b.Requester.GetNonce(true).String()[0:13]
+	n := fmt.Sprintf("%v", time.Now().UnixNano())[0:13]
 
 	var req string
 	payload := []byte("")
@@ -424,7 +425,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 		bytes.NewBuffer(payload),
 		result,
 		true,
-		true,
+		false,
 		b.Verbose,
 		b.HTTPDebugging,
 		b.HTTPRecording)
