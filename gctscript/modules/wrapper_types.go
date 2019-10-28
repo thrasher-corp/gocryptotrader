@@ -22,7 +22,7 @@ type Exchange interface {
 	Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error)
 
-	QueryOrder(exch string) error
+	QueryOrder(exch, orderid string) error
 	SubmitOrder() error
 	CancelOrder() error
 

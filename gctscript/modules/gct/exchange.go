@@ -16,6 +16,7 @@ var exchangeModule = map[string]objects.Object{
 	"exchanges":   &objects.UserFunction{Name: "exchanges", Value: exchangeExchanges},
 	"pairs":       &objects.UserFunction{Name: "pairs", Value: exchangePairs},
 	"accountinfo": &objects.UserFunction{Name: "accountinfo", Value: exchangeAccountInfo},
+	"order":       &objects.UserFunction{Name: "order", Value: exchangeOrderQuery},
 }
 
 func exchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
@@ -163,6 +164,24 @@ func exchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error)
 	}
 
 	fmt.Println(rtnValue)
+
+	return nil, nil
+}
+
+func exchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) {
+	if len(args) != 2 {
+		err = objects.ErrWrongNumArguments
+		return
+	}
+
+	exchangeName, _ := objects.ToString(args[0])
+	orderID, _ := objects.ToString(args[1])
+
+	err = modules.Wrapper.QueryOrder(exchangeName, orderID)
+
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }

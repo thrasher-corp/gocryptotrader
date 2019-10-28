@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
@@ -82,17 +83,17 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (currenc
 	return x.CurrencyPairs.Get(item).Available, nil
 }
 
-func (e Exchange) QueryOrder(exch string) error {
+func (e Exchange) QueryOrder(exch, orderid string) error {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return err
 	}
-	temp := &exchange.OrderSubmission{}
-	r, err := ex.SubmitOrder(temp)
+
+	r, err := ex.GetOrderInfo(orderid)
 	if err != nil {
 		return err
 	}
-	fmt.Println(r)
+	fmt.Printf("%+v", r)
 	return nil
 }
 
@@ -110,9 +111,21 @@ func (e Exchange) AccountInformation(exch string) (modules.AccountInfo, error) {
 		return modules.AccountInfo{}, err
 	}
 
-	r, _ := ex.GetAccountInfo()
+	r, err := ex.GetAccountInfo()
+	if err != nil {
+		return modules.AccountInfo{}, err
+	}
 
-	fmt.Printf("ACCOUNTINFO: %+v", r)
+	temp, err := json.Marshal(r)
+	if err != nil {
+		return modules.AccountInfo{}, err
+	}
 
-	return modules.AccountInfo{}, nil
+	accountInfo := modules.AccountInfo{}
+	err = json.Unmarshal(temp, &accountInfo)
+	if err != nil {
+		return modules.AccountInfo{}, err
+	}
+
+	return accountInfo, nil
 }
