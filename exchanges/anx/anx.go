@@ -360,7 +360,6 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 
 	PayloadJSON, err := common.JSONEncode(req)
 	if err != nil {
-		a.Requester.FifoUnlock()
 		return errors.New("unable to JSON request")
 	}
 

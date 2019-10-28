@@ -285,7 +285,6 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 
 	data, err := common.JSONEncode(postData)
 	if err != nil {
-		l.Requester.FifoUnlock()
 		return err
 	}
 

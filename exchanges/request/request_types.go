@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 )
 
@@ -16,8 +17,8 @@ var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead
 const (
 	DefaultMaxRequestJobs       = 50
 	DefaultTimeoutRetryAttempts = 3
-
-	proxyTLSTimeout = 15 * time.Second
+	DefaultMutexLockTimeout     = 50 * time.Millisecond
+	proxyTLSTimeout             = 15 * time.Second
 )
 
 // Vars for rate limiter
@@ -40,8 +41,8 @@ type Requester struct {
 	Jobs                 chan Job
 	WorkerStarted        bool
 	Nonce                nonce.Nonce
-	fifoLock             sync.Mutex
 	DisableRateLimiter   bool
+	timedLock            *timedmutex.TimedMutex
 }
 
 // RateLimit struct

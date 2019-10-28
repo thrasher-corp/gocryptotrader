@@ -373,7 +373,6 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 
 	PayloadJSON, err := common.JSONEncode(req)
 	if err != nil {
-		g.Requester.FifoUnlock()
 		return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 

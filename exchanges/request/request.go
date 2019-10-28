@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -172,6 +173,7 @@ func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Cli
 		Name:                 name,
 		Jobs:                 make(chan Job, MaxRequestJobs),
 		timeoutRetryAttempts: TimeoutRetryAttempts,
+		timedLock:            timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
 	}
 }
 
@@ -376,27 +378,27 @@ func (r *Requester) worker() {
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose, httpDebugging, record bool) error {
 	if !nonceEnabled {
-		r.fifoLock.Lock()
+		r.timedLock.LockForDuration()
 	}
 
 	if r == nil || r.Name == "" {
-		r.FifoUnlock()
+		r.timedLock.UnlockIfLocked()
 		return errors.New("not initiliased, SetDefaults() called before making request?")
 	}
 
 	if !IsValidMethod(method) {
-		r.FifoUnlock()
+		r.timedLock.UnlockIfLocked()
 		return fmt.Errorf("incorrect method supplied %s: supported %s", method, supportedMethods)
 	}
 
 	if path == "" {
-		r.FifoUnlock()
+		r.timedLock.UnlockIfLocked()
 		return errors.New("invalid path")
 	}
 
 	req, err := r.checkRequest(method, path, body, headers)
 	if err != nil {
-		r.FifoUnlock()
+		r.timedLock.UnlockIfLocked()
 		return err
 	}
 
@@ -411,12 +413,12 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	}
 
 	if !r.RequiresRateLimiter() {
-		r.FifoUnlock()
+		r.timedLock.UnlockIfLocked()
 		return r.DoRequest(req, path, body, result, authRequest, verbose, httpDebugging, record)
 	}
 
 	if len(r.Jobs) == MaxRequestJobs {
-		r.FifoUnlock()
+		r.timedLock.UnlockIfLocked()
 		return errors.New("max request jobs reached")
 	}
 
@@ -448,7 +450,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		log.Debugf(log.ExchangeSys, "%s request. Attaching new job.", r.Name)
 	}
 	r.Jobs <- newJob
-	r.FifoUnlock()
+	r.timedLock.UnlockIfLocked()
 
 	if verbose {
 		log.Debugf(log.ExchangeSys, "%s request. Waiting for job to complete.", r.Name)
@@ -464,10 +466,8 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel
-// If an error occurs between GetNonce and SendPayload you MUST
-// call r.FifoUnlock() before returning
 func (r *Requester) GetNonce(isNano bool) nonce.Value {
-	r.fifoLock.Lock()
+	r.timedLock.LockForDuration()
 	if r.Nonce.Get() == 0 {
 		if isNano {
 			r.Nonce.Set(time.Now().UnixNano())
@@ -482,10 +482,8 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 
 // GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel this is for millisecond
-// If an error occurs between GetNonceMilli and SendPayload you MUST
-// call r.FifoUnlock() before returning
 func (r *Requester) GetNonceMilli() nonce.Value {
-	r.fifoLock.Lock()
+	r.timedLock.LockForDuration()
 	if r.Nonce.Get() == 0 {
 		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
 		return r.Nonce.Get()
@@ -505,11 +503,4 @@ func (r *Requester) SetProxy(p *url.URL) error {
 		TLSHandshakeTimeout: proxyTLSTimeout,
 	}
 	return nil
-}
-
-// FifoUnlock is used to unlock the send request mutex
-// It must be placed before returning any errors between
-// GetNonce/Milli and SendPayload to prevent request lockups
-func (r *Requester) FifoUnlock() {
-	r.fifoLock.Unlock()
 }
