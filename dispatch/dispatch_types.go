@@ -9,7 +9,7 @@ import (
 
 const (
 	// DefaultJobBuffer defines a maxiumum amount of jobs allowed in channel
-	DefaultJobBuffer = 1000
+	DefaultJobBuffer = 100
 
 	// DefaultMaxWorkers is the package default worker ceiling amount
 	DefaultMaxWorkers = 10
@@ -47,7 +47,8 @@ type Dispatcher struct {
 
 	// MaxWorkers defines max worker ceiling
 	maxWorkers int32
-
+	// jobBuffer length of channel before jobs start being dismissed
+	jobBuffer int32
 	// Atomic values -----------------------
 	// Worker counter
 	count int32

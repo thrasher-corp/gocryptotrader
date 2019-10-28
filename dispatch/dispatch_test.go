@@ -12,7 +12,7 @@ import (
 var mux *Mux
 
 func TestMain(m *testing.M) {
-	err := Start(DefaultMaxWorkers)
+	err := Start(DefaultMaxWorkers, 0)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -34,11 +34,10 @@ func TestDispatcher(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	err = Start(10)
+	err = Start(10, 0)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
-
 	if IsRunning() {
 		t.Error("should be false")
 	}
@@ -59,7 +58,7 @@ func TestDispatcher(t *testing.T) {
 		t.Error("should be true")
 	}
 
-	err = Start(10)
+	err = Start(10, 0)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -99,11 +98,13 @@ func TestDispatcher(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	err = Start(0)
+	err = Start(0, 20)
 	if err != nil {
 		t.Error(err)
 	}
-
+	if cap(dispatcher.jobs) != 20 {
+		t.Errorf("Expected job buffer to be %v, is %v", 20, cap(dispatcher.jobs))
+	}
 	payload := "something"
 
 	err = dispatcher.publish(uuid.UUID{}, &payload)
@@ -141,11 +142,13 @@ func TestDispatcher(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	err = dispatcher.start(10)
+	err = dispatcher.start(10, -1)
 	if err != nil {
 		t.Error(err)
 	}
-
+	if cap(dispatcher.jobs) != DefaultJobBuffer {
+		t.Errorf("Expected job buffer to be %v, is %v", DefaultJobBuffer, cap(dispatcher.jobs))
+	}
 	someID, err := uuid.NewV4()
 	if err != nil {
 		t.Error(err)

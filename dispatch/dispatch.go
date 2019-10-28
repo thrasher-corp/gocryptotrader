@@ -14,7 +14,6 @@ import (
 func init() {
 	dispatcher = &Dispatcher{
 		routes: make(map[uuid.UUID][]chan interface{}),
-		jobs:   make(chan *job, DefaultJobBuffer),
 		outbound: sync.Pool{
 			New: func() interface{} {
 				// Create unbuffered channel for data pass
@@ -25,14 +24,14 @@ func init() {
 }
 
 // Start starts the dispatch system by spawning workers and allocating memory
-func Start(workers int) error {
+func Start(workers int, jobBuffer int) error {
 	if dispatcher == nil {
 		return errors.New(errNotInitialised)
 	}
 
 	mtx.Lock()
 	defer mtx.Unlock()
-	return dispatcher.start(workers)
+	return dispatcher.start(workers, jobBuffer)
 }
 
 // Stop attempts to stop the dispatch service, this will close all pipe channels
@@ -78,7 +77,7 @@ func SpawnWorker() error {
 
 // start compares atomic running value, sets defaults, overides with
 // configuration, then spawns workers
-func (d *Dispatcher) start(workers int) error {
+func (d *Dispatcher) start(workers int, channelCapacity int) error {
 	if atomic.LoadUint32(&d.running) == 1 {
 		return errors.New(errAlreadyStarted)
 	}
@@ -88,7 +87,12 @@ func (d *Dispatcher) start(workers int) error {
 			"Dispatcher: workers cannot be zero using default values")
 		workers = DefaultMaxWorkers
 	}
-
+	if channelCapacity < 1 {
+		log.Warn(log.DispatchMgr,
+			"Dispatcher: job buffer cannot be zero using default values")
+		channelCapacity = DefaultJobBuffer
+	}
+	d.jobs = make(chan *job, channelCapacity)
 	d.maxWorkers = int32(workers)
 	d.shutdown = make(chan *sync.WaitGroup)
 
@@ -253,7 +257,8 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	select {
 	case d.jobs <- newJob:
 	default:
-		return fmt.Errorf("dispatcher buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x",
+		return fmt.Errorf("dispatcher buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x "+
+			"or increase the job buffer via --dispatchjobbuffer=x",
 			len(d.jobs),
 			atomic.LoadInt32(&d.count))
 	}
