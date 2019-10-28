@@ -47,8 +47,6 @@ type Dispatcher struct {
 
 	// MaxWorkers defines max worker ceiling
 	maxWorkers int32
-	// jobBuffer length of channel before jobs start being dismissed
-	jobBuffer int32
 	// Atomic values -----------------------
 	// Worker counter
 	count int32

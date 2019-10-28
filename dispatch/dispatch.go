@@ -24,7 +24,7 @@ func init() {
 }
 
 // Start starts the dispatch system by spawning workers and allocating memory
-func Start(workers int, jobBuffer int) error {
+func Start(workers, jobBuffer int) error {
 	if dispatcher == nil {
 		return errors.New(errNotInitialised)
 	}
@@ -77,7 +77,7 @@ func SpawnWorker() error {
 
 // start compares atomic running value, sets defaults, overides with
 // configuration, then spawns workers
-func (d *Dispatcher) start(workers int, channelCapacity int) error {
+func (d *Dispatcher) start(workers, channelCapacity int) error {
 	if atomic.LoadUint32(&d.running) == 1 {
 		return errors.New(errAlreadyStarted)
 	}
