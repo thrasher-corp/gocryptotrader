@@ -65,5 +65,5 @@ type Settings struct {
 	// Dispatch system settings
 	EnableDispatcher        bool
 	DispatchMaxWorkerAmount int
-	DispatchJobBuffer       int
+	DispatchJobsLimit       int
 }

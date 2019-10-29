@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	// DefaultJobBuffer defines a maxiumum amount of jobs allowed in channel
-	DefaultJobBuffer = 100
+	// DefaultJobsLimit defines a maxiumum amount of jobs allowed in channel
+	DefaultJobsLimit = 100
 
 	// DefaultMaxWorkers is the package default worker ceiling amount
 	DefaultMaxWorkers = 10

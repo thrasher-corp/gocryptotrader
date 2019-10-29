@@ -24,14 +24,14 @@ func init() {
 }
 
 // Start starts the dispatch system by spawning workers and allocating memory
-func Start(workers, jobBuffer int) error {
+func Start(workers, jobsLimit int) error {
 	if dispatcher == nil {
 		return errors.New(errNotInitialised)
 	}
 
 	mtx.Lock()
 	defer mtx.Unlock()
-	return dispatcher.start(workers, jobBuffer)
+	return dispatcher.start(workers, jobsLimit)
 }
 
 // Stop attempts to stop the dispatch service, this will close all pipe channels
@@ -89,8 +89,8 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 	}
 	if channelCapacity < 1 {
 		log.Warn(log.DispatchMgr,
-			"Dispatcher: job buffer cannot be zero using default values")
-		channelCapacity = DefaultJobBuffer
+			"Dispatcher: jobs limit cannot be zero using default values")
+		channelCapacity = DefaultJobsLimit
 	}
 	d.jobs = make(chan *job, channelCapacity)
 	d.maxWorkers = int32(workers)
@@ -257,8 +257,8 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	select {
 	case d.jobs <- newJob:
 	default:
-		return fmt.Errorf("dispatcher buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x "+
-			"or increase the job buffer via --dispatchjobbuffer=x",
+		return fmt.Errorf("dispatcher buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x"+
+			", or increase the jobs limit via --dispatchjobslimit=x",
 			len(d.jobs),
 			atomic.LoadInt32(&d.count))
 	}

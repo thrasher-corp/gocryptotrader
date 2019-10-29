@@ -103,7 +103,7 @@ func TestDispatcher(t *testing.T) {
 		t.Error(err)
 	}
 	if cap(dispatcher.jobs) != 20 {
-		t.Errorf("Expected job buffer to be %v, is %v", 20, cap(dispatcher.jobs))
+		t.Errorf("Expected jobs limit to be %v, is %v", 20, cap(dispatcher.jobs))
 	}
 	payload := "something"
 
@@ -146,8 +146,8 @@ func TestDispatcher(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if cap(dispatcher.jobs) != DefaultJobBuffer {
-		t.Errorf("Expected job buffer to be %v, is %v", DefaultJobBuffer, cap(dispatcher.jobs))
+	if cap(dispatcher.jobs) != DefaultJobsLimit {
+		t.Errorf("Expected jobs limit to be %v, is %v", DefaultJobsLimit, cap(dispatcher.jobs))
 	}
 	someID, err := uuid.NewV4()
 	if err != nil {
