@@ -199,16 +199,9 @@ func TestCheckRequest(t *testing.T) {
 }
 
 func TestDoRequest(t *testing.T) {
-	var test = new(Requester)
-	err := test.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
-
 	r := New("", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-
 	r.Name = "bitfinex"
-	err = r.SendPayload("BLAH", "https://www.google.com", nil, nil, nil, false, false, true, false, false)
+	err := r.SendPayload("BLAH", "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err == nil {
 		t.Fatal("Expected error")
 	}
@@ -321,7 +314,7 @@ func TestDoRequest(t *testing.T) {
 }
 
 func BenchmarkRequestLockMech(b *testing.B) {
-	var r = new(Requester)
+	r := New("", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
 	var meep interface{}
 	for n := 0; n < b.N; n++ {
 		r.SendPayload(http.MethodGet, "127.0.0.1", nil, nil, &meep, false, false, false, false, false)

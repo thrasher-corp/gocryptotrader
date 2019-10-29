@@ -208,6 +208,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 
 	b.Settings.GlobalHTTPProxy = s.GlobalHTTPProxy
 	b.Settings.DispatchMaxWorkerAmount = s.DispatchMaxWorkerAmount
+	b.Settings.DispatchJobsLimit = s.DispatchJobsLimit
 }
 
 // PrintSettings returns the engine settings
@@ -238,6 +239,7 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Enable Database manager: %v", s.EnableDatabaseManager)
 	log.Debugf(log.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
 	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
+	log.Debugf(log.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
 	log.Debugf(log.Global, "- FOREX SETTINGS:")
 	log.Debugf(log.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
 	log.Debugf(log.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
@@ -275,7 +277,7 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.EnableDispatcher {
-		if err := dispatch.Start(e.Settings.DispatchMaxWorkerAmount); err != nil {
+		if err := dispatch.Start(e.Settings.DispatchMaxWorkerAmount, e.Settings.DispatchJobsLimit); err != nil {
 			log.Errorf(log.DispatchMgr, "Dispatcher unable to start: %v", err)
 		}
 	}
