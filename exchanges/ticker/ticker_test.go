@@ -15,7 +15,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	err := dispatch.Start(1, 0)
+	err := dispatch.Start(1, dispatch.DefaultJobsLimit)
 	if err != nil {
 		log.Fatal(err)
 	}
