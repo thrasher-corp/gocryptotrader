@@ -257,7 +257,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	select {
 	case d.jobs <- newJob:
 	default:
-		return fmt.Errorf("dispatcher buffer at max capacity [%d] current worker count [%d], spawn more workers via --dispatchworkers=x"+
+		return fmt.Errorf("dispatcher jobs at limit [%d] current worker count [%d]. Spawn more workers via --dispatchworkers=x"+
 			", or increase the jobs limit via --dispatchjobslimit=x",
 			len(d.jobs),
 			atomic.LoadInt32(&d.count))
