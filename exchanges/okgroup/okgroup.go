@@ -102,7 +102,7 @@ type OKGroup struct {
 
 // GetAccountCurrencies returns a list of tradable spot instruments and their properties
 func (o *OKGroup) GetAccountCurrencies() (resp []GetAccountCurrenciesResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, okGroupGetAccountCurrencies, nil, &resp, false)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, okGroupGetAccountCurrencies, nil, &resp, true)
 }
 
 // GetAccountWalletInformation returns a list of wallets and their properties
@@ -172,7 +172,7 @@ func (o *OKGroup) GetAccountDepositHistory(currency string) (resp []GetAccountDe
 	if currency != "" {
 		requestURL = fmt.Sprintf("%v/%v", OKGroupGetAccountDepositHistory, currency)
 	} else {
-		requestURL = okGroupGetWithdrawalHistory
+		requestURL = OKGroupGetAccountDepositHistory
 	}
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, requestURL, nil, &resp, true)
 }
@@ -197,18 +197,25 @@ func (o *OKGroup) GetSpotBillDetailsForCurrency(request GetSpotBillDetailsForCur
 // PlaceSpotOrder token trading only supports limit and market orders (more order types will become available in the future).
 // You can place an order only if you have enough funds.
 // Once your order is placed, the amount will be put on hold.
-func (o *OKGroup) PlaceSpotOrder(request *PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
+func (o *OKGroup) PlaceSpotOrder(request *PlaceOrderRequest) (resp PlaceOrderResponse, _ error) {
+	if request.OrderType == "" {
+		request.OrderType = "0" // Normal order (Unfilled and implies normal limit order)
+	}
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupOrders, request, &resp, true)
 }
 
 // PlaceMultipleSpotOrders supports placing multiple orders for specific trading pairs
 // up to 4 trading pairs, maximum 4 orders for each pair
-func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[string][]PlaceSpotOrderResponse, []error) {
+func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceOrderRequest) (map[string][]PlaceOrderResponse, []error) {
 	currencyPairOrders := make(map[string]int)
-	resp := make(map[string][]PlaceSpotOrderResponse)
+	resp := make(map[string][]PlaceOrderResponse)
 
 	for i := range request {
+		if request[i].OrderType == "" {
+			request[i].OrderType = "0" // normal order
+		}
 		currencyPairOrders[request[i].InstrumentID]++
+
 	}
 
 	if len(currencyPairOrders) > 4 {
@@ -397,14 +404,14 @@ func (o *OKGroup) RepayMarginLoan(request RepayMarginLoanRequest) (resp RepayMar
 
 // PlaceMarginOrder OKEx API only supports limit and market orders (more orders will become available in the future).
 // You can place an order only if you have enough funds. Once your order is placed, the amount will be put on hold.
-func (o *OKGroup) PlaceMarginOrder(request *PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
+func (o *OKGroup) PlaceMarginOrder(request *PlaceOrderRequest) (resp PlaceOrderResponse, _ error) {
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, OKGroupOrders, request, &resp, true)
 }
 
 // PlaceMultipleMarginOrders Place multiple orders for specific trading pairs (up to 4 trading pairs, maximum 4 orders each)
-func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (map[string][]PlaceSpotOrderResponse, []error) {
+func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceOrderRequest) (map[string][]PlaceOrderResponse, []error) {
 	currencyPairOrders := make(map[string]int)
-	resp := make(map[string][]PlaceSpotOrderResponse)
+	resp := make(map[string][]PlaceOrderResponse)
 	for i := range request {
 		currencyPairOrders[request[i].InstrumentID]++
 	}
@@ -531,10 +538,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 			o.Name)
 	}
 
-	utcTime := time.Now().UTC()
-	iso := utcTime.String()
-	isoBytes := []byte(iso)
-	iso = string(isoBytes[:10]) + "T" + string(isoBytes[11:23]) + "Z"
+	utcTime := time.Now().UTC().Format(time.RFC3339)
 	payload := []byte("")
 
 	if data != nil {
@@ -559,11 +563,11 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
 			requestType, o.APIVersion, requestPath)
 		hmac := crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(iso+httpMethod+signPath+string(payload)),
+			[]byte(utcTime+httpMethod+signPath+string(payload)),
 			[]byte(o.API.Credentials.Secret))
 		headers["OK-ACCESS-KEY"] = o.API.Credentials.Key
 		headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
-		headers["OK-ACCESS-TIMESTAMP"] = iso
+		headers["OK-ACCESS-TIMESTAMP"] = utcTime
 		headers["OK-ACCESS-PASSPHRASE"] = o.API.Credentials.ClientID
 	}
 

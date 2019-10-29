@@ -8,11 +8,11 @@ import (
 
 // GetAccountCurrenciesResponse response data for GetAccountCurrencies
 type GetAccountCurrenciesResponse struct {
-	CanDeposit    int64   `json:"can_deposit"`
-	CanWithdraw   int64   `json:"can_withdraw"`
-	Currency      string  `json:"currency"`
-	MinWithdrawal float64 `json:"min_withdrawal"`
 	Name          string  `json:"name"`
+	Currency      string  `json:"currency"`
+	CanDeposit    int     `json:"can_deposit,string"`
+	CanWithdraw   int     `json:"can_withdraw,string"`
+	MinWithdrawal float64 `json:"min_withdrawal,string"`
 }
 
 // WalletInformationResponse response data for WalletInformation
@@ -64,22 +64,22 @@ type AccountWithdrawResponse struct {
 // GetAccountWithdrawalFeeResponse response data for GetAccountWithdrawalFee
 type GetAccountWithdrawalFeeResponse struct {
 	Currency string  `json:"currency"`
-	MinFee   float64 `json:"min_fee"`
-	MaxFee   float64 `json:"max_fee"`
+	MinFee   float64 `json:"min_fee,string"`
+	MaxFee   float64 `json:"max_fee,string"`
 }
 
 // WithdrawalHistoryResponse response data for WithdrawalHistoryResponse
 type WithdrawalHistoryResponse struct {
-	Amount    float64   `json:"amount"`
-	Currency  string    `json:"currency"`
-	Fee       string    `json:"fee"`
-	From      string    `json:"from"`
-	Status    int64     `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	To        string    `json:"to"`
-	Txid      string    `json:"txid"`
-	PaymentID string    `json:"payment_id"`
-	Tag       string    `json:"tag"`
+	Amount        float64   `json:"amount,string"`
+	Currency      string    `json:"currency"`
+	Fee           string    `json:"fee"`
+	From          string    `json:"from"`
+	Status        int64     `json:"status,string"`
+	Timestamp     time.Time `json:"timestamp"`
+	To            string    `json:"to"`
+	TransactionID string    `json:"txid"`
+	PaymentID     string    `json:"payment_id"`
+	Tag           string    `json:"tag"`
 }
 
 // GetAccountBillDetailsRequest request data for GetAccountBillDetailsRequest
@@ -112,11 +112,12 @@ type GetDepositAddressResponse struct {
 
 // GetAccountDepositHistoryResponse response data for GetAccountDepositHistory
 type GetAccountDepositHistoryResponse struct {
-	Amount        float64   `json:"amount"`
+	Amount        float64   `json:"amount,string"`
 	Currency      string    `json:"currency"`
-	Status        int64     `json:"status"`
-	Timestamp     time.Time `json:"timestamp"`
+	From          string    `json:"from"`
 	To            string    `json:"to"`
+	Timestamp     time.Time `json:"timestamp"`
+	Status        int64     `json:"status,string"`
 	TransactionID string    `json:"txid"`
 }
 
@@ -156,20 +157,21 @@ type SpotBillDetails struct {
 	InstrumentID string `json:"instrument_id"`
 }
 
-// PlaceSpotOrderRequest request data for PlaceSpotOrder
-type PlaceSpotOrderRequest struct {
+// PlaceOrderRequest request data for placing an order
+type PlaceOrderRequest struct {
 	ClientOID     string `json:"client_oid,omitempty"` // the order ID customized by yourself
 	Type          string `json:"type"`                 // limit / market(default: limit)
 	Side          string `json:"side"`                 // buy or sell
 	InstrumentID  string `json:"instrument_id"`        // trading pair
-	MarginTrading string `json:"margin_trading"`       // order type (The request value is 1)
+	MarginTrading string `json:"margin_trading"`       // margin trading
+	OrderType     string `json:"order_type"`           // order type (0: Normal order (Unfilled and 0 imply normal limit order) 1: Post only 2: Fill or Kill 3: Immediate Or Cancel
 	Size          string `json:"size"`
 	Notional      string `json:"notional,omitempty"` //
 	Price         string `json:"price,omitempty"`    // price (Limit order only)
 }
 
-// PlaceSpotOrderResponse response data for PlaceSpotOrder
-type PlaceSpotOrderResponse struct {
+// PlaceOrderResponse response data for PlaceSpotOrder
+type PlaceOrderResponse struct {
 	ClientOid string `json:"client_oid"`
 	OrderID   string `json:"order_id"`
 	Result    bool   `json:"result"`
@@ -1512,7 +1514,7 @@ type WebsocketSpotOrderResponse struct {
 	Notional       float64 `json:"notional,string"`
 	Size           float64 `json:"size,string"`
 	Status         string  `json:"status"`
-	MarginTrading  int64   `json:"margin_trading"`
+	MarginTrading  int64   `json:"margin_trading,omitempty"`
 	Type           string  `json:"type"`
 	// Price        A member, but part already exists as part of WebsocketDataResponse
 	// InstrumentID A member, but part already exists as part of WebsocketDataResponse

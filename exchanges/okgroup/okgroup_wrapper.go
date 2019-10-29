@@ -190,7 +190,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 			ExchangeName: o.Name,
 			Status:       OrderStatus[accountWithdrawlHistory[i].Status],
 			Timestamp:    accountWithdrawlHistory[i].Timestamp,
-			TransferID:   accountWithdrawlHistory[i].Txid,
+			TransferID:   accountWithdrawlHistory[i].TransactionID,
 			TransferType: "withdrawal",
 		})
 	}
@@ -213,7 +213,7 @@ func (o *OKGroup) SubmitOrder(order *exchange.OrderSubmission) (resp exchange.Su
 		return resp, err
 	}
 
-	request := PlaceSpotOrderRequest{
+	request := PlaceOrderRequest{
 		ClientOID:    order.ClientID,
 		InstrumentID: o.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
 		Side:         strings.ToLower(order.OrderSide.ToString()),

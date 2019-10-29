@@ -359,7 +359,7 @@ func TestSubmitOrder(t *testing.T) {
 			Quote:     currency.BTC,
 		},
 		OrderSide: exchange.BuyOrderSide,
-		OrderType: exchange.MarketOrderType,
+		OrderType: exchange.LimitOrderType,
 		Price:     1,
 		Amount:    1000000000,
 		ClientID:  "meowOrder",

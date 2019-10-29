@@ -284,7 +284,7 @@ func TestGetSpotBillDetailsForCurrencyBadLimit(t *testing.T) {
 // TestPlaceSpotOrderLimit API endpoint test
 func TestPlaceSpotOrderLimit(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	request := okgroup.PlaceSpotOrderRequest{
+	request := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.LimitOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -300,7 +300,7 @@ func TestPlaceSpotOrderLimit(t *testing.T) {
 // TestPlaceSpotOrderMarket API endpoint test
 func TestPlaceSpotOrderMarket(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	request := okgroup.PlaceSpotOrderRequest{
+	request := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.MarketOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -316,7 +316,7 @@ func TestPlaceSpotOrderMarket(t *testing.T) {
 // TestPlaceMultipleSpotOrders API endpoint test
 func TestPlaceMultipleSpotOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.LimitOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -325,7 +325,7 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 	}
 
@@ -338,7 +338,7 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 // TestPlaceMultipleSpotOrdersOverCurrencyLimits API logic test
 func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.LimitOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -347,7 +347,7 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 		order,
 		order,
@@ -364,7 +364,7 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 // TestPlaceMultipleSpotOrdersOverPairLimits API logic test
 func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	TestSetDefaults(t)
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.LimitOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -373,7 +373,7 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 	}
 
@@ -611,7 +611,7 @@ func TestRepayMarginLoan(t *testing.T) {
 // TestPlaceMarginOrderLimit API endpoint test
 func TestPlaceMarginOrderLimit(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	request := okgroup.PlaceSpotOrderRequest{
+	request := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.LimitOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -627,7 +627,7 @@ func TestPlaceMarginOrderLimit(t *testing.T) {
 // TestPlaceMarginOrderMarket API endpoint test
 func TestPlaceMarginOrderMarket(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	request := okgroup.PlaceSpotOrderRequest{
+	request := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.MarketOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -643,7 +643,7 @@ func TestPlaceMarginOrderMarket(t *testing.T) {
 // TestPlaceMultipleMarginOrders API endpoint test
 func TestPlaceMultipleMarginOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.LimitOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -652,7 +652,7 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 	}
 
@@ -665,7 +665,7 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 // TestPlaceMultipleMarginOrdersOverCurrencyLimits API logic test
 func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.LimitOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -674,7 +674,7 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 		order,
 		order,
@@ -691,7 +691,7 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 // TestPlaceMultipleMarginOrdersOverPairLimits API logic test
 func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	TestSetDefaults(t)
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          exchange.LimitOrderType.ToLower().ToString(),
 		Side:          exchange.BuyOrderSide.ToLower().ToString(),
@@ -700,7 +700,7 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 	}
 

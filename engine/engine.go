@@ -156,9 +156,12 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableNTPClient = s.EnableNTPClient
 	b.Settings.EnableOrderManager = s.EnableOrderManager
 	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
-	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableTickerSyncing = s.EnableTickerSyncing
 	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
+	b.Settings.EnableTradeSyncing = s.EnableTradeSyncing
+	b.Settings.SyncWorkers = s.SyncWorkers
+	b.Settings.SyncTimeout = s.SyncTimeout
+	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
 	b.Settings.EnableExchangeWebsocketSupport = s.EnableExchangeWebsocketSupport
 	b.Settings.EnableExchangeRESTSupport = s.EnableExchangeRESTSupport
@@ -232,14 +235,18 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Enable order manager: %v", s.EnableOrderManager)
 	log.Debugf(log.Global, "\t Enable exchange sync manager: %v", s.EnableExchangeSyncManager)
 	log.Debugf(log.Global, "\t Enable deposit address manager: %v\n", s.EnableDepositAddressManager)
-	log.Debugf(log.Global, "\t Enable ticker syncing: %v", s.EnableTickerSyncing)
-	log.Debugf(log.Global, "\t Enable orderbook syncing: %v", s.EnableOrderbookSyncing)
 	log.Debugf(log.Global, "\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
 	log.Debugf(log.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
 	log.Debugf(log.Global, "\t Enable Database manager: %v", s.EnableDatabaseManager)
 	log.Debugf(log.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
 	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugf(log.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
+	log.Debugf(log.Global, "- EXCHANGE SYNCER SETTINGS:\n")
+	log.Debugf(log.Global, "\t Exchange sync workers: %v\n", s.SyncWorkers)
+	log.Debugf(log.Global, "\t Enable ticker syncing: %v\n", s.EnableTickerSyncing)
+	log.Debugf(log.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
+	log.Debugf(log.Global, "\t Enable trade syncing: %v\n", s.EnableTradeSyncing)
+	log.Debugf(log.Global, "\t Exchange sync timeout: %v\n", s.SyncTimeout)
 	log.Debugf(log.Global, "- FOREX SETTINGS:")
 	log.Debugf(log.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
 	log.Debugf(log.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
@@ -392,8 +399,10 @@ func (e *Engine) Start() error {
 		exchangeSyncCfg := CurrencyPairSyncerConfig{
 			SyncTicker:       e.Settings.EnableTickerSyncing,
 			SyncOrderbook:    e.Settings.EnableOrderbookSyncing,
-			SyncContinuously: true,
-			NumWorkers:       15,
+			SyncTrades:       e.Settings.EnableTradeSyncing,
+			SyncContinuously: e.Settings.SyncContinuously,
+			NumWorkers:       e.Settings.SyncWorkers,
+			Verbose:          e.Settings.Verbose,
 		}
 
 		e.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)

@@ -2339,7 +2339,7 @@
       "timestamp": "1565238020536"
      },
      "queryString": "",
-     "bodyParams": "{\"nonce\":\"1565238020075\",\"order\":{\"orderType\":\"MARKET\",\"buyTradedCurrency\":true,\"tradedCurrency\":\"BTC\",\"settlementCurrency\":\"USD\",\"tradedCurrencyAmount\":\"1\",\"settlementCurrencyAmount\":\"0\",\"limitPriceInSettlementCurrency\":\"0\",\"replaceExistingOrderUuid\":\"\",\"replaceOnlyIfActive\":false}}",
+     "bodyParams": "{\"nonce\":\"1565238020075\",\"order\":{\"orderType\":\"LIMIT\",\"buyTradedCurrency\":true,\"tradedCurrency\":\"BTC\",\"settlementCurrency\":\"USD\",\"tradedCurrencyAmount\":\"1\",\"settlementCurrencyAmount\":\"0\",\"limitPriceInSettlementCurrency\":\"1\",\"replaceExistingOrderUuid\":\"\",\"replaceOnlyIfActive\":false}}",
      "headers": {
       "Content-Type": [
        "application/json"
