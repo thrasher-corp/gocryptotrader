@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -212,8 +213,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 
 	_, err := p.GetActiveOrders(&getOrdersRequest)
@@ -229,8 +230,8 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 
 	_, err := p.GetOrderHistory(&getOrdersRequest)
@@ -253,14 +254,14 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var orderSubmission = &exchange.OrderSubmission{
+	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.BTC,
 			Quote:     currency.LTC,
 		},
-		OrderSide: exchange.BuyOrderSide,
-		OrderType: exchange.MarketOrderType,
+		OrderSide: order.Buy,
+		OrderType: order.Market,
 		Price:     10,
 		Amount:    10000000,
 		ClientID:  "hi",
@@ -283,7 +284,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -309,7 +310,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -325,8 +326,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	case mockTests && err != nil:
 		t.Error("Mock CancelAllExchangeOrders() err", err)
 	}
-	if len(resp.OrderStatus) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	if len(resp.Status) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
 
@@ -336,7 +337,7 @@ func TestModifyOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := p.ModifyOrder(&exchange.ModifyOrder{OrderID: "1337", Price: 1337})
+	_, err := p.ModifyOrder(&order.Modify{OrderID: "1337", Price: 1337})
 	switch {
 	case areTestAPIKeysSet() && err != nil && mockTests:
 		t.Error("ModifyOrder() error", err)

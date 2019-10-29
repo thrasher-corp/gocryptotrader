@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -362,10 +363,10 @@ func (b *Bitfinex) GetTradesV2(currencyPair string, timestampStart, timestampEnd
 		tempHistory.Amount = data[2].(float64)
 		tempHistory.Price = data[3].(float64)
 		tempHistory.Exchange = b.Name
-		tempHistory.Type = exchange.BuyOrderSide.ToString()
+		tempHistory.Type = order.Buy.String()
 
 		if tempHistory.Amount < 0 {
-			tempHistory.Type = exchange.SellOrderSide.ToString()
+			tempHistory.Type = order.Sell.String()
 			tempHistory.Amount *= -1
 		}
 
@@ -582,9 +583,9 @@ func (b *Bitfinex) NewOrder(currencyPair string, amount, price float64, buy bool
 	req["is_hidden"] = hidden
 
 	if buy {
-		req["side"] = exchange.BuyOrderSide.ToLower().ToString()
+		req["side"] = order.Buy.Lower()
 	} else {
-		req["side"] = exchange.SellOrderSide.ToLower().ToString()
+		req["side"] = order.Sell.Lower()
 	}
 
 	return response,
@@ -657,9 +658,9 @@ func (b *Bitfinex) ReplaceOrder(orderID int64, symbol string, amount, price floa
 	req["is_hidden"] = hidden
 
 	if buy {
-		req["side"] = exchange.BuyOrderSide.ToLower().ToString()
+		req["side"] = order.Buy.Lower()
 	} else {
-		req["side"] = exchange.SellOrderSide.ToLower().ToString()
+		req["side"] = order.Sell.Lower()
 	}
 
 	return response,

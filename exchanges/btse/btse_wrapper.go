@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -233,7 +234,6 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 		assetType).String())
 	if err != nil {
 		return tickerPrice, err
-
 	}
 
 	tickerPrice.Pair = p
@@ -337,23 +337,19 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exch
 }
 
 // SubmitOrder submits a new order
-func (b *BTSE) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var resp exchange.SubmitOrderResponse
-	if order == nil {
-		return resp, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var resp order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return resp, err
 	}
 
-	r, err := b.CreateOrder(order.Amount,
-		order.Price,
-		order.OrderSide.ToString(),
-		order.OrderType.ToString(),
-		b.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
+	r, err := b.CreateOrder(s.Amount,
+		s.Price,
+		s.OrderSide.String(),
+		s.OrderType.String(),
+		b.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
 		goodTillCancel,
-		order.ClientID)
+		s.ClientID)
 	if err != nil {
 		return resp, err
 	}
@@ -368,12 +364,12 @@ func (b *BTSE) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrde
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTSE) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
+func (b *BTSE) CancelOrder(order *order.Cancellation) error {
 	r, err := b.CancelExistingOrder(order.OrderID,
 		b.FormatExchangeCurrency(order.CurrencyPair,
 			asset.Spot).String())
@@ -394,14 +390,14 @@ func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 // If product ID is sent, all orders of that specified market will be cancelled
 // If not specified, all orders of all markets will be cancelled
-func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var resp exchange.CancelAllOrdersResponse
+func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+	var resp order.CancelAllResponse
 	markets, err := b.GetMarkets()
 	if err != nil {
 		return resp, err
 	}
 
-	resp.OrderStatus = make(map[string]string)
+	resp.Status = make(map[string]string)
 	for x := range markets {
 		strPair := b.FormatExchangeCurrency(orderCancellation.CurrencyPair,
 			orderCancellation.AssetType).String()
@@ -421,7 +417,7 @@ func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (e
 				if err != nil {
 					success = "Order Cancellation Failed"
 				}
-				resp.OrderStatus[orders[y].Order.ID] = success
+				resp.Status[orders[y].Order.ID] = success
 			}
 		}
 	}
@@ -429,13 +425,13 @@ func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (e
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
+func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 	o, err := b.GetOrders("")
 	if err != nil {
-		return exchange.OrderDetail{}, err
+		return order.Detail{}, err
 	}
 
-	var od exchange.OrderDetail
+	var od order.Detail
 	if len(o) == 0 {
 		return od, errors.New("no orders found")
 	}
@@ -445,9 +441,9 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 			continue
 		}
 
-		var side = exchange.BuyOrderSide
-		if strings.EqualFold(o[i].Side, exchange.AskOrderSide.ToString()) {
-			side = exchange.SellOrderSide
+		var side = order.Buy
+		if strings.EqualFold(o[i].Side, order.Ask.String()) {
+			side = order.Sell
 		}
 
 		od.CurrencyPair = currency.NewPairDelimiter(o[i].Symbol,
@@ -457,24 +453,26 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		od.ID = o[i].ID
 		od.OrderDate = parseOrderTime(o[i].CreatedAt)
 		od.OrderSide = side
-		od.OrderType = exchange.OrderType(strings.ToUpper(o[i].Type))
+		od.OrderType = order.Type(strings.ToUpper(o[i].Type))
 		od.Price = o[i].Price
-		od.Status = o[i].Status
+		od.Status = order.Status(o[i].Status)
 
 		fills, err := b.GetFills(orderID, "", "", "", "", "")
 		if err != nil {
-			return od, fmt.Errorf("unable to get order fills for orderID %s", orderID)
+			return od,
+				fmt.Errorf("unable to get order fills for orderID %s",
+					orderID)
 		}
 
 		for i := range fills {
 			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
-			od.Trades = append(od.Trades, exchange.TradeHistory{
+			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
 				TID:       fills[i].ID,
 				Price:     fills[i].Price,
 				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      fills[i].Side,
+				Side:      order.Side(fills[i].Side),
 				Fee:       fills[i].Fee,
 			})
 		}
@@ -511,20 +509,20 @@ func (b *BTSE) GetWebsocket() (*wshandler.Websocket, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := b.GetOrders("")
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range resp {
-		var side = exchange.BuyOrderSide
-		if strings.EqualFold(resp[i].Side, exchange.AskOrderSide.ToString()) {
-			side = exchange.SellOrderSide
+		var side = order.Buy
+		if strings.EqualFold(resp[i].Side, order.Ask.String()) {
+			side = order.Sell
 		}
 
-		openOrder := exchange.OrderDetail{
+		openOrder := order.Detail{
 			CurrencyPair: currency.NewPairDelimiter(resp[i].Symbol,
 				b.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange:  b.Name,
@@ -532,43 +530,44 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 			ID:        resp[i].ID,
 			OrderDate: parseOrderTime(resp[i].CreatedAt),
 			OrderSide: side,
-			OrderType: exchange.OrderType(strings.ToUpper(resp[i].Type)),
+			OrderType: order.Type(strings.ToUpper(resp[i].Type)),
 			Price:     resp[i].Price,
-			Status:    resp[i].Status,
+			Status:    order.Status(resp[i].Status),
 		}
 
 		fills, err := b.GetFills(resp[i].ID, "", "", "", "", "")
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
-				"%s: Unable to get order fills for orderID %s", b.Name,
+				"%s: Unable to get order fills for orderID %s",
+				b.Name,
 				resp[i].ID)
 			continue
 		}
 
 		for i := range fills {
 			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
-			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
+			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 				Timestamp: createdAt,
 				TID:       fills[i].ID,
 				Price:     fills[i].Price,
 				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      fills[i].Side,
+				Side:      order.Side(fills[i].Side),
 				Fee:       fills[i].Fee,
 			})
 		}
 		orders = append(orders, openOrder)
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTSE) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

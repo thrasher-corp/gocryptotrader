@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -271,13 +272,9 @@ func (l *LocalBitcoins) GetExchangeHistory(p currency.Pair, assetType asset.Item
 }
 
 // SubmitOrder submits a new order
-func (l *LocalBitcoins) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
@@ -290,17 +287,17 @@ func (l *LocalBitcoins) SubmitOrder(order *exchange.OrderSubmission) (exchange.S
 		City:                       "City",
 		Location:                   "Location",
 		CountryCode:                "US",
-		Currency:                   order.Pair.Quote.String(),
+		Currency:                   s.Pair.Quote.String(),
 		AccountInfo:                "-",
 		BankName:                   "Bank",
-		MSG:                        order.OrderSide.ToString(),
+		MSG:                        s.OrderSide.String(),
 		SMSVerficationRequired:     true,
 		TrackMaxAmount:             true,
 		RequireTrustedByAdvertiser: true,
 		RequireIdentification:      true,
 		OnlineProvider:             "",
 		TradeType:                  "",
-		MinAmount:                  int(math.Round(order.Amount)),
+		MinAmount:                  int(math.Round(s.Amount)),
 	}
 
 	// Does not return any orderID, so create the add, then get the order
@@ -330,8 +327,8 @@ func (l *LocalBitcoins) SubmitOrder(order *exchange.OrderSubmission) (exchange.S
 			ads.AdList[i].Data.RequireTrustedByAdvertiser == params.RequireTrustedByAdvertiser &&
 			ads.AdList[i].Data.OnlineProvider == params.OnlineProvider &&
 			ads.AdList[i].Data.TradeType == params.TradeType &&
-			ads.AdList[i].Data.MinAmount == fmt.Sprintf("%v", params.MinAmount) {
-			adID = fmt.Sprintf("%v", ads.AdList[i].Data.AdID)
+			ads.AdList[i].Data.MinAmount == strconv.FormatInt(int64(params.MinAmount), 10) {
+			adID = strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
 		}
 	}
 
@@ -346,19 +343,19 @@ func (l *LocalBitcoins) SubmitOrder(order *exchange.OrderSubmission) (exchange.S
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LocalBitcoins) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (l *LocalBitcoins) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LocalBitcoins) CancelOrder(order *exchange.OrderCancellation) error {
+func (l *LocalBitcoins) CancelOrder(order *order.Cancellation) error {
 	return l.DeleteAd(order.OrderID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LocalBitcoins) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (l *LocalBitcoins) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	ads, err := l.Getads()
 	if err != nil {
@@ -369,7 +366,7 @@ func (l *LocalBitcoins) CancelAllOrders(_ *exchange.OrderCancellation) (exchange
 		adIDString := strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
 		err = l.DeleteAd(adIDString)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[adIDString] = err.Error()
+			cancelAllOrdersResponse.Status[adIDString] = err.Error()
 		}
 	}
 
@@ -377,8 +374,8 @@ func (l *LocalBitcoins) CancelAllOrders(_ *exchange.OrderCancellation) (exchange
 }
 
 // GetOrderInfo returns information on a current open order
-func (l *LocalBitcoins) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (l *LocalBitcoins) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -428,13 +425,13 @@ func (l *LocalBitcoins) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := l.GetDashboardInfo()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range resp {
 		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
 		if err != nil {
@@ -445,17 +442,17 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequ
 				resp[i].Data.CreatedAt)
 		}
 
-		var side exchange.OrderSide
+		var side order.Side
 		if resp[i].Data.IsBuying {
-			side = exchange.BuyOrderSide
+			side = order.Buy
 		} else if resp[i].Data.IsSelling {
-			side = exchange.SellOrderSide
+			side = order.Sell
 		}
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			Amount:    resp[i].Data.AmountBTC,
 			Price:     resp[i].Data.Amount,
-			ID:        fmt.Sprintf("%v", resp[i].Data.Advertisement.ID),
+			ID:        strconv.FormatInt(int64(resp[i].Data.Advertisement.ID), 10),
 			OrderDate: orderDate,
 			Fee:       resp[i].Data.FeeBTC,
 			OrderSide: side,
@@ -466,16 +463,16 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequ
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var allTrades []DashBoardInfo
 	resp, err := l.GetDashboardCancelledTrades()
 	if err != nil {
@@ -495,43 +492,47 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequ
 	}
 	allTrades = append(allTrades, resp...)
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range allTrades {
 		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",
 				allTrades[i].Data.Advertisement.ID,
 				allTrades[i].Data.CreatedAt)
 		}
 
-		var side exchange.OrderSide
+		var side order.Side
 		if allTrades[i].Data.IsBuying {
-			side = exchange.BuyOrderSide
+			side = order.Buy
 		} else if allTrades[i].Data.IsSelling {
-			side = exchange.SellOrderSide
+			side = order.Sell
 		}
 
 		status := ""
 
 		switch {
-		case allTrades[i].Data.ReleasedAt != "" && allTrades[i].Data.ReleasedAt != null:
+		case allTrades[i].Data.ReleasedAt != "" &&
+			allTrades[i].Data.ReleasedAt != null:
 			status = "Released"
-		case allTrades[i].Data.CanceledAt != "" && allTrades[i].Data.CanceledAt != null:
+		case allTrades[i].Data.CanceledAt != "" &&
+			allTrades[i].Data.CanceledAt != null:
 			status = "Cancelled"
-		case allTrades[i].Data.ClosedAt != "" && allTrades[i].Data.ClosedAt != null:
+		case allTrades[i].Data.ClosedAt != "" &&
+			allTrades[i].Data.ClosedAt != null:
 			status = "Closed"
 		}
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			Amount:    allTrades[i].Data.AmountBTC,
 			Price:     allTrades[i].Data.Amount,
-			ID:        fmt.Sprintf("%v", allTrades[i].Data.Advertisement.ID),
+			ID:        strconv.FormatInt(int64(allTrades[i].Data.Advertisement.ID), 10),
 			OrderDate: orderDate,
 			Fee:       allTrades[i].Data.FeeBTC,
 			OrderSide: side,
-			Status:    status,
+			Status:    order.Status(status),
 			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				allTrades[i].Data.Currency,
 				l.GetPairFormat(asset.Spot, false).Delimiter),
@@ -539,9 +540,9 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequ
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

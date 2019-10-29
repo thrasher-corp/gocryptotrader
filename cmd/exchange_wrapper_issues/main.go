@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -225,43 +226,44 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 	return base.ValidateAPICredentials()
 }
 
-func parseOrderSide(orderSide string) exchange.OrderSide {
+func parseOrderSide(orderSide string) order.Side {
 	switch orderSide {
-	case exchange.AnyOrderSide.ToString():
-		return exchange.AnyOrderSide
-	case exchange.BuyOrderSide.ToString():
-		return exchange.BuyOrderSide
-	case exchange.SellOrderSide.ToString():
-		return exchange.SellOrderSide
-	case exchange.BidOrderSide.ToString():
-		return exchange.BidOrderSide
-	case exchange.AskOrderSide.ToString():
-		return exchange.AskOrderSide
+	case order.AnySide.String():
+		return order.AnySide
+	case order.Buy.String():
+		return order.Buy
+	case order.Sell.String():
+		return order.Sell
+	case order.Bid.String():
+		return order.Bid
+	case order.Ask.String():
+		return order.Ask
 	default:
 		log.Printf("Orderside '%v' not recognised, defaulting to BUY", orderSide)
-		return exchange.BuyOrderSide
+		return order.Buy
 	}
 }
 
-func parseOrderType(orderType string) exchange.OrderType {
+func parseOrderType(orderType string) order.Type {
 	switch orderType {
-	case exchange.AnyOrderType.ToString():
-		return exchange.AnyOrderType
-	case exchange.LimitOrderType.ToString():
-		return exchange.LimitOrderType
-	case exchange.MarketOrderType.ToString():
-		return exchange.MarketOrderType
-	case exchange.ImmediateOrCancelOrderType.ToString():
-		return exchange.ImmediateOrCancelOrderType
-	case exchange.StopOrderType.ToString():
-		return exchange.StopOrderType
-	case exchange.TrailingStopOrderType.ToString():
-		return exchange.TrailingStopOrderType
-	case exchange.UnknownOrderType.ToString():
-		return exchange.UnknownOrderType
+	case order.AnyType.String():
+		return order.AnyType
+	case order.Limit.String():
+		return order.Limit
+	case order.Market.String():
+		return order.Market
+	case order.ImmediateOrCancel.String():
+		return order.ImmediateOrCancel
+	case order.Stop.String():
+		return order.Stop
+	case order.TrailingStop.String():
+		return order.TrailingStop
+	case order.Unknown.String():
+		return order.Unknown
 	default:
-		log.Printf("OrderType '%v' not recognised, defaulting to LIMIT", orderTypeOverride)
-		return exchange.LimitOrderType
+		log.Printf("OrderType '%v' not recognised, defaulting to LIMIT",
+			orderTypeOverride)
+		return order.Limit
 	}
 }
 
@@ -457,7 +459,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r10}),
 		})
 
-		s := &exchange.OrderSubmission{
+		s := &order.Submit{
 			Pair:      p,
 			OrderSide: testOrderSide,
 			OrderType: testOrderType,
@@ -465,7 +467,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Price:     config.OrderSubmission.Price,
 			ClientID:  config.OrderSubmission.OrderID,
 		}
-		var r11 exchange.SubmitOrderResponse
+		var r11 order.SubmitResponse
 		r11, err = e.SubmitOrder(s)
 		msg = ""
 		if err != nil {
@@ -479,10 +481,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r11}),
 		})
 
-		modifyRequest := exchange.ModifyOrder{
+		modifyRequest := order.Modify{
 			OrderID:      config.OrderSubmission.OrderID,
-			OrderType:    testOrderType,
-			OrderSide:    testOrderSide,
+			Type:         testOrderType,
+			Side:         testOrderSide,
 			CurrencyPair: p,
 			Price:        config.OrderSubmission.Price,
 			Amount:       config.OrderSubmission.Amount,
@@ -501,7 +503,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   r12,
 		})
 		// r13
-		cancelRequest := exchange.OrderCancellation{
+		cancelRequest := order.Cancellation{
 			Side:         testOrderSide,
 			CurrencyPair: p,
 			OrderID:      config.OrderSubmission.OrderID,
@@ -519,7 +521,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{nil}),
 		})
 
-		var r14 exchange.CancelAllOrdersResponse
+		var r14 order.CancelAllResponse
 		r14, err = e.CancelAllOrders(&cancelRequest)
 		msg = ""
 		if err != nil {
@@ -533,7 +535,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r14}),
 		})
 
-		var r15 exchange.OrderDetail
+		var r15 order.Detail
 		r15, err = e.GetOrderInfo(config.OrderSubmission.OrderID)
 		msg = ""
 		if err != nil {
@@ -547,12 +549,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r15}),
 		})
 
-		historyRequest := exchange.GetOrdersRequest{
+		historyRequest := order.GetOrdersRequest{
 			OrderType:  testOrderType,
 			OrderSide:  testOrderSide,
 			Currencies: []currency.Pair{p},
 		}
-		var r16 []exchange.OrderDetail
+		var r16 []order.Detail
 		r16, err = e.GetOrderHistory(&historyRequest)
 		msg = ""
 		if err != nil {
@@ -566,12 +568,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r16}),
 		})
 
-		orderRequest := exchange.GetOrdersRequest{
+		orderRequest := order.GetOrdersRequest{
 			OrderType:  testOrderType,
 			OrderSide:  testOrderSide,
 			Currencies: []currency.Pair{p},
 		}
-		var r17 []exchange.OrderDetail
+		var r17 []order.Detail
 		r17, err = e.GetActiveOrders(&orderRequest)
 		msg = ""
 		if err != nil {

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -319,33 +320,29 @@ func (a *ANX) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]excha
 }
 
 // SubmitOrder submits a new order
-func (a *ANX) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (a *ANX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var isBuying bool
 	var limitPriceInSettlementCurrency float64
 
-	if order.OrderSide == exchange.BuyOrderSide {
+	if s.OrderSide == order.Buy {
 		isBuying = true
 	}
 
-	if order.OrderType == exchange.LimitOrderType {
-		limitPriceInSettlementCurrency = order.Price
+	if s.OrderType == order.Limit {
+		limitPriceInSettlementCurrency = s.Price
 	}
 
-	response, err := a.NewOrder(order.OrderType.ToString(),
+	response, err := a.NewOrder(s.OrderType.String(),
 		isBuying,
-		order.Pair.Base.String(),
-		order.Amount,
-		order.Pair.Quote.String(),
-		order.Amount,
+		s.Pair.Base.String(),
+		s.Amount,
+		s.Pair.Quote.String(),
+		s.Amount,
 		limitPriceInSettlementCurrency,
 		false,
 		"",
@@ -364,21 +361,21 @@ func (a *ANX) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrder
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *ANX) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (a *ANX) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *ANX) CancelOrder(order *exchange.OrderCancellation) error {
+func (a *ANX) CancelOrder(order *order.Cancellation) error {
 	orderIDs := []string{order.OrderID}
 	_, err := a.CancelOrderByIDs(orderIDs)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (a *ANX) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (a *ANX) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	placedOrders, err := a.GetOrderList(true)
 	if err != nil {
@@ -397,7 +394,7 @@ func (a *ANX) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAll
 
 	for _, order := range resp.OrderCancellationResponses {
 		if order.Error != CancelRequestSubmitted {
-			cancelAllOrdersResponse.OrderStatus[order.UUID] = order.Error
+			cancelAllOrdersResponse.Status[order.UUID] = order.Error
 		}
 	}
 
@@ -405,8 +402,8 @@ func (a *ANX) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAll
 }
 
 // GetOrderInfo returns information on a current open order
-func (a *ANX) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (a *ANX) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -450,18 +447,18 @@ func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (a *ANX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (a *ANX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := a.GetOrderList(true)
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range resp {
 		orderDate := time.Unix(resp[i].Timestamp, 0)
-		orderType := exchange.OrderType(strings.ToUpper(resp[i].OrderType))
+		orderType := order.Type(strings.ToUpper(resp[i].OrderType))
 
-		orderDetail := exchange.OrderDetail{
+		orderDetail := order.Detail{
 			Amount: resp[i].TradedCurrencyAmount,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].TradedCurrency,
 				resp[i].SettlementCurrency,
@@ -471,40 +468,40 @@ func (a *ANX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 			ID:        resp[i].OrderID,
 			OrderType: orderType,
 			Price:     resp[i].SettlementCurrencyAmount,
-			Status:    resp[i].OrderStatus,
+			Status:    order.Status(resp[i].OrderStatus),
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+	order.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (a *ANX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (a *ANX) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := a.GetOrderList(false)
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range resp {
 		orderDate := time.Unix(resp[i].Timestamp, 0)
-		orderType := exchange.OrderType(strings.ToUpper(resp[i].OrderType))
+		orderType := order.Type(strings.ToUpper(resp[i].OrderType))
 
-		orderDetail := exchange.OrderDetail{
+		orderDetail := order.Detail{
 			Amount:    resp[i].TradedCurrencyAmount,
 			OrderDate: orderDate,
 			Exchange:  a.Name,
 			ID:        resp[i].OrderID,
 			OrderType: orderType,
 			Price:     resp[i].SettlementCurrencyAmount,
-			Status:    resp[i].OrderStatus,
+			Status:    order.Status(resp[i].OrderStatus),
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].TradedCurrency,
 				resp[i].SettlementCurrency,
 				a.GetPairFormat(asset.Spot, false).Delimiter),
@@ -513,10 +510,9 @@ func (a *ANX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 		orders = append(orders, orderDetail)
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 

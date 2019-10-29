@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
@@ -116,10 +117,10 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetFundingHistory")
 	}
 
-	s := &exchange.OrderSubmission{
+	s := &order.Submit{
 		Pair:      p,
-		OrderSide: exchange.BuyOrderSide,
-		OrderType: exchange.LimitOrderType,
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
 		Amount:    1000000,
 		Price:     10000000000,
 		ClientID:  "meow",
@@ -129,17 +130,17 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "SubmitOrder")
 	}
 
-	_, err = e.ModifyOrder(&exchange.ModifyOrder{})
+	_, err = e.ModifyOrder(&order.Modify{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "ModifyOrder")
 	}
 
-	err = e.CancelOrder(&exchange.OrderCancellation{})
+	err = e.CancelOrder(&order.Cancellation{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "CancelOrder")
 	}
 
-	_, err = e.CancelAllOrders(&exchange.OrderCancellation{})
+	_, err = e.CancelAllOrders(&order.Cancellation{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "CancelAllOrders")
 	}
@@ -149,12 +150,12 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetOrderInfo")
 	}
 
-	_, err = e.GetOrderHistory(&exchange.GetOrdersRequest{})
+	_, err = e.GetOrderHistory(&order.GetOrdersRequest{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetOrderHistory")
 	}
 
-	_, err = e.GetActiveOrders(&exchange.GetOrdersRequest{})
+	_, err = e.GetActiveOrders(&order.GetOrdersRequest{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetActiveOrders")
 	}

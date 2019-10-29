@@ -105,7 +105,7 @@ func (y *Yobit) GetAccountInformation() (AccountInfo, error) {
 func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
-	req.Add("type", orderType)
+	req.Add("type", strings.ToLower(orderType))
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
 
@@ -142,7 +142,7 @@ func (y *Yobit) GetOrderInformation(orderID int64) (map[string]OrderInfo, error)
 }
 
 // CancelExistingOrder cancels an order for a specific order ID
-func (y *Yobit) CancelExistingOrder(orderID int64) (bool, error) {
+func (y *Yobit) CancelExistingOrder(orderID int64) error {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
@@ -150,12 +150,12 @@ func (y *Yobit) CancelExistingOrder(orderID int64) (bool, error) {
 
 	err := y.SendAuthenticatedHTTPRequest(privateCancelOrder, req, &result)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if result.Error != "" {
-		return false, errors.New(result.Error)
+		return errors.New(result.Error)
 	}
-	return true, nil
+	return nil
 }
 
 // GetTradeHistory returns the trade history

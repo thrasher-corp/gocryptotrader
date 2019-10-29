@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -430,19 +431,15 @@ func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (c *COINUT) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var APIresponse interface{}
-	isBuyOrder := order.OrderSide == exchange.BuyOrderSide
-	clientIDInt, err := strconv.ParseUint(order.ClientID, 0, 32)
+	isBuyOrder := s.OrderSide == order.Buy
+	clientIDInt, err := strconv.ParseUint(s.ClientID, 0, 32)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -456,32 +453,40 @@ func (c *COINUT) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOr
 		}
 	}
 
-	currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(order.Pair,
+	currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(s.Pair,
 		asset.Spot).String())
 	if currencyID == 0 {
 		return submitOrderResponse, errLookupInstrumentID
 	}
 
-	switch order.OrderType {
-	case exchange.LimitOrderType:
-		APIresponse, err = c.NewOrder(currencyID, order.Amount, order.Price,
-			isBuyOrder, clientIDUint)
-	case exchange.MarketOrderType:
-		APIresponse, err = c.NewOrder(currencyID, order.Amount, 0, isBuyOrder,
+	switch s.OrderType {
+	case order.Limit:
+		APIresponse, err = c.NewOrder(currencyID,
+			s.Amount,
+			s.Price,
+			isBuyOrder,
+			clientIDUint)
+	case order.Market:
+		APIresponse, err = c.NewOrder(currencyID,
+			s.Amount,
+			0,
+			isBuyOrder,
 			clientIDUint)
 	}
 
 	switch apiResp := APIresponse.(type) {
 	case OrdersBase:
 		orderResult := apiResp
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
+		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.OrderID, 10)
 	case OrderFilledResponse:
 		orderResult := apiResp
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.Order.OrderID)
+		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.Order.OrderID, 10)
 	case OrderRejectResponse:
 		orderResult := apiResp
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
-		err = fmt.Errorf("orderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
+		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.OrderID, 10)
+		err = fmt.Errorf("orderID: %d was rejected: %v",
+			orderResult.OrderID,
+			orderResult.Reasons)
 	}
 
 	if err == nil {
@@ -493,12 +498,12 @@ func (c *COINUT) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOr
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *COINUT) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (c *COINUT) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *COINUT) CancelOrder(order *exchange.OrderCancellation) error {
+func (c *COINUT) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -523,13 +528,14 @@ func (c *COINUT) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *COINUT) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (c *COINUT) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
 	// TODO, this is a terrible implementation. Requires DB to improve
 	// Coinut provides no way of retrieving orders without a currency
-	// So we need to retrieve all currencies, then retrieve orders for each currency
-	// Then cancel. Advisable to never use this until DB due to performance
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+	// So we need to retrieve all currencies, then retrieve orders for each
+	// currency then cancel. Advisable to never use this until DB due to
+	// performance.
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 
 	if !c.instrumentMap.IsLoaded() {
@@ -566,7 +572,7 @@ func (c *COINUT) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 
 		for _, order := range resp.Results {
 			if order.Status != "OK" {
-				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.OrderID, 10)] = order.Status
+				cancelAllOrdersResponse.Status[strconv.FormatInt(order.OrderID, 10)] = order.Status
 			}
 		}
 	}
@@ -575,8 +581,8 @@ func (c *COINUT) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 }
 
 // GetOrderInfo returns information on a current open order
-func (c *COINUT) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	return exchange.OrderDetail{}, common.ErrNotYetImplemented
+func (c *COINUT) GetOrderInfo(orderID string) (order.Detail, error) {
+	return order.Detail{}, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -617,7 +623,7 @@ func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if !c.instrumentMap.IsLoaded() {
 		err := c.SeedInstruments()
 		if err != nil {
@@ -626,9 +632,9 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var instrumentsToUse []int64
-	if len(getOrdersRequest.Currencies) > 0 {
-		for x := range getOrdersRequest.Currencies {
-			currency := c.FormatExchangeCurrency(getOrdersRequest.Currencies[x],
+	if len(req.Currencies) > 0 {
+		for x := range req.Currencies {
+			currency := c.FormatExchangeCurrency(req.Currencies[x],
 				asset.Spot).String()
 			instrumentsToUse = append(instrumentsToUse,
 				c.instrumentMap.LookupID(currency))
@@ -641,7 +647,7 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		return nil, errors.New("no instrument IDs to use")
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for x := range instrumentsToUse {
 		openOrders, err := c.GetOpenOrders(instrumentsToUse[x])
 		if err != nil {
@@ -652,9 +658,9 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			p := currency.NewPairFromFormattedPairs(curr,
 				c.GetEnabledPairs(asset.Spot),
 				c.GetPairFormat(asset.Spot, true))
-			orderSide := exchange.OrderSide(strings.ToUpper(openOrders.Orders[y].Side))
+			orderSide := order.Side(strings.ToUpper(openOrders.Orders[y].Side))
 			orderDate := time.Unix(openOrders.Orders[y].Timestamp, 0)
-			orders = append(orders, exchange.OrderDetail{
+			orders = append(orders, order.Detail{
 				ID:           strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
 				Amount:       openOrders.Orders[y].Quantity,
 				Price:        openOrders.Orders[y].Price,
@@ -666,14 +672,14 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		}
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if !c.instrumentMap.IsLoaded() {
 		err := c.SeedInstruments()
 		if err != nil {
@@ -682,9 +688,9 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	}
 
 	var instrumentsToUse []int64
-	if len(getOrdersRequest.Currencies) > 0 {
-		for x := range getOrdersRequest.Currencies {
-			currency := c.FormatExchangeCurrency(getOrdersRequest.Currencies[x],
+	if len(req.Currencies) > 0 {
+		for x := range req.Currencies {
+			currency := c.FormatExchangeCurrency(req.Currencies[x],
 				asset.Spot).String()
 			instrumentsToUse = append(instrumentsToUse,
 				c.instrumentMap.LookupID(currency))
@@ -697,7 +703,7 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		return nil, errors.New("no instrument IDs to use")
 	}
 
-	var allOrders []exchange.OrderDetail
+	var allOrders []order.Detail
 	for x := range instrumentsToUse {
 		orders, err := c.GetTradeHistory(instrumentsToUse[x], -1, -1)
 		if err != nil {
@@ -708,10 +714,9 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			p := currency.NewPairFromFormattedPairs(curr,
 				c.GetEnabledPairs(asset.Spot),
 				c.GetPairFormat(asset.Spot, true))
-			orderSide := exchange.OrderSide(
-				strings.ToUpper(orders.Trades[y].Order.Side))
+			orderSide := order.Side(strings.ToUpper(orders.Trades[y].Order.Side))
 			orderDate := time.Unix(orders.Trades[y].Order.Timestamp, 0)
-			allOrders = append(allOrders, exchange.OrderDetail{
+			allOrders = append(allOrders, order.Detail{
 				ID:           strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
 				Amount:       orders.Trades[y].Order.Quantity,
 				Price:        orders.Trades[y].Order.Price,
@@ -724,9 +729,8 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	}
 
-	exchange.FilterOrdersByTickRange(&allOrders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&allOrders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&allOrders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&allOrders, req.OrderSide)
 	return allOrders, nil
 }
 

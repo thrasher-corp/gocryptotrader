@@ -2,7 +2,6 @@ package alphapoint
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -200,23 +200,20 @@ func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType asset.Item) (
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	response, err := a.CreateOrder(order.Pair.String(),
-		order.OrderSide.ToString(),
-		order.OrderSide.ToString(),
-		order.Amount, order.Price)
+	response, err := a.CreateOrder(s.Pair.String(),
+		s.OrderSide.String(),
+		s.OrderSide.String(),
+		s.Amount,
+		s.Price)
 
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
 
 	if err == nil {
@@ -228,25 +225,23 @@ func (a *Alphapoint) SubmitOrder(order *exchange.OrderSubmission) (exchange.Subm
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *Alphapoint) ModifyOrder(_ *exchange.ModifyOrder) (string, error) {
+func (a *Alphapoint) ModifyOrder(_ *order.Modify) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *Alphapoint) CancelOrder(order *exchange.OrderCancellation) error {
+func (a *Alphapoint) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
-
 	_, err = a.CancelExistingOrder(orderIDInt, order.AccountID)
-
 	return err
 }
 
 // CancelAllOrders cancels all orders for a given account
-func (a *Alphapoint) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	return exchange.CancelAllOrdersResponse{},
+func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+	return order.CancelAllResponse{},
 		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
 
@@ -311,84 +306,84 @@ func (a *Alphapoint) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := a.GetOrders()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for x := range resp {
-		for _, order := range resp[x].OpenOrders {
-			if order.State != 1 {
+		for y := range resp[x].OpenOrders {
+			if resp[x].OpenOrders[y].State != 1 {
 				continue
 			}
 
-			orderDetail := exchange.OrderDetail{
-				Amount:          order.QtyTotal,
+			orderDetail := order.Detail{
+				Amount:          resp[x].OpenOrders[y].QtyTotal,
 				Exchange:        a.Name,
-				AccountID:       fmt.Sprintf("%v", order.AccountID),
-				ID:              fmt.Sprintf("%v", order.ServerOrderID),
-				Price:           order.Price,
-				RemainingAmount: order.QtyRemaining,
+				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
+				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
+				Price:           resp[x].OpenOrders[y].Price,
+				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
 
-			orderDetail.OrderSide = orderSideMap[order.Side]
-			orderDetail.OrderDate = time.Unix(order.ReceiveTime, 0)
-			orderDetail.OrderType = orderTypeMap[order.OrderType]
+			orderDetail.OrderSide = orderSideMap[resp[x].OpenOrders[y].Side]
+			orderDetail.OrderDate = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
+			orderDetail.OrderType = orderTypeMap[resp[x].OpenOrders[y].OrderType]
 			if orderDetail.OrderType == "" {
-				orderDetail.OrderType = exchange.UnknownOrderType
+				orderDetail.OrderType = order.Unknown
 			}
 
 			orders = append(orders, orderDetail)
 		}
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := a.GetOrders()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for x := range resp {
-		for _, order := range resp[x].OpenOrders {
-			if order.State == 1 {
+		for y := range resp[x].OpenOrders {
+			if resp[x].OpenOrders[y].State == 1 {
 				continue
 			}
 
-			orderDetail := exchange.OrderDetail{
-				Amount:          order.QtyTotal,
-				AccountID:       fmt.Sprintf("%v", order.AccountID),
+			orderDetail := order.Detail{
+				Amount:          resp[x].OpenOrders[y].QtyTotal,
+				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
 				Exchange:        a.Name,
-				ID:              fmt.Sprintf("%v", order.ServerOrderID),
-				Price:           order.Price,
-				RemainingAmount: order.QtyRemaining,
+				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
+				Price:           resp[x].OpenOrders[y].Price,
+				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
 
-			orderDetail.OrderSide = orderSideMap[order.Side]
-			orderDetail.OrderDate = time.Unix(order.ReceiveTime, 0)
-			orderDetail.OrderType = orderTypeMap[order.OrderType]
+			orderDetail.OrderSide = orderSideMap[resp[x].OpenOrders[y].Side]
+			orderDetail.OrderDate = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
+			orderDetail.OrderType = orderTypeMap[resp[x].OpenOrders[y].OrderType]
 			if orderDetail.OrderType == "" {
-				orderDetail.OrderType = exchange.UnknownOrderType
+				orderDetail.OrderType = order.Unknown
 			}
 
 			orders = append(orders, orderDetail)
 		}
 	}
 
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
 

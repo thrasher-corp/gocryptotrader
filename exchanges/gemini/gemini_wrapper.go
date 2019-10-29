@@ -2,7 +2,6 @@ package gemini
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -317,28 +317,25 @@ func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (g *Gemini) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	if order.OrderType != exchange.LimitOrderType {
-		return submitOrderResponse, errors.New("only limit orders are enabled through this exchange")
+	if s.OrderType != order.Limit {
+		return submitOrderResponse,
+			errors.New("only limit orders are enabled through this exchange")
 	}
 
 	response, err := g.NewOrder(
-		g.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
-		order.Amount,
-		order.Price,
-		order.OrderSide.ToString(),
+		g.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		s.Amount,
+		s.Price,
+		s.OrderSide.String(),
 		"exchange limit")
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -348,12 +345,12 @@ func (g *Gemini) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOr
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gemini) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (g *Gemini) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (g *Gemini) CancelOrder(order *exchange.OrderCancellation) error {
+func (g *Gemini) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -364,9 +361,9 @@ func (g *Gemini) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gemini) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (g *Gemini) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	resp, err := g.CancelExistingOrders(false)
 	if err != nil {
@@ -374,15 +371,15 @@ func (g *Gemini) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 	}
 
 	for _, order := range resp.Details.CancelRejects {
-		cancelAllOrdersResponse.OrderStatus[order] = "Could not cancel order"
+		cancelAllOrdersResponse.Status[order] = "Could not cancel order"
 	}
 
 	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order
-func (g *Gemini) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (g *Gemini) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -436,30 +433,30 @@ func (g *Gemini) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := g.GetOrders()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range resp {
 		symbol := currency.NewPairDelimiter(resp[i].Symbol,
 			g.GetPairFormat(asset.Spot, false).Delimiter)
-		var orderType exchange.OrderType
+		var orderType order.Type
 		if resp[i].Type == "exchange limit" {
-			orderType = exchange.LimitOrderType
+			orderType = order.Limit
 		} else if resp[i].Type == "market buy" || resp[i].Type == "market sell" {
-			orderType = exchange.MarketOrderType
+			orderType = order.Market
 		}
 
-		side := exchange.OrderSide(strings.ToUpper(resp[i].Type))
+		side := order.Side(strings.ToUpper(resp[i].Type))
 		orderDate := time.Unix(resp[i].Timestamp, 0)
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			RemainingAmount: resp[i].RemainingAmount,
-			ID:              fmt.Sprintf("%v", resp[i].OrderID),
+			ID:              strconv.FormatInt(resp[i].OrderID, 10),
 			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        g.Name,
 			OrderType:       orderType,
@@ -470,44 +467,44 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	var trades []TradeHistory
-	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := g.GetTradeHistory(g.FormatExchangeCurrency(currency,
-			asset.Spot).String(), getOrdersRequest.StartTicks.Unix())
+	for j := range req.Currencies {
+		resp, err := g.GetTradeHistory(g.FormatExchangeCurrency(req.Currencies[j],
+			asset.Spot).String(),
+			req.StartTicks.Unix())
 		if err != nil {
 			return nil, err
 		}
 
 		for i := range resp {
-			resp[i].BaseCurrency = currency.Base.String()
-			resp[i].QuoteCurrency = currency.Quote.String()
+			resp[i].BaseCurrency = req.Currencies[j].Base.String()
+			resp[i].QuoteCurrency = req.Currencies[j].Quote.String()
 			trades = append(trades, resp[i])
 		}
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range trades {
-		side := exchange.OrderSide(strings.ToUpper(trades[i].Type))
+		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			Amount:    trades[i].Amount,
-			ID:        fmt.Sprintf("%v", trades[i].OrderID),
+			ID:        strconv.FormatInt(trades[i].OrderID, 10),
 			Exchange:  g.Name,
 			OrderDate: orderDate,
 			OrderSide: side,
@@ -519,9 +516,8 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

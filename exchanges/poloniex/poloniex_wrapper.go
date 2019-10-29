@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -359,26 +360,22 @@ func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType asse
 }
 
 // SubmitOrder submits a new order
-func (p *Poloniex) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	fillOrKill := order.OrderType == exchange.MarketOrderType
-	isBuyOrder := order.OrderSide == exchange.BuyOrderSide
-	response, err := p.PlaceOrder(order.Pair.String(),
-		order.Price,
-		order.Amount,
+	fillOrKill := s.OrderType == order.Market
+	isBuyOrder := s.OrderSide == order.Buy
+	response, err := p.PlaceOrder(s.Pair.String(),
+		s.Price,
+		s.Amount,
 		false,
 		fillOrKill,
 		isBuyOrder)
 	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -388,7 +385,7 @@ func (p *Poloniex) SubmitOrder(order *exchange.OrderSubmission) (exchange.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (p *Poloniex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
 	oID, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
 		return "", err
@@ -407,7 +404,7 @@ func (p *Poloniex) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (p *Poloniex) CancelOrder(order *exchange.OrderCancellation) error {
+func (p *Poloniex) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -417,20 +414,21 @@ func (p *Poloniex) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (p *Poloniex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (p *Poloniex) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	openOrders, err := p.GetOpenOrdersForAllCurrencies()
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, openOrderPerCurrency := range openOrders.Data {
-		for _, openOrder := range openOrderPerCurrency {
-			err = p.CancelExistingOrder(openOrder.OrderNumber)
+	for key := range openOrders.Data {
+		for i := range openOrders.Data[key] {
+			err = p.CancelExistingOrder(openOrders.Data[key][i].OrderNumber)
 			if err != nil {
-				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrder.OrderNumber, 10)] = err.Error()
+				id := strconv.FormatInt(openOrders.Data[key][i].OrderNumber, 10)
+				cancelAllOrdersResponse.Status[id] = err.Error()
 			}
 		}
 	}
@@ -439,8 +437,8 @@ func (p *Poloniex) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Canc
 }
 
 // GetOrderInfo returns information on a current open order
-func (p *Poloniex) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (p *Poloniex) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -494,81 +492,90 @@ func (p *Poloniex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (p *Poloniex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := p.GetOpenOrdersForAllCurrencies()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
-	for currencyPair, openOrders := range resp.Data {
-		symbol := currency.NewPairDelimiter(currencyPair,
+	var orders []order.Detail
+	for key := range resp.Data {
+		symbol := currency.NewPairDelimiter(key,
 			p.GetPairFormat(asset.Spot, false).Delimiter)
 
-		for _, order := range openOrders {
-			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
-			orderDate, err := time.Parse(poloniexDateLayout, order.Date)
+		for i := range resp.Data[key] {
+			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
+			orderDate, err := time.Parse(poloniexDateLayout, resp.Data[key][i].Date)
 			if err != nil {
-				log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
+				log.Warnf(log.ExchangeSys,
+					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+					p.Name,
+					"GetActiveOrders",
+					resp.Data[key][i].OrderNumber,
+					resp.Data[key][i].Date)
 			}
 
-			orders = append(orders, exchange.OrderDetail{
-				ID:           fmt.Sprintf("%v", order.OrderNumber),
+			orders = append(orders, order.Detail{
+				ID:           strconv.FormatInt(resp.Data[key][i].OrderNumber, 10),
 				OrderSide:    orderSide,
-				Amount:       order.Amount,
+				Amount:       resp.Data[key][i].Amount,
 				OrderDate:    orderDate,
-				Price:        order.Rate,
+				Price:        resp.Data[key][i].Rate,
 				CurrencyPair: symbol,
 				Exchange:     p.Name,
 			})
 		}
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	resp, err := p.GetAuthenticatedTradeHistory(getOrdersRequest.StartTicks.Unix(),
-		getOrdersRequest.EndTicks.Unix(),
+func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	resp, err := p.GetAuthenticatedTradeHistory(req.StartTicks.Unix(),
+		req.EndTicks.Unix(),
 		10000)
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
-	for currencyPair, historicOrders := range resp.Data {
-		symbol := currency.NewPairDelimiter(currencyPair,
+	var orders []order.Detail
+	for key := range resp.Data {
+		symbol := currency.NewPairDelimiter(key,
 			p.GetPairFormat(asset.Spot, false).Delimiter)
 
-		for _, order := range historicOrders {
-			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
-			orderDate, err := time.Parse(poloniexDateLayout, order.Date)
+		for i := range resp.Data[key] {
+			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
+			orderDate, err := time.Parse(poloniexDateLayout,
+				resp.Data[key][i].Date)
 			if err != nil {
-				log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
+				log.Warnf(log.ExchangeSys,
+					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+					p.Name,
+					"GetActiveOrders",
+					resp.Data[key][i].OrderNumber,
+					resp.Data[key][i].Date)
 			}
 
-			orders = append(orders, exchange.OrderDetail{
-				ID:           fmt.Sprintf("%v", order.GlobalTradeID),
+			orders = append(orders, order.Detail{
+				ID:           strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
 				OrderSide:    orderSide,
-				Amount:       order.Amount,
+				Amount:       resp.Data[key][i].Amount,
 				OrderDate:    orderDate,
-				Price:        order.Rate,
+				Price:        resp.Data[key][i].Rate,
 				CurrencyPair: symbol,
 				Exchange:     p.Name,
 			})
 		}
 	}
 
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 
 	return orders, nil
 }

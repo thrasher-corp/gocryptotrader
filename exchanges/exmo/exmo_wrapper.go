@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -227,7 +228,8 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType), assetType)
+	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType),
+		assetType)
 	if err != nil {
 		return orderBook, err
 	}
@@ -249,7 +251,8 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook
 			z := data.Ask[y]
 			price, _ := strconv.ParseFloat(z[0], 64)
 			amount, _ := strconv.ParseFloat(z[1], 64)
-			obItems = append(obItems, orderbook.Item{Price: price, Amount: amount})
+			obItems = append(obItems,
+				orderbook.Item{Price: price, Amount: amount})
 		}
 
 		orderBook.Asks = obItems
@@ -258,7 +261,8 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook
 			z := data.Bid[y]
 			price, _ := strconv.ParseFloat(z[0], 64)
 			amount, _ := strconv.ParseFloat(z[1], 64)
-			obItems = append(obItems, orderbook.Item{Price: price, Amount: amount})
+			obItems = append(obItems,
+				orderbook.Item{Price: price, Amount: amount})
 		}
 
 		orderBook.Bids = obItems
@@ -319,31 +323,30 @@ func (e *EXMO) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exch
 }
 
 // SubmitOrder submits a new order
-func (e *EXMO) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (e *EXMO) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var oT string
-	switch order.OrderType {
-	case exchange.LimitOrderType:
+	switch s.OrderType {
+	case order.Limit:
 		return submitOrderResponse, errors.New("unsupported order type")
-	case exchange.MarketOrderType:
-		oT = "market_buy"
-		if order.OrderSide == exchange.SellOrderSide {
+	case order.Market:
+		if s.OrderSide == order.Sell {
 			oT = "market_sell"
+		} else {
+			oT = "market_buy"
 		}
 	}
 
-	response, err := e.CreateOrder(order.Pair.String(), oT, order.Price,
-		order.Amount)
+	response, err := e.CreateOrder(s.Pair.String(),
+		oT,
+		s.Price,
+		s.Amount)
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
 
 	if err == nil {
@@ -355,12 +358,12 @@ func (e *EXMO) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrde
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (e *EXMO) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (e *EXMO) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (e *EXMO) CancelOrder(order *exchange.OrderCancellation) error {
+func (e *EXMO) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -370,9 +373,9 @@ func (e *EXMO) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *EXMO) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (e *EXMO) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 
 	openOrders, err := e.GetOpenOrders()
@@ -383,7 +386,7 @@ func (e *EXMO) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAl
 	for _, order := range openOrders {
 		err = e.CancelExistingOrder(order.OrderID)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.OrderID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[strconv.FormatInt(order.OrderID, 10)] = err.Error()
 		}
 	}
 
@@ -391,8 +394,8 @@ func (e *EXMO) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAl
 }
 
 // GetOrderInfo returns information on a current open order
-func (e *EXMO) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (e *EXMO) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -419,7 +422,7 @@ func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithd
 		withdrawRequest.AddressTag,
 		withdrawRequest.Amount)
 
-	return fmt.Sprintf("%v", resp), err
+	return strconv.FormatInt(resp, 10), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -449,43 +452,42 @@ func (e *EXMO) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (e *EXMO) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (e *EXMO) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := e.GetOpenOrders()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range resp {
-		symbol := currency.NewPairDelimiter(order.Pair, "_")
-		orderDate := time.Unix(order.Created, 0)
-		orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
-		orders = append(orders, exchange.OrderDetail{
-			ID:           fmt.Sprintf("%v", order.OrderID),
-			Amount:       order.Quantity,
+	var orders []order.Detail
+	for i := range resp {
+		symbol := currency.NewPairDelimiter(resp[i].Pair, "_")
+		orderDate := time.Unix(resp[i].Created, 0)
+		orderSide := order.Side(strings.ToUpper(resp[i].Type))
+		orders = append(orders, order.Detail{
+			ID:           strconv.FormatInt(resp[i].OrderID, 10),
+			Amount:       resp[i].Quantity,
 			OrderDate:    orderDate,
-			Price:        order.Price,
+			Price:        resp[i].Price,
 			OrderSide:    orderSide,
 			Exchange:     e.Name,
 			CurrencyPair: symbol,
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (e *EXMO) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if len(req.Currencies) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	var allTrades []UserTrades
-	for _, currency := range getOrdersRequest.Currencies {
+	for _, currency := range req.Currencies {
 		resp, err := e.GetUserTrades(e.FormatExchangeCurrency(currency, asset.Spot).String(), "", "10000")
 		if err != nil {
 			return nil, err
@@ -495,25 +497,24 @@ func (e *EXMO) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 		}
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range allTrades {
-		symbol := currency.NewPairDelimiter(order.Pair, "_")
-		orderDate := time.Unix(order.Date, 0)
-		orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
-		orders = append(orders, exchange.OrderDetail{
-			ID:           fmt.Sprintf("%v", order.TradeID),
-			Amount:       order.Quantity,
+	var orders []order.Detail
+	for i := range allTrades {
+		symbol := currency.NewPairDelimiter(allTrades[i].Pair, "_")
+		orderDate := time.Unix(allTrades[i].Date, 0)
+		orderSide := order.Side(strings.ToUpper(allTrades[i].Type))
+		orders = append(orders, order.Detail{
+			ID:           strconv.FormatInt(allTrades[i].TradeID, 10),
+			Amount:       allTrades[i].Quantity,
 			OrderDate:    orderDate,
-			Price:        order.Price,
+			Price:        allTrades[i].Price,
 			OrderSide:    orderSide,
 			Exchange:     e.Name,
 			CurrencyPair: symbol,
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
@@ -240,7 +241,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 		price, _ := strconv.ParseFloat(update.Changes[i][1].(string), 64)
 		volume, _ := strconv.ParseFloat(update.Changes[i][2].(string), 64)
 
-		if update.Changes[i][0].(string) == exchange.BuyOrderSide.ToLower().ToString() {
+		if update.Changes[i][0].(string) == order.Buy.Lower() {
 			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
 		} else {
 			asks = append(asks, orderbook.Item{Price: price, Amount: volume})

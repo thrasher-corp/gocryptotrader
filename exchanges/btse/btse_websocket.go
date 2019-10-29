@@ -11,8 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -82,9 +82,9 @@ func (b *BTSE) WsHandleData() {
 					continue
 				}
 				for x := range tradeHistory.Data {
-					side := exchange.BuyOrderSide.ToString()
+					side := order.Buy.String()
 					if tradeHistory.Data[x].Gain == -1 {
-						side = exchange.SellOrderSide.ToString()
+						side = order.Sell.String()
 					}
 					b.Websocket.DataHandler <- wshandler.TradeData{
 						Timestamp:    time.Unix(tradeHistory.Data[x].TransactionTime, 0),

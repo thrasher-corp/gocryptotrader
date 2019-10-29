@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -312,14 +313,14 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var orderSubmission = &exchange.OrderSubmission{
+	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:      currency.BTC,
 			Quote:     currency.USDT,
 			Delimiter: "_",
 		},
-		OrderSide: exchange.BuyOrderSide,
-		OrderType: exchange.LimitOrderType,
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
 		Price:     1,
 		Amount:    1,
 		ClientID:  "meowOrder",
@@ -338,7 +339,7 @@ func TestCancelOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
-	var a exchange.OrderCancellation
+	var a order.Cancellation
 	a.CurrencyPair = cp
 	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
@@ -401,8 +402,8 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	var input exchange.GetOrdersRequest
-	input.OrderSide = exchange.BuyOrderSide
+	var input order.GetOrdersRequest
+	input.OrderSide = order.Buy
 	_, err := l.GetOrderHistory(&input)
 	if err != nil {
 		t.Error(err)

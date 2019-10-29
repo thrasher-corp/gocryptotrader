@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here to do better tests
@@ -150,8 +151,8 @@ func TestGetActiveOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -165,8 +166,8 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 	_, err := b.GetOrderHistory(&getOrdersRequest)
 	if err != nil {
@@ -279,13 +280,13 @@ func TestSubmitOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	var orderSubmission = &exchange.OrderSubmission{
+	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		OrderSide: exchange.SellOrderSide,
-		OrderType: exchange.LimitOrderType,
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
 		Price:     100000,
 		Amount:    0.1,
 		ClientID:  "meowOrder",
@@ -307,7 +308,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		currency.USD.String(),
 		"-")
 
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancellation{
 		OrderID:       "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -328,7 +329,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		currency.USD.String(),
 		"-")
 
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -339,7 +340,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
-	for k, v := range resp.OrderStatus {
+	for k, v := range resp.Status {
 		if strings.Contains(v, "Failed") {
 			t.Errorf("order id: %s failed to cancel: %v", k, v)
 		}

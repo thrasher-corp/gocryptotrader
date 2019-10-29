@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -381,10 +382,10 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, m
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))
 	response := Order{}
-	orderType := exchange.BuyOrderSide.ToLower().ToString()
+	orderType := order.Buy.Lower()
 
 	if !buy {
-		orderType = exchange.SellOrderSide.ToLower().ToString()
+		orderType = order.Sell.Lower()
 	}
 
 	var path string

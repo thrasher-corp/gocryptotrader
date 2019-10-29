@@ -3,6 +3,7 @@ package kraken
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -203,7 +205,10 @@ func (k *Kraken) Run() {
 
 		err := k.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s\n", k.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				k.Name,
+				err)
 		}
 	}
 
@@ -213,7 +218,10 @@ func (k *Kraken) Run() {
 
 	err := k.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", k.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			k.Name,
+			err)
 	}
 }
 
@@ -238,7 +246,10 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
 			v.Quote = v.Quote[1:]
 		}
-		products = append(products, fmt.Sprintf("%v%v%v", v.Base, k.GetPairFormat(asset, false).Delimiter, v.Quote))
+		products = append(products, fmt.Sprintf("%v%v%v",
+			v.Base,
+			k.GetPairFormat(asset, false).Delimiter,
+			v.Quote))
 	}
 	return products, nil
 }
@@ -268,12 +279,11 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	}
 
 	for i := range pairs {
-		for curr, v := range tickers {
+		for curr := range tickers {
 			pairFmt := k.FormatExchangeCurrency(pairs[i], assetType).String()
 			if !strings.EqualFold(pairFmt, curr) {
-				var altCurrency string
-				var ok bool
-				if altCurrency, ok = assetPairMap[curr]; !ok {
+				altCurrency, ok := assetPairMap[curr]
+				if !ok {
 					continue
 				}
 				if !strings.EqualFold(pairFmt, altCurrency) {
@@ -282,13 +292,13 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 			}
 
 			tickerPrice = ticker.Price{
-				Last:   v.Last,
-				High:   v.High,
-				Low:    v.Low,
-				Bid:    v.Bid,
-				Ask:    v.Ask,
-				Volume: v.Volume,
-				Open:   v.Open,
+				Last:   tickers[curr].Last,
+				High:   tickers[curr].High,
+				Low:    tickers[curr].Low,
+				Bid:    tickers[curr].Bid,
+				Ask:    tickers[curr].Ask,
+				Volume: tickers[curr].Volume,
+				Open:   tickers[curr].Open,
 				Pair:   pairs[i],
 			}
 			err = ticker.ProcessTicker(k.Name, &tickerPrice, assetType)
@@ -359,10 +369,10 @@ func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var balances []exchange.AccountCurrencyInfo
-	for key, data := range bal {
+	for key := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
 			CurrencyName: currency.NewCode(key),
-			TotalValue:   data,
+			TotalValue:   bal[key],
 		})
 	}
 
@@ -386,25 +396,20 @@ func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (k *Kraken) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	var args = AddOrderOptions{}
-	response, err := k.AddOrder(order.Pair.String(),
-		order.OrderSide.ToString(),
-		order.OrderType.ToString(),
-		order.Amount,
-		order.Price,
+	response, err := k.AddOrder(s.Pair.String(),
+		s.OrderSide.String(),
+		s.OrderType.String(),
+		s.Amount,
+		s.Price,
 		0,
 		0,
-		&args)
+		&AddOrderOptions{})
 	if len(response.TransactionIds) > 0 {
 		submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
 	}
@@ -416,21 +421,21 @@ func (k *Kraken) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOr
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (k *Kraken) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (k *Kraken) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (k *Kraken) CancelOrder(order *exchange.OrderCancellation) error {
+func (k *Kraken) CancelOrder(order *order.Cancellation) error {
 	_, err := k.CancelExistingOrder(order.OrderID)
 
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (k *Kraken) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (k *Kraken) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	var emptyOrderOptions OrderInfoOptions
 	openOrders, err := k.GetOpenOrders(emptyOrderOptions)
@@ -441,7 +446,7 @@ func (k *Kraken) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 	for orderID := range openOrders.Open {
 		_, err = k.CancelExistingOrder(orderID)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[orderID] = err.Error()
+			cancelAllOrdersResponse.Status[orderID] = err.Error()
 		}
 	}
 
@@ -449,8 +454,8 @@ func (k *Kraken) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 }
 
 // GetOrderInfo returns information on a current open order
-func (k *Kraken) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -506,20 +511,20 @@ func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := k.GetOpenOrders(OrderInfoOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range resp.Open {
 		symbol := currency.NewPairFromString(resp.Open[i].Description.Pair)
 		orderDate := time.Unix(int64(resp.Open[i].StartTime), 0)
-		side := exchange.OrderSide(strings.ToUpper(resp.Open[i].Description.Type))
-		orderType := exchange.OrderType(strings.ToUpper(resp.Open[i].Description.OrderType))
+		side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
+		orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			ID:              i,
 			Amount:          resp.Open[i].Volume,
 			RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
@@ -533,22 +538,21 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	req := GetClosedOrdersOptions{}
 	if getOrdersRequest.StartTicks.Unix() > 0 {
-		req.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks.Unix())
+		req.Start = strconv.FormatInt(getOrdersRequest.StartTicks.Unix(), 10)
 	}
 	if getOrdersRequest.EndTicks.Unix() > 0 {
-		req.End = fmt.Sprintf("%v", getOrdersRequest.EndTicks.Unix())
+		req.End = strconv.FormatInt(getOrdersRequest.EndTicks.Unix(), 10)
 	}
 
 	resp, err := k.GetClosedOrders(req)
@@ -556,14 +560,14 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range resp.Closed {
 		symbol := currency.NewPairFromString(resp.Closed[i].Description.Pair)
 		orderDate := time.Unix(int64(resp.Closed[i].StartTime), 0)
-		side := exchange.OrderSide(strings.ToUpper(resp.Closed[i].Description.Type))
-		orderType := exchange.OrderType(strings.ToUpper(resp.Closed[i].Description.OrderType))
+		side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
+		orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			ID:              i,
 			Amount:          resp.Closed[i].Volume,
 			RemainingAmount: (resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted),
@@ -577,8 +581,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		})
 	}
 
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 	return orders, nil
 }
 

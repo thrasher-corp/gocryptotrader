@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -376,33 +377,29 @@ func (g *Gateio) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
-func (g *Gateio) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (g *Gateio) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var orderTypeFormat string
-	if order.OrderSide == exchange.BuyOrderSide {
-		orderTypeFormat = exchange.BuyOrderSide.ToLower().ToString()
+	if s.OrderSide == order.Buy {
+		orderTypeFormat = order.Buy.Lower()
 	} else {
-		orderTypeFormat = exchange.SellOrderSide.ToLower().ToString()
+		orderTypeFormat = order.Sell.Lower()
 	}
 
 	var spotNewOrderRequestParams = SpotNewOrderRequestParams{
-		Amount: order.Amount,
-		Price:  order.Price,
-		Symbol: order.Pair.String(),
+		Amount: s.Amount,
+		Price:  s.Price,
+		Symbol: s.Pair.String(),
 		Type:   orderTypeFormat,
 	}
 
 	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
 	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}
 
 	if err == nil {
@@ -414,27 +411,25 @@ func (g *Gateio) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOr
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gateio) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (g *Gateio) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (g *Gateio) CancelOrder(order *exchange.OrderCancellation) error {
+func (g *Gateio) CancelOrder(order *order.Cancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
-	_, err = g.CancelExistingOrder(orderIDInt, g.FormatExchangeCurrency(order.CurrencyPair,
-		order.AssetType).String())
-
+	_, err = g.CancelExistingOrder(orderIDInt,
+		g.FormatExchangeCurrency(order.CurrencyPair, order.AssetType).String())
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gateio) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
-		OrderStatus: make(map[string]string),
+func (g *Gateio) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
 	}
 	openOrders, err := g.GetOpenOrders("")
 	if err != nil {
@@ -449,7 +444,7 @@ func (g *Gateio) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 	for unique := range uniqueSymbols {
 		err = g.CancelAllExistingOrders(-1, unique)
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[unique] = err.Error()
+			cancelAllOrdersResponse.Status[unique] = err.Error()
 		}
 	}
 
@@ -457,8 +452,8 @@ func (g *Gateio) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 }
 
 // GetOrderInfo returns information on a current open order
-func (g *Gateio) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 
 	orders, err := g.GetOpenOrders("")
 	if err != nil {
@@ -474,14 +469,14 @@ func (g *Gateio) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount
 		orderDetail.Amount = orders.Orders[x].InitialAmount
 		orderDetail.OrderDate = time.Unix(orders.Orders[x].Timestamp, 0)
-		orderDetail.Status = orders.Orders[x].Status
+		orderDetail.Status = order.Status(orders.Orders[x].Status)
 		orderDetail.Price = orders.Orders[x].Rate
 		orderDetail.CurrencyPair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
 			g.GetPairFormat(asset.Spot, false).Delimiter)
-		if strings.EqualFold(orders.Orders[x].Type, exchange.AskOrderSide.ToString()) {
-			orderDetail.OrderSide = exchange.AskOrderSide
-		} else if strings.EqualFold(orders.Orders[x].Type, exchange.BidOrderSide.ToString()) {
-			orderDetail.OrderSide = exchange.BuyOrderSide
+		if strings.EqualFold(orders.Orders[x].Type, order.Ask.String()) {
+			orderDetail.OrderSide = order.Ask
+		} else if strings.EqualFold(orders.Orders[x].Type, order.Bid.String()) {
+			orderDetail.OrderSide = order.Buy
 		}
 		return orderDetail, nil
 	}
@@ -495,21 +490,11 @@ func (g *Gateio) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 		return "", err
 	}
 
-	// Waits for new generated address if not created yet, its variable per
-	// currency
 	if addr == gateioGenerateAddress {
-		time.Sleep(10 * time.Second)
-		addr, err = g.GetCryptoDepositAddress(cryptocurrency.String())
-		if err != nil {
-			return "", err
-		}
-		if addr == gateioGenerateAddress {
-			return "", errors.New("new deposit address is being generated, please retry again shortly")
-		}
-		return addr, nil
+		return "",
+			errors.New("new deposit address is being generated, please retry again shortly")
 	}
-
-	return addr, err
+	return addr, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -545,10 +530,10 @@ func (g *Gateio) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(getOrdersRequest.Currencies) == 1 {
-		currPair = getOrdersRequest.Currencies[0].String()
+	if len(req.Currencies) == 1 {
+		currPair = req.Currencies[0].String()
 	}
 
 	resp, err := g.GetOpenOrders(currPair)
@@ -556,7 +541,7 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for i := range resp.Orders {
 		if resp.Orders[i].Status != "open" {
 			continue
@@ -564,10 +549,10 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 		symbol := currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
 			g.GetPairFormat(asset.Spot, false).Delimiter)
-		side := exchange.OrderSide(strings.ToUpper(resp.Orders[i].Type))
+		side := order.Side(strings.ToUpper(resp.Orders[i].Type))
 		orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			ID:              resp.Orders[i].OrderNumber,
 			Amount:          resp.Orders[i].Amount,
 			Price:           resp.Orders[i].Rate,
@@ -576,20 +561,20 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			OrderSide:       side,
 			Exchange:        g.Name,
 			CurrencyPair:    symbol,
-			Status:          resp.Orders[i].Status,
+			Status:          order.Status(resp.Orders[i].Status),
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var trades []TradesResponse
-	for _, currency := range getOrdersRequest.Currencies {
+	for _, currency := range req.Currencies {
 		resp, err := g.GetTradeHistory(currency.String())
 		if err != nil {
 			return nil, err
@@ -597,13 +582,13 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		trades = append(trades, resp.Trades...)
 	}
 
-	var orders []exchange.OrderDetail
+	var orders []order.Detail
 	for _, trade := range trades {
 		symbol := currency.NewPairDelimiter(trade.Pair,
 			g.GetPairFormat(asset.Spot, false).Delimiter)
-		side := exchange.OrderSide(strings.ToUpper(trade.Type))
+		side := order.Side(strings.ToUpper(trade.Type))
 		orderDate := time.Unix(trade.TimeUnix, 0)
-		orders = append(orders, exchange.OrderDetail{
+		orders = append(orders, order.Detail{
 			ID:           strconv.FormatInt(trade.OrderID, 10),
 			Amount:       trade.Amount,
 			Price:        trade.Rate,
@@ -614,9 +599,8 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
 }
 
