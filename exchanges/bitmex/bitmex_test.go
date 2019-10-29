@@ -33,11 +33,11 @@ func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("Test Failed - Bitmex load config error", err)
+		t.Fatal("Bitmex load config error", err)
 	}
 	bitmexConfig, err := cfg.GetExchangeConfig("Bitmex")
 	if err != nil {
-		t.Error("Test Failed - Bitmex Setup() init error")
+		t.Error("Bitmex Setup() init error")
 	}
 
 	bitmexConfig.API.AuthenticatedSupport = true
@@ -47,7 +47,7 @@ func TestSetup(t *testing.T) {
 
 	err = b.Setup(bitmexConfig)
 	if err != nil {
-		t.Fatal("Test Failed - Bitmex setup error", err)
+		t.Fatal("Bitmex setup error", err)
 	}
 }
 
@@ -60,42 +60,42 @@ func TestStart(t *testing.T) {
 func TestGetUrgentAnnouncement(t *testing.T) {
 	_, err := b.GetUrgentAnnouncement()
 	if err == nil {
-		t.Error("test failed - GetUrgentAnnouncement() error", err)
+		t.Error("GetUrgentAnnouncement() Expected error")
 	}
 }
 
 func TestGetAPIKeys(t *testing.T) {
 	_, err := b.GetAPIKeys()
 	if err == nil {
-		t.Error("test failed - GetAPIKeys() error", err)
+		t.Error("GetAPIKeys() Expected error")
 	}
 }
 
 func TestRemoveAPIKey(t *testing.T) {
 	_, err := b.RemoveAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
-		t.Error("test failed - RemoveAPIKey() error", err)
+		t.Error("RemoveAPIKey() Expected error")
 	}
 }
 
 func TestDisableAPIKey(t *testing.T) {
 	_, err := b.DisableAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
-		t.Error("test failed - DisableAPIKey() error", err)
+		t.Error("DisableAPIKey() Expected error")
 	}
 }
 
 func TestEnableAPIKey(t *testing.T) {
 	_, err := b.EnableAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
-		t.Error("test failed - EnableAPIKey() error", err)
+		t.Error("EnableAPIKey() Expected error")
 	}
 }
 
 func TestGetTrollboxMessages(t *testing.T) {
 	_, err := b.GetTrollboxMessages(ChatGetParams{Count: 5})
 	if err != nil {
-		t.Error("test failed - GetTrollboxMessages() error", err)
+		t.Error("GetTrollboxMessages() error", err)
 	}
 }
 
@@ -104,126 +104,126 @@ func TestSendTrollboxMessage(t *testing.T) {
 		ChannelID: 1337,
 		Message:   "Hello,World!"})
 	if err == nil {
-		t.Error("test failed - SendTrollboxMessage() error", err)
+		t.Error("SendTrollboxMessage() Expected error")
 	}
 }
 
 func TestGetTrollboxChannels(t *testing.T) {
 	_, err := b.GetTrollboxChannels()
 	if err != nil {
-		t.Error("test failed - GetTrollboxChannels() error", err)
+		t.Error("GetTrollboxChannels() error", err)
 	}
 }
 
 func TestGetTrollboxConnectedUsers(t *testing.T) {
 	_, err := b.GetTrollboxConnectedUsers()
 	if err == nil {
-		t.Error("test failed - GetTrollboxConnectedUsers() error", err)
+		t.Error("GetTrollboxConnectedUsers() Expected error")
 	}
 }
 
 func TestGetAccountExecutions(t *testing.T) {
 	_, err := b.GetAccountExecutions(&GenericRequestParams{})
 	if err == nil {
-		t.Error("test failed - GetAccountExecutions() error", err)
+		t.Error("GetAccountExecutions() Expected error")
 	}
 }
 
 func TestGetAccountExecutionTradeHistory(t *testing.T) {
 	_, err := b.GetAccountExecutionTradeHistory(&GenericRequestParams{})
 	if err == nil {
-		t.Error("test failed - GetAccountExecutionTradeHistory() error", err)
+		t.Error("GetAccountExecutionTradeHistory() Expected error")
 	}
 }
 
 func TestGetFundingHistory(t *testing.T) {
 	_, err := b.GetFundingHistory()
 	if err == nil {
-		t.Error("test failed - GetFundingHistory() error", err)
+		t.Error("GetFundingHistory() Expected error")
 	}
 }
 
 func TestGetInstruments(t *testing.T) {
 	_, err := b.GetInstruments(&GenericRequestParams{})
 	if err != nil {
-		t.Error("test failed - GetInstruments() error", err)
+		t.Error("GetInstruments() error", err)
 	}
 }
 
 func TestGetActiveInstruments(t *testing.T) {
 	_, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
-		t.Error("test failed - GetActiveInstruments() error", err)
+		t.Error("GetActiveInstruments() error", err)
 	}
 }
 
 func TestGetActiveAndIndexInstruments(t *testing.T) {
 	_, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
-		t.Error("test failed - GetActiveAndIndexInstruments() error", err)
+		t.Error("GetActiveAndIndexInstruments() error", err)
 	}
 }
 
 func TestGetActiveIntervals(t *testing.T) {
 	_, err := b.GetActiveIntervals()
 	if err == nil {
-		t.Error("test failed - GetActiveIntervals() error", err)
+		t.Error("GetActiveIntervals() Expected error")
 	}
 }
 
 func TestGetCompositeIndex(t *testing.T) {
 	_, err := b.GetCompositeIndex(&GenericRequestParams{})
 	if err == nil {
-		t.Error("test failed - GetCompositeIndex() error", err)
+		t.Error("GetCompositeIndex() Expected error")
 	}
 }
 
 func TestGetIndices(t *testing.T) {
 	_, err := b.GetIndices()
 	if err != nil {
-		t.Error("test failed - GetIndices() error", err)
+		t.Error("GetIndices() error", err)
 	}
 }
 
 func TestGetInsuranceFundHistory(t *testing.T) {
 	_, err := b.GetInsuranceFundHistory(&GenericRequestParams{})
 	if err != nil {
-		t.Error("test failed - GetInsuranceFundHistory() error", err)
+		t.Error("GetInsuranceFundHistory() error", err)
 	}
 }
 
 func TestGetLeaderboard(t *testing.T) {
 	_, err := b.GetLeaderboard(LeaderboardGetParams{})
 	if err != nil {
-		t.Error("test failed - GetLeaderboard() error", err)
+		t.Error("GetLeaderboard() error", err)
 	}
 }
 
 func TestGetAliasOnLeaderboard(t *testing.T) {
 	_, err := b.GetAliasOnLeaderboard()
 	if err == nil {
-		t.Error("test failed - GetAliasOnLeaderboard() error", err)
+		t.Error("GetAliasOnLeaderboard() Expected error")
 	}
 }
 
 func TestGetLiquidationOrders(t *testing.T) {
 	_, err := b.GetLiquidationOrders(&GenericRequestParams{})
 	if err != nil {
-		t.Error("test failed - GetLiquidationOrders() error", err)
+		t.Error("GetLiquidationOrders() error", err)
 	}
 }
 
 func TestGetCurrentNotifications(t *testing.T) {
 	_, err := b.GetCurrentNotifications()
 	if err == nil {
-		t.Error("test failed - GetCurrentNotifications() error", err)
+		t.Error("GetCurrentNotifications() Expected error")
 	}
 }
 
 func TestAmendOrder(t *testing.T) {
 	_, err := b.AmendOrder(&OrderAmendParams{})
 	if err == nil {
-		t.Error("test failed - AmendOrder() error", err)
+		t.Error("AmendOrder() Expected error")
 	}
 }
 
@@ -233,126 +233,126 @@ func TestCreateOrder(t *testing.T) {
 		ClOrdID:  "mm_bitmex_1a/oemUeQ4CAJZgP3fjHsA",
 		OrderQty: 98})
 	if err == nil {
-		t.Error("test failed - CreateOrder() error", err)
+		t.Error("CreateOrder() Expected error")
 	}
 }
 
 func TestCancelOrders(t *testing.T) {
 	_, err := b.CancelOrders(&OrderCancelParams{})
 	if err == nil {
-		t.Error("test failed - CancelOrders() error", err)
+		t.Error("CancelOrders() Expected error")
 	}
 }
 
 func TestCancelAllOrders(t *testing.T) {
 	_, err := b.CancelAllExistingOrders(OrderCancelAllParams{})
 	if err == nil {
-		t.Error("test failed - CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error)", err)
+		t.Error("CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error)", err)
 	}
 }
 
 func TestAmendBulkOrders(t *testing.T) {
 	_, err := b.AmendBulkOrders(OrderAmendBulkParams{})
 	if err == nil {
-		t.Error("test failed - AmendBulkOrders() error", err)
+		t.Error("AmendBulkOrders() Expected error")
 	}
 }
 
 func TestCreateBulkOrders(t *testing.T) {
 	_, err := b.CreateBulkOrders(OrderNewBulkParams{})
 	if err == nil {
-		t.Error("test failed - CreateBulkOrders() error", err)
+		t.Error("CreateBulkOrders() Expected error")
 	}
 }
 
 func TestCancelAllOrdersAfterTime(t *testing.T) {
 	_, err := b.CancelAllOrdersAfterTime(OrderCancelAllAfterParams{})
 	if err == nil {
-		t.Error("test failed - CancelAllOrdersAfterTime() error", err)
+		t.Error("CancelAllOrdersAfterTime() Expected error")
 	}
 }
 
 func TestClosePosition(t *testing.T) {
 	_, err := b.ClosePosition(OrderClosePositionParams{})
 	if err == nil {
-		t.Error("test failed - ClosePosition() error", err)
+		t.Error("ClosePosition() Expected error")
 	}
 }
 
 func TestGetOrderbook(t *testing.T) {
 	_, err := b.GetOrderbook(OrderBookGetL2Params{Symbol: "XBT"})
 	if err != nil {
-		t.Error("test failed - GetOrderbook() error", err)
+		t.Error("GetOrderbook() error", err)
 	}
 }
 
 func TestGetPositions(t *testing.T) {
 	_, err := b.GetPositions(PositionGetParams{})
 	if err == nil {
-		t.Error("test failed - GetPositions() error", err)
+		t.Error("GetPositions() Expected error")
 	}
 }
 
 func TestIsolatePosition(t *testing.T) {
 	_, err := b.IsolatePosition(PositionIsolateMarginParams{Symbol: "XBT"})
 	if err == nil {
-		t.Error("test failed - IsolatePosition() error", err)
+		t.Error("IsolatePosition() Expected error")
 	}
 }
 
 func TestLeveragePosition(t *testing.T) {
 	_, err := b.LeveragePosition(PositionUpdateLeverageParams{})
 	if err == nil {
-		t.Error("test failed - LeveragePosition() error", err)
+		t.Error("LeveragePosition() Expected error")
 	}
 }
 
 func TestUpdateRiskLimit(t *testing.T) {
 	_, err := b.UpdateRiskLimit(PositionUpdateRiskLimitParams{})
 	if err == nil {
-		t.Error("test failed - UpdateRiskLimit() error", err)
+		t.Error("UpdateRiskLimit() Expected error")
 	}
 }
 
 func TestTransferMargin(t *testing.T) {
 	_, err := b.TransferMargin(PositionTransferIsolatedMarginParams{})
 	if err == nil {
-		t.Error("test failed - TransferMargin() error", err)
+		t.Error("TransferMargin() Expected error")
 	}
 }
 
 func TestGetQuotesByBuckets(t *testing.T) {
 	_, err := b.GetQuotesByBuckets(&QuoteGetBucketedParams{})
 	if err == nil {
-		t.Error("test failed - GetQuotesByBuckets() error", err)
+		t.Error("GetQuotesByBuckets() Expected error")
 	}
 }
 
 func TestGetSettlementHistory(t *testing.T) {
 	_, err := b.GetSettlementHistory(&GenericRequestParams{})
 	if err != nil {
-		t.Error("test failed - GetSettlementHistory() error", err)
+		t.Error("GetSettlementHistory() error", err)
 	}
 }
 
 func TestGetStats(t *testing.T) {
 	_, err := b.GetStats()
 	if err != nil {
-		t.Error("test failed - GetStats() error", err)
+		t.Error("GetStats() error", err)
 	}
 }
 
 func TestGetStatsHistorical(t *testing.T) {
 	_, err := b.GetStatsHistorical()
 	if err != nil {
-		t.Error("test failed - GetStatsHistorical() error", err)
+		t.Error("GetStatsHistorical() error", err)
 	}
 }
 
 func TestGetStatSummary(t *testing.T) {
 	_, err := b.GetStatSummary()
 	if err != nil {
-		t.Error("test failed - GetStatSummary() error", err)
+		t.Error("GetStatSummary() error", err)
 	}
 }
 
@@ -362,14 +362,14 @@ func TestGetTrade(t *testing.T) {
 		StartTime: time.Now().Format(time.RFC3339),
 		Reverse:   true})
 	if err != nil {
-		t.Error("test failed - GetTrade() error", err)
+		t.Error("GetTrade() error", err)
 	}
 }
 
 func TestGetPreviousTrades(t *testing.T) {
 	_, err := b.GetPreviousTrades(&TradeGetBucketedParams{})
 	if err == nil {
-		t.Error("test failed - GetPreviousTrades() error", err)
+		t.Error("GetPreviousTrades() Expected error")
 	}
 }
 
@@ -405,7 +405,7 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee Basic
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.00075) || err != nil {
 		t.Error(err)
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.00075), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.00075), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
@@ -413,7 +413,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
 	if resp, err := b.GetFee(feeBuilder); resp != float64(750) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(750), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(750), resp)
 		t.Error(err)
 	}
 
@@ -421,7 +421,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0005) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
 		t.Error(err)
 	}
 
@@ -429,7 +429,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -437,7 +437,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -445,7 +445,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -454,7 +454,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -463,7 +463,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 }
@@ -608,12 +608,12 @@ func TestGetAccountInfo(t *testing.T) {
 	if apiKey != "" || apiSecret != "" {
 		_, err := b.GetAccountInfo()
 		if err != nil {
-			t.Error("Test Failed - GetAccountInfo() error", err)
+			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
 		_, err := b.GetAccountInfo()
 		if err == nil {
-			t.Error("Test Failed - GetAccountInfo() error")
+			t.Error("GetAccountInfo() error")
 		}
 	}
 }
@@ -621,7 +621,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := b.ModifyOrder(&order.Modify{OrderID: "1337"})
 	if err == nil {
-		t.Error("Test Failed - ModifyOrder() error")
+		t.Error("ModifyOrder() error")
 	}
 }
 
@@ -686,12 +686,12 @@ func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
 		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err != nil {
-			t.Error("Test Failed - GetDepositAddress() error", err)
+			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
 		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err == nil {
-			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+			t.Error("GetDepositAddress() error cannot be nil")
 		}
 	}
 }

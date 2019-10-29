@@ -1,5 +1,38 @@
 package currencylayer
 
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+)
+
+// const declarations consist of endpoints and APIKey privileges
+const (
+	AccountFree = iota
+	AccountBasic
+	AccountPro
+	AccountEnterprise
+
+	APIEndpointURL        = "http://apilayer.net/api/"
+	APIEndpointURLSSL     = "https://apilayer.net/api/"
+	APIEndpointList       = "list"
+	APIEndpointLive       = "live"
+	APIEndpointHistorical = "historical"
+	APIEndpointConversion = "convert"
+	APIEndpointTimeframe  = "timeframe"
+	APIEndpointChange     = "change"
+
+	authRate   = 0
+	unAuthRate = 0
+)
+
+// CurrencyLayer is a foreign exchange rate provider at
+// https://currencylayer.com NOTE default base currency is USD when using a free
+// account. Has automatic upgrade to a SSL connection.
+type CurrencyLayer struct {
+	base.Base
+	Requester *request.Requester
+}
+
 // Error Defines the response error if an error occurred
 type Error struct {
 	Code int    `json:"code"`

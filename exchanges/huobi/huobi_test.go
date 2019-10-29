@@ -41,11 +41,11 @@ func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Huobi load config error", err)
+		log.Fatal("Huobi load config error", err)
 	}
 	hConfig, err := cfg.GetExchangeConfig("Huobi")
 	if err != nil {
-		t.Error("Test Failed - Huobi Setup() init error")
+		t.Error("Huobi Setup() init error")
 	}
 	hConfig.API.AuthenticatedSupport = true
 	hConfig.API.AuthenticatedWebsocketSupport = true
@@ -54,7 +54,7 @@ func TestSetup(t *testing.T) {
 
 	err = h.Setup(hConfig)
 	if err != nil {
-		t.Fatal("Test Failed - Huobi setup error", err)
+		t.Fatal("Huobi setup error", err)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestGetSpotKline(t *testing.T) {
 		Size:   0,
 	})
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetSpotKline: %s", err)
+		t.Errorf("Huobi TestGetSpotKline: %s", err)
 	}
 }
 
@@ -114,7 +114,7 @@ func TestGetMarketDetailMerged(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetMarketDetailMerged(testSymbol)
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetMarketDetailMerged: %s", err)
+		t.Errorf("Huobi TestGetMarketDetailMerged: %s", err)
 	}
 }
 
@@ -126,7 +126,7 @@ func TestGetDepth(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetDepth: %s", err)
+		t.Errorf("Huobi TestGetDepth: %s", err)
 	}
 }
 
@@ -134,7 +134,7 @@ func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetTrades(testSymbol)
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetTrades: %s", err)
+		t.Errorf("Huobi TestGetTrades: %s", err)
 	}
 }
 
@@ -142,7 +142,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetLatestSpotPrice(testSymbol)
 	if err != nil {
-		t.Errorf("Test failed - Huobi GetLatestSpotPrice: %s", err)
+		t.Errorf("Huobi GetLatestSpotPrice: %s", err)
 	}
 }
 
@@ -150,7 +150,7 @@ func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetTradeHistory(testSymbol, "50")
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetTradeHistory: %s", err)
+		t.Errorf("Huobi TestGetTradeHistory: %s", err)
 	}
 }
 
@@ -158,7 +158,7 @@ func TestGetMarketDetail(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetMarketDetail(testSymbol)
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetTradeHistory: %s", err)
+		t.Errorf("Huobi TestGetTradeHistory: %s", err)
 	}
 }
 
@@ -166,7 +166,7 @@ func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetSymbols()
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetSymbols: %s", err)
+		t.Errorf("Huobi TestGetSymbols: %s", err)
 	}
 }
 
@@ -174,7 +174,7 @@ func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetCurrencies()
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetCurrencies: %s", err)
+		t.Errorf("Huobi TestGetCurrencies: %s", err)
 	}
 }
 
@@ -189,7 +189,7 @@ func TestGetTimestamp(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetTimestamp()
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetTimestamp: %s", err)
+		t.Errorf("Huobi TestGetTimestamp: %s", err)
 	}
 }
 
@@ -202,7 +202,7 @@ func TestGetAccounts(t *testing.T) {
 
 	_, err := h.GetAccounts()
 	if err != nil {
-		t.Errorf("Test failed - Huobi GetAccounts: %s", err)
+		t.Errorf("Huobi GetAccounts: %s", err)
 	}
 }
 
@@ -215,13 +215,13 @@ func TestGetAccountBalance(t *testing.T) {
 
 	result, err := h.GetAccounts()
 	if err != nil {
-		t.Errorf("Test failed - Huobi GetAccounts: %s", err)
+		t.Errorf("Huobi GetAccounts: %s", err)
 	}
 
 	userID := strconv.FormatInt(result[0].ID, 10)
 	_, err = h.GetAccountBalance(userID)
 	if err != nil {
-		t.Errorf("Test failed - Huobi GetAccountBalance: %s", err)
+		t.Errorf("Huobi GetAccountBalance: %s", err)
 	}
 }
 
@@ -234,7 +234,7 @@ func TestGetAggregatedBalance(t *testing.T) {
 
 	_, err := h.GetAggregatedBalance()
 	if err != nil {
-		t.Errorf("Test failed - Huobi GetAggregatedBalance: %s", err)
+		t.Errorf("Huobi GetAggregatedBalance: %s", err)
 	}
 }
 
@@ -255,7 +255,7 @@ func TestSpotNewOrder(t *testing.T) {
 
 	_, err := h.SpotNewOrder(arg)
 	if err != nil {
-		t.Errorf("Test failed - Huobi SpotNewOrder: %s", err)
+		t.Errorf("Huobi SpotNewOrder: %s", err)
 	}
 }
 
@@ -264,7 +264,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 	_, err := h.CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("Test failed - Huobi TestCancelExistingOrder: Invalid orderID returned true")
+		t.Error("Huobi TestCancelExistingOrder Expected error")
 	}
 }
 
@@ -273,7 +273,7 @@ func TestGetOrder(t *testing.T) {
 
 	_, err := h.GetOrder(1337)
 	if err == nil {
-		t.Error("Test failed - Huobi TestCancelOrder: Invalid orderID returned true")
+		t.Error("Huobi TestCancelOrder Expected error")
 	}
 }
 
@@ -286,7 +286,7 @@ func TestGetMarginLoanOrders(t *testing.T) {
 
 	_, err := h.GetMarginLoanOrders(testSymbol, "", "", "", "", "", "", "")
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetMarginLoanOrders: %s", err)
+		t.Errorf("Huobi TestGetMarginLoanOrders: %s", err)
 	}
 }
 
@@ -299,7 +299,7 @@ func TestGetMarginAccountBalance(t *testing.T) {
 
 	_, err := h.GetMarginAccountBalance(testSymbol)
 	if err != nil {
-		t.Errorf("Test failed - Huobi TestGetMarginAccountBalance: %s", err)
+		t.Errorf("Huobi TestGetMarginAccountBalance: %s", err)
 	}
 }
 
@@ -308,7 +308,7 @@ func TestCancelWithdraw(t *testing.T) {
 
 	_, err := h.CancelWithdraw(1337)
 	if err == nil {
-		t.Error("Test failed - Huobi TestCancelWithdraw: Invalid withdraw-ID was valid")
+		t.Error("Huobi TestCancelWithdraw Expected error")
 	}
 }
 
@@ -318,23 +318,23 @@ func TestPEMLoadAndSign(t *testing.T) {
 	pemKey := strings.NewReader(h.API.Credentials.PEMKey)
 	pemBytes, err := ioutil.ReadAll(pemKey)
 	if err != nil {
-		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to ioutil.ReadAll PEM key: %s", err)
+		t.Fatalf("TestPEMLoadAndSign Unable to ioutil.ReadAll PEM key: %s", err)
 	}
 
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
-		t.Fatalf("Test Failed. TestPEMLoadAndSign Block is nil")
+		t.Fatalf("TestPEMLoadAndSign Block is nil")
 	}
 
 	x509Encoded := block.Bytes
 	privKey, err := x509.ParseECPrivateKey(x509Encoded)
 	if err != nil {
-		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to ParseECPrivKey: %s", err)
+		t.Fatalf("TestPEMLoadAndSign Unable to ParseECPrivKey: %s", err)
 	}
 
 	_, _, err = ecdsa.Sign(rand.Reader, privKey, crypto.GetSHA256([]byte("test")))
 	if err != nil {
-		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to sign: %s", err)
+		t.Fatalf("TestPEMLoadAndSign Unable to sign: %s", err)
 	}
 }
 
@@ -372,7 +372,7 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee Basic
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
 		t.Error(err)
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
@@ -380,7 +380,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
 	if resp, err := h.GetFee(feeBuilder); resp != float64(2000) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
 		t.Error(err)
 	}
 
@@ -388,7 +388,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 		t.Error(err)
 	}
 
@@ -396,14 +396,14 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -412,7 +412,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -420,7 +420,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -428,7 +428,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -437,7 +437,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 }
@@ -587,12 +587,12 @@ func TestGetAccountInfo(t *testing.T) {
 	if apiKey == "" || apiSecret == "" {
 		_, err := h.GetAccountInfo()
 		if err == nil {
-			t.Error("Test Failed - GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
 		_, err := h.GetAccountInfo()
 		if err != nil {
-			t.Error("Test Failed - GetAccountInfo() error", err)
+			t.Error("GetAccountInfo() error", err)
 		}
 	}
 }
@@ -600,7 +600,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := h.ModifyOrder(&order.Modify{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
@@ -662,7 +662,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	_, err := h.GetDepositAddress(currency.BTC, "")
 	if err == nil {
-		t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+		t.Error("GetDepositAddress() error cannot be nil")
 	}
 }
 

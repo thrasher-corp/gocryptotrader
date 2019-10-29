@@ -2,14 +2,20 @@ package audit
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
-	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite"
+	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
+
+// TableTimeFormat Go Time format conversion
+const TableTimeFormat = "2006-01-02 15:04:05"
 
 // Event inserts a new audit event to database
 func Event(id, msgtype, message string) {
@@ -22,7 +28,7 @@ func Event(id, msgtype, message string) {
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.Global, "transaction begin failed: %v", err)
+		log.Errorf(log.Global, "Event transaction begin failed: %v", err)
 		return
 	}
 
@@ -43,21 +49,45 @@ func Event(id, msgtype, message string) {
 	}
 
 	if err != nil {
-		log.Errorf(log.Global, "insert failed: %v", err)
+		log.Errorf(log.Global, "Event insert failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.Global, "transaction rollback failed: %v", err)
+			log.Errorf(log.Global, "Event Transaction rollback failed: %v", err)
 		}
 		return
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Errorf(log.Global, "transaction commit failed: %v", err)
+		log.Errorf(log.Global, "Event Transaction commit failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.Global, "transaction rollback failed: %v", err)
+			log.Errorf(log.Global, "Event Transaction rollback failed: %v", err)
 		}
 		return
 	}
+}
+
+// GetEvent () returns list of order events matching query
+func GetEvent(startTime, endTime time.Time, order string, limit int) (interface{}, error) {
+	if database.DB.SQL == nil {
+		return nil, errors.New("database is nil")
+	}
+
+	query := qm.Where("created_at BETWEEN ? AND ?", startTime, endTime)
+
+	orderByQueryString := "id"
+	if order == "desc" {
+		orderByQueryString += " desc"
+	}
+
+	orderByQuery := qm.OrderBy(orderByQueryString)
+	limitQuery := qm.Limit(limit)
+
+	ctx := context.Background()
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+		return modelSQLite.AuditEvents(query, orderByQuery, limitQuery).All(ctx, database.DB.SQL)
+	}
+
+	return modelPSQL.AuditEvents(query, orderByQuery, limitQuery).All(ctx, database.DB.SQL)
 }

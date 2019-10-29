@@ -15,6 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -116,9 +119,6 @@ func StartRPCServer() {
 // StartRPCRESTProxy starts a gRPC proxy
 func StartRPCRESTProxy() {
 	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
@@ -134,9 +134,11 @@ func StartRPCRESTProxy() {
 			Password: Bot.Config.RemoteControl.Password,
 		}),
 	}
-	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(ctx, mux, Bot.Config.RemoteControl.GRPC.ListenAddress, opts)
+	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(context.Background(),
+		mux, Bot.Config.RemoteControl.GRPC.ListenAddress, opts)
 	if err != nil {
 		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
+		return
 	}
 
 	go func() {
@@ -568,7 +570,7 @@ func (s *RPCServer) GetForexProviders(ctx context.Context, r *gctrpc.GetForexPro
 			Name:             providers[x].Name,
 			Enabled:          providers[x].Enabled,
 			Verbose:          providers[x].Verbose,
-			RestRollingDelay: providers[x].RESTPollingDelay.String(),
+			RestPollingDelay: providers[x].RESTPollingDelay.String(),
 			ApiKey:           providers[x].APIKey,
 			ApiKeyLevel:      int64(providers[x].APIKeyLvl),
 			PrimaryProvider:  providers[x].PrimaryProvider,
@@ -1158,4 +1160,52 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return err
 		}
 	}
+}
+
+// GetAuditEvent returns matching audit events from database
+func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
+	UTCStartTime, err := time.Parse(audit.TableTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, err
+	}
+
+	UTCSEndTime, err := time.Parse(audit.TableTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	loc := time.FixedZone("", int(r.Offset))
+
+	events, err := audit.GetEvent(UTCStartTime, UTCSEndTime, r.OrderBy, int(r.Limit))
+	if err != nil {
+		return nil, err
+	}
+
+	resp := gctrpc.GetAuditEventResponse{}
+
+	switch v := events.(type) {
+	case postgres.AuditEventSlice:
+		for x := range v {
+			tempEvent := &gctrpc.AuditEvent{
+				Type:       v[x].Type,
+				Identifier: v[x].Identifier,
+				Message:    v[x].Message,
+				Timestamp:  v[x].CreatedAt.In(loc).Format(audit.TableTimeFormat),
+			}
+
+			resp.Events = append(resp.Events, tempEvent)
+		}
+	case sqlite3.AuditEventSlice:
+		for x := range v {
+			tempEvent := &gctrpc.AuditEvent{
+				Type:       v[x].Type,
+				Identifier: v[x].Identifier,
+				Message:    v[x].Message,
+				Timestamp:  v[x].CreatedAt,
+			}
+			resp.Events = append(resp.Events, tempEvent)
+		}
+	}
+
+	return &resp, nil
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -228,41 +229,12 @@ type FeaturesEnabled struct {
 	AutoPairUpdates bool
 }
 
-// ProtocolFeatures holds all variables for the exchanges supported features
-// for a protocol (e.g REST or Websocket)
-type ProtocolFeatures struct {
-	TickerBatching      bool
-	TickerFetching      bool
-	OrderbookFetching   bool
-	AutoPairUpdates     bool
-	AccountInfo         bool
-	CryptoDeposit       bool
-	CryptoWithdrawal    uint32
-	FiatWithdraw        bool
-	GetOrder            bool
-	GetOrders           bool
-	CancelOrders        bool
-	CancelOrder         bool
-	SubmitOrder         bool
-	SubmitOrders        bool
-	ModifyOrder         bool
-	DepositHistory      bool
-	WithdrawalHistory   bool
-	TradeHistory        bool
-	UserTradeHistory    bool
-	TradeFee            bool
-	FiatDepositFee      bool
-	FiatWithdrawalFee   bool
-	CryptoDepositFee    bool
-	CryptoWithdrawalFee bool
-}
-
 // FeaturesSupported stores the exchanges supported features
 type FeaturesSupported struct {
 	REST                  bool
-	RESTCapabilities      ProtocolFeatures
+	RESTCapabilities      protocol.Features
 	Websocket             bool
-	WebsocketCapabilities ProtocolFeatures
+	WebsocketCapabilities protocol.Features
 	WithdrawPermissions   uint32
 }
 

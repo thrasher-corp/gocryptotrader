@@ -65,7 +65,7 @@ func TestConvertMany(t *testing.T) {
 	currencies = []string{"USD_AUD", "USD_EUR", "USD_GBP"}
 	_, err = c.ConvertMany(currencies)
 	if err == nil {
-		t.Fatal("non error on supplying 3 or more currencies using the free API")
+		t.Fatal("Expected error from on supplying 3 or more currencies using the free API")
 	}
 }
 

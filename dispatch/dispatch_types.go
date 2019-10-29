@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	// DefaultJobBuffer defines a maxiumum amount of jobs allowed in channel
-	DefaultJobBuffer = 100
+	// DefaultJobsLimit defines a maxiumum amount of jobs allowed in channel
+	DefaultJobsLimit = 100
 
 	// DefaultMaxWorkers is the package default worker ceiling amount
 	DefaultMaxWorkers = 10
@@ -46,11 +46,10 @@ type Dispatcher struct {
 	outbound sync.Pool
 
 	// MaxWorkers defines max worker ceiling
-	maxWorkers int64
-
+	maxWorkers int32
 	// Atomic values -----------------------
 	// Worker counter
-	count int64
+	count int32
 	// Dispatch status
 	running uint32
 

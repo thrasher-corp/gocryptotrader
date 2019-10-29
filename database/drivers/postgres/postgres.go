@@ -29,6 +29,11 @@ func Connect() (*database.Db, error) {
 		return nil, err
 	}
 
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+
 	database.DB.SQL = db
 	database.DB.SQL.SetMaxOpenConns(2)
 	database.DB.SQL.SetMaxIdleConns(1)

@@ -199,35 +199,25 @@ func TestCheckRequest(t *testing.T) {
 }
 
 func TestDoRequest(t *testing.T) {
-	var test = new(Requester)
-	err := test.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
-	if err == nil {
-		t.Fatal("not iniitalised")
-	}
-
 	r := New("", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-	if err == nil {
-		t.Fatal("unexpected values")
-	}
-
 	r.Name = "bitfinex"
-	err = r.SendPayload("BLAH", "https://www.google.com", nil, nil, nil, false, false, true, false, false)
+	err := r.SendPayload("BLAH", "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err == nil {
-		t.Fatal("unexpected values")
+		t.Fatal("Expected error")
 	}
 
 	err = r.SendPayload(http.MethodGet, "", nil, nil, nil, false, false, true, false, false)
 	if err == nil {
-		t.Fatal("unexpected values")
+		t.Fatal("Expected error")
 	}
 
 	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err != nil {
-		t.Fatal("unexpected values")
+		t.Fatal("unexpected values", err)
 	}
 
 	if !r.RequiresRateLimiter() {
-		t.Fatal("unexpcted values")
+		t.Fatal("unexpected values")
 	}
 
 	r.SetRateLimit(false, time.Second, 0)
@@ -235,7 +225,7 @@ func TestDoRequest(t *testing.T) {
 
 	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
 	if err != nil {
-		t.Fatal("unexpected values")
+		t.Fatal("unexpected values", err)
 	}
 
 	if r.RequiresRateLimiter() {
@@ -247,7 +237,7 @@ func TestDoRequest(t *testing.T) {
 	r.Cycle = time.Now().Add(time.Millisecond * -201)
 
 	if r.IsValidCycle(false) {
-		t.Fatal("unexepcted values")
+		t.Fatal("unexpected values")
 	}
 
 	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
@@ -288,18 +278,18 @@ func TestDoRequest(t *testing.T) {
 
 	err = r.SetTimeoutRetryAttempts(1)
 	if err != nil {
-		t.Fatal("test failed - setting timeout retry attempts")
+		t.Fatal("setting timeout retry attempts")
 	}
 
 	err = r.SetTimeoutRetryAttempts(-1)
 	if err == nil {
-		t.Fatal("test failed - setting timeout retry attempts with negative value")
+		t.Fatal("setting timeout retry attempts with negative value")
 	}
 
 	r.HTTPClient.Timeout = 1 * time.Second
 	err = r.SendPayload(http.MethodPost, "https://httpstat.us/200?sleep=20000", nil, nil, nil, false, false, true, false, false)
 	if err == nil {
-		t.Fatal(err)
+		t.Fatal("Expected error")
 	}
 
 	proxy, err := url.Parse("")
@@ -309,7 +299,7 @@ func TestDoRequest(t *testing.T) {
 
 	err = r.SetProxy(proxy)
 	if err == nil {
-		t.Error("failed to set proxy")
+		t.Error("Expected error")
 	}
 
 	proxy, err = url.Parse("https://192.0.0.1")
@@ -324,7 +314,7 @@ func TestDoRequest(t *testing.T) {
 }
 
 func BenchmarkRequestLockMech(b *testing.B) {
-	var r = new(Requester)
+	r := New("", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
 	var meep interface{}
 	for n := 0; n < b.N; n++ {
 		r.SendPayload(http.MethodGet, "127.0.0.1", nil, nil, &meep, false, false, false, false, false)

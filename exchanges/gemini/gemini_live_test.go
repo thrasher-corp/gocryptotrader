@@ -19,11 +19,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Gemini load config error", err)
+		log.Fatal("Gemini load config error", err)
 	}
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
-		log.Fatal("Test Failed - Gemini Setup() init error", err)
+		log.Fatal("Gemini Setup() init error", err)
 	}
 	geminiConfig.API.AuthenticatedSupport = true
 	geminiConfig.API.Credentials.Key = apiKey
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	g.SetDefaults()
 	err = g.Setup(geminiConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Gemini setup error", err)
+		log.Fatal("Gemini setup error", err)
 	}
 	g.API.Endpoints.URL = geminiSandboxAPIURL
 	log.Printf(sharedtestvalues.LiveTesting, g.GetName(), g.API.Endpoints.URL)

@@ -45,6 +45,7 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	w.SetExchangeName(setupData.ExchangeName)
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	w.trafficTimeout = setupData.WebsocketTimeout
+	w.features = setupData.Features
 	err := w.Initialise()
 	if err != nil {
 		return err
@@ -91,7 +92,8 @@ func (w *Websocket) Connect() error {
 	if !w.IsConnectionMonitorRunning() {
 		go w.connectionMonitor()
 	}
-	if w.SupportsFunctionality(WebsocketSubscribeSupported) || w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
+	if w.features.Subscribe || w.features.Unsubscribe {
+		w.Wg.Add(1)
 		go w.manageSubscriptions()
 	}
 
@@ -401,87 +403,6 @@ func (w *Websocket) GetName() string {
 	return w.exchangeName
 }
 
-// GetFunctionality returns a functionality bitmask for the websocket
-// connection
-func (w *Websocket) GetFunctionality() uint32 {
-	return w.Functionality
-}
-
-// SupportsFunctionality returns if the functionality is supported as a boolean
-func (w *Websocket) SupportsFunctionality(f uint32) bool {
-	return w.GetFunctionality()&f == f
-}
-
-// FormatFunctionality will return each of the websocket connection compatible
-// stream methods as a string
-func (w *Websocket) FormatFunctionality() string {
-	var functionality []string
-	for i := 0; i < 32; i++ {
-		var check uint32 = 1 << uint32(i)
-		if w.GetFunctionality()&check != 0 {
-			switch check {
-			case WebsocketTickerSupported:
-				functionality = append(functionality, WebsocketTickerSupportedText)
-
-			case WebsocketOrderbookSupported:
-				functionality = append(functionality, WebsocketOrderbookSupportedText)
-
-			case WebsocketKlineSupported:
-				functionality = append(functionality, WebsocketKlineSupportedText)
-
-			case WebsocketTradeDataSupported:
-				functionality = append(functionality, WebsocketTradeDataSupportedText)
-
-			case WebsocketAccountSupported:
-				functionality = append(functionality, WebsocketAccountSupportedText)
-
-			case WebsocketAllowsRequests:
-				functionality = append(functionality, WebsocketAllowsRequestsText)
-
-			case WebsocketSubscribeSupported:
-				functionality = append(functionality, WebsocketSubscribeSupportedText)
-
-			case WebsocketUnsubscribeSupported:
-				functionality = append(functionality, WebsocketUnsubscribeSupportedText)
-
-			case WebsocketAuthenticatedEndpointsSupported:
-				functionality = append(functionality, WebsocketAuthenticatedEndpointsSupportedText)
-
-			case WebsocketAccountDataSupported:
-				functionality = append(functionality, WebsocketAccountDataSupportedText)
-
-			case WebsocketSubmitOrderSupported:
-				functionality = append(functionality, WebsocketSubmitOrderSupportedText)
-
-			case WebsocketCancelOrderSupported:
-				functionality = append(functionality, WebsocketCancelOrderSupportedText)
-
-			case WebsocketWithdrawSupported:
-				functionality = append(functionality, WebsocketWithdrawSupportedText)
-
-			case WebsocketMessageCorrelationSupported:
-				functionality = append(functionality, WebsocketMessageCorrelationSupportedText)
-
-			case WebsocketSequenceNumberSupported:
-				functionality = append(functionality, WebsocketSequenceNumberSupportedText)
-
-			case WebsocketDeadMansSwitchSupported:
-				functionality = append(functionality, WebsocketDeadMansSwitchSupportedText)
-
-			default:
-				functionality = append(functionality,
-					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
-			}
-		}
-	}
-
-	if len(functionality) > 0 {
-		return strings.Join(functionality, " & ")
-	}
-
-	return NoWebsocketSupportText
-}
-
 // SetChannelSubscriber sets the function to use the base subscribe func
 func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe WebsocketChannelSubscription) error) {
 	w.channelSubscriber = subscriber
@@ -494,11 +415,10 @@ func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscrib
 
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
 func (w *Websocket) manageSubscriptions() {
-	if !w.SupportsFunctionality(WebsocketSubscribeSupported) && !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
+	if !w.features.Subscribe && !w.features.Unsubscribe {
 		w.DataHandler <- fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
 		return
 	}
-	w.Wg.Add(1)
 	defer func() {
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%v ManageSubscriptions exiting", w.exchangeName)
@@ -528,13 +448,13 @@ func (w *Websocket) manageSubscriptions() {
 				log.Debugf(log.WebsocketMgr, "%v checking subscriptions", w.exchangeName)
 			}
 			// Subscribe to channels Pending a subscription
-			if w.SupportsFunctionality(WebsocketSubscribeSupported) {
+			if w.features.Subscribe {
 				err := w.appendSubscribedChannels()
 				if err != nil {
 					w.DataHandler <- err
 				}
 			}
-			if w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
+			if w.features.Unsubscribe {
 				err := w.unsubscribeToChannels()
 				if err != nil {
 					w.DataHandler <- err

@@ -33,11 +33,11 @@ func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("Test Failed - GateIO load config error", err)
+		t.Fatal("GateIO load config error", err)
 	}
 	gateioConfig, err := cfg.GetExchangeConfig("GateIO")
 	if err != nil {
-		t.Error("Test Failed - GateIO Setup() init error")
+		t.Error("GateIO Setup() init error")
 	}
 	gateioConfig.API.AuthenticatedSupport = true
 	gateioConfig.API.AuthenticatedWebsocketSupport = true
@@ -46,7 +46,7 @@ func TestSetup(t *testing.T) {
 
 	err = g.Setup(gateioConfig)
 	if err != nil {
-		t.Fatal("Test Failed - GateIO setup error", err)
+		t.Fatal("GateIO setup error", err)
 	}
 }
 
@@ -54,7 +54,7 @@ func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetSymbols()
 	if err != nil {
-		t.Errorf("Test failed - Gateio TestGetSymbols: %s", err)
+		t.Errorf("Gateio TestGetSymbols: %s", err)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestGetMarketInfo(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetMarketInfo()
 	if err != nil {
-		t.Errorf("Test failed - Gateio GetMarketInfo: %s", err)
+		t.Errorf("Gateio GetMarketInfo: %s", err)
 	}
 }
 
@@ -80,7 +80,7 @@ func TestSpotNewOrder(t *testing.T) {
 		Type:   order.Sell.Lower(),
 	})
 	if err != nil {
-		t.Errorf("Test failed - Gateio SpotNewOrder: %s", err)
+		t.Errorf("Gateio SpotNewOrder: %s", err)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 	_, err := g.CancelExistingOrder(917591554, "btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - Gateio CancelExistingOrder: %s", err)
+		t.Errorf("Gateio CancelExistingOrder: %s", err)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestGetBalances(t *testing.T) {
 
 	_, err := g.GetBalances()
 	if err != nil {
-		t.Errorf("Test failed - Gateio GetBalances: %s", err)
+		t.Errorf("Gateio GetBalances: %s", err)
 	}
 }
 
@@ -114,7 +114,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetLatestSpotPrice("btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - Gateio GetLatestSpotPrice: %s", err)
+		t.Errorf("Gateio GetLatestSpotPrice: %s", err)
 	}
 }
 
@@ -122,7 +122,7 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetTicker("btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - Gateio GetTicker: %s", err)
+		t.Errorf("Gateio GetTicker: %s", err)
 	}
 }
 
@@ -130,7 +130,7 @@ func TestGetTickers(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetTickers()
 	if err != nil {
-		t.Errorf("Test failed - Gateio GetTicker: %s", err)
+		t.Errorf("Gateio GetTicker: %s", err)
 	}
 }
 
@@ -138,7 +138,7 @@ func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetOrderbook("btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - Gateio GetTicker: %s", err)
+		t.Errorf("Gateio GetTicker: %s", err)
 	}
 }
 
@@ -152,7 +152,7 @@ func TestGetSpotKline(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Errorf("Test failed - Gateio GetSpotKline: %s", err)
+		t.Errorf("Gateio GetSpotKline: %s", err)
 	}
 }
 
@@ -193,7 +193,7 @@ func TestGetFee(t *testing.T) {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := g.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
 			t.Error(err)
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
@@ -201,7 +201,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
 		if resp, err := g.GetFee(feeBuilder); resp != float64(2000) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
 			t.Error(err)
 		}
 
@@ -209,7 +209,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
 		if resp, err := g.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 			t.Error(err)
 		}
 
@@ -217,7 +217,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
 		if resp, err := g.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
 	}
@@ -225,7 +225,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := g.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 		t.Error(err)
 	}
 
@@ -234,7 +234,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := g.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -242,7 +242,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := g.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -250,7 +250,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	if resp, err := g.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -259,7 +259,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
 	if resp, err := g.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 }
@@ -406,12 +406,12 @@ func TestGetAccountInfo(t *testing.T) {
 	if apiSecret == "" || apiKey == "" {
 		_, err := g.GetAccountInfo()
 		if err == nil {
-			t.Error("Test Failed - GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
 		_, err := g.GetAccountInfo()
 		if err != nil {
-			t.Error("Test Failed - GetAccountInfo() error", err)
+			t.Error("GetAccountInfo() error", err)
 		}
 	}
 }
@@ -419,7 +419,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	_, err := g.ModifyOrder(&order.Modify{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 

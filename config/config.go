@@ -13,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -25,67 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-)
-
-// Constants declared here are filename strings and test strings
-const (
-	FXProviderFixer                            = "fixer"
-	EncryptedConfigFile                        = "config.dat"
-	ConfigFile                                 = "config.json"
-	ConfigTestFile                             = "../testdata/configtest.json"
-	configFileEncryptionPrompt                 = 0
-	configFileEncryptionEnabled                = 1
-	configFileEncryptionDisabled               = -1
-	configPairsLastUpdatedWarningThreshold     = 30 // 30 days
-	configDefaultHTTPTimeout                   = time.Second * 15
-	configDefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
-	configDefaultWebsocketResponseMaxLimit     = time.Second * 7
-	configDefaultWebsocketOrderbookBufferLimit = 5
-	configDefaultWebsocketTrafficTimeout       = time.Second * 30
-	configMaxAuthFailures                      = 3
-	defaultNTPAllowedDifference                = 50000000
-	defaultNTPAllowedNegativeDifference        = 50000000
-
-	DefaultAPIKey      = "Key"
-	DefaultAPISecret   = "Secret"
-	DefaultAPIClientID = "ClientID"
-)
-
-// Constants here hold some messages
-const (
-	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
-	ErrExchangeAvailablePairsEmpty             = "exchange %s available pairs is empty"
-	ErrExchangeEnabledPairsEmpty               = "exchange %s enabled pairs is empty"
-	ErrExchangeBaseCurrenciesEmpty             = "exchange %s base currencies is empty"
-	ErrExchangeNotFound                        = "exchange %s not found"
-	ErrNoEnabledExchanges                      = "no exchanges enabled"
-	ErrCryptocurrenciesEmpty                   = "cryptocurrencies variable is empty"
-	ErrFailureOpeningConfig                    = "fatal error opening %s file. Error: %s"
-	ErrCheckingConfigValues                    = "fatal error checking config values. Error: %s"
-	ErrSavingConfigBytesMismatch               = "config file %q bytes comparison doesn't match, read %s expected %s"
-	WarningWebserverCredentialValuesEmpty      = "webserver support disabled due to empty Username/Password values"
-	WarningWebserverListenAddressInvalid       = "webserver support disabled due to invalid listen address"
-	WarningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
-	WarningPairsLastUpdatedThresholdExceeded   = "exchange %s last manual update of available currency pairs has exceeded %d days. Manual update required!"
-)
-
-// Constants here define unset default values displayed in the config.json
-// file
-const (
-	APIURLNonDefaultMessage              = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
-	WebsocketURLNonDefaultMessage        = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-	DefaultUnsetAPIKey                   = "Key"
-	DefaultUnsetAPISecret                = "Secret"
-	DefaultUnsetAccountPlan              = "accountPlan"
-	DefaultForexProviderExchangeRatesAPI = "ExchangeRates"
-)
-
-// Variables here are used for configuration
-var (
-	Cfg            Config
-	IsInitialSetup bool
-	testBypass     bool
-	m              sync.Mutex
 )
 
 // GetCurrencyConfig returns currency configurations
@@ -982,14 +920,14 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates && !c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
 				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
-				lastUpdated = lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
+				lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Warnf(log.ExchangeSys, WarningPairsLastUpdatedThresholdExceeded, c.Exchanges[i].Name, configPairsLastUpdatedWarningThreshold)
+					log.Warnf(log.ExchangeSys, WarningPairsLastUpdatedThresholdExceeded, c.Exchanges[i].Name, pairsLastUpdatedWarningThreshold)
 				}
 			}
 			if c.Exchanges[i].HTTPTimeout <= 0 {
-				log.Warnf(log.ExchangeSys, "Exchange %s HTTP Timeout value not set, defaulting to %v.\n", c.Exchanges[i].Name, configDefaultHTTPTimeout)
-				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
+				log.Warnf(log.ExchangeSys, "Exchange %s HTTP Timeout value not set, defaulting to %v.\n", c.Exchanges[i].Name, defaultHTTPTimeout)
+				c.Exchanges[i].HTTPTimeout = defaultHTTPTimeout
 			}
 
 			if c.Exchanges[i].HTTPRateLimiter != nil {
@@ -1016,24 +954,24 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response check timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name, configDefaultWebsocketResponseCheckTimeout)
-				c.Exchanges[i].WebsocketResponseCheckTimeout = configDefaultWebsocketResponseCheckTimeout
+					c.Exchanges[i].Name, defaultWebsocketResponseCheckTimeout)
+				c.Exchanges[i].WebsocketResponseCheckTimeout = defaultWebsocketResponseCheckTimeout
 			}
 
 			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response max limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name, configDefaultWebsocketResponseMaxLimit)
-				c.Exchanges[i].WebsocketResponseMaxLimit = configDefaultWebsocketResponseMaxLimit
+					c.Exchanges[i].Name, defaultWebsocketResponseMaxLimit)
+				c.Exchanges[i].WebsocketResponseMaxLimit = defaultWebsocketResponseMaxLimit
 			}
 			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name, configDefaultWebsocketTrafficTimeout)
-				c.Exchanges[i].WebsocketTrafficTimeout = configDefaultWebsocketTrafficTimeout
+					c.Exchanges[i].Name, defaultWebsocketTrafficTimeout)
+				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
 			}
 			if c.Exchanges[i].WebsocketOrderbookBufferLimit <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name, configDefaultWebsocketOrderbookBufferLimit)
-				c.Exchanges[i].WebsocketOrderbookBufferLimit = configDefaultWebsocketOrderbookBufferLimit
+					c.Exchanges[i].Name, defaultWebsocketOrderbookBufferLimit)
+				c.Exchanges[i].WebsocketOrderbookBufferLimit = defaultWebsocketOrderbookBufferLimit
 			}
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
@@ -1065,10 +1003,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not
 func (c *Config) CheckCurrencyConfigValues() error {
-	fxProviders := forexprovider.GetAvailableForexProviders()
-	if len(fxProviders) == 0 {
-		return errors.New("no forex providers available")
-	}
+	fxProviders := forexprovider.GetSupportedForexProviders()
 
 	if len(fxProviders) != len(c.Currency.ForexProviders) {
 		for x := range fxProviders {
@@ -1088,25 +1023,23 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	count := 0
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
-			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
+			if c.Currency.ForexProviders[i].Name == "CurrencyConverter" &&
+				c.Currency.ForexProviders[i].PrimaryProvider &&
+				(c.Currency.ForexProviders[i].APIKey == "" ||
+					c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
+				log.Warnln(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
+				c.Currency.ForexProviders[i].Enabled = false
+				c.Currency.ForexProviders[i].PrimaryProvider = false
+				c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
+				c.Currency.ForexProviders[i].APIKeyLvl = -1
+				continue
+			}
+			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey &&
+				c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
 				log.Warnf(log.Global, "%s enabled forex provider API key not set. Please set this in your config.json file\n", c.Currency.ForexProviders[i].Name)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				continue
-			}
-
-			if c.Currency.ForexProviders[i].Name == "CurrencyConverter" {
-				if c.Currency.ForexProviders[i].Enabled &&
-					c.Currency.ForexProviders[i].PrimaryProvider &&
-					(c.Currency.ForexProviders[i].APIKey == "" ||
-						c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-					log.Warnln(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
-					c.Currency.ForexProviders[i].Enabled = false
-					c.Currency.ForexProviders[i].PrimaryProvider = false
-					c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
-					c.Currency.ForexProviders[i].APIKeyLvl = -1
-					continue
-				}
 			}
 
 			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
@@ -1406,7 +1339,7 @@ func GetFilePath(file string) (string, error) {
 	}
 
 	if flag.Lookup("test.v") != nil && !testBypass {
-		return ConfigTestFile, nil
+		return TestFile, nil
 	}
 
 	exePath, err := common.GetExecutablePath()
@@ -1415,8 +1348,8 @@ func GetFilePath(file string) (string, error) {
 	}
 
 	oldDirs := []string{
-		filepath.Join(exePath, ConfigFile),
-		filepath.Join(exePath, EncryptedConfigFile),
+		filepath.Join(exePath, File),
+		filepath.Join(exePath, EncryptedFile),
 	}
 
 	newDir := common.GetDefaultDataDir(runtime.GOOS)
@@ -1425,8 +1358,8 @@ func GetFilePath(file string) (string, error) {
 		return "", err
 	}
 	newDirs := []string{
-		filepath.Join(newDir, ConfigFile),
-		filepath.Join(newDir, EncryptedConfigFile),
+		filepath.Join(newDir, File),
+		filepath.Join(newDir, EncryptedFile),
 	}
 
 	// First upgrade the old dir config file if it exists to the corresponding
@@ -1522,23 +1455,23 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 			return err
 		}
 
-		if c.EncryptConfig == configFileEncryptionDisabled {
+		if c.EncryptConfig == fileEncryptionDisabled {
 			return nil
 		}
 
-		if c.EncryptConfig == configFileEncryptionPrompt {
+		if c.EncryptConfig == fileEncryptionPrompt {
 			m.Lock()
 			IsInitialSetup = true
 			m.Unlock()
 			if c.PromptForConfigEncryption(configPath, dryrun) {
-				c.EncryptConfig = configFileEncryptionEnabled
+				c.EncryptConfig = fileEncryptionEnabled
 				return c.SaveConfig(defaultPath, dryrun)
 			}
 		}
 	} else {
 		errCounter := 0
 		for {
-			if errCounter >= configMaxAuthFailures {
+			if errCounter >= maxAuthFailures {
 				return errors.New("failed to decrypt config after 3 attempts")
 			}
 			key, err := PromptForConfigKey(IsInitialSetup)
@@ -1559,7 +1492,7 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 
 			err = ConfirmConfigJSON(data, &c)
 			if err != nil {
-				if errCounter < configMaxAuthFailures {
+				if errCounter < maxAuthFailures {
 					log.Error(log.ConfigMgr, "Invalid password.")
 				}
 				errCounter++
@@ -1587,7 +1520,7 @@ func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 		return err
 	}
 
-	if c.EncryptConfig == configFileEncryptionEnabled {
+	if c.EncryptConfig == fileEncryptionEnabled {
 		var key []byte
 
 		if IsInitialSetup {
@@ -1678,8 +1611,8 @@ func (c *Config) CheckConfig() error {
 	}
 
 	if c.GlobalHTTPTimeout <= 0 {
-		log.Warnf(log.ConfigMgr, "Global HTTP Timeout value not set, defaulting to %v.\n", configDefaultHTTPTimeout)
-		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
+		log.Warnf(log.ConfigMgr, "Global HTTP Timeout value not set, defaulting to %v.\n", defaultHTTPTimeout)
+		c.GlobalHTTPTimeout = defaultHTTPTimeout
 	}
 
 	if c.NTPClient.Level != 0 {

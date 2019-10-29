@@ -397,7 +397,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		nil,
 		result,
 		true,
-		false,
+		true,
 		g.Verbose,
 		g.HTTPDebugging,
 		g.HTTPRecording)

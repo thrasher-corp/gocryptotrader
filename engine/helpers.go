@@ -38,6 +38,7 @@ func GetSubsystemsStatus() map[string]bool {
 	systems["orders"] = Bot.OrderManager.Started()
 	systems["portfolio"] = Bot.PortfolioManager.Started()
 	systems["ntp_timekeeper"] = Bot.NTPManager.Started()
+	systems["database"] = Bot.DatabaseManager.Started()
 	systems["exchange_syncer"] = Bot.Settings.EnableExchangeSyncManager
 	systems["grpc"] = Bot.Settings.EnableGRPC
 	systems["grpc_proxy"] = Bot.Settings.EnableGRPCProxy
@@ -103,6 +104,11 @@ func SetSubsystem(subsys string, enable bool) error {
 			return Bot.NTPManager.Start()
 		}
 		return Bot.NTPManager.Stop()
+	case "database":
+		if enable {
+			return Bot.DatabaseManager.Start()
+		}
+		return Bot.DatabaseManager.Stop()
 	case "exchange_syncer":
 		if enable {
 			Bot.ExchangeCurrencyPairManager.Start()
@@ -110,7 +116,7 @@ func SetSubsystem(subsys string, enable bool) error {
 		Bot.ExchangeCurrencyPairManager.Stop()
 	case "dispatch":
 		if enable {
-			return dispatch.Start(Bot.Settings.DispatchMaxWorkerAmount)
+			return dispatch.Start(Bot.Settings.DispatchMaxWorkerAmount, Bot.Settings.DispatchJobsLimit)
 		}
 		return dispatch.Stop()
 	}

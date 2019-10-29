@@ -23,5 +23,7 @@ func Connect() (*database.Db, error) {
 	}
 
 	database.DB.SQL = dbConn
+	database.DB.SQL.SetMaxOpenConns(1)
+
 	return database.DB, nil
 }

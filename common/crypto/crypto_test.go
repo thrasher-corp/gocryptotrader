@@ -11,7 +11,7 @@ func TestHexEncodeToString(t *testing.T) {
 	expectedOutput := "737472696e67"
 	actualResult := HexEncodeToString(originalInput)
 	if actualResult != expectedOutput {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+		t.Errorf("Expected '%s'. Actual '%s'",
 			expectedOutput, actualResult)
 	}
 }
@@ -22,13 +22,13 @@ func TestBase64Decode(t *testing.T) {
 	expectedOutput := []byte("hello")
 	actualResult, err := Base64Decode(originalInput)
 	if !bytes.Equal(actualResult, expectedOutput) {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'. Error: %s",
+		t.Errorf("Expected '%s'. Actual '%s'. Error: %s",
 			expectedOutput, actualResult, err)
 	}
 
 	_, err = Base64Decode("-")
 	if err == nil {
-		t.Error("Test failed. Bad base64 string failed returned nil error")
+		t.Error("Bad base64 string failed returned nil error")
 	}
 }
 
@@ -38,7 +38,7 @@ func TestBase64Encode(t *testing.T) {
 	expectedOutput := "aGVsbG8="
 	actualResult := Base64Encode(originalInput)
 	if actualResult != expectedOutput {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+		t.Errorf("Expected '%s'. Actual '%s'",
 			expectedOutput, actualResult)
 	}
 }
@@ -48,7 +48,7 @@ func TestGetRandomSalt(t *testing.T) {
 
 	_, err := GetRandomSalt(nil, -1)
 	if err == nil {
-		t.Fatal("Test failed. Expected err on negative salt length")
+		t.Fatal("Expected err on negative salt length")
 	}
 
 	salt, err := GetRandomSalt(nil, 10)
@@ -57,7 +57,7 @@ func TestGetRandomSalt(t *testing.T) {
 	}
 
 	if len(salt) != 10 {
-		t.Fatal("Test failed. Expected salt of len=10")
+		t.Fatal("Expected salt of len=10")
 	}
 
 	salt, err = GetRandomSalt([]byte("RAWR"), 12)
@@ -66,7 +66,7 @@ func TestGetRandomSalt(t *testing.T) {
 	}
 
 	if len(salt) != 16 {
-		t.Fatal("Test failed. Expected salt of len=16")
+		t.Fatal("Expected salt of len=16")
 	}
 }
 
@@ -77,7 +77,7 @@ func TestGetMD5(t *testing.T) {
 	actualOutput := GetMD5(originalString)
 	actualStr := HexEncodeToString(actualOutput)
 	if !bytes.Equal(expectedOutput, []byte(actualStr)) {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+		t.Errorf("Expected '%s'. Actual '%s'",
 			expectedOutput, []byte(actualStr))
 	}
 
@@ -92,7 +92,7 @@ func TestGetSHA512(t *testing.T) {
 	actualOutput := GetSHA512(originalString)
 	actualStr := HexEncodeToString(actualOutput)
 	if !bytes.Equal(expectedOutput, []byte(actualStr)) {
-		t.Errorf("Test failed. Expected '%x'. Actual '%x'",
+		t.Errorf("Expected '%x'. Actual '%x'",
 			expectedOutput, []byte(actualStr))
 	}
 }
@@ -106,7 +106,7 @@ func TestGetSHA256(t *testing.T) {
 	actualOutput := GetSHA256(originalString)
 	actualStr := HexEncodeToString(actualOutput)
 	if !bytes.Equal(expectedOutput, []byte(actualStr)) {
-		t.Errorf("Test failed. Expected '%x'. Actual '%x'", expectedOutput,
+		t.Errorf("Expected '%x'. Actual '%x'", expectedOutput,
 			[]byte(actualStr))
 	}
 }
@@ -138,31 +138,31 @@ func TestGetHMAC(t *testing.T) {
 
 	sha1 := GetHMAC(HashSHA1, []byte("Hello,World"), []byte("1234"))
 	if string(sha1) != string(expectedSha1) {
-		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedSha1, sha1,
 		)
 	}
 	sha256 := GetHMAC(HashSHA256, []byte("Hello,World"), []byte("1234"))
 	if string(sha256) != string(expectedsha256) {
-		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedsha256, sha256,
 		)
 	}
 	sha512 := GetHMAC(HashSHA512, []byte("Hello,World"), []byte("1234"))
 	if string(sha512) != string(expectedsha512) {
-		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedsha512, sha512,
 		)
 	}
 	sha512384 := GetHMAC(HashSHA512_384, []byte("Hello,World"), []byte("1234"))
 	if string(sha512384) != string(expectedsha512384) {
-		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedsha512384, sha512384,
 		)
 	}
 	md5 := GetHMAC(HashMD5, []byte("Hello World"), []byte("1234"))
 	if string(md5) != string(expectedmd5) {
-		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedmd5, md5,
 		)
 	}
@@ -174,7 +174,7 @@ func TestSha1Tohex(t *testing.T) {
 	expectedResult := "fcfbfcd7d31d994ef660f6972399ab5d7a890149"
 	actualResult := Sha1ToHex("Testing Sha1ToHex")
 	if actualResult != expectedResult {
-		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+		t.Errorf("Expected '%s'. Actual '%s'",
 			expectedResult, actualResult)
 	}
 }

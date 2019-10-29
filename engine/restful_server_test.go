@@ -15,7 +15,7 @@ func loadConfig(t *testing.T) *config.Config {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("", true)
 	if err != nil {
-		t.Error("Test failed. GetCurrencyConfig LoadConfig error", err)
+		t.Error("GetCurrencyConfig LoadConfig error", err)
 	}
 	return cfg
 }
@@ -25,7 +25,7 @@ func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 
 	err := RESTfulJSONResponse(w, response)
 	if err != nil {
-		t.Error("Test failed. Failed to make response.", err)
+		t.Error("Failed to make response.", err)
 	}
 	return w.Result()
 }
@@ -37,17 +37,17 @@ func TestConfigAllJsonResponse(t *testing.T) {
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		t.Error("Test failed. Body not readable", err)
+		t.Error("Body not readable", err)
 	}
 
 	var responseConfig config.Config
 	jsonErr := json.Unmarshal(body, &responseConfig)
 	if jsonErr != nil {
-		t.Error("Test failed. Response not parseable as json", err)
+		t.Error("Response not parseable as json", err)
 	}
 
 	if reflect.DeepEqual(responseConfig, cfg) {
-		t.Error("Test failed. Json not equal to config")
+		t.Error("Json not equal to config")
 	}
 }
 
@@ -62,7 +62,7 @@ func TestInvalidHostRequest(t *testing.T) {
 	newRouter(true).ServeHTTP(resp, req)
 
 	if status := resp.Code; status != http.StatusNotFound {
-		t.Errorf("Test failed. Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
+		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
 	}
 }
 
@@ -77,6 +77,6 @@ func TestValidHostRequest(t *testing.T) {
 	newRouter(true).ServeHTTP(resp, req)
 
 	if status := resp.Code; status != http.StatusOK {
-		t.Errorf("Test failed. Response returned wrong status code expected %v got %v", http.StatusOK, status)
+		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusOK, status)
 	}
 }

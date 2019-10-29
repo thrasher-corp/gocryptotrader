@@ -3,13 +3,75 @@ package config
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
+)
+
+// Constants declared here are filename strings and test strings
+const (
+	FXProviderFixer                      = "fixer"
+	EncryptedFile                        = "config.dat"
+	File                                 = "config.json"
+	TestFile                             = "../testdata/configtest.json"
+	fileEncryptionPrompt                 = 0
+	fileEncryptionEnabled                = 1
+	fileEncryptionDisabled               = -1
+	pairsLastUpdatedWarningThreshold     = 30 // 30 days
+	defaultHTTPTimeout                   = time.Second * 15
+	defaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	defaultWebsocketResponseMaxLimit     = time.Second * 7
+	defaultWebsocketOrderbookBufferLimit = 5
+	defaultWebsocketTrafficTimeout       = time.Second * 30
+	maxAuthFailures                      = 3
+	defaultNTPAllowedDifference          = 50000000
+	defaultNTPAllowedNegativeDifference  = 50000000
+	DefaultAPIKey                        = "Key"
+	DefaultAPISecret                     = "Secret"
+	DefaultAPIClientID                   = "ClientID"
+)
+
+// Constants here hold some messages
+const (
+	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
+	ErrExchangeAvailablePairsEmpty             = "exchange %s available pairs is empty"
+	ErrExchangeEnabledPairsEmpty               = "exchange %s enabled pairs is empty"
+	ErrExchangeBaseCurrenciesEmpty             = "exchange %s base currencies is empty"
+	ErrExchangeNotFound                        = "exchange %s not found"
+	ErrNoEnabledExchanges                      = "no exchanges enabled"
+	ErrCryptocurrenciesEmpty                   = "cryptocurrencies variable is empty"
+	ErrFailureOpeningConfig                    = "fatal error opening %s file. Error: %s"
+	ErrCheckingConfigValues                    = "fatal error checking config values. Error: %s"
+	ErrSavingConfigBytesMismatch               = "config file %q bytes comparison doesn't match, read %s expected %s"
+	WarningWebserverCredentialValuesEmpty      = "webserver support disabled due to empty Username/Password values"
+	WarningWebserverListenAddressInvalid       = "webserver support disabled due to invalid listen address"
+	WarningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
+	WarningPairsLastUpdatedThresholdExceeded   = "exchange %s last manual update of available currency pairs has exceeded %d days. Manual update required!"
+)
+
+// Constants here define unset default values displayed in the config.json
+// file
+const (
+	APIURLNonDefaultMessage              = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
+	WebsocketURLNonDefaultMessage        = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+	DefaultUnsetAPIKey                   = "Key"
+	DefaultUnsetAPISecret                = "Secret"
+	DefaultUnsetAccountPlan              = "accountPlan"
+	DefaultForexProviderExchangeRatesAPI = "ExchangeRates"
+)
+
+// Variables here are used for configuration
+var (
+	Cfg            Config
+	IsInitialSetup bool
+	testBypass     bool
+	m              sync.Mutex
 )
 
 // Config is the overarching object that holds all the information for
@@ -313,39 +375,12 @@ type TelegramConfig struct {
 	VerificationToken string `json:"verificationToken"`
 }
 
-// ProtocolFeaturesConfig holds all variables for the exchanges supported features
-// for a protocol (e.g REST or Websocket)
-type ProtocolFeaturesConfig struct {
-	TickerBatching      bool   `json:"tickerBatching,omitempty"`
-	AutoPairUpdates     bool   `json:"autoPairUpdates,omitempty"`
-	AccountBalance      bool   `json:"accountBalance,omitempty"`
-	CryptoDeposit       bool   `json:"cryptoDeposit,omitempty"`
-	CryptoWithdrawal    uint32 `json:"cryptoWithdrawal,omitempty"`
-	FiatWithdraw        bool   `json:"fiatWithdraw,omitempty"`
-	GetOrder            bool   `json:"getOrder,omitempty"`
-	GetOrders           bool   `json:"getOrders,omitempty"`
-	CancelOrders        bool   `json:"cancelOrders,omitempty"`
-	CancelOrder         bool   `json:"cancelOrder,omitempty"`
-	SubmitOrder         bool   `json:"submitOrder,omitempty"`
-	SubmitOrders        bool   `json:"submitOrders,omitempty"`
-	ModifyOrder         bool   `json:"modifyOrder,omitempty"`
-	DepositHistory      bool   `json:"depositHistory,omitempty"`
-	WithdrawalHistory   bool   `json:"withdrawalHistory,omitempty"`
-	TradeHistory        bool   `json:"tradeHistory,omitempty"`
-	UserTradeHistory    bool   `json:"userTradeHistory,omitempty"`
-	TradeFee            bool   `json:"tradeFee,omitempty"`
-	FiatDepositFee      bool   `json:"fiatDepositFee,omitempty"`
-	FiatWithdrawalFee   bool   `json:"fiatWithdrawalFee,omitempty"`
-	CryptoDepositFee    bool   `json:"cryptoDepositFee,omitempty"`
-	CryptoWithdrawalFee bool   `json:"cryptoWithdrawalFee,omitempty"`
-}
-
 // FeaturesSupportedConfig stores the exchanges supported features
 type FeaturesSupportedConfig struct {
-	REST                  bool                   `json:"restAPI"`
-	RESTCapabilities      ProtocolFeaturesConfig `json:"restCapabilities,omitempty"`
-	Websocket             bool                   `json:"websocketAPI"`
-	WebsocketCapabilities ProtocolFeaturesConfig `json:"websocketCapabilities,omitempty"`
+	REST                  bool              `json:"restAPI"`
+	RESTCapabilities      protocol.Features `json:"restCapabilities,omitempty"`
+	Websocket             bool              `json:"websocketAPI"`
+	WebsocketCapabilities protocol.Features `json:"websocketCapabilities,omitempty"`
 }
 
 // FeaturesEnabledConfig stores the exchanges enabled features

@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2804,4 +2805,113 @@ func clearScreen() error {
 		cmd.Stdout = os.Stdout
 		return cmd.Run()
 	}
+}
+
+const timeFormat = "2006-01-02 15:04:05"
+
+var startTime, endTime, order string
+var limit int
+
+var getAuditEventCommand = cli.Command{
+	Name:      "getauditevent",
+	Usage:     "gets audit events matching query parameters",
+	ArgsUsage: "<starttime> <endtime> <orderby> <limit>",
+	Action:    getAuditEvent,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:        "start, s",
+			Usage:       "start date to search",
+			Value:       time.Now().Add(-time.Hour).Format(timeFormat),
+			Destination: &startTime,
+		},
+		cli.StringFlag{
+			Name:        "end, e",
+			Usage:       "end time to search",
+			Value:       time.Now().Format(timeFormat),
+			Destination: &endTime,
+		},
+		cli.StringFlag{
+			Name:        "order, o",
+			Usage:       "order results by ascending/descending",
+			Value:       "asc",
+			Destination: &order,
+		},
+		cli.IntFlag{
+			Name:        "limit, l",
+			Usage:       "how many results to retrieve",
+			Value:       100,
+			Destination: &limit,
+		},
+	},
+}
+
+func getAuditEvent(c *cli.Context) error {
+	if !c.IsSet("start") {
+		if c.Args().Get(0) != "" {
+			startTime = c.Args().Get(0)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(1) != "" {
+			endTime = c.Args().Get(1)
+		}
+	}
+
+	if !c.IsSet("order") {
+		if c.Args().Get(2) != "" {
+			order = c.Args().Get(2)
+		}
+	}
+
+	if !c.IsSet("limit") {
+		if c.Args().Get(3) != "" {
+			limitStr, err := strconv.ParseInt(c.Args().Get(3), 10, 32)
+			if err == nil {
+				limit = int(limitStr)
+			}
+		}
+	}
+
+	s, err := time.Parse(timeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+
+	e, err := time.Parse(timeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after before")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	_, offset := time.Now().Zone()
+	loc := time.FixedZone("", -offset)
+
+	result, err := client.GetAuditEvent(context.Background(),
+		&gctrpc.GetAuditEventRequest{
+			StartDate: s.In(loc).Format(timeFormat),
+			EndDate:   e.In(loc).Format(timeFormat),
+			Limit:     int32(limit),
+			OrderBy:   order,
+			Offset:    int32(offset),
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
 }

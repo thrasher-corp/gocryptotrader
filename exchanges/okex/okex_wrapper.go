@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -91,9 +92,37 @@ func (o *OKEX) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  true,
+			RESTCapabilities: protocol.Features{
+				TickerBatching:      true,
+				TickerFetching:      true,
+				KlineFetching:       true,
+				TradeFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrder:         true,
+				CancelOrders:        true,
+				SubmitOrder:         true,
+				SubmitOrders:        true,
+				DepositHistory:      true,
+				WithdrawalHistory:   true,
+				UserTradeHistory:    true,
+				CryptoDeposit:       true,
+				CryptoWithdrawal:    true,
+				TradeFee:            true,
+				CryptoWithdrawalFee: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				TickerFetching:         true,
+				TradeFetching:          true,
+				KlineFetching:          true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				MessageCorrelation:     true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -114,14 +143,6 @@ func (o *OKEX) SetDefaults() {
 	o.API.Endpoints.WebsocketURL = OkExWebsocketURL
 	o.Websocket = wshandler.New()
 	o.APIVersion = okExAPIVersion
-	o.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit

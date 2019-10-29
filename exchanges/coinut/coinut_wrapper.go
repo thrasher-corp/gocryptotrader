@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -70,9 +71,33 @@ func (c *COINUT) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  false,
+			RESTCapabilities: protocol.Features{
+				TickerFetching:    true,
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				AccountInfo:       true,
+				GetOrders:         true,
+				CancelOrders:      true,
+				CancelOrder:       true,
+				SubmitOrder:       true,
+				SubmitOrders:      true,
+				UserTradeHistory:  true,
+				TradeFee:          true,
+				FiatDepositFee:    true,
+				FiatWithdrawalFee: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				TradeFetching:          true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				SubmitOrder:            true,
+				SubmitOrders:           true,
+				CancelOrder:            true,
+				MessageCorrelation:     true,
 			},
 			WithdrawPermissions: exchange.WithdrawCryptoViaWebsiteOnly |
 				exchange.WithdrawFiatViaWebsiteOnly,
@@ -91,15 +116,6 @@ func (c *COINUT) SetDefaults() {
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
 	c.API.Endpoints.WebsocketURL = coinutWebsocketURL
 	c.Websocket = wshandler.New()
-	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSubmitOrderSupported |
-		wshandler.WebsocketCancelOrderSupported |
-		wshandler.WebsocketMessageCorrelationSupported
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -129,6 +145,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        c.WsConnect,
 			Subscriber:                       c.Subscribe,
 			UnSubscriber:                     c.Unsubscribe,
+			Features:                         &c.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

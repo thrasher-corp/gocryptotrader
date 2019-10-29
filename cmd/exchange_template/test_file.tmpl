@@ -24,7 +24,7 @@ func TestSetup(t *testing.T) {
 	cfg.LoadConfig("../../testdata/configtest.json")
 	{{.Name}}Config, err := cfg.GetExchangeConfig("{{.CapitalName}}")
 	if err != nil {
-		t.Error("Test Failed - {{.CapitalName}} Setup() init error")
+		t.Error("{{.CapitalName}} Setup() init error")
 	}
 
 	{{.Name}}Config.API.AuthenticatedSupport = true

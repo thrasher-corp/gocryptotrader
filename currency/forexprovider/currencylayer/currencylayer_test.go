@@ -48,7 +48,7 @@ func areAPIKeysSet() bool {
 func TestGetRates(t *testing.T) {
 	err := setup()
 	if err != nil {
-		t.Skip("Test Failed - CurrencyLayer GetRates error", err)
+		t.Skip("CurrencyLayer GetRates error", err)
 	}
 	_, err = c.GetRates("USD", "AUD")
 	if areAPIKeysSet() && err != nil {
@@ -61,7 +61,7 @@ func TestGetRates(t *testing.T) {
 func TestGetSupportedCurrencies(t *testing.T) {
 	err := setup()
 	if err != nil {
-		t.Fatal("Test Failed - CurrencyLayer GetSupportedCurrencies error", err)
+		t.Fatal("CurrencyLayer GetSupportedCurrencies error", err)
 	}
 	_, err = c.GetSupportedCurrencies()
 	if areAPIKeysSet() && err != nil {
@@ -74,7 +74,7 @@ func TestGetSupportedCurrencies(t *testing.T) {
 func TestGetliveData(t *testing.T) {
 	err := setup()
 	if err != nil {
-		t.Fatal("Test Failed - CurrencyLayer GetliveData error", err)
+		t.Fatal("CurrencyLayer GetliveData error", err)
 	}
 	_, err = c.GetliveData("AUD", "USD")
 	if areAPIKeysSet() && err != nil {
@@ -87,7 +87,7 @@ func TestGetliveData(t *testing.T) {
 func TestGetHistoricalData(t *testing.T) {
 	err := setup()
 	if err != nil {
-		t.Fatal("Test Failed - CurrencyLayer GetHistoricalData error", err)
+		t.Fatal("CurrencyLayer GetHistoricalData error", err)
 	}
 	_, err = c.GetHistoricalData("2016-12-15", []string{"AUD"}, "USD")
 	if areAPIKeysSet() && err != nil {
@@ -100,7 +100,7 @@ func TestGetHistoricalData(t *testing.T) {
 func TestConvert(t *testing.T) {
 	err := setup()
 	if err != nil {
-		t.Fatal("Test Failed - CurrencyLayer Convert error", err)
+		t.Fatal("CurrencyLayer Convert error", err)
 	}
 	_, err = c.Convert("USD", "AUD", "", 1)
 	if areAPIKeysSet() && err != nil && c.APIKeyLvl >= AccountBasic {
@@ -113,7 +113,7 @@ func TestConvert(t *testing.T) {
 func TestQueryTimeFrame(t *testing.T) {
 	err := setup()
 	if err != nil {
-		t.Fatal("Test Failed - CurrencyLayer QueryTimeFrame error", err)
+		t.Fatal("CurrencyLayer QueryTimeFrame error", err)
 	}
 	_, err = c.QueryTimeFrame("2010-12-0", "2010-12-5", "USD", []string{"AUD"})
 	if areAPIKeysSet() && err != nil && c.APIKeyLvl >= AccountPro {
@@ -126,7 +126,7 @@ func TestQueryTimeFrame(t *testing.T) {
 func TestQueryCurrencyChange(t *testing.T) {
 	err := setup()
 	if err != nil {
-		t.Fatal("Test Failed - CurrencyLayer QueryCurrencyChange() error", err)
+		t.Fatal("CurrencyLayer QueryCurrencyChange() error", err)
 	}
 	_, err = c.QueryCurrencyChange("2010-12-0", "2010-12-5", "USD", []string{"AUD"})
 	if areAPIKeysSet() && err != nil && c.APIKeyLvl == AccountEnterprise {

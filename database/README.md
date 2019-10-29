@@ -21,8 +21,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Current Features for database package
 
 + Establishes & Maintains database connection across program life cycle
-+ Multiple database support via simple repository model
-+ Run migration on connection to assure database is at correct version
++ Migration handed by [Goose](https://github.com/thrasher-corp/goose) 
++ Model generation handled by [SQLBoiler](https://github.com/thrasher-corp/sqlboiler) 
 
 ## How to use
 
@@ -30,17 +30,58 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 [SQLBoiler](https://github.com/thrasher-corp/sqlboiler)
 ```shell script
-go get -u https://github.com/thrasher-corp/sqlboiler
+go get -u github.com/thrasher-corp/sqlboiler
 ```
 
 [Postgres Driver](https://github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql)
 ```shell script
-go get -u https://github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql
+go get -u github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql
 ```
 
 [SQLite Driver](https://github.com/thrasher-corp/sqlboiler-sqlite3)
 ```shell script
-go get -u https://github.com/thrasher-corp/sqlboiler-sqlite3
+go get -u github.com/thrasher-corp/sqlboiler-sqlite3
+```
+
+##### Configuration
+
+The database configuration struct is currently: 
+```shell script
+type Config struct {
+	Enabled                   bool   `json:"enabled"`
+	Verbose                   bool   `json:"verbose"`
+	Driver                    string `json:"driver"`
+	drivers.ConnectionDetails `json:"connectionDetails"`
+}
+```
+And Connection Details:
+```sh
+type ConnectionDetails struct {
+	Host     string `json:"host"`
+	Port     uint16 `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Database string `json:"database"`
+	SSLMode  string `json:"sslmode"`
+}
+```
+
+With an example configuration being:
+
+```sh
+ "database": {
+  "enabled": true,
+  "verbose": true,
+  "driver": "postgres",
+  "connectionDetails": {
+   "host": "localhost",
+   "port": 5432,
+   "username": "gct-dev",
+   "password": "gct-dev",
+   "database": "gct-dev",
+   "sslmode": "disable"
+  }
+ },
 ```
 
 ##### Create and Run migrations
@@ -74,7 +115,7 @@ gen_sqlboiler_config
 ```
 
 By default this will look in your gocryptotrader data folder and default config, these can be overwritten 
-along with the location of the  sqlboiler generated config
+along with the location of the sqlboiler generated config
 
 ```shell script
 -config "configname.json"
@@ -85,8 +126,13 @@ along with the location of the  sqlboiler generated config
 
 Generate a new model that gets placed in ./database/models/<databasetype> folder
 
+Linux:
 ```shell script
 sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps --wipe psql 
+```
+Windows: 
+```sh
+sqlboiler -o database\\models\\postgres -p postgres --no-auto-timestamps --wipe psql
 ```
 
 Helpers have been provided in the Makefile for linux users 

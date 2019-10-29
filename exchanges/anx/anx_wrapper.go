@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -81,9 +82,24 @@ func (a *ANX) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: false,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  false,
+			RESTCapabilities: protocol.Features{
+				TickerFetching:      true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				CryptoDeposit:       true,
+				CryptoWithdrawal:    true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrders:        true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				DepositHistory:      true,
+				WithdrawalHistory:   true,
+				UserTradeHistory:    true,
+				TradeFee:            true,
+				FiatWithdrawalFee:   true,
+				CryptoWithdrawalFee: true,
 			},
 			WithdrawPermissions: exchange.WithdrawCryptoWithEmail |
 				exchange.AutoWithdrawCryptoWithSetup |

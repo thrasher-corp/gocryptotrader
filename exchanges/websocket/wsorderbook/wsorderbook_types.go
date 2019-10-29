@@ -13,7 +13,7 @@ import (
 // appending and deleting changes and updates the main store in wsorderbook.go
 type WebsocketOrderbookLocal struct {
 	ob                    map[currency.Pair]map[asset.Item]*orderbook.Base
-	buffer                map[currency.Pair]map[asset.Item][]WebsocketOrderbookUpdate
+	buffer                map[currency.Pair]map[asset.Item][]*WebsocketOrderbookUpdate
 	obBufferLimit         int
 	bufferEnabled         bool
 	sortBuffer            bool

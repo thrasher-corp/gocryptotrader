@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -72,10 +73,31 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
-			Websocket: false,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  false,
+			Websocket: true,
+			RESTCapabilities: protocol.Features{
+				TickerFetching:      true,
+				TradeFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				UserTradeHistory:    true,
+				CryptoWithdrawal:    true,
+				FiatWithdraw:        true,
+				TradeFee:            true,
+				FiatWithdrawalFee:   true,
+				CryptoWithdrawalFee: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				TickerFetching:         true,
+				TradeFetching:          true,
+				OrderbookFetching:      true,
+				AccountInfo:            true,
+				Subscribe:              true,
+				AuthenticatedEndpoints: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -89,6 +111,12 @@ func (b *BTCMarkets) SetDefaults() {
 		request.NewRateLimit(time.Second*10, btcmarketsAuthLimit),
 		request.NewRateLimit(time.Second*10, btcmarketsUnauthLimit),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	b.API.Endpoints.WebsocketURL = btcMarketsWSURL
+	b.Websocket = wshandler.New()
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in an exchange configuration and sets all parameters
@@ -98,7 +126,38 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	return b.SetupDefaults(exch)
+	err := b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	err = b.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       btcMarketsWSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        b.WsConnect,
+			Subscriber:                       b.Subscribe,
+			Features:                         &b.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+	}
+
+	b.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         b.Name,
+		URL:                  b.Websocket.GetWebsocketURL(),
+		ProxyURL:             b.Websocket.GetProxyAddress(),
+		Verbose:              b.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+
+	return nil
 }
 
 // Start starts the BTC Markets go routine
@@ -441,7 +500,7 @@ func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *excha
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (b *BTCMarkets) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return b.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

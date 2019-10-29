@@ -22,11 +22,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Test Failed - Localbitcoins load config error", err)
+		log.Fatal("Localbitcoins load config error", err)
 	}
 	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
 	if err != nil {
-		log.Fatal("Test Failed - Localbitcoins Setup() init error", err)
+		log.Fatal("Localbitcoins Setup() init error", err)
 	}
 	l.SkipAuthCheck = true
 	localbitcoinsConfig.API.AuthenticatedSupport = true
@@ -35,12 +35,12 @@ func TestMain(m *testing.M) {
 	l.SetDefaults()
 	err = l.Setup(localbitcoinsConfig)
 	if err != nil {
-		log.Fatal("Test Failed - Localbitcoins setup error", err)
+		log.Fatal("Localbitcoins setup error", err)
 	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	l.HTTPClient = newClient

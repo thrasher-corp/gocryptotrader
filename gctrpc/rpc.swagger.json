@@ -271,54 +271,6 @@
         ]
       }
     },
-    "/v1/getTickerstream": {
-      "get": {
-        "operationId": "GetTickerStream",
-        "responses": {
-          "200": {
-            "description": "A successful response.(streaming responses)",
-            "schema": {
-              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.delimiter",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.base",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.quote",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "asset_type",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
     "/v1/getaccountinfo": {
       "get": {
         "operationId": "GetAccountInfo",
@@ -336,6 +288,56 @@
             "in": "query",
             "required": false,
             "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getauditevent": {
+      "get": {
+        "operationId": "GetAuditEvent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAuditEventResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
           }
         ],
         "tags": [
@@ -868,7 +870,7 @@
         ]
       }
     },
-    "/v1/getsusbsystems": {
+    "/v1/getsubsystems": {
       "get": {
         "operationId": "GetSubsystems",
         "responses": {
@@ -921,6 +923,54 @@
             }
           }
         },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/gettickerstream": {
+      "get": {
+        "operationId": "GetTickerStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset_type",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
         "tags": [
           "GoCryptoTrader"
         ]
@@ -1379,7 +1429,7 @@
           "type": "boolean",
           "format": "boolean"
         },
-        "rest_rolling_delay": {
+        "rest_polling_delay": {
           "type": "string"
         },
         "api_key": {
@@ -1438,6 +1488,17 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcAccount"
+          }
+        }
+      }
+    },
+    "gctrpcGetAuditEventResponse": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcaudit_event"
           }
         }
       }
@@ -2316,6 +2377,23 @@
       "type": "object",
       "properties": {
         "result": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcaudit_event": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "identifier": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "timestamp": {
           "type": "string"
         }
       }

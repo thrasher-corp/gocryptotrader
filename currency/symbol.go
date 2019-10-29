@@ -2,6 +2,15 @@ package currency
 
 import "errors"
 
+// GetSymbolByCurrencyName returns a currency symbol
+func GetSymbolByCurrencyName(currency Code) (string, error) {
+	result, ok := symbols[currency.Item]
+	if !ok {
+		return "", errors.New("currency symbol not found")
+	}
+	return result, nil
+}
+
 // symbols map holds the currency name and symbol mappings
 var symbols = map[*Item]string{
 	ALL.Item:  "Lek",
@@ -115,13 +124,4 @@ var symbols = map[*Item]string{
 	VND.Item:  "₫",
 	YER.Item:  "﷼",
 	ZWD.Item:  "Z$",
-}
-
-// GetSymbolByCurrencyName returns a currency symbol
-func GetSymbolByCurrencyName(currency Code) (string, error) {
-	result, ok := symbols[currency.Item]
-	if !ok {
-		return "", errors.New("currency symbol not found")
-	}
-	return result, nil
 }

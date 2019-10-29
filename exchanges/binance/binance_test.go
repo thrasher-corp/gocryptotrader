@@ -37,7 +37,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 	_, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
-		t.Error("Test Failed - Binance FetchTradablePairs(asset asets.AssetType) error", err)
+		t.Error("Binance FetchTradablePairs(asset asets.AssetType) error", err)
 	}
 }
 
@@ -50,7 +50,7 @@ func TestGetOrderBook(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Error("Test Failed - Binance GetOrderBook() error", err)
+		t.Error("Binance GetOrderBook() error", err)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestGetRecentTrades(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Error("Test Failed - Binance GetRecentTrades() error", err)
+		t.Error("Binance GetRecentTrades() error", err)
 	}
 }
 
@@ -72,10 +72,10 @@ func TestGetHistoricalTrades(t *testing.T) {
 
 	_, err := b.GetHistoricalTrades("BTCUSDT", 5, 0)
 	if !mockTests && err == nil {
-		t.Error("Test Failed - Binance GetHistoricalTrades() expecting error")
+		t.Error("Binance GetHistoricalTrades() expecting error")
 	}
 	if mockTests && err == nil {
-		t.Error("Test Failed - Binance GetHistoricalTrades() error", err)
+		t.Error("Binance GetHistoricalTrades() error", err)
 	}
 }
 
@@ -84,7 +84,7 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 	_, err := b.GetAggregatedTrades("BTCUSDT", 5)
 	if err != nil {
-		t.Error("Test Failed - Binance GetAggregatedTrades() error", err)
+		t.Error("Binance GetAggregatedTrades() error", err)
 	}
 }
 
@@ -97,7 +97,7 @@ func TestGetSpotKline(t *testing.T) {
 		Limit:    24,
 	})
 	if err != nil {
-		t.Error("Test Failed - Binance GetSpotKline() error", err)
+		t.Error("Binance GetSpotKline() error", err)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestGetAveragePrice(t *testing.T) {
 
 	_, err := b.GetAveragePrice("BTCUSDT")
 	if err != nil {
-		t.Error("Test Failed - Binance GetAveragePrice() error", err)
+		t.Error("Binance GetAveragePrice() error", err)
 	}
 }
 
@@ -115,7 +115,7 @@ func TestGetPriceChangeStats(t *testing.T) {
 
 	_, err := b.GetPriceChangeStats("BTCUSDT")
 	if err != nil {
-		t.Error("Test Failed - Binance GetPriceChangeStats() error", err)
+		t.Error("Binance GetPriceChangeStats() error", err)
 	}
 }
 
@@ -124,7 +124,7 @@ func TestGetTickers(t *testing.T) {
 
 	_, err := b.GetTickers()
 	if err != nil {
-		t.Error("Test Failed - Binance TestGetTickers error", err)
+		t.Error("Binance TestGetTickers error", err)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 	_, err := b.GetLatestSpotPrice("BTCUSDT")
 	if err != nil {
-		t.Error("Test Failed - Binance GetLatestSpotPrice() error", err)
+		t.Error("Binance GetLatestSpotPrice() error", err)
 	}
 }
 
@@ -142,7 +142,7 @@ func TestGetBestPrice(t *testing.T) {
 
 	_, err := b.GetBestPrice("BTCUSDT")
 	if err != nil {
-		t.Error("Test Failed - Binance GetBestPrice() error", err)
+		t.Error("Binance GetBestPrice() error", err)
 	}
 }
 
@@ -152,11 +152,11 @@ func TestQueryOrder(t *testing.T) {
 	_, err := b.QueryOrder("BTCUSDT", "", 1337)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - QueryOrder() error", err)
+		t.Error("QueryOrder() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - QueryOrder() expecting an error when no keys are set")
+		t.Error("QueryOrder() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock QueryOrder() error", err)
+		t.Error("Mock QueryOrder() error", err)
 	}
 }
 
@@ -166,11 +166,11 @@ func TestOpenOrders(t *testing.T) {
 	_, err := b.OpenOrders("BTCUSDT")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - OpenOrders() error", err)
+		t.Error("OpenOrders() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - OpenOrders() expecting an error when no keys are set")
+		t.Error("OpenOrders() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock OpenOrders() error", err)
+		t.Error("Mock OpenOrders() error", err)
 	}
 }
 
@@ -180,11 +180,11 @@ func TestAllOrders(t *testing.T) {
 	_, err := b.AllOrders("BTCUSDT", "", "")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - AllOrders() error", err)
+		t.Error("AllOrders() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - AllOrders() expecting an error when no keys are set")
+		t.Error("AllOrders() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock AllOrders() error", err)
+		t.Error("Mock AllOrders() error", err)
 	}
 }
 
@@ -214,7 +214,7 @@ func TestGetFee(t *testing.T) {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.1) || err != nil {
 			t.Error(err)
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
@@ -222,7 +222,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
 		if resp, err := b.GetFee(feeBuilder); resp != float64(100000) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(100000), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(100000), resp)
 			t.Error(err)
 		}
 
@@ -230,7 +230,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.1) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.1), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.1), resp)
 			t.Error(err)
 		}
 
@@ -238,7 +238,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
 
@@ -248,7 +248,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0005) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
 		t.Error(err)
 	}
 
@@ -256,7 +256,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -265,7 +265,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -274,7 +274,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 }
@@ -308,11 +308,11 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err = b.GetActiveOrders(&getOrdersRequest)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - GetActiveOrders() error", err)
+		t.Error("GetActiveOrders() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - GetActiveOrders() expecting an error when no keys are set")
+		t.Error("GetActiveOrders() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock GetActiveOrders() error", err)
+		t.Error("Mock GetActiveOrders() error", err)
 	}
 }
 
@@ -335,11 +335,11 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err = b.GetOrderHistory(&getOrdersRequest)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - GetOrderHistory() error", err)
+		t.Error("GetOrderHistory() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - GetOrderHistory() expecting an error when no keys are set")
+		t.Error("GetOrderHistory() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock GetOrderHistory() error", err)
+		t.Error("Mock GetOrderHistory() error", err)
 	}
 }
 
@@ -369,11 +369,11 @@ func TestSubmitOrder(t *testing.T) {
 	_, err := b.SubmitOrder(orderSubmission)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - SubmitOrder() error", err)
+		t.Error("SubmitOrder() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - SubmitOrder() expecting an error when no keys are set")
+		t.Error("SubmitOrder() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock SubmitOrder() error", err)
+		t.Error("Mock SubmitOrder() error", err)
 	}
 }
 
@@ -394,11 +394,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := b.CancelOrder(orderCancellation)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - CancelExchangeOrder() error", err)
+		t.Error("CancelExchangeOrder() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - CancelExchangeOrder() expecting an error when no keys are set")
+		t.Error("CancelExchangeOrder() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock CancelExchangeOrder() error", err)
+		t.Error("Mock CancelExchangeOrder() error", err)
 	}
 }
 
@@ -419,11 +419,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	_, err := b.CancelAllOrders(orderCancellation)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - CancelAllExchangeOrders() error", err)
+		t.Error("CancelAllExchangeOrders() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - CancelAllExchangeOrders() expecting an error when no keys are set")
+		t.Error("CancelAllExchangeOrders() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock CancelAllExchangeOrders() error", err)
+		t.Error("Mock CancelAllExchangeOrders() error", err)
 	}
 }
 
@@ -433,11 +433,11 @@ func TestGetAccountInfo(t *testing.T) {
 	_, err := b.GetAccountInfo()
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - GetAccountInfo() error", err)
+		t.Error("GetAccountInfo() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - GetAccountInfo() expecting an error when no keys are set")
+		t.Error("GetAccountInfo() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock GetAccountInfo() error", err)
+		t.Error("Mock GetAccountInfo() error", err)
 	}
 }
 
@@ -446,7 +446,7 @@ func TestModifyOrder(t *testing.T) {
 
 	_, err := b.ModifyOrder(&order.Modify{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error cannot be nil")
+		t.Error("ModifyOrder() error cannot be nil")
 	}
 }
 
@@ -469,11 +469,11 @@ func TestWithdraw(t *testing.T) {
 	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - Withdraw() error", err)
+		t.Error("Withdraw() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - Withdraw() expecting an error when no keys are set")
+		t.Error("Withdraw() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock Withdraw() error", err)
+		t.Error("Mock Withdraw() error", err)
 	}
 }
 
@@ -503,10 +503,10 @@ func TestGetDepositAddress(t *testing.T) {
 	_, err := b.GetDepositAddress(currency.BTC, "")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		t.Error("Test Failed - GetDepositAddress() error", err)
+		t.Error("GetDepositAddress() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+		t.Error("GetDepositAddress() error cannot be nil")
 	case mockTests && err != nil:
-		t.Error("Test Failed - Mock GetDepositAddress() error", err)
+		t.Error("Mock GetDepositAddress() error", err)
 	}
 }

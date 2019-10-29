@@ -43,6 +43,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		Connector:                        o.WsConnect,
 		Subscriber:                       o.Subscribe,
 		UnSubscriber:                     o.Unsubscribe,
+		Features:                         &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

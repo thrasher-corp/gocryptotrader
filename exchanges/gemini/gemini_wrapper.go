@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -69,9 +70,28 @@ func (g *Gemini) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			RESTCapabilities: exchange.ProtocolFeatures{
-				AutoPairUpdates: true,
-				TickerBatching:  false,
+			RESTCapabilities: protocol.Features{
+				TickerFetching:      true,
+				TradeFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				CancelOrders:        true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				UserTradeHistory:    true,
+				CryptoDeposit:       true,
+				CryptoWithdrawal:    true,
+				TradeFee:            true,
+				FiatWithdrawalFee:   true,
+				CryptoWithdrawalFee: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				OrderbookFetching:      true,
+				TradeFetching:          true,
+				AuthenticatedEndpoints: true,
+				MessageSequenceNumbers: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawCryptoWithSetup |
@@ -91,10 +111,6 @@ func (g *Gemini) SetDefaults() {
 	g.API.Endpoints.URL = g.API.Endpoints.URLDefault
 	g.API.Endpoints.WebsocketURL = geminiWebsocketEndpoint
 	g.Websocket = wshandler.New()
-	g.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSequenceNumberSupported
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -126,6 +142,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        g.WsConnect,
+			Features:                         &g.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

@@ -87,13 +87,6 @@ func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFor
 	return NewPairFromString(currencyPair)
 }
 
-// Pair holds currency pair information
-type Pair struct {
-	Delimiter string `json:"delimiter"`
-	Base      Code   `json:"base"`
-	Quote     Code   `json:"quote"`
-}
-
 // String returns a currency pair string
 func (p Pair) String() string {
 	return p.Base.String() + p.Delimiter + p.Quote.String()
@@ -202,4 +195,11 @@ func (p Pair) IsEmpty() bool {
 // ContainsCurrency checks to see if a pair contains a specific currency
 func (p Pair) ContainsCurrency(c Code) bool {
 	return p.Base.Item == c.Item || p.Quote.Item == c.Item
+}
+
+// Pair holds currency pair information
+type Pair struct {
+	Delimiter string `json:"delimiter"`
+	Base      Code   `json:"base"`
+	Quote     Code   `json:"quote"`
 }
