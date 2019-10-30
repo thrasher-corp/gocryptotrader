@@ -1361,7 +1361,7 @@ func TestGetBase(t *testing.T) {
 func TestGetAssetType(t *testing.T) {
 	var b Base
 	p := currency.NewPair(currency.BTC, currency.USD)
-	a, err := b.GetPairAssetType(p)
+	_, err := b.GetPairAssetType(p)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -1374,7 +1374,7 @@ func TestGetAssetType(t *testing.T) {
 		ConfigFormat: &currency.PairFormat{Delimiter: "-"},
 	}
 
-	a, err = b.GetPairAssetType(p)
+	a, err := b.GetPairAssetType(p)
 	if err != nil {
 		t.Fatal(err)
 	}
