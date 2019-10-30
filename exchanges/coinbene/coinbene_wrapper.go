@@ -27,13 +27,13 @@ func (c *Coinbene) Start(wg *sync.WaitGroup) {
 // Run implements the Coinbene wrapper
 func (c *Coinbene) Run() {
 	if c.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), c.Websocket.GetWebsocketURL())
-		log.Debugf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", c.Name, common.IsEnabled(c.Websocket.IsEnabled()), c.Websocket.GetWebsocketURL())
+		log.Debugf("%s polling delay: %ds.\n", c.Name, c.RESTPollingDelay)
 		log.Debugf("%s %d currencies enabled: %s.\n", c.Name, len(c.EnabledPairs), c.EnabledPairs)
 	}
 	exchangeCurrencies, err := c.GetAllPairs()
 	if err != nil {
-		log.Errorf("%s Failed to get available symbols.\n", c.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", c.Name)
 	} else {
 		var newExchangeCurrencies currency.Pairs
 		for p := range exchangeCurrencies.Data {
@@ -42,7 +42,7 @@ func (c *Coinbene) Run() {
 		}
 		err = c.UpdateCurrencies(newExchangeCurrencies, false, false)
 		if err != nil {
-			log.Errorf("%s Failed to update available currencies %s.\n", c.GetName(), err)
+			log.Errorf("%s Failed to update available currencies %s.\n", c.Name, err)
 		}
 	}
 }
@@ -74,7 +74,7 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 
 // GetTickerPrice returns the ticker for a currency pair
 func (c *Coinbene) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
 	}
@@ -83,7 +83,7 @@ func (c *Coinbene) GetTickerPrice(p currency.Pair, assetType string) (ticker.Pri
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (c *Coinbene) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.Get(c.GetName(), currency, assetType)
+	ob, err := orderbook.Get(c.Name, currency, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(currency, assetType)
 	}
