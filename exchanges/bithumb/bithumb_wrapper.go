@@ -180,15 +180,16 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 	pairs := b.GetEnabledPairs(assetType)
 	for i := range pairs {
 		curr := pairs[i].Base.String()
-		if _, ok := tickers[curr]; !ok {
+		t, ok := tickers[curr]
+		if !ok {
 			continue
 		}
 		tp := ticker.Price{
-			High:   tickers[curr].MaxPrice,
-			Low:    tickers[curr].MinPrice,
-			Volume: tickers[curr].UnitsTraded24Hr,
-			Open:   tickers[curr].OpeningPrice,
-			Close:  tickers[curr].ClosingPrice,
+			High:   t.MaxPrice,
+			Low:    t.MinPrice,
+			Volume: t.UnitsTraded24Hr,
+			Open:   t.OpeningPrice,
+			Close:  t.ClosingPrice,
 			Pair:   pairs[i],
 		}
 		err = ticker.ProcessTicker(b.Name, &tp, assetType)
@@ -239,7 +240,8 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderb
 		orderBook.Asks = append(orderBook.Asks,
 			orderbook.Item{
 				Amount: orderbookNew.Data.Asks[i].Quantity,
-				Price:  orderbookNew.Data.Asks[i].Price})
+				Price:  orderbookNew.Data.Asks[i].Price,
+			})
 	}
 
 	orderBook.Pair = p
