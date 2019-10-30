@@ -402,7 +402,7 @@ func (b *Bitstamp) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitstamp) CancelOrder(order *order.Cancellation) error {
+func (b *Bitstamp) CancelOrder(order *order.Cancel) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -412,7 +412,7 @@ func (b *Bitstamp) CancelOrder(order *order.Cancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitstamp) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (b *Bitstamp) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	success, err := b.CancelAllExistingOrders()
 	if err != nil {
 		return order.CancelAllResponse{}, err

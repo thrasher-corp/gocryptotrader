@@ -346,7 +346,7 @@ func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bithumb) CancelOrder(order *order.Cancellation) error {
+func (b *Bithumb) CancelOrder(order *order.Cancel) error {
 	_, err := b.CancelTrade(order.Side.String(),
 		order.OrderID,
 		order.CurrencyPair.Base.String())
@@ -354,7 +354,7 @@ func (b *Bithumb) CancelOrder(order *order.Cancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

@@ -350,7 +350,7 @@ func (l *LakeBTC) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LakeBTC) CancelOrder(order *order.Cancellation) error {
+func (l *LakeBTC) CancelOrder(order *order.Cancel) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
@@ -361,7 +361,7 @@ func (l *LakeBTC) CancelOrder(order *order.Cancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LakeBTC) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (l *LakeBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	var cancelAllOrdersResponse order.CancelAllResponse
 	openOrders, err := l.GetOpenOrders()
 	if err != nil {

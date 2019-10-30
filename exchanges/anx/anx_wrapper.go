@@ -366,14 +366,14 @@ func (a *ANX) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *ANX) CancelOrder(order *order.Cancellation) error {
+func (a *ANX) CancelOrder(order *order.Cancel) error {
 	orderIDs := []string{order.OrderID}
 	_, err := a.CancelOrderByIDs(orderIDs)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (a *ANX) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (a *ANX) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

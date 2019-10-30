@@ -369,7 +369,7 @@ func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *BTSE) CancelOrder(order *order.Cancellation) error {
+func (b *BTSE) CancelOrder(order *order.Cancel) error {
 	r, err := b.CancelExistingOrder(order.OrderID,
 		b.FormatExchangeCurrency(order.CurrencyPair,
 			asset.Spot).String())
@@ -390,7 +390,7 @@ func (b *BTSE) CancelOrder(order *order.Cancellation) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 // If product ID is sent, all orders of that specified market will be cancelled
 // If not specified, all orders of all markets will be cancelled
-func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	markets, err := b.GetMarkets()
 	if err != nil {

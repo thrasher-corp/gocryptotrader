@@ -308,7 +308,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		currency.USD.String(),
 		"-")
 
-	var orderCancellation = &order.Cancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -329,7 +329,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		currency.USD.String(),
 		"-")
 
-	var orderCancellation = &order.Cancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",

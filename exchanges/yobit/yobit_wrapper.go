@@ -340,7 +340,7 @@ func (y *Yobit) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (y *Yobit) CancelOrder(order *order.Cancellation) error {
+func (y *Yobit) CancelOrder(order *order.Cancel) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -350,7 +350,7 @@ func (y *Yobit) CancelOrder(order *order.Cancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (y *Yobit) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (y *Yobit) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

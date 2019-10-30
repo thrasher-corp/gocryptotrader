@@ -285,12 +285,12 @@ func (b *Bitflyer) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitflyer) CancelOrder(order *order.Cancellation) error {
+func (b *Bitflyer) CancelOrder(order *order.Cancel) error {
 	return common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitflyer) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (b *Bitflyer) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	// TODO, implement BitFlyer API
 	b.CancelAllExistingOrders()
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented

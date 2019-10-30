@@ -512,7 +512,7 @@ func (h *HUOBI) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (h *HUOBI) CancelOrder(order *order.Cancellation) error {
+func (h *HUOBI) CancelOrder(order *order.Cancel) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -523,7 +523,7 @@ func (h *HUOBI) CancelOrder(order *order.Cancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var cancelAllOrdersResponse order.CancelAllResponse
 	for _, currency := range h.GetEnabledPairs(asset.Spot) {
 		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,

@@ -465,7 +465,7 @@ func (b *Bitmex) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitmex) CancelOrder(order *order.Cancellation) error {
+func (b *Bitmex) CancelOrder(order *order.Cancel) error {
 	var params = OrderCancelParams{
 		OrderID: order.OrderID,
 	}
@@ -474,7 +474,7 @@ func (b *Bitmex) CancelOrder(order *order.Cancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitmex) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (b *Bitmex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

@@ -135,12 +135,12 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "ModifyOrder")
 	}
 
-	err = e.CancelOrder(&order.Cancellation{})
+	err = e.CancelOrder(&order.Cancel{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "CancelOrder")
 	}
 
-	_, err = e.CancelAllOrders(&order.Cancellation{})
+	_, err = e.CancelAllOrders(&order.Cancel{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "CancelAllOrders")
 	}

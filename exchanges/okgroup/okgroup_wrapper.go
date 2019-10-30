@@ -251,7 +251,7 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKGroup) CancelOrder(orderCancellation *order.Cancellation) (err error) {
+func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 	orderID, err := strconv.ParseInt(orderCancellation.OrderID, 10, 64)
 	if err != nil {
 		return
@@ -270,7 +270,7 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancellation) (err error)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancellation) (resp order.CancelAllResponse, err error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.CancelAllResponse, err error) {
 	orderIDs := strings.Split(orderCancellation.OrderID, ",")
 	resp.Status = make(map[string]string)
 	var orderIDNumbers []int64

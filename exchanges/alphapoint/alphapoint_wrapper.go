@@ -230,7 +230,7 @@ func (a *Alphapoint) ModifyOrder(_ *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *Alphapoint) CancelOrder(order *order.Cancellation) error {
+func (a *Alphapoint) CancelOrder(order *order.Cancel) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -240,7 +240,7 @@ func (a *Alphapoint) CancelOrder(order *order.Cancellation) error {
 }
 
 // CancelAllOrders cancels all orders for a given account
-func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{},
 		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }

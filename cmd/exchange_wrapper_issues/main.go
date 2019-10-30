@@ -503,7 +503,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   r12,
 		})
 		// r13
-		cancelRequest := order.Cancellation{
+		cancelRequest := order.Cancel{
 			Side:         testOrderSide,
 			CurrencyPair: p,
 			OrderID:      config.OrderSubmission.OrderID,

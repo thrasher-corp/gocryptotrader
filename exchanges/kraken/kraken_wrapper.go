@@ -426,14 +426,14 @@ func (k *Kraken) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (k *Kraken) CancelOrder(order *order.Cancellation) error {
+func (k *Kraken) CancelOrder(order *order.Cancel) error {
 	_, err := k.CancelExistingOrder(order.OrderID)
 
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (k *Kraken) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (k *Kraken) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

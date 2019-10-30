@@ -8,23 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-const (
-	limitOrder = iota
-	marketOrder
-)
-
-// Orders variable holds an array of pointers to order structs
-var Orders []*Order
-
-// Order struct holds order values
-type Order struct {
-	OrderID  int
-	Exchange string
-	Type     int
-	Amount   float64
-	Price    float64
-}
-
 // NewOrder creates a new order and returns a an orderID
 func NewOrder(exchangeName string, amount, price float64) int {
 	order := &Order{}

@@ -348,12 +348,12 @@ func (l *LocalBitcoins) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LocalBitcoins) CancelOrder(order *order.Cancellation) error {
+func (l *LocalBitcoins) CancelOrder(order *order.Cancel) error {
 	return l.DeleteAd(order.OrderID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LocalBitcoins) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (l *LocalBitcoins) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

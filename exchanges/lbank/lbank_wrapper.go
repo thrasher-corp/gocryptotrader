@@ -325,14 +325,14 @@ func (l *Lbank) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *Lbank) CancelOrder(order *order.Cancellation) error {
+func (l *Lbank) CancelOrder(order *order.Cancel) error {
 	_, err := l.RemoveOrder(l.FormatExchangeCurrency(order.CurrencyPair,
 		order.AssetType).String(), order.OrderID)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *Lbank) CancelAllOrders(orders *order.Cancellation) (order.CancelAllResponse, error) {
+func (l *Lbank) CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {

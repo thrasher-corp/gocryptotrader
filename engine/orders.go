@@ -100,7 +100,7 @@ func (o *orderManager) gracefulShutdown() {
 			for y := range v {
 				log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
 					v[y].ID, v[y])
-				err := o.Cancel(k, &order.Cancellation{
+				err := o.Cancel(k, &order.Cancel{
 					OrderID: v[y].ID,
 				})
 				if err != nil {
@@ -149,7 +149,7 @@ func (o *orderManager) run() {
 
 func (o *orderManager) CancelAllOrders() {}
 
-func (o *orderManager) Cancel(exchName string, cancel *order.Cancellation) error {
+func (o *orderManager) Cancel(exchName string, cancel *order.Cancel) error {
 	if exchName == "" {
 		return errors.New("order exchange name is empty")
 	}

@@ -8,6 +8,23 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+const (
+	limitOrder = iota
+	marketOrder
+)
+
+// Orders variable holds an array of pointers to order structs
+var Orders []*Order
+
+// Order struct holds order values
+type Order struct {
+	OrderID  int
+	Exchange string
+	Type     int
+	Amount   float64
+	Price    float64
+}
+
 // vars related to orders
 var (
 	ErrSubmissionIsNil            = errors.New("order submission is nil")
@@ -118,8 +135,8 @@ type TradeHistory struct {
 	Description string
 }
 
-// Cancellation type required when requesting to cancel an order
-type Cancellation struct {
+// Cancel type required when requesting to cancel an order
+type Cancel struct {
 	AccountID     string
 	OrderID       string
 	CurrencyPair  currency.Pair

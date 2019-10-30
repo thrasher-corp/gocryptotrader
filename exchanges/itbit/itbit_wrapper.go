@@ -351,12 +351,12 @@ func (i *ItBit) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (i *ItBit) CancelOrder(order *order.Cancellation) error {
+func (i *ItBit) CancelOrder(order *order.Cancel) error {
 	return i.CancelExistingOrder(order.WalletAddress, order.OrderID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (i *ItBit) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+func (i *ItBit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

@@ -757,7 +757,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	err := exch.CancelOrder(&order.Cancellation{
+	err := exch.CancelOrder(&order.Cancel{
 		AccountID:     r.AccountId,
 		OrderID:       r.OrderId,
 		Side:          order.Side(r.Side),

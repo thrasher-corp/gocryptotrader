@@ -127,12 +127,12 @@ func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action *order.Modify) (string
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order *order.Cancellation) error {
+func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order *order.Cancel) error {
 	return common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.Cancellation) (order.CancelAllResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }
 

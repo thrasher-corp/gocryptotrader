@@ -381,7 +381,7 @@ func (z *ZB) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (z *ZB) CancelOrder(o *order.Cancellation) error {
+func (z *ZB) CancelOrder(o *order.Cancel) error {
 	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -391,7 +391,7 @@ func (z *ZB) CancelOrder(o *order.Cancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (z *ZB) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

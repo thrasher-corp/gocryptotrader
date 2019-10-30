@@ -419,12 +419,12 @@ func (c *CoinbasePro) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *CoinbasePro) CancelOrder(order *order.Cancellation) error {
+func (c *CoinbasePro) CancelOrder(order *order.Cancel) error {
 	return c.CancelExistingOrder(order.OrderID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *CoinbasePro) CancelAllOrders(_ *order.Cancellation) (order.CancelAllResponse, error) {
+func (c *CoinbasePro) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	// CancellAllExisting orders returns a list of successful cancellations, we're only interested in failures
 	_, err := c.CancelAllExistingOrders("")
 	return order.CancelAllResponse{}, err
