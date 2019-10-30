@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
@@ -436,10 +437,10 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 
 						if len(trades) > 0 {
-							side := exchange.BuyOrderSide
+							side := order.Buy
 							newAmount := trades[0].Amount
 							if newAmount < 0 {
-								side = exchange.SellOrderSide
+								side = order.Sell
 								newAmount *= -1
 							}
 
@@ -450,7 +451,7 @@ func (b *Bitfinex) WsDataHandler() {
 								Amount:       newAmount,
 								Exchange:     b.GetName(),
 								AssetType:    asset.Spot,
-								Side:         side.ToString(),
+								Side:         side.String(),
 							}
 						}
 					}

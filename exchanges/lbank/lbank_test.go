@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -148,7 +149,7 @@ func TestCreateOrder(t *testing.T) {
 		t.Error("CreateOrder error cannot be nil")
 	}
 	_, err = l.CreateOrder(cp.Lower().String(),
-		exchange.BuyOrderSide.ToLower().ToString(), 0, 0)
+		order.Buy.Lower(), 0, 0)
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
@@ -157,7 +158,7 @@ func TestCreateOrder(t *testing.T) {
 		t.Error("CreateOrder error cannot be nil")
 	}
 	_, err = l.CreateOrder(cp.Lower().String(),
-		exchange.BuyOrderSide.ToLower().ToString(), 58, 681)
+		order.Buy.Lower(), 58, 681)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -314,14 +315,14 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var orderSubmission = &exchange.OrderSubmission{
+	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:      currency.BTC,
 			Quote:     currency.USDT,
 			Delimiter: "_",
 		},
-		OrderSide: exchange.BuyOrderSide,
-		OrderType: exchange.LimitOrderType,
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
 		Price:     1,
 		Amount:    1,
 		ClientID:  "meowOrder",
@@ -340,7 +341,7 @@ func TestCancelOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
-	var a exchange.OrderCancellation
+	var a order.Cancel
 	a.CurrencyPair = cp
 	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
@@ -403,8 +404,8 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	var input exchange.GetOrdersRequest
-	input.OrderSide = exchange.BuyOrderSide
+	var input order.GetOrdersRequest
+	input.OrderSide = order.Buy
 	_, err := l.GetOrderHistory(&input)
 	if err != nil {
 		t.Error(err)

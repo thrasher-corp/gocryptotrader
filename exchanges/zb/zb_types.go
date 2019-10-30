@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // OrderbookResponse holds the orderbook data for a symbol
@@ -241,7 +241,7 @@ var WithdrawalFees = map[currency.Code]float64{
 }
 
 // orderSideMap holds order type info based on Alphapoint data
-var orderSideMap = map[int64]exchange.OrderSide{
-	0: exchange.BuyOrderSide,
-	1: exchange.SellOrderSide,
+var orderSideMap = map[int64]order.Side{
+	0: order.Buy,
+	1: order.Sell,
 }

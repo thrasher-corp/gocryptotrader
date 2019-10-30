@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
@@ -340,7 +341,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		var newOrderBook orderbook.Base
 		var bids, asks []orderbook.Item
 		for i := range data {
-			if strings.EqualFold(data[i].Side, exchange.SellOrderSide.ToString()) {
+			if strings.EqualFold(data[i].Side, order.Sell.String()) {
 				asks = append(asks, orderbook.Item{
 					Price:  data[i].Price,
 					Amount: float64(data[i].Size),

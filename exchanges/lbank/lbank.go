@@ -17,6 +17,7 @@ import (
 
 	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -196,8 +197,8 @@ func (l *Lbank) GetUserInfo() (InfoFinalResponse, error) {
 // CreateOrder creates an order
 func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (CreateOrderResponse, error) {
 	var resp CreateOrderResponse
-	if !strings.EqualFold(side, exchange.BuyOrderSide.ToLower().ToString()) &&
-		!strings.EqualFold(side, exchange.SellOrderSide.ToLower().ToString()) {
+	if !strings.EqualFold(side, order.Buy.Lower()) &&
+		!strings.EqualFold(side, order.Sell.Lower()) {
 		return resp, errors.New("side type invalid can only be 'buy' or 'sell'")
 	}
 	if amount <= 0 {

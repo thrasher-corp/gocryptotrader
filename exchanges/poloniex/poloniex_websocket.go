@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
@@ -175,11 +176,11 @@ func (p *Poloniex) WsHandleData() {
 								trade.Symbol = currencyIDMap[chanID]
 								trade.TradeID, _ = strconv.ParseInt(dataL3[1].(string), 10, 64)
 								// 1 for buy 0 for sell
-								side := exchange.BuyOrderSide
+								side := order.Buy
 								if dataL3[2].(float64) != 1 {
-									side = exchange.SellOrderSide
+									side = order.Sell
 								}
-								trade.Side = side.ToLower().ToString()
+								trade.Side = side.Lower()
 								trade.Volume, _ = strconv.ParseFloat(dataL3[3].(string), 64)
 								trade.Price, _ = strconv.ParseFloat(dataL3[4].(string), 64)
 								trade.Timestamp = int64(dataL3[5].(float64))
