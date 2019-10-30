@@ -373,22 +373,36 @@ func (h *HitBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (h *HitBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
-	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+func (h *HitBTC) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var err error
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
 	}
 
-	response, err := h.PlaceOrder(s.Pair.String(),
-		s.Price,
-		s.Amount,
-		s.OrderType.Lower(),
-		s.OrderSide.Lower())
-	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
+	if err := order.Validate(); err != nil {
+		return submitOrderResponse, err
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
+	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
+		var response *WsSubmitOrderSuccessResponse
+		response, err = h.wsPlaceOrder(order.Pair, order.OrderSide.ToString(), order.Amount, order.Price)
+		if err == nil {
+			submitOrderResponse.IsOrderPlaced = true
+		}
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
+	} else {
+		var response OrderResponse
+		response, err = h.PlaceOrder(order.Pair.String(),
+			order.Price,
+			order.Amount,
+			strings.ToLower(order.OrderType.ToString()),
+			strings.ToLower(order.OrderSide.ToString()))
+		if response.OrderNumber > 0 {
+			submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
+		}
+		if err == nil {
+			submitOrderResponse.IsOrderPlaced = true
+		}
 	}
 	return submitOrderResponse, err
 }

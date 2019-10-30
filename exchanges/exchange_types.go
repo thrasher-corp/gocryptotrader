@@ -14,27 +14,9 @@ import (
 const (
 	RestAuthentication      uint8 = 0
 	WebsocketAuthentication uint8 = 1
-)
-
-// FeeType custom type for calculating fees based on method
-type FeeType uint8
-
-// Const declarations for fee types
-const (
-	BankFee FeeType = iota
-	InternationalBankDepositFee
-	InternationalBankWithdrawalFee
-	CryptocurrencyTradeFee
-	CyptocurrencyDepositFee
-	CryptocurrencyWithdrawalFee
-	OfflineTradeFee
-)
-
-// InternationalBankTransactionType custom type for calculating fees based on fiat transaction types
-type InternationalBankTransactionType uint8
-
-// Const declarations for international transaction types
-const (
+	// Repeated exchange strings
+	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST"
+	// FeeType custom type for calculating fees based on method
 	WireTransfer InternationalBankTransactionType = iota
 	PerfectMoney
 	Neteller
@@ -53,26 +35,15 @@ const (
 	WesternUnion
 	MoneyGram
 	Contact
-)
-
-// FeeBuilder is the type which holds all parameters required to calculate a fee
-// for an exchange
-type FeeBuilder struct {
-	FeeType FeeType
-	// Used for calculating crypto trading fees, deposits & withdrawals
-	Pair    currency.Pair
-	IsMaker bool
-	// Fiat currency used for bank deposits & withdrawals
-	FiatCurrency        currency.Code
-	BankTransactionType InternationalBankTransactionType
-	// Used to multiply for fee calculations
-	PurchasePrice float64
-	Amount        float64
-}
-
-// Definitions for each type of withdrawal method for a given exchange
-const (
-	// No withdraw
+	// Const declarations for fee types
+	BankFee FeeType = iota
+	InternationalBankDepositFee
+	InternationalBankWithdrawalFee
+	CryptocurrencyTradeFee
+	CyptocurrencyDepositFee
+	CryptocurrencyWithdrawalFee
+	OfflineTradeFee
+	// Definitions for each type of withdrawal method for a given exchange
 	NoAPIWithdrawalMethods                  uint32 = 0
 	NoAPIWithdrawalMethodsText              string = "NONE, WEBSITE ONLY"
 	AutoWithdrawCrypto                      uint32 = (1 << 0)
@@ -113,9 +84,28 @@ const (
 	WithdrawFiatViaWebsiteOnlyText          string = "WITHDRAW FIAT VIA WEBSITE ONLY"
 	NoFiatWithdrawals                       uint32 = (1 << 18)
 	NoFiatWithdrawalsText                   string = "NO FIAT WITHDRAWAL"
-
-	UnknownWithdrawalTypeText string = "UNKNOWN"
+	UnknownWithdrawalTypeText               string = "UNKNOWN"
 )
+
+type FeeType uint8
+
+// InternationalBankTransactionType custom type for calculating fees based on fiat transaction types
+type InternationalBankTransactionType uint8
+
+// FeeBuilder is the type which holds all parameters required to calculate a fee
+// for an exchange
+type FeeBuilder struct {
+	FeeType FeeType
+	// Used for calculating crypto trading fees, deposits & withdrawals
+	Pair    currency.Pair
+	IsMaker bool
+	// Fiat currency used for bank deposits & withdrawals
+	FiatCurrency        currency.Code
+	BankTransactionType InternationalBankTransactionType
+	// Used to multiply for fee calculations
+	PurchasePrice float64
+	Amount        float64
+}
 
 // AccountInfo is a Generic type to hold each exchange's holdings in
 // all enabled currencies

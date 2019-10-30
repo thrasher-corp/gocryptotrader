@@ -430,68 +430,78 @@ func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
-	if err := s.Validate(); err != nil {
+func (c *COINUT) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var err error
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err := order.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	var APIresponse interface{}
-	isBuyOrder := s.OrderSide == order.Buy
-	clientIDInt, err := strconv.ParseUint(s.ClientID, 0, 32)
-	if err != nil {
-		return submitOrderResponse, err
-	}
-
-	clientIDUint := uint32(clientIDInt)
-
-	if !c.instrumentMap.IsLoaded() {
-		err = c.SeedInstruments()
+	if c.Websocket.IsConnected() && c.Websocket.CanUseAuthenticatedEndpoints() {
+		var response *WsStandardOrderResponse
+		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
+			Currency: order.Pair,
+			Side:     order.OrderSide,
+			Amount:   order.Amount,
+			Price:    order.Price,
+		})
+		if err == nil {
+			submitOrderResponse.IsOrderPlaced = true
+		}
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
+	} else {
+		var APIresponse interface{}
+		isBuyOrder := order.OrderSide == exchange.BuyOrderSide
+		clientIDInt, err := strconv.ParseUint(order.ClientID, 0, 32)
 		if err != nil {
 			return submitOrderResponse, err
 		}
-	}
 
-	currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(s.Pair,
-		asset.Spot).String())
-	if currencyID == 0 {
-		return submitOrderResponse, errLookupInstrumentID
-	}
+		clientIDUint := uint32(clientIDInt)
 
-	switch s.OrderType {
-	case order.Limit:
-		APIresponse, err = c.NewOrder(currencyID,
-			s.Amount,
-			s.Price,
-			isBuyOrder,
-			clientIDUint)
-	case order.Market:
-		APIresponse, err = c.NewOrder(currencyID,
-			s.Amount,
-			0,
-			isBuyOrder,
-			clientIDUint)
-	}
+		if !c.instrumentMap.IsLoaded() {
+			err = c.SeedInstruments()
+			if err != nil {
+				return submitOrderResponse, err
+			}
+		}
 
-	switch apiResp := APIresponse.(type) {
-	case OrdersBase:
-		orderResult := apiResp
-		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.OrderID, 10)
-	case OrderFilledResponse:
-		orderResult := apiResp
-		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.Order.OrderID, 10)
-	case OrderRejectResponse:
-		orderResult := apiResp
-		submitOrderResponse.OrderID = strconv.FormatInt(orderResult.OrderID, 10)
-		err = fmt.Errorf("orderID: %d was rejected: %v",
-			orderResult.OrderID,
-			orderResult.Reasons)
-	}
+		currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(order.Pair,
+			asset.Spot).String())
+		if currencyID == 0 {
+			return submitOrderResponse, errLookupInstrumentID
+		}
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
+		switch order.OrderType {
+		case exchange.LimitOrderType:
+			APIresponse, err = c.NewOrder(currencyID, order.Amount, order.Price,
+				isBuyOrder, clientIDUint)
+		case exchange.MarketOrderType:
+			APIresponse, err = c.NewOrder(currencyID, order.Amount, 0, isBuyOrder,
+				clientIDUint)
+		}
 
+		switch apiResp := APIresponse.(type) {
+		case OrdersBase:
+			orderResult := apiResp
+			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
+		case OrderFilledResponse:
+			orderResult := apiResp
+			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.Order.OrderID)
+		case OrderRejectResponse:
+			orderResult := apiResp
+			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
+			err = fmt.Errorf("orderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
+		}
+
+		if err == nil {
+			submitOrderResponse.IsOrderPlaced = true
+		}
+	}
 	return submitOrderResponse, err
 }
 

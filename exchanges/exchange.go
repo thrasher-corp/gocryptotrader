@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -771,3 +772,14 @@ func (e *Base) PrintEnabledPairs() {
 
 // GetBase returns the exchange base
 func (e *Base) GetBase() *Base { return e }
+
+// CanUseAuthenticatedWebsocketEndpoint Handles a common check to
+// verify whether a wrapper can use an authenticated websocket endpoint
+func (e *Base) CanUseAuthenticatedWebsocketEndpoint() bool {
+	if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() {
+		return true
+	} else if e.Websocket.IsConnected() && !e.Websocket.CanUseAuthenticatedEndpoints() {
+		log.Infof(log.WebsocketMgr, common.WebsocketNotAuthenticatedUsingRest, e.Name)
+	}
+	return false
+}
