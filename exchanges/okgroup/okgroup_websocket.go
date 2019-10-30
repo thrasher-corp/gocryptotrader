@@ -274,8 +274,10 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 			if err == nil && errorResponse.ErrorCode > 0 {
 				if o.Verbose {
 					log.Debugf(log.ExchangeSys,
-						"WS Error Event: %v Message: %v",
-						errorResponse.Event, errorResponse.Message)
+						"WS Error Event: %v Message: %v for %s",
+						errorResponse.Event,
+						errorResponse.Message,
+						o.Name)
 				}
 				o.WsHandleErrorResponse(errorResponse)
 				continue
@@ -288,9 +290,10 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 				}
 				if o.Verbose {
 					log.Debugf(log.ExchangeSys,
-						"WS Event: %v on Channel: %v",
+						"WS Event: %v on Channel: %v for %s",
 						eventResponse.Event,
-						eventResponse.Channel)
+						eventResponse.Channel,
+						o.Name)
 				}
 			}
 		}
@@ -325,7 +328,9 @@ func (o *OKGroup) WsLogin() error {
 // WsHandleErrorResponse sends an error message to ws handler
 func (o *OKGroup) WsHandleErrorResponse(event WebsocketErrorResponse) {
 	errorMessage := fmt.Sprintf("%v error - %v message: %s ",
-		o.GetName(), event.ErrorCode, event.Message)
+		o.Name,
+		event.ErrorCode,
+		event.Message)
 	if o.Verbose {
 		log.Error(log.ExchangeSys, errorMessage)
 	}
@@ -611,7 +616,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 			instrument)
 	}
 	if o.Verbose {
-		log.Debug(log.ExchangeSys, "Passed checksum!")
+		log.Debugf(log.ExchangeSys, "Passed checksum! for %s", o.Name)
 	}
 
 	asks, err := o.AppendWsOrderbookItems(wsEventData.Asks)
