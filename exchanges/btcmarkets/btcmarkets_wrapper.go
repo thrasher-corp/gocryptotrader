@@ -430,6 +430,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 
 	orders, err := b.GetOrderDetail([]int64{o})
+
 	if err != nil {
 		return OrderDetail, err
 	}
@@ -442,29 +443,31 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 		return OrderDetail, errors.New("no orders found")
 	}
 
-	for i := range orders {
-		var side order.Side
-		if strings.EqualFold(orders[i].OrderSide, order.Ask.String()) {
-			side = order.Sell
-		} else if strings.EqualFold(orders[i].OrderSide, order.Bid.String()) {
-			side = order.Buy
-		}
-		orderDate := time.Unix(int64(orders[i].CreationTime), 0)
-		orderType := order.Type(strings.ToUpper(orders[i].OrderType))
-
-		OrderDetail.Amount = orders[i].Volume
-		OrderDetail.OrderDate = orderDate
-		OrderDetail.Exchange = b.GetName()
-		OrderDetail.ID = strconv.FormatInt(orders[i].ID, 10)
-		OrderDetail.RemainingAmount = orders[i].OpenVolume
-		OrderDetail.OrderSide = side
-		OrderDetail.OrderType = orderType
-		OrderDetail.Price = orders[i].Price
-		OrderDetail.Status = order.Status(orders[i].Status)
-		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[i].Instrument,
-			orders[i].Currency,
-			b.GetPairFormat(asset.Spot, false).Delimiter)
+	// for i := range orders {
+	var side order.Side
+	if strings.EqualFold(orders[0].OrderSide, order.Ask.String()) {
+		side = order.Sell
+	} else if strings.EqualFold(orders[0].OrderSide, order.Bid.String()) {
+		side = order.Buy
 	}
+	orderDate := time.Unix(int64(orders[0].CreationTime), 0)
+	orderType := order.Type(strings.ToUpper(orders[0].OrderType))
+
+	OrderDetail.Amount = orders[0].Volume
+	OrderDetail.OrderDate = orderDate
+	OrderDetail.Exchange = b.GetName()
+	OrderDetail.ID = strconv.FormatInt(orders[0].ID, 10)
+	OrderDetail.RemainingAmount = orders[0].OpenVolume
+	OrderDetail.OrderSide = side
+	OrderDetail.OrderType = orderType
+	OrderDetail.Price = orders[0].Price
+	OrderDetail.Status = order.Status(orders[0].Status)
+	OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[0].Instrument,
+		orders[0].Currency,
+		b.GetPairFormat(asset.Spot, false).Delimiter)
+	// }
+
+	fmt.Printf("%+v", orders[0])
 
 	return OrderDetail, nil
 }

@@ -177,11 +177,30 @@ func exchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 	exchangeName, _ := objects.ToString(args[0])
 	orderID, _ := objects.ToString(args[1])
 
-	err = modules.Wrapper.QueryOrder(exchangeName, orderID)
-
+	orderDetails, err := modules.Wrapper.QueryOrder(exchangeName, orderID)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Printf("%+v", *orderDetails)
+
 	return nil, nil
 }
+
+/*
+type Order struct {
+	ID              int64           `json:"id"`
+	Currency        string          `json:"currency"`
+	Instrument      string          `json:"instrument"`
+	OrderSide       string          `json:"orderSide"`
+	OrderType       string          `json:"ordertype"`
+	CreationTime    float64         `json:"creationTime"`
+	Status          string          `json:"status"`
+	ErrorMessage    string          `json:"errorMessage"`
+	Price           float64         `json:"price"`
+	Volume          float64         `json:"volume"`
+	OpenVolume      float64         `json:"openVolume"`
+	ClientRequestID string          `json:"clientRequestId"`
+	Trades          []TradeResponse `json:"trades"`
+}
+*/

@@ -3,6 +3,7 @@ package modules
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -22,7 +23,7 @@ type Exchange interface {
 	Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error)
 
-	QueryOrder(exch, orderid string) error
+	QueryOrder(exch, orderid string) (*order.Detail, error)
 	SubmitOrder() error
 	CancelOrder() error
 

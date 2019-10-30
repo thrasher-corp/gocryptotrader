@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -83,18 +84,19 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (currenc
 	return x.CurrencyPairs.Get(item).Available, nil
 }
 
-func (e Exchange) QueryOrder(exch, orderid string) error {
+func (e Exchange) QueryOrder(exch, orderid string) (*order.Detail, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	r, err := ex.GetOrderInfo(orderid)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
 	fmt.Printf("%+v", r)
-	return nil
+	return &r, nil
 }
 
 func (e Exchange) SubmitOrder() error {
