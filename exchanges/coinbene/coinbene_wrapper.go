@@ -356,7 +356,18 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (c *Coinbene) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrFunctionNotSupported
+	var fee float64
+	tempData, err := c.GetPairInfo(exchange.FormatExchangeCurrency(c.Name, feeBuilder.Pair).String())
+	if err != nil {
+		return fee, err
+	}
+	switch feeBuilder.IsMaker {
+	case true:
+		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.Data.MakerFeeRate
+	case false:
+		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.Data.TakerFeeRate
+	}
+	return fee, common.ErrFunctionNotSupported
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
