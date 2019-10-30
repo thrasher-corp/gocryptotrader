@@ -279,10 +279,10 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	}
 
 	for i := range pairs {
-		for curr := range tickers {
+		for c, t := range tickers {
 			pairFmt := k.FormatExchangeCurrency(pairs[i], assetType).String()
-			if !strings.EqualFold(pairFmt, curr) {
-				altCurrency, ok := assetPairMap[curr]
+			if !strings.EqualFold(pairFmt, c) {
+				altCurrency, ok := assetPairMap[c]
 				if !ok {
 					continue
 				}
@@ -292,13 +292,13 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 			}
 
 			tickerPrice = ticker.Price{
-				Last:   tickers[curr].Last,
-				High:   tickers[curr].High,
-				Low:    tickers[curr].Low,
-				Bid:    tickers[curr].Bid,
-				Ask:    tickers[curr].Ask,
-				Volume: tickers[curr].Volume,
-				Open:   tickers[curr].Open,
+				Last:   t.Last,
+				High:   t.High,
+				Low:    t.Low,
+				Bid:    t.Bid,
+				Ask:    t.Ask,
+				Volume: t.Volume,
+				Open:   t.Open,
 				Pair:   pairs[i],
 			}
 			err = ticker.ProcessTicker(k.Name, &tickerPrice, assetType)

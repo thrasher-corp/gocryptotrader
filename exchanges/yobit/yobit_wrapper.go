@@ -236,18 +236,20 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 		return orderBook, err
 	}
 
-	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
+	for i := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids,
 			orderbook.Item{
-				Price:  data[0],
-				Amount: data[1]})
+				Price:  orderbookNew.Bids[i][0],
+				Amount: orderbookNew.Bids[i][1],
+			})
 	}
 
-	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
+	for i := range orderbookNew.Asks {
 		orderBook.Asks = append(orderBook.Asks,
-			orderbook.Item{Price: data[0], Amount: data[1]})
+			orderbook.Item{
+				Price:  orderbookNew.Asks[i][0],
+				Amount: orderbookNew.Asks[i][1],
+			})
 	}
 
 	orderBook.Pair = p

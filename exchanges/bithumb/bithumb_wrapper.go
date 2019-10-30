@@ -227,14 +227,19 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderb
 		return orderBook, err
 	}
 
-	for _, bids := range orderbookNew.Data.Bids {
+	for i := range orderbookNew.Data.Bids {
 		orderBook.Bids = append(orderBook.Bids,
-			orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
+			orderbook.Item{
+				Amount: orderbookNew.Data.Bids[i].Quantity,
+				Price:  orderbookNew.Data.Bids[i].Price,
+			})
 	}
 
-	for _, asks := range orderbookNew.Data.Asks {
+	for i := range orderbookNew.Data.Asks {
 		orderBook.Asks = append(orderBook.Asks,
-			orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
+			orderbook.Item{
+				Amount: orderbookNew.Data.Asks[i].Quantity,
+				Price:  orderbookNew.Data.Asks[i].Price})
 	}
 
 	orderBook.Pair = p
