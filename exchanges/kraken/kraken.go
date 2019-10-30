@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -154,7 +155,7 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 // GetTickers supports fetching multiple tickers from Kraken
 // pairList must be in the format pairs separated by commas
 // ("LTCUSD,ETCUSD")
-func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
+func (k *Kraken) GetTickers(pairList string) (map[string]Ticker, error) {
 	values := url.Values{}
 	values.Set("pair", pairList)
 
@@ -175,7 +176,7 @@ func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
 		return nil, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
-	tickers := make(Tickers)
+	tickers := make(map[string]Ticker)
 
 	for i := range resp.Data {
 		tick := Ticker{}
@@ -763,7 +764,7 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		"volume":    {strconv.FormatFloat(volume, 'f', -1, 64)},
 	}
 
-	if orderType == exchange.LimitOrderType.ToLower().ToString() || price > 0 {
+	if orderType == order.Limit.Lower() || price > 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 

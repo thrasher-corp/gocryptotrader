@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -120,9 +121,9 @@ func (c *COINUT) NewOrder(instrumentID int64, quantity, price float64, buy bool,
 		params["price"] = fmt.Sprintf("%v", price)
 	}
 	params["qty"] = fmt.Sprintf("%v", quantity)
-	params["side"] = exchange.BuyOrderSide.ToString()
+	params["side"] = order.Buy.String()
 	if !buy {
-		params["side"] = exchange.SellOrderSide.ToString()
+		params["side"] = order.Sell.String()
 	}
 	params["client_ord_id"] = orderID
 

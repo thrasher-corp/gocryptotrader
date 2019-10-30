@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -410,9 +411,9 @@ func (p *Poloniex) PlaceOrder(currency string, rate, amount float64, immediate, 
 
 	var orderType string
 	if buy {
-		orderType = exchange.BuyOrderSide.ToLower().ToString()
+		orderType = order.Buy.Lower()
 	} else {
-		orderType = exchange.SellOrderSide.ToLower().ToString()
+		orderType = order.Sell.Lower()
 	}
 
 	values.Set("currencyPair", currency)

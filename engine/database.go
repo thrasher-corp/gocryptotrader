@@ -37,12 +37,18 @@ func (a *databaseManager) Start() (err error) {
 
 	if Bot.Config.Database.Enabled {
 		if Bot.Config.Database.Driver == database.DBPostgreSQL {
-			log.Debugf(log.DatabaseMgr, "Attempting to establish database connection to host %s/%s utilising %s driver\n",
-				Bot.Config.Database.Host, Bot.Config.Database.Database, Bot.Config.Database.Driver)
+			log.Debugf(log.DatabaseMgr,
+				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
+				Bot.Config.Database.Host,
+				Bot.Config.Database.Database,
+				Bot.Config.Database.Driver)
 			dbConn, err = dbpsql.Connect()
-		} else if Bot.Config.Database.Driver == database.DBSQLite || Bot.Config.Database.Driver == database.DBSQLite3 {
-			log.Debugf(log.DatabaseMgr, "Attempting to establish database connection to %s utilising %s driver\n",
-				Bot.Config.Database.Database, Bot.Config.Database.Driver)
+		} else if Bot.Config.Database.Driver == database.DBSQLite ||
+			Bot.Config.Database.Driver == database.DBSQLite3 {
+			log.Debugf(log.DatabaseMgr,
+				"Attempting to establish database connection to %s utilising %s driver\n",
+				Bot.Config.Database.Database,
+				Bot.Config.Database.Driver)
 			dbConn, err = dbsqlite3.Connect()
 		}
 		if err != nil {
