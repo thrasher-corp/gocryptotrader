@@ -1357,3 +1357,29 @@ func TestGetBase(t *testing.T) {
 		t.Error("name should be rawr")
 	}
 }
+
+func TestGetAssetType(t *testing.T) {
+	var b Base
+	p := currency.NewPair(currency.BTC, currency.USD)
+	a, err := b.GetPairAssetType(p)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	b.CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Enabled: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USD),
+		},
+		ConfigFormat: &currency.PairFormat{Delimiter: "-"},
+	}
+
+	a, err = b.GetPairAssetType(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if a != asset.Spot {
+		t.Error("should be spot but is", a)
+	}
+}
