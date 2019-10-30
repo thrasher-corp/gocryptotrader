@@ -84,27 +84,47 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (currenc
 	return x.CurrencyPairs.Get(item).Available, nil
 }
 
-func (e Exchange) QueryOrder(exch, orderid string) (*order.Detail, error) {
+func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := ex.GetOrderInfo(orderid)
+	r, err := ex.GetOrderInfo(orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("%+v", r)
 	return &r, nil
 }
 
-func (e Exchange) SubmitOrder() error {
-	return nil
+func (e Exchange) SubmitOrder(exch string) (*order.SubmitResponse, error) {
+	return nil, nil
 }
 
-func (e Exchange) CancelOrder() error {
-	return nil
+func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return false, err
+	}
+
+	orderDetails, err := e.QueryOrder(exch, orderID)
+	if err != nil {
+		return false, err
+	}
+
+	cancel := &order.Cancel{
+		AccountID:    orderDetails.AccountID,
+		OrderID:      orderDetails.ID,
+		CurrencyPair: orderDetails.CurrencyPair,
+		Side:         orderDetails.OrderSide,
+	}
+
+	err = ex.CancelOrder(cancel)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (e Exchange) AccountInformation(exch string) (modules.AccountInfo, error) {

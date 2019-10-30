@@ -16,7 +16,9 @@ var exchangeModule = map[string]objects.Object{
 	"exchanges":   &objects.UserFunction{Name: "exchanges", Value: exchangeExchanges},
 	"pairs":       &objects.UserFunction{Name: "pairs", Value: exchangePairs},
 	"accountinfo": &objects.UserFunction{Name: "accountinfo", Value: exchangeAccountInfo},
-	"order":       &objects.UserFunction{Name: "order", Value: exchangeOrderQuery},
+	"orderquery":  &objects.UserFunction{Name: "order", Value: exchangeOrderQuery},
+	"ordercancel": &objects.UserFunction{Name: "order", Value: exchangeOrderCancel},
+	"ordersubmit": &objects.UserFunction{Name: "order", Value: exchangeOrderSubmit},
 }
 
 func exchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
@@ -182,8 +184,41 @@ func exchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 		return nil, err
 	}
 
-	fmt.Printf("%+v", *orderDetails)
+	data := make(map[string]objects.Object, 13)
+	data["ID"] = &objects.String{Value: orderDetails.ID}
 
+	return nil, nil
+}
+
+func exchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error) {
+	if len(args) != 2 {
+		err = objects.ErrWrongNumArguments
+		return
+	}
+
+	exchangeName, _ := objects.ToString(args[0])
+	orderID, _ := objects.ToString(args[1])
+
+	_, err = modules.Wrapper.CancelOrder(exchangeName, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func exchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error) {
+	// if len(args) != 2 {
+	// 	err = objects.ErrWrongNumArguments
+	// 	return
+	// }
+	//
+	// exchangeName, _ := objects.ToString(args[0])
+	// orderID, _ := objects.ToString(args[1])
+	// orderDetails, err := modules.Wrapper.QueryOrder(exchangeName, orderID)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return nil, nil
 }
 

@@ -25,7 +25,7 @@ type Exchange interface {
 
 	QueryOrder(exch, orderid string) (*order.Detail, error)
 	SubmitOrder() error
-	CancelOrder() error
+	CancelOrder(exch, orderid string) (bool, error)
 
 	AccountInformation(exch string) (AccountInfo, error)
 }
