@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -293,27 +294,22 @@ func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exc
 }
 
 // SubmitOrder submits a new order
-func (l *Lbank) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var resp exchange.SubmitOrderResponse
-	if order == nil {
-		return resp, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (l *Lbank) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var resp order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return resp, err
 	}
 
-	if order.OrderSide != exchange.BuyOrderSide &&
-		order.OrderSide != exchange.SellOrderSide {
+	if s.OrderSide != order.Buy && s.OrderSide != order.Sell {
 		return resp,
 			fmt.Errorf("%s order side is not supported by the exchange",
-				order.OrderSide)
+				s.OrderSide)
 	}
 	tempResp, err := l.CreateOrder(
-		l.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
-		order.OrderSide.ToString(),
-		order.Amount,
-		order.Price)
+		l.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		s.OrderSide.String(),
+		s.Amount,
+		s.Price)
 	if err != nil {
 		return resp, err
 	}
@@ -324,20 +320,20 @@ func (l *Lbank) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrd
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *Lbank) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (l *Lbank) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *Lbank) CancelOrder(order *exchange.OrderCancellation) error {
+func (l *Lbank) CancelOrder(order *order.Cancel) error {
 	_, err := l.RemoveOrder(l.FormatExchangeCurrency(order.CurrencyPair,
 		order.AssetType).String(), order.OrderID)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var resp exchange.CancelAllOrdersResponse
+func (l *Lbank) CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error) {
+	var resp order.CancelAllResponse
 	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {
 		return resp, nil
@@ -362,11 +358,11 @@ func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.Ca
 					}
 					tempStringSuccess := strings.Split(CancelResponse.Success, ",")
 					for k := range tempStringSuccess {
-						resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
+						resp.Status[tempStringSuccess[k]] = "Cancelled"
 					}
 					tempStringError := strings.Split(CancelResponse.Err, ",")
 					for l := range tempStringError {
-						resp.OrderStatus[tempStringError[l]] = "Failed"
+						resp.Status[tempStringError[l]] = "Failed"
 					}
 					tempSlice = tempSlice[:0]
 					y++
@@ -380,11 +376,11 @@ func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.Ca
 			}
 			tempStringSuccess := strings.Split(CancelResponse.Success, ",")
 			for k := range tempStringSuccess {
-				resp.OrderStatus[tempStringSuccess[k]] = "Cancelled"
+				resp.Status[tempStringSuccess[k]] = "Cancelled"
 			}
 			tempStringError := strings.Split(CancelResponse.Err, ",")
 			for l := range tempStringError {
-				resp.OrderStatus[tempStringError[l]] = "Failed"
+				resp.Status[tempStringError[l]] = "Failed"
 			}
 			tempSlice = tempSlice[:0]
 		}
@@ -393,8 +389,8 @@ func (l *Lbank) CancelAllOrders(orders *exchange.OrderCancellation) (exchange.Ca
 }
 
 // GetOrderInfo returns information on a current open order
-func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var resp exchange.OrderDetail
+func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
+	var resp order.Detail
 	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {
 		return resp, err
@@ -412,9 +408,9 @@ func (l *Lbank) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 			resp.Exchange = l.GetName()
 			resp.CurrencyPair = currency.NewPairFromString(key)
 			if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
-				resp.OrderSide = exchange.BuyOrderSide
+				resp.OrderSide = order.Buy
 			} else {
-				resp.OrderSide = exchange.SellOrderSide
+				resp.OrderSide = order.Sell
 			}
 			z := tempResp.Orders[0].Status
 			switch {
@@ -477,9 +473,9 @@ func (l *Lbank) GetWebsocket() (*wshandler.Websocket, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var finalResp []exchange.OrderDetail
-	var resp exchange.OrderDetail
+func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	var finalResp []order.Detail
+	var resp order.Detail
 	tempData, err := l.getAllOpenOrderID()
 	if err != nil {
 		return finalResp, err
@@ -494,9 +490,9 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 			resp.Exchange = l.GetName()
 			resp.CurrencyPair = currency.NewPairFromString(key)
 			if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
-				resp.OrderSide = exchange.BuyOrderSide
+				resp.OrderSide = order.Buy
 			} else {
-				resp.OrderSide = exchange.SellOrderSide
+				resp.OrderSide = order.Sell
 			}
 			z := tempResp.Orders[0].Status
 			switch {
@@ -533,7 +529,8 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 					finalResp = append(finalResp, resp)
 					continue
 				}
-				if strings.EqualFold(getOrdersRequest.OrderSide.ToString(), tempResp.Orders[0].Type) {
+				if strings.EqualFold(getOrdersRequest.OrderSide.String(),
+					tempResp.Orders[0].Type) {
 					finalResp = append(finalResp, resp)
 				}
 			}
@@ -544,9 +541,9 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 
 // GetOrderHistory retrieves account order information *
 // Can Limit response to specific order status
-func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var finalResp []exchange.OrderDetail
-	var resp exchange.OrderDetail
+func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	var finalResp []order.Detail
+	var resp order.Detail
 	var tempCurr currency.Pairs
 	if len(getOrdersRequest.Currencies) == 0 {
 		tempCurr = l.GetEnabledPairs(asset.Spot)
@@ -569,9 +566,9 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 				resp.Exchange = l.GetName()
 				resp.CurrencyPair = currency.NewPairFromString(tempResp.Orders[x].Symbol)
 				if strings.EqualFold(tempResp.Orders[x].Type, "buy") {
-					resp.OrderSide = exchange.BuyOrderSide
+					resp.OrderSide = order.Buy
 				} else {
-					resp.OrderSide = exchange.SellOrderSide
+					resp.OrderSide = order.Sell
 				}
 				z := tempResp.Orders[x].Status
 				switch {

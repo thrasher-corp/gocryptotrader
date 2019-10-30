@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 type orderManagerConfig struct {
@@ -19,7 +19,7 @@ type orderManagerConfig struct {
 
 type orderStore struct {
 	m      sync.Mutex
-	Orders map[string][]exchange.OrderDetail
+	Orders map[string][]order.Detail
 }
 
 type orderManager struct {
@@ -31,6 +31,6 @@ type orderManager struct {
 }
 
 type orderSubmitResponse struct {
-	exchange.SubmitOrderResponse
+	order.SubmitResponse
 	OurOrderID string
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -244,7 +245,7 @@ func TestAddOrder(t *testing.T) {
 	t.Parallel()
 	args := AddOrderOptions{OrderFlags: "fcib"}
 	_, err := k.AddOrder("XXBTZUSD",
-		exchange.SellOrderSide.ToLower().ToString(), exchange.LimitOrderType.ToLower().ToString(),
+		order.Sell.Lower(), order.Limit.Lower(),
 		0.00000001, 0, 0, 0, &args)
 	if err == nil {
 		t.Error("AddOrder() Expected error")
@@ -387,8 +388,8 @@ func TestGetActiveOrders(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
 
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 
 	_, err := k.GetActiveOrders(&getOrdersRequest)
@@ -404,8 +405,8 @@ func TestGetOrderHistory(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
 
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 
 	_, err := k.GetOrderHistory(&getOrdersRequest)
@@ -431,13 +432,13 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var orderSubmission = &exchange.OrderSubmission{
+	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.XBT,
 			Quote: currency.USD,
 		},
-		OrderSide: exchange.BuyOrderSide,
-		OrderType: exchange.LimitOrderType,
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
 		Price:     1,
 		Amount:    1,
 		ClientID:  "meowOrder",
@@ -461,7 +462,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -488,7 +489,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -504,8 +505,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
-	if len(resp.OrderStatus) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	if len(resp.Status) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
 
@@ -526,7 +527,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 // TestModifyOrder wrapper test
 func TestModifyOrder(t *testing.T) {
-	_, err := k.ModifyOrder(&exchange.ModifyOrder{})
+	_, err := k.ModifyOrder(&order.Modify{})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}

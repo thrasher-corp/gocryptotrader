@@ -2,7 +2,6 @@ package bitstamp
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -181,7 +181,10 @@ func (b *Bitstamp) Start(wg *sync.WaitGroup) {
 // Run implements the Bitstamp wrapper
 func (b *Bitstamp) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s.",
+			b.GetName(),
+			common.IsEnabled(b.Websocket.IsEnabled()))
 		b.PrintEnabledPairs()
 	}
 
@@ -191,7 +194,10 @@ func (b *Bitstamp) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			b.Name,
+			err)
 	}
 }
 
@@ -364,23 +370,22 @@ func (b *Bitstamp) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]
 }
 
 // SubmitOrder submits a new order
-func (b *Bitstamp) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
-	}
-
-	if err := order.Validate(); err != nil {
+func (b *Bitstamp) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	buy := order.OrderSide == exchange.BuyOrderSide
-	market := order.OrderType == exchange.MarketOrderType
-	response, err := b.PlaceOrder(order.Pair.String(), order.Price, order.Amount,
-		buy, market)
+	buy := s.OrderSide == order.Buy
+	market := s.OrderType == order.Market
+	response, err := b.PlaceOrder(s.Pair.String(),
+		s.Price,
+		s.Amount,
+		buy,
+		market)
 
 	if response.ID > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
 	}
 
 	if err == nil {
@@ -392,38 +397,36 @@ func (b *Bitstamp) SubmitOrder(order *exchange.OrderSubmission) (exchange.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitstamp) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (b *Bitstamp) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitstamp) CancelOrder(order *exchange.OrderCancellation) error {
+func (b *Bitstamp) CancelOrder(order *order.Cancel) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 	_, err = b.CancelExistingOrder(orderIDInt)
-
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitstamp) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (b *Bitstamp) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	success, err := b.CancelAllExistingOrders()
 	if err != nil {
-		return exchange.CancelAllOrdersResponse{}, err
+		return order.CancelAllResponse{}, err
 	}
 	if !success {
 		err = errors.New("cancel all orders failed. Bitstamp provides no further information. Check order status to verify")
 	}
 
-	return exchange.CancelAllOrdersResponse{}, err
+	return order.CancelAllResponse{}, err
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bitstamp) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (b *Bitstamp) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -435,7 +438,11 @@ func (b *Bitstamp) GetDepositAddress(cryptocurrency currency.Code, _ string) (st
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount, withdrawRequest.Address, withdrawRequest.Currency.String(), withdrawRequest.AddressTag, true)
+	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount,
+		withdrawRequest.Address,
+		withdrawRequest.Currency.String(),
+		withdrawRequest.AddressTag,
+		true)
 	if err != nil {
 		return "", err
 	}
@@ -453,10 +460,17 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoW
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
-	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount, withdrawRequest.Currency.String(),
-		withdrawRequest.BankAccountName, withdrawRequest.IBAN, withdrawRequest.SwiftCode, withdrawRequest.BankAddress,
-		withdrawRequest.BankPostalCode, withdrawRequest.BankCity, withdrawRequest.BankCountry,
-		withdrawRequest.Description, sepaWithdrawal)
+	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount,
+		withdrawRequest.Currency.String(),
+		withdrawRequest.BankAccountName,
+		withdrawRequest.IBAN,
+		withdrawRequest.SwiftCode,
+		withdrawRequest.BankAddress,
+		withdrawRequest.BankPostalCode,
+		withdrawRequest.BankCity,
+		withdrawRequest.BankCountry,
+		withdrawRequest.Description,
+		sepaWithdrawal)
 	if err != nil {
 		return "", err
 	}
@@ -474,12 +488,23 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReque
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
-	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount, withdrawRequest.Currency.String(),
-		withdrawRequest.BankAccountName, withdrawRequest.IBAN, withdrawRequest.SwiftCode, withdrawRequest.BankAddress,
-		withdrawRequest.BankPostalCode, withdrawRequest.BankCity, withdrawRequest.BankCountry,
-		withdrawRequest.IntermediaryBankName, withdrawRequest.IntermediaryBankAddress, withdrawRequest.IntermediaryBankPostalCode,
-		withdrawRequest.IntermediaryBankCity, withdrawRequest.IntermediaryBankCountry, withdrawRequest.WireCurrency,
-		withdrawRequest.Description, internationalWithdrawal)
+	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount,
+		withdrawRequest.Currency.String(),
+		withdrawRequest.BankAccountName,
+		withdrawRequest.IBAN,
+		withdrawRequest.SwiftCode,
+		withdrawRequest.BankAddress,
+		withdrawRequest.BankPostalCode,
+		withdrawRequest.BankCity,
+		withdrawRequest.BankCountry,
+		withdrawRequest.IntermediaryBankName,
+		withdrawRequest.IntermediaryBankAddress,
+		withdrawRequest.IntermediaryBankPostalCode,
+		withdrawRequest.IntermediaryBankCity,
+		withdrawRequest.IntermediaryBankCountry,
+		withdrawRequest.WireCurrency,
+		withdrawRequest.Description,
+		internationalWithdrawal)
 	if err != nil {
 		return "", err
 	}
@@ -500,13 +525,13 @@ func (b *Bitstamp) GetWebsocket() (*wshandler.Websocket, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitstamp) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var orders []exchange.OrderDetail
+func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	var orders []order.Detail
 	var currPair string
-	if len(getOrdersRequest.Currencies) != 1 {
+	if len(req.Currencies) != 1 {
 		currPair = "all"
 	} else {
-		currPair = getOrdersRequest.Currencies[0].String()
+		currPair = req.Currencies[0].String()
 	}
 
 	resp, err := b.GetOpenOrders(currPair)
@@ -514,59 +539,63 @@ func (b *Bitstamp) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 		return nil, err
 	}
 
-	for _, order := range resp {
-		orderDate := time.Unix(order.Date, 0)
-		orders = append(orders, exchange.OrderDetail{
-			Amount:    order.Amount,
-			ID:        fmt.Sprintf("%v", order.ID),
-			Price:     order.Price,
+	for i := range resp {
+		orderDate := time.Unix(resp[i].Date, 0)
+		orders = append(orders, order.Detail{
+			Amount:    resp[i].Amount,
+			ID:        strconv.FormatInt(resp[i].ID, 10),
+			Price:     resp[i].Price,
 			OrderDate: orderDate,
-			CurrencyPair: currency.NewPairFromStrings(order.Currency[0:3],
-				order.Currency[len(order.Currency)-3:]),
+			CurrencyPair: currency.NewPairFromStrings(resp[i].Currency[0:3],
+				resp[i].Currency[len(resp[i].Currency)-3:]),
 			Exchange: b.Name,
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(getOrdersRequest.Currencies) == 1 {
-		currPair = getOrdersRequest.Currencies[0].String()
+	if len(req.Currencies) == 1 {
+		currPair = req.Currencies[0].String()
 	}
 	resp, err := b.GetUserTransactions(currPair)
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range resp {
-		if order.Type != 2 {
+	var orders []order.Detail
+	for i := range resp {
+		if resp[i].Type != 2 {
 			continue
 		}
 		var quoteCurrency, baseCurrency currency.Code
 
 		switch {
-		case order.BTC > 0:
+		case resp[i].BTC > 0:
 			baseCurrency = currency.BTC
-		case order.XRP > 0:
+		case resp[i].XRP > 0:
 			baseCurrency = currency.XRP
 		default:
-			log.Warnf(log.ExchangeSys, "no base currency found for OrderID '%v'", order.OrderID)
+			log.Warnf(log.ExchangeSys,
+				"no base currency found for OrderID '%d'",
+				resp[i].OrderID)
 		}
 
 		switch {
-		case order.USD > 0:
+		case resp[i].USD > 0:
 			quoteCurrency = currency.USD
-		case order.EUR > 0:
+		case resp[i].EUR > 0:
 			quoteCurrency = currency.EUR
 		default:
-			log.Warnf(log.ExchangeSys, "no quote currency found for orderID '%v'", order.OrderID)
+			log.Warnf(log.ExchangeSys,
+				"no quote currency found for orderID '%d'",
+				resp[i].OrderID)
 		}
 
 		var currPair currency.Pair
@@ -576,22 +605,21 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 				b.GetPairFormat(asset.Spot, false).Delimiter)
 		}
 
-		orderDate, err := time.Parse("2006-01-02 15:04:05", order.Date)
+		orderDate, err := time.Parse("2006-01-02 15:04:05", resp[i].Date)
 		if err != nil {
 			return nil, err
 		}
 
-		orders = append(orders, exchange.OrderDetail{
-			ID:           fmt.Sprintf("%v", order.OrderID),
+		orders = append(orders, order.Detail{
+			ID:           strconv.FormatInt(resp[i].OrderID, 10),
 			OrderDate:    orderDate,
 			Exchange:     b.Name,
 			CurrencyPair: currPair,
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
 }
 

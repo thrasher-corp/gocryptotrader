@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // RequestError allows for a general error capture from requests
@@ -675,15 +675,15 @@ type WalletInfo struct {
 }
 
 // orderTypeMap holds order type info based on Bitmex data
-var orderTypeMap = map[int64]exchange.OrderType{
-	1: exchange.MarketOrderType,
-	2: exchange.LimitOrderType,
-	3: exchange.StopOrderType,
-	7: exchange.TrailingStopOrderType,
+var orderTypeMap = map[int64]order.Type{
+	1: order.Market,
+	2: order.Limit,
+	3: order.Stop,
+	7: order.TrailingStop,
 }
 
 // orderSideMap holds order type info based on Bitmex data
-var orderSideMap = map[int64]exchange.OrderSide{
-	1: exchange.BuyOrderSide,
-	2: exchange.SellOrderSide,
+var orderSideMap = map[int64]order.Side{
+	1: order.Buy,
+	2: order.Sell,
 }

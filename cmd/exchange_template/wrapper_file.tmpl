@@ -116,29 +116,29 @@ func ({{.Variable}} *{{.CapitalName}}) GetExchangeHistory(p currency.Pair, asset
 }
 
 // SubmitOrder submits a new order
-func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
-	return exchange.SubmitOrderResponse{}, common.ErrNotYetImplemented
+func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(p currency.Pair, side order.Side, orderType order.Type, amount, price float64, clientID string) (order.SubmitResponse, error) {
+	return order.SubmitResponse{}, common.ErrNotYetImplemented
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order *exchange.OrderCancellation) error {
+func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order *order.Cancel) error {
 	return common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
+func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns information on a current open order
-func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	return exchange.OrderDetail{}, common.ErrNotYetImplemented
+func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string) (order.Detail, error) {
+	return order.Detail{}, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -170,13 +170,13 @@ func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*exchange.Websocket, erro
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

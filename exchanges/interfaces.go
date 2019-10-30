@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -41,14 +42,14 @@ type IBotExchange interface {
 	FormatWithdrawPermissions() string
 	SupportsWithdrawPermissions(permissions uint32) bool
 	GetFundingHistory() ([]FundHistory, error)
-	SubmitOrder(order *OrderSubmission) (SubmitOrderResponse, error)
-	ModifyOrder(action *ModifyOrder) (string, error)
-	CancelOrder(order *OrderCancellation) error
-	CancelAllOrders(orders *OrderCancellation) (CancelAllOrdersResponse, error)
-	GetOrderInfo(orderID string) (OrderDetail, error)
+	SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
+	ModifyOrder(action *order.Modify) (string, error)
+	CancelOrder(order *order.Cancel) error
+	CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error)
+	GetOrderInfo(orderID string) (order.Detail, error)
 	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
-	GetOrderHistory(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
-	GetActiveOrders(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
+	GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
+	GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 	WithdrawCryptocurrencyFunds(withdrawRequest *CryptoWithdrawRequest) (string, error)
 	WithdrawFiatFunds(withdrawRequest *FiatWithdrawRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *FiatWithdrawRequest) (string, error)
