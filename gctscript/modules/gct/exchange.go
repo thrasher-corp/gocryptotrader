@@ -1,7 +1,6 @@
 package gct
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/d5/tengo/objects"
@@ -105,11 +104,9 @@ func exchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 	data["asset"] = &objects.String{Value: tx.AssetType.String()}
 	data["updated"] = &objects.Time{Value: tx.LastUpdated}
 
-	r := objects.Map{
+	return &objects.Map{
 		Value: data,
-	}
-
-	return &r, nil
+	}, nil
 }
 
 func exchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
@@ -165,9 +162,24 @@ func exchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error)
 		return nil, err
 	}
 
-	fmt.Println(rtnValue)
+	var funds objects.Array
+	for x := range rtnValue.Accounts {
+		for y := range rtnValue.Accounts[x].Currencies {
+			temp := make(map[string]objects.Object, 3)
+			temp["name"] = &objects.String{Value: rtnValue.Accounts[x].Currencies[y].CurrencyName.String()}
+			temp["total"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].TotalValue}
+			temp["hold"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].Hold}
+			funds.Value = append(funds.Value, &objects.Map{Value: temp})
+		}
+	}
 
-	return nil, nil
+	data := make(map[string]objects.Object, 2)
+	data["exchange"] = &objects.String{Value: rtnValue.Exchange}
+	data["currencies"] = &funds
+
+	return &objects.Map{
+		Value: data,
+	}, nil
 }
 
 func exchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) {
@@ -184,10 +196,38 @@ func exchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 		return nil, err
 	}
 
-	data := make(map[string]objects.Object, 13)
-	data["ID"] = &objects.String{Value: orderDetails.ID}
+	var tradeHistory objects.Array
+	for x := range orderDetails.Trades {
+		temp := make(map[string]objects.Object, 3)
+		temp["timestamp"] = &objects.Time{Value: orderDetails.Trades[x].Timestamp}
+		temp["price"] = &objects.Float{Value: orderDetails.Trades[x].Price}
+		temp["fee"] = &objects.Float{Value: orderDetails.Trades[x].Fee}
+		temp["amount"] = &objects.Float{Value: orderDetails.Trades[x].Amount}
+		temp["type"] = &objects.String{Value: orderDetails.Trades[x].Type.String()}
+		temp["side"] = &objects.String{Value: orderDetails.Trades[x].Side.String()}
+		temp["description"] = &objects.String{Value: orderDetails.Trades[x].Description}
+		tradeHistory.Value = append(tradeHistory.Value, &objects.Map{Value: temp})
+	}
 
-	return nil, nil
+	data := make(map[string]objects.Object, 13)
+	data["exchange"] = &objects.String{Value: orderDetails.Exchange}
+	data["id"] = &objects.String{Value: orderDetails.ID}
+	data["accountid"] = &objects.String{Value: orderDetails.AccountID}
+	data["currencypair"] = &objects.String{Value: orderDetails.CurrencyPair.String()}
+	data["price"] = &objects.Float{Value: orderDetails.Price}
+	data["amount"] = &objects.Float{Value: orderDetails.Amount}
+	data["amountexecuted"] = &objects.Float{Value: orderDetails.ExecutedAmount}
+	data["amountremaining"] = &objects.Float{Value: orderDetails.RemainingAmount}
+	data["fee"] = &objects.Float{Value: orderDetails.Fee}
+	data["side"] = &objects.String{Value: orderDetails.OrderSide.String()}
+	data["type"] = &objects.String{Value: orderDetails.OrderType.String()}
+	data["date"] = &objects.String{Value: orderDetails.OrderDate.String()}
+	data["status"] = &objects.String{Value: orderDetails.Status.String()}
+	data["trades"] = &tradeHistory
+
+	return &objects.Map{
+		Value: data,
+	}, nil
 }
 
 func exchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error) {
@@ -208,34 +248,9 @@ func exchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error)
 }
 
 func exchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error) {
-	// if len(args) != 2 {
-	// 	err = objects.ErrWrongNumArguments
-	// 	return
-	// }
-	//
-	// exchangeName, _ := objects.ToString(args[0])
-	// orderID, _ := objects.ToString(args[1])
-	// orderDetails, err := modules.Wrapper.QueryOrder(exchangeName, orderID)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	if len(args) != 2 {
+		err = objects.ErrWrongNumArguments
+		return
+	}
 	return nil, nil
 }
-
-/*
-type Order struct {
-	ID              int64           `json:"id"`
-	Currency        string          `json:"currency"`
-	Instrument      string          `json:"instrument"`
-	OrderSide       string          `json:"orderSide"`
-	OrderType       string          `json:"ordertype"`
-	CreationTime    float64         `json:"creationTime"`
-	Status          string          `json:"status"`
-	ErrorMessage    string          `json:"errorMessage"`
-	Price           float64         `json:"price"`
-	Volume          float64         `json:"volume"`
-	OpenVolume      float64         `json:"openVolume"`
-	ClientRequestID string          `json:"clientRequestId"`
-	Trades          []TradeResponse `json:"trades"`
-}
-*/

@@ -24,7 +24,7 @@ type Exchange interface {
 	Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error)
 
 	QueryOrder(exch, orderid string) (*order.Detail, error)
-	SubmitOrder() error
+	SubmitOrder(exch string) (*order.SubmitResponse, error)
 	CancelOrder(exch, orderid string) (bool, error)
 
 	AccountInformation(exch string) (AccountInfo, error)

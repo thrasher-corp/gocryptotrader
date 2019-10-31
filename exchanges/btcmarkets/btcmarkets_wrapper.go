@@ -465,9 +465,6 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[0].Instrument,
 		orders[0].Currency,
 		b.GetPairFormat(asset.Spot, false).Delimiter)
-	// }
-
-	fmt.Printf("%+v", orders[0])
 
 	return OrderDetail, nil
 }
