@@ -38,7 +38,7 @@ type Ticker struct {
 	Low24         float64 `json:"low24,string"`
 	LowestSell    float64 `json:"lowest_sell,string"`
 	PrevTransID   int64   `json:"prev_trans_id"`
-	PriceChange24 float64 `json:"price_change_24"`
+	PriceChange24 float64 `json:"price_change_24,string"`
 	Reply         string  `json:"reply"`
 	OpenInterest  float64 `json:"open_interest,string"`
 	Timestamp     int64   `json:"timestamp"`
