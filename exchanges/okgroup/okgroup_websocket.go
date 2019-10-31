@@ -674,7 +674,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		return err
 	}
 
-	updatedOb := o.Websocket.Orderbook.GetOrderbook(instrument, asset.Spot)
+	updatedOb := o.Websocket.Orderbook.GetOrderbook(instrument, a)
 	checksum := o.CalculateUpdateOrderbookChecksum(updatedOb)
 
 	if checksum != wsEventData.Checksum {
