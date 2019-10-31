@@ -362,7 +362,7 @@ func (o *OKGroup) GetAssetTypeFromTableName(table string) asset.Item {
 		return asset.Futures
 	case asset.Spot.String():
 		return asset.Spot
-	case asset.PerpetualSwap.String():
+	case "swap":
 		return asset.PerpetualSwap
 	case asset.Index.String():
 		return asset.Index

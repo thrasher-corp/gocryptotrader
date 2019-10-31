@@ -141,7 +141,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		c.Websocket.DataHandler <- wshandler.TickerData{
 			Exchange:    c.Name,
 			Volume:      ticker.Volume24,
-			QuoteVolume: ticker.VolumeQuote,
+			QuoteVolume: ticker.Volume24Quote,
 			Bid:         ticker.HighestBuy,
 			Ask:         ticker.LowestSell,
 			High:        ticker.High24,
