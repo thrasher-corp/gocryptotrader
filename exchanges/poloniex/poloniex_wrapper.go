@@ -58,11 +58,11 @@ func (p *Poloniex) SetDefaults() {
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
+			Delimiter: delimiterUnderscore,
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
+			Delimiter: delimiterUnderscore,
 			Uppercase: true,
 		},
 	}
