@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -100,9 +99,6 @@ type OKGroup struct {
 	APIURL       string
 	APIVersion   string
 	WebsocketURL string
-
-	// copy of last known valid orderbook
-	LocalOB map[string]orderbook.Base
 }
 
 // GetAccountCurrencies returns a list of tradable spot instruments and their properties

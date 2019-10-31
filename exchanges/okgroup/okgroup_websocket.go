@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -359,13 +358,13 @@ func (o *OKGroup) GetWsChannelWithoutOrderType(table string) string {
 func (o *OKGroup) GetAssetTypeFromTableName(table string) asset.Item {
 	assetIndex := strings.Index(table, "/")
 	switch table[:assetIndex] {
-	case "futures":
+	case asset.Futures.String():
 		return asset.Futures
-	case "spot":
+	case asset.Spot.String():
 		return asset.Spot
-	case "swap":
+	case asset.PerpetualSwap.String():
 		return asset.PerpetualSwap
-	case "index":
+	case asset.Index.String():
 		return asset.Index
 	default:
 		log.Warnf(log.ExchangeSys, "%s unhandled asset type %s",
@@ -643,9 +642,6 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 		return err
 	}
 
-	// This sets a valid checksumed and verified orderbook
-	o.LocalOB[wsEventData.InstrumentID] = newOrderBook
-
 	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: o.GetName(),
 		Asset:    a,
@@ -673,36 +669,21 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 		return err
 	}
 
-	scopedOB, ok := o.LocalOB[wsEventData.InstrumentID]
-	if !ok {
-		return nil
+	err = o.Websocket.Orderbook.Update(&update)
+	if err != nil {
+		return err
 	}
 
-	if wsEventData.Timestamp.Before(scopedOB.LastUpdated) {
-		return nil
-	}
+	updatedOb := o.Websocket.Orderbook.GetOrderbook(instrument, asset.Spot)
+	checksum := o.CalculateUpdateOrderbookChecksum(updatedOb)
 
-	scopedOB.Asks = ProcessOB(scopedOB.Asks, update.Asks, true)
-	scopedOB.Bids = ProcessOB(scopedOB.Bids, update.Bids, false)
-	scopedOB.LastUpdated = wsEventData.Timestamp
-
-	checksum := o.CalculateUpdateOrderbookChecksum(&scopedOB)
 	if checksum != wsEventData.Checksum {
 		// re-sub
-		delete(o.LocalOB, wsEventData.InstrumentID)
 		log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
 			o.Name,
 			wsEventData.InstrumentID)
 		return errors.New("checksum failed")
 	}
-
-	err = o.Websocket.Orderbook.LoadSnapshot(&scopedOB)
-	if err != nil {
-		return err
-	}
-
-	// assign new verified orderbook
-	o.LocalOB[wsEventData.InstrumentID] = scopedOB
 
 	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Exchange: o.GetName(),
@@ -711,34 +692,6 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 	}
 
 	return nil
-}
-
-// ProcessOB updates orderbook items
-func ProcessOB(ob, changes []orderbook.Item, ask bool) []orderbook.Item {
-changes:
-	for x := range changes {
-		for y := range ob {
-			if changes[x].Price == ob[y].Price {
-				if changes[x].Amount == 0 {
-					ob = append(ob[:y], ob[y+1:]...)
-				} else {
-					ob[y].Amount = changes[x].Amount
-				}
-				continue changes
-			}
-		}
-		ob = append(ob, changes[x])
-	}
-	if ask {
-		sort.Slice(ob, func(i, j int) bool {
-			return ob[i].Price < ob[j].Price
-		})
-	} else {
-		sort.Slice(ob, func(i, j int) bool {
-			return ob[i].Price > ob[j].Price
-		})
-	}
-	return ob
 }
 
 // CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask
@@ -896,10 +849,12 @@ func (o *OKGroup) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscri
 	c := channelToSubscribe.Currency.String()
 	request := WebsocketEventRequest{
 		Operation: "subscribe",
-		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, c)},
+		Arguments: []string{channelToSubscribe.Channel + delimiterColon + c},
 	}
 	if strings.EqualFold(channelToSubscribe.Channel, okGroupWsSpotAccount) {
-		request.Arguments = []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.Base.String())}
+		request.Arguments = []string{channelToSubscribe.Channel +
+			delimiterColon +
+			channelToSubscribe.Currency.Base.String()}
 	}
 
 	return o.WebsocketConn.SendMessage(request)
@@ -909,7 +864,9 @@ func (o *OKGroup) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscri
 func (o *OKGroup) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	request := WebsocketEventRequest{
 		Operation: "unsubscribe",
-		Arguments: []string{fmt.Sprintf("%v:%v", channelToSubscribe.Channel, channelToSubscribe.Currency.String())},
+		Arguments: []string{channelToSubscribe.Channel +
+			delimiterColon +
+			channelToSubscribe.Currency.String()},
 	}
 	return o.WebsocketConn.SendMessage(request)
 }

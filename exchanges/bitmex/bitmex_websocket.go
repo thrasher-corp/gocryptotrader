@@ -206,16 +206,17 @@ func (b *Bitmex) wsHandleIncomingData() {
 					}
 
 					p := currency.NewPairFromString(orderbooks.Data[0].Symbol)
-					asset, err2 := b.GetPairAssetType(p)
-					if err2 != nil {
-						b.Websocket.DataHandler <- err2
+					var a asset.Item
+					a, err = b.GetPairAssetType(p)
+					if err != nil {
+						b.Websocket.DataHandler <- err
 						continue
 					}
 
 					err = b.processOrderbook(orderbooks.Data,
 						orderbooks.Action,
 						p,
-						asset)
+						a)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
