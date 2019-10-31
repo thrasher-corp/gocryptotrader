@@ -486,3 +486,42 @@ var (
 	TimeIntervalFourteenDays   = TimeInterval("14d")
 	TimeIntervalMonth          = TimeInterval("1M")
 )
+
+// WebsocketHandshake defines the communication between the websocket API for
+// initial connection
+type WebsocketHandshake struct {
+	Event   string  `json:"event"`
+	Code    int64   `json:"code"`
+	Version float64 `json:"version"`
+}
+
+var pongReceive chan struct{}
+
+const (
+	bitfinexWebsocket                      = "wss://api.bitfinex.com/ws"
+	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/"
+	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
+	bitfinexWebsocketVersion               = "2"
+	bitfinexWebsocketPositionSnapshot      = "ps"
+	bitfinexWebsocketPositionNew           = "pn"
+	bitfinexWebsocketPositionUpdate        = "pu"
+	bitfinexWebsocketPositionClose         = "pc"
+	bitfinexWebsocketWalletSnapshot        = "ws"
+	bitfinexWebsocketWalletUpdate          = "wu"
+	bitfinexWebsocketOrderSnapshot         = "os"
+	bitfinexWebsocketOrderNew              = "on"
+	bitfinexWebsocketOrderUpdate           = "ou"
+	bitfinexWebsocketOrderCancel           = "oc"
+	bitfinexWebsocketTradeExecuted         = "te"
+	bitfinexWebsocketTradeExecutionUpdate  = "tu"
+	bitfinexWebsocketTradeSnapshots        = "ts"
+	bitfinexWebsocketHeartbeat             = "hb"
+	bitfinexWebsocketAlertRestarting       = "20051"
+	bitfinexWebsocketAlertRefreshing       = "20060"
+	bitfinexWebsocketAlertResume           = "20061"
+	bitfinexWebsocketUnknownEvent          = "10000"
+	bitfinexWebsocketUnknownPair           = "10001"
+	bitfinexWebsocketSubscriptionFailed    = "10300"
+	bitfinexWebsocketAlreadySubscribed     = "10301"
+	bitfinexWebsocketUnknownChannel        = "10302"
+)

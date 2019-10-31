@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -779,7 +778,7 @@ func (e *Base) CanUseAuthenticatedWebsocketEndpoint() bool {
 	if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() {
 		return true
 	} else if e.Websocket.IsConnected() && !e.Websocket.CanUseAuthenticatedEndpoints() {
-		log.Infof(log.WebsocketMgr, common.WebsocketNotAuthenticatedUsingRest, e.Name)
+		log.Infof(log.WebsocketMgr, WebsocketNotAuthenticatedUsingRest, e.Name)
 	}
 	return false
 }

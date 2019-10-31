@@ -99,12 +99,40 @@ func (b *Bitfinex) SetDefaults() {
 				CryptoWithdrawalFee: true,
 			},
 			WebsocketCapabilities: protocol.Features{
+				TickerBatching:         false,
+				AutoPairUpdates:        false,
+				AccountBalance:         true,
+				CryptoDeposit:          false,
+				CryptoWithdrawal:       false,
+				FiatWithdraw:           false,
+				GetOrder:               false,
+				GetOrders:              false,
+				CancelOrders:           true,
+				CancelOrder:            true,
+				SubmitOrder:            true,
+				SubmitOrders:           false,
+				ModifyOrder:            true,
+				DepositHistory:         false,
+				WithdrawalHistory:      false,
+				TradeHistory:           false,
+				UserTradeHistory:       false,
+				TradeFee:               false,
+				FiatDepositFee:         false,
+				FiatWithdrawalFee:      false,
+				CryptoDepositFee:       false,
+				CryptoWithdrawalFee:    false,
 				TickerFetching:         true,
+				KlineFetching:          true,
 				TradeFetching:          true,
 				OrderbookFetching:      true,
+				AccountInfo:            true,
+				FiatDeposit:            false,
+				DeadMansSwitch:         false,
 				Subscribe:              true,
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
+				MessageCorrelation:     false,
+				MessageSequenceNumbers: false,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
@@ -121,7 +149,7 @@ func (b *Bitfinex) SetDefaults() {
 
 	b.API.Endpoints.URLDefault = bitfinexAPIURLBase
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.API.Endpoints.WebsocketURL = bitfinexWebsocket
+	b.API.Endpoints.WebsocketURL = publicBitfinexWebsocketEndpoint
 	b.Websocket = wshandler.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -146,7 +174,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       bitfinexWebsocket,
+			DefaultURL:                       publicBitfinexWebsocketEndpoint,
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        b.WsConnect,
@@ -161,6 +189,14 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	b.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         b.Name,
 		URL:                  b.Websocket.GetWebsocketURL(),
+		ProxyURL:             b.Websocket.GetProxyAddress(),
+		Verbose:              b.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+	b.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         b.Name,
+		URL:                  authenticatedBitfinexWebsocketEndpoint,
 		ProxyURL:             b.Websocket.GetProxyAddress(),
 		Verbose:              b.Verbose,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -318,6 +354,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (order
 func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.Exchange = b.Name
+
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err

@@ -85,8 +85,9 @@ const (
 // depending on some factors (e.g. servers load, endpoint, etc.).
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn         *wshandler.WebsocketConnection
-	WebsocketSubdChannels map[int]WebsocketChanInfo
+	WebsocketConn              *wshandler.WebsocketConnection
+	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
+	WebsocketSubdChannels      map[int]WebsocketChanInfo
 }
 
 // GetPlatformStatus returns the Bifinex platform status
