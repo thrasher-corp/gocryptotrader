@@ -178,7 +178,7 @@ func (o *OKEX) Run() {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
-			o.GetName(),
+			o.Name,
 			common.IsEnabled(o.Websocket.IsEnabled()),
 			o.API.Endpoints.WebsocketURL)
 	}
@@ -234,7 +234,7 @@ func (o *OKEX) Run() {
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies.\n",
-				o.GetName())
+				o.Name)
 			return
 		}
 	}
@@ -435,7 +435,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 		}
 	}
 
-	return ticker.GetTicker(o.GetName(), p, assetType)
+	return ticker.GetTicker(o.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -443,7 +443,7 @@ func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData ti
 	if assetType == asset.Index {
 		return tickerData, errors.New("ticker fetching not supported for index")
 	}
-	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
+	tickerData, err = ticker.GetTicker(o.Name, p, assetType)
 	if err != nil {
 		return o.UpdateTicker(p, assetType)
 	}
