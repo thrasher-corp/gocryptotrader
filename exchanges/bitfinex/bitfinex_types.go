@@ -385,7 +385,7 @@ type WebsocketChanInfo struct {
 // WebsocketBook holds booking information
 type WebsocketBook struct {
 	Price  float64
-	Count  int
+	ID     int
 	Amount float64
 }
 
