@@ -288,10 +288,10 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 		b.GetPairFormat(asset.Spot, true))
 
 	return b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-		Bids:         updateBid,
-		Asks:         updateAsk,
-		CurrencyPair: currencyPair,
-		UpdateID:     wsdp.LastUpdateID,
-		AssetType:    asset.Spot,
+		Bids:     updateBid,
+		Asks:     updateAsk,
+		Pair:     currencyPair,
+		UpdateID: wsdp.LastUpdateID,
+		Asset:    asset.Spot,
 	})
 }

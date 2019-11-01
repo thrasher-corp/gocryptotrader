@@ -109,11 +109,13 @@ func (p *Poloniex) WsHandleData() {
 					if checkSubscriptionSuccess(data) {
 						if p.Verbose {
 							log.Debugf(log.ExchangeSys,
-								"poloniex websocket subscribed to channel successfully. %d",
+								"%s websocket subscribed to channel successfully. %d",
+								p.Name,
 								chanID)
 						}
 					} else {
-						p.Websocket.DataHandler <- fmt.Errorf("poloniex websocket subscription to channel failed. %d",
+						p.Websocket.DataHandler <- fmt.Errorf("%s websocket subscription to channel failed. %d",
+							p.Name,
 							chanID)
 					}
 					continue
@@ -139,13 +141,15 @@ func (p *Poloniex) WsHandleData() {
 								dataL3map := dataL3[1].(map[string]interface{})
 								currencyPair, ok := dataL3map["currencyPair"].(string)
 								if !ok {
-									p.Websocket.DataHandler <- errors.New("poloniex.go error - could not find currency pair in map")
+									p.Websocket.DataHandler <- fmt.Errorf("%s websocket could not find currency pair in map",
+										p.Name)
 									continue
 								}
 
 								orderbookData, ok := dataL3map["orderBook"].([]interface{})
 								if !ok {
-									p.Websocket.DataHandler <- errors.New("poloniex.go error - could not find orderbook data in map")
+									p.Websocket.DataHandler <- fmt.Errorf("%s websocket could not find orderbook data in map",
+										p.Name)
 									continue
 								}
 
@@ -448,9 +452,9 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 		return err
 	}
 	update := &wsorderbook.WebsocketOrderbookUpdate{
-		CurrencyPair: cP,
-		AssetType:    asset.Spot,
-		UpdateID:     sequenceNumber,
+		Pair:     cP,
+		Asset:    asset.Spot,
+		UpdateID: sequenceNumber,
 	}
 	if target[1].(float64) == 1 {
 		update.Bids = []orderbook.Item{{Price: price, Amount: volume}}

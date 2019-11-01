@@ -56,7 +56,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	o.Verbose = true
 	t.Parallel()
 	_, err := o.GetOrderBook(GetOrderBookRequest{InstrumentID: "BTC-USDT"},
 		asset.Spot)

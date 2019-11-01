@@ -186,9 +186,8 @@ func (o *OKGroup) WsConnect() error {
 			o.Websocket.GetWebsocketURL())
 	}
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(1)
 	go o.WsHandleData(&wg)
-	go o.wsPingHandler(&wg)
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
@@ -203,40 +202,6 @@ func (o *OKGroup) WsConnect() error {
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
 	return nil
-}
-
-// wsPingHandler sends a message "ping" every 27 to maintain the connection to
-// the websocket
-func (o *OKGroup) wsPingHandler(wg *sync.WaitGroup) {
-	o.Websocket.Wg.Add(1)
-	defer o.Websocket.Wg.Done()
-
-	ticker := time.NewTicker(time.Second * 27)
-	defer ticker.Stop()
-
-	wg.Done()
-
-	for {
-		select {
-		case <-o.Websocket.ShutdownC:
-			return
-
-		case <-ticker.C:
-			if !o.Websocket.IsConnected() {
-				continue
-			}
-
-			if o.Verbose {
-				log.Debugf(log.ExchangeSys, "%v sending ping", o.GetName())
-			}
-
-			err := o.WebsocketConn.Connection.WriteMessage(websocket.TextMessage,
-				[]byte("ping"))
-			if err != nil {
-				o.Websocket.DataHandler <- err
-			}
-		}
-	}
 }
 
 // WsHandleData handles the read data from the websocket connection
@@ -615,7 +580,10 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 			instrument)
 	}
 	if o.Verbose {
-		log.Debugf(log.ExchangeSys, "Passed checksum! for %s", o.Name)
+		log.Debugf(log.ExchangeSys,
+			"%s passed checksum for instrument %s",
+			o.Name,
+			instrument)
 	}
 
 	asks, err := o.AppendWsOrderbookItems(wsEventData.Asks)
@@ -654,9 +622,9 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 // After merging WS data, it will sort, validate and finally update the existing orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, a asset.Item) error {
 	update := wsorderbook.WebsocketOrderbookUpdate{
-		AssetType:    a,
-		CurrencyPair: instrument,
-		UpdateTime:   wsEventData.Timestamp,
+		Asset:      a,
+		Pair:       instrument,
+		UpdateTime: wsEventData.Timestamp,
 	}
 
 	var err error

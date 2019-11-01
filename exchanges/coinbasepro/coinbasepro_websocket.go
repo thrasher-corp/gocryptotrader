@@ -257,11 +257,11 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 		return err
 	}
 	err = c.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-		Bids:         bids,
-		Asks:         asks,
-		CurrencyPair: p,
-		UpdateTime:   timestamp,
-		AssetType:    asset.Spot,
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       p,
+		UpdateTime: timestamp,
+		Asset:      asset.Spot,
 	})
 	if err != nil {
 		return err

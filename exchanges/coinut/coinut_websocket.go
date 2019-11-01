@@ -305,9 +305,9 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		c.GetPairFormat(asset.Spot, true),
 	)
 	bufferUpdate := &wsorderbook.WebsocketOrderbookUpdate{
-		CurrencyPair: p,
-		UpdateID:     update.TransID,
-		AssetType:    asset.Spot,
+		Pair:     p,
+		UpdateID: update.TransID,
+		Asset:    asset.Spot,
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
 		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
