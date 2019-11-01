@@ -560,7 +560,7 @@ func (r *Requester) lock() {
 	r.fifoLock.Lock()
 	wg.Add(1)
 	go func() {
-		timer := time.NewTimer(500 * time.Millisecond)
+		timer := time.NewTimer(50 * time.Millisecond)
 		wg.Done()
 		select {
 		case <-timer.C:

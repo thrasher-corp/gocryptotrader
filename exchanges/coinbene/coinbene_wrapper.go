@@ -62,7 +62,7 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 		resp.Low = tempResp.TickerData.DailyLow
 		resp.Bid = tempResp.TickerData.BestBid
 		resp.Ask = tempResp.TickerData.BestAsk
-		resp.Volume = tempResp.TickerData.DailyVol
+		resp.Volume = tempResp.TickerData.DailyVolume
 		resp.LastUpdated = time.Now()
 		err = ticker.ProcessTicker(c.Name, &resp, assetType)
 		if err != nil {
@@ -331,9 +331,7 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 		for y := range tempData.Data {
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
-			if tempData.Data[y].OrderType == buy {
-				tempResp.OrderSide = exchange.BuyOrderSide
-			}
+			tempResp.OrderSide = exchange.BuyOrderSide
 			if tempData.Data[y].OrderType == sell {
 				tempResp.OrderSide = exchange.SellOrderSide
 			}

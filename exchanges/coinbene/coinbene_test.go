@@ -1,7 +1,8 @@
 package coinbene
 
 import (
-	"sync"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -18,33 +19,25 @@ const (
 )
 
 var c Coinbene
-var setupRan bool
-var m sync.Mutex
 
-func TestSetup(t *testing.T) {
-	t.Parallel()
-	m.Lock()
-	defer m.Unlock()
-
-	if setupRan {
-		return
-	}
+func TestMain(m *testing.M) {
 	c.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json")
 	if err != nil {
-		t.Errorf("Test Failed - Coinbene Setup() init error:, %v", err)
+		log.Fatalf("Test Failed - Coinbene Setup() init error:, %v", err)
 	}
 	coinbeneConfig, err := cfg.GetExchangeConfig("Coinbene")
 	if err != nil {
-		t.Errorf("Test Failed - Coinbene Setup() init error: %v", err)
+		log.Fatalf("Test Failed - Coinbene Setup() init error: %v", err)
 	}
 	coinbeneConfig.Websocket = true
 	coinbeneConfig.AuthenticatedAPISupport = true
 	coinbeneConfig.APISecret = testAPISecret
 	coinbeneConfig.APIKey = testAPIKey
 	c.Setup(&coinbeneConfig)
-	setupRan = true
+
+	os.Exit(m.Run())
 }
 
 func areTestAPIKeysSet() bool {
@@ -56,7 +49,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestFetchTicker(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := c.FetchTicker(btcusdt)
 	if err != nil {
 		t.Error(err)
@@ -64,7 +57,7 @@ func TestFetchTicker(t *testing.T) {
 }
 
 func TestFetchOrderbooks(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := c.FetchOrderbooks(btcusdt, 100)
 	if err != nil {
 		t.Error(err)
@@ -72,7 +65,7 @@ func TestFetchOrderbooks(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := c.GetTrades(btcusdt)
 	if err != nil {
 		t.Error(err)
@@ -80,7 +73,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetAllPairs(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := c.GetAllPairs()
 	if err != nil {
 		t.Error(err)
@@ -88,7 +81,7 @@ func TestGetAllPairs(t *testing.T) {
 }
 
 func TestGetPairInfo(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	_, err := c.GetPairInfo(btcusdt)
 	if err != nil {
 		t.Error(err)
@@ -96,7 +89,7 @@ func TestGetPairInfo(t *testing.T) {
 }
 
 func TestGetUserBalance(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -107,7 +100,7 @@ func TestGetUserBalance(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
@@ -118,7 +111,7 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 func TestFetchOrderInfo(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -129,7 +122,7 @@ func TestFetchOrderInfo(t *testing.T) {
 }
 
 func TestRemoveOrder(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
@@ -140,7 +133,7 @@ func TestRemoveOrder(t *testing.T) {
 }
 
 func TestFetchOpenOrders(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -151,7 +144,7 @@ func TestFetchOpenOrders(t *testing.T) {
 }
 
 func TestFetchClosedOrders(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -162,7 +155,7 @@ func TestFetchClosedOrders(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
 	_, err := c.UpdateTicker(cp, "spot")
 	if err != nil {
@@ -171,7 +164,7 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -182,7 +175,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestUpdateOrderbook(t *testing.T) {
-	TestSetup(t)
+	t.Parallel()
 	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
 	_, err := c.UpdateOrderbook(cp, "spot")
 	if err != nil {

@@ -8,7 +8,7 @@ type TickerData struct {
 	BestAsk     float64 `json:"bestAsk,string"`
 	DailyHigh   float64 `json:"high24h,string"`
 	DailyLow    float64 `json:"low24h,string"`
-	DailyVol    float64 `json:"volume24h,string"`
+	DailyVolume float64 `json:"volume24h,string"`
 }
 
 // TickerResponse stores ticker response data
@@ -189,7 +189,7 @@ type WsUserInfo struct {
 // WsPositionData stores websocket info on user's position
 type WsPositionData struct {
 	AvailableQuantity float64 `json:"availableQuantity"`
-	AvgPrice          float64 `json:"avgPrice"`
+	AveragePrice      float64 `json:"avgPrice"`
 	Leverage          float64 `json:"leverage"`
 	LiquidationPrice  float64 `json:"liquidationPrice"`
 	MarkPrice         float64 `json:"markPrice"`

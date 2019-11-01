@@ -139,24 +139,26 @@ func (c *Coinbene) WsDataHandler() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				time, err1 := time.Parse(time.RFC3339, tradeList.Data[0][3])
-				if err1 != nil {
-					c.Websocket.DataHandler <- err1
+				var t time.Time
+				var price, amount float64
+				t, err = time.Parse(time.RFC3339, tradeList.Data[0][3])
+				if err != nil {
+					c.Websocket.DataHandler <- err
 					continue
 				}
-				price, err2 := strconv.ParseFloat(tradeList.Data[0][0], 64)
-				if err2 != nil {
-					c.Websocket.DataHandler <- err2
+				price, err = strconv.ParseFloat(tradeList.Data[0][0], 64)
+				if err != nil {
+					c.Websocket.DataHandler <- err
 					continue
 				}
-				amount, err3 := strconv.ParseFloat(tradeList.Data[0][2], 64)
-				if err3 != nil {
-					c.Websocket.DataHandler <- err3
+				amount, err = strconv.ParseFloat(tradeList.Data[0][2], 64)
+				if err != nil {
+					c.Websocket.DataHandler <- err
 					continue
 				}
 				c.Websocket.DataHandler <- wshandler.TradeData{
 					CurrencyPair: currency.NewPairFromString(strings.Replace(tradeList.Topic, "tradeList.", "", 1)),
-					Timestamp:    time,
+					Timestamp:    t,
 					Price:        price,
 					Amount:       amount,
 					Exchange:     c.Name,
@@ -170,34 +172,39 @@ func (c *Coinbene) WsDataHandler() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
+				var amount, price float64
 				var asks, bids []orderbook.Item
 				for i := range orderBook.Data[0].Asks {
-					var tempAsks orderbook.Item
-					tempAsks.Amount, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][1], 64)
+					amount, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][1], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					tempAsks.Price, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][0], 64)
+					price, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][0], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					asks = append(asks, tempAsks)
+					asks = append(asks, orderbook.Item{
+						Amount: amount,
+						Price:  price,
+					})
 				}
 				for j := range orderBook.Data[0].Bids {
-					var tempBids orderbook.Item
-					tempBids.Amount, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][1], 64)
+					amount, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][1], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					tempBids.Price, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][0], 64)
+					price, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][0], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					bids = append(bids, tempBids)
+					bids = append(bids, orderbook.Item{
+						Amount: amount,
+						Price:  price,
+					})
 				}
 				if orderBook.Action == "insert" {
 					var newOB orderbook.Base

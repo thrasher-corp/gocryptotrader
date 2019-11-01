@@ -27,7 +27,7 @@ type Coinbene struct {
 }
 
 const (
-	coinbeneAPIURL     = "http://openapi-exchange.coinbene.com/api/exchange/"
+	coinbeneAPIURL     = "https://openapi-exchange.coinbene.com/api/exchange/"
 	coinbeneAuthPath   = "/api/exchange/v2"
 	coinbeneAPIVersion = "v2"
 	buy                = "buy"
@@ -75,6 +75,8 @@ func (c *Coinbene) SetDefaults() {
 	c.WebsocketURL = coinbeneWsURL
 	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
 		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketAccountDataSupported |
 		wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketSubscribeSupported |
 		wshandler.WebsocketUnsubscribeSupported |
@@ -157,7 +159,7 @@ func (c *Coinbene) FetchTicker(symbol string) (TickerResponse, error) {
 	var t TickerResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	path := fmt.Sprintf("%s%s%s?%s", c.APIUrl, coinbeneAPIVersion, coinbeneFetchTicker, params.Encode())
+	path := common.EncodeURLValues(c.APIUrl+coinbeneAPIVersion+coinbeneFetchTicker, params)
 	return t, c.SendHTTPRequest(path, &t)
 }
 
@@ -166,9 +168,8 @@ func (c *Coinbene) FetchOrderbooks(symbol string, size int64) (OrderbookResponse
 	var o OrderbookResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	intSize := strconv.FormatInt(size, 10)
-	params.Set("depth", intSize)
-	path := fmt.Sprintf("%s%s%s?%s", c.APIUrl, coinbeneAPIVersion, coinbeneFetchOrderBook, params.Encode())
+	params.Set("depth", strconv.FormatInt(size, 10))
+	path := common.EncodeURLValues(c.APIUrl+coinbeneAPIVersion+coinbeneFetchOrderBook, params)
 	return o, c.SendHTTPRequest(path, &o)
 }
 
@@ -177,7 +178,7 @@ func (c *Coinbene) GetTrades(symbol string) (TradeResponse, error) {
 	var t TradeResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	path := fmt.Sprintf("%s%s%s?%s", c.APIUrl, coinbeneAPIVersion, coinbeneGetTrades, params.Encode())
+	path := common.EncodeURLValues(c.APIUrl+coinbeneAPIVersion+coinbeneGetTrades, params)
 	return t, c.SendHTTPRequest(path, &t)
 }
 
@@ -186,28 +187,28 @@ func (c *Coinbene) GetPairInfo(symbol string) (PairResponse, error) {
 	var resp PairResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	path := fmt.Sprintf("%s%s%s?%s", c.APIUrl, coinbeneAPIVersion, coinbenePairInfo, params.Encode())
+	path := common.EncodeURLValues(c.APIUrl+coinbeneAPIVersion+coinbenePairInfo, params)
 	return resp, c.SendHTTPRequest(path, &resp)
 }
 
 // GetAllPairs gets all pairs on the exchange
 func (c *Coinbene) GetAllPairs() (AllPairResponse, error) {
 	var a AllPairResponse
-	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneGetAllPairs)
+	path := c.APIUrl + coinbeneAPIVersion + coinbeneGetAllPairs
 	return a, c.SendHTTPRequest(path, &a)
 }
 
 // GetUserBalance gets user balanace info
 func (c *Coinbene) GetUserBalance() (UserBalanceResponse, error) {
 	var resp UserBalanceResponse
-	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneGetUserBalance)
+	path := c.APIUrl + coinbeneAPIVersion + coinbeneGetUserBalance
 	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneGetUserBalance, nil, &resp)
 }
 
 // PlaceOrder creates an order
 func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, clientID string) (PlaceOrderResponse, error) {
 	var resp PlaceOrderResponse
-	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbenePlaceOrder)
+	path := c.APIUrl + coinbeneAPIVersion + coinbenePlaceOrder
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("direction", direction)
@@ -222,7 +223,7 @@ func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfoResponse, error) {
 	var resp OrderInfoResponse
 	params := url.Values{}
 	params.Set("orderId", orderID)
-	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneOrderInfo)
+	path := c.APIUrl + coinbeneAPIVersion + coinbeneOrderInfo
 	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOrderInfo, params, &resp)
 }
 
@@ -231,7 +232,7 @@ func (c *Coinbene) RemoveOrder(orderID string) (RemoveOrderResponse, error) {
 	var resp RemoveOrderResponse
 	params := url.Values{}
 	params.Set("orderId", orderID)
-	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneRemoveOrder)
+	path := c.APIUrl + coinbeneAPIVersion + coinbeneRemoveOrder
 	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneRemoveOrder, params, &resp)
 }
 
@@ -240,7 +241,7 @@ func (c *Coinbene) FetchOpenOrders(symbol string) (OpenOrderResponse, error) {
 	var resp OpenOrderResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneOpenOrders)
+	path := c.APIUrl + coinbeneAPIVersion + coinbeneOpenOrders
 	for i := int64(1); ; i++ {
 		var temp OpenOrderResponse
 		params.Set("pageNum", strconv.FormatInt(i, 10))
@@ -265,7 +266,7 @@ func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (ClosedOrderRespon
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("latestOrderId", latestID)
-	path := fmt.Sprintf("%s%s%s", c.APIUrl, coinbeneAPIVersion, coinbeneClosedOrders)
+	path := c.APIUrl + coinbeneAPIVersion + coinbeneClosedOrders
 	for i := int64(1); ; i++ {
 		var temp ClosedOrderResponse
 		params.Set("pageNum", strconv.FormatInt(i, 10))
@@ -308,7 +309,7 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.V
 	switch {
 	case len(params) != 0 && method == http.MethodGet:
 		preSign = fmt.Sprintf("%s%s%s%s?%s", timestamp, method, coinbeneAuthPath, epPath, params.Encode())
-		path += "?" + params.Encode()
+		path = common.EncodeURLValues(path, params)
 	case len(params) != 0:
 		m := make(map[string]string)
 		for k, v := range params {
