@@ -380,7 +380,6 @@ func TestDeleteWithIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cp := currency.NewPairFromString("BTCUSD")
 	// This is to ensure we do not send in zero orderbook info to our main book
 	// in orderbook.go, orderbooks should not be zero even after an update.
 	dummyItem := orderbook.Item{
@@ -491,7 +490,6 @@ func TestOutOfOrderIDs(t *testing.T) {
 func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
-	curr := currency.NewPairFromString("BTCUSD")
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
@@ -502,7 +500,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
-	snapShot1.Pair = curr
+	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
 	err := obl.Update(&WebsocketOrderbookUpdate{
 		Bids:       bids,
@@ -523,11 +521,10 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
-	curr := currency.NewPairFromString("BTCUSD")
 	snapShot1.Asks = []orderbook.Item{}
 	snapShot1.Bids = []orderbook.Item{}
 	snapShot1.AssetType = asset.Spot
-	snapShot1.Pair = curr
+	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
 	err := obl.Update(&WebsocketOrderbookUpdate{
 		Bids:       snapShot1.Asks,
@@ -549,11 +546,10 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 func TestRunSnapshotWithNoData(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
-	curr := currency.NewPairFromString("BTCUSD")
 	snapShot1.Asks = []orderbook.Item{}
 	snapShot1.Bids = []orderbook.Item{}
 	snapShot1.AssetType = asset.Spot
-	snapShot1.Pair = curr
+	snapShot1.Pair = cp
 	snapShot1.ExchangeName = "test"
 	obl.exchangeName = "test"
 	err := obl.LoadSnapshot(&snapShot1)
@@ -570,7 +566,6 @@ func TestLoadSnapshot(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
 	snapShot1.ExchangeName = "SnapshotWithOverride"
-	curr := currency.NewPairFromString("BTCUSD")
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
@@ -580,7 +575,7 @@ func TestLoadSnapshot(t *testing.T) {
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
-	snapShot1.Pair = curr
+	snapShot1.Pair = cp
 	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Error(err)
@@ -639,7 +634,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
-	snapShot1.Pair = currency.NewPairFromString("BTCUSD")
+	snapShot1.Pair = cp
 	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Fatal(err)
