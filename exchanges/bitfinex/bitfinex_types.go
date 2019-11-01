@@ -397,6 +397,16 @@ type WebsocketTrade struct {
 	Amount    float64
 }
 
+// WebsocketCandle candle data
+type WebsocketCandle struct {
+	Timestamp int64
+	Open      float64
+	Close     float64
+	High      float64
+	Low       float64
+	Volume    float64
+}
+
 // WebsocketTicker holds ticker information
 type WebsocketTicker struct {
 	Bid             float64
