@@ -103,57 +103,49 @@ func (w *WebsocketOrderbookLocal) processObUpdate(o *orderbook.Base, u *Websocke
 }
 
 func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
-	// transient sort issue fix where we go out of range
-	cpy := make([]orderbook.Item, len(o.Asks))
-	copy(cpy, o.Asks)
 updates:
 	for j := range u.Asks {
-		for k := range cpy {
-			if cpy[k].Price == u.Asks[j].Price {
+		for k := range o.Asks {
+			if o.Asks[k].Price == u.Asks[j].Price {
 				if u.Asks[j].Amount <= 0 {
-					cpy = append(cpy[:k], cpy[k+1:]...)
+					o.Asks = append(o.Asks[:k], o.Asks[k+1:]...)
 					continue updates
 				}
-				cpy[k].Amount = u.Asks[j].Amount
+				o.Asks[k].Amount = u.Asks[j].Amount
 				continue updates
 			}
 		}
 		if u.Asks[j].Amount == 0 {
 			continue
 		}
-		cpy = append(cpy, u.Asks[j])
+		o.Asks = append(o.Asks, u.Asks[j])
 	}
-	sort.Slice(cpy, func(i, j int) bool {
-		return cpy[i].Price < cpy[j].Price
+	sort.Slice(o.Asks, func(i, j int) bool {
+		return o.Asks[i].Price < o.Asks[j].Price
 	})
-	o.Asks = cpy
 }
 
 func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
-	// transient sort issue fix where we go out of range
-	cpy := make([]orderbook.Item, len(o.Bids))
-	copy(cpy, o.Bids)
 updates:
 	for j := range u.Bids {
-		for k := range cpy {
-			if cpy[k].Price == u.Bids[j].Price {
+		for k := range o.Bids {
+			if o.Bids[k].Price == u.Bids[j].Price {
 				if u.Bids[j].Amount <= 0 {
-					cpy = append(cpy[:k], cpy[k+1:]...)
+					o.Bids = append(o.Bids[:k], o.Bids[k+1:]...)
 					continue updates
 				}
-				cpy[k].Amount = u.Bids[j].Amount
+				o.Bids[k].Amount = u.Bids[j].Amount
 				continue updates
 			}
 		}
 		if u.Bids[j].Amount == 0 {
 			continue
 		}
-		cpy = append(cpy, u.Bids[j])
+		o.Bids = append(o.Bids, u.Bids[j])
 	}
-	sort.Slice(cpy, func(i, j int) bool {
-		return cpy[i].Price > cpy[j].Price
+	sort.Slice(o.Bids, func(i, j int) bool {
+		return o.Bids[i].Price > o.Bids[j].Price
 	})
-	o.Bids = cpy
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
@@ -235,6 +227,7 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 	if w.ob[newOrderbook.Pair] == nil {
 		w.ob[newOrderbook.Pair] = make(map[asset.Item]*orderbook.Base)
 	}
+
 	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
 	return newOrderbook.Process()
 }
