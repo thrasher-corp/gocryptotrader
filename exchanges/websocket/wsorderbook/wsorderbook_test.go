@@ -53,7 +53,7 @@ func bidAskGenerator() []orderbook.Item {
 			price = 1
 		}
 		response = append(response, orderbook.Item{
-			Amount: float64(rand.Intn(1)),
+			Amount: float64(rand.Intn(10)),
 			Price:  price,
 			ID:     int64(i),
 		})
@@ -753,5 +753,28 @@ func TestSetup(t *testing.T) {
 		!w.updateEntriesByID ||
 		w.exchangeName != "hi" {
 		t.Errorf("Setup incorrectly loaded %s", w.exchangeName)
+	}
+}
+
+func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
+	obl, _, _, err := createSnapshot()
+	if err != nil {
+		t.Error(err)
+	}
+
+	asks := bidAskGenerator()
+	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &WebsocketOrderbookUpdate{
+		Bids:       asks,
+		Asks:       asks,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(obl.ob[cp][asset.Spot].Asks) <= 3 {
+		t.Errorf("Insufficient updates")
 	}
 }
