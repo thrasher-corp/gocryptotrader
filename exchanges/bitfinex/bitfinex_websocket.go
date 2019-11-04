@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +33,19 @@ func (b *Bitfinex) WsConnect() error {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", b.Name, err)
 	}
 
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		err = b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
+			b.API.AuthenticatedWebsocketSupport = false
+		}
+		err = b.WsSendAuth()
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
+			b.API.AuthenticatedWebsocketSupport = false
+		}
+	}
+
 	resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
 		b.Websocket.ReadMessageErrors <- err
@@ -45,18 +57,8 @@ func (b *Bitfinex) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	/*
-		err = b.WsSendAuth()
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
-		}
-	*/
+
 	b.GenerateDefaultSubscriptions()
-	if hs.Event == "info" {
-		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.GetName())
-		}
-	}
 	pongReceive = make(chan struct{}, 1)
 	go b.WsDataHandler()
 	return nil
@@ -233,9 +235,8 @@ func (b *Bitfinex) WsDataHandler() {
 										Amount:    y[2].(float64)})
 							}
 						case 3:
-							if chanData[1].(string) == "tu" {
-								// bitfinex sends duplicate te and tu events.
-								// ultimately, trade executions is all we care about
+							if chanData[1].(string) == "te" {
+								// the te update contains less data then the "tu"
 								continue
 							}
 							data := chanData[2].([]interface{})
@@ -350,9 +351,9 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{
-		//"book",
-		//	"trades",
-		//"ticker",
+		"book",
+		"trades",
+		"ticker",
 		"candles",
 	}
 	var subscriptions []wshandler.WebsocketChannelSubscription
@@ -430,20 +431,21 @@ func (b *Bitfinex) WsSendAuth() error {
 	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", b.Name)
 	}
-	req := make(map[string]interface{})
-	payload := "AUTH" + strconv.FormatInt(time.Now().UnixNano(), 10)[:13]
-	req["event"] = "auth"
-	req["apiKey"] = b.API.Credentials.Key
-
-	req["authSig"] = crypto.HexEncodeToString(
-		crypto.GetHMAC(
-			crypto.HashSHA512_384,
-			[]byte(payload),
-			[]byte(b.API.Credentials.Secret)))
-
-	req["authPayload"] = payload
-
-	err := b.WebsocketConn.SendMessage(req)
+	nonce := fmt.Sprintf("%v", time.Now().Unix())
+	payload := "AUTH" + nonce
+	request := WsAuthRequest{
+		Event:       "auth",
+		APIKey:      b.API.Credentials.Key,
+		AuthPayload: payload,
+		AuthSig: crypto.HexEncodeToString(
+			crypto.GetHMAC(
+				crypto.HashSHA512_384,
+				[]byte(payload),
+				[]byte(b.API.Credentials.Secret))),
+		AuthNonce:     nonce,
+		DeadManSwitch: 0,
+	}
+	err := b.WebsocketConn.SendMessage(request)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

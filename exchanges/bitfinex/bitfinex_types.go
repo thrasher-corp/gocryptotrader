@@ -508,9 +508,9 @@ type WebsocketHandshake struct {
 var pongReceive chan struct{}
 
 const (
-	bitfinexWebsocket                      = "wss://api.bitfinex.com/ws"
-	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/"
+	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
 	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
+	bitfinexWebsocketHeartbeat             = "hb"
 	bitfinexWebsocketVersion               = "2"
 	bitfinexWebsocketPositionSnapshot      = "ps"
 	bitfinexWebsocketPositionNew           = "pn"
@@ -525,13 +525,14 @@ const (
 	bitfinexWebsocketTradeExecuted         = "te"
 	bitfinexWebsocketTradeExecutionUpdate  = "tu"
 	bitfinexWebsocketTradeSnapshots        = "ts"
-	bitfinexWebsocketHeartbeat             = "hb"
-	bitfinexWebsocketAlertRestarting       = "20051"
-	bitfinexWebsocketAlertRefreshing       = "20060"
-	bitfinexWebsocketAlertResume           = "20061"
-	bitfinexWebsocketUnknownEvent          = "10000"
-	bitfinexWebsocketUnknownPair           = "10001"
-	bitfinexWebsocketSubscriptionFailed    = "10300"
-	bitfinexWebsocketAlreadySubscribed     = "10301"
-	bitfinexWebsocketUnknownChannel        = "10302"
 )
+
+// WsAuthRequest container for WS auth request
+type WsAuthRequest struct {
+	Event         string `json:"event"`
+	APIKey        string `json:"apiKey"`
+	AuthPayload   string `json:"authPayload"`
+	AuthSig       string `json:"authSig"`
+	AuthNonce     string `json:"authNonce"`
+	DeadManSwitch int64  `json:"dms,omitempty"`
+}
