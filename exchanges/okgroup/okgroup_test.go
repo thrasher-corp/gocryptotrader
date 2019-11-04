@@ -63,10 +63,11 @@ func TestGetOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = o.GetOrderBook(GetOrderBookRequest{InstrumentID: "BTC-USD-191101"},
+	// futures expire and break test, will need to mock this in the future
+	_, err = o.GetOrderBook(GetOrderBookRequest{InstrumentID: "Payload"},
 		asset.Futures)
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
 
 	_, err = o.GetOrderBook(GetOrderBookRequest{InstrumentID: "BTC-USD-SWAP"},
