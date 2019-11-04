@@ -233,7 +233,7 @@ func TestSubmitOrder(t *testing.T) {
 			Quote:     currency.USD,
 		},
 		OrderSide: order.Buy,
-		OrderType: order.Market,
+		OrderType: order.Limit,
 		Price:     1,
 		Amount:    1,
 		ClientID:  "meowOrder",

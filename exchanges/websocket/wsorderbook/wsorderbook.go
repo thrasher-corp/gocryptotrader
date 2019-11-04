@@ -25,27 +25,28 @@ func (w *WebsocketOrderbookLocal) Setup(obBufferLimit int, bufferEnabled, sortBu
 // Volume == 0; deletion at price target
 // Price target not found; append of price target
 // Price target found; amend volume of price target
-func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpdate) error {
-	if (orderbookUpdate.Bids == nil && orderbookUpdate.Asks == nil) ||
-		(len(orderbookUpdate.Bids) == 0 && len(orderbookUpdate.Asks) == 0) {
-		return fmt.Errorf("%v cannot have bids and ask targets both nil", w.exchangeName)
+func (w *WebsocketOrderbookLocal) Update(u *WebsocketOrderbookUpdate) error {
+	if (u.Bids == nil && u.Asks == nil) || (len(u.Bids) == 0 && len(u.Asks) == 0) {
+		return fmt.Errorf("%v cannot have bids and ask targets both nil",
+			w.exchangeName)
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
-	obLookup, ok := w.ob[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]
+	obLookup, ok := w.ob[u.Pair][u.Asset]
 	if !ok {
 		return fmt.Errorf("ob.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
 			w.exchangeName,
-			orderbookUpdate.CurrencyPair.String(),
-			orderbookUpdate.AssetType)
+			u.Pair,
+			u.Asset)
 	}
+
 	if w.bufferEnabled {
-		overBufferLimit := w.processBufferUpdate(obLookup, orderbookUpdate)
+		overBufferLimit := w.processBufferUpdate(obLookup, u)
 		if !overBufferLimit {
 			return nil
 		}
 	} else {
-		w.processObUpdate(obLookup, orderbookUpdate)
+		w.processObUpdate(obLookup, u)
 	}
 	err := obLookup.Process()
 	if err != nil {
@@ -53,23 +54,23 @@ func (w *WebsocketOrderbookLocal) Update(orderbookUpdate *WebsocketOrderbookUpda
 	}
 	if w.bufferEnabled {
 		// Reset the buffer
-		w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = nil
+		w.buffer[u.Pair][u.Asset] = nil
 	}
 	return nil
 }
 
-func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, orderbookUpdate *WebsocketOrderbookUpdate) bool {
+func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, u *WebsocketOrderbookUpdate) bool {
 	if w.buffer == nil {
 		w.buffer = make(map[currency.Pair]map[asset.Item][]*WebsocketOrderbookUpdate)
 	}
-	if w.buffer[orderbookUpdate.CurrencyPair] == nil {
-		w.buffer[orderbookUpdate.CurrencyPair] = make(map[asset.Item][]*WebsocketOrderbookUpdate)
+	if w.buffer[u.Pair] == nil {
+		w.buffer[u.Pair] = make(map[asset.Item][]*WebsocketOrderbookUpdate)
 	}
-	bufferLookup := w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType]
+	bufferLookup := w.buffer[u.Pair][u.Asset]
 	if len(bufferLookup) <= w.obBufferLimit {
-		bufferLookup = append(bufferLookup, orderbookUpdate)
+		bufferLookup = append(bufferLookup, u)
 		if len(bufferLookup) < w.obBufferLimit {
-			w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = bufferLookup
+			w.buffer[u.Pair][u.Asset] = bufferLookup
 			return false
 		}
 	}
@@ -88,61 +89,59 @@ func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, orderbo
 	for i := 0; i < len(bufferLookup); i++ {
 		w.processObUpdate(o, bufferLookup[i])
 	}
-	w.buffer[orderbookUpdate.CurrencyPair][orderbookUpdate.AssetType] = bufferLookup
+	w.buffer[u.Pair][u.Asset] = bufferLookup
 	return true
 }
 
-func (w *WebsocketOrderbookLocal) processObUpdate(o *orderbook.Base, orderbookUpdate *WebsocketOrderbookUpdate) {
+func (w *WebsocketOrderbookLocal) processObUpdate(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
 	if w.updateEntriesByID {
-		w.updateByIDAndAction(o, orderbookUpdate)
+		w.updateByIDAndAction(o, u)
 	} else {
-		w.updateAsksByPrice(o, orderbookUpdate)
-		w.updateBidsByPrice(o, orderbookUpdate)
+		w.updateAsksByPrice(o, u)
+		w.updateBidsByPrice(o, u)
 	}
 }
 
-func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate) {
-	for j := 0; j < len(base.Asks); j++ {
-		found := false
-		for k := 0; k < len(o.Asks); k++ {
-			if o.Asks[k].Price == base.Asks[j].Price {
-				found = true
-				if base.Asks[j].Amount == 0 {
-					o.Asks = append(o.Asks[:k],
-						o.Asks[k+1:]...)
-					break
+func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
+updates:
+	for j := range u.Asks {
+		for k := range o.Asks {
+			if o.Asks[k].Price == u.Asks[j].Price {
+				if u.Asks[j].Amount <= 0 {
+					o.Asks = append(o.Asks[:k], o.Asks[k+1:]...)
+					continue updates
 				}
-				o.Asks[k].Amount = base.Asks[j].Amount
-				break
+				o.Asks[k].Amount = u.Asks[j].Amount
+				continue updates
 			}
 		}
-		if !found {
-			o.Asks = append(o.Asks, base.Asks[j])
+		if u.Asks[j].Amount == 0 {
+			continue
 		}
+		o.Asks = append(o.Asks, u.Asks[j])
 	}
 	sort.Slice(o.Asks, func(i, j int) bool {
 		return o.Asks[i].Price < o.Asks[j].Price
 	})
 }
 
-func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *WebsocketOrderbookUpdate) {
-	for j := 0; j < len(base.Bids); j++ {
-		found := false
-		for k := 0; k < len(o.Bids); k++ {
-			if o.Bids[k].Price == base.Bids[j].Price {
-				found = true
-				if base.Bids[j].Amount == 0 {
-					o.Bids = append(o.Bids[:k],
-						o.Bids[k+1:]...)
-					break
+func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
+updates:
+	for j := range u.Bids {
+		for k := range o.Bids {
+			if o.Bids[k].Price == u.Bids[j].Price {
+				if u.Bids[j].Amount <= 0 {
+					o.Bids = append(o.Bids[:k], o.Bids[k+1:]...)
+					continue updates
 				}
-				o.Bids[k].Amount = base.Bids[j].Amount
-				break
+				o.Bids[k].Amount = u.Bids[j].Amount
+				continue updates
 			}
 		}
-		if !found {
-			o.Bids = append(o.Bids, base.Bids[j])
+		if u.Bids[j].Amount == 0 {
+			continue
 		}
+		o.Bids = append(o.Bids, u.Bids[j])
 	}
 	sort.Slice(o.Bids, func(i, j int) bool {
 		return o.Bids[i].Price > o.Bids[j].Price
@@ -151,49 +150,52 @@ func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, base *Web
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (w *WebsocketOrderbookLocal) updateByIDAndAction(o *orderbook.Base, orderbookUpdate *WebsocketOrderbookUpdate) {
-	switch orderbookUpdate.Action {
+func (w *WebsocketOrderbookLocal) updateByIDAndAction(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
+	switch u.Action {
 	case "update":
-		for _, target := range orderbookUpdate.Bids {
-			for i := range o.Bids {
-				if o.Bids[i].ID == target.ID {
-					o.Bids[i].Amount = target.Amount
+		for x := range u.Bids {
+			for y := range o.Bids {
+				if o.Bids[y].ID == u.Bids[x].ID {
+					o.Bids[y].Amount = u.Bids[x].Amount
 					break
 				}
 			}
 		}
-		for _, target := range orderbookUpdate.Asks {
-			for i := range o.Asks {
-				if o.Asks[i].ID == target.ID {
-					o.Asks[i].Amount = target.Amount
+		for x := range u.Asks {
+			for y := range o.Asks {
+				if o.Asks[y].ID == u.Asks[x].ID {
+					o.Asks[y].Amount = u.Asks[x].Amount
 					break
 				}
 			}
 		}
 	case "delete":
-		for _, target := range orderbookUpdate.Bids {
-			for i := 0; i < len(o.Bids); i++ {
-				if o.Bids[i].ID == target.ID {
-					o.Bids = append(o.Bids[:i],
-						o.Bids[i+1:]...)
-					i--
+		for x := range u.Bids {
+			for y := 0; y < len(o.Bids); y++ {
+				if o.Bids[y].ID == u.Bids[x].ID {
+					o.Bids = append(o.Bids[:y], o.Bids[y+1:]...)
 					break
 				}
 			}
 		}
-		for _, target := range orderbookUpdate.Asks {
-			for i := 0; i < len(o.Asks); i++ {
-				if o.Asks[i].ID == target.ID {
-					o.Asks = append(o.Asks[:i],
-						o.Asks[i+1:]...)
-					i--
+		for x := range u.Asks {
+			for y := 0; y < len(o.Asks); y++ {
+				if o.Asks[y].ID == u.Asks[x].ID {
+					o.Asks = append(o.Asks[:y], o.Asks[y+1:]...)
 					break
 				}
 			}
 		}
 	case "insert":
-		o.Bids = append(o.Bids, orderbookUpdate.Bids...)
-		o.Asks = append(o.Asks, orderbookUpdate.Asks...)
+		o.Bids = append(o.Bids, u.Bids...)
+		sort.Slice(o.Bids, func(i, j int) bool {
+			return o.Bids[i].Price > o.Bids[j].Price
+		})
+
+		o.Asks = append(o.Asks, u.Asks...)
+		sort.Slice(o.Asks, func(i, j int) bool {
+			return o.Asks[i].Price < o.Asks[j].Price
+		})
 	}
 }
 
@@ -225,22 +227,17 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 	if w.ob[newOrderbook.Pair] == nil {
 		w.ob[newOrderbook.Pair] = make(map[asset.Item]*orderbook.Base)
 	}
-	fullObLookup := w.ob[newOrderbook.Pair][newOrderbook.AssetType]
-	if fullObLookup != nil &&
-		(len(fullObLookup.Asks) > 0 ||
-			len(fullObLookup.Bids) > 0) {
-		fullObLookup = newOrderbook
-		return newOrderbook.Process()
-	}
+
 	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
 	return newOrderbook.Process()
 }
 
-// GetOrderbook use sparingly. Modifying anything here will ruin hash calculation and cause problems
-func (w *WebsocketOrderbookLocal) GetOrderbook(p currency.Pair, assetType asset.Item) *orderbook.Base {
+// GetOrderbook use sparingly. Modifying anything here will ruin hash
+// calculation and cause problems
+func (w *WebsocketOrderbookLocal) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
 	w.m.Lock()
 	defer w.m.Unlock()
-	return w.ob[p][assetType]
+	return w.ob[p][a]
 }
 
 // FlushCache flushes w.ob data to be garbage collected and refreshed when a

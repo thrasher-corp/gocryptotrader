@@ -1433,7 +1433,8 @@ func GetFilePath(file string) (string, error) {
 		return newDirs[0], nil
 	}
 
-	return "", errors.New("config default file path error")
+	return "", fmt.Errorf("config.json file not found in %s, please follow README.md in root dir for config generation",
+		newDir)
 }
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted

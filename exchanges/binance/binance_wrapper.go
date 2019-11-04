@@ -162,7 +162,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 
 	b.Websocket.Orderbook.Setup(
 		exch.WebsocketOrderbookBufferLimit,
-		true,
+		false,
 		true,
 		true,
 		false,
@@ -202,7 +202,8 @@ func (b *Binance) Run() {
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies. Err: %s\n",
-				b.Name, err)
+				b.Name,
+				err)
 		}
 	}
 
@@ -247,7 +248,10 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	return b.UpdatePairs(currency.NewPairsFromStrings(pairs),
+		asset.Spot,
+		false,
+		forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

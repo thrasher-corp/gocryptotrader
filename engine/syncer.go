@@ -405,7 +405,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 											result, err = Bot.Exchanges[x].FetchTicker(c.Pair, c.AssetType)
 										}
 									} else {
-										result, err = Bot.Exchanges[x].FetchTicker(c.Pair, c.AssetType)
+										result, err = Bot.Exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 									}
 									printTickerSummary(&result, c.Pair, c.AssetType, exchangeName, err)
 									if err == nil {

@@ -45,7 +45,8 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 	response := make(map[string]TickerResponse)
 	path := fmt.Sprintf("%s/%s", l.API.Endpoints.URL, lakeBTCTicker)
 
-	if err := l.SendHTTPRequest(path, &response); err != nil {
+	err := l.SendHTTPRequest(path, &response)
+	if err != nil {
 		return nil, err
 	}
 
@@ -55,22 +56,40 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 		var tick Ticker
 		key := strings.ToUpper(k)
 		if v.Ask != nil {
-			tick.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
+			tick.Ask, err = strconv.ParseFloat(v.Ask.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.Bid != nil {
-			tick.Bid, _ = strconv.ParseFloat(v.Bid.(string), 64)
+			tick.Bid, err = strconv.ParseFloat(v.Bid.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.High != nil {
-			tick.High, _ = strconv.ParseFloat(v.High.(string), 64)
+			tick.High, err = strconv.ParseFloat(v.High.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.Last != nil {
-			tick.Last, _ = strconv.ParseFloat(v.Last.(string), 64)
+			tick.Last, err = strconv.ParseFloat(v.Last.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.Low != nil {
-			tick.Low, _ = strconv.ParseFloat(v.Low.(string), 64)
+			tick.Low, err = strconv.ParseFloat(v.Low.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.Volume != nil {
-			tick.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
+			tick.Volume, err = strconv.ParseFloat(v.Volume.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		result[key] = tick
 	}

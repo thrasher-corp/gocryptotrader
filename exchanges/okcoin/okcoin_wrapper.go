@@ -142,7 +142,11 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s. (url: %s).\n",
+			o.Name,
+			common.IsEnabled(o.Websocket.IsEnabled()),
+			o.WebsocketURL)
 	}
 
 	forceUpdate := false
@@ -161,7 +165,9 @@ func (o *OKCoin) Run() {
 
 		err := o.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies.\n", o.GetName())
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies.\n",
+				o.Name)
 			return
 		}
 	}
@@ -172,7 +178,10 @@ func (o *OKCoin) Run() {
 
 	err := o.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", o.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			o.Name,
+			err)
 	}
 }
 
@@ -237,12 +246,12 @@ func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 			}
 		}
 	}
-	return ticker.GetTicker(o.GetName(), p, assetType)
+	return ticker.GetTicker(o.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (o *OKCoin) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, err error) {
-	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
+	tickerData, err = ticker.GetTicker(o.Name, p, assetType)
 	if err != nil {
 		return o.UpdateTicker(p, assetType)
 	}

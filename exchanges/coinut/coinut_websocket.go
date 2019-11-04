@@ -136,13 +136,16 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
+
 		currencyPair := wsInstrumentMap.LookupInstrument(ticker.InstID)
 		c.Websocket.DataHandler <- wshandler.TickerData{
 			Exchange:    c.Name,
-			Volume:      ticker.Volume,
-			QuoteVolume: ticker.VolumeQuote,
-			High:        ticker.HighestBuy,
-			Low:         ticker.LowestSell,
+			Volume:      ticker.Volume24,
+			QuoteVolume: ticker.Volume24Quote,
+			Bid:         ticker.HighestBuy,
+			Ask:         ticker.LowestSell,
+			High:        ticker.High24,
+			Low:         ticker.Low24,
 			Last:        ticker.Last,
 			Timestamp:   time.Unix(0, ticker.Timestamp),
 			AssetType:   asset.Spot,
@@ -302,9 +305,9 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		c.GetPairFormat(asset.Spot, true),
 	)
 	bufferUpdate := &wsorderbook.WebsocketOrderbookUpdate{
-		CurrencyPair: p,
-		UpdateID:     update.TransID,
-		AssetType:    asset.Spot,
+		Pair:     p,
+		UpdateID: update.TransID,
+		Asset:    asset.Spot,
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
 		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}

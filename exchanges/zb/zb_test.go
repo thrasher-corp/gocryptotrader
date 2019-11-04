@@ -287,8 +287,8 @@ func TestGetActiveOrders(t *testing.T) {
 
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
-			currency.BTC)},
+		Currencies: []currency.Pair{currency.NewPair(currency.XRP,
+			currency.USDT)},
 	}
 
 	_, err := z.GetActiveOrders(&getOrdersRequest)
@@ -327,6 +327,7 @@ func areTestAPIKeysSet() bool {
 func TestSubmitOrder(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
+
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v",
 			z.API.Credentials.Key,
@@ -336,8 +337,8 @@ func TestSubmitOrder(t *testing.T) {
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Delimiter: "_",
-			Base:      currency.QTUM,
-			Quote:     currency.USD,
+			Base:      currency.XRP,
+			Quote:     currency.USDT,
 		},
 		OrderSide: order.Buy,
 		OrderType: order.Limit,
@@ -361,7 +362,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
@@ -387,7 +388,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",

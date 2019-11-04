@@ -25,11 +25,11 @@ type WebsocketOrderbookLocal struct {
 
 // WebsocketOrderbookUpdate stores orderbook updates and dictates what features to use when processing
 type WebsocketOrderbookUpdate struct {
-	UpdateID     int64 // Used when no time is provided
-	UpdateTime   time.Time
-	AssetType    asset.Item
-	Action       string // Used in conjunction with UpdateEntriesByID
-	Bids         []orderbook.Item
-	Asks         []orderbook.Item
-	CurrencyPair currency.Pair
+	UpdateID   int64 // Used when no time is provided
+	UpdateTime time.Time
+	Asset      asset.Item
+	Action     string // Used in conjunction with UpdateEntriesByID
+	Bids       []orderbook.Item
+	Asks       []orderbook.Item
+	Pair       currency.Pair
 }

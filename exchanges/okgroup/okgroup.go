@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -314,11 +315,35 @@ func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsRespo
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, OKGroupInstruments, nil, &resp, false)
 }
 
-// GetSpotOrderBook Getting the order book of a trading pair. Pagination is not supported here.
-// The whole book will be returned for one request. Websocket is recommended here.
-func (o *OKGroup) GetSpotOrderBook(request GetSpotOrderBookRequest) (resp GetSpotOrderBookResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotOrderBook, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
+// GetOrderBook Getting the order book of a trading pair. Pagination is not
+// supported here. The whole book will be returned for one request. Websocket is
+// recommended here.
+func (o *OKGroup) GetOrderBook(request GetOrderBookRequest, a asset.Item) (resp GetOrderBookResponse, _ error) {
+	var requestType, endpoint string
+	switch a {
+	case asset.Spot:
+		endpoint = OKGroupGetSpotOrderBook
+		requestType = okGroupTokenSubsection
+	case asset.Futures:
+		endpoint = OKGroupGetSpotOrderBook
+		requestType = "futures"
+	case asset.PerpetualSwap:
+		endpoint = "depth"
+		requestType = "swap"
+	default:
+		return resp, errors.New("unhandled asset type")
+	}
+	requestURL := fmt.Sprintf("%v/%v/%v/%v",
+		OKGroupInstruments,
+		request.InstrumentID,
+		endpoint,
+		FormatParameters(request))
+	return resp, o.SendHTTPRequest(http.MethodGet,
+		requestType,
+		requestURL,
+		nil,
+		&resp,
+		false)
 }
 
 // GetSpotAllTokenPairsInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all trading pairs.

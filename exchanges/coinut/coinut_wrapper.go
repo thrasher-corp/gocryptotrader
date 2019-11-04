@@ -342,8 +342,10 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	}
 	tickerPrice = ticker.Price{
 		Last:        tick.Last,
-		High:        tick.HighestBuy,
-		Low:         tick.LowestSell,
+		High:        tick.High24,
+		Low:         tick.Low24,
+		Bid:         tick.HighestBuy,
+		Ask:         tick.LowestSell,
 		Volume:      tick.Volume24,
 		Pair:        p,
 		LastUpdated: time.Unix(0, tick.Timestamp),

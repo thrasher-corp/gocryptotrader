@@ -50,6 +50,10 @@ type Item struct {
 	Amount float64
 	Price  float64
 	ID     int64
+
+	// Contract variables
+	LiquidationOrders int64
+	OrderCount        int64
 }
 
 // Base holds the fields for the orderbook base
