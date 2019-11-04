@@ -80,6 +80,7 @@ func (vm *VM) Run() (err error) {
 	return vm.Compiled.Run()
 }
 
+// RunCtx runs compiled bytecode with context.Context support
 func (vm *VM) RunCtx() (err error) {
 	if vm == nil {
 		return &Error{
@@ -132,6 +133,7 @@ func (vm *VM) CompileAndRun() (err error) {
 	return err
 }
 
+// Shutdown() shuts down current VM
 func (vm *VM) Shutdown() error {
 	if vm == nil {
 		return &Error{

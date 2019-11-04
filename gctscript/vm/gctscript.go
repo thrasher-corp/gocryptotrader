@@ -8,6 +8,7 @@ func New() *VM {
 	return vm
 }
 
+// ShutdownAll shutdown all
 func ShutdownAll() error {
 	for x := range VMList {
 		_ = VMList[x].Shutdown()
