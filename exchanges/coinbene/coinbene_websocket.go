@@ -19,6 +19,8 @@ import (
 
 const (
 	coinbeneWsURL = "wss://ws-contract.coinbene.vip/openapi/ws"
+	event         = "event"
+	topic         = "topic"
 )
 
 // WsConnect connects to websocket
@@ -97,24 +99,24 @@ func (c *Coinbene) WsDataHandler() {
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
-			_, ok := result["event"]
+			_, ok := result[event]
 			switch {
-			case ok && result["event"].(string) == "subscribe":
+			case ok && result[event].(string) == "subscribe":
 				continue
-			case ok && result["event"].(string) == "unsubscribe":
+			case ok && result[event].(string) == "unsubscribe":
 				continue
-			case ok && result["event"].(string) == "error":
+			case ok && result[event].(string) == "error":
 				c.Websocket.DataHandler <- fmt.Errorf("message: %s. code: %v", result["message"], result["code"])
 				continue
 			}
-			if ok && strings.Contains(result["event"].(string), "login") {
+			if ok && strings.Contains(result[event].(string), "login") {
 				if result["success"].(bool) {
 					c.GenerateAuthSubs()
 				}
 				continue
 			}
 			switch {
-			case strings.Contains(result["topic"].(string), "ticker"):
+			case strings.Contains(result[topic].(string), "ticker"):
 				var ticker WsTicker
 				err = common.JSONDecode(stream.Raw, &ticker)
 				if err != nil {
@@ -132,7 +134,7 @@ func (c *Coinbene) WsDataHandler() {
 						AssetType:  orderbook.Swap,
 					}
 				}
-			case strings.Contains(result["topic"].(string), "tradeList"):
+			case strings.Contains(result[topic].(string), "tradeList"):
 				var tradeList WsTradeList
 				err = common.JSONDecode(stream.Raw, &tradeList)
 				if err != nil {
@@ -165,7 +167,7 @@ func (c *Coinbene) WsDataHandler() {
 					AssetType:    orderbook.Swap,
 					Side:         tradeList.Data[0][1],
 				}
-			case strings.Contains(result["topic"].(string), "orderBook"):
+			case strings.Contains(result[topic].(string), "orderBook"):
 				var orderBook WsOrderbook
 				err = common.JSONDecode(stream.Raw, &orderBook)
 				if err != nil {
@@ -240,7 +242,7 @@ func (c *Coinbene) WsDataHandler() {
 						Exchange: c.Name,
 					}
 				}
-			case strings.Contains(result["topic"].(string), "kline"):
+			case strings.Contains(result[topic].(string), "kline"):
 				var kline WsKline
 				var tempFloat float64
 				var tempKline []float64
@@ -268,7 +270,7 @@ func (c *Coinbene) WsDataHandler() {
 					LowPrice:   tempKline[3],
 					Volume:     tempKline[4],
 				}
-			case strings.Contains(result["topic"].(string), "user.account"):
+			case strings.Contains(result[topic].(string), "user.account"):
 				var userinfo WsUserInfo
 				err = common.JSONDecode(stream.Raw, &userinfo)
 				if err != nil {
@@ -276,7 +278,7 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				c.Websocket.DataHandler <- userinfo
-			case strings.Contains(result["topic"].(string), "user.position"):
+			case strings.Contains(result[topic].(string), "user.position"):
 				var position WsPosition
 				err = common.JSONDecode(stream.Raw, &position)
 				if err != nil {
@@ -284,7 +286,7 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				c.Websocket.DataHandler <- position
-			case strings.Contains(result["topic"].(string), "user.order"):
+			case strings.Contains(result[topic].(string), "user.order"):
 				var orders WsUserOrders
 				err = common.JSONDecode(stream.Raw, &orders)
 				if err != nil {

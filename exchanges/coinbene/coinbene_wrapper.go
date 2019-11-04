@@ -220,14 +220,15 @@ func (c *Coinbene) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	if err != nil {
 		return resp, err
 	}
+	var t time.Time
 	resp.Exchange = c.Name
 	resp.ID = orderID
 	resp.CurrencyPair = currency.NewPairWithDelimiter(tempResp.Order.BaseAsset, "/", tempResp.Order.QuoteAsset)
-	orderTime, err := time.Parse(time.RFC3339, tempResp.Order.OrderTime)
+	t, err = time.Parse(time.RFC3339, tempResp.Order.OrderTime)
 	if err != nil {
 		return resp, err
 	}
-	resp.OrderDate = orderTime
+	resp.OrderDate = t
 	resp.ExecutedAmount = tempResp.Order.FilledAmount
 	resp.Fee = tempResp.Order.TotalFee
 	return resp, nil
@@ -281,6 +282,7 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 		if err != nil {
 			return resp, err
 		}
+		var t time.Time
 		for y := range tempData.OpenOrders {
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
@@ -290,11 +292,11 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 			if tempData.OpenOrders[y].OrderType == sell {
 				tempResp.OrderSide = exchange.SellOrderSide
 			}
-			orderTime, err := time.Parse(time.RFC3339, tempData.OpenOrders[y].OrderTime)
+			t, err = time.Parse(time.RFC3339, tempData.OpenOrders[y].OrderTime)
 			if err != nil {
 				return resp, err
 			}
-			tempResp.OrderDate = orderTime
+			tempResp.OrderDate = t
 			tempResp.Status = tempData.OpenOrders[y].OrderStatus
 			tempResp.Price = tempData.OpenOrders[y].AvgPrice
 			tempResp.Amount = tempData.OpenOrders[y].Amount
@@ -328,6 +330,7 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 		if err != nil {
 			return resp, err
 		}
+		var t time.Time
 		for y := range tempData.Data {
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
@@ -335,11 +338,11 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 			if tempData.Data[y].OrderType == sell {
 				tempResp.OrderSide = exchange.SellOrderSide
 			}
-			orderTime, err := time.Parse(time.RFC3339, tempData.Data[y].OrderTime)
+			t, err = time.Parse(time.RFC3339, tempData.Data[y].OrderTime)
 			if err != nil {
 				return resp, err
 			}
-			tempResp.OrderDate = orderTime
+			tempResp.OrderDate = t
 			tempResp.Status = tempData.Data[y].OrderStatus
 			tempResp.Price = tempData.Data[y].AvgPrice
 			tempResp.Amount = tempData.Data[y].Amount
