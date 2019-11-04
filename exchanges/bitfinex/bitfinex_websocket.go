@@ -265,6 +265,24 @@ func (b *Bitfinex) WsDataHandler() {
 								}
 							}
 						}
+					case websocketPositionSnapshot:
+					case websocketPositionNew:
+					case websocketPositionUpdate:
+					case websocketPositionClose:
+					case websocketWalletSnapshot:
+					case websocketWalletUpdate:
+					case websocketOrderSnapshot:
+					case websocketOrderNew:
+					case websocketOrderUpdate:
+					case websocketOrderCancel:
+					case websocketTradeExecuted:
+					case websocketTradeExecutionUpdate:
+					case websocketOrdersCancel:
+					case ts:
+					case fos:
+					case fcs:
+					case fls:
+					case bu:
 					}
 				}
 			}
