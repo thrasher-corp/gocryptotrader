@@ -343,7 +343,7 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 	var orderBook orderbook.Base
 	orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
 		Symbol: h.FormatExchangeCurrency(p, assetType).String(),
-		Type:   OrderBookDataRequestParamsTypeStep1,
+		Type:   OrderBookDataRequestParamsTypeStep0,
 	})
 	if err != nil {
 		return orderBook, err

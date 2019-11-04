@@ -2,8 +2,8 @@ package zb
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -221,15 +221,16 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 		return tickerPrice, err
 	}
 
-	for _, x := range z.GetEnabledPairs(assetType) {
+	enabledPairs := z.GetEnabledPairs(assetType)
+	for x := range enabledPairs {
 		// We can't use either pair format here, so format it to lower-
 		// case and without any delimiter
-		curr := x.Format("", false).String()
+		curr := enabledPairs[x].Format("", false).String()
 		if _, ok := result[curr]; !ok {
 			continue
 		}
 		var tp ticker.Price
-		tp.Pair = x
+		tp.Pair = enabledPairs[x]
 		tp.High = result[curr].High
 		tp.Last = result[curr].Last
 		tp.Ask = result[curr].Sell
@@ -276,12 +277,14 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.B
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data[1], Price: data[0]})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
 	orderBook.Pair = p
@@ -366,7 +369,7 @@ func (z *ZB) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 	response, err := z.SpotNewOrder(params)
 	if response > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
 	if err == nil {
 		submitOrderResponse.IsOrderPlaced = true
@@ -398,13 +401,13 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	var allOpenOrders []Order
 	enabledPairs := z.GetEnabledPairs(asset.Spot)
 	for x := range enabledPairs {
-		// Limiting to 10 pages
-		for pageNumber := int64(0); pageNumber < 11; pageNumber++ {
-			fCurr := z.FormatExchangeCurrency(enabledPairs[x], asset.Spot).String()
-			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(fCurr,
-				pageNumber,
-				10)
+		fPair := z.FormatExchangeCurrency(enabledPairs[x], asset.Spot).String()
+		for y := int64(1); ; y++ {
+			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair, y, 10)
 			if err != nil {
+				if strings.Contains(err.Error(), "3001") {
+					break
+				}
 				return cancelAllOrdersResponse, err
 			}
 
@@ -413,6 +416,10 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 			}
 
 			allOpenOrders = append(allOpenOrders, openOrders...)
+
+			if len(openOrders) != 10 {
+				break
+			}
 		}
 	}
 
@@ -481,20 +488,25 @@ func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var allOrders []Order
 	for x := range req.Currencies {
-		// Limiting to 10 pages
-		for pageNumber := int64(0); pageNumber < 11; pageNumber++ {
-			fCurr := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(fCurr,
-				pageNumber,
-				10)
+		for i := int64(1); ; i++ {
+			fPair := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
+			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair, i, 10)
 			if err != nil {
+				if strings.Contains(err.Error(), "3001") {
+					break
+				}
 				return nil, err
 			}
+
 			if len(resp) == 0 {
 				break
 			}
 
 			allOrders = append(allOrders, resp...)
+
+			if len(resp) != 10 {
+				break
+			}
 		}
 	}
 
@@ -505,7 +517,7 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{
-			ID:           fmt.Sprintf("%d", allOrders[i].ID),
+			ID:           strconv.FormatInt(allOrders[i].ID, 10),
 			Amount:       allOrders[i].TotalAmount,
 			Exchange:     z.Name,
 			OrderDate:    orderDate,
@@ -536,10 +548,9 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 	}
 
 	for x := range req.Currencies {
-		// Limiting to 10 pages
-		for pageNumber := int64(0); pageNumber < 11; pageNumber++ {
-			fCurr := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-			resp, err := z.GetOrders(fCurr, pageNumber, side)
+		for y := int64(1); ; y++ {
+			fPair := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
+			resp, err := z.GetOrders(fPair, y, side)
 			if err != nil {
 				return nil, err
 			}
@@ -549,6 +560,10 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 			}
 
 			allOrders = append(allOrders, resp...)
+
+			if len(resp) != 10 {
+				break
+			}
 		}
 	}
 
@@ -559,7 +574,7 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{
-			ID:           fmt.Sprintf("%d", allOrders[i].ID),
+			ID:           strconv.FormatInt(allOrders[i].ID, 10),
 			Amount:       allOrders[i].TotalAmount,
 			Exchange:     z.Name,
 			OrderDate:    orderDate,

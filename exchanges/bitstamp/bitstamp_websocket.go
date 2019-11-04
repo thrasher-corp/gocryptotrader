@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -13,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -32,7 +32,7 @@ func (b *Bitstamp) WsConnect() error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.GetName())
+		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
 
 	err = b.seedOrderBook()
@@ -76,7 +76,7 @@ func (b *Bitstamp) WsHandleData() {
 			switch wsResponse.Event {
 			case "bts:request_reconnect":
 				if b.Verbose {
-					log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.GetName())
+					log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.Name)
 				}
 				go b.Websocket.Shutdown() // Connection monitor will reconnect
 
@@ -89,7 +89,7 @@ func (b *Bitstamp) WsHandleData() {
 				}
 
 				currencyPair := strings.Split(wsResponse.Channel, "_")
-				p := currency.NewPairFromString(strings.ToUpper(currencyPair[3]))
+				p := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
 
 				err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, asset.Spot)
 				if err != nil {
@@ -113,7 +113,7 @@ func (b *Bitstamp) WsHandleData() {
 					Price:        wsTradeTemp.Data.Price,
 					Amount:       wsTradeTemp.Data.Amount,
 					CurrencyPair: p,
-					Exchange:     b.GetName(),
+					Exchange:     b.Name,
 					AssetType:    asset.Spot,
 				}
 			}
@@ -122,7 +122,7 @@ func (b *Bitstamp) WsHandleData() {
 }
 
 func (b *Bitstamp) generateDefaultSubscriptions() {
-	var channels = []string{"live_trades_", "diff_order_book_"}
+	var channels = []string{"live_trades_", "order_book_"}
 	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
@@ -163,47 +163,45 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 	}
 
 	var asks, bids []orderbook.Item
-	if len(update.Asks) > 0 {
-		for i := range update.Asks {
-			target, err := strconv.ParseFloat(update.Asks[i][0], 64)
-			if err != nil {
-				b.Websocket.DataHandler <- err
-				continue
-			}
-
-			amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
-			if err != nil {
-				b.Websocket.DataHandler <- err
-				continue
-			}
-
-			asks = append(asks, orderbook.Item{Price: target, Amount: amount})
+	for i := range update.Asks {
+		target, err := strconv.ParseFloat(update.Asks[i][0], 64)
+		if err != nil {
+			b.Websocket.DataHandler <- err
+			continue
 		}
+
+		amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
+		if err != nil {
+			b.Websocket.DataHandler <- err
+			continue
+		}
+
+		asks = append(asks, orderbook.Item{Price: target, Amount: amount})
 	}
 
-	if len(update.Bids) > 0 {
-		for i := range update.Bids {
-			target, err := strconv.ParseFloat(update.Bids[i][0], 64)
-			if err != nil {
-				b.Websocket.DataHandler <- err
-				continue
-			}
-
-			amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
-			if err != nil {
-				b.Websocket.DataHandler <- err
-				continue
-			}
-
-			bids = append(bids, orderbook.Item{Price: target, Amount: amount})
+	for i := range update.Bids {
+		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
+		if err != nil {
+			b.Websocket.DataHandler <- err
+			continue
 		}
+
+		amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
+		if err != nil {
+			b.Websocket.DataHandler <- err
+			continue
+		}
+
+		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 	}
-	err := b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+
+	err := b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Bids:         bids,
 		Asks:         asks,
-		CurrencyPair: p,
-		UpdateID:     update.Timestamp,
+		Pair:         p,
+		LastUpdated:  time.Unix(update.Timestamp, 0),
 		AssetType:    asset.Spot,
+		ExchangeName: b.Name,
 	})
 	if err != nil {
 		return err
@@ -212,7 +210,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    assetType,
-		Exchange: b.GetName(),
+		Exchange: b.Name,
 	}
 
 	return nil
@@ -247,7 +245,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Bids = bids
 		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = asset.Spot
-		newOrderBook.ExchangeName = b.GetName()
+		newOrderBook.ExchangeName = b.Name
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
@@ -257,7 +255,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     p[x],
 			Asset:    asset.Spot,
-			Exchange: b.GetName(),
+			Exchange: b.Name,
 		}
 	}
 	return nil

@@ -58,11 +58,11 @@ func (p *Poloniex) SetDefaults() {
 		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
+			Delimiter: delimiterUnderscore,
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
+			Delimiter: delimiterUnderscore,
 			Uppercase: true,
 		},
 	}
@@ -163,7 +163,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 
 	p.Websocket.Orderbook.Setup(
 		exch.WebsocketOrderbookBufferLimit,
-		true,
+		false,
 		true,
 		true,
 		false,

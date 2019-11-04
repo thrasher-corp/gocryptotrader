@@ -73,6 +73,11 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 		return err
 	}
 
+	// If no pairs enabled in config just continue
+	if pairs == "" {
+		return nil
+	}
+
 	var allThePairs Pairs
 	for _, data := range strings.Split(pairs, ",") {
 		allThePairs = append(allThePairs, NewPairFromString(data))

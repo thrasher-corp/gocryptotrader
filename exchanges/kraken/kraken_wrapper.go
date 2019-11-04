@@ -74,7 +74,7 @@ func (k *Kraken) SetDefaults() {
 	k.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
-			Websocket: false,
+			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,

@@ -230,6 +230,16 @@ func (e *Base) GetAssetTypes() asset.Items {
 	return e.CurrencyPairs.AssetTypes
 }
 
+// GetPairAssetType returns the associated asset type for the currency pair
+func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
+	for i := range e.GetAssetTypes() {
+		if e.GetEnabledPairs(e.GetAssetTypes()[i]).Contains(c, true) {
+			return e.GetAssetTypes()[i], nil
+		}
+	}
+	return "", errors.New("asset type not associated with currency pair")
+}
+
 // GetClientBankAccounts returns banking details associated with
 // a client for withdrawal purposes
 func (e *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (config.BankAccount, error) {

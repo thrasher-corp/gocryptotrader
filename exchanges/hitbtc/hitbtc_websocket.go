@@ -284,11 +284,11 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 	p := currency.NewPairFromFormattedPairs(update.Params.Symbol,
 		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
 	err := h.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-		Asks:         asks,
-		Bids:         bids,
-		CurrencyPair: p,
-		UpdateID:     update.Params.Sequence,
-		AssetType:    asset.Spot,
+		Asks:     asks,
+		Bids:     bids,
+		Pair:     p,
+		UpdateID: update.Params.Sequence,
+		Asset:    asset.Spot,
 	})
 	if err != nil {
 		return err
