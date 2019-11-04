@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	gateioWebsocketEndpoint  = "wss://ws.gate.io/v3/"
+	gateioWebsocketEndpoint  = "wss://ws.gateio.ws/v3/"
 	gatioWsMethodPing        = "ping"
 	gateioWebsocketRateLimit = 120
 )

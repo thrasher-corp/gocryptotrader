@@ -106,14 +106,14 @@ const (
 
 // Detail holds order detail data
 type Detail struct {
-	Exchange     string
-	AccountID    string
-	ID           string
-	CurrencyPair currency.Pair
-	OrderSide    Side
-	OrderType    Type
-	OrderDate    time.Time
-	Status
+	Exchange        string
+	AccountID       string
+	ID              string
+	CurrencyPair    currency.Pair
+	OrderSide       Side
+	OrderType       Type
+	OrderDate       time.Time
+	Status          Status
 	Price           float64
 	Amount          float64
 	ExecutedAmount  float64
@@ -124,13 +124,13 @@ type Detail struct {
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
-	Timestamp time.Time
-	TID       int64
-	Price     float64
-	Amount    float64
-	Exchange  string
-	Type
-	Side
+	Timestamp   time.Time
+	TID         int64
+	Price       float64
+	Amount      float64
+	Exchange    string
+	Type        Type
+	Side        Side
 	Fee         float64
 	Description string
 }
@@ -142,7 +142,7 @@ type Cancel struct {
 	CurrencyPair  currency.Pair
 	AssetType     asset.Item
 	WalletAddress string
-	Side
+	Side          Side
 }
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
