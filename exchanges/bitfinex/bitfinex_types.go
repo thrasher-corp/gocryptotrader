@@ -426,7 +426,11 @@ type WebsocketPosition struct {
 	Amount            float64
 	Price             float64
 	MarginFunding     float64
-	MarginFundingType int
+	MarginFundingType int64
+	ProfitLoss        float64
+	ProfitLossPercent float64
+	LiquidationPrice  float64
+	Leverage          float64
 }
 
 // WebsocketWallet holds wallet information
@@ -469,6 +473,9 @@ type WebsocketTradeData struct {
 	OrderID        int64
 	AmountExecuted float64
 	PriceExecuted  float64
+	OrderType      string
+	OrderPrice     float64
+	Maker          float64
 	Fee            float64
 	FeeCurrency    string
 }
@@ -518,7 +525,6 @@ const (
 	websocketWalletSnapshot                = "ws"
 	websocketWalletUpdate                  = "wu"
 	websocketOrderSnapshot                 = "os"
-	websocketTradeExecuted                 = "te"
 	websocketTradeExecutionUpdate          = "tu"
 	ts                                     = "ts"
 	fos                                    = "fos"
@@ -540,4 +546,7 @@ type WsAuthRequest struct {
 	AuthSig       string `json:"authSig"`
 	AuthNonce     string `json:"authNonce"`
 	DeadManSwitch int64  `json:"dms,omitempty"`
+}
+
+type WsPositionSnapshot struct {
 }

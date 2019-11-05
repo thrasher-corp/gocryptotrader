@@ -126,7 +126,7 @@ func (b *Bitfinex) WsDataHandler() {
 					}
 					if len(chanData) == 2 {
 						if reflect.TypeOf(chanData[1]).String() == "string" {
-							if chanData[1].(string) == bitfinexWebsocketHeartbeat {
+							if chanData[1].(string) == websocketHeartbeat {
 								continue
 							} else if chanData[1].(string) == "pong" {
 								pongReceive <- struct{}{}
@@ -266,17 +266,67 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 						}
 					case websocketPositionSnapshot:
-					case websocketPositionNew:
-					case websocketPositionUpdate:
-					case websocketPositionClose:
+						var snapshot []WebsocketPosition
+						if snapBundle, ok := chanData[1].([]interface{}); ok && len(snapBundle) > 0 {
+							if _, ok := snapBundle[0].([]interface{}); ok {
+								for i := range snapBundle {
+									positionData := snapBundle[i].([]interface{})
+									position := WebsocketPosition{
+										Pair:              positionData[0].(string),
+										Status:            positionData[1].(string),
+										Amount:            positionData[2].(float64),
+										Price:             positionData[3].(float64),
+										MarginFunding:     positionData[4].(float64),
+										MarginFundingType: int64(positionData[5].(float64)),
+										ProfitLoss:        positionData[6].(float64),
+										ProfitLossPercent: positionData[7].(float64),
+										LiquidationPrice:  positionData[8].(float64),
+										Leverage:          positionData[9].(float64),
+									}
+									snapshot = append(snapshot, position)
+								}
+								b.Websocket.DataHandler <- snapshot
+							}
+						}
+					case websocketPositionNew, websocketPositionUpdate, websocketPositionClose:
+						if positionData, ok := chanData[1].([]interface{}); ok && len(positionData) > 0 {
+							position := WebsocketPosition{
+								Pair:              positionData[0].(string),
+								Status:            positionData[1].(string),
+								Amount:            positionData[2].(float64),
+								Price:             positionData[3].(float64),
+								MarginFunding:     positionData[4].(float64),
+								MarginFundingType: int64(positionData[5].(float64)),
+								ProfitLoss:        positionData[6].(float64),
+								ProfitLossPercent: positionData[7].(float64),
+								LiquidationPrice:  positionData[8].(float64),
+								Leverage:          positionData[9].(float64),
+							}
+							b.Websocket.DataHandler <- position
+						}
 					case websocketWalletSnapshot:
 					case websocketWalletUpdate:
 					case websocketOrderSnapshot:
 					case websocketOrderNew:
 					case websocketOrderUpdate:
 					case websocketOrderCancel:
-					case websocketTradeExecuted:
 					case websocketTradeExecutionUpdate:
+						if tradeData, ok := chanData[1].([]interface{}); ok && len(tradeData) > 0 {
+							trade := WebsocketTradeData{
+								TradeID:        int64(tradeData[0].(float64)),
+								Pair:           tradeData[1].(string),
+								Timestamp:      int64(tradeData[2].(float64)),
+								OrderID:        int64(tradeData[3].(float64)),
+								AmountExecuted: tradeData[4].(float64),
+								PriceExecuted:  tradeData[5].(float64),
+								OrderType:      tradeData[6].(string),
+								OrderPrice:     tradeData[7].(float64),
+								Maker:          tradeData[8].(float64),
+								Fee:            tradeData[9].(float64),
+								FeeCurrency:    tradeData[10].(string),
+							}
+							b.Websocket.DataHandler <- trade
+						}
 					case websocketOrdersCancel:
 					case ts:
 					case fos:
