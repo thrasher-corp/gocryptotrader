@@ -215,7 +215,11 @@ func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, client
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
 	params.Set("clientId", clientID)
-	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, coinbenePlaceOrder, params, &resp)
+	return resp, c.SendAuthHTTPRequest(http.MethodPost,
+		path,
+		coinbenePlaceOrder,
+		params,
+		&resp)
 }
 
 // FetchOrderInfo gets order info
