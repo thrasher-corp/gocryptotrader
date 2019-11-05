@@ -101,9 +101,7 @@ func (c *Coinbene) WsDataHandler() {
 			}
 			_, ok := result[event]
 			switch {
-			case ok && result[event].(string) == "subscribe":
-				continue
-			case ok && result[event].(string) == "unsubscribe":
+			case ok && (result[event].(string) == "subscribe" || result[event].(string) == "unsubscribe"):
 				continue
 			case ok && result[event].(string) == "error":
 				c.Websocket.DataHandler <- fmt.Errorf("message: %s. code: %v", result["message"], result["code"])
