@@ -109,6 +109,7 @@ func (c *Coinbene) WsDataHandler() {
 			}
 			if ok && strings.Contains(result[event].(string), "login") {
 				if result["success"].(bool) {
+					c.Websocket.SetCanUseAuthenticatedEndpoints(true)
 					c.GenerateAuthSubs()
 					continue
 				}
