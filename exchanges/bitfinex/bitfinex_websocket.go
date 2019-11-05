@@ -267,7 +267,7 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 					case websocketPositionSnapshot:
 						var snapshot []WebsocketPosition
-						if snapBundle, ok := chanData[1].([]interface{}); ok && len(snapBundle) > 0 {
+						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 							if _, ok := snapBundle[0].([]interface{}); ok {
 								for i := range snapBundle {
 									positionData := snapBundle[i].([]interface{})
@@ -289,7 +289,7 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 						}
 					case websocketPositionNew, websocketPositionUpdate, websocketPositionClose:
-						if positionData, ok := chanData[1].([]interface{}); ok && len(positionData) > 0 {
+						if positionData, ok := chanData[2].([]interface{}); ok && len(positionData) > 0 {
 							position := WebsocketPosition{
 								Pair:              positionData[0].(string),
 								Status:            positionData[1].(string),
@@ -305,8 +305,8 @@ func (b *Bitfinex) WsDataHandler() {
 							b.Websocket.DataHandler <- position
 						}
 					case websocketTradeExecutionUpdate:
-						if tradeData, ok := chanData[1].([]interface{}); ok && len(tradeData) > 0 {
-							trade := WebsocketTradeData{
+						if tradeData, ok := chanData[2].([]interface{}); ok && len(tradeData) > 0 {
+							b.Websocket.DataHandler <- WebsocketTradeData{
 								TradeID:        int64(tradeData[0].(float64)),
 								Pair:           tradeData[1].(string),
 								Timestamp:      int64(tradeData[2].(float64)),
@@ -319,11 +319,10 @@ func (b *Bitfinex) WsDataHandler() {
 								Fee:            tradeData[9].(float64),
 								FeeCurrency:    tradeData[10].(string),
 							}
-							b.Websocket.DataHandler <- trade
 						}
 					case fos:
 						var snapshot []WsFundingOffer
-						if snapBundle, ok := chanData[1].([]interface{}); ok && len(snapBundle) > 0 {
+						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 							if _, ok := snapBundle[0].([]interface{}); ok {
 								for i := range snapBundle {
 									data := snapBundle[i].([]interface{})
@@ -351,8 +350,8 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 						}
 					case "fon", "fou", "foc":
-						if data, ok := chanData[1].([]interface{}); ok && len(data) > 0 {
-							snapshot := WsFundingOffer{
+						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+							b.Websocket.DataHandler <- WsFundingOffer{
 								ID:         int64(data[0].(float64)),
 								Symbol:     data[1].(string),
 								Created:    int64(data[2].(float64)),
@@ -370,11 +369,10 @@ func (b *Bitfinex) WsDataHandler() {
 								Renew:      data[19].(float64) == 1,
 								RateReal:   data[20].(float64),
 							}
-							b.Websocket.DataHandler <- snapshot
 						}
 					case fcs:
 						var snapshot []WsCredit
-						if snapBundle, ok := chanData[1].([]interface{}); ok && len(snapBundle) > 0 {
+						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 							if _, ok := snapBundle[0].([]interface{}); ok {
 								for i := range snapBundle {
 									data := snapBundle[i].([]interface{})
@@ -405,8 +403,8 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 						}
 					case "fcn", "fcu", "fcc":
-						if data, ok := chanData[1].([]interface{}); ok && len(data) > 0 {
-							credit := WsCredit{
+						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+							b.Websocket.DataHandler <- WsCredit{
 								ID:           int64(data[0].(float64)),
 								Symbol:       data[1].(string),
 								Side:         data[2].(string),
@@ -427,11 +425,10 @@ func (b *Bitfinex) WsDataHandler() {
 								NoClose:      data[20].(float64) == 1,
 								PositionPair: data[21].(string),
 							}
-							b.Websocket.DataHandler <- credit
 						}
 					case "fls":
 						var snapshot []WsCredit
-						if snapBundle, ok := chanData[1].([]interface{}); ok && len(snapBundle) > 0 {
+						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 							if _, ok := snapBundle[0].([]interface{}); ok {
 								for i := range snapBundle {
 									data := snapBundle[i].([]interface{})
@@ -461,8 +458,8 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 						}
 					case "fln", "flu", "flc":
-						if data, ok := chanData[1].([]interface{}); ok && len(data) > 0 {
-							loan := WsCredit{
+						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+							b.Websocket.DataHandler <- WsCredit{
 								ID:         int64(data[0].(float64)),
 								Symbol:     data[1].(string),
 								Side:       data[2].(string),
@@ -482,11 +479,10 @@ func (b *Bitfinex) WsDataHandler() {
 								RateReal:   data[19].(float64),
 								NoClose:    data[20].(float64) == 1,
 							}
-							b.Websocket.DataHandler <- loan
 						}
 					case "ws":
 						var snapshot []WsWallet
-						if snapBundle, ok := chanData[1].([]interface{}); ok && len(snapBundle) > 0 {
+						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 							if _, ok := snapBundle[0].([]interface{}); ok {
 								for i := range snapBundle {
 									data := snapBundle[i].([]interface{})
@@ -507,27 +503,64 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 						}
 					case "wu":
-						if data, ok := chanData[1].([]interface{}); ok && len(data) > 0 {
+						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 							var balanceAvailable float64
 							if _, ok := data[4].(float64); ok {
 								balanceAvailable = data[4].(float64)
 							}
-							wallet := WsWallet{
+							b.Websocket.DataHandler <- WsWallet{
 								Type:              data[0].(string),
 								Currency:          data[1].(string),
 								Balance:           data[2].(float64),
 								UnsettledInterest: data[3].(float64),
 								BalanceAvailable:  balanceAvailable,
 							}
-							b.Websocket.DataHandler <- wallet
 						}
 					case "bu":
-						if data, ok := chanData[1].([]interface{}); ok && len(data) > 0 {
-							bi := WsBalanceInfo{
+						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+							b.Websocket.DataHandler <- WsBalanceInfo{
 								TotalAssetsUnderManagement: data[0].(float64),
 								NetAssetsUnderManagement:   data[1].(float64),
 							}
-							b.Websocket.DataHandler <- bi
+						}
+					case "miu":
+						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+							if data[0].(string) == "base" {
+								if infoBase, ok := chanData[2].([]interface{}); ok && len(infoBase) > 0 {
+									baseData := data[1].([]interface{})
+									b.Websocket.DataHandler <- WsMarginInfoBase{
+										UserProfitLoss: baseData[0].(float64),
+										UserSwaps:      baseData[1].(float64),
+										MarginBalance:  baseData[2].(float64),
+										MarginNet:      baseData[3].(float64),
+									}
+								}
+							}
+						}
+					case "fiu":
+						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+							if data[0].(string) == "sym" {
+								symbolData := data[1].([]interface{})
+								b.Websocket.DataHandler <- WsFundingInfo{
+									YieldLoan:    symbolData[0].(float64),
+									YieldLend:    symbolData[1].(float64),
+									DurationLoan: symbolData[2].(float64),
+									DurationLend: symbolData[3].(float64),
+								}
+							}
+						}
+					case "fte", "ftu":
+						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+							b.Websocket.DataHandler <- WsFundingTrade{
+								ID:         int64(data[0].(float64)),
+								Symbol:     data[1].(string),
+								MTSCreated: int64(data[2].(float64)),
+								OfferID:    int64(data[3].(float64)),
+								Amount:     data[4].(float64),
+								Rate:       data[5].(float64),
+								Period:     int64(data[6].(float64)),
+								Maker:      data[7].(float64) == 1,
+							}
 						}
 					}
 				}

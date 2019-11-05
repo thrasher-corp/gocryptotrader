@@ -601,3 +601,29 @@ type WsBalanceInfo struct {
 	TotalAssetsUnderManagement float64
 	NetAssetsUnderManagement   float64
 }
+
+type WsFundingInfo struct {
+	Symbol       string
+	YieldLoan    float64
+	YieldLend    float64
+	DurationLoan float64
+	DurationLend float64
+}
+
+type WsMarginInfoBase struct {
+	UserProfitLoss float64
+	UserSwaps      float64
+	MarginBalance  float64
+	MarginNet      float64
+}
+
+type WsFundingTrade struct {
+	ID         int64
+	Symbol     string
+	MTSCreated int64
+	OfferID    int64
+	Amount     float64
+	Rate       float64
+	Period     int64
+	Maker      bool
+}
