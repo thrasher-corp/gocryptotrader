@@ -1435,7 +1435,17 @@
     "uppercase": true,
     "delimiter": "/"
    },
-   "bankAccounts": null
+   "bankAccounts": [
+    {
+     "bankName": "",
+     "bankAddress": "",
+     "accountName": "",
+     "accountNumber": "",
+     "swiftCode": "",
+     "iban": "",
+     "supportedCurrencies": ""
+    }
+   ]
   }
  ],
  "bankAccounts": [
