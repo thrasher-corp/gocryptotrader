@@ -37,7 +37,8 @@ func (c *Coinbene) WsConnect() error {
 	if c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = c.Login()
 		if err != nil {
-			return err
+			c.Websocket.DataHandler <- err
+			c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	c.GenerateDefaultSubscriptions()
