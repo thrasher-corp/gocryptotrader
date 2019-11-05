@@ -293,7 +293,7 @@ func (c *Coinbene) WsDataHandler() {
 				}
 				c.Websocket.DataHandler <- orders
 			default:
-				c.Websocket.DataHandler <- fmt.Errorf("unhandled response '%s'", stream.Raw)
+				c.Websocket.DataHandler <- fmt.Errorf("%s - unhandled response '%s'", c.Name, stream.Raw)
 			}
 		}
 	}

@@ -380,7 +380,7 @@ func (c *Coinbene) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 	case false:
 		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.Data.TakerFeeRate
 	}
-	return fee, common.ErrFunctionNotSupported
+	return fee, nil
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
