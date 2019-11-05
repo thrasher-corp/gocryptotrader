@@ -1424,7 +1424,7 @@
    "websocketUrl": "",
    "availablePairs": "BTC/USDT",
    "enabledPairs": "BTC/USDT",
-   "baseCurrencies": "USDT",
+   "baseCurrencies": "USD",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": true,
    "configCurrencyPairFormat": {
