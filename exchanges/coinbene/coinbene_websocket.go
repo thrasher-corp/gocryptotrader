@@ -110,6 +110,7 @@ func (c *Coinbene) WsDataHandler() {
 			if ok && strings.Contains(result[event].(string), "login") {
 				if result["success"].(bool) {
 					c.GenerateAuthSubs()
+					continue
 				}
 				c.AuthenticatedWebsocketAPISupport = false
 				c.Websocket.DataHandler <- fmt.Errorf("message: %s. code: %v", result["message"], result["code"])
