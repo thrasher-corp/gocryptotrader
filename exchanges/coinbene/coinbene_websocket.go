@@ -35,7 +35,10 @@ func (c *Coinbene) WsConnect() error {
 	}
 	go c.WsDataHandler()
 	if c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		c.Login()
+		err = c.Login()
+		if err != nil {
+			return err
+		}
 	}
 	c.GenerateDefaultSubscriptions()
 
