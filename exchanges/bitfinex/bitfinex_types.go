@@ -475,7 +475,7 @@ type WebsocketTradeData struct {
 	PriceExecuted  float64
 	OrderType      string
 	OrderPrice     float64
-	Maker          float64
+	Maker          bool
 	Fee            float64
 	FeeCurrency    string
 }
@@ -548,5 +548,56 @@ type WsAuthRequest struct {
 	DeadManSwitch int64  `json:"dms,omitempty"`
 }
 
-type WsPositionSnapshot struct {
+type WsFundingOffer struct {
+	ID         int64
+	Symbol     string
+	Created    int64
+	Updated    int64
+	Amount     float64
+	AmountOrig float64
+	Type       string
+	Flags      interface{}
+	Status     string
+	Rate       float64
+	Period     int64
+	Notify     bool
+	Hidden     bool
+	Insure     bool
+	Renew      bool
+	RateReal   float64
+}
+
+type WsCredit struct {
+	ID           int64
+	Symbol       string
+	Side         string
+	Created      int64
+	Updated      int64
+	Amount       float64
+	Flags        interface{}
+	Status       string
+	Rate         float64
+	Period       int64
+	Opened       int64
+	LastPayout   int64
+	Notify       bool
+	Hidden       bool
+	Insure       bool
+	Renew        bool
+	RateReal     float64
+	NoClose      bool
+	PositionPair string
+}
+
+type WsWallet struct {
+	Type              string
+	Currency          string
+	Balance           float64
+	UnsettledInterest float64
+	BalanceAvailable  float64
+}
+
+type WsBalanceInfo struct {
+	TotalAssetsUnderManagement float64
+	NetAssetsUnderManagement   float64
 }
