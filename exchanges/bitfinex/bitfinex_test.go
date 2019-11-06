@@ -992,8 +992,7 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request.
-func TestWsAuth(t *testing.T) {
+func setupWs(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	b.Verbose = true
@@ -1016,7 +1015,12 @@ func TestWsAuth(t *testing.T) {
 	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go b.WsReadData(b.AuthenticatedWebsocketConn)
 	go b.WsDataHandler()
-	err = b.WsSendAuth()
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	setupWs(t)
+	err := b.WsSendAuth()
 	if err != nil {
 		t.Error(err)
 	}
@@ -1034,29 +1038,8 @@ func TestWsAuth(t *testing.T) {
 
 // TestWsAuth dials websocket, sends login request.
 func TestWsPlaceOrder(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-	b.Verbose = true
-	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
-	}
-	b.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         b.Name,
-		URL:                  authenticatedBitfinexWebsocketEndpoint,
-		Verbose:              b.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
-	var dialer websocket.Dialer
-	err := b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go b.WsReadData(b.AuthenticatedWebsocketConn)
-	go b.WsDataHandler()
-	err = b.WsSendAuth()
+	setupWs(t)
+	err := b.WsSendAuth()
 	if err != nil {
 		t.Error(err)
 	}
@@ -1070,6 +1053,11 @@ func TestWsPlaceOrder(t *testing.T) {
 		t.Error("Have not received a response")
 	}
 	timer.Stop()
-	b.WsNewOrder("", "", "", 0, 0)
-	time.Sleep(5 * time.Second)
+	resp, err := b.WsNewOrder("tBTCUSD", "MARKET", "BUY", 10, 10)
+	if err != nil {
+		t.Error(err)
+	}
+	if resp == "" {
+		t.Error("Something went wrong")
+	}
 }

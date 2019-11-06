@@ -641,10 +641,10 @@ type WsRequestBody struct {
 type WsNewOrderRequest struct {
 	GroupID             int64   `json:"gid,omitempty"`
 	CustomID            int64   `json:"cid,omitempty"`
-	Type                string  `json:"type,omitempty"`
-	Symbol              string  `json:"symbol,omitempty"`
-	Amount              float64 `json:"amount,omitempty"`
-	Price               float64 `json:"price,omitempty"`
+	Type                string  `json:"type"`
+	Symbol              string  `json:"symbol"`
+	Amount              float64 `json:"amount"`
+	Price               float64 `json:"price"`
 	Leverage            int64   `json:"lev,omitempty"`
 	TrailingPrice       float64 `json:"price_trailing,omitempty"`
 	AuxiliaryLimitPrice float64 `json:"price_aux_limit,omitempty"`
