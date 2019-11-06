@@ -242,6 +242,7 @@ func (c *Coinbene) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	if err != nil {
 		return resp, err
 	}
+	resp.Price = tempResp.Order.OrderPrice
 	resp.OrderDate = t
 	resp.ExecutedAmount = tempResp.Order.FilledAmount
 	resp.Fee = tempResp.Order.TotalFee
@@ -310,7 +311,7 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 			}
 			tempResp.OrderDate = t
 			tempResp.Status = tempData.OpenOrders[y].OrderStatus
-			tempResp.Price = tempData.OpenOrders[y].AvgPrice
+			tempResp.Price = tempData.OpenOrders[y].OrderPrice
 			tempResp.Amount = tempData.OpenOrders[y].Amount
 			tempResp.ExecutedAmount = tempData.OpenOrders[y].FilledAmount
 			tempResp.RemainingAmount = tempData.OpenOrders[y].Amount - tempData.OpenOrders[y].FilledAmount
@@ -356,7 +357,7 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 			}
 			tempResp.OrderDate = t
 			tempResp.Status = tempData.Data[y].OrderStatus
-			tempResp.Price = tempData.Data[y].AvgPrice
+			tempResp.Price = tempData.Data[y].OrderPrice
 			tempResp.Amount = tempData.Data[y].Amount
 			tempResp.ExecutedAmount = tempData.Data[y].FilledAmount
 			tempResp.RemainingAmount = tempData.Data[y].Amount - tempData.Data[y].FilledAmount
