@@ -94,6 +94,7 @@ type OrderInfoData struct {
 	TakerRate    float64 `json:"takerFeeRate,string"`
 	MakerRate    float64 `json:"makerRate,string"`
 	AvgPrice     float64 `json:"avgPrice,string"`
+	OrderPrice   float64 `json:"orderPrice,string"`
 	OrderStatus  string  `json:"orderStatus"`
 	OrderTime    string  `json:"orderTime"`
 	TotalFee     float64 `json:"totalFee"`
