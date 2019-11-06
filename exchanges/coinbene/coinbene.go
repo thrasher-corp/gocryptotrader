@@ -30,8 +30,6 @@ const (
 	coinbeneAPIURL     = "https://openapi-exchange.coinbene.com/api/exchange/"
 	coinbeneAuthPath   = "/api/exchange/v2"
 	coinbeneAPIVersion = "v2"
-	buy                = "buy"
-	sell               = "sell"
 
 	// Public endpoints
 	coinbeneFetchTicker    = "/market/ticker/one"
