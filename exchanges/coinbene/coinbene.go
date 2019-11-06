@@ -218,7 +218,17 @@ func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, client
 	path := c.APIUrl + coinbeneAPIVersion + coinbenePlaceOrder
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("direction", direction)
+
+	if direction == "sell" {
+		params.Set("direction", "2")
+	} else if direction == "buy" {
+		params.Set("direction", "1")
+	} else {
+		return resp,
+			fmt.Errorf("passed in direction %s is invalid must be 'buy' or 'sell'",
+				direction)
+	}
+
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
 	params.Set("clientId", clientID)
