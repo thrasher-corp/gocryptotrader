@@ -13,7 +13,8 @@ type TickerData struct {
 
 // TickerResponse stores ticker response data
 type TickerResponse struct {
-	Code       int64 `json:"code"`
+	Code       int64  `json:"code"`
+	Message    string `json:"message"`
 	TickerData `json:"data"`
 }
 
@@ -25,14 +26,16 @@ type Orderbook struct {
 
 // OrderbookResponse stores data from fetched orderbooks
 type OrderbookResponse struct {
-	Code      int64 `json:"code"`
+	Code      int64  `json:"code"`
+	Message   string `json:"message"`
 	Orderbook `json:"data"`
 }
 
 // TradeResponse stores trade data
 type TradeResponse struct {
-	Code   int64      `json:"code"`
-	Trades [][]string `json:"data"`
+	Code    int64      `json:"code"`
+	Message string     `json:"message"`
+	Trades  [][]string `json:"data"`
 }
 
 // AllPairData stores pair data
@@ -51,14 +54,16 @@ type AllPairData struct {
 
 // AllPairResponse stores data for all pairs enabled on exchange
 type AllPairResponse struct {
-	Code int64         `json:"code"`
-	Data []AllPairData `json:"data"`
+	Code    int64         `json:"code"`
+	Message string        `json:"message"`
+	Data    []AllPairData `json:"data"`
 }
 
 // PairResponse stores data for a single queried pair
 type PairResponse struct {
-	Code int64       `json:"code"`
-	Data AllPairData `json:"data"`
+	Code    int64       `json:"code"`
+	Message string      `json:"message"`
+	Data    AllPairData `json:"data"`
 }
 
 // UserBalanceData stores user balance data
@@ -71,12 +76,15 @@ type UserBalanceData struct {
 
 // UserBalanceResponse stores user balance data
 type UserBalanceResponse struct {
-	Code int64             `json:"code"`
-	Data []UserBalanceData `json:"data"`
+	Code    int64             `json:"code"`
+	Message string            `json:"message"`
+	Data    []UserBalanceData `json:"data"`
 }
 
 // PlaceOrderResponse stores data for a placed order
 type PlaceOrderResponse struct {
+	Code      int64  `json:"code"`
+	Message   string `json:"message"`
 	Status    string `json:"status"`
 	Timestamp int64  `json:"timestamp"`
 	OrderID   string `json:"orderid"`
@@ -102,26 +110,30 @@ type OrderInfoData struct {
 
 // OrderInfoResponse stores orderinfo data
 type OrderInfoResponse struct {
-	Order OrderInfoData `json:"data"`
-	Code  int64         `json:"code"`
+	Order   OrderInfoData `json:"data"`
+	Code    int64         `json:"code"`
+	Message string        `json:"message"`
 }
 
 // RemoveOrderResponse stores data for the remove request
 type RemoveOrderResponse struct {
 	Code    int64  `json:"code"`
+	Message string `json:"message"`
 	OrderID string `json:"data"`
 }
 
 // OpenOrderResponse stores data for open orders
 type OpenOrderResponse struct {
 	Code       int64           `json:"code"`
+	Message    string          `json:"message"`
 	OpenOrders []OrderInfoData `json:"data"`
 }
 
 // ClosedOrderResponse stores data for closed orders
 type ClosedOrderResponse struct {
-	Code int64           `json:"code"`
-	Data []OrderInfoData `json:"data"`
+	Code    int64           `json:"code"`
+	Message string          `json:"message"`
+	Data    []OrderInfoData `json:"data"`
 }
 
 // WsSub stores subscription data

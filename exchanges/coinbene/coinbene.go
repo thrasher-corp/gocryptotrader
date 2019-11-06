@@ -202,7 +202,14 @@ func (c *Coinbene) GetAllPairs() (AllPairResponse, error) {
 func (c *Coinbene) GetUserBalance() (UserBalanceResponse, error) {
 	var resp UserBalanceResponse
 	path := c.APIUrl + coinbeneAPIVersion + coinbeneGetUserBalance
-	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneGetUserBalance, nil, &resp)
+	err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneGetUserBalance, nil, &resp)
+	if err != nil {
+		return resp, err
+	}
+	if resp.Code != 200 {
+		return resp, fmt.Errorf(resp.Message)
+	}
+	return resp, nil
 }
 
 // PlaceOrder creates an order
@@ -215,11 +222,18 @@ func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, client
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
 	params.Set("clientId", clientID)
-	return resp, c.SendAuthHTTPRequest(http.MethodPost,
+	err := c.SendAuthHTTPRequest(http.MethodPost,
 		path,
 		coinbenePlaceOrder,
 		params,
 		&resp)
+	if err != nil {
+		return resp, err
+	}
+	if resp.Code != 200 {
+		return resp, fmt.Errorf(resp.Message)
+	}
+	return resp, nil
 }
 
 // FetchOrderInfo gets order info
@@ -231,6 +245,9 @@ func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfoResponse, error) {
 	err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOrderInfo, params, &resp)
 	if err != nil {
 		return resp, err
+	}
+	if resp.Code != 200 {
+		return resp, fmt.Errorf(resp.Message)
 	}
 	if resp.Order.OrderID != orderID {
 		return resp, fmt.Errorf("%s orderID doesn't match the returned orderID %s",
@@ -245,7 +262,14 @@ func (c *Coinbene) RemoveOrder(orderID string) (RemoveOrderResponse, error) {
 	params := url.Values{}
 	params.Set("orderId", orderID)
 	path := c.APIUrl + coinbeneAPIVersion + coinbeneRemoveOrder
-	return resp, c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneRemoveOrder, params, &resp)
+	err := c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneRemoveOrder, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+	if resp.Code != 200 {
+		return resp, fmt.Errorf(resp.Message)
+	}
+	return resp, nil
 }
 
 // FetchOpenOrders finds open orders
@@ -260,6 +284,9 @@ func (c *Coinbene) FetchOpenOrders(symbol string) (OpenOrderResponse, error) {
 		err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOpenOrders, params, &temp)
 		if err != nil {
 			return resp, err
+		}
+		if temp.Code != 200 {
+			return resp, fmt.Errorf(temp.Message)
 		}
 		for j := range temp.OpenOrders {
 			resp.OpenOrders = append(resp.OpenOrders, temp.OpenOrders[j])
@@ -285,6 +312,9 @@ func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (ClosedOrderRespon
 		err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOpenOrders, params, &temp)
 		if err != nil {
 			return resp, err
+		}
+		if temp.Code != 200 {
+			return resp, fmt.Errorf(temp.Message)
 		}
 		for j := range temp.Data {
 			resp.Data = append(resp.Data, temp.Data[j])
