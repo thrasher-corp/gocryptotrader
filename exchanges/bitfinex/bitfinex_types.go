@@ -627,6 +627,16 @@ type WsFundingTrade struct {
 	Period     int64
 	Maker      bool
 }
+type WsRequest struct {
+	Request []WsRequestBody
+}
+
+type WsRequestBody struct {
+	ChannelID                int64
+	ChannelName              string
+	SomethingThatsAlwaysNull interface{}
+	Data                     interface{}
+}
 
 type WsNewOrderRequest struct {
 	GroupID             int64   `json:"gid,omitempty"`

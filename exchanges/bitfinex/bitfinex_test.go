@@ -996,23 +996,25 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
+	b.Verbose = true
 	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	b.WebsocketConn = &wshandler.WebsocketConnection{
+	b.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         b.Name,
-		URL:                  b.Websocket.GetWebsocketURL(),
+		URL:                  authenticatedBitfinexWebsocketEndpoint,
 		Verbose:              b.Verbose,
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
-	err := b.WebsocketConn.Dial(&dialer, http.Header{})
+	err := b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go b.WsReadData(b.AuthenticatedWebsocketConn)
 	go b.WsDataHandler()
 	err = b.WsSendAuth()
 	if err != nil {
@@ -1028,4 +1030,46 @@ func TestWsAuth(t *testing.T) {
 		t.Error("Have not received a response")
 	}
 	timer.Stop()
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsPlaceOrder(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+	b.Verbose = true
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	b.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         b.Name,
+		URL:                  authenticatedBitfinexWebsocketEndpoint,
+		Verbose:              b.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	var dialer websocket.Dialer
+	err := b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go b.WsReadData(b.AuthenticatedWebsocketConn)
+	go b.WsDataHandler()
+	err = b.WsSendAuth()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resp := <-b.Websocket.DataHandler:
+		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {
+			t.Error("expected successful login")
+		}
+	case <-timer.C:
+		t.Error("Have not received a response")
+	}
+	timer.Stop()
+	b.WsNewOrder("", "", "", 0, 0)
+	time.Sleep(5 * time.Second)
 }

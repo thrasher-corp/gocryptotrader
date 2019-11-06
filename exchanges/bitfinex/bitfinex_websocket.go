@@ -21,6 +21,8 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
+var comms = make(chan wshandler.WebsocketResponse, 1)
+
 // WsConnect starts a new websocket connection
 func (b *Bitfinex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -32,6 +34,7 @@ func (b *Bitfinex) WsConnect() error {
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", b.Name, err)
 	}
+	go b.WsReadData(b.WebsocketConn)
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		err = b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
@@ -39,6 +42,7 @@ func (b *Bitfinex) WsConnect() error {
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
 			b.API.AuthenticatedWebsocketSupport = false
 		}
+		go b.WsReadData(b.AuthenticatedWebsocketConn)
 		err = b.WsSendAuth()
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -46,22 +50,29 @@ func (b *Bitfinex) WsConnect() error {
 		}
 	}
 
-	resp, err := b.WebsocketConn.ReadMessage()
-	if err != nil {
-		b.Websocket.ReadMessageErrors <- err
-		return fmt.Errorf("%v unable to read from Websocket. Error: %s", b.Name, err)
-	}
-	b.Websocket.TrafficAlert <- struct{}{}
-	var hs WebsocketHandshake
-	err = json.Unmarshal(resp.Raw, &hs)
-	if err != nil {
-		return err
-	}
-
 	b.GenerateDefaultSubscriptions()
-	pongReceive = make(chan struct{}, 1)
 	go b.WsDataHandler()
 	return nil
+}
+
+// WsReadData funnels both auth and public ws data into one manageable place
+func (b *Bitfinex) WsReadData(ws *wshandler.WebsocketConnection) {
+	b.Websocket.Wg.Add(1)
+	defer b.Websocket.Wg.Done()
+	for {
+		select {
+		case <-b.Websocket.ShutdownC:
+			return
+		default:
+			resp, err := ws.ReadMessage()
+			if err != nil {
+				b.Websocket.DataHandler <- err
+				return
+			}
+			b.Websocket.TrafficAlert <- struct{}{}
+			comms <- resp
+		}
+	}
 }
 
 // WsDataHandler handles data from WsReadData
@@ -74,12 +85,7 @@ func (b *Bitfinex) WsDataHandler() {
 		case <-b.Websocket.ShutdownC:
 			return
 		default:
-			stream, err := b.WebsocketConn.ReadMessage()
-			if err != nil {
-				b.Websocket.ReadMessageErrors <- err
-				return
-			}
-			b.Websocket.TrafficAlert <- struct{}{}
+			stream := <-comms
 			if stream.Type == websocket.TextMessage {
 				var result interface{}
 				err = json.Unmarshal(stream.Raw, &result)
@@ -129,7 +135,6 @@ func (b *Bitfinex) WsDataHandler() {
 							if chanData[1].(string) == websocketHeartbeat {
 								continue
 							} else if chanData[1].(string) == "pong" {
-								pongReceive <- struct{}{}
 								continue
 							}
 						}
@@ -742,7 +747,7 @@ func (b *Bitfinex) WsSendAuth() error {
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	}
-	err := b.WebsocketConn.SendMessage(request)
+	err := b.AuthenticatedWebsocketConn.SendMessage(request)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -773,8 +778,32 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 	}
 }
 
-func (b *Bitfinex) WsNewOrder() {
-	b.AuthenticatedWebsocketConn.SendMessage("")
+func (b *Bitfinex) WsNewOrder(currency, orderType, side string, amount, price float64) {
+	var request WsRequest
+	if strings.EqualFold(side, exchange.SellOrderSide.ToString()) {
+		amount = amount * -1
+	}
+	switch orderType {
+	case exchange.LimitOrderType.ToString():
+		orderType = "MARKET"
+	case exchange.LimitOrderType.ToString():
+		orderType = exchange.LimitOrderType.ToString()
+	default:
+		orderType = "MARKET" // ????????
+	}
+	request.Request = append(request.Request, WsRequestBody{
+		ChannelID:                0,
+		ChannelName:              "on",
+		SomethingThatsAlwaysNull: nil,
+		Data: WsNewOrderRequest{
+			CustomID: b.AuthenticatedWebsocketConn.GenerateMessageID(false),
+			Type:     orderType,
+			Symbol:   currency,
+			Amount:   amount,
+			Price:    price,
+		},
+	})
+	b.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
 func (b *Bitfinex) WsMultipleNewOrders() {
@@ -798,5 +827,4 @@ func (b *Bitfinex) WsNewOffer() {
 }
 func (b *Bitfinex) WsCancelOffer() {
 	b.AuthenticatedWebsocketConn.SendMessage("")
-
 }
