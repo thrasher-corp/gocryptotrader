@@ -1400,6 +1400,52 @@
      "supportedCurrencies": ""
     }
    ]
+  },
+  {
+   "name": "Coinbene",
+   "enabled": true,
+   "verbose": false,
+   "websocket": false,
+   "useSandbox": false,
+   "restPollingDelay": 10,
+   "httpTimeout": 0,
+   "websocketResponseCheckTimeout": 0,
+   "websocketResponseMaxLimit": 0,
+   "websocketOrderbookBufferLimit": 0,
+   "httpUserAgent": "",
+   "httpDebugging": false,
+   "authenticatedApiSupport": false,
+   "authenticatedWebsocketApiSupport": false,
+   "apiKey": "Key",
+   "apiSecret": "Secret",
+   "apiUrl": "",
+   "apiUrlSecondary": "",
+   "proxyAddress": "",
+   "websocketUrl": "",
+   "availablePairs": "BTC/USDT",
+   "enabledPairs": "BTC/USDT",
+   "baseCurrencies": "USD",
+   "assetTypes": "SPOT",
+   "supportsAutoPairUpdates": true,
+   "configCurrencyPairFormat": {
+    "uppercase": true,
+    "delimiter": "/"
+   },
+   "requestCurrencyPairFormat": {
+    "uppercase": true,
+    "delimiter": "/"
+   },
+   "bankAccounts": [
+    {
+     "bankName": "",
+     "bankAddress": "",
+     "accountName": "",
+     "accountNumber": "",
+     "swiftCode": "",
+     "iban": "",
+     "supportedCurrencies": ""
+    }
+   ]
   }
  ],
  "bankAccounts": [

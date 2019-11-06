@@ -130,19 +130,18 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 543 |
-| shazbert | https://github.com/shazbert | 174 |
-| gloriousCode | https://github.com/gloriousCode | 154 |
+| thrasher- | https://github.com/thrasher- | 548 |
+| shazbert | https://github.com/shazbert | 176 |
+| gloriousCode | https://github.com/gloriousCode | 155 |
 | xtda | https://github.com/xtda | 18 |
 | ermalguni | https://github.com/ermalguni | 14 |
-| xtda | https://github.com/xtda | 11 |
 | vadimzhukck | https://github.com/vadimzhukck | 10 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 8 |
 | cranktakular | https://github.com/cranktakular | 5 |
+| MadCozBadd | https://github.com/MadCozBadd | 3 |
 | leilaes | https://github.com/leilaes | 3 |
 | crackcomm | https://github.com/crackcomm | 3 |
-| MadCozBadd | https://github.com/MadCozBadd | 2 |
 | andreygrehov | https://github.com/andreygrehov | 2 |
 | bretep | https://github.com/bretep | 2 |
 | woshidama323 | https://github.com/woshidama323 | 2 |
@@ -166,3 +165,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | m1kola | https://github.com/m1kola | 1 |
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
 | zeldrinn | https://github.com/zeldrinn | 1 |
+
+

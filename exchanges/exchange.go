@@ -881,6 +881,9 @@ func (e *Base) SetAPIURL(ec *config.ExchangeConfig) error {
 	if ec.APIURL != config.APIURLNonDefaultMessage {
 		e.APIUrl = ec.APIURL
 	}
+	if !strings.Contains(e.APIUrl, "https") {
+		log.Warnf("%s is using HTTP instead of HTTPS for API functionality, an attacker could eavesdrop on this connection. Use at your own risk", e.Name)
+	}
 	if ec.APIURLSecondary != config.APIURLNonDefaultMessage {
 		e.APIUrlSecondary = ec.APIURLSecondary
 	}
