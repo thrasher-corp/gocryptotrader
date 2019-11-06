@@ -30,6 +30,8 @@ const (
 	coinbeneAPIURL     = "https://openapi-exchange.coinbene.com/api/exchange/"
 	coinbeneAuthPath   = "/api/exchange/v2"
 	coinbeneAPIVersion = "v2"
+	buy                = "buy"
+	sell               = "sell"
 
 	// Public endpoints
 	coinbeneFetchTicker    = "/market/ticker/one"
@@ -217,9 +219,9 @@ func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, client
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	switch direction {
-	case "sell":
+	case sell:
 		params.Set("direction", "2")
-	case "buy":
+	case buy:
 		params.Set("direction", "1")
 	default:
 		return resp,
