@@ -233,7 +233,8 @@ func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfoResponse, error) {
 		return resp, err
 	}
 	if resp.Order.OrderID != orderID {
-		return resp, fmt.Errorf("orderID provided doesn't exist")
+		return resp, fmt.Errorf("%s orderID doesn't match the returned orderID %s",
+			orderID, resp.Order.OrderID)
 	}
 	return resp, nil
 }
