@@ -309,7 +309,7 @@ func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (ClosedOrderRespon
 	for i := int64(1); ; i++ {
 		var temp ClosedOrderResponse
 		params.Set("pageNum", strconv.FormatInt(i, 10))
-		err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOpenOrders, params, &temp)
+		err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneClosedOrders, params, &temp)
 		if err != nil {
 			return resp, err
 		}
