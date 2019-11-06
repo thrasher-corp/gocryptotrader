@@ -627,3 +627,60 @@ type WsFundingTrade struct {
 	Period     int64
 	Maker      bool
 }
+
+type WsNewOrderRequest struct {
+	GroupID             int64   `json:"gid,omitempty"`
+	CustomID            int64   `json:"cid,omitempty"`
+	Type                string  `json:"type,omitempty"`
+	Symbol              string  `json:"symbol,omitempty"`
+	Amount              float64 `json:"amount,omitempty"`
+	Price               float64 `json:"price,omitempty"`
+	Leverage            int64   `json:"lev,omitempty"`
+	TrailingPrice       float64 `json:"price_trailing,omitempty"`
+	AuxiliaryLimitPrice float64 `json:"price_aux_limit,omitempty"`
+	StopPrice           float64 `json:"price_oco_stop,omitempty"`
+	Flags               int64   `json:"flags,omitempty"`
+	TimeInForce         string  `json:"tif,omitempty"`
+}
+
+type WsUpdateOrderRequest struct {
+	OrderID             int64   `json:"id,omitempty"`
+	CustomID            int64   `json:"cid,omitempty"`
+	CustomIDDate        string  `json:"cid_date,omitempty"`
+	GroupID             int64   `json:"gid,omitempty"`
+	Type                string  `json:"type,omitempty"`
+	Price               float64 `json:"price,omitempty"`
+	Amount              float64 `json:"amount,omitempty"`
+	Leverage            int64   `json:"lev,omitempty"`
+	Delta               float64 `json:"amount,omitempty"`
+	AuxiliaryLimitPrice float64 `json:"price_aux_limit,omitempty"`
+	TrailingPrice       float64 `json:"price_trailing,omitempty"`
+	Flags               int64   `json:"flags,omitempty"`
+	TimeInForce         string  `json:"tif,omitempty"`
+}
+
+type WsCancelOrderRequest struct {
+	OrderID      int64  `json:"id,omitempty"`
+	CustomID     int64  `json:"cid,omitempty"`
+	CustomIDDate string `json:"cid_date,omitempty"`
+}
+
+type WsCancelGroupOrdersRequest struct {
+	OrderID      int64  `json:"id,omitempty"`
+	CustomID     int64  `json:"cid,omitempty"`
+	CustomIDDate string `json:"cid_date,omitempty"`
+	GroupOrderID int64  `json:"gid,omitempty"`
+}
+
+type WsNewOfferRequest struct {
+	Type   string  `json:"type,omitempty"`
+	Symbol string  `json:"symbol,omitempty"`
+	Amount float64 `json:"amount,omitempty"`
+	Rate   float64 `json:"rate,omitempty"`
+	Period float64 `json:"period,omitempty"`
+	Flags  int64   `json:"flags,omitempty"`
+}
+
+type WsCancelOfferRequest struct {
+	OrderID int64 `json:"id,omitempty"`
+}

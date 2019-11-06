@@ -772,3 +772,31 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 			chanID)
 	}
 }
+
+func (b *Bitfinex) WsNewOrder() {
+	b.AuthenticatedWebsocketConn.SendMessage("")
+}
+
+func (b *Bitfinex) WsMultipleNewOrders() {
+	b.AuthenticatedWebsocketConn.SendMessage("")
+
+}
+
+func (b *Bitfinex) WsCancelOrder() {
+	b.AuthenticatedWebsocketConn.SendMessage("")
+
+}
+
+func (b *Bitfinex) WsCancelMultipleOrders() {
+	b.AuthenticatedWebsocketConn.SendMessage("")
+
+}
+
+func (b *Bitfinex) WsNewOffer() {
+	b.AuthenticatedWebsocketConn.SendMessage("")
+
+}
+func (b *Bitfinex) WsCancelOffer() {
+	b.AuthenticatedWebsocketConn.SendMessage("")
+
+}
