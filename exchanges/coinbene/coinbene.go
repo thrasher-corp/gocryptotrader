@@ -228,7 +228,14 @@ func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfoResponse, error) {
 	params := url.Values{}
 	params.Set("orderId", orderID)
 	path := c.APIUrl + coinbeneAPIVersion + coinbeneOrderInfo
-	return resp, c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOrderInfo, params, &resp)
+	err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOrderInfo, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+	if resp.Order.OrderID != orderID {
+		return resp, fmt.Errorf("orderID provided doesn't exist")
+	}
+	return resp, nil
 }
 
 // RemoveOrder removes a given order
