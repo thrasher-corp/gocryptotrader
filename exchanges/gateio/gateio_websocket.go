@@ -246,11 +246,11 @@ func (g *Gateio) WsHandleData() {
 				} else {
 					err = g.Websocket.Orderbook.Update(
 						&wsorderbook.WebsocketOrderbookUpdate{
-							Asks:         asks,
-							Bids:         bids,
-							CurrencyPair: currency.NewPairFromString(c),
-							UpdateTime:   time.Now(),
-							AssetType:    asset.Spot,
+							Asks:       asks,
+							Bids:       bids,
+							Pair:       currency.NewPairFromString(c),
+							UpdateTime: time.Now(),
+							Asset:      asset.Spot,
 						})
 					if err != nil {
 						g.Websocket.DataHandler <- err

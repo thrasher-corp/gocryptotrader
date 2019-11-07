@@ -488,18 +488,6 @@ func TestGetSpotTokenPairDetails(t *testing.T) {
 	}
 }
 
-// TestGetSpotOrderBook API endpoint test
-func TestGetSpotOrderBook(t *testing.T) {
-	TestSetDefaults(t)
-	request := okgroup.GetSpotOrderBookRequest{
-		InstrumentID: spotCurrency,
-	}
-	_, err := o.GetSpotOrderBook(request)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 // TestGetSpotAllTokenPairsInformation API endpoint test
 func TestGetSpotAllTokenPairsInformation(t *testing.T) {
 	TestSetDefaults(t)

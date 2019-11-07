@@ -68,9 +68,24 @@ func TestPairsFormat(t *testing.T) {
 
 func TestPairsUnmarshalJSON(t *testing.T) {
 	var unmarshalHere Pairs
-	configPairs := "btc_usd,btc_aud,btc_ltc"
-
+	configPairs := ""
 	encoded, err := common.JSONEncode(configPairs)
+	if err != nil {
+		t.Fatal("Pairs UnmarshalJSON() error", err)
+	}
+
+	err = common.JSONDecode([]byte{1, 3, 3, 7}, &unmarshalHere)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = common.JSONDecode(encoded, &unmarshalHere)
+	if err != nil {
+		t.Fatal("Pairs UnmarshalJSON() error", err)
+	}
+
+	configPairs = "btc_usd,btc_aud,btc_ltc"
+	encoded, err = common.JSONEncode(configPairs)
 	if err != nil {
 		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}

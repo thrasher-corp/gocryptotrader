@@ -236,12 +236,16 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	}
 
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids = append(newOrderBook.Bids,
-			orderbook.Item{Amount: orderbookNew.Bids[i].Quantity, Price: orderbookNew.Bids[i].Price})
+		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[i].Quantity,
+			Price:  orderbookNew.Bids[i].Price,
+		})
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks = append(newOrderBook.Asks,
-			orderbook.Item{Amount: orderbookNew.Asks[i].Quantity, Price: orderbookNew.Asks[i].Price})
+		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[i].Quantity,
+			Price:  orderbookNew.Asks[i].Price,
+		})
 	}
 
 	newOrderBook.LastUpdated = time.Unix(orderbookNew.LastUpdateID, 0)
@@ -256,38 +260,38 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 	var updateBid, updateAsk []orderbook.Item
 	for i := range wsdp.UpdateBids {
-		var priceToBeUpdated orderbook.Item
-		for i, bids := range wsdp.UpdateBids[i].([]interface{}) {
-			switch i {
-			case 0:
-				priceToBeUpdated.Price, _ = strconv.ParseFloat(bids.(string), 64)
-			case 1:
-				priceToBeUpdated.Amount, _ = strconv.ParseFloat(bids.(string), 64)
-			}
+		p, err := strconv.ParseFloat(wsdp.UpdateBids[i][0].(string), 64)
+		if err != nil {
+			return err
 		}
-		updateBid = append(updateBid, priceToBeUpdated)
+		a, err := strconv.ParseFloat(wsdp.UpdateBids[i][1].(string), 64)
+		if err != nil {
+			return err
+		}
+
+		updateBid = append(updateBid, orderbook.Item{Price: p, Amount: a})
 	}
 
 	for i := range wsdp.UpdateAsks {
-		var priceToBeUpdated orderbook.Item
-		for i, asks := range wsdp.UpdateAsks[i].([]interface{}) {
-			switch i {
-			case 0:
-				priceToBeUpdated.Price, _ = strconv.ParseFloat(asks.(string), 64)
-			case 1:
-				priceToBeUpdated.Amount, _ = strconv.ParseFloat(asks.(string), 64)
-			}
+		p, err := strconv.ParseFloat(wsdp.UpdateAsks[i][0].(string), 64)
+		if err != nil {
+			return err
 		}
-		updateAsk = append(updateAsk, priceToBeUpdated)
+		a, err := strconv.ParseFloat(wsdp.UpdateAsks[i][1].(string), 64)
+		if err != nil {
+			return err
+		}
+
+		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
 	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair, b.GetEnabledPairs(asset.Spot),
 		b.GetPairFormat(asset.Spot, true))
 
 	return b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-		Bids:         updateBid,
-		Asks:         updateAsk,
-		CurrencyPair: currencyPair,
-		UpdateID:     wsdp.LastUpdateID,
-		AssetType:    asset.Spot,
+		Bids:     updateBid,
+		Asks:     updateAsk,
+		Pair:     currencyPair,
+		UpdateID: wsdp.LastUpdateID,
+		Asset:    asset.Spot,
 	})
 }

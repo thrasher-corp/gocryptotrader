@@ -159,13 +159,6 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
 
-	b.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		true,
-		true,
-		true,
-		false,
-		exch.Name)
 	return nil
 }
 

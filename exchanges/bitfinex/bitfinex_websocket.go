@@ -166,9 +166,7 @@ func (b *Bitfinex) WsConnect() error {
 func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
 
-	defer func() {
-		b.Websocket.Wg.Done()
-	}()
+	defer b.Websocket.Wg.Done()
 
 	for {
 		select {
@@ -498,10 +496,10 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook) error {
 	orderbookUpdate := wsorderbook.WebsocketOrderbookUpdate{
-		Asks:         []orderbook.Item{},
-		Bids:         []orderbook.Item{},
-		AssetType:    assetType,
-		CurrencyPair: p,
+		Asks:  []orderbook.Item{},
+		Bids:  []orderbook.Item{},
+		Asset: assetType,
+		Pair:  p,
 	}
 
 	for i := 0; i < len(book); i++ {
@@ -548,6 +546,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 			params := make(map[string]interface{})
 			if channels[i] == "book" {
 				params["prec"] = "P0"
+				params["len"] = "100"
 			}
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel:  channels[i],

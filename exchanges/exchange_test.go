@@ -1176,6 +1176,13 @@ func TestSetAPIURL(t *testing.T) {
 	if tester.GetAPIURLSecondaryDefault() != testURLSecondaryDefault {
 		t.Error("incorrect return URL")
 	}
+
+	tester.Config.API.Endpoints.URL = "http://insecureino.com"
+	tester.Config.API.Endpoints.URLSecondary = tester.Config.API.Endpoints.URL
+	err = tester.SetAPIURL()
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func BenchmarkSetAPIURL(b *testing.B) {
@@ -1355,5 +1362,31 @@ func TestGetBase(t *testing.T) {
 
 	if b.Name != "rawr" {
 		t.Error("name should be rawr")
+	}
+}
+
+func TestGetAssetType(t *testing.T) {
+	var b Base
+	p := currency.NewPair(currency.BTC, currency.USD)
+	_, err := b.GetPairAssetType(p)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	b.CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Enabled: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USD),
+		},
+		ConfigFormat: &currency.PairFormat{Delimiter: "-"},
+	}
+
+	a, err := b.GetPairAssetType(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if a != asset.Spot {
+		t.Error("should be spot but is", a)
 	}
 }

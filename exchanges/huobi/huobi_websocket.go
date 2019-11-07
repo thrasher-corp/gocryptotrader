@@ -233,8 +233,14 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			h.Websocket.DataHandler <- err
 			return
 		}
+
 		data := strings.Split(depth.Channel, ".")
-		h.WsProcessOrderbook(&depth, data[1])
+		err = h.WsProcessOrderbook(&depth, data[1])
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+
 	case strings.Contains(init.Channel, "kline"):
 		var kline WsKline
 		err := common.JSONDecode(resp.Raw, &kline)
@@ -297,32 +303,41 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 // WsProcessOrderbook processes new orderbook data
 func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	p := currency.NewPairFromFormattedPairs(symbol,
-		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
+		h.GetEnabledPairs(asset.Spot),
+		h.GetPairFormat(asset.Spot, true))
+
 	var bids, asks []orderbook.Item
-	for i := 0; i < len(update.Tick.Bids); i++ {
-		bidLevel := update.Tick.Bids[i].([]interface{})
-		bids = append(bids, orderbook.Item{Price: bidLevel[0].(float64),
-			Amount: bidLevel[0].(float64)})
+	for i := range update.Tick.Bids {
+		bids = append(bids, orderbook.Item{
+			Price:  update.Tick.Bids[i][0].(float64),
+			Amount: update.Tick.Bids[i][1].(float64),
+		})
 	}
-	for i := 0; i < len(update.Tick.Asks); i++ {
-		askLevel := update.Tick.Asks[i].([]interface{})
-		asks = append(asks, orderbook.Item{Price: askLevel[0].(float64),
-			Amount: askLevel[0].(float64)})
+
+	for i := range update.Tick.Asks {
+		asks = append(asks, orderbook.Item{
+			Price:  update.Tick.Asks[i][0].(float64),
+			Amount: update.Tick.Asks[i][1].(float64),
+		})
 	}
+
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = p
+	newOrderBook.AssetType = asset.Spot
+	newOrderBook.ExchangeName = h.Name
+
 	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}
+
 	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Exchange: h.GetName(),
 		Asset:    asset.Spot,
 	}
-
 	return nil
 }
 

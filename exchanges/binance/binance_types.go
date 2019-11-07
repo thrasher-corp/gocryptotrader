@@ -92,13 +92,13 @@ type DepthUpdateParams []struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string        `json:"e"`
-	Timestamp     int64         `json:"E"`
-	Pair          string        `json:"s"`
-	FirstUpdateID int64         `json:"U"`
-	LastUpdateID  int64         `json:"u"`
-	UpdateBids    []interface{} `json:"b"`
-	UpdateAsks    []interface{} `json:"a"`
+	Event         string          `json:"e"`
+	Timestamp     int64           `json:"E"`
+	Pair          string          `json:"s"`
+	FirstUpdateID int64           `json:"U"`
+	LastUpdateID  int64           `json:"u"`
+	UpdateBids    [][]interface{} `json:"b"`
+	UpdateAsks    [][]interface{} `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.

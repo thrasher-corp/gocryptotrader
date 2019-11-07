@@ -329,7 +329,7 @@ func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	if s.OrderType != order.Limit {
 		return submitOrderResponse,
-			errors.New("limit order not supported on exchange")
+			errors.New("limit orders only supported on exchange")
 	}
 
 	var response UUID

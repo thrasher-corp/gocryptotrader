@@ -522,19 +522,6 @@ func TestGetSpotTokenPairDetails(t *testing.T) {
 	}
 }
 
-// TestGetSpotOrderBook API endpoint test
-func TestGetSpotOrderBook(t *testing.T) {
-	TestSetDefaults(t)
-	t.Parallel()
-	request := okgroup.GetSpotOrderBookRequest{
-		InstrumentID: spotCurrency,
-	}
-	_, err := o.GetSpotOrderBook(request)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 // TestGetSpotAllTokenPairsInformation API endpoint test
 func TestGetSpotAllTokenPairsInformation(t *testing.T) {
 	TestSetDefaults(t)
@@ -1035,18 +1022,6 @@ func TestGetFuturesContractInformation(t *testing.T) {
 	}
 }
 
-// TestGetFuturesContractInformation API endpoint test
-func TestGetFuturesOrderBook(t *testing.T) {
-	TestSetDefaults(t)
-	_, err := o.GetFuturesOrderBook(okgroup.GetFuturesOrderBookRequest{
-		InstrumentID: getFutureInstrumentID(),
-		Size:         10,
-	})
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 // TestGetAllFuturesTokenInfo API endpoint test
 func TestGetAllFuturesTokenInfo(t *testing.T) {
 	TestSetDefaults(t)
@@ -1310,19 +1285,6 @@ func TestGetSwapContractInformation(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
 	_, err := o.GetSwapContractInformation()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// TestGetSwapOrderBook API endpoint test
-func TestGetSwapOrderBook(t *testing.T) {
-	TestSetDefaults(t)
-	t.Parallel()
-	_, err := o.GetSwapOrderBook(okgroup.GetSwapOrderBookRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
-		Size:         200,
-	})
 	if err != nil {
 		t.Error(err)
 	}

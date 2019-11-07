@@ -117,7 +117,17 @@ func (s *Service) SetNewData(b *Base) error {
 		return err
 	}
 
-	s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{b: b,
+	// Below instigates orderbook item separation so we can ensure, in the event
+	// of a simultaneous update via websocket/rest/fix, we don't affect package
+	// scoped orderbook data which could result in a potential panic
+	cpyBook := *b
+	cpyBook.Bids = make([]Item, len(b.Bids))
+	copy(cpyBook.Bids, b.Bids)
+	cpyBook.Asks = make([]Item, len(b.Asks))
+	copy(cpyBook.Asks, b.Asks)
+
+	s.Books[b.ExchangeName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{
+		b:     &cpyBook,
 		Main:  singleID,
 		Assoc: ids}
 	return nil
