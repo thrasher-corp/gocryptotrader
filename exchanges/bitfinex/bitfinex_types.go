@@ -692,5 +692,5 @@ type WsNewOfferRequest struct {
 }
 
 type WsCancelOfferRequest struct {
-	OrderID int64 `json:"id,omitempty"`
+	OrderID int64 `json:"id"`
 }

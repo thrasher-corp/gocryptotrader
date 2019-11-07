@@ -144,12 +144,20 @@ func (b *Bitfinex) WsDataHandler() {
 					case "n":
 						notification := chanData[2].([]interface{})
 						if data, ok := notification[4].([]interface{}); ok {
-							if data[2].(float64) > 0 {
-								b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[2].(float64)), stream.Raw)
-								continue
+							if strings.Contains(notification[1].(string), "ou") {
+								if data[0] != nil && data[0].(float64) > 0 {
+									b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[0].(float64)), stream.Raw)
+									continue
+								}
+							}
+							if strings.Contains(notification[1].(string), "on") {
+								if data[2] != nil && data[2].(float64) > 0 {
+									b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[2].(float64)), stream.Raw)
+									continue
+								}
 							}
 						}
-						if strings.EqualFold(notification[5].(string), "ERROR") {
+						if notification[5] != nil && strings.EqualFold(notification[5].(string), "ERROR") {
 							b.Websocket.DataHandler <- fmt.Errorf("%s - Error %s", b.Name, notification[6].(string))
 						}
 					case websocketPositionSnapshot:
@@ -796,14 +804,6 @@ func (b *Bitfinex) WsNewOrder(currency, orderType, side string, amount, price fl
 	if strings.EqualFold(side, exchange.SellOrderSide.ToString()) {
 		amount = amount * -1
 	}
-	switch orderType {
-	case exchange.LimitOrderType.ToString():
-		orderType = "MARKET"
-	case exchange.LimitOrderType.ToString():
-		orderType = exchange.LimitOrderType.ToString()
-	default:
-		orderType = "MARKET" // ????????
-	}
 	data := WsNewOrderRequest{
 		CustomID: b.AuthenticatedWebsocketConn.GenerateMessageID(false),
 		Type:     orderType,
@@ -819,15 +819,19 @@ func (b *Bitfinex) WsNewOrder(currency, orderType, side string, amount, price fl
 	if err != nil {
 		return "", err
 	}
-	var hello []interface{}
-	err = common.JSONDecode(resp, &hello)
+	var respData []interface{}
+	err = common.JSONDecode(resp, &respData)
 	if err != nil {
 		return "", err
 	}
-	yo := hello[2].([]interface{})
-	orderID := strconv.FormatFloat(yo[0].(float64), 'f', -1, 64)
-	errCode := yo[6].(string)
-	errorMessage := yo[7].(string)
+	responseDataDetail := respData[2].([]interface{})
+	responseOrderDetail := responseDataDetail[4].([]interface{})
+	var orderID string
+	if responseOrderDetail[0] != nil && responseOrderDetail[0].(float64) > 0 {
+		orderID = strconv.FormatFloat(responseOrderDetail[0].(float64), 'f', -1, 64)
+	}
+	errCode := responseDataDetail[6].(string)
+	errorMessage := responseDataDetail[7].(string)
 
 	if strings.EqualFold(errCode, "ERROR") {
 		return orderID, fmt.Errorf("%v - %v %v", b.Name, errCode, errorMessage)
@@ -836,24 +840,57 @@ func (b *Bitfinex) WsNewOrder(currency, orderType, side string, amount, price fl
 	return orderID, nil
 }
 
-func makeRequestInterface(channelName string, data interface{}) []interface{} {
-	butts := []interface{}{}
-	butts = append(butts, 0)
-	butts = append(butts, channelName)
-	butts = append(butts, nil)
-	butts = append(butts, data)
+func (b *Bitfinex) WsModifyOrder(orderID int64, price, amount float64, side string) error {
+	if strings.EqualFold(side, exchange.SellOrderSide.ToString()) {
+		amount = amount * -1
+	}
+	data := WsUpdateOrderRequest{
+		OrderID: orderID,
+		Price:   price,
+		Amount:  amount,
+	}
+	request := makeRequestInterface("ou", data)
+	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(orderID, request)
+	if resp == nil {
+		return errors.New(b.Name + " - Order message not returned")
+	}
+	if err != nil {
+		return err
+	}
+	var responseData []interface{}
+	err = common.JSONDecode(resp, &responseData)
+	if err != nil {
+		return err
+	}
+	responseOrderData := responseData[2].([]interface{})
+	errCode := responseOrderData[6].(string)
+	errorMessage := responseOrderData[7].(string)
+	if strings.EqualFold(errCode, "ERROR") {
+		return fmt.Errorf("%v - %v %v", b.Name, errCode, errorMessage)
+	}
 
-	return butts
+	return nil
 }
 
-func (b *Bitfinex) WsMultipleNewOrders() {
-	b.AuthenticatedWebsocketConn.SendMessage("")
+/*
+func (b *Bitfinex) WsMultipleNewOrders(orderID int64, price, amount float64, side string) {
 
 }
 
-func (b *Bitfinex) WsCancelOrder() {
-	b.AuthenticatedWebsocketConn.SendMessage("")
+*/
 
+// WsCancelOrder does not handle custom i
+func (b *Bitfinex) WsCancelOrder(orderID int64) error {
+	cancel := WsCancelOrderRequest{
+		OrderID: orderID,
+	}
+	request := makeRequestInterface("oc", cancel)
+	err := b.AuthenticatedWebsocketConn.SendMessage(request)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *Bitfinex) WsCancelMultipleOrders() {
@@ -867,4 +904,14 @@ func (b *Bitfinex) WsNewOffer() {
 }
 func (b *Bitfinex) WsCancelOffer() {
 	b.AuthenticatedWebsocketConn.SendMessage("")
+}
+
+func makeRequestInterface(channelName string, data interface{}) []interface{} {
+	var namelessType []interface{}
+	namelessType = append(namelessType, 0)
+	namelessType = append(namelessType, channelName)
+	namelessType = append(namelessType, nil)
+	namelessType = append(namelessType, data)
+
+	return namelessType
 }

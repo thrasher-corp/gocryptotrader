@@ -1036,7 +1036,7 @@ func TestWsAuth(t *testing.T) {
 	timer.Stop()
 }
 
-// TestWsAuth dials websocket, sends login request.
+// TestWsPlaceOrder dials websocket, sends order request.
 func TestWsPlaceOrder(t *testing.T) {
 	setupWs(t)
 	err := b.WsSendAuth()
@@ -1059,5 +1059,52 @@ func TestWsPlaceOrder(t *testing.T) {
 	}
 	if resp == "" {
 		t.Error("Something went wrong")
+	}
+}
+
+// TestWsCancelOrder dials websocket, sends cancel request.
+func TestWsCancelOrder(t *testing.T) {
+	setupWs(t)
+	err := b.WsSendAuth()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resp := <-b.Websocket.DataHandler:
+		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {
+			t.Error("expected successful login")
+		}
+	case <-timer.C:
+		t.Error("Have not received a response")
+	}
+	timer.Stop()
+	err = b.WsCancelOrder(1234)
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second)
+}
+
+// TestWsUpdateOrder dials websocket, sends modify request.
+func TestWsUpdateOrder(t *testing.T) {
+	setupWs(t)
+	err := b.WsSendAuth()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resp := <-b.Websocket.DataHandler:
+		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {
+			t.Error("expected successful login")
+		}
+	case <-timer.C:
+		t.Error("Have not received a response")
+	}
+	timer.Stop()
+	err = b.WsModifyOrder(1234, 1, 1, "SELL")
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -703,6 +703,12 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 			for k := range w.IDResponses {
 				if k == id {
 					w.Unlock()
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
 					return
 				}
 			}
