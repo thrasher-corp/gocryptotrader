@@ -166,9 +166,7 @@ func (b *Bitfinex) WsConnect() error {
 func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
 
-	defer func() {
-		b.Websocket.Wg.Done()
-	}()
+	defer b.Websocket.Wg.Done()
 
 	for {
 		select {

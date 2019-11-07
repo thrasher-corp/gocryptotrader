@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbene"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
@@ -151,6 +152,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(btcmarkets.BTCMarkets)
 	case "btse":
 		exch = new(btse.BTSE)
+	case "coinbene":
+		exch = new(coinbene.Coinbene)
 	case "coinut":
 		exch = new(coinut.COINUT)
 	case "exmo":

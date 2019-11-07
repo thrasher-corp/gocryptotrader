@@ -623,11 +623,25 @@ func (e *Base) SetAPIURL() error {
 	if e.Config.API.Endpoints.URL == "" || e.Config.API.Endpoints.URLSecondary == "" {
 		return fmt.Errorf("exchange %s: SetAPIURL error. URL vals are empty", e.Name)
 	}
+
+	checkInsecureEndpoint := func(endpoint string) {
+		if !strings.Contains(endpoint, "https") {
+			return
+		}
+		log.Warnf(log.ExchangeSys,
+			"%s is using HTTP instead of HTTPS [%s] for API functionality, an"+
+				" attacker could eavesdrop on this connection. Use at your"+
+				" own risk.",
+			e.Name, endpoint)
+	}
+
 	if e.Config.API.Endpoints.URL != config.APIURLNonDefaultMessage {
 		e.API.Endpoints.URL = e.Config.API.Endpoints.URL
+		checkInsecureEndpoint(e.API.Endpoints.URL)
 	}
 	if e.Config.API.Endpoints.URLSecondary != config.APIURLNonDefaultMessage {
 		e.API.Endpoints.URLSecondary = e.Config.API.Endpoints.URLSecondary
+		checkInsecureEndpoint(e.API.Endpoints.URLSecondary)
 	}
 	return nil
 }
