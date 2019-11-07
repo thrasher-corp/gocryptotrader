@@ -676,10 +676,9 @@ type WsCancelOrderRequest struct {
 }
 
 type WsCancelGroupOrdersRequest struct {
-	OrderID      int64  `json:"id,omitempty"`
-	CustomID     int64  `json:"cid,omitempty"`
-	CustomIDDate string `json:"cid_date,omitempty"`
-	GroupOrderID int64  `json:"gid,omitempty"`
+	OrderID      []int64   `json:"id,omitempty"`
+	CustomID     [][]int64 `json:"cid,omitempty"`
+	GroupOrderID []int64   `json:"gid,omitempty"`
 }
 
 type WsNewOfferRequest struct {
@@ -693,4 +692,7 @@ type WsNewOfferRequest struct {
 
 type WsCancelOfferRequest struct {
 	OrderID int64 `json:"id"`
+}
+type WsCancelAllOrdersRequest struct {
+	All int64 `json:"all"`
 }

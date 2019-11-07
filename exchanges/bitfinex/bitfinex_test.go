@@ -1053,12 +1053,15 @@ func TestWsPlaceOrder(t *testing.T) {
 		t.Error("Have not received a response")
 	}
 	timer.Stop()
-	resp, err := b.WsNewOrder("tBTCUSD", "MARKET", "BUY", 10, 10)
+	_, err = b.WsNewOrder(&WsNewOrderRequest{
+		CustomID: 1337,
+		Type:     "BUY",
+		Symbol:   "tBTCUSD",
+		Amount:   10,
+		Price:    10,
+	})
 	if err != nil {
 		t.Error(err)
-	}
-	if resp == "" {
-		t.Error("Something went wrong")
 	}
 }
 
@@ -1083,10 +1086,9 @@ func TestWsCancelOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second)
 }
 
-// TestWsUpdateOrder dials websocket, sends modify request.
+// TestWsCancelOrder dials websocket, sends modify request.
 func TestWsUpdateOrder(t *testing.T) {
 	setupWs(t)
 	err := b.WsSendAuth()
@@ -1103,7 +1105,57 @@ func TestWsUpdateOrder(t *testing.T) {
 		t.Error("Have not received a response")
 	}
 	timer.Stop()
-	err = b.WsModifyOrder(1234, 1, 1, "SELL")
+	err = b.WsModifyOrder(&WsUpdateOrderRequest{
+		OrderID: 1234,
+		Price:   111,
+		Amount:  111,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsCancelAllOrders dials websocket, sends cancel all request.
+func TestWsCancelAllOrders(t *testing.T) {
+	setupWs(t)
+	err := b.WsSendAuth()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resp := <-b.Websocket.DataHandler:
+		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {
+			t.Error("expected successful login")
+		}
+	case <-timer.C:
+		t.Error("Have not received a response")
+	}
+	timer.Stop()
+	err = b.WsCancelAllOrders()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsCancelAllOrders dials websocket, sends cancel all request.
+func TestWsCancelMultiOrders(t *testing.T) {
+	setupWs(t)
+	err := b.WsSendAuth()
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case resp := <-b.Websocket.DataHandler:
+		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {
+			t.Error("expected successful login")
+		}
+	case <-timer.C:
+		t.Error("Have not received a response")
+	}
+	timer.Stop()
+	err = b.WsCancelMultiOrders([]int64{1, 2, 3, 4})
 	if err != nil {
 		t.Error(err)
 	}
