@@ -1176,6 +1176,13 @@ func TestSetAPIURL(t *testing.T) {
 	if tester.GetAPIURLSecondaryDefault() != testURLSecondaryDefault {
 		t.Error("incorrect return URL")
 	}
+
+	tester.Config.API.Endpoints.URL = "http://insecureino.com"
+	tester.Config.API.Endpoints.URLSecondary = tester.Config.API.Endpoints.URL
+	err = tester.SetAPIURL()
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func BenchmarkSetAPIURL(b *testing.B) {
