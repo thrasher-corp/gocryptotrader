@@ -1,5 +1,11 @@
 package coinbene
 
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
 // TickerData stores ticker data
 type TickerData struct {
 	Symbol      string  `json:"symbol"`
@@ -13,8 +19,6 @@ type TickerData struct {
 
 // TickerResponse stores ticker response data
 type TickerResponse struct {
-	Code       int64  `json:"code"`
-	Message    string `json:"message"`
 	TickerData `json:"data"`
 }
 
@@ -26,16 +30,12 @@ type Orderbook struct {
 
 // OrderbookResponse stores data from fetched orderbooks
 type OrderbookResponse struct {
-	Code      int64  `json:"code"`
-	Message   string `json:"message"`
 	Orderbook `json:"data"`
 }
 
 // TradeResponse stores trade data
 type TradeResponse struct {
-	Code    int64      `json:"code"`
-	Message string     `json:"message"`
-	Trades  [][]string `json:"data"`
+	Trades [][]string `json:"data"`
 }
 
 // AllPairData stores pair data
@@ -54,16 +54,12 @@ type AllPairData struct {
 
 // AllPairResponse stores data for all pairs enabled on exchange
 type AllPairResponse struct {
-	Code    int64         `json:"code"`
-	Message string        `json:"message"`
-	Data    []AllPairData `json:"data"`
+	Data []AllPairData `json:"data"`
 }
 
 // PairResponse stores data for a single queried pair
 type PairResponse struct {
-	Code    int64       `json:"code"`
-	Message string      `json:"message"`
-	Data    AllPairData `json:"data"`
+	Data AllPairData `json:"data"`
 }
 
 // UserBalanceData stores user balance data
@@ -76,15 +72,11 @@ type UserBalanceData struct {
 
 // UserBalanceResponse stores user balance data
 type UserBalanceResponse struct {
-	Code    int64             `json:"code"`
-	Message string            `json:"message"`
-	Data    []UserBalanceData `json:"data"`
+	Data []UserBalanceData `json:"data"`
 }
 
 // PlaceOrderResponse stores data for a placed order
 type PlaceOrderResponse struct {
-	Code      int64  `json:"code"`
-	Message   string `json:"message"`
 	Status    string `json:"status"`
 	Timestamp int64  `json:"timestamp"`
 	OrderID   string `json:"orderid"`
@@ -110,30 +102,22 @@ type OrderInfoData struct {
 
 // OrderInfoResponse stores orderinfo data
 type OrderInfoResponse struct {
-	Order   OrderInfoData `json:"data"`
-	Code    int64         `json:"code"`
-	Message string        `json:"message"`
+	Order OrderInfoData `json:"data"`
 }
 
 // RemoveOrderResponse stores data for the remove request
 type RemoveOrderResponse struct {
-	Code    int64  `json:"code"`
-	Message string `json:"message"`
 	OrderID string `json:"data"`
 }
 
 // OpenOrderResponse stores data for open orders
 type OpenOrderResponse struct {
-	Code       int64           `json:"code"`
-	Message    string          `json:"message"`
 	OpenOrders []OrderInfoData `json:"data"`
 }
 
 // ClosedOrderResponse stores data for closed orders
 type ClosedOrderResponse struct {
-	Code    int64           `json:"code"`
-	Message string          `json:"message"`
-	Data    []OrderInfoData `json:"data"`
+	Data []OrderInfoData `json:"data"`
 }
 
 // WsSub stores subscription data
@@ -246,3 +230,119 @@ type WsUserOrders struct {
 	Topic string        `json:"topic"`
 	Data  []WsOrderData `json:"data"`
 }
+
+// SwapTicker stores the swap ticker info
+type SwapTicker struct {
+	LastPrice     float64   `json:"lastPrice,string"`
+	MarkPrice     float64   `json:"markPrice,string"`
+	BestAskPrice  float64   `json:"bestAskPrice,string"`
+	BestBidPrice  float64   `json:"bestBidPrice,string"`
+	High24Hour    float64   `json:"high24h,string"`
+	Low24Hour     float64   `json:"low24h,string"`
+	Volume24Hour  float64   `json:"volume24h,string"`
+	BestAskVolume float64   `json:"bestAskVolume,string"`
+	BestBidVolume float64   `json:"bestBidVolume,string"`
+	Turnover      float64   `json:"turnover,string"`
+	Timestamp     time.Time `json:"timeStamp"`
+}
+
+// SwapTickers stores a map of swap tickers
+type SwapTickers map[string]SwapTicker
+
+// SwapOrderbookItem stores an individual orderbook item
+type SwapOrderbookItem struct {
+	Price  float64
+	Amount float64
+	Count  int64
+}
+
+// SwapOrderbook stores the orderbook data
+type SwapOrderbook struct {
+	Bids   []SwapOrderbookItem
+	Asks   []SwapOrderbookItem
+	Symbol string
+	Time   time.Time
+}
+
+// SwapKlineItem stores an individual kline data item
+type SwapKlineItem struct {
+	Time        time.Time
+	Open        float64
+	Close       float64
+	High        float64
+	Low         float64
+	Volume      float64
+	Turnover    float64
+	BuyVolume   float64
+	BuyTurnover float64
+}
+
+// SwapKlines stores an array of kline data
+type SwapKlines []SwapKlineItem
+
+// SwapTrade stores an individual trade
+type SwapTrade struct {
+	Price  float64
+	Side   order.Side
+	Volume float64
+	Time   time.Time
+}
+
+// SwapTrades stores an array of swap trades
+type SwapTrades []SwapTrade
+
+// SwapAccountInfo returns the swap account balance info
+type SwapAccountInfo struct {
+	AvailableBalance float64 `json:"availableBalance,string"`
+	FrozenBalance    float64 `json:"frozenBalance,string"`
+	MarginBalance    float64 `json:"marginBalance,string"`
+	MarginRate       float64 `json:"marginRate,string"`
+	Balance          float64 `json:"balance,string"`
+	UnrealisedPNL    float64 `json:"unrealisedPnl,string"`
+}
+
+// SwapPosition stores a single swap position's data
+type SwapPosition struct {
+	AvailableQuantity       float64   `json:"availableQuantity,string"`
+	AveragePrice            float64   `json:"averagePrice,string"`
+	CreateTime              time.Time `json:"createTime,string"`
+	DeleveragePercentile    int       `json:"deleveragePercentile,string"`
+	Leverage                int       `json:"leverage,string"`
+	LiquidationPrice        float64   `json:"liquidationPrice,string"`
+	MarkPrice               float64   `json:"markPrice,string"`
+	PositionMargin          float64   `json:"positionMargin,string"`
+	PositionValue           float64   `json:"positionValue,string"`
+	Quantity                float64   `json:"quantity,string"`
+	RateOfReturn            float64   `json:"roe,string"`
+	Side                    string    `json:"side"`
+	Symbol                  string    `json:"symbol"`
+	UnrealisedProfitAndLoss float64   `json:"UnrealisedPnl,string"`
+}
+
+// SwapPositions stores a collection of swap positions
+type SwapPositions []SwapPosition
+
+// SwapPlaceOrderResponse stores the response data for placing a swap order
+type SwapPlaceOrderResponse struct {
+	OrderID  string `json:"orderId"`
+	ClientID string `json:"clientId"`
+}
+
+// SwapOrder stores the swap order data
+type SwapOrder struct {
+	OrderID      string    `json:"orderId"`
+	Direction    string    `json:"direction"`
+	Leverage     int       `json:"leverage,string"`
+	OrderType    string    `json:"orderType"`
+	Quantitity   float64   `json:"quantity,string"`
+	OrderPirce   float64   `json:"orderPrice,string"`
+	OrderValue   float64   `json:"orderValue,string"`
+	Fee          float64   `json:"fee"`
+	FillQuantity float64   `json:"fillQuantity,string"`
+	AveragePrice float64   `json:"averagePrice,string"`
+	OrderTime    time.Time `json:"orderTime"`
+	Status       string    `json:"status"`
+}
+
+// SwapOrders stores a collection of swap orders
+type SwapOrders []SwapOrder

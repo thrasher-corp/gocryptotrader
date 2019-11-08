@@ -182,3 +182,99 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetSwapTickers(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetSwapTickers()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapTicker(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetSwapTicker("BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetSwapOrderbook("BTCUSDT", "100")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapKlines(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetSwapKlines("BTCUSDT",
+		"1573184608",
+		"1573184808",
+		"1")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapTrades(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetSwapTrades("BTCUSDT", "10")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	_, err := c.GetSwapAccountInfo()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapPositions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	_, err := c.GetSwapPositions("BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceSwapOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.PlaceSwapOrder("BTCUSDT",
+		"openLong",
+		"limit",
+		"fixed",
+		"12345",
+		100000,
+		1,
+		1)
+	if err != nil {
+		t.Log(err)
+	}
+}
+
+func TestCancelSwapOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.CancelSwapOrder("1337")
+	if err != nil {
+		t.Log(err)
+	}
+}
