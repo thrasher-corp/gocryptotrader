@@ -629,7 +629,6 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		}
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
-
 	var err error
 	var conStatus *http.Response
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
@@ -640,7 +639,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
 	if w.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected", w.ExchangeName)
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s", w.ExchangeName, w.URL)
 	}
 	w.setConnectedStatus(true)
 	return nil

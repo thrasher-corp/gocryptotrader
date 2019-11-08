@@ -140,324 +140,329 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 						}
 					}
-					switch chanData[1].(string) {
-					case "n":
-						notification := chanData[2].([]interface{})
-						if data, ok := notification[4].([]interface{}); ok {
-							channelName := notification[1].(string)
-							switch {
-							case strings.Contains(channelName, "ou"), strings.Contains(channelName, "oc"):
-								if data[0] != nil && data[0].(float64) > 0 {
-									b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[0].(float64)), stream.Raw)
-									continue
-								}
-							case strings.Contains(channelName, "on"):
-								if data[2] != nil && data[2].(float64) > 0 {
-									b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[2].(float64)), stream.Raw)
-									continue
-								}
-							}
-							b.Websocket.DataHandler <- fmt.Errorf("%s - Unexpected data returned %s", b.Name, stream.Raw)
-							continue
-						}
-						if notification[5] != nil && strings.EqualFold(notification[5].(string), "ERROR") {
-							b.Websocket.DataHandler <- fmt.Errorf("%s - Error %s", b.Name, notification[6].(string))
-						}
-					case websocketPositionSnapshot:
-						var snapshot []WebsocketPosition
-						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
-							if _, ok := snapBundle[0].([]interface{}); ok {
-								for i := range snapBundle {
-									positionData := snapBundle[i].([]interface{})
-									position := WebsocketPosition{
-										Pair:              positionData[0].(string),
-										Status:            positionData[1].(string),
-										Amount:            positionData[2].(float64),
-										Price:             positionData[3].(float64),
-										MarginFunding:     positionData[4].(float64),
-										MarginFundingType: int64(positionData[5].(float64)),
-										ProfitLoss:        positionData[6].(float64),
-										ProfitLossPercent: positionData[7].(float64),
-										LiquidationPrice:  positionData[8].(float64),
-										Leverage:          positionData[9].(float64),
+					if _, ok := chanData[1].(string); ok {
+						switch chanData[1].(string) {
+						// Notifications channel provides updates from requests
+						case "n":
+							notification := chanData[2].([]interface{})
+							if data, ok := notification[4].([]interface{}); ok {
+								channelName := notification[1].(string)
+								switch {
+								case strings.Contains(channelName, "ou"),
+									strings.Contains(channelName, "oc"),
+									strings.Contains(channelName, "foc"):
+									if data[0] != nil && data[0].(float64) > 0 {
+										b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[0].(float64)), stream.Raw)
+										continue
 									}
-									snapshot = append(snapshot, position)
-								}
-								b.Websocket.DataHandler <- snapshot
-							}
-						}
-					case websocketPositionNew, websocketPositionUpdate, websocketPositionClose:
-						if positionData, ok := chanData[2].([]interface{}); ok && len(positionData) > 0 {
-							position := WebsocketPosition{
-								Pair:              positionData[0].(string),
-								Status:            positionData[1].(string),
-								Amount:            positionData[2].(float64),
-								Price:             positionData[3].(float64),
-								MarginFunding:     positionData[4].(float64),
-								MarginFundingType: int64(positionData[5].(float64)),
-								ProfitLoss:        positionData[6].(float64),
-								ProfitLossPercent: positionData[7].(float64),
-								LiquidationPrice:  positionData[8].(float64),
-								Leverage:          positionData[9].(float64),
-							}
-							b.Websocket.DataHandler <- position
-						}
-					case websocketTradeExecutionUpdate:
-						if tradeData, ok := chanData[2].([]interface{}); ok && len(tradeData) > 0 {
-							b.Websocket.DataHandler <- WebsocketTradeData{
-								TradeID:        int64(tradeData[0].(float64)),
-								Pair:           tradeData[1].(string),
-								Timestamp:      int64(tradeData[2].(float64)),
-								OrderID:        int64(tradeData[3].(float64)),
-								AmountExecuted: tradeData[4].(float64),
-								PriceExecuted:  tradeData[5].(float64),
-								OrderType:      tradeData[6].(string),
-								OrderPrice:     tradeData[7].(float64),
-								Maker:          tradeData[8].(float64) == 1,
-								Fee:            tradeData[9].(float64),
-								FeeCurrency:    tradeData[10].(string),
-							}
-						}
-					case fos:
-						var snapshot []WsFundingOffer
-						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
-							if _, ok := snapBundle[0].([]interface{}); ok {
-								for i := range snapBundle {
-									data := snapBundle[i].([]interface{})
-									offer := WsFundingOffer{
-										ID:         int64(data[0].(float64)),
-										Symbol:     data[1].(string),
-										Created:    int64(data[2].(float64)),
-										Updated:    int64(data[3].(float64)),
-										Amount:     data[4].(float64),
-										AmountOrig: data[5].(float64),
-										Type:       data[6].(string),
-										Flags:      data[9].(float64),
-										Status:     data[10].(string),
-										Rate:       data[14].(float64),
-										Period:     int64(data[15].(float64)),
-										Notify:     data[16].(float64) == 1,
-										Hidden:     data[17].(float64) == 1,
-										Insure:     data[18].(float64) == 1,
-										Renew:      data[19].(float64) == 1,
-										RateReal:   data[20].(float64),
-									}
-									snapshot = append(snapshot, offer)
-								}
-								b.Websocket.DataHandler <- snapshot
-							}
-						}
-					case "fon", "fou", "foc":
-						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
-							b.Websocket.DataHandler <- WsFundingOffer{
-								ID:         int64(data[0].(float64)),
-								Symbol:     data[1].(string),
-								Created:    int64(data[2].(float64)),
-								Updated:    int64(data[3].(float64)),
-								Amount:     data[4].(float64),
-								AmountOrig: data[5].(float64),
-								Type:       data[6].(string),
-								Flags:      data[9].(float64),
-								Status:     data[10].(string),
-								Rate:       data[14].(float64),
-								Period:     int64(data[15].(float64)),
-								Notify:     data[16].(float64) == 1,
-								Hidden:     data[17].(float64) == 1,
-								Insure:     data[18].(float64) == 1,
-								Renew:      data[19].(float64) == 1,
-								RateReal:   data[20].(float64),
-							}
-						}
-					case fcs:
-						var snapshot []WsCredit
-						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
-							if _, ok := snapBundle[0].([]interface{}); ok {
-								for i := range snapBundle {
-									data := snapBundle[i].([]interface{})
-									credit := WsCredit{
-										ID:           int64(data[0].(float64)),
-										Symbol:       data[1].(string),
-										Side:         data[2].(string),
-										Created:      int64(data[3].(float64)),
-										Updated:      int64(data[4].(float64)),
-										Amount:       data[5].(float64),
-										Flags:        data[6].(string),
-										Status:       data[7].(string),
-										Rate:         data[11].(float64),
-										Period:       int64(data[12].(float64)),
-										Opened:       int64(data[13].(float64)),
-										LastPayout:   int64(data[14].(float64)),
-										Notify:       data[15].(float64) == 1,
-										Hidden:       data[16].(float64) == 1,
-										Insure:       data[17].(float64) == 1,
-										Renew:        data[18].(float64) == 1,
-										RateReal:     data[19].(float64),
-										NoClose:      data[20].(float64) == 1,
-										PositionPair: data[21].(string),
-									}
-									snapshot = append(snapshot, credit)
-								}
-								b.Websocket.DataHandler <- snapshot
-							}
-						}
-					case "fcn", "fcu", "fcc":
-						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
-							b.Websocket.DataHandler <- WsCredit{
-								ID:           int64(data[0].(float64)),
-								Symbol:       data[1].(string),
-								Side:         data[2].(string),
-								Created:      int64(data[3].(float64)),
-								Updated:      int64(data[4].(float64)),
-								Amount:       data[5].(float64),
-								Flags:        data[6].(string),
-								Status:       data[7].(string),
-								Rate:         data[11].(float64),
-								Period:       int64(data[12].(float64)),
-								Opened:       int64(data[13].(float64)),
-								LastPayout:   int64(data[14].(float64)),
-								Notify:       data[15].(float64) == 1,
-								Hidden:       data[16].(float64) == 1,
-								Insure:       data[17].(float64) == 1,
-								Renew:        data[18].(float64) == 1,
-								RateReal:     data[19].(float64),
-								NoClose:      data[20].(float64) == 1,
-								PositionPair: data[21].(string),
-							}
-						}
-					case "fls":
-						var snapshot []WsCredit
-						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
-							if _, ok := snapBundle[0].([]interface{}); ok {
-								for i := range snapBundle {
-									data := snapBundle[i].([]interface{})
-									credit := WsCredit{
-										ID:         int64(data[0].(float64)),
-										Symbol:     data[1].(string),
-										Side:       data[2].(string),
-										Created:    int64(data[3].(float64)),
-										Updated:    int64(data[4].(float64)),
-										Amount:     data[5].(float64),
-										Flags:      data[6].(string),
-										Status:     data[7].(string),
-										Rate:       data[11].(float64),
-										Period:     int64(data[12].(float64)),
-										Opened:     int64(data[13].(float64)),
-										LastPayout: int64(data[14].(float64)),
-										Notify:     data[15].(float64) == 1,
-										Hidden:     data[16].(float64) == 1,
-										Insure:     data[17].(float64) == 1,
-										Renew:      data[18].(float64) == 1,
-										RateReal:   data[19].(float64),
-										NoClose:    data[20].(float64) == 1,
-									}
-									snapshot = append(snapshot, credit)
-								}
-								b.Websocket.DataHandler <- snapshot
-							}
-						}
-					case "fln", "flu", "flc":
-						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
-							b.Websocket.DataHandler <- WsCredit{
-								ID:         int64(data[0].(float64)),
-								Symbol:     data[1].(string),
-								Side:       data[2].(string),
-								Created:    int64(data[3].(float64)),
-								Updated:    int64(data[4].(float64)),
-								Amount:     data[5].(float64),
-								Flags:      data[6].(string),
-								Status:     data[7].(string),
-								Rate:       data[11].(float64),
-								Period:     int64(data[12].(float64)),
-								Opened:     int64(data[13].(float64)),
-								LastPayout: int64(data[14].(float64)),
-								Notify:     data[15].(float64) == 1,
-								Hidden:     data[16].(float64) == 1,
-								Insure:     data[17].(float64) == 1,
-								Renew:      data[18].(float64) == 1,
-								RateReal:   data[19].(float64),
-								NoClose:    data[20].(float64) == 1,
-							}
-						}
-					case "ws":
-						var snapshot []WsWallet
-						if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
-							if _, ok := snapBundle[0].([]interface{}); ok {
-								for i := range snapBundle {
-									data := snapBundle[i].([]interface{})
-									var balanceAvailable float64
-									if _, ok := data[4].(float64); ok {
-										balanceAvailable = data[4].(float64)
-									}
-									wallet := WsWallet{
-										Type:              data[0].(string),
-										Currency:          data[1].(string),
-										Balance:           data[2].(float64),
-										UnsettledInterest: data[3].(float64),
-										BalanceAvailable:  balanceAvailable,
-									}
-									snapshot = append(snapshot, wallet)
-								}
-								b.Websocket.DataHandler <- snapshot
-							}
-						}
-					case "wu":
-						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
-							var balanceAvailable float64
-							if _, ok := data[4].(float64); ok {
-								balanceAvailable = data[4].(float64)
-							}
-							b.Websocket.DataHandler <- WsWallet{
-								Type:              data[0].(string),
-								Currency:          data[1].(string),
-								Balance:           data[2].(float64),
-								UnsettledInterest: data[3].(float64),
-								BalanceAvailable:  balanceAvailable,
-							}
-						}
-					case "bu":
-						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
-							b.Websocket.DataHandler <- WsBalanceInfo{
-								TotalAssetsUnderManagement: data[0].(float64),
-								NetAssetsUnderManagement:   data[1].(float64),
-							}
-						}
-					case "miu":
-						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
-							if data[0].(string) == "base" {
-								if infoBase, ok := chanData[2].([]interface{}); ok && len(infoBase) > 0 {
-									baseData := data[1].([]interface{})
-									b.Websocket.DataHandler <- WsMarginInfoBase{
-										UserProfitLoss: baseData[0].(float64),
-										UserSwaps:      baseData[1].(float64),
-										MarginBalance:  baseData[2].(float64),
-										MarginNet:      baseData[3].(float64),
+								case strings.Contains(channelName, "on"):
+									if data[2] != nil && data[2].(float64) > 0 {
+										b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[2].(float64)), stream.Raw)
+										continue
 									}
 								}
+								b.Websocket.DataHandler <- fmt.Errorf("%s - Unexpected data returned %s", b.Name, stream.Raw)
+								continue
 							}
-						}
-					case "fiu":
-						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
-							if data[0].(string) == "sym" {
-								symbolData := data[1].([]interface{})
-								b.Websocket.DataHandler <- WsFundingInfo{
-									YieldLoan:    symbolData[0].(float64),
-									YieldLend:    symbolData[1].(float64),
-									DurationLoan: symbolData[2].(float64),
-									DurationLend: symbolData[3].(float64),
+							if notification[5] != nil && strings.EqualFold(notification[5].(string), "ERROR") {
+								b.Websocket.DataHandler <- fmt.Errorf("%s - Error %s", b.Name, notification[6].(string))
+							}
+						case websocketPositionSnapshot:
+							var snapshot []WebsocketPosition
+							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
+								if _, ok := snapBundle[0].([]interface{}); ok {
+									for i := range snapBundle {
+										positionData := snapBundle[i].([]interface{})
+										position := WebsocketPosition{
+											Pair:              positionData[0].(string),
+											Status:            positionData[1].(string),
+											Amount:            positionData[2].(float64),
+											Price:             positionData[3].(float64),
+											MarginFunding:     positionData[4].(float64),
+											MarginFundingType: int64(positionData[5].(float64)),
+											ProfitLoss:        positionData[6].(float64),
+											ProfitLossPercent: positionData[7].(float64),
+											LiquidationPrice:  positionData[8].(float64),
+											Leverage:          positionData[9].(float64),
+										}
+										snapshot = append(snapshot, position)
+									}
+									b.Websocket.DataHandler <- snapshot
 								}
 							}
-						}
-					case "fte", "ftu":
-						if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
-							b.Websocket.DataHandler <- WsFundingTrade{
-								ID:         int64(data[0].(float64)),
-								Symbol:     data[1].(string),
-								MTSCreated: int64(data[2].(float64)),
-								OfferID:    int64(data[3].(float64)),
-								Amount:     data[4].(float64),
-								Rate:       data[5].(float64),
-								Period:     int64(data[6].(float64)),
-								Maker:      data[7].(float64) == 1,
+						case websocketPositionNew, websocketPositionUpdate, websocketPositionClose:
+							if positionData, ok := chanData[2].([]interface{}); ok && len(positionData) > 0 {
+								position := WebsocketPosition{
+									Pair:              positionData[0].(string),
+									Status:            positionData[1].(string),
+									Amount:            positionData[2].(float64),
+									Price:             positionData[3].(float64),
+									MarginFunding:     positionData[4].(float64),
+									MarginFundingType: int64(positionData[5].(float64)),
+									ProfitLoss:        positionData[6].(float64),
+									ProfitLossPercent: positionData[7].(float64),
+									LiquidationPrice:  positionData[8].(float64),
+									Leverage:          positionData[9].(float64),
+								}
+								b.Websocket.DataHandler <- position
+							}
+						case websocketTradeExecutionUpdate:
+							if tradeData, ok := chanData[2].([]interface{}); ok && len(tradeData) > 4 {
+								b.Websocket.DataHandler <- WebsocketTradeData{
+									TradeID:        int64(tradeData[0].(float64)),
+									Pair:           tradeData[1].(string),
+									Timestamp:      int64(tradeData[2].(float64)),
+									OrderID:        int64(tradeData[3].(float64)),
+									AmountExecuted: tradeData[4].(float64),
+									PriceExecuted:  tradeData[5].(float64),
+									OrderType:      tradeData[6].(string),
+									OrderPrice:     tradeData[7].(float64),
+									Maker:          tradeData[8].(float64) == 1,
+									Fee:            tradeData[9].(float64),
+									FeeCurrency:    tradeData[10].(string),
+								}
+							}
+						case fos:
+							var snapshot []WsFundingOffer
+							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
+								if _, ok := snapBundle[0].([]interface{}); ok {
+									for i := range snapBundle {
+										data := snapBundle[i].([]interface{})
+										offer := WsFundingOffer{
+											ID:         int64(data[0].(float64)),
+											Symbol:     data[1].(string),
+											Created:    int64(data[2].(float64)),
+											Updated:    int64(data[3].(float64)),
+											Amount:     data[4].(float64),
+											AmountOrig: data[5].(float64),
+											Type:       data[6].(string),
+											Flags:      data[9].(float64),
+											Status:     data[10].(string),
+											Rate:       data[14].(float64),
+											Period:     int64(data[15].(float64)),
+											Notify:     data[16].(float64) == 1,
+											Hidden:     data[17].(float64) == 1,
+											Insure:     data[18].(float64) == 1,
+											Renew:      data[19].(float64) == 1,
+											RateReal:   data[20].(float64),
+										}
+										snapshot = append(snapshot, offer)
+									}
+									b.Websocket.DataHandler <- snapshot
+								}
+							}
+						case "fon", "fou", "foc":
+							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+								b.Websocket.DataHandler <- WsFundingOffer{
+									ID:         int64(data[0].(float64)),
+									Symbol:     data[1].(string),
+									Created:    int64(data[2].(float64)),
+									Updated:    int64(data[3].(float64)),
+									Amount:     data[4].(float64),
+									AmountOrig: data[5].(float64),
+									Type:       data[6].(string),
+									Flags:      data[9].(float64),
+									Status:     data[10].(string),
+									Rate:       data[14].(float64),
+									Period:     int64(data[15].(float64)),
+									Notify:     data[16].(float64) == 1,
+									Hidden:     data[17].(float64) == 1,
+									Insure:     data[18].(float64) == 1,
+									Renew:      data[19].(float64) == 1,
+									RateReal:   data[20].(float64),
+								}
+							}
+						case fcs:
+							var snapshot []WsCredit
+							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
+								if _, ok := snapBundle[0].([]interface{}); ok {
+									for i := range snapBundle {
+										data := snapBundle[i].([]interface{})
+										credit := WsCredit{
+											ID:           int64(data[0].(float64)),
+											Symbol:       data[1].(string),
+											Side:         data[2].(string),
+											Created:      int64(data[3].(float64)),
+											Updated:      int64(data[4].(float64)),
+											Amount:       data[5].(float64),
+											Flags:        data[6].(string),
+											Status:       data[7].(string),
+											Rate:         data[11].(float64),
+											Period:       int64(data[12].(float64)),
+											Opened:       int64(data[13].(float64)),
+											LastPayout:   int64(data[14].(float64)),
+											Notify:       data[15].(float64) == 1,
+											Hidden:       data[16].(float64) == 1,
+											Insure:       data[17].(float64) == 1,
+											Renew:        data[18].(float64) == 1,
+											RateReal:     data[19].(float64),
+											NoClose:      data[20].(float64) == 1,
+											PositionPair: data[21].(string),
+										}
+										snapshot = append(snapshot, credit)
+									}
+									b.Websocket.DataHandler <- snapshot
+								}
+							}
+						case "fcn", "fcu", "fcc":
+							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+								b.Websocket.DataHandler <- WsCredit{
+									ID:           int64(data[0].(float64)),
+									Symbol:       data[1].(string),
+									Side:         data[2].(string),
+									Created:      int64(data[3].(float64)),
+									Updated:      int64(data[4].(float64)),
+									Amount:       data[5].(float64),
+									Flags:        data[6].(string),
+									Status:       data[7].(string),
+									Rate:         data[11].(float64),
+									Period:       int64(data[12].(float64)),
+									Opened:       int64(data[13].(float64)),
+									LastPayout:   int64(data[14].(float64)),
+									Notify:       data[15].(float64) == 1,
+									Hidden:       data[16].(float64) == 1,
+									Insure:       data[17].(float64) == 1,
+									Renew:        data[18].(float64) == 1,
+									RateReal:     data[19].(float64),
+									NoClose:      data[20].(float64) == 1,
+									PositionPair: data[21].(string),
+								}
+							}
+						case "fls":
+							var snapshot []WsCredit
+							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
+								if _, ok := snapBundle[0].([]interface{}); ok {
+									for i := range snapBundle {
+										data := snapBundle[i].([]interface{})
+										credit := WsCredit{
+											ID:         int64(data[0].(float64)),
+											Symbol:     data[1].(string),
+											Side:       data[2].(string),
+											Created:    int64(data[3].(float64)),
+											Updated:    int64(data[4].(float64)),
+											Amount:     data[5].(float64),
+											Flags:      data[6].(string),
+											Status:     data[7].(string),
+											Rate:       data[11].(float64),
+											Period:     int64(data[12].(float64)),
+											Opened:     int64(data[13].(float64)),
+											LastPayout: int64(data[14].(float64)),
+											Notify:     data[15].(float64) == 1,
+											Hidden:     data[16].(float64) == 1,
+											Insure:     data[17].(float64) == 1,
+											Renew:      data[18].(float64) == 1,
+											RateReal:   data[19].(float64),
+											NoClose:    data[20].(float64) == 1,
+										}
+										snapshot = append(snapshot, credit)
+									}
+									b.Websocket.DataHandler <- snapshot
+								}
+							}
+						case "fln", "flu", "flc":
+							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+								b.Websocket.DataHandler <- WsCredit{
+									ID:         int64(data[0].(float64)),
+									Symbol:     data[1].(string),
+									Side:       data[2].(string),
+									Created:    int64(data[3].(float64)),
+									Updated:    int64(data[4].(float64)),
+									Amount:     data[5].(float64),
+									Flags:      data[6].(string),
+									Status:     data[7].(string),
+									Rate:       data[11].(float64),
+									Period:     int64(data[12].(float64)),
+									Opened:     int64(data[13].(float64)),
+									LastPayout: int64(data[14].(float64)),
+									Notify:     data[15].(float64) == 1,
+									Hidden:     data[16].(float64) == 1,
+									Insure:     data[17].(float64) == 1,
+									Renew:      data[18].(float64) == 1,
+									RateReal:   data[19].(float64),
+									NoClose:    data[20].(float64) == 1,
+								}
+							}
+						case "ws":
+							var snapshot []WsWallet
+							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
+								if _, ok := snapBundle[0].([]interface{}); ok {
+									for i := range snapBundle {
+										data := snapBundle[i].([]interface{})
+										var balanceAvailable float64
+										if _, ok := data[4].(float64); ok {
+											balanceAvailable = data[4].(float64)
+										}
+										wallet := WsWallet{
+											Type:              data[0].(string),
+											Currency:          data[1].(string),
+											Balance:           data[2].(float64),
+											UnsettledInterest: data[3].(float64),
+											BalanceAvailable:  balanceAvailable,
+										}
+										snapshot = append(snapshot, wallet)
+									}
+									b.Websocket.DataHandler <- snapshot
+								}
+							}
+						case "wu":
+							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+								var balanceAvailable float64
+								if _, ok := data[4].(float64); ok {
+									balanceAvailable = data[4].(float64)
+								}
+								b.Websocket.DataHandler <- WsWallet{
+									Type:              data[0].(string),
+									Currency:          data[1].(string),
+									Balance:           data[2].(float64),
+									UnsettledInterest: data[3].(float64),
+									BalanceAvailable:  balanceAvailable,
+								}
+							}
+						case "bu":
+							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+								b.Websocket.DataHandler <- WsBalanceInfo{
+									TotalAssetsUnderManagement: data[0].(float64),
+									NetAssetsUnderManagement:   data[1].(float64),
+								}
+							}
+						case "miu":
+							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+								if data[0].(string) == "base" {
+									if infoBase, ok := chanData[2].([]interface{}); ok && len(infoBase) > 0 {
+										baseData := data[1].([]interface{})
+										b.Websocket.DataHandler <- WsMarginInfoBase{
+											UserProfitLoss: baseData[0].(float64),
+											UserSwaps:      baseData[1].(float64),
+											MarginBalance:  baseData[2].(float64),
+											MarginNet:      baseData[3].(float64),
+										}
+									}
+								}
+							}
+						case "fiu":
+							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+								if data[0].(string) == "sym" {
+									symbolData := data[1].([]interface{})
+									b.Websocket.DataHandler <- WsFundingInfo{
+										YieldLoan:    symbolData[0].(float64),
+										YieldLend:    symbolData[1].(float64),
+										DurationLoan: symbolData[2].(float64),
+										DurationLend: symbolData[3].(float64),
+									}
+								}
+							}
+						case "fte", "ftu":
+							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
+								b.Websocket.DataHandler <- WsFundingTrade{
+									ID:         int64(data[0].(float64)),
+									Symbol:     data[1].(string),
+									MTSCreated: int64(data[2].(float64)),
+									OfferID:    int64(data[3].(float64)),
+									Amount:     data[4].(float64),
+									Rate:       data[5].(float64),
+									Period:     int64(data[6].(float64)),
+									Maker:      data[7].(float64) == 1,
+								}
 							}
 						}
 					}
@@ -803,6 +808,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 	}
 }
 
+// WsNewOrder authenticated new order request
 func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 	data.CustomID = b.AuthenticatedWebsocketConn.GenerateMessageID(false)
 	request := makeRequestInterface("on", data)
@@ -834,6 +840,7 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 	return orderID, nil
 }
 
+// WsModifyOrder authenticated modify order request
 func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
 	request := makeRequestInterface("ou", data)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(data.OrderID, request)
@@ -858,19 +865,16 @@ func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
 	return nil
 }
 
+// WsCancelMultiOrders authenticated cancel multi order request
 func (b *Bitfinex) WsCancelMultiOrders(orderIDs []int64) error {
 	cancel := WsCancelGroupOrdersRequest{
 		OrderID: orderIDs,
 	}
 	request := makeRequestInterface("oc_multi", cancel)
-	err := b.AuthenticatedWebsocketConn.SendMessage(request)
-	if err != nil {
-		return err
-	}
-	return nil
+	return b.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
-// WsCancelOrder does not handle custom i
+// WsCancelOrder authenticated cancel order request
 func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
@@ -898,18 +902,48 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 	return nil
 }
 
+// WsCancelAllOrders authenticated cancel all orders request
 func (b *Bitfinex) WsCancelAllOrders() error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	request := makeRequestInterface("oc_multi", cancelAll)
 	return b.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
-func (b *Bitfinex) WsNewOffer() {
-	b.AuthenticatedWebsocketConn.SendMessage("")
-
+// WsNewOffer authenticated new offer request
+func (b *Bitfinex) WsNewOffer(data *WsNewOfferRequest) error {
+	request := makeRequestInterface("fon", data)
+	return b.AuthenticatedWebsocketConn.SendMessage(request)
 }
-func (b *Bitfinex) WsCancelOffer() {
-	b.AuthenticatedWebsocketConn.SendMessage("")
+
+// WsCancelOffer authenticated cancel offer request
+func (b *Bitfinex) WsCancelOffer(orderID int64) error {
+	cancel := WsCancelOrderRequest{
+		OrderID: orderID,
+	}
+	request := makeRequestInterface("foc", cancel)
+	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(orderID, request)
+	if resp == nil {
+		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
+	}
+	if err != nil {
+		return err
+	}
+	var responseData []interface{}
+	err = common.JSONDecode(resp, &responseData)
+	if err != nil {
+		return err
+	}
+	responseOrderData := responseData[2].([]interface{})
+	errCode := responseOrderData[6].(string)
+	var errorMessage string
+	if responseOrderData[7] != nil {
+		errorMessage = responseOrderData[7].(string)
+	}
+	if strings.EqualFold(errCode, "ERROR") {
+		return errors.New(b.Name + " - " + errCode + ": " + errorMessage)
+	}
+
+	return nil
 }
 
 func makeRequestInterface(channelName string, data interface{}) []interface{} {
