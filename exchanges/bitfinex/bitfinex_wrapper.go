@@ -87,7 +87,6 @@ func (b *Bitfinex) SetDefaults() {
 				CancelOrder:         true,
 				SubmitOrder:         true,
 				SubmitOrders:        true,
-				ModifyOrder:         true,
 				DepositHistory:      true,
 				WithdrawalHistory:   true,
 				TradeFetching:       true,
@@ -99,40 +98,20 @@ func (b *Bitfinex) SetDefaults() {
 				CryptoWithdrawalFee: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerBatching:         false,
-				AutoPairUpdates:        false,
 				AccountBalance:         true,
-				CryptoDeposit:          false,
-				CryptoWithdrawal:       false,
-				FiatWithdraw:           false,
-				GetOrder:               false,
-				GetOrders:              false,
 				CancelOrders:           true,
 				CancelOrder:            true,
 				SubmitOrder:            true,
-				SubmitOrders:           false,
 				ModifyOrder:            true,
-				DepositHistory:         false,
-				WithdrawalHistory:      false,
-				TradeHistory:           false,
-				UserTradeHistory:       false,
-				TradeFee:               false,
-				FiatDepositFee:         false,
-				FiatWithdrawalFee:      false,
-				CryptoDepositFee:       false,
-				CryptoWithdrawalFee:    false,
 				TickerFetching:         true,
 				KlineFetching:          true,
 				TradeFetching:          true,
 				OrderbookFetching:      true,
 				AccountInfo:            true,
-				FiatDeposit:            false,
-				DeadMansSwitch:         false,
 				Subscribe:              true,
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
-				MessageCorrelation:     false,
-				MessageSequenceNumbers: false,
+				MessageCorrelation:     true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
@@ -395,39 +374,70 @@ func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
-	if err := s.Validate(); err != nil {
+func (b *Bitfinex) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var err error
+	if order == nil {
+		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	}
+
+	if err = order.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
+	if b.CanUseAuthenticatedWebsocketEndpoint() {
+		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
+			CustomID: b.AuthenticatedWebsocketConn.GenerateMessageID(false),
+			Type:     order.OrderType.ToString(),
+			Symbol:   b.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
+			Amount:   order.Amount,
+			Price:    order.Price,
+		})
+		if err == nil {
+			submitOrderResponse.IsOrderPlaced = true
+		}
+	} else {
+		var isBuying bool
+		if order.OrderSide == exchange.BuyOrderSide {
+			isBuying = true
+		}
+		b.appendOptionalDelimiter(&order.Pair)
+		response, err := b.NewOrder(order.Pair.String(),
+			order.Amount,
+			order.Price,
+			isBuying,
+			order.OrderType.ToString(),
+			false)
 
-	var isBuying bool
-	if s.OrderSide == order.Buy {
-		isBuying = true
+		if response.OrderID > 0 {
+			submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
+		}
+
+		if err == nil {
+			submitOrderResponse.IsOrderPlaced = true
+		}
 	}
-	b.appendOptionalDelimiter(&s.Pair)
-	response, err := b.NewOrder(s.Pair.String(),
-		s.Amount,
-		s.Price,
-		isBuying,
-		s.OrderType.String(),
-		false)
-
-	if response.OrderID > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
-	}
-
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-
 	return submitOrderResponse, err
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+	orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
+	if err != nil {
+		return action.OrderID, err
+	}
+	if b.CanUseAuthenticatedWebsocketEndpoint() {
+		if action.OrderSide == exchange.SellOrderSide && action.Amount > 0 {
+			action.Amount = -1 * action.Amount
+		}
+		err = b.WsModifyOrder(&WsUpdateOrderRequest{
+			OrderID: orderIDInt,
+			Price:   action.Price,
+			Amount:  action.Amount,
+		})
+		return action.OrderID, err
+	}
+	return "", common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -436,13 +446,22 @@ func (b *Bitfinex) CancelOrder(order *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = b.CancelExistingOrder(orderIDInt)
+	if b.CanUseAuthenticatedWebsocketEndpoint() {
+		err = b.WsCancelOrder(orderIDInt)
+	} else {
+		_, err = b.CancelExistingOrder(orderIDInt)
+	}
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitfinex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
-	_, err := b.CancelAllExistingOrders()
+	var err error
+	if b.CanUseAuthenticatedWebsocketEndpoint() {
+		err = b.WsCancelAllOrders()
+	} else {
+		_, err = b.CancelAllExistingOrders()
+	}
 	return order.CancelAllResponse{}, err
 }
 
@@ -584,7 +603,7 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			orderDetail.Status = order.UnknownStatus
 		}
 
-		// API docs discrepency. Example contains prefixed "exchange "
+		// API docs discrepancy. Example contains prefixed "exchange "
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
 		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {

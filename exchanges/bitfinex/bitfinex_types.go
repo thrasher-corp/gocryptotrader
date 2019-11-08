@@ -658,7 +658,6 @@ type WsUpdateOrderRequest struct {
 	CustomID            int64   `json:"cid,omitempty"`
 	CustomIDDate        string  `json:"cid_date,omitempty"`
 	GroupID             int64   `json:"gid,omitempty"`
-	Type                string  `json:"type,omitempty"`
 	Price               float64 `json:"price,omitempty"`
 	Amount              float64 `json:"amount,omitempty"`
 	Leverage            int64   `json:"lev,omitempty"`
