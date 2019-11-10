@@ -374,38 +374,38 @@ func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
+func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
 	var err error
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	if o == nil {
+		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
 
-	if err = order.Validate(); err != nil {
+	if err = o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 	if b.CanUseAuthenticatedWebsocketEndpoint() {
 		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
 			CustomID: b.AuthenticatedWebsocketConn.GenerateMessageID(false),
-			Type:     order.OrderType.ToString(),
-			Symbol:   b.FormatExchangeCurrency(order.Pair, asset.Spot).String(),
-			Amount:   order.Amount,
-			Price:    order.Price,
+			Type:     o.OrderType.String(),
+			Symbol:   b.FormatExchangeCurrency(o.Pair, asset.Spot).String(),
+			Amount:   o.Amount,
+			Price:    o.Price,
 		})
 		if err == nil {
 			submitOrderResponse.IsOrderPlaced = true
 		}
 	} else {
 		var isBuying bool
-		if order.OrderSide == exchange.BuyOrderSide {
+		if o.OrderSide == order.Buy {
 			isBuying = true
 		}
-		b.appendOptionalDelimiter(&order.Pair)
-		response, err := b.NewOrder(order.Pair.String(),
-			order.Amount,
-			order.Price,
+		b.appendOptionalDelimiter(&o.Pair)
+		response, err := b.NewOrder(o.Pair.String(),
+			o.Amount,
+			o.Price,
 			isBuying,
-			order.OrderType.ToString(),
+			o.OrderType.String(),
 			false)
 
 		if response.OrderID > 0 {
@@ -427,7 +427,7 @@ func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
 		return action.OrderID, err
 	}
 	if b.CanUseAuthenticatedWebsocketEndpoint() {
-		if action.OrderSide == exchange.SellOrderSide && action.Amount > 0 {
+		if action.Side == order.Sell && action.Amount > 0 {
 			action.Amount = -1 * action.Amount
 		}
 		err = b.WsModifyOrder(&WsUpdateOrderRequest{

@@ -430,24 +430,24 @@ func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
+func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
 	var err error
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	if o == nil {
+		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
 
-	if err := order.Validate(); err != nil {
+	if err := o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	if c.Websocket.IsConnected() && c.Websocket.CanUseAuthenticatedEndpoints() {
 		var response *WsStandardOrderResponse
 		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
-			Currency: order.Pair,
-			Side:     order.OrderSide,
-			Amount:   order.Amount,
-			Price:    order.Price,
+			Currency: o.Pair,
+			Side:     o.OrderSide,
+			Amount:   o.Amount,
+			Price:    o.Price,
 		})
 		if err == nil {
 			submitOrderResponse.IsOrderPlaced = true
@@ -455,8 +455,8 @@ func (c *COINUT) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOr
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
 	} else {
 		var APIresponse interface{}
-		isBuyOrder := order.OrderSide == exchange.BuyOrderSide
-		clientIDInt, err := strconv.ParseUint(order.ClientID, 0, 32)
+		isBuyOrder := o.OrderSide == order.Buy
+		clientIDInt, err := strconv.ParseUint(o.ClientID, 0, 32)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -470,18 +470,18 @@ func (c *COINUT) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOr
 			}
 		}
 
-		currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(order.Pair,
+		currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(o.Pair,
 			asset.Spot).String())
 		if currencyID == 0 {
 			return submitOrderResponse, errLookupInstrumentID
 		}
 
-		switch order.OrderType {
-		case exchange.LimitOrderType:
-			APIresponse, err = c.NewOrder(currencyID, order.Amount, order.Price,
+		switch o.OrderType {
+		case order.Limit:
+			APIresponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
 				isBuyOrder, clientIDUint)
-		case exchange.MarketOrderType:
-			APIresponse, err = c.NewOrder(currencyID, order.Amount, 0, isBuyOrder,
+		case order.Market:
+			APIresponse, err = c.NewOrder(currencyID, o.Amount, 0, isBuyOrder,
 				clientIDUint)
 		}
 

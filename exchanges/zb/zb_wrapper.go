@@ -2,6 +2,7 @@ package zb
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -348,41 +349,41 @@ func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchan
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(order *exchange.OrderSubmission) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
+func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
 	var err error
-	if order == nil {
-		return submitOrderResponse, exchange.ErrOrderSubmissionIsNil
+	if o == nil {
+		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
 
-	if err := order.Validate(); err != nil {
+	if err := o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 	if z.CanUseAuthenticatedWebsocketEndpoint() {
 		var isBuyOrder int64
-		if order.OrderSide == exchange.BuyOrderSide {
+		if o.OrderSide == order.Buy {
 			isBuyOrder = 1
 		} else {
 			isBuyOrder = 0
 		}
 		var response *WsSubmitOrderResponse
-		response, err = z.wsSubmitOrder(order.Pair, order.Amount, order.Price, isBuyOrder)
+		response, err = z.wsSubmitOrder(o.Pair, o.Amount, o.Price, isBuyOrder)
 		if err == nil {
 			submitOrderResponse.IsOrderPlaced = true
 		}
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.Data.EntrustID)
 	} else {
 		var oT SpotNewOrderRequestParamsType
-		if order.OrderSide == exchange.BuyOrderSide {
+		if o.OrderSide == order.Buy {
 			oT = SpotNewOrderRequestParamsTypeBuy
 		} else {
 			oT = SpotNewOrderRequestParamsTypeSell
 		}
 
 		var params = SpotNewOrderRequestParams{
-			Amount: order.Amount,
-			Price:  order.Price,
-			Symbol: order.Pair.Lower().String(),
+			Amount: o.Amount,
+			Price:  o.Price,
+			Symbol: o.Pair.Lower().String(),
 			Type:   oT,
 		}
 		var response int64
@@ -404,25 +405,25 @@ func (z *ZB) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (z *ZB) CancelOrder(order *exchange.OrderCancellation) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+func (z *ZB) CancelOrder(o *order.Cancel) error {
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
 
 	if z.CanUseAuthenticatedWebsocketEndpoint() {
 		var response *WsCancelOrderResponse
-		response, err = z.wsCancelOrder(order.CurrencyPair, orderIDInt)
+		response, err = z.wsCancelOrder(o.CurrencyPair, orderIDInt)
 		if err != nil {
 			return err
 		}
 		if !response.Success {
-			return fmt.Errorf("%v - Could not cancel order %v", z.Name, order.OrderID)
+			return fmt.Errorf("%v - Could not cancel order %v", z.Name, o.OrderID)
 		}
 		return nil
 	}
-	return z.CancelExistingOrder(orderIDInt, z.FormatExchangeCurrency(order.CurrencyPair,
-		order.AssetType).String())
+	return z.CancelExistingOrder(orderIDInt, z.FormatExchangeCurrency(o.CurrencyPair,
+		o.AssetType).String())
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -456,12 +457,12 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	}
 
 	for i := range allOpenOrders {
-		err := z.CancelOrder(&exchange.OrderCancellation{
+		err := z.CancelOrder(&order.Cancel{
 			OrderID:      fmt.Sprintf("%v", allOpenOrders[i].ID),
 			CurrencyPair: currency.NewPairFromString(allOpenOrders[i].Currency),
 		})
 		if err != nil {
-			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
 		}
 	}
 
