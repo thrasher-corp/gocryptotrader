@@ -116,15 +116,20 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		log.Debugf("Setting up currency analysis system with Coinmarketcap...")
 		c := &coinmarketcap.Coinmarketcap{}
 		c.SetDefaults()
-		c.Setup(coinmarketcap.Settings{
+		err := c.Setup(coinmarketcap.Settings{
 			Name:        settings.CryptocurrencyProvider.Name,
 			Enabled:     true,
 			AccountPlan: settings.CryptocurrencyProvider.AccountPlan,
 			APIkey:      settings.CryptocurrencyProvider.APIkey,
 			Verbose:     settings.CryptocurrencyProvider.Verbose,
 		})
-
-		s.currencyAnalysis = c
+		if err != nil {
+			log.Errorf("Unable to setup CoinMarketCap analysis. Error: %s", err)
+			c = nil
+			settings.CryptocurrencyProvider.Enabled = false
+		} else {
+			s.currencyAnalysis = c
+		}
 	}
 
 	if filePath == "" {

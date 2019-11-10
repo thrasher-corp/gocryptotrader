@@ -14,6 +14,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -160,11 +161,17 @@ func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType string) ([]exchan
 // SubmitOrder submits a new order
 func (g *Gemini) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+	p = exchange.FormatExchangeCurrency(g.Name, p)
+
+	if orderType != exchange.LimitOrderType {
+		return submitOrderResponse, errors.New("only limit orders are enabled through this API")
+	}
+
 	response, err := g.NewOrder(p.String(),
 		amount,
 		price,
 		side.ToString(),
-		orderType.ToString())
+		"exchange limit")
 
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
@@ -253,7 +260,7 @@ func (g *Gemini) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (g *Gemini) GetWebsocket() (*exchange.Websocket, error) {
+func (g *Gemini) GetWebsocket() (*wshandler.Websocket, error) {
 	return g.Websocket, nil
 }
 
@@ -360,18 +367,18 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (g *Gemini) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (g *Gemini) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (g *Gemini) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (g *Gemini) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (g *Gemini) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (g *Gemini) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

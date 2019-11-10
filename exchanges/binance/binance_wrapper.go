@@ -13,6 +13,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -301,9 +302,10 @@ func (b *Binance) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // submitted
 func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
 	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
-	id, err := b.WithdrawCrypto(withdrawRequest.Currency.String(), withdrawRequest.Address, withdrawRequest.AddressTag, withdrawRequest.Description, amountStr)
-
-	return strconv.FormatInt(id, 10), err
+	return b.WithdrawCrypto(withdrawRequest.Currency.String(),
+		withdrawRequest.Address,
+		withdrawRequest.AddressTag,
+		withdrawRequest.Description, amountStr)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -319,7 +321,7 @@ func (b *Binance) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Binance) GetWebsocket() (*exchange.Websocket, error) {
+func (b *Binance) GetWebsocket() (*wshandler.Websocket, error) {
 	return b.Websocket, nil
 }
 
@@ -419,18 +421,18 @@ func (b *Binance) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Binance) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Binance) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Binance) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Binance) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Binance) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (b *Binance) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 

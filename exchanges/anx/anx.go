@@ -14,6 +14,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -72,7 +73,7 @@ func (a *ANX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	a.APIUrlDefault = anxAPIURL
 	a.APIUrl = a.APIUrlDefault
-	a.WebsocketInit()
+	a.Websocket = wshandler.New()
 }
 
 // Setup is run on startup to setup exchange with config values
@@ -82,7 +83,7 @@ func (a *ANX) Setup(exch *config.ExchangeConfig) {
 	} else {
 		a.Enabled = true
 		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
 		a.SetHTTPClientTimeout(exch.HTTPTimeout)
 		a.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		a.RESTPollingDelay = exch.RESTPollingDelay
@@ -247,9 +248,13 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 // CancelOrderByIDs cancels orders, requires already knowing order IDs
 // There is no existing API call to retrieve orderIds
 func (a *ANX) CancelOrderByIDs(orderIds []string) (OrderCancelResponse, error) {
+	var response OrderCancelResponse
+	if len(orderIds) == 0 {
+		return response, errors.New("no order ids provided")
+	}
+
 	req := make(map[string]interface{})
 	req["orderIds"] = orderIds
-	var response OrderCancelResponse
 
 	err := a.SendAuthenticatedHTTPRequest(anxOrderCancel, req, &response)
 	if response.ResultCode != "OK" {
@@ -265,7 +270,7 @@ func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
 	req["activeOnly"] = isActiveOrdersOnly
 
 	type OrderListResponse struct {
-		Timestamp      int64           `json:"timestamp"`
+		Timestamp      int64           `json:"timestamp,string"`
 		ResultCode     string          `json:"resultCode"`
 		Count          int64           `json:"count"`
 		OrderResponses []OrderResponse `json:"orders"`
@@ -277,7 +282,6 @@ func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return nil, errors.New(response.ResultCode)
 	}
 
@@ -303,7 +307,6 @@ func (a *ANX) OrderInfo(orderID string) (OrderResponse, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return OrderResponse{}, errors.New(response.ResultCode)
 	}
 	return response.Order, nil
@@ -323,7 +326,7 @@ func (a *ANX) Send(currency, address, otp, amount string) (string, error) {
 	type SendResponse struct {
 		TransactionID string `json:"transactionId"`
 		ResultCode    string `json:"resultCode"`
-		Timestamp     int64  `json:"timestamp"`
+		Timestamp     int64  `json:"timestamp,string"`
 	}
 	var response SendResponse
 
@@ -334,7 +337,6 @@ func (a *ANX) Send(currency, address, otp, amount string) (string, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 	return response.TransactionID, nil
@@ -360,7 +362,6 @@ func (a *ANX) CreateNewSubAccount(currency, name string) (string, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 	return response.SubAccount, nil
@@ -379,7 +380,7 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (
 		Address    string `json:"address"`
 		SubAccount string `json:"subAccount"`
 		ResultCode string `json:"resultCode"`
-		Timestamp  int64  `json:"timestamp"`
+		Timestamp  int64  `json:"timestamp,string"`
 	}
 	var response AddressResponse
 
@@ -394,7 +395,6 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 
@@ -403,7 +403,16 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, newAddr bool) (
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (a *ANX) SendHTTPRequest(path string, result interface{}) error {
-	return a.SendPayload(http.MethodGet, path, nil, nil, result, false, false, a.Verbose, a.HTTPDebugging)
+	return a.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		a.Verbose,
+		a.HTTPDebugging,
+		a.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends a authenticated HTTP request
@@ -436,7 +445,16 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	headers["Rest-Sign"] = common.Base64Encode(hmac)
 	headers["Content-Type"] = "application/json"
 
-	return a.SendPayload(http.MethodPost, a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, true, a.Verbose, a.HTTPDebugging)
+	return a.SendPayload(http.MethodPost,
+		a.APIUrl+path,
+		headers,
+		bytes.NewBuffer(PayloadJSON),
+		result,
+		true,
+		true,
+		a.Verbose,
+		a.HTTPDebugging,
+		a.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

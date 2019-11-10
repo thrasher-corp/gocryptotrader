@@ -14,6 +14,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -40,6 +41,7 @@ const (
 // LakeBTC is the overarching type across the LakeBTC package
 type LakeBTC struct {
 	exchange.Base
+	WebsocketConn
 }
 
 // SetDefaults sets LakeBTC defaults
@@ -65,7 +67,11 @@ func (l *LakeBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = lakeBTCAPIURL
 	l.APIUrl = l.APIUrlDefault
-	l.WebsocketInit()
+	l.Websocket = wshandler.New()
+	l.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketSubscribeSupported
+	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets exchange configuration profile
@@ -104,6 +110,25 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = l.Websocket.Setup(l.WsConnect,
+			l.Subscribe,
+			nil,
+			exch.Name,
+			exch.Websocket,
+			exch.Verbose,
+			lakeBTCWSURL,
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
+		if err != nil {
+			log.Fatal(err)
+		}
+		l.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			false,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 
@@ -335,7 +360,16 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 
 // SendHTTPRequest sends an unauthenticated http request
 func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, false, l.Verbose, l.HTTPDebugging)
+	return l.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		l.Verbose,
+		l.HTTPDebugging,
+		l.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated HTTP request to a LakeBTC
@@ -368,7 +402,16 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
-	return l.SendPayload(http.MethodPost, l.APIUrl, headers, strings.NewReader(string(data)), result, true, true, l.Verbose, l.HTTPDebugging)
+	return l.SendPayload(http.MethodPost,
+		l.APIUrl,
+		headers,
+		strings.NewReader(string(data)),
+		result,
+		true,
+		true,
+		l.Verbose,
+		l.HTTPDebugging,
+		l.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

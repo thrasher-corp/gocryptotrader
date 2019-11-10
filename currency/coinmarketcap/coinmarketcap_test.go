@@ -41,7 +41,14 @@ func TestSetup(t *testing.T) {
 	cfg.Enabled = true
 	cfg.AccountPlan = "basic"
 
-	c.Setup(cfg)
+	if err := c.Setup(cfg); err != nil {
+		t.Error(err)
+	}
+
+	cfg.AccountPlan = "meow"
+	if err := c.Setup(cfg); err == nil {
+		t.Error("expected err when invalid account plan is specified")
+	}
 }
 
 func TestCheckAccountPlan(t *testing.T) {

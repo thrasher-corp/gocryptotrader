@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -58,7 +58,7 @@ const (
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
-	WebsocketConn      *websocket.Conn
+	WebsocketConn      *wshandler.WebsocketConnection
 	CryptoFee, FiatFee float64
 	wsRequestMtx       sync.Mutex
 }
@@ -89,15 +89,18 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
-	k.WebsocketInit()
+	k.Websocket = wshandler.New()
 	k.WebsocketURL = krakenWSURL
-	k.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported
-
+	k.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets current exchange configuration
@@ -137,17 +140,34 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = k.WebsocketSetup(k.WsConnect,
+		err = k.Websocket.Setup(k.WsConnect,
 			k.Subscribe,
 			k.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			krakenWSURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		k.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         k.Name,
+			URL:                  k.Websocket.GetWebsocketURL(),
+			ProxyURL:             k.Websocket.GetProxyAddress(),
+			Verbose:              k.Verbose,
+			RateLimit:            krakenWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		k.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			false,
+			false,
+			exch.Name)
 	}
 }
 
@@ -932,7 +952,16 @@ func GetError(apiErrors []string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
 func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
-	return k.SendPayload(http.MethodGet, path, nil, nil, result, false, false, k.Verbose, k.HTTPDebugging)
+	return k.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		k.Verbose,
+		k.HTTPDebugging,
+		k.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -976,7 +1005,8 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 		true,
 		true,
 		k.Verbose,
-		k.HTTPDebugging)
+		k.HTTPDebugging,
+		k.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

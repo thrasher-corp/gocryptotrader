@@ -13,6 +13,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -261,8 +262,12 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.Withdra
 	if err != nil {
 		return "", err
 	}
-	if resp.Error != "" {
-		return "", errors.New(resp.Error)
+	if len(resp.Error) != 0 {
+		var details string
+		for _, v := range resp.Error {
+			details += strings.Join(v, "")
+		}
+		return "", errors.New(details)
 	}
 
 	return resp.ID, nil
@@ -279,7 +284,11 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) 
 		return "", err
 	}
 	if resp.Status == errStr {
-		return "", errors.New(resp.Reason)
+		var details string
+		for _, v := range resp.Reason {
+			details += strings.Join(v, "")
+		}
+		return "", errors.New(details)
 	}
 
 	return resp.ID, nil
@@ -298,14 +307,18 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchang
 		return "", err
 	}
 	if resp.Status == errStr {
-		return "", errors.New(resp.Reason)
+		var details string
+		for _, v := range resp.Reason {
+			details += strings.Join(v, "")
+		}
+		return "", errors.New(details)
 	}
 
 	return resp.ID, nil
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitstamp) GetWebsocket() (*exchange.Websocket, error) {
+func (b *Bitstamp) GetWebsocket() (*wshandler.Websocket, error) {
 	return b.Websocket, nil
 }
 
@@ -386,7 +399,11 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 				quoteCurrency.String(),
 				b.ConfigCurrencyPairFormat.Delimiter)
 		}
-		orderDate := time.Unix(order.Date, 0)
+
+		orderDate, err := time.Parse("2006-01-02 15:04:05", order.Date)
+		if err != nil {
+			return nil, err
+		}
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.OrderID),
@@ -405,20 +422,20 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitstamp) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Bitstamp) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	b.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitstamp) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	b.Websocket.UnsubscribeToChannels(channels)
+func (b *Bitstamp) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	b.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Bitstamp) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (b *Bitstamp) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 

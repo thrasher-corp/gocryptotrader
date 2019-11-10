@@ -17,6 +17,13 @@
 [![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader)
 [![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
+<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+
+[![Build Status](https://travis-ci.com/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.com/thrasher-corp/gocryptotrader)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/idoall/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader)
+[![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
 
 A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
@@ -24,7 +31,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 ## Community
 
-Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTQyYjIxNGVhMWU5MDZlOGYzMmE0NTJmM2MzYWY5NGMzMmM4MzUwNTBjZTEzNjIwODM5NDcxODQwZDljMGQyNGY)
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
 ## Exchange Support Table
 
@@ -48,9 +55,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | Yes | NA |
-| Huobi.Hadax | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
+| Lbank | Yes | No | NA |
 | LakeBTC | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
@@ -91,7 +98,11 @@ When submitting a PR, please abide by our coding guidelines:
 
 + Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
 + Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
+<<<<<<< HEAD
 + Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
+=======
++ Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
+>>>>>>> upstrem/master
 + Pull requests need to be based on and opened against the `master` branch.
 
 ## Compiling instructions
@@ -105,7 +116,11 @@ GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Mod
 Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
+<<<<<<< HEAD
 git clone https://github.com/idoall/gocryptotrader.git
+=======
+git clone https://github.com/idoall/gocryptotrader.git
+>>>>>>> upstrem/master
 cd gocryptotrader
 go build
 mkdir ~/.gocryptotrader
@@ -115,7 +130,11 @@ cp config_example.json ~/.gocryptotrader/config.json
 ### Windows
 
 ```bash
+<<<<<<< HEAD
 git clone https://github.com/idoall/gocryptotrader.git
+=======
+git clone https://github.com/idoall/gocryptotrader.git
+>>>>>>> upstrem/master
 cd gocryptotrader
 go build
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
@@ -126,7 +145,11 @@ copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 
 ## Donations
 
+<<<<<<< HEAD
 <img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+=======
+<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+>>>>>>> upstrem/master
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
@@ -142,17 +165,24 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
+<<<<<<< HEAD
 | thrasher- | https://github.com/idoall | 526 |
 | shazbert | https://github.com/shazbert | 166 |
 | gloriousCode | https://github.com/gloriousCode | 146 |
+=======
+| thrasher- | https://github.com/thrasher- | 548 |
+| shazbert | https://github.com/shazbert | 176 |
+| gloriousCode | https://github.com/gloriousCode | 155 |
+| xtda | https://github.com/xtda | 18 |
+>>>>>>> upstrem/master
 | ermalguni | https://github.com/ermalguni | 14 |
-| xtda | https://github.com/xtda | 11 |
+| vadimzhukck | https://github.com/vadimzhukck | 10 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 8 |
-| vadimzhukck | https://github.com/vadimzhukck | 8 |
 | cranktakular | https://github.com/cranktakular | 5 |
+| MadCozBadd | https://github.com/MadCozBadd | 3 |
+| leilaes | https://github.com/leilaes | 3 |
 | crackcomm | https://github.com/crackcomm | 3 |
-| MadCozBadd | https://github.com/MadCozBadd | 2 |
 | andreygrehov | https://github.com/andreygrehov | 2 |
 | bretep | https://github.com/bretep | 2 |
 | woshidama323 | https://github.com/woshidama323 | 2 |
@@ -166,15 +196,15 @@ Binaries will be published once the codebase reaches a stable condition.
 | CodeLingoTeam | https://github.com/CodeLingoTeam | 1 |
 | Daanikus | https://github.com/Daanikus | 1 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
+| DirectX | https://github.com/DirectX | 1 |
 | frankzougc | https://github.com/frankzougc | 1 |
 | starit | https://github.com/starit | 1 |
 | Jimexist | https://github.com/Jimexist | 1 |
 | lookfirst | https://github.com/lookfirst | 1 |
-| zeldrinn | https://github.com/zeldrinn | 1 |
 | mattkanwisher | https://github.com/mattkanwisher | 1 |
 | mKurrels | https://github.com/mKurrels | 1 |
 | m1kola | https://github.com/m1kola | 1 |
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
-
+| zeldrinn | https://github.com/zeldrinn | 1 |
 
 

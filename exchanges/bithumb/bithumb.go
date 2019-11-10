@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/idoall/gocryptotrader/common"
@@ -17,6 +18,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -81,7 +83,7 @@ func (b *Bithumb) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
+	b.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -142,29 +144,27 @@ func (b *Bithumb) GetTradablePairs() ([]string, error) {
 //
 // symbol e.g. "btc"
 func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
-	response := Ticker{}
-	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicTicker, common.StringToUpper(symbol))
+	var response TickerResponse
+	path := fmt.Sprintf("%s%s%s",
+		b.APIUrl,
+		publicTicker,
+		strings.ToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
-		return response, err
+		return response.Data, err
 	}
 
 	if response.Status != noError {
-		return response, errors.New(response.Message)
+		return response.Data, errors.New(response.Message)
 	}
 
-	return response, nil
+	return response.Data, nil
 }
 
 // GetAllTickers returns all ticker information
 func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
-	type Response struct {
-		ActionStatus
-		Data map[string]interface{}
-	}
-
-	response := Response{}
+	var response TickersResponse
 	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicTicker, "all")
 
 	err := b.SendHTTPRequest(path, &response)
@@ -181,25 +181,12 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 		if k == "date" {
 			continue
 		}
-
-		if reflect.TypeOf(v).String() != "map[string]interface {}" {
-			continue
+		var newTicker Ticker
+		err := common.JSONDecode(v, &newTicker)
+		if err != nil {
+			return nil, err
 		}
-
-		data := v.(map[string]interface{})
-		var t Ticker
-		t.AveragePrice, _ = strconv.ParseFloat(data["average_price"].(string), 64)
-		t.BuyPrice, _ = strconv.ParseFloat(data["buy_price"].(string), 64)
-		t.ClosingPrice, _ = strconv.ParseFloat(data["closing_price"].(string), 64)
-		t.MaxPrice, _ = strconv.ParseFloat(data["max_price"].(string), 64)
-		t.MinPrice, _ = strconv.ParseFloat(data["min_price"].(string), 64)
-		t.OpeningPrice, _ = strconv.ParseFloat(data["opening_price"].(string), 64)
-		t.SellPrice, _ = strconv.ParseFloat(data["sell_price"].(string), 64)
-		t.UnitsTraded, _ = strconv.ParseFloat(data["units_traded"].(string), 64)
-		t.Volume1Day, _ = strconv.ParseFloat(data["volume_1day"].(string), 64)
-		t.Volume7Day, _ = strconv.ParseFloat(data["volume_7day"].(string), 64)
-		result[k] = t
-
+		result[k] = newTicker
 	}
 	return result, nil
 }
@@ -544,7 +531,16 @@ func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, e
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bithumb) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
@@ -588,14 +584,15 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		true,
 		true,
 		b.Verbose,
-		b.HTTPDebugging)
+		b.HTTPDebugging,
+		b.HTTPRecording)
 	if err != nil {
 		return err
 	}
 
 	err = common.JSONDecode(intermediary, &errCapture)
 	if err == nil {
-		if errCapture.Status != "" && errCapture.Status != "0000" {
+		if errCapture.Status != "" && errCapture.Status != noError {
 			return fmt.Errorf("sendAuthenticatedAPIRequest error code: %s message:%s",
 				errCapture.Status,
 				errCode[errCapture.Status])

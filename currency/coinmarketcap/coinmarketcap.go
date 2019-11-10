@@ -8,7 +8,6 @@ package coinmarketcap
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -80,18 +79,15 @@ func (c *Coinmarketcap) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (c *Coinmarketcap) Setup(conf Settings) {
+func (c *Coinmarketcap) Setup(conf Settings) error {
 	if !conf.Enabled {
 		c.Enabled = false
-	} else {
-		c.Enabled = true
-		c.Verbose = conf.Verbose
-		c.APIkey = conf.APIkey
-		err := c.SetAccountPlan(conf.AccountPlan)
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
+
+	c.Enabled = true
+	c.Verbose = conf.Verbose
+	c.APIkey = conf.APIkey
+	return c.SetAccountPlan(conf.AccountPlan)
 }
 
 // GetCryptocurrencyInfo returns all static metadata for one or more
@@ -158,28 +154,28 @@ func (c *Coinmarketcap) GetCryptocurrencyIDMap() ([]CryptoCurrencyMap, error) {
 // GetCryptocurrencyHistoricalListings returns a paginated list of all
 // cryptocurrencies with market data for a given historical time.
 func (c *Coinmarketcap) GetCryptocurrencyHistoricalListings() ([]CryptocurrencyHistoricalListings, error) {
-	return nil, errors.New("this endpoint is not yet available")
+	return nil, common.ErrNotYetImplemented
 	// NOTE unreachable code but will be utilised at a later date
 	// resp := struct {
 	// 	Data   []CryptocurrencyHistoricalListings `json:"data"`
 	// 	Status Status                             `json:"status"`
 	// }{}
 
-	// err := c.CheckAccountPlan(0)
+	// nolint: gocritic err := c.CheckAccountPlan(0)
 	// if err != nil {
 	// 	return resp.Data, err
 	// }
 
-	// err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyHistoricalListings, nil, &resp)
+	// nolint: gocritic err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyHistoricalListings, nil, &resp)
 	// if err != nil {
 	// 	return resp.Data, err
 	// }
 
-	//nolint:gocritic if resp.Status.ErrorCode != 0 {
+	// nolint: gocritic nolint:gocritic if resp.Status.ErrorCode != 0 {
 	// 	return resp.Data, errors.New(resp.Status.ErrorMessage)
 	// }
 
-	//nolint:gocritic return resp.Data, nil
+	// nolint: gocritic nolint:gocritic return resp.Data, nil
 }
 
 // GetCryptocurrencyLatestListing returns a paginated list of all
@@ -732,6 +728,7 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 		false,
 		false,
 		c.Verbose,
+		false,
 		false)
 }
 

@@ -13,6 +13,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -77,11 +78,9 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 		currency := x.Base.String()
 		var tp ticker.Price
 		tp.Pair = x
-		tp.Ask = tickers[currency].SellPrice
-		tp.Bid = tickers[currency].BuyPrice
 		tp.Low = tickers[currency].MinPrice
 		tp.Last = tickers[currency].ClosingPrice
-		tp.Volume = tickers[currency].Volume1Day
+		tp.Volume = tickers[currency].UnitsTraded24Hr
 		tp.High = tickers[currency].MaxPrice
 
 		err = ticker.ProcessTicker(b.Name, &tp, assetType)
@@ -320,7 +319,7 @@ func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
+func (b *Bithumb) GetWebsocket() (*wshandler.Websocket, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -423,18 +422,18 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Bithumb) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Bithumb) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bithumb) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Bithumb) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Bithumb) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (b *Bithumb) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

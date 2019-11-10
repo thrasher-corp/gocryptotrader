@@ -17,6 +17,7 @@ const (
 	errQuoteCurrencyNotFound     = "orderbook quote currency not found"
 
 	Spot = "SPOT"
+	Swap = "SWAP"
 )
 
 // Vars for the orderbook package

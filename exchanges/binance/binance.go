@@ -10,20 +10,20 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 
 	// Valid string list that is required by the exchange
 	validLimits    []int
@@ -96,12 +96,15 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
+	b.Websocket = wshandler.New()
 	b.WebsocketURL = binanceDefaultWebsocketURL
-	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketTickerSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported
+	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -110,8 +113,8 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = true
-		b.BaseAsset = exch.BaseAsset
-		b.QuoteAsset = exch.QuoteAsset
+		// b.BaseAsset = exch.BaseAsset
+		// b.QuoteAsset = exch.QuoteAsset
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
@@ -144,18 +147,33 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		err = b.WebsocketSetup(b.WSConnect,
+		err = b.Websocket.Setup(b.WSConnect,
 			nil,
 			nil,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			binanceDefaultWebsocketURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         b.Name,
+			URL:                  b.Websocket.GetWebsocketURL(),
+			ProxyURL:             b.Websocket.GetProxyAddress(),
+			Verbose:              b.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		b.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			true,
+			false,
+			exch.Name)
 	}
 }
 
@@ -268,20 +286,10 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 // limit: Optional. Default 500; max 1000.
 // fromID:
 func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
-	var resp []HistoricalTrade
-
-	if err := b.CheckLimit(limit); err != nil {
-		return resp, err
-	}
-
-	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.Itoa(limit))
-	params.Set("fromid", strconv.FormatInt(fromID, 10))
-
-	path := fmt.Sprintf("%s%s?%s", b.APIUrl, historicalTrades, params.Encode())
-
-	return resp, b.SendHTTPRequest(path, &resp)
+	// Dropping support due to response for market data is always
+	// {"code":-2014,"msg":"API-key format invalid."}
+	// TODO: replace with newer API vs REST endpoint
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetAggregatedTrades returns aggregated trade activity
@@ -637,7 +645,16 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // SendUserDataStreamAuthHTTPRequest sends an authenticated HTTP request
@@ -703,7 +720,16 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 		Message string `json:"msg"`
 	}{}
 
-	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, false, b.Verbose, b.HTTPDebugging)
+	err := b.SendPayload(method,
+		path,
+		headers,
+		bytes.NewBuffer(nil),
+		&interim,
+		true,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 	if err != nil {
 		return err
 	}
@@ -823,7 +849,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 }
 
 // WithdrawCrypto sends cryptocurrency to the address of your choosing
-func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string) (int64, error) {
+func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string) (string, error) {
 	var resp WithdrawResponse
 	path := fmt.Sprintf("%s%s", b.APIUrl, withdraw)
 
@@ -839,7 +865,7 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 	}
 
 	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, &resp); err != nil {
-		return -1, err
+		return "", err
 	}
 
 	if !resp.Success {

@@ -7,16 +7,15 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -48,9 +47,8 @@ const (
 
 // Gateio is the overarching type across this package
 type Gateio struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
-	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -77,14 +75,18 @@ func (g *Gateio) SetDefaults() {
 	g.APIUrl = g.APIUrlDefault
 	g.APIUrlSecondaryDefault = gateioMarketURL
 	g.APIUrlSecondary = g.APIUrlSecondaryDefault
-	g.WebsocketInit()
-	g.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+	g.Websocket = wshandler.New()
+	g.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user configuration
@@ -93,8 +95,8 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 		g.SetEnabled(false)
 	} else {
 		g.Enabled = true
-		g.BaseAsset = exch.BaseAsset
-		g.QuoteAsset = exch.QuoteAsset
+		// g.BaseAsset = exch.BaseAsset
+		// g.QuoteAsset = exch.QuoteAsset
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		g.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
@@ -126,17 +128,34 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.WebsocketSetup(g.WsConnect,
+		err = g.Websocket.Setup(g.WsConnect,
 			g.Subscribe,
 			g.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			gateioWebsocketEndpoint,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		g.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         g.Name,
+			URL:                  g.Websocket.GetWebsocketURL(),
+			ProxyURL:             g.Websocket.GetProxyAddress(),
+			Verbose:              g.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            gateioWebsocketRateLimit,
+		}
+		g.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 
@@ -402,7 +421,16 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, false, g.Verbose, g.HTTPDebugging)
+	return g.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		g.Verbose,
+		g.HTTPDebugging,
+		g.HTTPRecording)
 }
 
 // CancelAllExistingOrders all orders for a given symbol and side
@@ -502,7 +530,8 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 		true,
 		false,
 		g.Verbose,
-		g.HTTPDebugging)
+		g.HTTPDebugging,
+		g.HTTPRecording)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,6 @@
 package bitflyer
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/idoall/gocryptotrader/common"
@@ -9,6 +8,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -29,22 +29,25 @@ func (b *Bitflyer) Run() {
 		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	/*
-		marketInfo, err := b.GetMarkets()
-		if err != nil {
-			log.Printf("%s Failed to get available symbols.\n", b.GetName())
-		} else {
-			var exchangeProducts []string
+	/* nolint: gocritic
+	This has been disabled in master but enabled in engine due to multiple
+	asset support
 
-			for _, info := range marketInfo {
-				exchangeProducts = append(exchangeProducts, info.ProductCode)
-			}
+	marketInfo, err := b.GetMarkets()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+	} else {
+		var exchangeProducts []string
 
-			err = b.UpdateAvailableCurrencies(exchangeProducts, false)
-			if err != nil {
-				log.Printf("%s Failed to get config.\n", b.GetName())
-			}
+		for _, info := range marketInfo {
+			exchangeProducts = append(exchangeProducts, info.ProductCode)
 		}
+
+		err = b.UpdateAvailableCurrencies(exchangeProducts, false)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", b.GetName())
+		}
+	}
 	*/
 }
 
@@ -135,26 +138,13 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType string) (orderbook
 // GetAccountInfo retrieves balances for all enabled currencies on the
 // Bitflyer exchange
 func (b *Bitflyer) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	response.Exchange = b.GetName()
-	// accountBalance, err := b.GetAccountBalance()
-	// if err != nil {
-	// 	return response, err
-	// }
-	if !b.Enabled {
-		return response, errors.New("exchange not enabled")
-	}
-
-	// implement once authenticated requests are introduced
-
-	return response, nil
+	return exchange.AccountInfo{}, common.ErrNotYetImplemented
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -219,7 +209,7 @@ func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchang
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitflyer) GetWebsocket() (*exchange.Websocket, error) {
+func (b *Bitflyer) GetWebsocket() (*wshandler.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -245,18 +235,18 @@ func (b *Bitflyer) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitflyer) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Bitflyer) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitflyer) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *Bitflyer) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Bitflyer) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (b *Bitflyer) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

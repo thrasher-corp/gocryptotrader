@@ -4,20 +4,11 @@ import (
 	"flag"
 	"fmt"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/currency"
-	"github.com/idoall/gocryptotrader/currency/symbol"
-	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
-	"github.com/idoall/gocryptotrader/portfolio"
-=======
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
 	log "github.com/idoall/gocryptotrader/logger"
 	"github.com/idoall/gocryptotrader/portfolio"
->>>>>>> upstrem/master
 )
 
 var (

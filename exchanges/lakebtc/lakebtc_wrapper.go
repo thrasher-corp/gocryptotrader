@@ -13,6 +13,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -266,9 +267,8 @@ func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (l *LakeBTC) GetWebsocket() (*exchange.Websocket, error) {
-	// Documents are too vague to implement
-	return nil, common.ErrFunctionNotSupported
+func (l *LakeBTC) GetWebsocket() (*wshandler.Websocket, error) {
+	return l.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
@@ -351,18 +351,18 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (l *LakeBTC) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (l *LakeBTC) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (l *LakeBTC) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (l *LakeBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

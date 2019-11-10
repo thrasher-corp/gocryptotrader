@@ -16,7 +16,7 @@ This zb package is part of the GoCryptoTrader codebase.
 
 You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
-Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTQyYjIxNGVhMWU5MDZlOGYzMmE0NTJmM2MzYWY5NGMzMmM4MzUwNTBjZTEzNjIwODM5NDcxODQwZDljMGQyNGY)
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
 ## ZB Exchange
 
@@ -127,12 +127,20 @@ When submitting a PR, please abide by our coding guidelines:
 
 + Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
 + Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
+<<<<<<< HEAD
 + Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/doc/coding_style.md).
+=======
++ Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/doc/coding_style.md).
+>>>>>>> upstrem/master
 + Pull requests need to be based on and opened against the `master` branch.
 
 ## Donations
 
+<<<<<<< HEAD
 <img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+=======
+<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+>>>>>>> upstrem/master
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

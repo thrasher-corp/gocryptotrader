@@ -395,9 +395,14 @@ type WebsocketSubscriptionEventRequest struct {
 	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
 }
 
+// WebsocketBaseEventRequest Just has an "event" property
+type WebsocketBaseEventRequest struct {
+	Event string `json:"event"` // eg "unsubscribe"
+}
+
 // WebsocketUnsubscribeByChannelIDEventRequest  handles WS unsubscribe events
 type WebsocketUnsubscribeByChannelIDEventRequest struct {
-	Event     string   `json:"event"`           // unsubscribe
+	WebsocketBaseEventRequest
 	RequestID int64    `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
 	Pairs     []string `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
 	ChannelID int64    `json:"channelID,omitempty"`
@@ -412,11 +417,12 @@ type WebsocketSubscriptionData struct {
 
 // WebsocketEventResponse holds all data response types
 type WebsocketEventResponse struct {
-	Event        string                            `json:"event"`
+	WebsocketBaseEventRequest
 	Status       string                            `json:"status"`
 	Pair         currency.Pair                     `json:"pair,omitempty"`
 	RequestID    int64                             `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
 	Subscription WebsocketSubscriptionResponseData `json:"subscription,omitempty"`
+	ChannelName  string                            `json:"channelName,omitempty"`
 	WebsocketSubscriptionEventResponse
 	WebsocketStatusResponse
 	WebsocketErrorResponse

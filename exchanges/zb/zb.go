@@ -8,17 +8,15 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/idoall/gocryptotrader/currency"
-
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -48,9 +46,8 @@ const (
 // 47.91.169.147 api.zb.com
 // 47.52.55.212 trade.zb.com
 type ZB struct {
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
-	wsRequestMtx sync.Mutex
 }
 
 // SetDefaults sets default values for the exchange
@@ -77,15 +74,19 @@ func (z *ZB) SetDefaults() {
 	z.APIUrl = z.APIUrlDefault
 	z.APIUrlSecondaryDefault = zbMarketURL
 	z.APIUrlSecondary = z.APIUrlSecondaryDefault
-	z.WebsocketInit()
-	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketAccountDataSupported |
-		exchange.WebsocketCancelOrderSupported |
-		exchange.WebsocketSubmitOrderSupported
+	z.Websocket = wshandler.New()
+	z.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketAccountDataSupported |
+		wshandler.WebsocketCancelOrderSupported |
+		wshandler.WebsocketSubmitOrderSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	z.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user configuration
@@ -127,17 +128,34 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = z.WebsocketSetup(z.WsConnect,
+		err = z.Websocket.Setup(z.WsConnect,
 			z.Subscribe,
 			nil,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			zbWebsocketAPI,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		z.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         z.Name,
+			URL:                  z.Websocket.GetWebsocketURL(),
+			ProxyURL:             z.Websocket.GetProxyAddress(),
+			Verbose:              z.Verbose,
+			RateLimit:            zbWebsocketRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		z.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			false,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 
@@ -158,7 +176,7 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 		return 0, err
 	}
 	if result.Code != 1000 {
-		return 0, fmt.Errorf("unsucessful new order, message: %s code: %d", result.Message, result.Code)
+		return 0, fmt.Errorf("unsuccessful new order, message: %s code: %d", result.Message, result.Code)
 	}
 	newOrderID, err := strconv.ParseInt(result.ID, 10, 64)
 	if err != nil {
@@ -373,7 +391,16 @@ func (z *ZB) GetCryptoAddress(currency currency.Code) (UserAddress, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (z *ZB) SendHTTPRequest(path string, result interface{}) error {
-	return z.SendPayload(http.MethodGet, path, nil, nil, result, false, false, z.Verbose, z.HTTPDebugging)
+	return z.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		z.Verbose,
+		z.HTTPDebugging,
+		z.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
@@ -411,7 +438,8 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 		true,
 		false,
 		z.Verbose,
-		z.HTTPDebugging)
+		z.HTTPDebugging,
+		z.HTTPRecording)
 	if err != nil {
 		return err
 	}

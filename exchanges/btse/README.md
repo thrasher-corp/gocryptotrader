@@ -3,6 +3,7 @@
 
 <img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
+
 An exchange interface wrapper for the GoCryptoTrader application.
 
 ## This is still in active development

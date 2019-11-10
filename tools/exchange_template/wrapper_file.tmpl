@@ -187,20 +187,20 @@ func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuil
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
 	{{.Variable}}.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
 	{{.Variable}}.Websocket.UnubscribeToChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

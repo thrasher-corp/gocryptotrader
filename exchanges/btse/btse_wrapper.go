@@ -12,6 +12,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -32,22 +33,25 @@ func (b *BTSE) Run() {
 		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	markets, err := b.GetMarkets()
+	m, err := b.GetMarkets()
 	if err != nil {
 		log.Errorf("%s failed to get trading pairs. Err: %s", b.Name, err)
 	} else {
 		var currencies []string
-		for _, m := range *markets {
-			currencies = append(currencies, m.ID)
+		for x := range m {
+			if m[x].Status != "active" {
+				continue
+			}
+			currencies = append(currencies, m[x].Symbol)
 		}
 		err = b.UpdateCurrencies(currency.NewPairsFromStrings(currencies),
 			false,
 			false)
 		if err != nil {
-			log.Errorf("%s Failed to update available currencies.\n", b.Name)
+			log.Errorf("%s Failed to update available currencies. Error: %s\n",
+				b.Name, err)
 		}
 	}
-
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -100,7 +104,29 @@ func (b *BTSE) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
-	return orderbook.Base{}, common.ErrFunctionNotSupported
+	var resp orderbook.Base
+	a, err := b.FetchOrderBook(exchange.FormatExchangeCurrency(b.Name, p).String())
+	if err != nil {
+		return resp, err
+	}
+	for x := range a.BuyQuote {
+		resp.Bids = append(resp.Bids, orderbook.Item{
+			Price:  a.BuyQuote[x].Price,
+			Amount: a.BuyQuote[x].Size})
+	}
+	for x := range a.SellQuote {
+		resp.Asks = append(resp.Asks, orderbook.Item{
+			Price:  a.SellQuote[x].Price,
+			Amount: a.SellQuote[x].Size})
+	}
+	resp.Pair = p
+	resp.ExchangeName = b.Name
+	resp.AssetType = assetType
+	err = resp.Process()
+	if err != nil {
+		return resp, err
+	}
+	return orderbook.Get(b.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -113,12 +139,12 @@ func (b *BTSE) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	var currencies []exchange.AccountCurrencyInfo
-	for _, b := range *balance {
+	for b := range balance {
 		currencies = append(currencies,
 			exchange.AccountCurrencyInfo{
-				CurrencyName: currency.NewCode(b.Currency),
-				TotalValue:   b.Total,
-				Hold:         b.Available,
+				CurrencyName: currency.NewCode(balance[b].Currency),
+				TotalValue:   balance[b].Total,
+				Hold:         balance[b].Available,
 			},
 		)
 	}
@@ -146,7 +172,7 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange
 func (b *BTSE) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var resp exchange.SubmitOrderResponse
 	r, err := b.CreateOrder(amount, price, side.ToString(),
-		orderType.ToString(), exchange.FormatExchangeCurrency(b.Name, p).String(), "GTC", clientID)
+		orderType.ToString(), exchange.FormatExchangeCurrency(b.Name, p).String(), "", clientID)
 	if err != nil {
 		return resp, err
 	}
@@ -188,19 +214,30 @@ func (b *BTSE) CancelOrder(order *exchange.OrderCancellation) error {
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var resp exchange.CancelAllOrdersResponse
-	r, err := b.CancelOrders(exchange.FormatExchangeCurrency(b.Name,
-		orderCancellation.CurrencyPair).String())
+	a, err := b.GetMarkets()
 	if err != nil {
 		return resp, err
 	}
-
-	switch r.Code {
-	case -1:
-		return resp, errors.New("order cancellation unsuccessful")
-	case 4:
-		return resp, errors.New("order cancellation timeout")
+	for x := range a {
+		strPair := exchange.FormatExchangeCurrency(b.Name, orderCancellation.CurrencyPair).String()
+		checkPair := currency.NewPairWithDelimiter(a[x].BaseCurrency, a[x].QuoteCurrency, b.RequestCurrencyPairFormat.Delimiter).String()
+		if strPair != "" && strPair != checkPair {
+			continue
+		} else {
+			orders, err := b.GetOrders(checkPair)
+			if err != nil {
+				return resp, err
+			}
+			for y := range orders {
+				success := "Order Cancelled"
+				_, err = b.CancelExistingOrder(orders[y].Order.ID, checkPair)
+				if err != nil {
+					success = "Order Cancellation Failed"
+				}
+				resp.OrderStatus[orders[y].Order.ID] = success
+			}
+		}
 	}
-
 	return resp, nil
 }
 
@@ -212,48 +249,46 @@ func (b *BTSE) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 	}
 
 	var od exchange.OrderDetail
-	if len(*o) == 0 {
+	if len(o) == 0 {
 		return od, errors.New("no orders found")
 	}
 
-	for i := range *o {
-		o := (*o)[i]
-		if o.ID != orderID {
+	for i := range o {
+		if o[i].ID != orderID {
 			continue
 		}
 
 		var side = exchange.BuyOrderSide
-		if strings.EqualFold(o.Side, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(o[i].Side, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
 		}
 
-		od.CurrencyPair = currency.NewPairDelimiter(o.ProductID,
+		od.CurrencyPair = currency.NewPairDelimiter(o[i].Symbol,
 			b.ConfigCurrencyPairFormat.Delimiter)
 		od.Exchange = b.Name
-		od.Amount = o.Amount
-		od.ID = o.ID
-		od.OrderDate = parseOrderTime(o.CreatedAt)
+		od.Amount = o[i].Amount
+		od.ID = o[i].ID
+		od.OrderDate = parseOrderTime(o[i].CreatedAt)
 		od.OrderSide = side
-		od.OrderType = exchange.OrderType(strings.ToUpper(o.Type))
-		od.Price = o.Price
-		od.Status = o.Status
+		od.OrderType = exchange.OrderType(strings.ToUpper(o[i].Type))
+		od.Price = o[i].Price
+		od.Status = o[i].Status
 
-		fills, err := b.GetFills(orderID, "", "", "", "")
+		fills, err := b.GetFills(orderID, "", "", "", "", "")
 		if err != nil {
 			return od, fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
 
-		for i := range *fills {
-			f := (*fills)[i]
-			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+		for i := range fills {
+			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
 			od.Trades = append(od.Trades, exchange.TradeHistory{
 				Timestamp: createdAt,
-				TID:       f.ID,
-				Price:     f.Price,
-				Amount:    f.Amount,
+				TID:       fills[i].ID,
+				Price:     fills[i].Price,
+				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      exchange.OrderSide(f.Side).ToString(),
-				Fee:       f.Fee,
+				Type:      fills[i].Side,
+				Fee:       fills[i].Fee,
 			})
 		}
 	}
@@ -284,7 +319,7 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.Wi
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *BTSE) GetWebsocket() (*exchange.Websocket, error) {
+func (b *BTSE) GetWebsocket() (*wshandler.Websocket, error) {
 	return b.Websocket, nil
 }
 
@@ -296,43 +331,41 @@ func (b *BTSE) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]e
 	}
 
 	var orders []exchange.OrderDetail
-	for i := range *resp {
-		order := (*resp)[i]
+	for i := range resp {
 		var side = exchange.BuyOrderSide
-		if strings.EqualFold(order.Side, exchange.AskOrderSide.ToString()) {
+		if strings.EqualFold(resp[i].Side, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
 		}
 
 		openOrder := exchange.OrderDetail{
-			CurrencyPair: currency.NewPairDelimiter(order.ProductID,
+			CurrencyPair: currency.NewPairDelimiter(resp[i].Symbol,
 				b.ConfigCurrencyPairFormat.Delimiter),
 			Exchange:  b.Name,
-			Amount:    order.Amount,
-			ID:        order.ID,
-			OrderDate: parseOrderTime(order.CreatedAt),
+			Amount:    resp[i].Amount,
+			ID:        resp[i].ID,
+			OrderDate: parseOrderTime(resp[i].CreatedAt),
 			OrderSide: side,
-			OrderType: exchange.OrderType(strings.ToUpper(order.Type)),
-			Price:     order.Price,
-			Status:    order.Status,
+			OrderType: exchange.OrderType(strings.ToUpper(resp[i].Type)),
+			Price:     resp[i].Price,
+			Status:    resp[i].Status,
 		}
 
-		fills, err := b.GetFills(order.ID, "", "", "", "")
+		fills, err := b.GetFills(resp[i].ID, "", "", "", "", "")
 		if err != nil {
-			log.Errorf("unable to get order fills for orderID %s", order.ID)
+			log.Errorf("%s: unable to get order fills for orderID %s", b.Name, resp[i].ID)
 			continue
 		}
 
-		for i := range *fills {
-			f := (*fills)[i]
-			createdAt, _ := time.Parse(time.RFC3339, f.CreatedAt)
+		for i := range fills {
+			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
 			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
 				Timestamp: createdAt,
-				TID:       f.ID,
-				Price:     f.Price,
-				Amount:    f.Amount,
+				TID:       fills[i].ID,
+				Price:     fills[i].Price,
+				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
-				Type:      exchange.OrderSide(f.Side).ToString(),
-				Fee:       f.Fee,
+				Type:      fills[i].Side,
+				Fee:       fills[i].Fee,
 			})
 		}
 		orders = append(orders, openOrder)
@@ -361,20 +394,20 @@ func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *BTSE) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *BTSE) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	b.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *BTSE) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
-	b.Websocket.UnsubscribeToChannels(channels)
+func (b *BTSE) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	b.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *BTSE) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (b *BTSE) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 

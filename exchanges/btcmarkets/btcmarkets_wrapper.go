@@ -13,6 +13,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -322,7 +323,7 @@ func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *excha
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *BTCMarkets) GetWebsocket() (*exchange.Websocket, error) {
+func (b *BTCMarkets) GetWebsocket() (*wshandler.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -463,18 +464,18 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *BTCMarkets) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *BTCMarkets) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *BTCMarkets) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (b *BTCMarkets) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *BTCMarkets) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (b *BTCMarkets) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

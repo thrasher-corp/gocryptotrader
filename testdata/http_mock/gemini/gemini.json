@@ -1,0 +1,2734 @@
+{
+ "routes": {
+  "/v1/auction/btcusd": {
+   "GET": [
+    {
+     "data": {
+      "last_auction_eid": 265387648,
+      "next_auction_ms": 1565726400000,
+      "next_update_ms": 1565725800000
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v1/auction/btcusd/history": {
+   "GET": [
+    {
+     "data": [
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265367818,
+       "event_type": "auction",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565640000,
+       "timestampms": 1565640000000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265367738,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639985,
+       "timestampms": 1565639985000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265367670,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639970,
+       "timestampms": 1565639970000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265367594,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639955,
+       "timestampms": 1565639955000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265367525,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639940,
+       "timestampms": 1565639940000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265367238,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639880,
+       "timestampms": 1565639880000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265367030,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639820,
+       "timestampms": 1565639820000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265366772,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639760,
+       "timestampms": 1565639760000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265366530,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639700,
+       "timestampms": 1565639700000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265366513,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639640,
+       "timestampms": 1565639640000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265366505,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639580,
+       "timestampms": 1565639580000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265366242,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639520,
+       "timestampms": 1565639520000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.94",
+       "eid": 265366000,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.32",
+       "timestamp": 1565639460,
+       "timestampms": 1565639460000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3136,
+       "auction_result": "failure",
+       "collar_price": "11391.90",
+       "eid": 265365766,
+       "event_type": "indicative",
+       "highest_bid_price": "11391.56",
+       "lowest_ask_price": "11392.24",
+       "timestamp": 1565639400,
+       "timestampms": 1565639400000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264896173,
+       "event_type": "auction",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553600,
+       "timestampms": 1565553600000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264896124,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553585,
+       "timestampms": 1565553585000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264896071,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553570,
+       "timestampms": 1565553570000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264895999,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553555,
+       "timestampms": 1565553555000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264895915,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553540,
+       "timestampms": 1565553540000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264895644,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553480,
+       "timestampms": 1565553480000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264895370,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553420,
+       "timestampms": 1565553420000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264895088,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553360,
+       "timestampms": 1565553360000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.955",
+       "eid": 264894814,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.91",
+       "timestamp": 1565553300,
+       "timestampms": 1565553300000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.82",
+       "eid": 264894529,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.64",
+       "timestamp": 1565553240,
+       "timestampms": 1565553240000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11365.82",
+       "eid": 264894334,
+       "event_type": "indicative",
+       "highest_bid_price": "11364.00",
+       "lowest_ask_price": "11367.64",
+       "timestamp": 1565553180,
+       "timestampms": 1565553180000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "10949.09",
+       "eid": 264893399,
+       "event_type": "indicative",
+       "highest_bid_price": "10530.54",
+       "lowest_ask_price": "11367.64",
+       "timestamp": 1565553120,
+       "timestampms": 1565553120000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11367.31",
+       "eid": 264892625,
+       "event_type": "indicative",
+       "highest_bid_price": "11365.10",
+       "lowest_ask_price": "11369.52",
+       "timestamp": 1565553060,
+       "timestampms": 1565553060000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3127,
+       "auction_result": "failure",
+       "collar_price": "11367.31",
+       "eid": 264892355,
+       "event_type": "indicative",
+       "highest_bid_price": "11365.10",
+       "lowest_ask_price": "11369.52",
+       "timestamp": 1565553000,
+       "timestampms": 1565553000000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11310.96",
+       "eid": 264422533,
+       "event_type": "auction",
+       "highest_bid_price": "11308.76",
+       "lowest_ask_price": "11313.16",
+       "timestamp": 1565467200,
+       "timestampms": 1565467200000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11310.96",
+       "eid": 264422460,
+       "event_type": "indicative",
+       "highest_bid_price": "11308.76",
+       "lowest_ask_price": "11313.16",
+       "timestamp": 1565467185,
+       "timestampms": 1565467185000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11310.96",
+       "eid": 264422378,
+       "event_type": "indicative",
+       "highest_bid_price": "11308.76",
+       "lowest_ask_price": "11313.16",
+       "timestamp": 1565467170,
+       "timestampms": 1565467170000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11310.96",
+       "eid": 264422311,
+       "event_type": "indicative",
+       "highest_bid_price": "11308.76",
+       "lowest_ask_price": "11313.16",
+       "timestamp": 1565467155,
+       "timestampms": 1565467155000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11310.96",
+       "eid": 264422230,
+       "event_type": "indicative",
+       "highest_bid_price": "11308.76",
+       "lowest_ask_price": "11313.16",
+       "timestamp": 1565467140,
+       "timestampms": 1565467140000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11311.025",
+       "eid": 264421990,
+       "event_type": "indicative",
+       "highest_bid_price": "11308.89",
+       "lowest_ask_price": "11313.16",
+       "timestamp": 1565467080,
+       "timestampms": 1565467080000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11311.095",
+       "eid": 264421860,
+       "event_type": "indicative",
+       "highest_bid_price": "11309.03",
+       "lowest_ask_price": "11313.16",
+       "timestamp": 1565467020,
+       "timestampms": 1565467020000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11311.095",
+       "eid": 264421842,
+       "event_type": "indicative",
+       "highest_bid_price": "11309.03",
+       "lowest_ask_price": "11313.16",
+       "timestamp": 1565466960,
+       "timestampms": 1565466960000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11320.14",
+       "eid": 264420567,
+       "event_type": "indicative",
+       "highest_bid_price": "11317.26",
+       "lowest_ask_price": "11323.02",
+       "timestamp": 1565466900,
+       "timestampms": 1565466900000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11320.15",
+       "eid": 264420293,
+       "event_type": "indicative",
+       "highest_bid_price": "11317.28",
+       "lowest_ask_price": "11323.02",
+       "timestamp": 1565466840,
+       "timestampms": 1565466840000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11320.33",
+       "eid": 264420012,
+       "event_type": "indicative",
+       "highest_bid_price": "11317.64",
+       "lowest_ask_price": "11323.02",
+       "timestamp": 1565466780,
+       "timestampms": 1565466780000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11320.33",
+       "eid": 264419740,
+       "event_type": "indicative",
+       "highest_bid_price": "11317.64",
+       "lowest_ask_price": "11323.02",
+       "timestamp": 1565466720,
+       "timestampms": 1565466720000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11320.33",
+       "eid": 264419500,
+       "event_type": "indicative",
+       "highest_bid_price": "11317.64",
+       "lowest_ask_price": "11323.02",
+       "timestamp": 1565466660,
+       "timestampms": 1565466660000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3121,
+       "auction_result": "failure",
+       "collar_price": "11320.33",
+       "eid": 264419235,
+       "event_type": "indicative",
+       "highest_bid_price": "11317.64",
+       "lowest_ask_price": "11323.02",
+       "timestamp": 1565466600,
+       "timestampms": 1565466600000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3118,
+       "auction_result": "failure",
+       "collar_price": "11808.195",
+       "eid": 263947225,
+       "event_type": "auction",
+       "highest_bid_price": "11806.62",
+       "lowest_ask_price": "11809.77",
+       "timestamp": 1565380800,
+       "timestampms": 1565380800000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3118,
+       "auction_result": "failure",
+       "collar_price": "11808.195",
+       "eid": 263947144,
+       "event_type": "indicative",
+       "highest_bid_price": "11806.62",
+       "lowest_ask_price": "11809.77",
+       "timestamp": 1565380785,
+       "timestampms": 1565380785000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3118,
+       "auction_result": "failure",
+       "collar_price": "11808.195",
+       "eid": 263947071,
+       "event_type": "indicative",
+       "highest_bid_price": "11806.62",
+       "lowest_ask_price": "11809.77",
+       "timestamp": 1565380770,
+       "timestampms": 1565380770000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3118,
+       "auction_result": "failure",
+       "collar_price": "11822.65",
+       "eid": 263945809,
+       "event_type": "indicative",
+       "highest_bid_price": "11821.61",
+       "lowest_ask_price": "11823.69",
+       "timestamp": 1565380755,
+       "timestampms": 1565380755000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3118,
+       "auction_result": "failure",
+       "collar_price": "11822.65",
+       "eid": 263945730,
+       "event_type": "indicative",
+       "highest_bid_price": "11821.61",
+       "lowest_ask_price": "11823.69",
+       "timestamp": 1565380740,
+       "timestampms": 1565380740000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3118,
+       "auction_result": "failure",
+       "collar_price": "11822.65",
+       "eid": 263945457,
+       "event_type": "indicative",
+       "highest_bid_price": "11821.61",
+       "lowest_ask_price": "11823.69",
+       "timestamp": 1565380680,
+       "timestampms": 1565380680000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3118,
+       "auction_result": "failure",
+       "collar_price": "11822.65",
+       "eid": 263945229,
+       "event_type": "indicative",
+       "highest_bid_price": "11821.61",
+       "lowest_ask_price": "11823.69",
+       "timestamp": 1565380620,
+       "timestampms": 1565380620000,
+       "unmatched_collar_quantity": "0"
+      },
+      {
+       "auction_id": 3118,
+       "auction_result": "failure",
+       "collar_price": "11822.65",
+       "eid": 263945016,
+       "event_type": "indicative",
+       "highest_bid_price": "11821.61",
+       "lowest_ask_price": "11823.69",
+       "timestamp": 1565380560,
+       "timestampms": 1565380560000,
+       "unmatched_collar_quantity": "0"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v1/balances": {
+   "POST": [
+    {
+     "data": [
+      {
+       "amount": "2015",
+       "available": "2015",
+       "availableForWithdrawal": "2015",
+       "currency": "BTC",
+       "type": "exchange"
+      },
+      {
+       "amount": "234354.69",
+       "available": "234354.69",
+       "availableForWithdrawal": "234354.69",
+       "currency": "USD",
+       "type": "exchange"
+      },
+      {
+       "amount": "40000",
+       "available": "40000",
+       "availableForWithdrawal": "40000",
+       "currency": "ETH",
+       "type": "exchange"
+      },
+      {
+       "amount": "40000",
+       "available": "40000",
+       "availableForWithdrawal": "40000",
+       "currency": "BCH",
+       "type": "exchange"
+      },
+      {
+       "amount": "20000",
+       "available": "20000",
+       "availableForWithdrawal": "20000",
+       "currency": "LTC",
+       "type": "exchange"
+      },
+      {
+       "amount": "20000",
+       "available": "20000",
+       "availableForWithdrawal": "20000",
+       "currency": "ZEC",
+       "type": "exchange"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565675398767136594\",\"request\":\"/v1/balances\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2NzUzOTg3NjcxMzY1OTQiLCJyZXF1ZXN0IjoiL3YxL2JhbGFuY2VzIn0="
+      ],
+      "X-Gemini-Signature": [
+       "41d4e13ca3bbf5eba0a785ff213754c16df1679d07885f1ee7923ea8ee211f2bf848ef3c6dec71ff612ebdc2e7d419f4"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/book/btcusd": {
+   "GET": [
+    {
+     "data": {
+      "asks": [
+       {
+        "amount": "5.34093158",
+        "price": "11385.22",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.13914442",
+        "price": "11390.45",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1",
+        "price": "11390.46",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2",
+        "price": "11390.97",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2",
+        "price": "11391.11",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.753",
+        "price": "11391.50",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.11803397",
+        "price": "11392.38",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.35",
+        "price": "11392.91",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1",
+        "price": "11393.19",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.468",
+        "price": "11394.90",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1",
+        "price": "11396.23",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "4",
+        "price": "11396.92",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1.02153048",
+        "price": "11397.44",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.8",
+        "price": "11397.92",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.35",
+        "price": "11398.91",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1",
+        "price": "11399.01",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "10",
+        "price": "11402.12",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "4.98",
+        "price": "11403.74",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.35",
+        "price": "11404.01",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "6.80387906",
+        "price": "11405.20",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "12.1",
+        "price": "11406.34",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.25",
+        "price": "11407.69",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.78",
+        "price": "11407.74",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1.80045786",
+        "price": "11409.46",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "5.2",
+        "price": "11410.07",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.35",
+        "price": "11410.29",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "8.1",
+        "price": "11411.66",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "10",
+        "price": "11413.95",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.67",
+        "price": "11414.86",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "9.9",
+        "price": "11415.63",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "5",
+        "price": "11416.18",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "3.7",
+        "price": "11416.70",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2",
+        "price": "11420.44",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "3.41",
+        "price": "11423.05",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "5",
+        "price": "11426.51",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "9.45",
+        "price": "11430.68",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.402",
+        "price": "11433.22",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1.60397802",
+        "price": "11435.50",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "12.0726",
+        "price": "11438.59",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "5",
+        "price": "11439.20",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.06",
+        "price": "11440.00",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.21365892",
+        "price": "11448.12",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.06",
+        "price": "11451.00",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "10.94",
+        "price": "11454.79",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.6",
+        "price": "11460.00",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.06",
+        "price": "11462.00",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.79111801",
+        "price": "11463.20",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "10.9",
+        "price": "11464.12",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "25.65",
+        "price": "11467.89",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.06",
+        "price": "11473.00",
+        "timestamp": "1565588056"
+       }
+      ],
+      "bids": [
+       {
+        "amount": "2",
+        "price": "11382.49",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.06957456",
+        "price": "11382.45",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.06957719",
+        "price": "11381.72",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2",
+        "price": "11379.89",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2",
+        "price": "11379.75",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1",
+        "price": "11377.36",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "6.01991146",
+        "price": "11376.63",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.11803397",
+        "price": "11376.52",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "5",
+        "price": "11376.51",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1.313",
+        "price": "11375.75",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "5",
+        "price": "11375.00",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.35",
+        "price": "11374.80",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1",
+        "price": "11374.57",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.97846952",
+        "price": "11373.81",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1",
+        "price": "11372.29",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.35",
+        "price": "11369.80",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1",
+        "price": "11369.68",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "10",
+        "price": "11368.56",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.81",
+        "price": "11366.06",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.35",
+        "price": "11364.60",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "5",
+        "price": "11364.08",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1.09840451",
+        "price": "11362.99",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.537",
+        "price": "11362.52",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "4.3744",
+        "price": "11360.03",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "3.5098",
+        "price": "11359.70",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.35",
+        "price": "11359.60",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.79",
+        "price": "11359.20",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.732",
+        "price": "11359.12",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.26",
+        "price": "11358.91",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2",
+        "price": "11358.90",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.09",
+        "price": "11358.15",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "10",
+        "price": "11355.90",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "4.8",
+        "price": "11354.03",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "5",
+        "price": "11353.80",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "2.68",
+        "price": "11353.50",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "6.31636908",
+        "price": "11350.90",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.04396475",
+        "price": "11350.00",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1.35938518",
+        "price": "11348.55",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "4.78",
+        "price": "11347.44",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "8.1963",
+        "price": "11343.21",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "3.7947",
+        "price": "11340.58",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.44098282",
+        "price": "11338.31",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.00536173",
+        "price": "11333.03",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.5",
+        "price": "11330.20",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "10.27",
+        "price": "11329.63",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.727",
+        "price": "11329.41",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "1.69494039",
+        "price": "11329.27",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.00033196",
+        "price": "11326.42",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "25.66",
+        "price": "11323.30",
+        "timestamp": "1565588056"
+       },
+       {
+        "amount": "0.00033119",
+        "price": "11322.81",
+        "timestamp": "1565588056"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v1/deposit/btc/newAddress": {
+   "POST": [
+    {
+     "data": {
+      "message": "Cryptocurrency operations are not available in sandbox",
+      "reason": "EndpointUnavailableInThisEnvironment",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"label\":\"LOL123\",\"nonce\":\"1565675520004698760\",\"request\":\"/v1/deposit/btc/newAddress\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJsYWJlbCI6IkxPTDEyMyIsIm5vbmNlIjoiMTU2NTY3NTUyMDAwNDY5ODc2MCIsInJlcXVlc3QiOiIvdjEvZGVwb3NpdC9idGMvbmV3QWRkcmVzcyJ9"
+      ],
+      "X-Gemini-Signature": [
+       "0bed59b3d0ded52ead1f8f5d34918457c253ce293684f0c6c4b0de237ed45467e98b5c1d6173be06f3d75de929de0289"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/heartbeat": {
+   "POST": [
+    {
+     "data": {
+      "result": "ok"
+     },
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565678439020022654\",\"request\":\"/v1/heartbeat\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2Nzg0MzkwMjAwMjI2NTQiLCJyZXF1ZXN0IjoiL3YxL2hlYXJ0YmVhdCJ9"
+      ],
+      "X-Gemini-Signature": [
+       "acf32982c5f48455a29e0e93c1a0e6298cb87f99a3c62f08e4036120ba483fc6ba4026eb1341c6d9ca925f8fcacff065"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/mytrades": {
+   "POST": [
+    {
+     "data": [
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72877194",
+       "price": "4365.44",
+       "tid": 72877196,
+       "timestamp": 1504774407,
+       "timestampms": 1504774407342,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72876948",
+       "price": "4365.44",
+       "tid": 72876950,
+       "timestamp": 1504774256,
+       "timestampms": 1504774256923,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72876939",
+       "price": "4365.44",
+       "tid": 72876941,
+       "timestamp": 1504774215,
+       "timestampms": 1504774215737,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72854559",
+       "price": "4365.44",
+       "tid": 72854561,
+       "timestamp": 1504742429,
+       "timestampms": 1504742429222,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72854554",
+       "price": "4365.44",
+       "tid": 72854556,
+       "timestamp": 1504742410,
+       "timestampms": 1504742410563,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72854469",
+       "price": "4365.44",
+       "tid": 72854471,
+       "timestamp": 1504742362,
+       "timestampms": 1504742362798,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72854064",
+       "price": "4365.44",
+       "tid": 72854066,
+       "timestamp": 1504742101,
+       "timestampms": 1504742101052,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72853499",
+       "price": "4365.44",
+       "tid": 72853501,
+       "timestamp": 1504741638,
+       "timestampms": 1504741638555,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72852534",
+       "price": "4365.44",
+       "tid": 72852536,
+       "timestamp": 1504740907,
+       "timestampms": 1504740907598,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72788487",
+       "price": "4365.44",
+       "tid": 72788489,
+       "timestamp": 1504692849,
+       "timestampms": 1504692849358,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72782959",
+       "price": "4365.44",
+       "tid": 72782961,
+       "timestamp": 1504688727,
+       "timestampms": 1504688727991,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72782794",
+       "price": "4365.44",
+       "tid": 72782796,
+       "timestamp": 1504688636,
+       "timestampms": 1504688636950,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72782789",
+       "price": "4365.44",
+       "tid": 72782791,
+       "timestamp": 1504688602,
+       "timestampms": 1504688602038,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72782704",
+       "price": "4365.44",
+       "tid": 72782706,
+       "timestamp": 1504688567,
+       "timestampms": 1504688567723,
+       "type": "Buy"
+      },
+      {
+       "aggressor": true,
+       "amount": "1",
+       "exchange": "gemini",
+       "fee_amount": "10.9136",
+       "fee_currency": "USD",
+       "is_auction_fill": false,
+       "order_id": "72782619",
+       "price": "4365.44",
+       "tid": 72782621,
+       "timestamp": 1504688467,
+       "timestampms": 1504688467928,
+       "type": "Buy"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565675130339156532\",\"request\":\"/v1/mytrades\",\"symbol\":\"btcusd\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2NzUxMzAzMzkxNTY1MzIiLCJyZXF1ZXN0IjoiL3YxL215dHJhZGVzIiwic3ltYm9sIjoiYnRjdXNkIn0="
+      ],
+      "X-Gemini-Signature": [
+       "ad2fa169f26d48df2515e90c02b77c7efd7e3e8a061b5c0ecfdbc732b1bf94416c9c7c50fff9ab86b2f6b324ccf47b07"
+      ]
+     }
+    },
+    {
+     "data": {
+      "message": "Received invalid timestamp '-62135596800'.  Timestamp field in payload must be either a string or an int representing seconds or milliseconds that can be parsed to a valid date and time.",
+      "reason": "InvalidTimestampInPayload",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565754197574051025\",\"request\":\"/v1/mytrades\",\"symbol\":\"LTCBTC\",\"timestamp\":-62135596800}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU3NTQxOTc1NzQwNTEwMjUiLCJyZXF1ZXN0IjoiL3YxL215dHJhZGVzIiwic3ltYm9sIjoiTFRDQlRDIiwidGltZXN0YW1wIjotNjIxMzU1OTY4MDB9"
+      ],
+      "X-Gemini-Signature": [
+       "fece9c3bbf0ab545666beac19b61aa247746caa65dd1ee9fb2fa86aa2aa28e1fc2be58ebaa08530dc10063e62a48bf91"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565754332374545960\",\"request\":\"/v1/mytrades\",\"symbol\":\"LTCBTC\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU3NTQzMzIzNzQ1NDU5NjAiLCJyZXF1ZXN0IjoiL3YxL215dHJhZGVzIiwic3ltYm9sIjoiTFRDQlRDIn0="
+      ],
+      "X-Gemini-Signature": [
+       "ce08e4878c682731d0d158ef91c250d318c290b44d920550b192bcd09100eee0314abf731e09f90036f41f4caf9a894e"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/notionalvolume": {
+   "POST": [
+    {
+     "data": {
+      "api_auction_fee_bps": 20,
+      "api_maker_fee_bps": 10,
+      "api_taker_fee_bps": 35,
+      "block_maker_fee_bps": 0,
+      "block_taker_fee_bps": 0,
+      "date": "2019-08-13",
+      "fix_auction_fee_bps": 20,
+      "fix_maker_fee_bps": 10,
+      "fix_taker_fee_bps": 35,
+      "last_updated_ms": 1565654400000,
+      "notional_1d_volume": [],
+      "notional_30d_volume": 0,
+      "web_auction_fee_bps": 100,
+      "web_maker_fee_bps": 100,
+      "web_taker_fee_bps": 100
+     },
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565671281858874030\",\"request\":\"/v1/notionalvolume\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2NzEyODE4NTg4NzQwMzAiLCJyZXF1ZXN0IjoiL3YxL25vdGlvbmFsdm9sdW1lIn0="
+      ],
+      "X-Gemini-Signature": [
+       "3a28c6e51697af5df88141b45e57a1b42add6ee72c5c03ca714166ddcc5ac24ed9ea06453ec3684407959420ddc07c9d"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/order/cancel": {
+   "POST": [
+    {
+     "data": {
+      "avg_execution_price": "0.00",
+      "exchange": "gemini",
+      "executed_amount": "0",
+      "id": "265555413",
+      "is_cancelled": true,
+      "is_hidden": false,
+      "is_live": false,
+      "options": [],
+      "order_id": "265555413",
+      "original_amount": "1",
+      "price": "4500.00",
+      "reason": "Requested",
+      "remaining_amount": "1",
+      "side": "buy",
+      "symbol": "btcusd",
+      "timestamp": "1565673596",
+      "timestampms": 1565673596842,
+      "type": "exchange limit",
+      "was_forced": false
+     },
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565673746786096494\",\"order_id\":265555413,\"request\":\"/v1/order/cancel\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2NzM3NDY3ODYwOTY0OTQiLCJvcmRlcl9pZCI6MjY1NTU1NDEzLCJyZXF1ZXN0IjoiL3YxL29yZGVyL2NhbmNlbCJ9"
+      ],
+      "X-Gemini-Signature": [
+       "165f303fd96b7d32c8ad0cda1dffbd644928329fb503604785da92ac972ab5bc5a9152bac46096606e642913207d9421"
+      ]
+     }
+    },
+    {
+     "data": {
+      "avg_execution_price": "0.00847",
+      "exchange": "gemini",
+      "executed_amount": "1",
+      "id": "266029865",
+      "is_cancelled": false,
+      "is_hidden": false,
+      "is_live": false,
+      "options": [],
+      "order_id": "266029865",
+      "original_amount": "1",
+      "price": "10",
+      "remaining_amount": "0",
+      "side": "buy",
+      "symbol": "ltcbtc",
+      "timestamp": "1565754961",
+      "timestampms": 1565754961967,
+      "type": "exchange limit",
+      "was_forced": false
+     },
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565755351866830715\",\"order_id\":266029865,\"request\":\"/v1/order/cancel\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU3NTUzNTE4NjY4MzA3MTUiLCJvcmRlcl9pZCI6MjY2MDI5ODY1LCJyZXF1ZXN0IjoiL3YxL29yZGVyL2NhbmNlbCJ9"
+      ],
+      "X-Gemini-Signature": [
+       "8bdd2fad91c8606618392624e7461dbf143df27c18c46364e27857c97e99e319eff3c16138cd3c2753c9ff34dd73ddcc"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/order/cancel/all": {
+   "POST": [
+    {
+     "data": {
+      "details": {
+       "cancelRejects": [],
+       "cancelledOrders": []
+      },
+      "result": "ok"
+     },
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565674594946783260\",\"request\":\"/v1/order/cancel/all\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2NzQ1OTQ5NDY3ODMyNjAiLCJyZXF1ZXN0IjoiL3YxL29yZGVyL2NhbmNlbC9hbGwifQ=="
+      ],
+      "X-Gemini-Signature": [
+       "a555d19a45170c0304c4fc39d1b0059a7969dd03038c9ad6c5a03579750271dec92c3a131a2f138d58bd150f9b3a8b26"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/order/new": {
+   "POST": [
+    {
+     "data": {
+      "avg_execution_price": "0.00",
+      "exchange": "gemini",
+      "executed_amount": "0",
+      "id": "265555413",
+      "is_cancelled": false,
+      "is_hidden": false,
+      "is_live": true,
+      "options": [],
+      "order_id": "265555413",
+      "original_amount": "1",
+      "price": "4500.00",
+      "remaining_amount": "1",
+      "side": "buy",
+      "symbol": "btcusd",
+      "timestamp": "1565673596",
+      "timestampms": 1565673596842,
+      "type": "exchange limit",
+      "was_forced": false
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565673595820662072\",\"price\":\"4500\",\"request\":\"/v1/order/new\",\"side\":\"buy\",\"symbol\":\"btcusd\",\"type\":\"exchange limit\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhbW91bnQiOiIxIiwibm9uY2UiOiIxNTY1NjczNTk1ODIwNjYyMDcyIiwicHJpY2UiOiI0NTAwIiwicmVxdWVzdCI6Ii92MS9vcmRlci9uZXciLCJzaWRlIjoiYnV5Iiwic3ltYm9sIjoiYnRjdXNkIiwidHlwZSI6ImV4Y2hhbmdlIGxpbWl0In0="
+      ],
+      "X-Gemini-Signature": [
+       "2d7336135e57c1245d6d66385fab5e2b8cd03ba82b675c0fbb61c030e1c17647cbf880e1bca6b918992310a20d994c92"
+      ]
+     }
+    },
+    {
+     "data": {
+      "message": "Received bad symbol 'LTC_BTC' but expected a supported symbol from ['BTCUSD', 'ETHBTC', 'ETHUSD', 'BCHUSD', 'BCHBTC', 'BCHETH', 'LTCUSD', 'LTCBTC', 'LTCETH', 'LTCBCH', 'ZECUSD', 'ZECBTC', 'ZECETH', 'ZECBCH', 'ZECLTC']",
+      "reason": "InvalidSymbol",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565754502321084878\",\"price\":\"10\",\"request\":\"/v1/order/new\",\"side\":\"BUY\",\"symbol\":\"LTC_BTC\",\"type\":\"MARKET\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhbW91bnQiOiIxIiwibm9uY2UiOiIxNTY1NzU0NTAyMzIxMDg0ODc4IiwicHJpY2UiOiIxMCIsInJlcXVlc3QiOiIvdjEvb3JkZXIvbmV3Iiwic2lkZSI6IkJVWSIsInN5bWJvbCI6IkxUQ19CVEMiLCJ0eXBlIjoiTUFSS0VUIn0="
+      ],
+      "X-Gemini-Signature": [
+       "bfd7efe0b682881339db42b87fd72c91a977a9e6e15b3d71dd5570f812d22c6669b6b9df9eeafdcd3a41a66145d94b03"
+      ]
+     }
+    },
+    {
+     "data": {
+      "message": "Invalid order type for symbol LTCBTC: 'MARKET'",
+      "reason": "InvalidOrderType",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565754590390234675\",\"price\":\"10\",\"request\":\"/v1/order/new\",\"side\":\"BUY\",\"symbol\":\"LTCBTC\",\"type\":\"MARKET\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhbW91bnQiOiIxIiwibm9uY2UiOiIxNTY1NzU0NTkwMzkwMjM0Njc1IiwicHJpY2UiOiIxMCIsInJlcXVlc3QiOiIvdjEvb3JkZXIvbmV3Iiwic2lkZSI6IkJVWSIsInN5bWJvbCI6IkxUQ0JUQyIsInR5cGUiOiJNQVJLRVQifQ=="
+      ],
+      "X-Gemini-Signature": [
+       "0f09187d9a0da71ae0c97fc582d55b7c40726f5287d0cfe276a06adbc7700cfd9e322ca03bc134d8ec9e7e1987bd8e14"
+      ]
+     }
+    },
+    {
+     "data": {
+      "message": "Invalid order type for symbol LTCBTC: 'LIMIT'",
+      "reason": "InvalidOrderType",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565754739098421455\",\"price\":\"10\",\"request\":\"/v1/order/new\",\"side\":\"BUY\",\"symbol\":\"LTCBTC\",\"type\":\"LIMIT\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhbW91bnQiOiIxIiwibm9uY2UiOiIxNTY1NzU0NzM5MDk4NDIxNDU1IiwicHJpY2UiOiIxMCIsInJlcXVlc3QiOiIvdjEvb3JkZXIvbmV3Iiwic2lkZSI6IkJVWSIsInN5bWJvbCI6IkxUQ0JUQyIsInR5cGUiOiJMSU1JVCJ9"
+      ],
+      "X-Gemini-Signature": [
+       "32bc55cb25e1f5c432e6bd350bf09ba0e40f3e11031d4a9142d82949e3f83a13887fe56611f705924abcce3ed1f738cf"
+      ]
+     }
+    },
+    {
+     "data": {
+      "avg_execution_price": "0.00847",
+      "exchange": "gemini",
+      "executed_amount": "1",
+      "id": "266029865",
+      "is_cancelled": false,
+      "is_hidden": false,
+      "is_live": false,
+      "options": [],
+      "order_id": "266029865",
+      "original_amount": "1",
+      "price": "10",
+      "remaining_amount": "0",
+      "side": "buy",
+      "symbol": "ltcbtc",
+      "timestamp": "1565754961",
+      "timestampms": 1565754961967,
+      "type": "exchange limit",
+      "was_forced": false
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565754960920111289\",\"price\":\"10\",\"request\":\"/v1/order/new\",\"side\":\"BUY\",\"symbol\":\"LTCBTC\",\"type\":\"exchange limit\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhbW91bnQiOiIxIiwibm9uY2UiOiIxNTY1NzU0OTYwOTIwMTExMjg5IiwicHJpY2UiOiIxMCIsInJlcXVlc3QiOiIvdjEvb3JkZXIvbmV3Iiwic2lkZSI6IkJVWSIsInN5bWJvbCI6IkxUQ0JUQyIsInR5cGUiOiJleGNoYW5nZSBsaW1pdCJ9"
+      ],
+      "X-Gemini-Signature": [
+       "81412117758f361e7c6929335a28431775586bee9378b490df68a16034aba8877fee9f2c373db7739e3c50d490910e94"
+      ]
+     }
+    },
+    {
+     "data": {
+      "message": "InvalidSignature",
+      "reason": "InvalidSignature",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565757283294274961\",\"price\":\"9000\",\"request\":\"/v1/order/new\",\"side\":\"buy\",\"symbol\":\"btcusd\",\"type\":\"exchange limit\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhbW91bnQiOiIxIiwibm9uY2UiOiIxNTY1NzU3MjgzMjk0Mjc0OTYxIiwicHJpY2UiOiI5MDAwIiwicmVxdWVzdCI6Ii92MS9vcmRlci9uZXciLCJzaWRlIjoiYnV5Iiwic3ltYm9sIjoiYnRjdXNkIiwidHlwZSI6ImV4Y2hhbmdlIGxpbWl0In0="
+      ],
+      "X-Gemini-Signature": [
+       "7f709eb431a5ef61e86cc62713d6787143cec35743dce2dbd75c77f5c9079b4c306371d7923520f292362296aa5d3a60"
+      ]
+     }
+    },
+    {
+     "data": {
+      "message": "InvalidSignature",
+      "reason": "InvalidSignature",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565757330556534438\",\"price\":\"9000\",\"request\":\"/v1/order/new\",\"side\":\"buy\",\"symbol\":\"btcusd\",\"type\":\"exchange limit\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhbW91bnQiOiIxIiwibm9uY2UiOiIxNTY1NzU3MzMwNTU2NTM0NDM4IiwicHJpY2UiOiI5MDAwIiwicmVxdWVzdCI6Ii92MS9vcmRlci9uZXciLCJzaWRlIjoiYnV5Iiwic3ltYm9sIjoiYnRjdXNkIiwidHlwZSI6ImV4Y2hhbmdlIGxpbWl0In0="
+      ],
+      "X-Gemini-Signature": [
+       "cea8a1e0e7f5138c460b46885258df29fd9686d08f679a4a054e5be368a718f7873662708a3d46c9a406f8ee63914c83"
+      ]
+     }
+    },
+    {
+     "data": {
+      "avg_execution_price": "0.00",
+      "exchange": "gemini",
+      "executed_amount": "0",
+      "id": "266043798",
+      "is_cancelled": false,
+      "is_hidden": false,
+      "is_live": true,
+      "options": [],
+      "order_id": "266043798",
+      "original_amount": "1",
+      "price": "9000.00",
+      "remaining_amount": "1",
+      "side": "buy",
+      "symbol": "btcusd",
+      "timestamp": "1565757360",
+      "timestampms": 1565757360991,
+      "type": "exchange limit",
+      "was_forced": false
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565757359970836683\",\"price\":\"9000\",\"request\":\"/v1/order/new\",\"side\":\"buy\",\"symbol\":\"btcusd\",\"type\":\"exchange limit\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhbW91bnQiOiIxIiwibm9uY2UiOiIxNTY1NzU3MzU5OTcwODM2NjgzIiwicHJpY2UiOiI5MDAwIiwicmVxdWVzdCI6Ii92MS9vcmRlci9uZXciLCJzaWRlIjoiYnV5Iiwic3ltYm9sIjoiYnRjdXNkIiwidHlwZSI6ImV4Y2hhbmdlIGxpbWl0In0="
+      ],
+      "X-Gemini-Signature": [
+       "8531b95a96ea6381d0e1d027687fd1a1ed2bc80e2ad3f138707d70367fac02b0b71a853be3af28ed9bcbab85791585bb"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/order/status": {
+   "POST": [
+    {
+     "data": {
+      "avg_execution_price": "0.00",
+      "exchange": "gemini",
+      "executed_amount": "0",
+      "id": "265563260",
+      "is_cancelled": true,
+      "is_hidden": false,
+      "is_live": false,
+      "options": [],
+      "order_id": "265563260",
+      "original_amount": "1",
+      "price": "9000.00",
+      "reason": "Requested",
+      "remaining_amount": "1",
+      "side": "buy",
+      "symbol": "btcusd",
+      "timestamp": "1565674818",
+      "timestampms": 1565674818313,
+      "type": "exchange limit",
+      "was_forced": false
+     },
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565674861178731900\",\"order_id\":265563260,\"request\":\"/v1/order/status\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2NzQ4NjExNzg3MzE5MDAiLCJvcmRlcl9pZCI6MjY1NTYzMjYwLCJyZXF1ZXN0IjoiL3YxL29yZGVyL3N0YXR1cyJ9"
+      ],
+      "X-Gemini-Signature": [
+       "ddc154a1ca1398d9de075ddd81d99001e3d56b4fa7934dd269681c2dee3b2d3451b968067d97ab9bc9afde96573d42a9"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/orders": {
+   "POST": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565675056878829054\",\"request\":\"/v1/orders\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2NzUwNTY4Nzg4MjkwNTQiLCJyZXF1ZXN0IjoiL3YxL29yZGVycyJ9"
+      ],
+      "X-Gemini-Signature": [
+       "8c193c505c6cdc3fb34fd968ba0f62a10b583d048f101cf242568fe04f1ab8066d29e2760d9d73b1a1755ade4b68b13e"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565749950340319722\",\"request\":\"/v1/orders\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU3NDk5NTAzNDAzMTk3MjIiLCJyZXF1ZXN0IjoiL3YxL29yZGVycyJ9"
+      ],
+      "X-Gemini-Signature": [
+       "b95f7062b488830d9a8e4c28b8451ddfbfa310808c95442112a10865993ffd91170ea82b26b45ee9ef28e7acfb3b57c0"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/pubticker/BTCUSD": {
+   "GET": [
+    {
+     "data": {
+      "ask": "11388.08",
+      "bid": "11381.50",
+      "last": "11381.47",
+      "volume": {
+       "BTC": "915.6534281291",
+       "USD": "10394749.066094351423000000000000000095",
+       "timestamp": 1565587800000
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v1/pubticker/bla": {
+   "GET": [
+    {
+     "data": {
+      "message": "Supplied value 'bla' is not a valid symbol.  Please correct your API request to use one of the supported symbols: [zecbch, bchbtc, zecusd, ethusd, zecbtc, bcheth, zecltc, ltcbch, bchusd, ethbtc, ltcbtc, ltceth, zeceth, ltcusd, btcusd]",
+      "reason": "Bad Request",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v1/symbols": {
+   "GET": [
+    {
+     "data": [
+      "btcusd",
+      "ethbtc",
+      "ethusd",
+      "bchusd",
+      "bchbtc",
+      "bcheth",
+      "ltcusd",
+      "ltcbtc",
+      "ltceth",
+      "ltcbch",
+      "zecusd",
+      "zecbtc",
+      "zeceth",
+      "zecbch",
+      "zecltc"
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v1/trades/btcusd": {
+   "GET": [
+    {
+     "data": [
+      {
+       "amount": "0.03",
+       "exchange": "gemini",
+       "price": "11410.49",
+       "tid": 7756154092,
+       "timestamp": 1565662735,
+       "timestampms": 1565662735226,
+       "type": "sell"
+      },
+      {
+       "amount": "0.0071767",
+       "exchange": "gemini",
+       "price": "11414.59",
+       "tid": 7756153529,
+       "timestamp": 1565662726,
+       "timestampms": 1565662726360,
+       "type": "buy"
+      },
+      {
+       "amount": "0.01717355",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756151885,
+       "timestamp": 1565662714,
+       "timestampms": 1565662714333,
+       "type": "buy"
+      },
+      {
+       "amount": "0.0045808",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756149211,
+       "timestamp": 1565662687,
+       "timestampms": 1565662687630,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00846135",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756149149,
+       "timestamp": 1565662686,
+       "timestampms": 1565662686732,
+       "type": "buy"
+      },
+      {
+       "amount": "0.04296096",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756147940,
+       "timestamp": 1565662676,
+       "timestampms": 1565662676986,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00832",
+       "exchange": "gemini",
+       "price": "11408.00",
+       "tid": 7756146325,
+       "timestamp": 1565662656,
+       "timestampms": 1565662656071,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00213244",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756144273,
+       "timestamp": 1565662637,
+       "timestampms": 1565662637642,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00701265",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756141855,
+       "timestamp": 1565662599,
+       "timestampms": 1565662599028,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00032601",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756140963,
+       "timestamp": 1565662591,
+       "timestampms": 1565662591120,
+       "type": "buy"
+      },
+      {
+       "amount": "0.01019987",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756140337,
+       "timestamp": 1565662583,
+       "timestampms": 1565662583942,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00552876",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756139733,
+       "timestamp": 1565662570,
+       "timestampms": 1565662570945,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00043825",
+       "exchange": "gemini",
+       "price": "11408.01",
+       "tid": 7756134697,
+       "timestamp": 1565662520,
+       "timestampms": 1565662520860,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00583",
+       "exchange": "gemini",
+       "price": "11407.94",
+       "tid": 7756118198,
+       "timestamp": 1565662327,
+       "timestampms": 1565662327677,
+       "type": "sell"
+      },
+      {
+       "amount": "0.01263828",
+       "exchange": "gemini",
+       "price": "11410.72",
+       "tid": 7756117317,
+       "timestamp": 1565662317,
+       "timestampms": 1565662317982,
+       "type": "buy"
+      },
+      {
+       "amount": "0.04291914",
+       "exchange": "gemini",
+       "price": "11410.72",
+       "tid": 7756113787,
+       "timestamp": 1565662281,
+       "timestampms": 1565662281322,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00315954",
+       "exchange": "gemini",
+       "price": "11410.72",
+       "tid": 7756111860,
+       "timestamp": 1565662258,
+       "timestampms": 1565662258557,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00845327",
+       "exchange": "gemini",
+       "price": "11410.72",
+       "tid": 7756111825,
+       "timestamp": 1565662258,
+       "timestampms": 1565662258071,
+       "type": "buy"
+      },
+      {
+       "amount": "0.03667255",
+       "exchange": "gemini",
+       "price": "11414.35",
+       "tid": 7756105458,
+       "timestamp": 1565662212,
+       "timestampms": 1565662212913,
+       "type": "buy"
+      },
+      {
+       "amount": "0.41013308",
+       "exchange": "gemini",
+       "price": "11414.38",
+       "tid": 7756100793,
+       "timestamp": 1565662172,
+       "timestampms": 1565662172924,
+       "type": "buy"
+      },
+      {
+       "amount": "0.15663523",
+       "exchange": "gemini",
+       "price": "11409.25",
+       "tid": 7756100791,
+       "timestamp": 1565662172,
+       "timestampms": 1565662172924,
+       "type": "buy"
+      },
+      {
+       "amount": "0.0343667",
+       "exchange": "gemini",
+       "price": "11408.70",
+       "tid": 7756096273,
+       "timestamp": 1565662114,
+       "timestampms": 1565662114857,
+       "type": "buy"
+      },
+      {
+       "amount": "0.21478195",
+       "exchange": "gemini",
+       "price": "11408.70",
+       "tid": 7756095445,
+       "timestamp": 1565662108,
+       "timestampms": 1565662108455,
+       "type": "buy"
+      },
+      {
+       "amount": "0.12445907",
+       "exchange": "gemini",
+       "price": "11404.40",
+       "tid": 7756087118,
+       "timestamp": 1565662042,
+       "timestampms": 1565662042548,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00438358",
+       "exchange": "gemini",
+       "price": "11404.40",
+       "tid": 7756085279,
+       "timestamp": 1565662024,
+       "timestampms": 1565662024021,
+       "type": "buy"
+      },
+      {
+       "amount": "0.01366728",
+       "exchange": "gemini",
+       "price": "11406.18",
+       "tid": 7756071480,
+       "timestamp": 1565661926,
+       "timestampms": 1565661926111,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00157993",
+       "exchange": "gemini",
+       "price": "11406.18",
+       "tid": 7756070690,
+       "timestamp": 1565661906,
+       "timestampms": 1565661906420,
+       "type": "buy"
+      },
+      {
+       "amount": "0.16916508",
+       "exchange": "gemini",
+       "price": "11405.87",
+       "tid": 7756066120,
+       "timestamp": 1565661839,
+       "timestampms": 1565661839371,
+       "type": "buy"
+      },
+      {
+       "amount": "0.04297209",
+       "exchange": "gemini",
+       "price": "11405.06",
+       "tid": 7756064552,
+       "timestamp": 1565661817,
+       "timestampms": 1565661817849,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00197396",
+       "exchange": "gemini",
+       "price": "11405.80",
+       "tid": 7756059702,
+       "timestamp": 1565661787,
+       "timestampms": 1565661787203,
+       "type": "buy"
+      },
+      {
+       "amount": "0.01718667",
+       "exchange": "gemini",
+       "price": "11405.80",
+       "tid": 7756058987,
+       "timestamp": 1565661784,
+       "timestampms": 1565661784015,
+       "type": "buy"
+      },
+      {
+       "amount": "0.01464033",
+       "exchange": "gemini",
+       "price": "11416.39",
+       "tid": 7756045315,
+       "timestamp": 1565661724,
+       "timestampms": 1565661724752,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00236957",
+       "exchange": "gemini",
+       "price": "11415.53",
+       "tid": 7756041566,
+       "timestamp": 1565661698,
+       "timestampms": 1565661698300,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00991881",
+       "exchange": "gemini",
+       "price": "11409.33",
+       "tid": 7756030166,
+       "timestamp": 1565661644,
+       "timestampms": 1565661644988,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00316114",
+       "exchange": "gemini",
+       "price": "11409.33",
+       "tid": 7756026522,
+       "timestamp": 1565661634,
+       "timestampms": 1565661634763,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00316114",
+       "exchange": "gemini",
+       "price": "11409.31",
+       "tid": 7756021972,
+       "timestamp": 1565661616,
+       "timestampms": 1565661616557,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00008688",
+       "exchange": "gemini",
+       "price": "11396.47",
+       "tid": 7756018962,
+       "timestamp": 1565661603,
+       "timestampms": 1565661603828,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00846306",
+       "exchange": "gemini",
+       "price": "11399.41",
+       "tid": 7756015474,
+       "timestamp": 1565661561,
+       "timestampms": 1565661561099,
+       "type": "buy"
+      },
+      {
+       "amount": "0.03669667",
+       "exchange": "gemini",
+       "price": "11403.82",
+       "tid": 7756002472,
+       "timestamp": 1565661433,
+       "timestampms": 1565661433637,
+       "type": "buy"
+      },
+      {
+       "amount": "0.01579948",
+       "exchange": "gemini",
+       "price": "11403.83",
+       "tid": 7755997677,
+       "timestamp": 1565661391,
+       "timestampms": 1565661391558,
+       "type": "buy"
+      },
+      {
+       "amount": "0.0017609",
+       "exchange": "gemini",
+       "price": "11400.85",
+       "tid": 7755995726,
+       "timestamp": 1565661376,
+       "timestampms": 1565661376001,
+       "type": "sell"
+      },
+      {
+       "amount": "0.1",
+       "exchange": "gemini",
+       "price": "11397.94",
+       "tid": 7755979361,
+       "timestamp": 1565661289,
+       "timestampms": 1565661289055,
+       "type": "buy"
+      },
+      {
+       "amount": "0.0084669",
+       "exchange": "gemini",
+       "price": "11397.93",
+       "tid": 7755976484,
+       "timestamp": 1565661263,
+       "timestampms": 1565661263285,
+       "type": "buy"
+      },
+      {
+       "amount": "0.1088999",
+       "exchange": "gemini",
+       "price": "11393.57",
+       "tid": 7755972520,
+       "timestamp": 1565661244,
+       "timestampms": 1565661244552,
+       "type": "sell"
+      },
+      {
+       "amount": "0.01003316",
+       "exchange": "gemini",
+       "price": "11399.03",
+       "tid": 7755954448,
+       "timestamp": 1565661127,
+       "timestampms": 1565661127872,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00561447",
+       "exchange": "gemini",
+       "price": "11396.26",
+       "tid": 7755952680,
+       "timestamp": 1565661118,
+       "timestampms": 1565661118348,
+       "type": "sell"
+      },
+      {
+       "amount": "0.000032",
+       "exchange": "gemini",
+       "price": "11411.34",
+       "tid": 7755939408,
+       "timestamp": 1565661046,
+       "timestampms": 1565661046130,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00052406",
+       "exchange": "gemini",
+       "price": "11410.99",
+       "tid": 7755939171,
+       "timestamp": 1565661044,
+       "timestampms": 1565661044529,
+       "type": "buy"
+      },
+      {
+       "amount": "0.028",
+       "exchange": "gemini",
+       "price": "11391.45",
+       "tid": 7755932784,
+       "timestamp": 1565661019,
+       "timestampms": 1565661019773,
+       "type": "sell"
+      },
+      {
+       "amount": "0.03435606",
+       "exchange": "gemini",
+       "price": "11391.35",
+       "tid": 7755926007,
+       "timestamp": 1565660948,
+       "timestampms": 1565660948681,
+       "type": "sell"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v1/tradevolume": {
+   "POST": [
+    {
+     "data": [
+      null
+     ],
+     "queryString": "",
+     "bodyParams": "{\"nonce\":\"1565675273154242836\",\"request\":\"/v1/tradevolume\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJub25jZSI6IjE1NjU2NzUyNzMxNTQyNDI4MzYiLCJyZXF1ZXN0IjoiL3YxL3RyYWRldm9sdW1lIn0="
+      ],
+      "X-Gemini-Signature": [
+       "dcd95c9f6713ea6cb1337d2c5cc6ab1299474d844fdd2ad9b10c0c593ed5d830495356894a7323c5fac2bed27a46fb95"
+      ]
+     }
+    }
+   ]
+  },
+  "/v1/withdraw/btc": {
+   "POST": [
+    {
+     "data": {
+      "message": "Cryptocurrency operations are not available in sandbox",
+      "reason": "EndpointUnavailableInThisEnvironment",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"address\":\"LOL123\",\"amount\":\"1\",\"nonce\":\"1565675733865010769\",\"request\":\"/v1/withdraw/btc\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhZGRyZXNzIjoiTE9MMTIzIiwiYW1vdW50IjoiMSIsIm5vbmNlIjoiMTU2NTY3NTczMzg2NTAxMDc2OSIsInJlcXVlc3QiOiIvdjEvd2l0aGRyYXcvYnRjIn0="
+      ],
+      "X-Gemini-Signature": [
+       "f40cc365ed5d04b79bcdd97c31bac22378ab86ce2308417c20329bc0f5dde1ce4da4ff2c99cdb13504a08d7b45312e87"
+      ]
+     }
+    },
+    {
+     "data": {
+      "message": "Cryptocurrency operations are not available in sandbox",
+      "reason": "EndpointUnavailableInThisEnvironment",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"address\":\"LOL123\",\"amount\":\"1\",\"nonce\":\"1565678114011106013\",\"request\":\"/v1/withdraw/btc\"}",
+     "headers": {
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhZGRyZXNzIjoiTE9MMTIzIiwiYW1vdW50IjoiMSIsIm5vbmNlIjoiMTU2NTY3ODExNDAxMTEwNjAxMyIsInJlcXVlc3QiOiIvdjEvd2l0aGRyYXcvYnRjIn0="
+      ],
+      "X-Gemini-Signature": [
+       "ef3e63bc5f7e124df66cea42463560e7178d5224ba456e92db92184220e2235c0f17d317cc9d332add5e7e34b7fe159a"
+      ]
+     }
+    },
+    {
+     "data": {
+      "message": "Cryptocurrency operations are not available in sandbox",
+      "reason": "EndpointUnavailableInThisEnvironment",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "{\"address\":\"1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB\",\"amount\":\"100\",\"nonce\":\"1565755733919473409\",\"request\":\"/v1/withdraw/btc\"}",
+     "headers": {
+      "Cache-Control": [
+       "no-cache"
+      ],
+      "Content-Length": [
+       "0"
+      ],
+      "Content-Type": [
+       "text/plain"
+      ],
+      "X-Gemini-Apikey": [
+       ""
+      ],
+      "X-Gemini-Payload": [
+       "eyJhZGRyZXNzIjoiMUY1elZEZ05qb3JKNTFvR2ViU3ZOQ3JTQUhwd0drVWREQiIsImFtb3VudCI6IjEwMCIsIm5vbmNlIjoiMTU2NTc1NTczMzkxOTQ3MzQwOSIsInJlcXVlc3QiOiIvdjEvd2l0aGRyYXcvYnRjIn0="
+      ],
+      "X-Gemini-Signature": [
+       "1e421f7d1726bfec26770e53b8f860f7406c33a329517ef199b1bdb2adf070e5866996bedcce1f69ffc6df19013ddc4e"
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

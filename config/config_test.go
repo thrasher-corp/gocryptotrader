@@ -13,7 +13,7 @@ import (
 const (
 	// Default number of enabled exchanges. Modify this whenever an exchange is
 	// added or removed
-	defaultEnabledExchanges = 27
+	defaultEnabledExchanges = 28
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
@@ -479,7 +479,7 @@ func TestCountEnabledExchanges(t *testing.T) {
 	}
 	enabledExch := GetConfigEnabledExchanges.CountEnabledExchanges()
 	if enabledExch != defaultEnabledExchanges {
-		t.Error("Test failed. GetConfigEnabledExchanges is wrong")
+		t.Errorf("Test failed. Expected %v, Received %v", defaultEnabledExchanges, enabledExch)
 	}
 }
 
@@ -650,7 +650,6 @@ func TestUpdateExchangeConfig(t *testing.T) {
 // TestCheckExchangeConfigValues logic test
 func TestCheckExchangeConfigValues(t *testing.T) {
 	checkExchangeConfigValues := Config{}
-
 	err := checkExchangeConfigValues.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf(
@@ -665,10 +664,27 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
+	checkExchangeConfigValues.Exchanges[0].WebsocketResponseMaxLimit = 0
+	checkExchangeConfigValues.Exchanges[0].WebsocketResponseCheckTimeout = 0
+	checkExchangeConfigValues.Exchanges[0].WebsocketOrderbookBufferLimit = 0
 	checkExchangeConfigValues.Exchanges[0].HTTPTimeout = 0
-	checkExchangeConfigValues.CheckExchangeConfigValues()
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err != nil {
+		t.Errorf("Test failed. checkExchangeConfigValues.CheckExchangeConfigValues: %s",
+			err.Error(),
+		)
+	}
+
 	if checkExchangeConfigValues.Exchanges[0].HTTPTimeout == 0 {
 		t.Fatalf("Test failed. Expected exchange %s to have updated HTTPTimeout value", checkExchangeConfigValues.Exchanges[0].Name)
+	}
+
+	if checkExchangeConfigValues.Exchanges[0].WebsocketResponseMaxLimit == 0 {
+		t.Fatalf("Test failed. Expected exchange %s to have updated WebsocketResponseMaxLimit value", checkExchangeConfigValues.Exchanges[0].Name)
+	}
+
+	if checkExchangeConfigValues.Exchanges[0].WebsocketOrderbookBufferLimit == 0 {
+		t.Fatalf("Test failed. Expected exchange %s to have updated WebsocketOrderbookBufferLimit value", checkExchangeConfigValues.Exchanges[0].Name)
 	}
 
 	checkExchangeConfigValues.Exchanges[0].APIKey = "Key"
@@ -1014,8 +1030,8 @@ func TestDisableNTPCheck(t *testing.T) {
 	}
 
 	disable, _ := c.DisableNTPCheck(strings.NewReader("d\n"))
-	if disable != "Future notications for out time sync have been disabled" {
-		t.Errorf("failed expected %v got %v", "Future notications for out time sync have been disabled", disable)
+	if disable != "Future notifications for out of time sync has been disabled" {
+		t.Errorf("failed expected %v got %v", "Future notifications for out of time sync has been disabled", disable)
 	}
 
 	_, err = c.DisableNTPCheck(strings.NewReader(" "))

@@ -9,8 +9,10 @@ import (
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 const (
@@ -79,7 +81,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 
 	newBase := Base{Name: "Testicles", Requester: requester}
 
-	newBase.WebsocketInit()
+	newBase.Websocket = wshandler.New()
 
 	err := newBase.SetClientProxyAddress(":invalid")
 	if err == nil {
@@ -216,7 +218,7 @@ func TestSetAssetTypes(t *testing.T) {
 	}
 
 	b.Name = defaultTestExchange
-	b.AssetTypes = []string{"SPOT"}
+	b.AssetTypes = []string{orderbook.Spot}
 	err = b.SetAssetTypes()
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes. Error %s", err)
@@ -254,7 +256,7 @@ func TestSetAssetTypes(t *testing.T) {
 
 func TestGetAssetTypes(t *testing.T) {
 	testExchange := Base{
-		AssetTypes: []string{"SPOT", "Binary", "Futures"},
+		AssetTypes: []string{orderbook.Spot, "Binary", "Futures"},
 	}
 
 	aT := testExchange.GetAssetTypes()

@@ -28,9 +28,6 @@ const (
 	currencyFXCurrencylayerPath     = "..%s..%scurrency%sforexprovider%scurrencylayer%s"
 	currencyFXFixerPath             = "..%s..%scurrency%sforexprovider%sfixer.io%s"
 	currencyFXOpenExchangeRatesPath = "..%s..%scurrency%sforexprovider%sopenexchangerates%s"
-	currencyPairPath                = "..%s..%scurrency%spair%s"
-	currencySymbolPath              = "..%s..%scurrency%ssymbol%s"
-	currencyTranslationPath         = "..%s..%scurrency%stranslation%s"
 	eventsPath                      = "..%s..%sevents%s"
 	exchangesPath                   = "..%s..%sexchanges%s"
 	exchangesNoncePath              = "..%s..%sexchanges%snonce%s"
@@ -57,16 +54,17 @@ const (
 	bittrex       = "..%s..%sexchanges%sbittrex%s"
 	btcmarkets    = "..%s..%sexchanges%sbtcmarkets%s"
 	coinbasepro   = "..%s..%sexchanges%scoinbasepro%s"
+	coinbene      = "..%s..%sexchanges%scoinbene%s"
 	coinut        = "..%s..%sexchanges%scoinut%s"
 	exmo          = "..%s..%sexchanges%sexmo%s"
 	gateio        = "..%s..%sexchanges%sgateio%s"
 	gemini        = "..%s..%sexchanges%sgemini%s"
 	hitbtc        = "..%s..%sexchanges%shitbtc%s"
 	huobi         = "..%s..%sexchanges%shuobi%s"
-	huobihadax    = "..%s..%sexchanges%shuobihadax%s"
 	itbit         = "..%s..%sexchanges%sitbit%s"
 	kraken        = "..%s..%sexchanges%skraken%s"
 	lakebtc       = "..%s..%sexchanges%slakebtc%s"
+	lbank         = "..%s..%sexchanges%slbank%s"
 	localbitcoins = "..%s..%sexchanges%slocalbitcoins%s"
 	okcoin        = "..%s..%sexchanges%sokcoin%s"
 	okex          = "..%s..%sexchanges%sokex%s"
@@ -74,7 +72,7 @@ const (
 	yobit         = "..%s..%sexchanges%syobit%s"
 	zb            = "..%s..%sexchanges%szb%s"
 
-	contributorsList = "https://api.github.com/repos/thrasher-/gocryptotrader/contributors"
+	contributorsList = "https://api.github.com/repos/thrasher-corp/gocryptotrader/contributors"
 
 	licenseName     = "LICENSE"
 	contributorName = "CONTRIBUTORS"
@@ -198,9 +196,6 @@ func addPaths() {
 	codebasePaths["currency forexprovider currencylayer"] = fmt.Sprintf(currencyFXCurrencylayerPath, path, path, path, path, path)
 	codebasePaths["currency forexprovider fixer"] = fmt.Sprintf(currencyFXFixerPath, path, path, path, path, path)
 	codebasePaths["currency forexprovider openexchangerates"] = fmt.Sprintf(currencyFXOpenExchangeRatesPath, path, path, path, path, path)
-	codebasePaths["currency pair"] = fmt.Sprintf(currencyPairPath, path, path, path, path)
-	codebasePaths["currency symbol"] = fmt.Sprintf(currencySymbolPath, path, path, path, path)
-	codebasePaths["currency translation"] = fmt.Sprintf(currencyTranslationPath, path, path, path, path)
 
 	codebasePaths["events"] = fmt.Sprintf(eventsPath, path, path, path)
 
@@ -231,14 +226,15 @@ func addPaths() {
 	codebasePaths["exchanges coinut"] = fmt.Sprintf(coinut, path, path, path, path)
 	codebasePaths["exchanges exmo"] = fmt.Sprintf(exmo, path, path, path, path)
 	codebasePaths["exchanges coinbasepro"] = fmt.Sprintf(coinbasepro, path, path, path, path)
+	codebasePaths["exchanges coinbene"] = fmt.Sprintf(coinbene, path, path, path, path)
 	codebasePaths["exchanges gateio"] = fmt.Sprintf(gateio, path, path, path, path)
 	codebasePaths["exchanges gemini"] = fmt.Sprintf(gemini, path, path, path, path)
 	codebasePaths["exchanges hitbtc"] = fmt.Sprintf(hitbtc, path, path, path, path)
 	codebasePaths["exchanges huobi"] = fmt.Sprintf(huobi, path, path, path, path)
-	codebasePaths["exchanges huobihadax"] = fmt.Sprintf(huobihadax, path, path, path, path)
 	codebasePaths["exchanges itbit"] = fmt.Sprintf(itbit, path, path, path, path)
 	codebasePaths["exchanges kraken"] = fmt.Sprintf(kraken, path, path, path, path)
 	codebasePaths["exchanges lakebtc"] = fmt.Sprintf(lakebtc, path, path, path, path)
+	codebasePaths["exchanges lbank"] = fmt.Sprintf(lbank, path, path, path, path)
 	codebasePaths["exchanges localbitcoins"] = fmt.Sprintf(localbitcoins, path, path, path, path)
 	codebasePaths["exchanges okcoin"] = fmt.Sprintf(okcoin, path, path, path, path)
 	codebasePaths["exchanges okex"] = fmt.Sprintf(okex, path, path, path, path)

@@ -14,6 +14,8 @@ import (
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -27,11 +29,13 @@ const (
 
 // Instantiates a communications channel between websocket connections
 var comms = make(chan ReadData, 1)
+var responseMaxLimit time.Duration
+var responseCheckTimeout time.Duration
 
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -62,11 +66,18 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			geminiWsMarketData,
 			c.String(),
 			val.Encode())
-		conn, conStatus, err := dialer.Dial(endpoint, http.Header{})
-		if err != nil {
-			return fmt.Errorf("%v %v %v Error: %v", endpoint, conStatus, conStatus.StatusCode, err)
+		connection := &wshandler.WebsocketConnection{
+			ExchangeName:         g.Name,
+			URL:                  endpoint,
+			Verbose:              g.Verbose,
+			ResponseCheckTimeout: responseCheckTimeout,
+			ResponseMaxLimit:     responseMaxLimit,
 		}
-		go g.WsReadData(conn, c)
+		err := connection.Dial(dialer, http.Header{})
+		if err != nil {
+			return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
+		}
+		go g.WsReadData(connection, c)
 		if len(enabledCurrencies)-1 == i {
 			return nil
 		}
@@ -99,17 +110,24 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("X-GEMINI-SIGNATURE", common.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	conn, conStatus, err := dialer.Dial(endpoint, headers)
-	if err != nil {
-		return fmt.Errorf("%v %v %v Error: %v", endpoint, conStatus, conStatus.StatusCode, err)
+	g.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         g.Name,
+		URL:                  endpoint,
+		Verbose:              g.Verbose,
+		ResponseCheckTimeout: responseCheckTimeout,
+		ResponseMaxLimit:     responseMaxLimit,
 	}
-	go g.WsReadData(conn, currency.Pair{})
+	err = g.AuthenticatedWebsocketConn.Dial(dialer, headers)
+	if err != nil {
+		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
+	}
+	go g.WsReadData(g.AuthenticatedWebsocketConn, currency.Pair{})
 	return nil
 }
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
-func (g *Gemini) WsReadData(ws *websocket.Conn, c currency.Pair) {
+func (g *Gemini) WsReadData(ws *wshandler.WebsocketConnection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
@@ -117,13 +135,13 @@ func (g *Gemini) WsReadData(ws *websocket.Conn, c currency.Pair) {
 		case <-g.Websocket.ShutdownC:
 			return
 		default:
-			_, resp, err := ws.ReadMessage()
+			resp, err := ws.ReadMessage()
 			if err != nil {
 				g.Websocket.DataHandler <- err
 				return
 			}
 			g.Websocket.TrafficAlert <- struct{}{}
-			comms <- ReadData{Raw: resp, Currency: c}
+			comms <- ReadData{Raw: resp.Raw, Currency: c}
 		}
 	}
 }
@@ -238,86 +256,75 @@ func (g *Gemini) WsHandleData() {
 func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pair) {
 	if result.Timestamp == 0 && result.TimestampMS == 0 {
 		var bids, asks []orderbook.Item
-		for _, event := range result.Events {
-			if event.Reason != "initial" {
+		for i := range result.Events {
+			if result.Events[i].Reason != "initial" {
 				g.Websocket.DataHandler <- errors.New("gemini_websocket.go orderbook should be snapshot only")
 				continue
 			}
-
-			if event.Side == "ask" {
+			if result.Events[i].Side == "ask" {
 				asks = append(asks, orderbook.Item{
-					Amount: event.Remaining,
-					Price:  event.Price,
+					Amount: result.Events[i].Remaining,
+					Price:  result.Events[i].Price,
 				})
 			} else {
 				bids = append(bids, orderbook.Item{
-					Amount: event.Remaining,
-					Price:  event.Price,
+					Amount: result.Events[i].Remaining,
+					Price:  result.Events[i].Price,
 				})
 			}
 		}
-
 		var newOrderBook orderbook.Base
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
-		newOrderBook.AssetType = "SPOT"
+		newOrderBook.AssetType = orderbook.Spot
 		newOrderBook.Pair = pair
-
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-			g.GetName(),
 			false)
 		if err != nil {
 			g.Websocket.DataHandler <- err
 			return
 		}
-
-		g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    "SPOT",
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
+			Asset:    orderbook.Spot,
 			Exchange: g.GetName()}
 	} else {
-		for _, event := range result.Events {
-			if event.Type == "trade" {
-				g.Websocket.DataHandler <- exchange.TradeData{
+		var asks, bids []orderbook.Item
+		for i := 0; i < len(result.Events); i++ {
+			if result.Events[i].Type == "trade" {
+				g.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Now(),
 					CurrencyPair: pair,
-					AssetType:    "SPOT",
+					AssetType:    orderbook.Spot,
 					Exchange:     g.Name,
 					EventTime:    result.Timestamp,
-					Price:        event.Price,
-					Amount:       event.Amount,
-					Side:         event.MakerSide,
+					Price:        result.Events[i].Price,
+					Amount:       result.Events[i].Amount,
+					Side:         result.Events[i].MakerSide,
 				}
-
 			} else {
-				var i orderbook.Item
-				i.Amount = event.Remaining
-				i.Price = event.Price
-				if event.Side == "ask" {
-					err := g.Websocket.Orderbook.Update(nil,
-						[]orderbook.Item{i},
-						pair,
-						time.Now(),
-						g.GetName(),
-						"SPOT")
-					if err != nil {
-						g.Websocket.DataHandler <- err
-					}
+				item := orderbook.Item{
+					Amount: result.Events[i].Remaining,
+					Price:  result.Events[i].Price,
+				}
+				if result.Events[i].Side == "ask" {
+					asks = append(asks, item)
 				} else {
-					err := g.Websocket.Orderbook.Update([]orderbook.Item{i},
-						nil,
-						pair,
-						time.Now(),
-						g.GetName(),
-						"SPOT")
-					if err != nil {
-						g.Websocket.DataHandler <- err
-					}
+					bids = append(bids, item)
 				}
 			}
 		}
-
-		g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    "SPOT",
+		err := g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+			Asks:         asks,
+			Bids:         bids,
+			CurrencyPair: pair,
+			UpdateTime:   time.Unix(0, result.TimestampMS),
+			AssetType:    orderbook.Spot,
+		})
+		if err != nil {
+			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
+		}
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
+			Asset:    orderbook.Spot,
 			Exchange: g.GetName()}
 	}
 }

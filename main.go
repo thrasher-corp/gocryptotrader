@@ -109,39 +109,10 @@ func main() {
 		log.Errorf("Failed to setup logger reason: %s", err)
 	}
 
-	if bot.config.NTPClient.Level != -1 {
-		bot.config.CheckNTPConfig()
-		NTPTime, errNTP := ntpclient.NTPClient(bot.config.NTPClient.Pool)
-		currentTime := time.Now()
-		if errNTP != nil {
-			log.Warnf("NTPClient failed to create: %v", errNTP)
-		} else {
-			NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
-			configNTPTime := *bot.config.NTPClient.AllowedDifference
-			configNTPNegativeTime := (*bot.config.NTPClient.AllowedNegativeDifference - (*bot.config.NTPClient.AllowedNegativeDifference * 2))
-			if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
-				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
-				if bot.config.NTPClient.Level == 0 {
-					disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
-					if errNTP != nil {
-						log.Errorf("failed to disable ntp time check reason: %v", errNTP)
-					} else {
-						log.Info(disable)
-					}
-				}
-			}
-		}
-	}
-
-	// Sets up internet connectivity monitor
-	bot.connectivity, err = connchecker.New(bot.config.ConnectionMonitor.DNSList,
-		bot.config.ConnectionMonitor.PublicDomainList,
-		bot.config.ConnectionMonitor.CheckInterval)
-	if err != nil {
-		log.Fatalf("Connectivity checker failure: %s", err)
-	}
-
+	ActivateNTP()
+	ActivateConnectivityMonitor()
 	AdjustGoMaxProcs()
+
 	log.Debugf("Bot '%s' started.\n", bot.config.Name)
 	log.Debugf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
 
@@ -155,7 +126,7 @@ func main() {
 
 	SetupExchanges()
 	if len(bot.exchanges) == 0 {
-		log.Fatalf("No exchanges were able to be loaded. Exiting")
+		log.Fatal("No exchanges were able to be loaded. Exiting")
 	}
 
 	log.Debugf("Starting communication mediums..")
@@ -194,6 +165,20 @@ func main() {
 	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 
+	ActivateWebServer()
+
+	go portfolio.StartPortfolioWatcher()
+
+	go TickerUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
+	go WebsocketRoutine(*verbosity)
+
+	<-bot.shutdown
+	Shutdown()
+}
+
+// ActivateWebServer Sets up a local web server
+func ActivateWebServer() {
 	if bot.config.Webserver.Enabled {
 		listenAddr := bot.config.Webserver.ListenAddress
 		log.Debugf(
@@ -203,7 +188,7 @@ func main() {
 
 		router := NewRouter()
 		go func() {
-			err = http.ListenAndServe(listenAddr, router)
+			err := http.ListenAndServe(listenAddr, router)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -215,15 +200,44 @@ func main() {
 	} else {
 		log.Debugln("HTTP RESTful Webserver support disabled.")
 	}
+}
 
-	go portfolio.StartPortfolioWatcher()
+// ActivateConnectivityMonitor Sets up internet connectivity monitor
+func ActivateConnectivityMonitor() {
+	var err error
+	bot.connectivity, err = connchecker.New(bot.config.ConnectionMonitor.DNSList,
+		bot.config.ConnectionMonitor.PublicDomainList,
+		bot.config.ConnectionMonitor.CheckInterval)
+	if err != nil {
+		log.Fatalf("Connectivity checker failure: %s", err)
+	}
+}
 
-	go TickerUpdaterRoutine()
-	go OrderbookUpdaterRoutine()
-	go WebsocketRoutine(*verbosity)
-
-	<-bot.shutdown
-	Shutdown()
+// ActivateNTP Sets up NTP client
+func ActivateNTP() {
+	if bot.config.NTPClient.Level != -1 {
+		bot.config.CheckNTPConfig()
+		NTPTime, errNTP := ntpclient.NTPClient(bot.config.NTPClient.Pool)
+		currentTime := time.Now()
+		if errNTP != nil {
+			log.Warnf("NTPClient failed to create: %v", errNTP)
+		} else {
+			NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
+			configNTPTime := *bot.config.NTPClient.AllowedDifference
+			configNTPNegativeTime := (*bot.config.NTPClient.AllowedNegativeDifference - (*bot.config.NTPClient.AllowedNegativeDifference * 2))
+			if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
+				log.Warnf("Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
+				if *bot.config.Logging.Enabled && bot.config.NTPClient.Level == 0 {
+					disable, errNTP := bot.config.DisableNTPCheck(os.Stdin)
+					if errNTP != nil {
+						log.Errorf("failed to disable ntp time check reason: %v", errNTP)
+					} else {
+						log.Info(disable)
+					}
+				}
+			}
+		}
+	}
 }
 
 // AdjustGoMaxProcs adjusts the maximum processes that the CPU can handle.

@@ -17,6 +17,7 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -28,6 +29,12 @@ const (
 	ErrExchangeNotFound = "exchange not found in dataset"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
+	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
+	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
+	DefaultWebsocketResponseMaxLimit = time.Second * 7
+	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
+	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
 // FeeType custom type for calculating fees based on method
@@ -261,6 +268,9 @@ type Base struct {
 	Enabled                                    bool
 	Verbose                                    bool
 	RESTPollingDelay                           time.Duration
+	WebsocketResponseCheckTimeout              time.Duration
+	WebsocketResponseMaxLimit                  time.Duration
+	WebsocketOrderbookBufferLimit              int64
 	AuthenticatedAPISupport                    bool
 	AuthenticatedWebsocketAPISupport           bool
 	APIWithdrawPermissions                     uint32
@@ -277,6 +287,7 @@ type Base struct {
 	HTTPTimeout                                time.Duration
 	HTTPUserAgent                              string
 	HTTPDebugging                              bool
+	HTTPRecording                              bool
 	WebsocketURL                               string
 	APIUrl                                     string
 	APIUrlDefault                              string
@@ -284,10 +295,8 @@ type Base struct {
 	APIUrlSecondaryDefault                     string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
-	Websocket                                  *Websocket
+	Websocket                                  *wshandler.Websocket
 	*request.Requester
-	BaseAsset  string `json:"baseasset"`  // 基础交易目标
-	QuoteAsset string `json:"quoteasset"` // 交易目标
 }
 
 // IBotExchange enforces standard functions for all exchanges supported in
@@ -331,11 +340,11 @@ type IBotExchange interface {
 	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
-	GetWebsocket() (*Websocket, error)
-	SubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
+	GetWebsocket() (*wshandler.Websocket, error)
+	SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
 	AuthenticateWebsocket() error
-	GetSubscriptions() ([]WebsocketChannelSubscription, error)
+	GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error)
 	// GetKlines 自定义获取 K 线
 	GetKlines(arg interface{}) ([]*kline.Kline, error)
 }
@@ -534,18 +543,18 @@ func CompareCurrencyPairFormats(pair1 config.CurrencyPairFormatConfig, pair2 *co
 
 // SetSymbol 设置交易对
 func (e *Base) SetSymbol(baseAsset, quoteAsset string) {
-	e.BaseAsset = baseAsset
-	e.QuoteAsset = quoteAsset
+	// e.BaseAsset = baseAsset
+	// e.QuoteAsset = quoteAsset
 }
 
 // GetSymbol 获取格式化的交易对
 func (e *Base) GetSymbol() string {
 	var symbol string
-	if e.RequestCurrencyPairFormat.Uppercase {
-		symbol = fmt.Sprintf("%s%s%s", strings.ToUpper(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToUpper(e.QuoteAsset))
-	} else {
-		symbol = fmt.Sprintf("%s%s%s", strings.ToLower(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToLower(e.QuoteAsset))
-	}
+	// if e.RequestCurrencyPairFormat.Uppercase {
+	// 	symbol = fmt.Sprintf("%s%s%s", strings.ToUpper(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToUpper(e.QuoteAsset))
+	// } else {
+	// 	symbol = fmt.Sprintf("%s%s%s", strings.ToLower(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToLower(e.QuoteAsset))
+	// }
 	return symbol
 }
 
@@ -683,6 +692,7 @@ func GetAndFormatExchangeCurrencies(exchName string, pairs []currency.Pair) (str
 func FormatExchangeCurrency(exchName string, p currency.Pair) currency.Pair {
 	cfg := config.GetConfig()
 	exch, _ := cfg.GetExchangeConfig(exchName)
+
 	return p.Format(exch.RequestCurrencyPairFormat.Delimiter,
 		exch.RequestCurrencyPairFormat.Uppercase)
 }

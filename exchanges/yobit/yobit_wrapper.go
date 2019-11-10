@@ -14,6 +14,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -275,7 +276,7 @@ func (y *Yobit) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.W
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (y *Yobit) GetWebsocket() (*exchange.Websocket, error) {
+func (y *Yobit) GetWebsocket() (*wshandler.Websocket, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -367,18 +368,18 @@ func (y *Yobit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (y *Yobit) SubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (y *Yobit) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (y *Yobit) UnsubscribeToWebsocketChannels(channels []exchange.WebsocketChannelSubscription) error {
+func (y *Yobit) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (y *Yobit) GetSubscriptions() ([]exchange.WebsocketChannelSubscription, error) {
+func (y *Yobit) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -26,24 +26,27 @@ import (
 
 // Constants declared here are filename strings and test strings
 const (
-	FXProviderFixer                        = "fixer"
-	EncryptedConfigFile                    = "config.dat"
-	ConfigFile                             = "config.json"
-	ConfigTestFile                         = "../testdata/configtest.json"
-	configFileEncryptionPrompt             = 0
-	configFileEncryptionEnabled            = 1
-	configFileEncryptionDisabled           = -1
-	configPairsLastUpdatedWarningThreshold = 30 // 30 days
-	configDefaultHTTPTimeout               = time.Second * 15
-	configMaxAuthFailres                   = 3
-	defaultNTPAllowedDifference            = 50000000
-	defaultNTPAllowedNegativeDifference    = 50000000
+	FXProviderFixer                            = "fixer"
+	EncryptedConfigFile                        = "config.dat"
+	ConfigFile                                 = "config.json"
+	ConfigTestFile                             = "../testdata/configtest.json"
+	configFileEncryptionPrompt                 = 0
+	configFileEncryptionEnabled                = 1
+	configFileEncryptionDisabled               = -1
+	configPairsLastUpdatedWarningThreshold     = 30 // 30 days
+	configDefaultHTTPTimeout                   = time.Second * 15
+	configDefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	configDefaultWebsocketResponseMaxLimit     = time.Second * 7
+	configDefaultWebsocketOrderbookBufferLimit = 5
+	configMaxAuthFailres                       = 3
+	defaultNTPAllowedDifference                = 50000000
+	defaultNTPAllowedNegativeDifference        = 50000000
 )
 
 // Constants here hold some messages
 const (
 	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
-	ErrExchangeAvailablePairsEmpty             = "exchange %s avaiable pairs is empty"
+	ErrExchangeAvailablePairsEmpty             = "exchange %s available pairs is empty"
 	ErrExchangeEnabledPairsEmpty               = "exchange %s enabled pairs is empty"
 	ErrExchangeBaseCurrenciesEmpty             = "exchange %s base currencies is empty"
 	ErrExchangeNotFound                        = "exchange %s not found"
@@ -157,6 +160,9 @@ type ExchangeConfig struct {
 	UseSandbox                       bool                      `json:"useSandbox"`
 	RESTPollingDelay                 time.Duration             `json:"restPollingDelay"`
 	HTTPTimeout                      time.Duration             `json:"httpTimeout"`
+	WebsocketResponseCheckTimeout    time.Duration             `json:"websocketResponseCheckTimeout"`
+	WebsocketResponseMaxLimit        time.Duration             `json:"websocketResponseMaxLimit"`
+	WebsocketOrderbookBufferLimit    int                       `json:"websocketOrderbookBufferLimit"`
 	HTTPUserAgent                    string                    `json:"httpUserAgent"`
 	HTTPDebugging                    bool                      `json:"httpDebugging"`
 	AuthenticatedAPISupport          bool                      `json:"authenticatedApiSupport"`
@@ -827,6 +833,19 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
 			}
 
+			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
+				log.Warnf("Exchange %s Websocket response check timeout value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultWebsocketResponseCheckTimeout)
+				c.Exchanges[i].WebsocketResponseCheckTimeout = configDefaultWebsocketResponseCheckTimeout
+			}
+
+			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
+				log.Warnf("Exchange %s Websocket response max limit value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultWebsocketResponseMaxLimit)
+				c.Exchanges[i].WebsocketResponseMaxLimit = configDefaultWebsocketResponseMaxLimit
+			}
+			if c.Exchanges[i].WebsocketOrderbookBufferLimit <= 0 {
+				log.Warnf("Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.", c.Exchanges[i].Name, configDefaultWebsocketOrderbookBufferLimit)
+				c.Exchanges[i].WebsocketOrderbookBufferLimit = configDefaultWebsocketOrderbookBufferLimit
+			}
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
 				log.Errorf("Exchange %s: CheckPairConsistency error: %s", c.Exchanges[i].Name, err)
@@ -1174,33 +1193,36 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	log.Warn("Your system time is out of sync this may cause issues with trading")
+	log.Warn("Your system time is out of sync, this may cause issues with trading")
 	log.Warn("How would you like to show future notifications? (a)lert / (w)arn / (d)isable \n")
 
-	var answered = false
-	for ok := true; ok; ok = (!answered) {
+	var resp string
+	answered := false
+	for !answered {
 		answer, err := reader.ReadString('\n')
 		if err != nil {
-			return "", err
+			return resp, err
 		}
 
 		answer = strings.TrimRight(answer, "\r\n")
 		switch answer {
 		case "a":
 			c.NTPClient.Level = 0
+			resp = "Time sync has been set to alert"
 			answered = true
-			return "Time sync has been set to alert", nil
 		case "w":
 			c.NTPClient.Level = 1
+			resp = "Time sync has been set to warn only"
 			answered = true
-			return "Time sync has been set to warn only", nil
 		case "d":
 			c.NTPClient.Level = -1
+			resp = "Future notifications for out of time sync has been disabled"
 			answered = true
-			return "Future notications for out time sync have been disabled", nil
+		default:
+			log.Warn("Invalid option selected, please try again (a)lert / (w)arn / (d)isable")
 		}
 	}
-	return "", errors.New("something went wrong NTPCheck should never make it this far")
+	return resp, nil
 }
 
 // CheckConnectionMonitorConfig checks and if zero value assigns default values

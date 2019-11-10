@@ -7,16 +7,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -54,8 +53,7 @@ const (
 // HitBTC is the overarching type across the hitbtc package
 type HitBTC struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // SetDefaults sets default settings for hitbtc
@@ -80,14 +78,18 @@ func (h *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = apiURL
 	h.APIUrl = h.APIUrlDefault
-	h.WebsocketInit()
-	h.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketSubmitOrderSupported |
-		exchange.WebsocketCancelOrderSupported
+	h.Websocket = wshandler.New()
+	h.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketSubmitOrderSupported |
+		wshandler.WebsocketCancelOrderSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user exchange configuration settings
@@ -128,17 +130,34 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.WebsocketSetup(h.WsConnect,
+		err = h.Websocket.Setup(h.WsConnect,
 			h.Subscribe,
 			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			hitbtcWebsocketAddress,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		h.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         h.Name,
+			URL:                  h.Websocket.GetWebsocketURL(),
+			ProxyURL:             h.Websocket.GetProxyAddress(),
+			Verbose:              h.Verbose,
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		h.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			true,
+			false,
+			exch.Name)
 	}
 }
 
@@ -603,7 +622,16 @@ func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose, h.HTTPDebugging)
+	return h.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		h.Verbose,
+		h.HTTPDebugging,
+		h.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
@@ -625,7 +653,8 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values ur
 		true,
 		false,
 		h.Verbose,
-		h.HTTPDebugging)
+		h.HTTPDebugging,
+		h.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -10,14 +10,13 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/go-querystring/query"
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -87,8 +86,7 @@ var errMissValue = errors.New("warning - resp value is missing from exchange")
 type OKGroup struct {
 	exchange.Base
 	ExchangeName  string
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks
@@ -141,17 +139,34 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = o.WebsocketSetup(o.WsConnect,
+		err = o.Websocket.Setup(o.WsConnect,
 			o.Subscribe,
 			o.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			o.WebsocketURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		o.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         o.Name,
+			URL:                  o.Websocket.GetWebsocketURL(),
+			ProxyURL:             o.Websocket.GetProxyAddress(),
+			Verbose:              o.Verbose,
+			RateLimit:            okGroupWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		o.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			false,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 
@@ -628,7 +643,15 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 
 	errCap := errCapFormat{}
 	errCap.Result = true
-	err = o.SendPayload(strings.ToUpper(httpMethod), path, headers, bytes.NewBuffer(payload), &intermediary, authenticated, false, o.Verbose, o.HTTPDebugging)
+	err = o.SendPayload(strings.ToUpper(httpMethod),
+		path, headers,
+		bytes.NewBuffer(payload),
+		&intermediary,
+		authenticated,
+		false,
+		o.Verbose,
+		o.HTTPDebugging,
+		o.HTTPRecording)
 	if err != nil {
 		return err
 	}

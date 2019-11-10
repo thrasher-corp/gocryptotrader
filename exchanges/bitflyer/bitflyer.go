@@ -14,6 +14,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -99,7 +100,7 @@ func (b *Bitflyer) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.APIUrlSecondaryDefault = chainAnalysis
 	b.APIUrlSecondary = b.APIUrlSecondaryDefault
-	b.WebsocketInit()
+	b.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -379,7 +380,16 @@ func (b *Bitflyer) GetTradingCommission() {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, b.Verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -387,7 +397,7 @@ func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
 // if you have access and update the authenticated requests
 // TODO: Fill out this function once API access is obtained
 func (b *Bitflyer) SendAuthHTTPRequest() {
-	// headers := make(map[string]string)
+	// nolint: gocritic headers := make(map[string]string)
 	// headers["ACCESS-KEY"] = b.APIKey
 	// headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
 }

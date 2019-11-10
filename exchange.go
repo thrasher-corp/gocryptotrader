@@ -18,16 +18,17 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/btcmarkets"
 	"github.com/idoall/gocryptotrader/exchanges/btse"
 	"github.com/idoall/gocryptotrader/exchanges/coinbasepro"
+	"github.com/idoall/gocryptotrader/exchanges/coinbene"
 	"github.com/idoall/gocryptotrader/exchanges/coinut"
 	"github.com/idoall/gocryptotrader/exchanges/exmo"
 	"github.com/idoall/gocryptotrader/exchanges/gateio"
 	"github.com/idoall/gocryptotrader/exchanges/gemini"
 	"github.com/idoall/gocryptotrader/exchanges/hitbtc"
 	"github.com/idoall/gocryptotrader/exchanges/huobi"
-	"github.com/idoall/gocryptotrader/exchanges/huobihadax"
 	"github.com/idoall/gocryptotrader/exchanges/itbit"
 	"github.com/idoall/gocryptotrader/exchanges/kraken"
 	"github.com/idoall/gocryptotrader/exchanges/lakebtc"
+	"github.com/idoall/gocryptotrader/exchanges/lbank"
 	"github.com/idoall/gocryptotrader/exchanges/localbitcoins"
 	"github.com/idoall/gocryptotrader/exchanges/okcoin"
 	"github.com/idoall/gocryptotrader/exchanges/okex"
@@ -151,6 +152,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(btcmarkets.BTCMarkets)
 	case "btse":
 		exch = new(btse.BTSE)
+	case "coinbene":
+		exch = new(coinbene.Coinbene)
 	case "coinut":
 		exch = new(coinut.COINUT)
 	case "exmo":
@@ -165,14 +168,14 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(hitbtc.HitBTC)
 	case "huobi":
 		exch = new(huobi.HUOBI)
-	case "huobihadax":
-		exch = new(huobihadax.HUOBIHADAX)
 	case "itbit":
 		exch = new(itbit.ItBit)
 	case "kraken":
 		exch = new(kraken.Kraken)
 	case "lakebtc":
 		exch = new(lakebtc.LakeBTC)
+	case "lbank":
+		exch = new(lbank.Lbank)
 	case "localbitcoins":
 		exch = new(localbitcoins.LocalBitcoins)
 	case "okcoin international":

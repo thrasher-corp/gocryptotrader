@@ -3,7 +3,6 @@ package gateio
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
@@ -11,6 +10,7 @@ import (
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -22,6 +22,7 @@ const (
 )
 
 var g Gateio
+var wsSetupRan bool
 
 func TestSetDefaults(t *testing.T) {
 	g.SetDefaults()
@@ -496,47 +497,126 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request.
-func TestWsAuth(t *testing.T) {
+// TestWsGetBalance dials websocket, sends balance request.
+func TestWsGetBalance(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
 	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
-	var err error
+	g.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         g.Name,
+		URL:                  gateioWebsocketEndpoint,
+		Verbose:              g.Verbose,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
 	var dialer websocket.Dialer
-	g.WebsocketConn, _, err = dialer.Dial(g.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := g.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	go g.WsHandleData()
 	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	resp, err := g.wsServerSignIn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Result.Status != "success" {
+		t.Fatal("Unsuccessful login")
+	}
+	_, err = g.wsGetBalance([]string{"EOS", "BTC"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsGetOrderInfo dials websocket, sends order info request.
+func TestWsGetOrderInfo(t *testing.T) {
+	g.SetDefaults()
+	TestSetup(t)
+	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
+		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	g.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         g.Name,
+		URL:                  gateioWebsocketEndpoint,
+		Verbose:              g.Verbose,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	var dialer websocket.Dialer
+	err := g.WebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	go g.WsHandleData()
-	defer g.WebsocketConn.Close()
-	err = g.wsServerSignIn()
+	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	resp, err := g.wsServerSignIn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Result.Status != "success" {
+		t.Fatal("Unsuccessful login")
+	}
+	_, err = g.wsGetOrderInfo("EOS_USDT", 0, 10)
 	if err != nil {
 		t.Error(err)
 	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resultString := <-g.Websocket.DataHandler:
-		if !common.StringContains(resultString.(string), "success") {
-			t.Error("Authentication failed")
-		}
-	case <-timer.C:
-		t.Error("Expected response")
+}
+
+func setupWSTestAuth(t *testing.T) {
+	if wsSetupRan {
+		return
 	}
-	timer.Stop()
-	err = g.wsGetBalance()
+	g.SetDefaults()
+	TestSetup(t)
+	if !g.Websocket.IsEnabled() && !g.AuthenticatedWebsocketAPISupport {
+		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	g.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         g.Name,
+		URL:                  gateioWebsocketEndpoint,
+		Verbose:              g.Verbose,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	var dialer websocket.Dialer
+	err := g.WebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go g.WsHandleData()
+	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	wsSetupRan = true
+}
+
+// TestWsSubscribe dials websocket, sends a subscribe request.
+func TestWsSubscribe(t *testing.T) {
+	setupWSTestAuth(t)
+	err := g.Subscribe(wshandler.WebsocketChannelSubscription{
+		Channel:  "ticker.subscribe",
+		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
+	})
 	if err != nil {
 		t.Error(err)
 	}
-	timer = time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case <-g.Websocket.DataHandler:
-	case <-timer.C:
-		t.Error("Expected response")
+}
+
+// TestWsUnsubscribe dials websocket, sends an unsubscribe request.
+func TestWsUnsubscribe(t *testing.T) {
+	setupWSTestAuth(t)
+	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
+		Channel:  "ticker.subscribe",
+		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
+	})
+	if err != nil {
+		t.Error(err)
 	}
-	timer.Stop()
 }

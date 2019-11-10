@@ -15,6 +15,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -73,7 +74,7 @@ func (e *EXMO) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	e.APIUrlDefault = exmoAPIURL
 	e.APIUrl = e.APIUrlDefault
-	e.WebsocketInit()
+	e.Websocket = wshandler.New()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -372,7 +373,16 @@ func (e *EXMO) GetWalletHistory(date int64) (WalletHistory, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *EXMO) SendHTTPRequest(path string, result interface{}) error {
-	return e.SendPayload(http.MethodGet, path, nil, nil, result, false, false, e.Verbose, e.HTTPDebugging)
+	return e.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		e.Verbose,
+		e.HTTPDebugging,
+		e.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -412,7 +422,8 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 		true,
 		true,
 		e.Verbose,
-		e.HTTPDebugging)
+		e.HTTPDebugging,
+		e.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -13,7 +13,9 @@ import (
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/okgroup"
+	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -804,25 +806,27 @@ func TestGetMarginTransactionDetails(t *testing.T) {
 func TestSendWsMessages(t *testing.T) {
 	TestSetDefaults(t)
 	if !o.Websocket.IsEnabled() && !o.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
-		t.Skip(exchange.WebsocketNotEnabled)
+		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	var ok bool
+	o.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         o.Name,
+		URL:                  o.Websocket.GetWebsocketURL(),
+		Verbose:              o.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
-	var err error
-	var ok bool
-	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := o.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		t.Fatalf("%s Unable to connect to Websocket. Error: %s",
-			o.Name,
-			err)
+		t.Fatal(err)
 	}
-	defer o.WebsocketConn.Close()
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go o.WsHandleData(&wg)
 	wg.Wait()
 
-	subscription := exchange.WebsocketChannelSubscription{
+	subscription := wshandler.WebsocketChannelSubscription{
 		Channel: "badChannel",
 	}
 	o.Subscribe(subscription)
@@ -846,7 +850,7 @@ func TestSendWsMessages(t *testing.T) {
 func TestGetAssetTypeFromTableName(t *testing.T) {
 	str := "spot/candle300s:BTC-USDT"
 	spot := o.GetAssetTypeFromTableName(str)
-	if spot != "SPOT" {
+	if spot != orderbook.Spot {
 		t.Errorf("Error, expected 'SPOT', received: '%v'", spot)
 	}
 }

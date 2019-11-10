@@ -4,16 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/currency"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -24,26 +23,13 @@ const (
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
 	var dialer websocket.Dialer
-	if b.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return err
-		}
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	var err error
-	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
+	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%s Unable to connect to Websocket. Error: %s",
-			b.Name,
-			err)
+		return err
 	}
-
 	if b.Verbose {
 		log.Debugf("%s Connected to Websocket.\n", b.GetName())
 	}
@@ -57,22 +43,6 @@ func (b *Bitstamp) WsConnect() error {
 	go b.WsHandleData()
 
 	return nil
-}
-
-// WsReadData reads data coming from bitstamp websocket connection
-func (b *Bitstamp) WsReadData() (exchange.WebsocketResponse, error) {
-	msgType, resp, err := b.WebsocketConn.ReadMessage()
-
-	if err != nil {
-		return exchange.WebsocketResponse{}, err
-	}
-
-	if b.Verbose {
-		log.Debugf("%s websocket raw response: %s", b.GetName(), resp)
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Type: msgType, Raw: resp}, nil
 }
 
 // WsHandleData handles websocket data from WsReadData
@@ -89,12 +59,12 @@ func (b *Bitstamp) WsHandleData() {
 			return
 
 		default:
-			resp, err := b.WsReadData()
+			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
-
+			b.Websocket.TrafficAlert <- struct{}{}
 			wsResponse := websocketResponse{}
 			err = common.JSONDecode(resp.Raw, &wsResponse)
 			if err != nil {
@@ -138,7 +108,7 @@ func (b *Bitstamp) WsHandleData() {
 				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
 				p := currency.NewPairFromString(common.StringToUpper(currencyPair[2]))
 
-				b.Websocket.DataHandler <- exchange.TradeData{
+				b.Websocket.DataHandler <- wshandler.TradeData{
 					Price:        wsTradeTemp.Data.Price,
 					Amount:       wsTradeTemp.Data.Amount,
 					CurrencyPair: p,
@@ -153,10 +123,10 @@ func (b *Bitstamp) WsHandleData() {
 func (b *Bitstamp) generateDefaultSubscriptions() {
 	var channels = []string{"live_trades_", "diff_order_book_"}
 	enabledCurrencies := b.GetEnabledCurrencies()
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 				Channel: fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j].Lower().String()),
 			})
 		}
@@ -165,49 +135,42 @@ func (b *Bitstamp) generateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-
+func (b *Bitstamp) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	req := websocketEventRequest{
 		Event: "bts:subscribe",
 		Data: websocketData{
 			Channel: channelToSubscribe.Channel,
 		},
 	}
-	return b.WebsocketConn.WriteJSON(req)
+	return b.WebsocketConn.SendMessage(req)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-
+func (b *Bitstamp) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	req := websocketEventRequest{
 		Event: "bts:unsubscribe",
 		Data: websocketData{
 			Channel: channelToSubscribe.Channel,
 		},
 	}
-	return b.WebsocketConn.WriteJSON(req)
+	return b.WebsocketConn.SendMessage(req)
 }
 
-func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {
-	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
+func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair, assetType string) error {
+	if len(update.Asks) == 0 && len(update.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
 	}
 
 	var asks, bids []orderbook.Item
-
-	if len(ob.Asks) > 0 {
-		for _, ask := range ob.Asks {
-			target, err := strconv.ParseFloat(ask[0], 64)
+	if len(update.Asks) > 0 {
+		for i := range update.Asks {
+			target, err := strconv.ParseFloat(update.Asks[i][0], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
 			}
 
-			amount, err := strconv.ParseFloat(ask[1], 64)
+			amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -217,15 +180,15 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 		}
 	}
 
-	if len(ob.Bids) > 0 {
-		for _, bid := range ob.Bids {
-			target, err := strconv.ParseFloat(bid[0], 64)
+	if len(update.Bids) > 0 {
+		for i := range update.Bids {
+			target, err := strconv.ParseFloat(update.Bids[i][0], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
 			}
 
-			amount, err := strconv.ParseFloat(bid[1], 64)
+			amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -234,13 +197,18 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 			bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 		}
 	}
-
-	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), assetType)
+	err := b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		Bids:         bids,
+		Asks:         asks,
+		CurrencyPair: p,
+		UpdateID:     update.Timestamp,
+		AssetType:    orderbook.Spot,
+	})
 	if err != nil {
 		return err
 	}
 
-	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    assetType,
 		Exchange: b.GetName(),
@@ -260,17 +228,17 @@ func (b *Bitstamp) seedOrderBook() error {
 		var newOrderBook orderbook.Base
 		var asks, bids []orderbook.Item
 
-		for _, ask := range orderbookSeed.Asks {
+		for i := range orderbookSeed.Asks {
 			var item orderbook.Item
-			item.Amount = ask.Amount
-			item.Price = ask.Price
+			item.Amount = orderbookSeed.Asks[i].Amount
+			item.Price = orderbookSeed.Asks[i].Price
 			asks = append(asks, item)
 		}
 
-		for _, bid := range orderbookSeed.Bids {
+		for i := range orderbookSeed.Bids {
 			var item orderbook.Item
-			item.Amount = bid.Amount
-			item.Price = bid.Price
+			item.Amount = orderbookSeed.Bids[i].Amount
+			item.Price = orderbookSeed.Bids[i].Price
 			bids = append(bids, item)
 		}
 
@@ -279,12 +247,12 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = ticker.Spot
 
-		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
+		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
 		if err != nil {
 			return err
 		}
 
-		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     p[x],
 			Asset:    ticker.Spot,
 			Exchange: b.GetName(),

@@ -8,16 +8,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -62,8 +61,7 @@ const (
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // SetDefaults sets default settings for poloniex
@@ -88,13 +86,16 @@ func (p *Poloniex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	p.APIUrlDefault = poloniexAPIURL
 	p.APIUrl = p.APIUrlDefault
-	p.WebsocketInit()
-	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+	p.Websocket = wshandler.New()
+	p.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported
+	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user exchange configuration settings
@@ -135,17 +136,33 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.WebsocketSetup(p.WsConnect,
+		err = p.Websocket.Setup(p.WsConnect,
 			p.Subscribe,
 			p.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			poloniexWebsocketAddress,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		p.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         p.Name,
+			URL:                  p.Websocket.GetWebsocketURL(),
+			ProxyURL:             p.Websocket.GetProxyAddress(),
+			Verbose:              p.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		p.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			true,
+			false,
+			exch.Name)
 	}
 }
 
@@ -331,8 +348,8 @@ func (p *Poloniex) GetLoanOrders(currency string) (LoanOrders, error) {
 // GetBalances returns balances for your account.
 func (p *Poloniex) GetBalances() (Balance, error) {
 	var result interface{}
-	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexBalances, url.Values{}, &result)
 
+	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexBalances, url.Values{}, &result)
 	if err != nil {
 		return Balance{}, err
 	}
@@ -351,8 +368,8 @@ func (p *Poloniex) GetBalances() (Balance, error) {
 // GetCompleteBalances returns complete balances from your account.
 func (p *Poloniex) GetCompleteBalances() (CompleteBalances, error) {
 	var result interface{}
-	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexBalancesComplete, url.Values{}, &result)
 
+	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexBalancesComplete, url.Values{}, &result)
 	if err != nil {
 		return CompleteBalances{}, err
 	}
@@ -377,14 +394,18 @@ func (p *Poloniex) GetCompleteBalances() (CompleteBalances, error) {
 func (p *Poloniex) GetDepositAddresses() (DepositAddresses, error) {
 	var result interface{}
 	addresses := DepositAddresses{}
-	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexDepositAddresses, url.Values{}, &result)
 
+	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexDepositAddresses, url.Values{}, &result)
 	if err != nil {
 		return addresses, err
 	}
 
 	addresses.Addresses = make(map[string]string)
-	data := result.(map[string]interface{})
+	data, ok := result.(map[string]interface{})
+	if !ok {
+		return addresses, errors.New("return val not map[string]interface{}")
+	}
+
 	for x, y := range data {
 		addresses.Addresses[x] = y.(string)
 	}
@@ -404,7 +425,6 @@ func (p *Poloniex) GenerateNewAddress(currency string) (string, error) {
 	values.Set("currency", currency)
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexGenerateNewAddress, values, &resp)
-
 	if err != nil {
 		return "", err
 	}
@@ -605,7 +625,6 @@ func (p *Poloniex) Withdraw(currency, address string, amount float64) (bool, err
 	values.Set("address", address)
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexWithdraw, values, &result)
-
 	if err != nil {
 		return false, err
 	}
@@ -632,7 +651,6 @@ func (p *Poloniex) GetTradableBalances() (map[string]map[string]float64, error) 
 	result := Response{}
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexTradableBalances, url.Values{}, &result.Data)
-
 	if err != nil {
 		return nil, err
 	}
@@ -660,7 +678,6 @@ func (p *Poloniex) TransferBalance(currency, from, to string, amount float64) (b
 	values.Set("toAccount", to)
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexTransferBalance, values, &result)
-
 	if err != nil {
 		return false, err
 	}
@@ -726,7 +743,6 @@ func (p *Poloniex) CloseMarginPosition(currency string) (bool, error) {
 	result := GenericResponse{}
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexMarginPositionClose, values, &result)
-
 	if err != nil {
 		return false, err
 	}
@@ -762,7 +778,6 @@ func (p *Poloniex) CreateLoanOffer(currency string, amount, rate float64, durati
 	result := Response{}
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexCreateLoanOffer, values, &result)
-
 	if err != nil {
 		return 0, err
 	}
@@ -781,7 +796,6 @@ func (p *Poloniex) CancelLoanOffer(orderNumber int64) (bool, error) {
 	values.Set("orderID", strconv.FormatInt(orderNumber, 10))
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexCancelLoanOffer, values, &result)
-
 	if err != nil {
 		return false, err
 	}
@@ -801,7 +815,6 @@ func (p *Poloniex) GetOpenLoanOffers() (map[string][]LoanOffer, error) {
 	result := Response{}
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOpenLoanOffers, url.Values{}, &result.Data)
-
 	if err != nil {
 		return nil, err
 	}
@@ -832,15 +845,10 @@ func (p *Poloniex) GetLendingHistory(start, end string) ([]LendingHistory, error
 	}
 
 	var resp []LendingHistory
-	err := p.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return resp, p.SendAuthenticatedHTTPRequest(http.MethodPost,
 		poloniexLendingHistory,
 		vals,
 		&resp)
-
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
 }
 
 // ToggleAutoRenew allows for the autorenew of a contract
@@ -853,7 +861,6 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 		poloniexAutoRenew,
 		values,
 		&result)
-
 	if err != nil {
 		return false, err
 	}
@@ -875,7 +882,8 @@ func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
 		false,
 		false,
 		p.Verbose,
-		p.HTTPDebugging)
+		p.HTTPDebugging,
+		p.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -884,13 +892,11 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			p.Name)
 	}
+
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Key"] = p.APIKey
-
-	n := p.Requester.GetNonce(true).String()
-
-	values.Set("nonce", n)
+	values.Set("nonce", p.Requester.GetNonce(true).String())
 	values.Set("command", endpoint)
 
 	hmac := common.GetHMAC(common.HashSHA512,
@@ -909,7 +915,8 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 		true,
 		true,
 		p.Verbose,
-		p.HTTPDebugging)
+		p.HTTPDebugging,
+		p.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

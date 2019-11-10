@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -14,54 +13,30 @@ import (
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (
-	btseWebsocket = "wss://ws.btse.com/api/ws-feed"
+	btseWebsocket      = "wss://ws.btse.com/spotWS"
+	btseWebsocketTimer = 57 * time.Second
 )
 
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(exchange.WebsocketNotEnabled)
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-
 	var dialer websocket.Dialer
-
-	if b.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(b.Websocket.GetProxyAddress())
-		if err != nil {
-			return fmt.Errorf("%s websocket error - proxy address %s",
-				b.Name, err)
-		}
-
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
-	var err error
-	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(),
-		http.Header{})
+	err := b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%s websocket error - unable to connect %s",
-			b.Name, err)
+		return err
 	}
-
+	go b.Pinger()
 	go b.WsHandleData()
 	b.GenerateDefaultSubscriptions()
 
 	return nil
-}
-
-// WsReadData reads data from the websocket connection
-func (b *BTSE) WsReadData() (exchange.WebsocketResponse, error) {
-	_, resp, err := b.WebsocketConn.ReadMessage()
-	if err != nil {
-		return exchange.WebsocketResponse{}, err
-	}
-
-	b.Websocket.TrafficAlert <- struct{}{}
-	return exchange.WebsocketResponse{Raw: resp}, nil
 }
 
 // WsHandleData handles read data from websocket connection
@@ -78,138 +53,113 @@ func (b *BTSE) WsHandleData() {
 			return
 
 		default:
-			resp, err := b.WsReadData()
+			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
+			b.Websocket.TrafficAlert <- struct{}{}
 
-			type MsgType struct {
-				Type      string `json:"type"`
-				ProductID string `json:"product_id"`
-			}
-
-			if strings.Contains(string(resp.Raw), "connect success") {
-				if b.Verbose {
-					log.Debugf("%s websocket client successfully connected to %s",
-						b.Name, b.Websocket.GetWebsocketURL())
-				}
-				continue
-			}
-
-			msgType := MsgType{}
-			err = common.JSONDecode(resp.Raw, &msgType)
+			type Result map[string]interface{}
+			result := Result{}
+			err = common.JSONDecode(resp.Raw, &result)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
 			}
-			switch msgType.Type {
-			case "ticker":
-				var t wsTicker
+			switch {
+			case strings.Contains(result["topic"].(string), "tradeHistory"):
+				log.Warnf("%s: Buy/Sell side functionality is broken for this exchange currently! 'gain' has no correlation with buy side or sell side", b.Name)
+				var tradeHistory wsTradeHistory
+				err = common.JSONDecode(resp.Raw, &tradeHistory)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				for x := range tradeHistory.Data {
+					side := exchange.BuyOrderSide.ToString()
+					if tradeHistory.Data[x].Gain == -1 {
+						side = exchange.SellOrderSide.ToString()
+					}
+					b.Websocket.DataHandler <- wshandler.TradeData{
+						Timestamp:    time.Unix(tradeHistory.Data[x].TransactionTime, 0),
+						CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory", "", 1)),
+						AssetType:    orderbook.Spot,
+						Exchange:     b.Name,
+						Price:        tradeHistory.Data[x].Price,
+						Amount:       tradeHistory.Data[x].Amount,
+						Side:         side,
+					}
+				}
+			case strings.Contains(result["topic"].(string), "orderBookApi"):
+				var t wsOrderBook
 				err = common.JSONDecode(resp.Raw, &t)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-				p := strings.Replace(t.Price.(string), ",", "", -1)
-				price, err := strconv.ParseFloat(p, 64)
+				var price, amount float64
+				var asks, bids []orderbook.Item
+				for i := range t.Data.SellQuote {
+					p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
+					price, err = strconv.ParseFloat(p, 64)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					a := strings.Replace(t.Data.SellQuote[i].Size, ",", "", -1)
+					amount, err = strconv.ParseFloat(a, 64)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					asks = append(asks, orderbook.Item{Price: price, Amount: amount})
+				}
+				for j := range t.Data.BuyQuote {
+					p := strings.Replace(t.Data.BuyQuote[j].Price, ",", "", -1)
+					price, err = strconv.ParseFloat(p, 64)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
+					amount, err = strconv.ParseFloat(a, 64)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+					bids = append(bids, orderbook.Item{Price: price, Amount: amount})
+				}
+				var newOB orderbook.Base
+				newOB.Asks = asks
+				newOB.Bids = bids
+				newOB.AssetType = orderbook.Spot
+				newOB.Pair = currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+				newOB.ExchangeName = b.Name
+				err = b.Websocket.Orderbook.LoadSnapshot(&newOB, true)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-
-				b.Websocket.DataHandler <- exchange.TickerData{
-					Timestamp: time.Now(),
-					Pair:      currency.NewPairDelimiter(t.ProductID, "-"),
-					AssetType: "SPOT",
-					Exchange:  b.GetName(),
-					OpenPrice: price,
-				}
-			case "snapshot":
-				snapshot := websocketOrderbookSnapshot{}
-				err := common.JSONDecode(resp.Raw, &snapshot)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-
-				err = b.wsProcessSnapshot(&snapshot)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
+				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
+					Asset:    orderbook.Spot,
+					Exchange: b.Name}
+			default:
+				log.Warnf("%s: unhandled websocket response: %s", b.Name, resp.Raw)
 			}
 		}
 	}
 }
 
-// ProcessSnapshot processes the initial orderbook snap shot
-func (b *BTSE) wsProcessSnapshot(snapshot *websocketOrderbookSnapshot) error {
-	var base orderbook.Base
-	for _, bid := range snapshot.Bids {
-		p := strings.Replace(bid[0].(string), ",", "", -1)
-		price, err := strconv.ParseFloat(p, 64)
-		if err != nil {
-			return err
-		}
-
-		a := strings.Replace(bid[1].(string), ",", "", -1)
-		amount, err := strconv.ParseFloat(a, 64)
-		if err != nil {
-			return err
-		}
-
-		base.Bids = append(base.Bids,
-			orderbook.Item{Price: price, Amount: amount})
-	}
-
-	for _, ask := range snapshot.Asks {
-		p := strings.Replace(ask[0].(string), ",", "", -1)
-		price, err := strconv.ParseFloat(p, 64)
-		if err != nil {
-			return err
-		}
-
-		a := strings.Replace(ask[1].(string), ",", "", -1)
-		amount, err := strconv.ParseFloat(a, 64)
-		if err != nil {
-			return err
-		}
-
-		base.Asks = append(base.Asks,
-			orderbook.Item{Price: price, Amount: amount})
-	}
-
-	p := currency.NewPairDelimiter(snapshot.ProductID, "-")
-	base.AssetType = "SPOT"
-	base.Pair = p
-	base.LastUpdated = time.Now()
-	base.ExchangeName = b.Name
-
-	err := base.Process()
-	if err != nil {
-		return err
-	}
-
-	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Asset:    "SPOT",
-		Exchange: b.GetName(),
-	}
-
-	return nil
-}
-
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTSE) GenerateDefaultSubscriptions() {
-	var channels = []string{"snapshot", "ticker"}
-	enabledCurrencies := b.GetEnabledCurrencies()
-	var subscriptions []exchange.WebsocketChannelSubscription
+	var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
+	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
-		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
-				Channel:  channels[i],
-				Currency: enabledCurrencies[j],
+		for j := range b.EnabledPairs {
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+				Channel:  fmt.Sprintf(channels[i], b.EnabledPairs[j]),
+				Currency: b.EnabledPairs[j],
 			})
 		}
 	}
@@ -217,43 +167,33 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	subscribe := websocketSubscribe{
-		Type: "subscribe",
-		Channels: []websocketChannel{
-			{
-				Name:       channelToSubscribe.Channel,
-				ProductIDs: []string{channelToSubscribe.Currency.String()},
-			},
-		},
-	}
-	return b.wsSend(subscribe)
+func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	var sub wsSub
+	sub.Operation = "subscribe"
+	sub.Arguments = []string{channelToSubscribe.Channel}
+	return b.WebsocketConn.SendMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubscription) error {
-	subscribe := websocketSubscribe{
-		Type: "unsubscribe",
-		Channels: []websocketChannel{
-			{
-				Name:       channelToSubscribe.Channel,
-				ProductIDs: []string{channelToSubscribe.Currency.String()},
-			},
-		},
-	}
-	return b.wsSend(subscribe)
+func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	var unSub wsSub
+	unSub.Operation = "unsubscribe"
+	unSub.Arguments = []string{channelToSubscribe.Channel}
+	return b.WebsocketConn.SendMessage(unSub)
 }
 
-// WsSend sends data to the websocket server
-func (b *BTSE) wsSend(data interface{}) error {
-	b.wsRequestMtx.Lock()
-	defer b.wsRequestMtx.Unlock()
-	if b.Verbose {
-		log.Debugf("%v sending message to websocket %v", b.Name, data)
+// Pinger pings
+func (b *BTSE) Pinger() {
+	ticker := time.NewTicker(btseWebsocketTimer)
+
+	for {
+		select {
+		case <-b.Websocket.ShutdownC:
+			ticker.Stop()
+			return
+
+		case <-ticker.C:
+			b.WebsocketConn.Connection.WriteMessage(websocket.PingMessage, nil)
+		}
 	}
-	json, err := common.JSONEncode(data)
-	if err != nil {
-		return err
-	}
-	return b.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }

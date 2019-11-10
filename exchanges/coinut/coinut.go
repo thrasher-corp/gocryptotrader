@@ -6,16 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -47,9 +47,8 @@ const (
 // COINUT is the overarching type across the coinut package
 type COINUT struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
+	WebsocketConn *wshandler.WebsocketConnection
 	InstrumentMap map[string]int
-	wsRequestMtx  sync.Mutex
 }
 
 // SetDefaults sets current default values
@@ -76,15 +75,19 @@ func (c *COINUT) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.APIUrlDefault = coinutAPIURL
 	c.APIUrl = c.APIUrlDefault
-	c.WebsocketInit()
-	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketSubmitOrderSupported |
-		exchange.WebsocketCancelOrderSupported
+	c.Websocket = wshandler.New()
+	c.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketSubmitOrderSupported |
+		wshandler.WebsocketCancelOrderSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets the current exchange configuration
@@ -125,17 +128,34 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = c.WebsocketSetup(c.WsConnect,
+		err = c.Websocket.Setup(c.WsConnect,
 			c.Subscribe,
 			c.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			coinutWebsocketURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		c.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         c.Name,
+			URL:                  c.Websocket.GetWebsocketURL(),
+			ProxyURL:             c.Websocket.GetProxyAddress(),
+			Verbose:              c.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            coinutWebsocketRateLimit,
+		}
+		c.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			true,
+			true,
+			false,
+			exch.Name)
 	}
 }
 
@@ -143,7 +163,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) {
 func (c *COINUT) GetInstruments() (Instruments, error) {
 	var result Instruments
 	params := make(map[string]interface{})
-	params["sec_type"] = "SPOT"
+	params["sec_type"] = orderbook.Spot
 
 	return result, c.SendHTTPRequest(coinutInstruments, params, false, &result)
 }
@@ -385,7 +405,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		true,
 		c.Verbose,
 		c.HTTPDebugging,
-	)
+		c.HTTPRecording)
 	if err != nil {
 		return err
 	}

@@ -1,12 +1,12 @@
 build: off
 
-clone_folder: c:\gopath\src\github.com\thrasher-\gocryptotrader
+clone_folder: c:\gopath\src\github.com\thrasher-corp\gocryptotrader
 
 cache:
   - '%APPDATA%\npm-cache'
   - '%GOPATH%\pkg\mod'
   - '%LOCALAPPDATA%\go-build'
-  - c:\gopath\src\github.com\thrasher-\gocryptotrader\web\node_modules
+  - c:\gopath\src\github.com\thrasher-corp\gocryptotrader\web\node_modules
 
 environment:
   GOPATH: c:\gopath
@@ -19,22 +19,27 @@ stack: go 1.12.3
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
   - ps: Install-Product node $env:NODEJS_VER
-  - cd c:\gopath\src\github.com\thrasher-\gocryptotrader\web
+  - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader\web
   - npm install
 
 before_test:
-  - cd c:\gopath\src\github.com\thrasher-\gocryptotrader
+  - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader
   - go get
 
 test_script:
   # test back-end
-  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.16.0
+  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.18.0
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
-  - go test -race ./...
+  - ps: >-
+      if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {
+          go test -race ./... -tags=mock_test_off
+      }else {
+          go test -race ./...
+      }
   
   # test front-end
   - node --version
   - npm --version
-  - cd c:\gopath\src\github.com\thrasher-\gocryptotrader\web
+  - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader\web
   - npm run lint
   - npm run build

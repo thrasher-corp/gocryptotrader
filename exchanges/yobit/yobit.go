@@ -15,6 +15,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -74,7 +75,7 @@ func (y *Yobit) SetDefaults() {
 	y.APIUrl = y.APIUrlDefault
 	y.APIUrlSecondaryDefault = apiPrivateURL
 	y.APIUrlSecondary = y.APIUrlSecondaryDefault
-	y.WebsocketInit()
+	y.Websocket = wshandler.New()
 }
 
 // Setup sets exchange configuration parameters for Yobit
@@ -339,7 +340,8 @@ func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
 		false,
 		false,
 		y.Verbose,
-		y.HTTPDebugging)
+		y.HTTPDebugging,
+		y.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
@@ -383,7 +385,8 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 		true,
 		true,
 		y.Verbose,
-		y.HTTPDebugging)
+		y.HTTPDebugging,
+		y.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

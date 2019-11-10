@@ -16,6 +16,7 @@ import (
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -65,7 +66,7 @@ func (i *ItBit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	i.APIUrlDefault = itbitAPIURL
 	i.APIUrl = i.APIUrlDefault
-	i.WebsocketInit()
+	i.Websocket = wshandler.New()
 }
 
 // Setup sets the exchange parameters from exchange config
@@ -344,7 +345,16 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
-	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, false, i.Verbose, i.HTTPDebugging)
+	return i.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		i.Verbose,
+		i.HTTPDebugging,
+		i.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
@@ -404,7 +414,16 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		RequestID   string `json:"requestId"`
 	}{}
 
-	err = i.SendPayload(method, urlPath, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, true, i.Verbose, i.HTTPDebugging)
+	err = i.SendPayload(method,
+		urlPath,
+		headers,
+		bytes.NewBuffer(PayloadJSON),
+		&intermediary,
+		true,
+		true,
+		i.Verbose,
+		i.HTTPDebugging,
+		i.HTTPRecording)
 	if err != nil {
 		return err
 	}

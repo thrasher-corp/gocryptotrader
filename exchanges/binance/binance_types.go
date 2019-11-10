@@ -628,5 +628,5 @@ var WithdrawalFees = map[currency.Code]float64{
 type WithdrawResponse struct {
 	Success bool   `json:"success"`
 	Msg     string `json:"msg"`
-	ID      int64  `json:"id"`
+	ID      string `json:"id"`
 }

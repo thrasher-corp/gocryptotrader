@@ -7,15 +7,14 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -23,8 +22,7 @@ import (
 // 资金时间戳：UTC 4:00（北京时间 12:00）、UTC 12:00（北京时间 20:00）和 UTC 20:00（北京时间 04:00）
 type Bitmex struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
-	wsRequestMtx  sync.Mutex
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (
@@ -135,13 +133,17 @@ func (b *Bitmex) SetDefaults() {
 	b.APIUrlDefault = bitmexAPIURL
 	b.APIUrl = b.APIUrlDefault
 	b.SupportsAutoPairUpdating = true
-	b.WebsocketInit()
-	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketAccountDataSupported
+	b.Websocket = wshandler.New()
+	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketAccountDataSupported |
+		wshandler.WebsocketDeadMansSwitchSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -181,17 +183,33 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.WebsocketSetup(b.WsConnector,
+		err = b.Websocket.Setup(b.WsConnector,
 			b.Subscribe,
 			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			bitmexWSURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         b.Name,
+			URL:                  b.Websocket.GetWebsocketURL(),
+			ProxyURL:             b.Websocket.GetProxyAddress(),
+			Verbose:              b.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		b.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			false,
+			false,
+			true,
+			exch.Name)
 	}
 }
 
@@ -888,14 +906,32 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 			if err != nil {
 				return err
 			}
-			err = b.SendPayload(http.MethodGet, encodedPath, nil, nil, &respCheck, false, false, b.Verbose, b.HTTPDebugging)
+			err = b.SendPayload(http.MethodGet,
+				encodedPath,
+				nil,
+				nil,
+				&respCheck,
+				false,
+				false,
+				b.Verbose,
+				b.HTTPDebugging,
+				b.HTTPRecording)
 			if err != nil {
 				return err
 			}
 			return b.CaptureError(respCheck, result)
 		}
 	}
-	err := b.SendPayload(http.MethodGet, path, nil, nil, &respCheck, false, false, b.Verbose, b.HTTPDebugging)
+	err := b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		&respCheck,
+		false,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 	if err != nil {
 		return err
 	}
@@ -947,7 +983,8 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 		true,
 		false,
 		b.Verbose,
-		b.HTTPDebugging)
+		b.HTTPDebugging,
+		b.HTTPRecording)
 	if err != nil {
 		return err
 	}

@@ -6,16 +6,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -86,9 +85,8 @@ const (
 // depending on some factors (e.g. servers load, endpoint, etc.).
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn         *websocket.Conn
+	WebsocketConn         *wshandler.WebsocketConnection
 	WebsocketSubdChannels map[int]WebsocketChanInfo
-	wsRequestMtx          sync.Mutex
 }
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -113,13 +111,16 @@ func (b *Bitfinex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bitfinexAPIURLBase
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
-	b.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported
+	b.Websocket = wshandler.New()
+	b.Websocket.Functionality = wshandler.WebsocketTickerSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -129,8 +130,8 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 	} else {
 
 		b.Enabled = true
-		b.BaseAsset = exch.BaseAsset
-		b.QuoteAsset = exch.QuoteAsset
+		// b.BaseAsset = exch.BaseAsset
+		// b.QuoteAsset = exch.QuoteAsset
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
@@ -163,17 +164,35 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = b.WebsocketSetup(b.WsConnect,
+		err = b.Websocket.Setup(b.WsConnect,
 			b.Subscribe,
 			b.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			bitfinexWebsocket,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         b.Name,
+			URL:                  b.Websocket.GetWebsocketURL(),
+			ProxyURL:             b.Websocket.GetProxyAddress(),
+			Verbose:              b.Verbose,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+		b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+		b.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			true,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 
@@ -1015,7 +1034,16 @@ func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(path string, result interface{}, verbose bool) error {
-	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, false, verbose, b.HTTPDebugging)
+	return b.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
@@ -1061,7 +1089,8 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		true,
 		true,
 		b.Verbose,
-		b.HTTPDebugging)
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

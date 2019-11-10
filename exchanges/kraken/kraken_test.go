@@ -1,18 +1,19 @@
 package kraken
 
 import (
-	"fmt"
-	"strings"
+	"net/http"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 var k Kraken
+var wsSetupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
@@ -643,103 +644,41 @@ func TestWithdrawCancel(t *testing.T) {
 
 // ---------------------------- Websocket tests -----------------------------------------
 
-// TestOrderbookBufferReset websocket test
-func TestOrderbookBufferReset(t *testing.T) {
-	if k.Name == "" {
-		k.SetDefaults()
-		TestSetup(t)
+func setupWsTests(t *testing.T) {
+	if wsSetupRan {
+		return
 	}
-	if !k.Websocket.IsEnabled() {
-		t.Skip("Websocket not enabled, skipping")
-	}
-	var obUpdates []string
-	obpartial := `[0,{"as":[["5541.30000","2.50700000","0"]],"bs":[["5541.20000","1.52900000","0"]]}]`
-	for i := 1; i < orderbookBufferLimit+2; i++ {
-		obUpdates = append(obUpdates, fmt.Sprintf(`[0,{"a":[["5541.30000","2.50700000","%v"]],"b":[["5541.30000","1.00000000","%v"]]}]`, i, i))
+	TestSetDefaults(t)
+	TestSetup(t)
+	if !k.Websocket.IsEnabled() && !k.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
+		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	var dataResponse WebsocketDataResponse
-	err := common.JSONDecode([]byte(obpartial), &dataResponse)
+	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	k.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         k.Name,
+		URL:                  krakenWSURL,
+		Verbose:              k.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	var dialer websocket.Dialer
+	err := k.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		t.Errorf("Could not parse, %v", err)
+		t.Fatal(err)
 	}
-	obData := dataResponse[1].(map[string]interface{})
-	channelData := WebsocketChannelData{
-		ChannelID:    0,
-		Subscription: "orderbook",
-		Pair:         currency.NewPairWithDelimiter("XBT", "USD", "/"),
-	}
-
-	k.wsProcessOrderBookPartial(
-		&channelData,
-		obData,
-	)
-
-	for i := 0; i < len(obUpdates); i++ {
-		err = common.JSONDecode([]byte(obUpdates[i]), &dataResponse)
-		if err != nil {
-			t.Errorf("Could not parse, %v", err)
-		}
-		obData = dataResponse[1].(map[string]interface{})
-		if i < len(obUpdates)-1 {
-			k.wsProcessOrderBookBuffer(&channelData, obData)
-		} else if i == len(obUpdates)-1 {
-			k.wsProcessOrderBookUpdate(&channelData)
-			k.wsProcessOrderBookBuffer(&channelData, obData)
-			if len(orderbookBuffer[channelData.ChannelID]) != 1 {
-				t.Error("Buffer should have 1 entry after being reset")
-			}
-		}
-	}
+	go k.WsHandleData()
+	wsSetupRan = true
 }
 
-// TestOrderbookBufferReset websocket test
-func TestOrderBookOutOfOrder(t *testing.T) {
-	if k.Name == "" {
-		k.SetDefaults()
-		TestSetup(t)
-	}
-	if !k.Websocket.IsEnabled() {
-		t.Skip("Websocket not enabled, skipping")
-	}
-	obpartial := `[0,{"as":[["5541.30000","2.50700000","0"]],"bs":[["5541.20000","1.52900000","5"]]}]`
-	obupdate1 := `[0,{"a":[["5541.30000","0.00000000","1"]],"b":[["5541.30000","0.00000000","3"]]}]`
-	obupdate2 := `[0,{"a":[["5541.30000","2.50700000","2"]],"b":[["5541.30000","0.00000000","1"]]}]`
-
-	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	var dataResponse WebsocketDataResponse
-	err := common.JSONDecode([]byte(obpartial), &dataResponse)
+// TestWebsocketSubscribe tests returning a message with an id
+func TestWebsocketSubscribe(t *testing.T) {
+	setupWsTests(t)
+	err := k.Subscribe(wshandler.WebsocketChannelSubscription{
+		Channel:  defaultSubscribedChannels[0],
+		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+	})
 	if err != nil {
-		t.Errorf("Could not parse, %v", err)
-	}
-	obData := dataResponse[1].(map[string]interface{})
-	channelData := WebsocketChannelData{
-		ChannelID:    0,
-		Subscription: "orderbook",
-		Pair:         currency.NewPairWithDelimiter("XBT", "USD", "/"),
-	}
-
-	k.wsProcessOrderBookPartial(
-		&channelData,
-		obData,
-	)
-
-	err = common.JSONDecode([]byte(obupdate1), &dataResponse)
-	if err != nil {
-		t.Errorf("Could not parse, %v", err)
-	}
-	obData = dataResponse[1].(map[string]interface{})
-	k.wsProcessOrderBookBuffer(&channelData, obData)
-
-	err = common.JSONDecode([]byte(obupdate2), &dataResponse)
-	if err != nil {
-		t.Errorf("Could not parse, %v", err)
-	}
-	obData = dataResponse[1].(map[string]interface{})
-	k.wsProcessOrderBookBuffer(&channelData, obData)
-
-	err = k.wsProcessOrderBookUpdate(&channelData)
-	if !strings.Contains(err.Error(), "orderbook update out of order") {
-		t.Error("Expected out of order orderbook error")
+		t.Error(err)
 	}
 }

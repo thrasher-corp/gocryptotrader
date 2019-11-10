@@ -14,16 +14,15 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -42,6 +41,7 @@ const (
 	huobiTimestamp             = "common/timestamp"
 	huobiAccounts              = "account/accounts"
 	huobiAccountBalance        = "account/accounts/%s/balance"
+	huobiAggregatedBalance     = "subuser/aggregate-balance"
 	huobiOrderPlace            = "order/orders/place"
 	huobiOrderCancel           = "order/orders/%s/submitcancel"
 	huobiOrderCancelBatch      = "order/orders/batchcancel"
@@ -68,9 +68,8 @@ const (
 type HUOBI struct {
 	exchange.Base
 	AccountID                  string
-	WebsocketConn              *websocket.Conn
-	AuthenticatedWebsocketConn *websocket.Conn
-	wsRequestMtx               sync.Mutex
+	WebsocketConn              *wshandler.WebsocketConnection
+	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 }
 
 // SetDefaults sets default values for the exchange
@@ -95,14 +94,18 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobiAPIURL
 	h.APIUrl = h.APIUrlDefault
-	h.WebsocketInit()
-	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketSubscribeSupported |
-		exchange.WebsocketUnsubscribeSupported |
-		exchange.WebsocketAuthenticatedEndpointsSupported |
-		exchange.WebsocketAccountDataSupported
+	h.Websocket = wshandler.New()
+	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
+		wshandler.WebsocketOrderbookSupported |
+		wshandler.WebsocketTradeDataSupported |
+		wshandler.WebsocketSubscribeSupported |
+		wshandler.WebsocketUnsubscribeSupported |
+		wshandler.WebsocketAuthenticatedEndpointsSupported |
+		wshandler.WebsocketAccountDataSupported |
+		wshandler.WebsocketMessageCorrelationSupported
+	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user configuration
@@ -111,8 +114,8 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 		h.SetEnabled(false)
 	} else {
 		h.Enabled = true
-		h.BaseAsset = exch.BaseAsset
-		h.QuoteAsset = exch.QuoteAsset
+		// h.BaseAsset = exch.BaseAsset
+		// h.QuoteAsset = exch.QuoteAsset
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
@@ -147,17 +150,43 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = h.WebsocketSetup(h.WsConnect,
+		err = h.Websocket.Setup(h.WsConnect,
 			h.Subscribe,
 			h.Unsubscribe,
 			exch.Name,
 			exch.Websocket,
 			exch.Verbose,
 			wsMarketURL,
-			exch.WebsocketURL)
+			exch.WebsocketURL,
+			exch.AuthenticatedWebsocketAPISupport)
 		if err != nil {
 			log.Fatal(err)
 		}
+		h.WebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         h.Name,
+			URL:                  wsMarketURL,
+			ProxyURL:             h.Websocket.GetProxyAddress(),
+			Verbose:              h.Verbose,
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+			ExchangeName:         h.Name,
+			URL:                  wsAccountsOrdersURL,
+			ProxyURL:             h.Websocket.GetProxyAddress(),
+			Verbose:              h.Verbose,
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		}
+		h.Websocket.Orderbook.Setup(
+			exch.WebsocketOrderbookBufferLimit,
+			false,
+			false,
+			false,
+			false,
+			exch.Name)
 	}
 }
 
@@ -400,6 +429,29 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.AccountBalanceData.AccountBalanceDetails, err
+}
+
+// GetAggregatedBalance returns the balances of all the sub-account aggregated.
+func (h *HUOBI) GetAggregatedBalance() ([]AggregatedBalance, error) {
+	type response struct {
+		Response
+		AggregatedBalances []AggregatedBalance `json:"data"`
+	}
+
+	var result response
+
+	err := h.SendAuthenticatedHTTPRequest(
+		http.MethodGet,
+		huobiAggregatedBalance,
+		nil,
+		nil,
+		&result,
+	)
+
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+	return result.AggregatedBalances, err
 }
 
 // SpotNewOrder submits an order to Huobi
@@ -854,7 +906,16 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, false, h.Verbose, h.HTTPDebugging)
+	return h.SendPayload(http.MethodGet,
+		path,
+		nil,
+		nil,
+		result,
+		false,
+		false,
+		h.Verbose,
+		h.HTTPDebugging,
+		h.HTTPRecording)
 }
 
 // SendAuthenticatedHTTPPostRequest sends authenticated requests to the HUOBI API
@@ -963,7 +1024,16 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		body = encoded
 	}
 
-	return h.SendPayload(method, urlPath, headers, bytes.NewReader(body), result, true, false, h.Verbose, h.HTTPDebugging)
+	return h.SendPayload(method,
+		urlPath,
+		headers,
+		bytes.NewReader(body),
+		result,
+		true,
+		false,
+		h.Verbose,
+		h.HTTPDebugging,
+		h.HTTPRecording)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
