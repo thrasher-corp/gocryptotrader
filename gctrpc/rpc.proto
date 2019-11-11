@@ -530,6 +530,7 @@ message audit_event {
 
 message GCTScriptExecuteRequest {
     string script_name = 1;
+    string script_path = 2;
 }
 
 message GCTScriptStopRequest {
@@ -564,6 +565,7 @@ message GCTScriptUploadRequest {
 
 message GCTScriptReadScriptRequest{
     string script_name = 1;
+    string script_path = 2;
 }
 
 

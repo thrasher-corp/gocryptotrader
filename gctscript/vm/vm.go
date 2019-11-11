@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/d5/tengo/script"
@@ -56,6 +57,7 @@ func (vm *VM) Load(file string) error {
 		}
 	}
 
+	vm.Name = vm.shortName(file)
 	vm.Script = script.New(code)
 	vm.Script.SetImports(loader.GetModuleMap())
 
@@ -125,10 +127,6 @@ func (vm *VM) CompileAndRun() (err error) {
 		return err
 	}
 
-	if vm.Compiled.Get("name") != nil {
-		vm.Name = vm.Compiled.Get("name").String()
-	}
-
 	if vm.Compiled.Get("timer").String() != "" {
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
 		if err != nil {
@@ -155,4 +153,21 @@ func (vm *VM) Shutdown() error {
 	}
 
 	return RemoveVM(vm.ID)
+}
+
+func (vm *VM) Read() ([]byte, error) {
+	scriptPath := filepath.Join(ScriptPath, vm.Name)
+	data, err := ioutil.ReadFile(scriptPath)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (vm *VM) shortName(file string) string {
+	if file[0] == '.' {
+		file = file[2:]
+	}
+
+	return filepath.Base(file)
 }

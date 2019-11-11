@@ -1573,6 +1573,9 @@
       "properties": {
         "script_name": {
           "type": "string"
+        },
+        "script_path": {
+          "type": "string"
         }
       }
     },
@@ -1580,6 +1583,9 @@
       "type": "object",
       "properties": {
         "script_name": {
+          "type": "string"
+        },
+        "script_path": {
           "type": "string"
         }
       }

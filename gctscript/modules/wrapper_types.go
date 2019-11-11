@@ -24,7 +24,7 @@ type Exchange interface {
 	Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error)
 
 	QueryOrder(exch, orderid string) (*order.Detail, error)
-	SubmitOrder(exch string) (*order.SubmitResponse, error)
+	SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error)
 	CancelOrder(exch, orderid string) (bool, error)
 
 	AccountInformation(exch string) (AccountInfo, error)
@@ -61,9 +61,8 @@ Ticker - done
 Enabled pairs - done
 Enabled exchanges - done
 Submit order
-Cancel order
-Query Order
-Account information (balance etc)
+Cancel order - done
+Query Order - done
+Account information (balance etc) - done
 deposit address fetching/withdrawal of crypto/fiat
-
 */

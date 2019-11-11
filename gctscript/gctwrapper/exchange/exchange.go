@@ -98,13 +98,13 @@ func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 	return &r, nil
 }
 
-func (e Exchange) SubmitOrder(exch string) (*order.SubmitResponse, error) {
+func (e Exchange) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
 	}
-	x := &order.Submit{}
-	r, err := ex.SubmitOrder(x)
+
+	r, err := ex.SubmitOrder(submit)
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -1220,7 +1219,8 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 	}
 
 	gctVM := gctscript.New()
-	err := gctVM.Load(r.ScriptName)
+	script := filepath.Join(r.ScriptPath, r.ScriptName)
+	err := gctVM.Load(script)
 	if err != nil {
 		return &gctrpc.GCTScriptResponse{
 			Status: "error",
@@ -1277,14 +1277,17 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	scriptPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
-	if filepath.Ext(scriptPath) != ".gctgo" {
-		scriptPath += ".gctgo"
+	var data []byte
+	UUID, err := uuid.FromString(r.ScriptName)
+	if err != nil {
+		return &gctrpc.GCTScriptResponse{Status: "error", Data: err.Error()}, nil
 	}
 
-	data, err := ioutil.ReadFile(scriptPath)
-	if err != nil {
-		return nil, err
+	if v, f := gctscript.AllVMs[UUID]; f {
+		data, err = v.Read()
+		if err != nil {
+			return &gctrpc.GCTScriptResponse{Status: "error", Data: err.Error()}, nil
+		}
 	}
 
 	return &gctrpc.GCTScriptResponse{

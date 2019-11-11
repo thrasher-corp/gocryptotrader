@@ -2926,6 +2926,10 @@ var gctScriptExecuteCommand = cli.Command{
 			Name:  "script",
 			Usage: "name script to execute",
 		},
+		cli.StringFlag{
+			Name:  "path",
+			Usage: "path to load scripts from",
+		},
 	},
 }
 
@@ -2935,12 +2939,18 @@ func gctScriptExecute(c *cli.Context) error {
 		return nil
 	}
 
-	var script string
+	var script, path string
 
 	if c.IsSet("script") {
 		script = c.String("script")
 	} else {
 		script = c.Args().First()
+	}
+
+	if c.IsSet("path") {
+		path = c.String("path")
+	} else {
+		path = c.Args().First()
 	}
 
 	conn, err := setupClient()
@@ -2953,6 +2963,7 @@ func gctScriptExecute(c *cli.Context) error {
 	result, err := client.GCTScriptExecute(context.Background(),
 		&gctrpc.GCTScriptExecuteRequest{
 			ScriptName: script,
+			ScriptPath: path,
 		},
 	)
 
