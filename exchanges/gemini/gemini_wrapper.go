@@ -369,8 +369,8 @@ func (g *Gemini) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, order := range resp.Details.CancelRejects {
-		cancelAllOrdersResponse.Status[order] = "Could not cancel order"
+	for i := range resp.Details.CancelRejects {
+		cancelAllOrdersResponse.Status[resp.Details.CancelRejects[i]] = "Could not cancel order"
 	}
 
 	return cancelAllOrdersResponse, nil

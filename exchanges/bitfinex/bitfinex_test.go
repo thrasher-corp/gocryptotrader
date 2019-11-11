@@ -999,7 +999,6 @@ func TestWsAuth(t *testing.T) {
 	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
-	b.Verbose = true
 	setupWs()
 	runAuth(t)
 }

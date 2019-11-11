@@ -655,20 +655,20 @@ type WsNewOrderResponse struct {
 
 // WsGetAccountBalanceResponse contains values of each currency
 type WsGetAccountBalanceResponse struct {
-	BCH     string   `json:"BCH"`
-	BTC     string   `json:"BTC"`
-	BTG     string   `json:"BTG"`
-	CAD     string   `json:"CAD"`
-	ETC     string   `json:"ETC"`
-	ETH     string   `json:"ETH"`
-	LCH     string   `json:"LCH"`
-	LTC     string   `json:"LTC"`
-	MYR     string   `json:"MYR"`
-	SGD     string   `json:"SGD"`
-	USD     string   `json:"USD"`
-	USDT    string   `json:"USDT"`
-	XMR     string   `json:"XMR"`
-	ZEC     string   `json:"ZEC"`
+	BCH     float64  `json:"BCH,string"`
+	BTC     float64  `json:"BTC,string"`
+	BTG     float64  `json:"BTG,string"`
+	CAD     float64  `json:"CAD,string"`
+	ETC     float64  `json:"ETC,string"`
+	ETH     float64  `json:"ETH,string"`
+	LCH     float64  `json:"LCH,string"`
+	LTC     float64  `json:"LTC,string"`
+	MYR     float64  `json:"MYR,string"`
+	SGD     float64  `json:"SGD,string"`
+	USD     float64  `json:"USD,string"`
+	USDT    float64  `json:"USDT,string"`
+	XMR     float64  `json:"XMR,string"`
+	ZEC     float64  `json:"ZEC,string"`
 	Nonce   int64    `json:"nonce"`
 	Reply   string   `json:"reply"`
 	Status  []string `json:"status"`

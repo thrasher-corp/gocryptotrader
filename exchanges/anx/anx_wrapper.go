@@ -391,9 +391,9 @@ func (a *ANX) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) 
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, order := range resp.OrderCancellationResponses {
-		if order.Error != CancelRequestSubmitted {
-			cancelAllOrdersResponse.Status[order.UUID] = order.Error
+	for i := range resp.OrderCancellationResponses {
+		if resp.OrderCancellationResponses[i].Error != CancelRequestSubmitted {
+			cancelAllOrdersResponse.Status[resp.OrderCancellationResponses[i].UUID] = resp.OrderCancellationResponses[i].Error
 		}
 	}
 

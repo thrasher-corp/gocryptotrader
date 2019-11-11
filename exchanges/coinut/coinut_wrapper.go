@@ -218,20 +218,17 @@ func (c *COINUT) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (c *COINUT) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	var instruments map[string][]InstrumentBase
-	if c.CanUseAuthenticatedWebsocketEndpoint() {
-		resp, err := c.WsGetInstruments()
+	if c.Websocket.IsConnected() {
+		_, err := c.WsGetInstruments()
 		if err != nil {
 			return nil, err
 		}
-		instruments = resp.Spot
-
-	} else {
-		resp, err := c.GetInstruments()
-		if err != nil {
-			return nil, err
-		}
-		instruments = resp.Instruments
 	}
+	resp, err := c.GetInstruments()
+	if err != nil {
+		return nil, err
+	}
+	instruments = resp.Instruments
 	var pairs []string
 	for i := range instruments {
 		c.instrumentMap.Seed(instruments[i][0].Base+instruments[i][0].Quote, instruments[i][0].InstID)
@@ -258,9 +255,19 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 // COINUT exchange
 func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	bal, err := c.GetUserBalance()
-	if err != nil {
-		return info, err
+	var bal UserBalance
+	var err error
+	if c.CanUseAuthenticatedWebsocketEndpoint() {
+		resp, err := c.wsGetAccountBalance()
+		if err != nil {
+			return info, err
+		}
+		bal = *resp
+	} else {
+		bal, err = c.GetUserBalance()
+		if err != nil {
+			return info, err
+		}
 	}
 
 	var balances = []exchange.AccountCurrencyInfo{
@@ -528,32 +535,41 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 
-	if !c.instrumentMap.IsLoaded() {
-		err = c.SeedInstruments()
-		if err != nil {
-			return err
-		}
-	}
-
 	currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(
 		o.CurrencyPair,
 		asset.Spot).String(),
 	)
 	if c.CanUseAuthenticatedWebsocketEndpoint() {
+		if !wsInstrumentMap.IsLoaded() {
+			_, err = c.WsGetInstruments()
+			if err != nil {
+				return err
+			}
+		}
 		_, err := c.wsCancelOrder(&WsCancelOrderParameters{
 			Currency: o.CurrencyPair,
 			OrderID:  orderIDInt,
 		})
-		return err
+		if err != nil {
+			return err
+		}
 	} else {
+		if !c.instrumentMap.IsLoaded() {
+			err = c.SeedInstruments()
+			if err != nil {
+				return err
+			}
+		}
 		if currencyID == 0 {
 			return errLookupInstrumentID
 		}
 		_, err = c.CancelExistingOrder(currencyID, orderIDInt)
-
+		if err != nil {
+			return err
+		}
 	}
 
-	return err
+	return nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -562,6 +578,12 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		Status: make(map[string]string),
 	}
 	if c.CanUseAuthenticatedWebsocketEndpoint() {
+		if !wsInstrumentMap.IsLoaded() {
+			_, err := c.WsGetInstruments()
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+		}
 		openOrders, err := c.wsGetOpenOrders(details.CurrencyPair.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
@@ -612,9 +634,9 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 			return cancelAllOrdersResponse, err
 		}
 
-		for _, order := range resp.Results {
-			if order.Status != "OK" {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(order.OrderID, 10)] = order.Status
+		for i := range resp.Results {
+			if resp.Results[i].Status != "OK" {
+				cancelAllOrdersResponse.Status[strconv.FormatInt(resp.Results[i].OrderID, 10)] = resp.Results[i].Status
 			}
 		}
 	}
@@ -749,51 +771,84 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	var allOrders []order.Detail
 	if !c.instrumentMap.IsLoaded() {
 		err := c.SeedInstruments()
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	var instrumentsToUse []int64
-	if len(req.Currencies) > 0 {
-		for x := range req.Currencies {
-			curr := c.FormatExchangeCurrency(req.Currencies[x],
-				asset.Spot).String()
-			instrumentsToUse = append(instrumentsToUse,
-				c.instrumentMap.LookupID(curr))
+	if c.CanUseAuthenticatedWebsocketEndpoint() {
+		if !wsInstrumentMap.IsLoaded() {
+			_, err := c.WsGetInstruments()
+			if err != nil {
+				return allOrders, err
+			}
+		}
+		for i := range req.Currencies {
+			for j := int64(1); ; j += 100 {
+				trades, err := c.wsGetTradeHistory(req.Currencies[i], j, 100)
+				if err != nil {
+					return allOrders, err
+				}
+				for x := range trades.Trades {
+					curr := wsInstrumentMap.LookupInstrument(trades.Trades[x].InstID)
+					allOrders = append(allOrders, order.Detail{
+						Exchange:        c.Name,
+						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 64),
+						CurrencyPair:    currency.NewPairFromString(curr),
+						OrderSide:       order.Side(trades.Trades[x].Side),
+						OrderDate:       time.Unix(0, trades.Trades[x].Timestamp),
+						Status:          order.Filled,
+						Price:           trades.Trades[x].Price,
+						Amount:          trades.Trades[x].Qty,
+						ExecutedAmount:  trades.Trades[x].Qty,
+						RemainingAmount: trades.Trades[x].OpenQty,
+					})
+				}
+				if len(trades.Trades) < 100 {
+					break
+				}
+			}
 		}
 	} else {
-		instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
-	}
-
-	if len(instrumentsToUse) == 0 {
-		return nil, errors.New("no instrument IDs to use")
-	}
-
-	var allOrders []order.Detail
-	for x := range instrumentsToUse {
-		orders, err := c.GetTradeHistory(instrumentsToUse[x], -1, -1)
-		if err != nil {
-			return nil, err
+		var instrumentsToUse []int64
+		if len(req.Currencies) > 0 {
+			for x := range req.Currencies {
+				curr := c.FormatExchangeCurrency(req.Currencies[x],
+					asset.Spot).String()
+				instrumentsToUse = append(instrumentsToUse,
+					c.instrumentMap.LookupID(curr))
+			}
+		} else {
+			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
 		}
-		for y := range orders.Trades {
-			curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
-			p := currency.NewPairFromFormattedPairs(curr,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true))
-			orderSide := order.Side(strings.ToUpper(orders.Trades[y].Order.Side))
-			orderDate := time.Unix(orders.Trades[y].Order.Timestamp, 0)
-			allOrders = append(allOrders, order.Detail{
-				ID:           strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
-				Amount:       orders.Trades[y].Order.Quantity,
-				Price:        orders.Trades[y].Order.Price,
-				Exchange:     c.Name,
-				OrderSide:    orderSide,
-				OrderDate:    orderDate,
-				CurrencyPair: p,
-			})
+
+		if len(instrumentsToUse) == 0 {
+			return nil, errors.New("no instrument IDs to use")
+		}
+		for x := range instrumentsToUse {
+			orders, err := c.GetTradeHistory(instrumentsToUse[x], -1, -1)
+			if err != nil {
+				return nil, err
+			}
+			for y := range orders.Trades {
+				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
+				p := currency.NewPairFromFormattedPairs(curr,
+					c.GetEnabledPairs(asset.Spot),
+					c.GetPairFormat(asset.Spot, true))
+				orderSide := order.Side(strings.ToUpper(orders.Trades[y].Order.Side))
+				orderDate := time.Unix(orders.Trades[y].Order.Timestamp, 0)
+				allOrders = append(allOrders, order.Detail{
+					ID:           strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
+					Amount:       orders.Trades[y].Order.Quantity,
+					Price:        orders.Trades[y].Order.Price,
+					Exchange:     c.Name,
+					OrderSide:    orderSide,
+					OrderDate:    orderDate,
+					CurrencyPair: p,
+				})
+			}
 		}
 	}
 

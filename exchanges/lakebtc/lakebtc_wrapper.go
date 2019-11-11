@@ -369,8 +369,8 @@ func (l *LakeBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 	}
 
 	var ordersToCancel []string
-	for _, order := range openOrders {
-		ordersToCancel = append(ordersToCancel, strconv.FormatInt(order.ID, 10))
+	for i := range openOrders {
+		ordersToCancel = append(ordersToCancel, strconv.FormatInt(openOrders[i].ID, 10))
 	}
 
 	return cancelAllOrdersResponse, l.CancelExistingOrders(ordersToCancel)

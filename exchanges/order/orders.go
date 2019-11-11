@@ -10,18 +10,18 @@ import (
 
 // NewOrder creates a new order and returns a an orderID
 func NewOrder(exchangeName string, amount, price float64) int {
-	order := &Order{}
+	ord := &Order{}
 	if len(Orders) == 0 {
-		order.OrderID = 0
+		ord.OrderID = 0
 	} else {
-		order.OrderID = len(Orders)
+		ord.OrderID = len(Orders)
 	}
 
-	order.Exchange = exchangeName
-	order.Amount = amount
-	order.Price = price
-	Orders = append(Orders, order)
-	return order.OrderID
+	ord.Exchange = exchangeName
+	ord.Amount = amount
+	ord.Price = price
+	Orders = append(Orders, ord)
+	return ord.OrderID
 }
 
 // DeleteOrder deletes orders by ID and returns state

@@ -340,7 +340,7 @@ func TestPlaceSpotOrderMarket(t *testing.T) {
 func TestPlaceMultipleSpotOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID: spotCurrency,
 		Type:         order.Limit.Lower(),
 		Side:         order.Buy.Lower(),
@@ -349,7 +349,7 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
+		ord,
 	}
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -362,7 +362,7 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID: spotCurrency,
 		Type:         order.Limit.Lower(),
 		Side:         order.Buy.Lower(),
@@ -371,11 +371,11 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
-		order,
-		order,
-		order,
-		order,
+		ord,
+		ord,
+		ord,
+		ord,
+		ord,
 	}
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -388,7 +388,7 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID: spotCurrency,
 		Type:         order.Limit.Lower(),
 		Side:         order.Buy.Lower(),
@@ -397,7 +397,7 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
+		ord,
 	}
 
 	pairs := currency.Pairs{
@@ -681,7 +681,7 @@ func TestPlaceMarginOrderMarket(t *testing.T) {
 func TestPlaceMultipleMarginOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
@@ -691,7 +691,7 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
+		ord,
 	}
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -704,7 +704,7 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceOrderRequest{
+	ord
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
@@ -714,11 +714,11 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
-		order,
-		order,
-		order,
-		order,
+		ord,
+		ord,
+		ord,
+		ord,
+		ord,
 	}
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -731,7 +731,7 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
@@ -741,7 +741,7 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
+		ord,
 	}
 
 	pairs := currency.Pairs{

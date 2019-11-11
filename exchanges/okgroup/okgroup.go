@@ -233,8 +233,8 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceOrderRequest) (map[stri
 
 	var orderErrors []error
 	for currency, orderResponse := range resp {
-		for _, order := range orderResponse {
-			if !order.Result {
+		for i := range orderResponse {
+			if !orderResponse[i].Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
@@ -262,15 +262,15 @@ func (o *OKGroup) CancelMultipleSpotOrders(request CancelMultipleSpotOrdersReque
 	}
 
 	for currency, orderResponse := range resp {
-		for _, order := range orderResponse {
+		for i := range orderResponse {
 			cancellationResponse := CancelMultipleSpotOrdersResponse{
-				OrderID:   order.OrderID,
-				Result:    order.Result,
-				ClientOID: order.ClientOID,
+				OrderID:   orderResponse[i].OrderID,
+				Result:    orderResponse[i].Result,
+				ClientOID: orderResponse[i].ClientOID,
 			}
 
-			if !order.Result {
-				cancellationResponse.Error = fmt.Errorf("order %v for currency %v failed to be cancelled", order.OrderID, currency)
+			if !orderResponse[i].Result {
+				cancellationResponse.Error = fmt.Errorf("order %v for currency %v failed to be cancelled", orderResponse[i].OrderID, currency)
 			}
 
 			resp[currency] = append(resp[currency], cancellationResponse)
@@ -454,8 +454,8 @@ func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceOrderRequest) (map[st
 
 	var orderErrors []error
 	for currency, orderResponse := range resp {
-		for _, order := range orderResponse {
-			if !order.Result {
+		for i := range orderResponse {
+			if !orderResponse[i].Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
@@ -484,9 +484,9 @@ func (o *OKGroup) CancelMultipleMarginOrders(request CancelMultipleSpotOrdersReq
 
 	var orderErrors []error
 	for currency, orderResponse := range resp {
-		for _, order := range orderResponse {
-			if !order.Result {
-				orderErrors = append(orderErrors, fmt.Errorf("order %v for currency %v failed to be cancelled", order.OrderID, currency))
+		for i := range orderResponse {
+			if !orderResponse[i].Result {
+				orderErrors = append(orderErrors, fmt.Errorf("order %v for currency %v failed to be cancelled", orderResponse[i].OrderID, currency))
 			}
 		}
 	}

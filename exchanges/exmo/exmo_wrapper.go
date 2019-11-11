@@ -382,10 +382,10 @@ func (e *EXMO) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error)
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, order := range openOrders {
-		err = e.CancelExistingOrder(order.OrderID)
+	for i := range openOrders {
+		err = e.CancelExistingOrder(openOrders[i].OrderID)
 		if err != nil {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(order.OrderID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
 		}
 	}
 

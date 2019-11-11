@@ -473,14 +473,14 @@ func TestWsAuthSubmitOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsSubmitOrderParameters{
+	ord := WsSubmitOrderParameters{
 		Amount:   1,
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 		Price:    1,
 		Side:     order.Buy,
 	}
-	_, err := c.wsSubmitOrder(&order)
+	_, err := c.wsSubmitOrder(&ord)
 	if err != nil {
 		t.Error(err)
 	}
@@ -518,7 +518,7 @@ func TestWsAuthCancelOrders(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsCancelOrderParameters{
+	ord := WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
@@ -526,7 +526,7 @@ func TestWsAuthCancelOrders(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  2,
 	}
-	_, errs := c.wsCancelOrders([]WsCancelOrderParameters{order, order2})
+	_, errs := c.wsCancelOrders([]WsCancelOrderParameters{ord, order2})
 	if len(errs) > 0 {
 		t.Error(errs)
 	}
@@ -538,11 +538,11 @@ func TestWsAuthCancelOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := &WsCancelOrderParameters{
+	ord := &WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
-	_, err := c.wsCancelOrder(order)
+	_, err := c.wsCancelOrder(ord)
 	if err != nil {
 		t.Error(err)
 	}
