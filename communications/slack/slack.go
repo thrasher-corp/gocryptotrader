@@ -219,34 +219,28 @@ func (s *Slack) WebsocketReader() {
 		}
 
 		switch data.Type {
-
 		case "error":
 			err = s.handleErrorResponse(data)
 			if err != nil {
 				continue
 			}
-
 		case "hello":
 			s.handleHelloResponse()
-
 		case "reconnect_url":
 			err = s.handleReconnectResponse(resp)
 			if err != nil {
 				continue
 			}
-
 		case "presence_change":
 			err = s.handlePresenceChange(resp)
 			if err != nil {
 				continue
 			}
-
 		case "message":
 			err = s.handleMessageResponse(resp, data)
 			if err != nil {
 				continue
 			}
-
 		case "pong":
 			if s.Verbose {
 				log.Debugln(log.CommunicationMgr, "Slack: Pong received from server")

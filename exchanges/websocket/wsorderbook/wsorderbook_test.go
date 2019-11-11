@@ -595,7 +595,6 @@ func TestFlushCache(t *testing.T) {
 	if obl.ob[cp][asset.Spot] != nil {
 		t.Error("expected ob be flushed")
 	}
-
 }
 
 // TestInsertingSnapShots logic test

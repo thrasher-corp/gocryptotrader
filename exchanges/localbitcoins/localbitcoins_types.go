@@ -106,7 +106,7 @@ type AdEdit struct {
 	MaxAmount          int      `json:"max_amount"`
 	OpeningHours       []string `json:"opening_hours"`
 	LimitToFiatAmounts string   `json:"limit_to_fiat_amounts"`
-	Visible            bool     `json:"visible,int"`
+	Visible            bool     `json:"visible"`
 
 	// Optional Arguments ONLINE_SELL ads
 	RequireTradeVolume   int    `json:"require_trade_volume"`
@@ -114,13 +114,13 @@ type AdEdit struct {
 	FirstTimeLimitBTC    int    `json:"first_time_limit_btc"`
 	VolumeCoefficientBTC int    `json:"volume_coefficient_btc"`
 	ReferenceType        string `json:"reference_type"`
-	DisplayReference     bool   `json:"display_reference,int"`
+	DisplayReference     bool   `json:"display_reference"`
 
 	// Optional Arguments ONLINE_BUY
 	PaymentWindowMinutes int `json:"payment_window_minutes"`
 
 	// Optional Arguments LOCAL_SELL
-	Floating bool `json:"floating,int"`
+	Floating bool `json:"floating"`
 }
 
 // AdCreate references an outgoing paramater type for CreateAd() method
@@ -148,7 +148,7 @@ type AdCreate struct {
 	MaxAmount          int      `json:"max_amount"`
 	OpeningHours       []string `json:"opening_hours"`
 	LimitToFiatAmounts string   `json:"limit_to_fiat_amounts"`
-	Visible            bool     `json:"visible,int"`
+	Visible            bool     `json:"visible"`
 
 	// Optional Arguments ONLINE_SELL ads
 	RequireTradeVolume   int    `json:"require_trade_volume"`
@@ -156,13 +156,13 @@ type AdCreate struct {
 	FirstTimeLimitBTC    int    `json:"first_time_limit_btc"`
 	VolumeCoefficientBTC int    `json:"volume_coefficient_btc"`
 	ReferenceType        string `json:"reference_type"`
-	DisplayReference     bool   `json:"display_reference,int"`
+	DisplayReference     bool   `json:"display_reference"`
 
 	// Optional Arguments ONLINE_BUY
 	PaymentWindowMinutes int `json:"payment_window_minutes"`
 
 	// Optional Arguments LOCAL_SELL
-	Floating bool `json:"floating,int"`
+	Floating bool `json:"floating"`
 }
 
 // Message holds the returned message data from a contact

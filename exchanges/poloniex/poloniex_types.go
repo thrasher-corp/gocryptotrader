@@ -262,7 +262,7 @@ type LoanOffer struct {
 	Rate      float64 `json:"rate,string"`
 	Amount    float64 `json:"amount,string"`
 	Duration  int     `json:"duration"`
-	AutoRenew bool    `json:"autoRenew,int"`
+	AutoRenew bool    `json:"autoRenew"`
 	Date      string  `json:"date"`
 }
 

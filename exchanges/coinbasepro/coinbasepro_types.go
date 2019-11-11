@@ -454,7 +454,7 @@ type WebsocketTicker struct {
 	BestBid   float64       `json:"best_bid,string"`
 	BestAsk   float64       `json:"best_ask,string"`
 	Side      string        `json:"side"`
-	Time      time.Time     `json:"time,string"`
+	Time      time.Time     `json:"time"`
 	TradeID   int64         `json:"trade_id"`
 	LastSize  float64       `json:"last_size,string"`
 }
