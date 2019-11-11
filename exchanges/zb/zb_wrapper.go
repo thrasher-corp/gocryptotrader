@@ -269,8 +269,9 @@ func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Ba
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := z.GetOrderbook(z.FormatExchangeCurrency(p,
-		assetType).String())
+	curr := z.FormatExchangeCurrency(p, assetType).String()
+
+	orderbookNew, err := z.GetOrderbook(curr)
 	if err != nil {
 		return orderBook, err
 	}

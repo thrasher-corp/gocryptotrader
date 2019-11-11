@@ -175,18 +175,18 @@ func (s *Storage) SetupConversionRates() {
 // SetDefaultFiatCurrencies assigns the default fiat currency list and adds it
 // to the running list
 func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
-	for _, currency := range c {
-		s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, currency)
-		s.fiatCurrencies = append(s.fiatCurrencies, currency)
+	for i := range c {
+		s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, c[i])
+		s.fiatCurrencies = append(s.fiatCurrencies, c[i])
 	}
 }
 
 // SetDefaultCryptocurrencies assigns the default cryptocurrency list and adds
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c ...Code) {
-	for _, currency := range c {
-		s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, currency)
-		s.cryptocurrencies = append(s.cryptocurrencies, currency)
+	for i := range c {
+		s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, c[i])
+		s.cryptocurrencies = append(s.cryptocurrencies, c[i])
 	}
 }
 

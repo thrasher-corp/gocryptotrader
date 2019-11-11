@@ -343,10 +343,10 @@ func TestNewPairDelimiter(t *testing.T) {
 // specific index
 func TestNewPairFromIndex(t *testing.T) {
 	t.Parallel()
-	currency := defaultPair
+	curr := defaultPair
 	index := "BTC"
 
-	pair, err := NewPairFromIndex(currency, index)
+	pair, err := NewPairFromIndex(curr, index)
 	if err != nil {
 		t.Error("NewPairFromIndex() error", err)
 	}
@@ -362,9 +362,9 @@ func TestNewPairFromIndex(t *testing.T) {
 		)
 	}
 
-	currency = "DOGEBTC"
+	curr = "DOGEBTC"
 
-	pair, err = NewPairFromIndex(currency, index)
+	pair, err = NewPairFromIndex(curr, index)
 	if err != nil {
 		t.Error("NewPairFromIndex() error", err)
 	}

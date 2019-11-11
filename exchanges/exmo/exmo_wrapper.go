@@ -238,10 +238,10 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook
 	if err != nil {
 		return orderBook, err
 	}
-
-	for _, x := range e.GetEnabledPairs(assetType) {
-		currency := e.FormatExchangeCurrency(x, assetType)
-		data, ok := result[currency.String()]
+	enabledPairs := e.GetEnabledPairs(assetType)
+	for i := range enabledPairs {
+		curr := e.FormatExchangeCurrency(enabledPairs[i], assetType)
+		data, ok := result[curr.String()]
 		if !ok {
 			continue
 		}
@@ -266,7 +266,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook
 		}
 
 		orderBook.Bids = obItems
-		orderBook.Pair = x
+		orderBook.Pair = enabledPairs[i]
 		orderBook.ExchangeName = e.Name
 		orderBook.AssetType = assetType
 
@@ -486,13 +486,13 @@ func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, err
 	}
 
 	var allTrades []UserTrades
-	for _, currency := range req.Currencies {
-		resp, err := e.GetUserTrades(e.FormatExchangeCurrency(currency, asset.Spot).String(), "", "10000")
+	for i := range req.Currencies {
+		resp, err := e.GetUserTrades(e.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String(), "", "10000")
 		if err != nil {
 			return nil, err
 		}
-		for _, order := range resp {
-			allTrades = append(allTrades, order...)
+		for j := range resp {
+			allTrades = append(allTrades, resp[j]...)
 		}
 	}
 

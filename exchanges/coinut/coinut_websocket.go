@@ -47,7 +47,7 @@ func (c *COINUT) WsConnect() error {
 	go c.WsHandleData()
 
 	if !wsInstrumentMap.IsLoaded() {
-		err = c.WsSetInstrumentList()
+		_, err = c.WsGetInstruments()
 		if err != nil {
 			return err
 		}
@@ -238,8 +238,9 @@ func (c *COINUT) GetNonce() int64 {
 	return int64(c.Nonce.Get())
 }
 
-// WsSetInstrumentList fetches instrument list and propagates a local cache
-func (c *COINUT) WsSetInstrumentList() error {
+// WsGetInstruments fetches instrument list and propagates a local cache
+func (c *COINUT) WsGetInstruments() (WsInstrumentList, error) {
+	var list WsInstrumentList
 	request := wsRequest{
 		Request: "inst_list",
 		SecType: strings.ToUpper(asset.Spot.String()),
@@ -247,20 +248,19 @@ func (c *COINUT) WsSetInstrumentList() error {
 	}
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(request.Nonce, request)
 	if err != nil {
-		return err
+		return list, err
 	}
-	var list WsInstrumentList
 	err = json.Unmarshal(resp, &list)
 	if err != nil {
-		return err
+		return list, err
 	}
 	for curr, data := range list.Spot {
 		wsInstrumentMap.Seed(curr, data[0].InstID)
 	}
 	if len(wsInstrumentMap.GetInstrumentIDs()) == 0 {
-		return errors.New("instrument list failed to populate")
+		return list, errors.New("instrument list failed to populate")
 	}
-	return nil
+	return list, nil
 }
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
@@ -597,61 +597,60 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]WsStandardO
 	return ordersResponse, errors
 }
 
-func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
+func (c *COINUT) wsGetOpenOrders(p string) (WsUserOpenOrdersResponse, error) {
+	var response WsUserOpenOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v not authorised to get open orders", c.Name)
+		return response, fmt.Errorf("%v not authorised to get open orders", c.Name)
 	}
-	curr := c.FormatExchangeCurrency(p, asset.Spot).String()
 	var openOrdersRequest WsGetOpenOrdersRequest
 	openOrdersRequest.Request = "user_open_orders"
 	openOrdersRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
-	openOrdersRequest.InstID = wsInstrumentMap.LookupID(curr)
+	openOrdersRequest.InstID = wsInstrumentMap.LookupID(p)
 
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(openOrdersRequest.Nonce, openOrdersRequest)
 	if err != nil {
-		return err
+		return response, err
 	}
-	var response map[string]interface{}
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
-		return err
+		return response, err
 	}
-	if response["status"].([]interface{})[0] != "OK" {
-		return fmt.Errorf("%v get open orders failed for currency %v",
+	if response.Status[0] != "OK" {
+		return response, fmt.Errorf("%v get open orders failed for currency %v",
 			c.Name,
 			p)
 	}
-	return nil
+	return response, nil
 }
 
-func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
+func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (WsCancelOrderResponse, error) {
+	var response WsCancelOrderResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v not authorised to cancel order", c.Name)
+		return response, fmt.Errorf("%v not authorised to cancel order", c.Name)
 	}
-	currency := c.FormatExchangeCurrency(cancellation.Currency, asset.Spot).String()
+	curr := c.FormatExchangeCurrency(cancellation.Currency, asset.Spot).String()
 	var cancellationRequest WsCancelOrderRequest
 	cancellationRequest.Request = "cancel_order"
-	cancellationRequest.InstID = wsInstrumentMap.LookupID(currency)
+	cancellationRequest.InstID = wsInstrumentMap.LookupID(curr)
 	cancellationRequest.OrderID = cancellation.OrderID
 	cancellationRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
 
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancellationRequest.Nonce, cancellationRequest)
 	if err != nil {
-		return err
+		return response, err
 	}
-	var response map[string]interface{}
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
-		return err
+		return response, err
 	}
-	if response["status"].([]interface{})[0] != "OK" {
-		return fmt.Errorf("%v order cancellation failed for currency %v and orderID %v, message %v",
+	if response.Status[0] != "OK" {
+		return response, fmt.Errorf("%v order cancellation failed for currency %v and orderID %v, message %v",
 			c.Name,
 			cancellation.Currency,
 			cancellation.OrderID,
-			response["status"])
+			response.Status[0])
 	}
-	return nil
+	return response, nil
 }
 
 func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*WsCancelOrdersResponse, []error) {
@@ -661,9 +660,9 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*WsCan
 	}
 	cancelOrderRequest := WsCancelOrdersRequest{}
 	for i := range cancellations {
-		currency := c.FormatExchangeCurrency(cancellations[i].Currency, asset.Spot).String()
+		curr := c.FormatExchangeCurrency(cancellations[i].Currency, asset.Spot).String()
 		cancelOrderRequest.Entries = append(cancelOrderRequest.Entries, WsCancelOrdersRequestEntry{
-			InstID:  wsInstrumentMap.LookupID(currency),
+			InstID:  wsInstrumentMap.LookupID(curr),
 			OrderID: cancellations[i].OrderID,
 		})
 	}

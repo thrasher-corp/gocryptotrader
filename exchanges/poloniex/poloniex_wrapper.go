@@ -287,9 +287,10 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 		return orderBook, err
 	}
 
-	for _, x := range p.GetEnabledPairs(assetType) {
-		currency := p.FormatExchangeCurrency(x, assetType).String()
-		data, ok := orderbookNew.Data[currency]
+	enabledPairs := p.GetEnabledPairs(assetType)
+	for i := range enabledPairs {
+		curr := p.FormatExchangeCurrency(enabledPairs[i], assetType).String()
+		data, ok := orderbookNew.Data[curr]
 		if !ok {
 			continue
 		}
@@ -307,7 +308,7 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 				Amount: data.Asks[y].Amount, Price: data.Asks[y].Price})
 		}
 		orderBook.Asks = obItems
-		orderBook.Pair = x
+		orderBook.Pair = enabledPairs[i]
 		orderBook.ExchangeName = p.Name
 		orderBook.AssetType = assetType
 

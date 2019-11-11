@@ -1,7 +1,6 @@
 package coinut
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -372,10 +371,10 @@ type WsTradeUpdate struct {
 
 // WsInstrumentList defines instrument list
 type WsInstrumentList struct {
-	Spot   map[string][]WsSupportedCurrency `json:"SPOT"`
-	Nonce  int64                            `json:"nonce"`
-	Reply  string                           `json:"inst_list"`
-	Status []interface{}                    `json:"status"`
+	Spot   map[string][]InstrumentBase `json:"SPOT"`
+	Nonce  int64                       `json:"nonce,omitempty"`
+	Reply  string                      `json:"inst_list,omitempty"`
+	Status []interface{}               `json:"status,omitempty"`
 }
 
 // WsSupportedCurrency defines supported currency on the exchange
@@ -680,80 +679,4 @@ type instrumentMap struct {
 	Instruments map[string]int64
 	Loaded      bool
 	m           sync.Mutex
-}
-
-// IsLoaded returns whether or not the instrument map has been seeded
-func (i *instrumentMap) IsLoaded() bool {
-	i.m.Lock()
-	defer i.m.Unlock()
-	return i.Loaded
-}
-
-// Seed seeds the instrument map
-func (i *instrumentMap) Seed(currency string, id int64) {
-	i.m.Lock()
-	defer i.m.Unlock()
-
-	if !i.Loaded {
-		i.Instruments = make(map[string]int64)
-	}
-
-	// check to see if the instrument already exists
-	_, ok := i.Instruments[currency]
-	if ok {
-		return
-	}
-
-	i.Instruments[currency] = id
-	i.Loaded = true
-}
-
-// LookupInstrument looks up an instrument based on an id
-func (i *instrumentMap) LookupInstrument(id int64) string {
-	i.m.Lock()
-	defer i.m.Unlock()
-
-	if !i.Loaded {
-		return ""
-	}
-
-	for k, v := range i.Instruments {
-		if v == id {
-			return k
-		}
-	}
-	return ""
-}
-
-// LookupID looks up an ID based on a string
-func (i *instrumentMap) LookupID(currency string) int64 {
-	i.m.Lock()
-	defer i.m.Unlock()
-
-	if !i.Loaded {
-		return 0
-	}
-
-	for k, v := range i.Instruments {
-		if strings.EqualFold(currency, k) {
-			return v
-		}
-	}
-	return 0
-}
-
-// GetInstrumentIDs returns a list of IDs
-func (i *instrumentMap) GetInstrumentIDs() []int64 {
-	i.m.Lock()
-	defer i.m.Unlock()
-
-	if !i.Loaded {
-		return nil
-	}
-
-	var instruments []int64
-	for _, x := range i.Instruments {
-		instruments = append(instruments, x)
-	}
-	return instruments
 }

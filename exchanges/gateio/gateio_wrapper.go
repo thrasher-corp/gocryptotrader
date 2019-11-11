@@ -269,9 +269,9 @@ func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	currency := g.FormatExchangeCurrency(p, assetType).String()
+	curr := g.FormatExchangeCurrency(p, assetType).String()
 
-	orderbookNew, err := g.GetOrderbook(currency)
+	orderbookNew, err := g.GetOrderbook(curr)
 	if err != nil {
 		return orderBook, err
 	}
@@ -577,8 +577,8 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 // Can Limit response to specific order status
 func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var trades []TradesResponse
-	for _, currency := range req.Currencies {
-		resp, err := g.GetTradeHistory(currency.String())
+	for i := range req.Currencies {
+		resp, err := g.GetTradeHistory(req.Currencies[i].String())
 		if err != nil {
 			return nil, err
 		}

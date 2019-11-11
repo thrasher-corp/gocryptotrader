@@ -527,9 +527,10 @@ func (h *HUOBI) CancelOrder(order *order.Cancel) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var cancelAllOrdersResponse order.CancelAllResponse
-	for _, currency := range h.GetEnabledPairs(asset.Spot) {
+	enabledPairs := h.GetEnabledPairs(asset.Spot)
+	for i := range enabledPairs {
 		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
-			h.FormatExchangeCurrency(currency, asset.Spot).String())
+			h.FormatExchangeCurrency(enabledPairs[i], asset.Spot).String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}

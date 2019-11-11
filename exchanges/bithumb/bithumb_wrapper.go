@@ -220,9 +220,9 @@ func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	currency := p.Base.String()
+	curr := p.Base.String()
 
-	orderbookNew, err := b.GetOrderBook(currency)
+	orderbookNew, err := b.GetOrderBook(curr)
 	if err != nil {
 		return orderBook, err
 	}
@@ -358,12 +358,13 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	}
 
 	var allOrders []OrderData
-	for _, currency := range b.GetEnabledPairs(asset.Spot) {
+	currs := b.GetEnabledPairs(asset.Spot)
+	for i := range currs {
 		orders, err := b.GetOrders("",
 			orderCancellation.Side.String(),
 			"100",
 			"",
-			currency.Base.String())
+			currs[i].Base.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
