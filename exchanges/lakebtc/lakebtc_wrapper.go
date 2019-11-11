@@ -375,7 +375,6 @@ func (l *LakeBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 	}
 
 	return cancelAllOrdersResponse, l.CancelExistingOrders(ordersToCancel)
-
 }
 
 // GetOrderInfo returns information on a current open order

@@ -463,7 +463,6 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			}
 		}
 	}
-
 }
 
 // Start starts an exchange currency pair syncer

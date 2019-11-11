@@ -269,7 +269,6 @@ func (b *Bitstamp) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-
 }
 
 // FetchOrderbook returns the orderbook for a currency pair

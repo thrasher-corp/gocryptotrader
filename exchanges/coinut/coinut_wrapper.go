@@ -356,7 +356,6 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	}
 
 	return ticker.GetTicker(c.Name, p, assetType)
-
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -728,7 +727,6 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 				CurrencyPair: p,
 			})
 		}
-
 	}
 
 	order.FilterOrdersByTickRange(&allOrders, req.StartTicks, req.EndTicks)

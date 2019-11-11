@@ -87,7 +87,6 @@ func TestDelete(t *testing.T) {
 	if p.Get(asset.Spot) != nil {
 		t.Error("Delete should have deleted AssetTypeSpot")
 	}
-
 }
 
 func TestGetPairs(t *testing.T) {
