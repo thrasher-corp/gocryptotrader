@@ -338,7 +338,6 @@ func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (Ban
 			c.BankAccounts[x].SupportedExchanges == "ALL") &&
 			common.StringContains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
 			return c.BankAccounts[x], nil
-
 		}
 	}
 	return BankAccount{}, fmt.Errorf("client banking details not found for %s and currency %s",
@@ -496,7 +495,6 @@ func (c *Config) CheckCommunicationsConfig() {
 				},
 			}
 		}
-
 	} else {
 		if c.SMS != nil {
 			// flush old SMS config

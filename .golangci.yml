@@ -1,5 +1,5 @@
 run:
-  deadline: 1m0s
+  timeout: 1m0s
   issues-exit-code: 1
   tests: true
   skip-dirs:
@@ -11,41 +11,46 @@ linters:
   disable-all: true
   enable:
 # defaults
-    - govet
-#   - errcheck
-    - staticcheck
-#   - unused
-    - gosimple
-    - structcheck
-#   - varcheck
-    - ineffassign
 #   - deadcode
+#   - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
     - typecheck
+#   - unused
+#   - varcheck
 
 # disabled by default linters
 #   - bodyclose
-    - golint
-    - stylecheck
-    - gosec
-#   - interfacer
-    - unconvert
+    - depguard
+    - dogsled
 #   - dupl
+#   - funlen
+#   - gochecknoglobals
+#   - gochecknoinits
+#   - gocognit
     - goconst
+    - gocritic
 #   - gocyclo
+#   - godox
     - gofmt
     - goimports
-#   - maligned
-    - depguard
-    - misspell
+    - golint
+    - gosec
+#   - interfacer
 #   - lll
-    - unparam
+#   - maligned
+    - misspell
     - nakedret
 #   - prealloc
     - scopelint
-    - gocritic
-#   - gochecknoinits
-#   - gochecknoglobals
-#   - funlen
+    - stylecheck
+    - unconvert
+    - unparam
+    - whitespace
+#   - wsl
 
 linters-settings:
   govet:
@@ -77,6 +82,3 @@ issues:
     - text: "weak cryptographic primitive"
       linters:
         - gosec
-
-service:
-  golangci-lint-version: 1.16.x 

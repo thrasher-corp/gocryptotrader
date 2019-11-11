@@ -88,7 +88,6 @@ func (o *OKEX) SetDefaults() {
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.

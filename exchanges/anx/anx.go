@@ -204,7 +204,6 @@ func (a *ANX) GetDataToken() (string, error) {
 // NewOrder sends a new order request to the exchange.
 func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, tradedCurrencyAmount float64, settlementCurrency string, settlementCurrencyAmount, limitPriceSettlement float64,
 	replace bool, replaceUUID string, replaceIfActive bool) (string, error) {
-
 	req := make(map[string]interface{})
 	var order Order
 	order.OrderType = orderType

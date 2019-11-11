@@ -222,7 +222,6 @@ func TestGetSymbols(t *testing.T) {
 		"rrtusd",
 	}
 	if len(expectedCurrencies) <= len(symbols) {
-
 		for _, explicitSymbol := range expectedCurrencies {
 			if common.StringDataCompare(expectedCurrencies, explicitSymbol) {
 				break

@@ -668,7 +668,6 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		if !errCap.Result {
 			return errors.New("unspecified error occurred")
 		}
-
 	}
 
 	return common.JSONDecode(intermediary, result)

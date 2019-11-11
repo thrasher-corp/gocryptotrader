@@ -157,7 +157,6 @@ func main() {
 		*verbosity)
 	if err != nil {
 		log.Fatalf("currency updater system failed to start %v", err)
-
 	}
 
 	bot.portfolio = &portfolio.Portfolio

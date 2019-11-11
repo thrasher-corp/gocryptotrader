@@ -154,7 +154,6 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 	}
 
 	return ticker.GetTicker(c.Name, p, assetType)
-
 }
 
 // GetTickerPrice returns the ticker for a currency pair
@@ -313,12 +312,10 @@ func (c *COINUT) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.Cancel
 	var allTheOrders []OrderResponse
 	for _, allInstrumentData := range instruments.Instruments {
 		for _, instrumentData := range allInstrumentData {
-
 			openOrders, err := c.GetOpenOrders(instrumentData.InstID)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-
 			allTheOrders = append(allTheOrders, openOrders.Orders...)
 		}
 	}

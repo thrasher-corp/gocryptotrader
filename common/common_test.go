@@ -111,7 +111,6 @@ func TestGetMD5(t *testing.T) {
 		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
 			expectedOutput, []byte(actualStr))
 	}
-
 }
 
 func TestGetSHA512(t *testing.T) {
@@ -197,7 +196,6 @@ func TestGetHMAC(t *testing.T) {
 			expectedmd5, md5,
 		)
 	}
-
 }
 
 func TestSha1Tohex(t *testing.T) {
@@ -838,7 +836,6 @@ func TestGetOSPathSlash(t *testing.T) {
 	if output != "/" && output != "\\" {
 		t.Errorf("Test failed. Common GetOSPathSlash. Returned '%s'", output)
 	}
-
 }
 
 func TestUnixMillis(t *testing.T) {
