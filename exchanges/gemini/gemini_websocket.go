@@ -62,13 +62,13 @@ func (g *Gemini) WsConnect() error {
 // WsSubscribe subscribes to the full websocket suite on gemini exchange
 func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
-	for i, c := range enabledCurrencies {
+	for i := range enabledCurrencies {
 		val := url.Values{}
 		val.Set("heartbeat", "true")
 		endpoint := fmt.Sprintf("%s%s/%s?%s",
 			g.API.Endpoints.WebsocketURL,
 			geminiWsMarketData,
-			c.String(),
+			enabledCurrencies[i].String(),
 			val.Encode())
 		connection := &wshandler.WebsocketConnection{
 			ExchangeName:         g.Name,
@@ -82,7 +82,7 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			return fmt.Errorf("%v Websocket connection %v error. Error %v",
 				g.Name, endpoint, err)
 		}
-		go g.WsReadData(connection, c)
+		go g.WsReadData(connection, enabledCurrencies[i])
 		if len(enabledCurrencies)-1 == i {
 			return nil
 		}

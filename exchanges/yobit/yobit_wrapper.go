@@ -187,13 +187,14 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 		return tickerPrice, err
 	}
 
-	for _, x := range y.GetEnabledPairs(assetType) {
-		curr := y.FormatExchangeCurrency(x, assetType).Lower().String()
+	enabledPairs := y.GetEnabledPairs(assetType)
+	for i := range enabledPairs {
+		curr := y.FormatExchangeCurrency(enabledPairs[i], assetType).Lower().String()
 		if _, ok := result[curr]; !ok {
 			continue
 		}
 		var tickerPrice ticker.Price
-		tickerPrice.Pair = x
+		tickerPrice.Pair = enabledPairs[i]
 		tickerPrice.Last = result[curr].Last
 		tickerPrice.Ask = result[curr].Sell
 		tickerPrice.Bid = result[curr].Buy

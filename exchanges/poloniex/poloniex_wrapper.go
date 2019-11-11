@@ -238,13 +238,14 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item
 		return tickerPrice, err
 	}
 
-	for _, x := range p.GetEnabledPairs(assetType) {
+	enabledPairs := p.GetEnabledPairs(assetType)
+	for i := range enabledPairs {
 		var tp ticker.Price
-		curr := p.FormatExchangeCurrency(x, assetType).String()
+		curr := p.FormatExchangeCurrency(enabledPairs[i], assetType).String()
 		if _, ok := tick[curr]; !ok {
 			continue
 		}
-		tp.Pair = x
+		tp.Pair = enabledPairs[i]
 		tp.Ask = tick[curr].LowestAsk
 		tp.Bid = tick[curr].HighestBid
 		tp.High = tick[curr].High24Hr
