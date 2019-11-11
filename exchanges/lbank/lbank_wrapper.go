@@ -510,7 +510,6 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 
 			for c := 0; c < tempData; c++ {
 				resp[exchange.FormatExchangeCurrency(l.Name, p).String()] = append(resp[exchange.FormatExchangeCurrency(l.Name, p).String()], tempResp.Orders[c].OrderID)
-
 			}
 			tempData = len(tempResp.Orders)
 			b++

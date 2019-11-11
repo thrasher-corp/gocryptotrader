@@ -377,7 +377,6 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 
 // LoadFileCurrencyData loads currencies into the currency codes
 func (s *Storage) LoadFileCurrencyData(f *File) error {
-
 	for i := range f.Contracts {
 		err := s.currencyCodes.LoadItem(&f.Contracts[i])
 		if err != nil {

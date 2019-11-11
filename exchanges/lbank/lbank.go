@@ -230,7 +230,6 @@ func (l *Lbank) GetKlines(symbol, size, klineType, time string) ([]KlineResponse
 				} else {
 					tempResp.TradingVolume = resp2[x].(float64)
 				}
-
 			}
 		}
 		k = append(k, tempResp)

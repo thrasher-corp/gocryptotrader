@@ -159,7 +159,6 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 			)
 		}
 		orderbookData = append(orderbookData, individualExchange)
-
 	}
 	return orderbookData
 }

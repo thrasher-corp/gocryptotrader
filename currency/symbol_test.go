@@ -17,5 +17,4 @@ func TestGetSymbolByCurrencyName(t *testing.T) {
 	if err == nil {
 		t.Errorf("Test failed. TestGetSymbolByCurrencyNam returned nil on non-existent currency")
 	}
-
 }

@@ -66,7 +66,6 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, er
 	s, err := b.GetMarketStatistics(exchange.FormatExchangeCurrency(b.Name, p).String())
 	if err != nil {
 		return tickerPrice, err
-
 	}
 
 	tickerPrice.Pair = p

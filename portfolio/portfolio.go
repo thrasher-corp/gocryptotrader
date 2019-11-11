@@ -347,7 +347,6 @@ func (p *Base) GetPortfolioSummary() Summary {
 				Percentage: getPercentageSpecific(z, y, totalCoins),
 			}
 			coinSummary[y] = coinSum
-
 		}
 		exchangeSummary[exchgName] = coinSummary
 	}

@@ -14,7 +14,7 @@ environment:
   NODEJS_VER: 10.15.3
   APPVEYOR_SAVE_CACHE_ON_ERROR: true
 
-stack: go 1.12.3
+stack: go 1.13.x
 
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
@@ -28,7 +28,7 @@ before_test:
 
 test_script:
   # test back-end
-  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.18.0
+  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.20.1
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
   - ps: >-
       if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {
