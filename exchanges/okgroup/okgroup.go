@@ -216,7 +216,6 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceOrderRequest) (map[stri
 			request[i].OrderType = "0" // normal order
 		}
 		currencyPairOrders[request[i].InstrumentID]++
-
 	}
 
 	if len(currencyPairOrders) > 4 {
