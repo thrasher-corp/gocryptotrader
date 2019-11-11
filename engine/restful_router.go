@@ -3,7 +3,7 @@ package engine
 import (
 	"fmt"
 	"net/http"
-	_ "net/http/pprof" // blank import required for pprof
+	_ "net/http/pprof" // nolint: gosec
 	"strconv"
 	"strings"
 	"time"

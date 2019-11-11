@@ -371,12 +371,9 @@ func TestCalculateTradingFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-
 	c.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawFiatWithAPIPermissionText
-
 	withdrawPermissions := c.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -453,7 +450,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-
 	c.SetDefaults()
 	TestSetup(t)
 
@@ -480,7 +476,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-
 	c.SetDefaults()
 	TestSetup(t)
 

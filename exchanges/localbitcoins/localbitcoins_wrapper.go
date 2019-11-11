@@ -160,7 +160,6 @@ func (l *LocalBitcoins) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-
 	return l.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 

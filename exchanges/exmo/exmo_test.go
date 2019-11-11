@@ -255,7 +255,6 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-
 	e.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.NoFiatWithdrawalsText
 
@@ -335,7 +334,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-
 	e.SetDefaults()
 	TestSetup(t)
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -361,7 +359,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-
 	e.SetDefaults()
 	TestSetup(t)
 

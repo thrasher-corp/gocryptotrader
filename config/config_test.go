@@ -196,7 +196,6 @@ func TestCheckClientBankAccounts(t *testing.T) {
 	if !cfg.BankAccounts[0].Enabled {
 		t.Error("unexpected result")
 	}
-
 }
 
 func TestPurgeExchangeCredentials(t *testing.T) {

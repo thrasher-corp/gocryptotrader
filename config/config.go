@@ -79,7 +79,6 @@ func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (Ban
 			c.BankAccounts[x].SupportedExchanges == "ALL") &&
 			strings.Contains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
 			return c.BankAccounts[x], nil
-
 		}
 	}
 	return BankAccount{}, fmt.Errorf("client banking details not found for %s and currency %s",
@@ -255,7 +254,6 @@ func (c *Config) CheckCommunicationsConfig() {
 				},
 			}
 		}
-
 	} else {
 		if c.Communications.SMSGlobalConfig.From == "" {
 			c.Communications.SMSGlobalConfig.From = c.Name
@@ -1581,7 +1579,6 @@ func (c *Config) CheckRemoteControlConfig() {
 		// Then flush the old webserver settings
 		c.Webserver = nil
 	}
-
 }
 
 // CheckConfig checks all config settings

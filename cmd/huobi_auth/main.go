@@ -98,7 +98,6 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
 	} else {
 		var pubKeyData []byte
 		pubKeyData, err = ioutil.ReadFile("publickey.pem")

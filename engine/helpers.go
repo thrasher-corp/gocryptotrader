@@ -519,11 +519,9 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 
 	for _, exchangeData := range data {
 		exchangeName := exchangeData.Exchange
-
 		var currencies []exchange.AccountCurrencyInfo
 		for _, account := range exchangeData.Accounts {
 			for _, info := range account.Currencies {
-
 				var update bool
 				for i := range currencies {
 					if info.CurrencyName == currencies[i].CurrencyName {
@@ -566,19 +564,16 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 						CoinType:    currencyName,
 						Balance:     total,
 						Description: portfolio.PortfolioAddressExchange})
-
 			} else {
 				if total <= 0 {
 					log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
 						exchangeName,
 						currencyName)
-
 					port.RemoveExchangeAddress(exchangeName, currencyName)
 				} else {
 					balance, ok := port.GetAddressBalance(exchangeName,
 						portfolio.PortfolioAddressExchange,
 						currencyName)
-
 					if !ok {
 						continue
 					}
@@ -588,7 +583,6 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 							exchangeName,
 							currencyName,
 							total)
-
 						port.UpdateExchangeAddressBalance(exchangeName,
 							currencyName,
 							total)
@@ -635,7 +629,6 @@ func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, en
 				cryptocurrencies = append(cryptocurrencies, pairs[y].Quote.String())
 			}
 		}
-
 	}
 	return cryptocurrencies, nil
 }
@@ -651,7 +644,6 @@ func GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string]st
 	if !ok {
 		return nil, ErrExchangeNotFound
 	}
-
 	return r, nil
 }
 
@@ -666,14 +658,12 @@ func GetExchangeCryptocurrencyDepositAddress(exchName, accountID string, item cu
 	if exch == nil {
 		return "", ErrExchangeNotFound
 	}
-
 	return exch.GetDepositAddress(item, accountID)
 }
 
 // GetExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
 func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 	result := make(map[string]map[string]string)
-
 	for x := range Bot.Exchanges {
 		if !Bot.Exchanges[x].IsEnabled() {
 			continue
@@ -704,7 +694,6 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 		}
 		result[exchName] = cryptoAddr
 	}
-
 	return result
 }
 

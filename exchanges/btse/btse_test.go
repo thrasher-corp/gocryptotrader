@@ -122,7 +122,6 @@ func TestGetFills(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 }
 
 func TestCreateOrder(t *testing.T) {
