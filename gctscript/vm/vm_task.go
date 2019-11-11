@@ -4,23 +4,23 @@ import (
 	"time"
 )
 
-func (vm *VM) addTask() {
-	time.Sleep(vm.t)
-	close(vm.c)
-}
-
 func (vm *VM) runner() {
-	vm.c = make(chan struct{})
+	vm.S = make(chan struct{})
+	waitTime := time.NewTicker(vm.T)
+	vm.NextRun = time.Now().Add(vm.T)
 
 	go func() {
 		for {
 			select {
-			case <-vm.c:
-				err := vm.CompileAndRun()
+			case <-waitTime.C:
+				vm.NextRun = time.Now().Add(vm.T)
+				err := vm.RunCtx()
 				if err != nil {
 					return
 				}
-				return
+			case <-vm.S:
+				_ = vm.Shutdown()
+				waitTime.Stop()
 			}
 		}
 	}()

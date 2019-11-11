@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1290,4 +1291,48 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 		Status: "ok",
 		Data:   string(data),
 	}, nil
+}
+
+func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GCTScriptResponse, error) {
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
+	}
+
+	UUID, err := uuid.FromString(r.Uuid)
+	if err != nil {
+		return &gctrpc.GCTScriptResponse{Status: "error", Data: err.Error()}, nil
+	}
+
+	if v, f := gctscript.AllVMs[UUID]; f {
+		v.S <- struct{}{}
+	}
+
+	return &gctrpc.GCTScriptResponse{Status: "ok", Data: "shutdown"}, nil
+}
+
+func (s *RPCServer) GCTScriptRunning(ctx context.Context, r *gctrpc.GCTScriptRunningRequest) (*gctrpc.GCTScriptRunningReponse, error) {
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptRunningReponse{Status: "error"}, nil
+	}
+
+	total := len(gctscript.AllVMs)
+
+	if total < 1 {
+		return &gctrpc.GCTScriptRunningReponse{Status: "no scripts running"}, nil
+	}
+
+	resp := &gctrpc.GCTScriptRunningReponse{
+		Status: "ok",
+	}
+
+	for x := range gctscript.AllVMs {
+		resp.Scripts = append(resp.Scripts, &gctrpc.ScriptStatus{
+			Id:      gctscript.AllVMs[x].ID.String(),
+			Name:    gctscript.AllVMs[x].Name,
+			Status:  "",
+			NextRun: gctscript.AllVMs[x].NextRun.String(),
+		})
+	}
+
+	return resp, nil
 }

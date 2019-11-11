@@ -1,4 +1,4 @@
-fmt := import("fmt")
 for {
-    fmt.println("hello")
+    x := 1
+    y := 2
 }

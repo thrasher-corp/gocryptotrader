@@ -532,10 +532,29 @@ message GCTScriptExecuteRequest {
     string script_name = 1;
 }
 
+message GCTScriptStopRequest {
+    string uuid = 1;
+}
+
 message GCTScriptResponse {
     string status = 1;
     string data = 2;
 }
+
+message GCTScriptRunningRequest {}
+
+message GCTScriptRunningReponse{
+    string status = 1;
+    repeated  script_status scripts = 2;
+}
+
+message script_status {
+    string id = 1;
+    string name = 2;
+    string status = 3;
+    string next_run = 4;
+}
+
 
 message GCTScriptUploadRequest {
     string script_name = 1;
@@ -878,6 +897,20 @@ service GoCryptoTrader {
     rpc GCTScriptReadScript(GCTScriptReadScriptRequest) returns (GCTScriptResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/read",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptRunning(GCTScriptRunningRequest) returns (GCTScriptRunningReponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/running",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptStop(GCTScriptStopRequest) returns (GCTScriptResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/running",
             body: "*"
         };
     }

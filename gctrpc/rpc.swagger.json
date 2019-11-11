@@ -323,6 +323,32 @@
         ]
       }
     },
+    "/v1/gctscript/running": {
+      "post": {
+        "operationId": "GCTScriptStop",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptStopRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/gctscript/upload": {
       "post": {
         "operationId": "GCTScriptUpload",
@@ -1569,6 +1595,31 @@
         }
       }
     },
+    "gctrpcGCTScriptRunningReponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "scripts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcscript_status"
+          }
+        }
+      }
+    },
+    "gctrpcGCTScriptRunningRequest": {
+      "type": "object"
+    },
+    "gctrpcGCTScriptStopRequest": {
+      "type": "object",
+      "properties": {
+        "uuid": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcGCTScriptUploadRequest": {
       "type": "object",
       "properties": {
@@ -2514,6 +2565,23 @@
           "type": "string"
         },
         "timestamp": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcscript_status": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "next_run": {
           "type": "string"
         }
       }

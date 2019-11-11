@@ -99,7 +99,17 @@ func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 }
 
 func (e Exchange) SubmitOrder(exch string) (*order.SubmitResponse, error) {
-	return nil, nil
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return nil, err
+	}
+	x := &order.Submit{}
+	r, err := ex.SubmitOrder(x)
+	if err != nil {
+		return nil, err
+	}
+
+	return &r, nil
 }
 
 func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 )
@@ -28,13 +29,13 @@ func TestNewVM(t *testing.T) {
 }
 
 func TestVMLoad(t *testing.T) {
-	vm.GCTScriptConfig = configHelper(true, true)
+	vm.GCTScriptConfig = configHelper(true, true, 0)
 	err := testVM.Load("../../testdata/gctscript/test.gctgo")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	vm.GCTScriptConfig = configHelper(false, false)
+	vm.GCTScriptConfig = configHelper(false, false, 0)
 	err = testVM.Load("../../testdata/gctscript/test.gctgo")
 	if err != nil {
 		if !errors.Is(err, vm.ErrScriptingDisabled) {
@@ -44,7 +45,7 @@ func TestVMLoad(t *testing.T) {
 }
 
 func TestVMCompile(t *testing.T) {
-	vm.GCTScriptConfig = configHelper(true, true)
+	vm.GCTScriptConfig = configHelper(true, true, 0)
 	err := testVM.Load("../../testdata/gctscript/test.gctgo")
 	if err != nil {
 		t.Fatal(err)
@@ -57,12 +58,27 @@ func TestVMCompile(t *testing.T) {
 }
 
 func TestVMRunTX(t *testing.T) {
+	vm.GCTScriptConfig = configHelper(true, true, 10000)
+	err := testVM.Load("../../testdata/gctscript/test.gctgo")
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	err = testVM.Compile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = testVM.RunCtx()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
-func configHelper(enabled, imports bool) *vm.Config {
+func configHelper(enabled, imports bool, timeout time.Duration) *vm.Config {
 	return &vm.Config{
-		Enabled:      enabled,
-		AllowImports: imports,
+		Enabled:       enabled,
+		AllowImports:  imports,
+		ScriptTimeout: timeout,
 	}
 }

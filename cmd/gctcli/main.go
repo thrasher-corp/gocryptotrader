@@ -136,6 +136,8 @@ func main() {
 		gctScriptExecuteCommand,
 		gctScriptUploadCommand,
 		gctScriptReadScriptCommand,
+		gctScriptRunningCommand,
+		gctScriptStopCommand,
 	}
 
 	err := app.Run(os.Args)

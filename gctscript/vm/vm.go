@@ -3,18 +3,30 @@ package vm
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/d5/tengo/script"
+	"github.com/gofrs/uuid"
+
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 func newVM() *VM {
+	newUUID, err := uuid.NewV4()
+	if err != nil {
+		log.Error(log.GCTScriptMgr, Error{
+			Action: "New -> UUID",
+			Cause:  err,
+		})
+		return nil
+	}
+
 	return &VM{
-		Script: VMPool.Get().(*script.Script),
+		ID:     newUUID,
+		Script: pool.Get().(*script.Script),
 	}
 }
 
@@ -77,6 +89,7 @@ func (vm *VM) Run() (err error) {
 			Cause:  ErrNoVMLoaded,
 		}
 	}
+
 	return vm.Compiled.Run()
 }
 
@@ -93,47 +106,46 @@ func (vm *VM) RunCtx() (err error) {
 		vm.ctx = context.Background()
 	}
 
-	ct, cancel := context.WithTimeout(vm.ctx, 60*time.Second)
+	ct, cancel := context.WithTimeout(vm.ctx, GCTScriptConfig.ScriptTimeout)
 	defer cancel()
 
-	err = vm.Compiled.RunContext(ct)
-
-	return
+	return vm.Compiled.RunContext(ct)
 }
 
 // CompileAndRun Compile and Run script
 func (vm *VM) CompileAndRun() (err error) {
-	vm.runner()
-
 	err = vm.Compile()
 	if err != nil {
 		return
 	}
 
+	log.Debugln(log.GCTScriptMgr, "Running script")
 	err = vm.RunCtx()
 	if err != nil {
 		return err
 	}
 
 	if vm.Compiled.Get("name") != nil {
-		vm.name = vm.Compiled.Get("name").String()
+		vm.Name = vm.Compiled.Get("name").String()
 	}
 
 	if vm.Compiled.Get("timer").String() != "" {
-		vm.t, err = time.ParseDuration(vm.Compiled.Get("timer").String())
+		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
 		if err != nil {
 			return err
 		}
-		if vm.t < time.Nanosecond {
+		if vm.T < time.Nanosecond {
 			return errors.New("repeat timer cannot be under 1 nano second")
 		}
-		vm.addTask()
+		vm.runner()
+	} else {
+		return vm.Shutdown()
 	}
 
 	return err
 }
 
-// Shutdown() shuts down current VM
+// Shutdown shuts down current VM
 func (vm *VM) Shutdown() error {
 	if vm == nil {
 		return &Error{
@@ -141,6 +153,6 @@ func (vm *VM) Shutdown() error {
 			Cause:  ErrNoVMLoaded,
 		}
 	}
-	fmt.Printf("VM: %+v\n", vm)
-	return nil
+
+	return RemoveVM(vm.ID)
 }

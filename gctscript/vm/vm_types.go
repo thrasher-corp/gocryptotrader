@@ -6,28 +6,31 @@ import (
 	"time"
 
 	"github.com/d5/tengo/script"
+	"github.com/gofrs/uuid"
 )
 
-// VM pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
+// VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
 type VM struct {
-	name string
+	ID   uuid.UUID
+	Name string
 
 	Script   *script.Script
 	Compiled *script.Compiled
 
 	ctx context.Context
+	T   time.Duration
 
-	t time.Duration
+	NextRun time.Time
 
-	c chan struct{}
+	S chan struct{}
 }
 
-// VMList stores all current Virtual Machine instances
-var VMList []VM
+// AllVMs stores all current Virtual Machine instances
+var AllVMs map[uuid.UUID]*VM
 
 var (
-	// VMPool stuff
-	VMPool = &sync.Pool{
+	// pool stuff
+	pool = &sync.Pool{
 		New: func() interface{} {
 			return new(script.Script)
 		},

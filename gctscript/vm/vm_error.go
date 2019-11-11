@@ -18,6 +18,7 @@ func (e Error) Error() string {
 	return fmt.Sprintf("%s: %s%s%s", gctScript, action, scriptName, e.Cause)
 }
 
+// Unwrap returns e.Cause meeting errors interface requirements.
 func (e Error) Unwrap() error {
 	return e.Cause
 }

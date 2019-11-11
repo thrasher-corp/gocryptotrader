@@ -3094,3 +3094,78 @@ func gctScriptRead(c *cli.Context) error {
 
 	return nil
 }
+
+var gctScriptRunningCommand = cli.Command{
+	Name:   "gctscriptrunning",
+	Action: gctScriptRunning,
+}
+
+func gctScriptRunning(c *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.GCTScriptRunning(context.Background(),
+		&gctrpc.GCTScriptRunningRequest{})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+
+	return nil
+}
+
+var gctScriptStopCommand = cli.Command{
+	Name:      "gctscriptstop",
+	Usage:     "uuid",
+	ArgsUsage: "<script uuid>",
+	Action:    gctScriptStop,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "uuid",
+			Usage: "script uuid",
+		},
+	},
+}
+
+func gctScriptStop(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowCommandHelp(c, "gctscriptstop")
+		return nil
+	}
+
+	var UUID string
+
+	if c.IsSet("uuid") {
+		UUID = c.String("uuid")
+	} else {
+		UUID = c.Args().Get(0)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.GCTScriptStop(context.Background(),
+		&gctrpc.GCTScriptStopRequest{
+			Uuid: UUID,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+
+	return nil
+}
