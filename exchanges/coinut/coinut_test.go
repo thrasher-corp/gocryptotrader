@@ -538,11 +538,11 @@ func TestWsAuthCancelOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsCancelOrderParameters{
+	order := &WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
-	err := c.wsCancelOrder(order)
+	_, err := c.wsCancelOrder(order)
 	if err != nil {
 		t.Error(err)
 	}
@@ -551,7 +551,7 @@ func TestWsAuthCancelOrder(t *testing.T) {
 // TestWsAuthGetOpenOrders dials websocket, retrieves open orders
 func TestWsAuthGetOpenOrders(t *testing.T) {
 	setupWSTestAuth(t)
-	err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC))
+	_, err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC).String())
 	if err != nil {
 		t.Error(err)
 	}

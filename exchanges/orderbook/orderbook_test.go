@@ -160,7 +160,7 @@ func TestCalculateTotalBids(t *testing.T) {
 	t.Parallel()
 	curr := currency.NewPairFromStrings("BTC", "USD")
 	base := Base{
-		Pair:        currency,
+		Pair:        curr,
 		Bids:        []Item{{Price: 100, Amount: 10}},
 		LastUpdated: time.Now(),
 	}
@@ -175,7 +175,7 @@ func TestCalculateTotaAsks(t *testing.T) {
 	t.Parallel()
 	curr := currency.NewPairFromStrings("BTC", "USD")
 	base := Base{
-		Pair: currency,
+		Pair: curr,
 		Asks: []Item{{Price: 100, Amount: 10}},
 	}
 
@@ -190,7 +190,7 @@ func TestUpdate(t *testing.T) {
 	curr := currency.NewPairFromStrings("BTC", "USD")
 	timeNow := time.Now()
 	base := Base{
-		Pair:        currency,
+		Pair:        curr,
 		Asks:        []Item{{Price: 100, Amount: 10}},
 		Bids:        []Item{{Price: 200, Amount: 10}},
 		LastUpdated: timeNow,
