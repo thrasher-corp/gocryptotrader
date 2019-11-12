@@ -497,26 +497,23 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 
 		APIresponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
 			isBuyOrder, clientIDUint)
-		var hello map[string]interface{}
-		common.JSONDecode(APIresponse.([]byte), &hello)
-		switch hello["reply"].(string) {
-		case "order_rejected":
-			var orderResult OrderRejectResponse
-			common.JSONDecode(APIresponse.([]byte), &orderResult)
-			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
-			err = fmt.Errorf("orderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
-		case "order_filled":
-			var orderResult OrderFilledResponse
-			common.JSONDecode(APIresponse.([]byte), &orderResult)
-			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.Order.OrderID)
-		case "order_accepted":
-			var orderResult OrdersBase
-			common.JSONDecode(APIresponse.([]byte), &orderResult)
-			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
+		if err != nil {
+			return submitOrderResponse, err
 		}
-
-		if err == nil {
+		responseMap := APIresponse.(map[string]interface{})
+		switch responseMap["reply"].(string) {
+		case "order_rejected":
+			return submitOrderResponse, fmt.Errorf("ClientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
+		case "order_filled":
+			orderID := responseMap["order_id"].(float64)
+			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
 			submitOrderResponse.IsOrderPlaced = true
+			return submitOrderResponse, nil
+		case "order_accepted":
+			orderID := responseMap["order_id"].(float64)
+			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
+			submitOrderResponse.IsOrderPlaced = true
+			return submitOrderResponse, nil
 		}
 	}
 	return submitOrderResponse, err
