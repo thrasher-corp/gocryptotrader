@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -51,6 +52,7 @@ func TestMain(m *testing.M) {
 		c.Websocket.IsEnabled() || len(c.BaseCurrencies) < 1 {
 		log.Fatal("Coinut Setup values not set correctly")
 	}
+	c.SeedInstruments()
 	os.Exit(m.Run())
 }
 
@@ -313,7 +315,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
+	currencyPair := currency.NewPair(currency.BTC, currency.USD)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",

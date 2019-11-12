@@ -360,7 +360,7 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if err := o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
-	if z.CanUseAuthenticatedWebsocketEndpoint() {
+	if z.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
 		var isBuyOrder int64
 		if o.OrderSide == order.Buy {
 			isBuyOrder = 1
@@ -412,7 +412,7 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 
-	if z.CanUseAuthenticatedWebsocketEndpoint() {
+	if z.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
 		var response *WsCancelOrderResponse
 		response, err = z.wsCancelOrder(o.CurrencyPair, orderIDInt)
 		if err != nil {

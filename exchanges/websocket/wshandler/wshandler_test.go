@@ -678,3 +678,22 @@ func readMessages(wc *WebsocketConnection, t *testing.T) {
 		}
 	}
 }
+
+// TestCanUseAuthenticatedWebsocketEndpoint logic test
+func TestCanUseAuthenticatedWebsocketEndpoint(t *testing.T) {
+	ws := &Websocket{}
+	resp := ws.CanUseAuthenticatedWebsocketEndpoint()
+	if resp {
+		t.Error("Expected false, `connected` is false")
+	}
+	ws.setConnectedStatus(true)
+	resp = ws.CanUseAuthenticatedWebsocketEndpoint()
+	if resp {
+		t.Error("Expected false, `connected` is true and `CanUseAuthenticatedEndpoints` is false")
+	}
+	ws.canUseAuthenticatedEndpoints = true
+	resp = ws.CanUseAuthenticatedWebsocketEndpoint()
+	if !resp {
+		t.Error("Expected true, `connected` and `CanUseAuthenticatedEndpoints` is true")
+	}
+}

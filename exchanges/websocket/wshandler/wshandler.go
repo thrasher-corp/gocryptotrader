@@ -327,6 +327,17 @@ func (w *Websocket) IsConnectionMonitorRunning() bool {
 	return w.connectionMonitorRunning
 }
 
+// CanUseAuthenticatedWebsocketEndpoint Handles a common check to
+// verify whether a wrapper can use an authenticated websocket endpoint
+func (w *Websocket) CanUseAuthenticatedWebsocketEndpoint() bool {
+	if w.IsConnected() && w.CanUseAuthenticatedEndpoints() {
+		return true
+	} else if w.IsConnected() && !w.CanUseAuthenticatedEndpoints() {
+		log.Infof(log.WebsocketMgr, WebsocketNotAuthenticatedUsingRest, w.exchangeName)
+	}
+	return false
+}
+
 // SetWebsocketURL sets websocket URL
 func (w *Websocket) SetWebsocketURL(websocketURL string) {
 	if websocketURL == "" || websocketURL == config.WebsocketURLNonDefaultMessage {

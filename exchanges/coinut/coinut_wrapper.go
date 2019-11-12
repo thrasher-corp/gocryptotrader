@@ -257,7 +257,7 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
 	var bal UserBalance
 	var err error
-	if c.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
 		resp, err := c.wsGetAccountBalance()
 		if err != nil {
 			return info, err
@@ -460,7 +460,7 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	if c.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
 		var response *WsStandardOrderResponse
 		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
 			Currency: o.Pair,
@@ -536,7 +536,7 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 		o.CurrencyPair,
 		asset.Spot).String(),
 	)
-	if c.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
 		if !wsInstrumentMap.IsLoaded() {
 			_, err = c.WsGetInstruments()
 			if err != nil {
@@ -574,7 +574,7 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	if c.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
 		if !wsInstrumentMap.IsLoaded() {
 			_, err := c.WsGetInstruments()
 			if err != nil {
@@ -686,7 +686,7 @@ func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
-	if c.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
 		instrumentData, err := c.WsGetInstruments()
 		if err != nil {
 			return nil, err
@@ -775,7 +775,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			return nil, err
 		}
 	}
-	if c.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
 		if !wsInstrumentMap.IsLoaded() {
 			_, err := c.WsGetInstruments()
 			if err != nil {
