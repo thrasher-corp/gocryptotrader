@@ -289,13 +289,17 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (order
 	}
 
 	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Amount,
+			Price:  orderbookNew.Bids[x].Price,
+		})
 	}
 
 	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x].Amount,
+			Price:  orderbookNew.Asks[x].Price,
+		})
 	}
 
 	orderBook.Pair = p
@@ -327,6 +331,21 @@ func (b *Bitstamp) GetAccountInfo() (exchange.AccountInfo, error) {
 			Hold:         accountBalance.BTCReserved,
 		},
 		{
+			CurrencyName: currency.BCH,
+			TotalValue:   accountBalance.BCHAvailable,
+			Hold:         accountBalance.BCHReserved,
+		},
+		{
+			CurrencyName: currency.ETH,
+			TotalValue:   accountBalance.ETHAvailable,
+			Hold:         accountBalance.ETHReserved,
+		},
+		{
+			CurrencyName: currency.LTC,
+			TotalValue:   accountBalance.LTCAvailable,
+			Hold:         accountBalance.LTCReserved,
+		},
+		{
 			CurrencyName: currency.XRP,
 			TotalValue:   accountBalance.XRPAvailable,
 			Hold:         accountBalance.XRPReserved,
@@ -352,8 +371,7 @@ func (b *Bitstamp) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -518,7 +536,6 @@ func (b *Bitstamp) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	var orders []order.Detail
 	var currPair string
 	if len(req.Currencies) != 1 {
 		currPair = "all"
@@ -531,16 +548,22 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		return nil, err
 	}
 
+	var orders []order.Detail
 	for i := range resp {
-		orderDate := time.Unix(resp[i].Date, 0)
+		orderSide := order.Buy
+		if resp[i].Type == 1 {
+			orderSide = order.Sell
+		}
+
 		orders = append(orders, order.Detail{
-			Amount:    resp[i].Amount,
-			ID:        strconv.FormatInt(resp[i].ID, 10),
-			Price:     resp[i].Price,
-			OrderDate: orderDate,
-			CurrencyPair: currency.NewPairFromStrings(resp[i].Currency[0:3],
-				resp[i].Currency[len(resp[i].Currency)-3:]),
-			Exchange: b.Name,
+			Amount:       resp[i].Amount,
+			ID:           strconv.FormatInt(resp[i].ID, 10),
+			Price:        resp[i].Price,
+			OrderType:    order.Limit,
+			OrderSide:    orderSide,
+			OrderDate:    parseTime(resp[i].DateTime),
+			CurrencyPair: currency.NewPairFromString(resp[i].Currency),
+			Exchange:     b.Name,
 		})
 	}
 
@@ -563,7 +586,7 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 	var orders []order.Detail
 	for i := range resp {
-		if resp[i].Type != 2 {
+		if resp[i].Type != MarketTrade {
 			continue
 		}
 		var quoteCurrency, baseCurrency currency.Code
@@ -575,7 +598,8 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			baseCurrency = currency.XRP
 		default:
 			log.Warnf(log.ExchangeSys,
-				"no base currency found for OrderID '%d'",
+				"%s No base currency found for OrderID '%d'\n",
+				b.Name,
 				resp[i].OrderID)
 		}
 
@@ -586,7 +610,8 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			quoteCurrency = currency.EUR
 		default:
 			log.Warnf(log.ExchangeSys,
-				"no quote currency found for orderID '%d'",
+				"%s No quote currency found for orderID '%d'\n",
+				b.Name,
 				resp[i].OrderID)
 		}
 
@@ -597,14 +622,9 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 				b.GetPairFormat(asset.Spot, false).Delimiter)
 		}
 
-		orderDate, err := time.Parse("2006-01-02 15:04:05", resp[i].Date)
-		if err != nil {
-			return nil, err
-		}
-
 		orders = append(orders, order.Detail{
 			ID:           strconv.FormatInt(resp[i].OrderID, 10),
-			OrderDate:    orderDate,
+			OrderDate:    parseTime(resp[i].Date),
 			Exchange:     b.Name,
 			CurrencyPair: currPair,
 		})

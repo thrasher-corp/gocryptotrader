@@ -349,13 +349,17 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 	}
 
 	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data[1], Price: data[0]})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x][1],
+			Price:  orderbookNew.Bids[x][0],
+		})
 	}
 
 	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x][1],
+			Price:  orderbookNew.Asks[x][0],
+		})
 	}
 
 	orderBook.Pair = p
@@ -451,8 +455,7 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

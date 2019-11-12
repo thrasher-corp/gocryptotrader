@@ -225,24 +225,18 @@ func (b *Bitstamp) seedOrderBook() error {
 		}
 
 		var newOrderBook orderbook.Base
-		var asks, bids []orderbook.Item
-
 		for i := range orderbookSeed.Asks {
-			var item orderbook.Item
-			item.Amount = orderbookSeed.Asks[i].Amount
-			item.Price = orderbookSeed.Asks[i].Price
-			asks = append(asks, item)
+			newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
+				Price:  orderbookSeed.Asks[i].Price,
+				Amount: orderbookSeed.Asks[i].Amount,
+			})
 		}
-
 		for i := range orderbookSeed.Bids {
-			var item orderbook.Item
-			item.Amount = orderbookSeed.Bids[i].Amount
-			item.Price = orderbookSeed.Bids[i].Price
-			bids = append(bids, item)
+			newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+				Price:  orderbookSeed.Bids[i].Price,
+				Amount: orderbookSeed.Bids[i].Amount,
+			})
 		}
-
-		newOrderBook.Asks = asks
-		newOrderBook.Bids = bids
 		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = asset.Spot
 		newOrderBook.ExchangeName = b.Name

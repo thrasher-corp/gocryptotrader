@@ -2,15 +2,7 @@
 package {{.Name}}
 
 import (
-	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // {{.CapitalName}} is the overarching type across this package
@@ -20,91 +12,13 @@ type {{.CapitalName}} struct {
 
 const (
 	{{.Name}}APIURL = ""
-  {{.Name}}APIVersion = ""
+    {{.Name}}APIVersion = ""
 
 	// Public endpoints
 
 	// Authenticated endpoints
-
 )
 
-// SetDefaults sets the basic defaults for {{.CapitalName}}
-func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
-	{{.Variable}}.Name = "{{.CapitalName}}"
-	{{.Variable}}.Enabled = false
-	{{.Variable}}.Verbose = false
-	{{.Variable}}.RequestCurrencyPairFormat.Delimiter = ""
-	{{.Variable}}.RequestCurrencyPairFormat.Uppercase = true
-	{{.Variable}}.ConfigCurrencyPairFormat.Delimiter = ""
-	{{.Variable}}.ConfigCurrencyPairFormat.Uppercase = true
-	{{.Variable}}.AssetTypes = asset.Items{asset.Spot}
-	{{.Variable}}.SupportsAutoPairUpdating = false
-	{{.Variable}}.SupportsRESTTickerBatching = false
-	{{.Variable}}.Requester = request.New({{.Variable}}.Name,
-		request.NewRateLimit(time.Second, 0),
-		request.NewRateLimit(time.Second, 0),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
-	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
-	{{.Variable}}.Websocket = monitor.New()
-	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-}
+// Start implmenting public and private API funcs below
 
-// Setup takes in the supplied exchange configuration details and sets params
-func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error {
-	if !exch.Enabled {
-		{{.Variable}}.SetEnabled(false)
-	} else {
-		{{.Variable}}.Enabled = true
-		{{.Variable}}.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
-		{{.Variable}}.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
-		{{.Variable}}.SetAPIKeys(exch.API.Credentials.Key, exch.API.Credentials.Secret, "", false)
-		{{.Variable}}.SetHTTPClientTimeout(exch.HTTPTimeout)
-		{{.Variable}}.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		{{.Variable}}.Verbose = exch.Verbose
-		{{.Variable}}.Websocket.SetWsStatusAndConnection(exch.Features.Enabled.Websocket)
-		{{.Variable}}.BaseCurrencies = strings.Split(exch.BaseCurrencies, ",")
-		{{.Variable}}.AvailablePairs = strings.Split(exch.AvailablePairs, ",")
-		{{.Variable}}.EnabledPairs = strings.Split(exch.EnabledPairs, ",")
-		err := {{.Variable}}.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = {{.Variable}}.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = {{.Variable}}.SetFeatureDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = {{.Variable}}.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = {{.Variable}}.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// If the exchange supports websocket, update the below block 
-		// err = {{.Variable}}.Websocket.Setup({{.Variable}}.WsConnect,
-		//	exch.Name,
-		//	exch.Features.Enabled.Websocket,
-		//	{{.Name}}Websocket,
-		//	exch.Features.Enabled.WebsocketURL)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// {{.Variable}}.WebsocketConn = &wshandler.WebsocketConnection{
-		// 		ExchangeName:         {{.Variable}}.Name,
-		// 		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
-		// 		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
-		// 		Verbose:              {{.Variable}}.Verbose,
-		// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		// }
-	}
-}
 {{end}}

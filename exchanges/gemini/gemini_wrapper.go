@@ -307,8 +307,7 @@ func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

@@ -299,8 +299,7 @@ func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

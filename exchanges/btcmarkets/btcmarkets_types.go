@@ -193,6 +193,7 @@ type WsOrderbook struct {
 	MessageType string     `json:"messageType"`
 }
 
+// WsError message received for orderbook errors
 type WsError struct {
 	MessageType string `json:"messageType"`
 	Code        int64  `json:"code"`

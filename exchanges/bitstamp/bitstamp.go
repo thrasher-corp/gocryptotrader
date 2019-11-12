@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -268,16 +268,16 @@ func (b *Bitstamp) GetBalance() (*Balances, error) {
 // GetUserTransactions returns an array of transactions
 func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions, error) {
 	type Response struct {
-		Date    string      `json:"datetime"`
-		TransID int64       `json:"id"`
-		Type    int         `json:"type,string"`
-		USD     interface{} `json:"usd"`
-		EUR     float64     `json:"eur"`
-		XRP     float64     `json:"xrp"`
-		BTC     interface{} `json:"btc"`
-		BTCUSD  interface{} `json:"btc_usd"`
-		Fee     float64     `json:"fee,string"`
-		OrderID int64       `json:"order_id"`
+		Date          string  `json:"datetime"`
+		TransactionID int64   `json:"id"`
+		Type          int     `json:"type,string"`
+		USD           float64 `json:"usd,string"`
+		EUR           float64 `json:"eur"`
+		XRP           float64 `json:"xrp"`
+		BTC           float64 `json:"btc,string"`
+		BTCUSD        float64 `json:"btc_usd"`
+		Fee           float64 `json:"fee,string"`
+		OrderID       int64   `json:"order_id"`
 	}
 	var response []Response
 
@@ -298,38 +298,16 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 	}
 
 	var transactions []UserTransactions
-
 	for _, y := range response {
 		tx := UserTransactions{}
 		tx.Date = y.Date
-		tx.TransID = y.TransID
+		tx.TransactionID = y.TransactionID
 		tx.Type = y.Type
-
-		/* Hack due to inconsistent JSON values... */
-		varType := reflect.TypeOf(y.USD).String()
-		if varType == bitstampAPIReturnType {
-			tx.USD, _ = strconv.ParseFloat(y.USD.(string), 64)
-		} else {
-			tx.USD = y.USD.(float64)
-		}
-
 		tx.EUR = y.EUR
 		tx.XRP = y.XRP
-
-		varType = reflect.TypeOf(y.BTC).String()
-		if varType == bitstampAPIReturnType {
-			tx.BTC, _ = strconv.ParseFloat(y.BTC.(string), 64)
-		} else {
-			tx.BTC = y.BTC.(float64)
-		}
-
-		varType = reflect.TypeOf(y.BTCUSD).String()
-		if varType == bitstampAPIReturnType {
-			tx.BTCUSD, _ = strconv.ParseFloat(y.BTCUSD.(string), 64)
-		} else {
-			tx.BTCUSD = y.BTCUSD.(float64)
-		}
-
+		tx.USD = y.USD
+		tx.BTC = y.BTC
+		tx.BTCUSD = y.BTCUSD
 		tx.Fee = y.Fee
 		tx.OrderID = y.OrderID
 		transactions = append(transactions, tx)
@@ -359,13 +337,17 @@ func (b *Bitstamp) GetOrderStatus(orderID int64) (OrderStatus, error) {
 }
 
 // CancelExistingOrder cancels order by ID
-func (b *Bitstamp) CancelExistingOrder(orderID int64) (bool, error) {
-	result := false
+func (b *Bitstamp) CancelExistingOrder(orderID int64) (CancelOrder, error) {
 	var req = url.Values{}
 	req.Add("id", strconv.FormatInt(orderID, 10))
 
-	return result,
-		b.SendAuthenticatedHTTPRequest(bitstampAPICancelOrder, true, req, &result)
+	var result CancelOrder
+	err := b.SendAuthenticatedHTTPRequest(bitstampAPICancelOrder, true, req, &result)
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
 }
 
 // CancelAllExistingOrders cancels all open orders on the exchange
@@ -668,4 +650,9 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	}
 
 	return common.JSONDecode(interim, result)
+}
+
+func parseTime(dateTime string) time.Time {
+	t, _ := time.Parse("2006-1-2 15:04:05", dateTime)
+	return t
 }

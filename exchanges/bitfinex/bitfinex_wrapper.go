@@ -349,8 +349,7 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

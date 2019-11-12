@@ -401,15 +401,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
-	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+	orderCancellation := &order.Cancel{
+		OrderID: "1234",
 	}
-
 	err := b.CancelOrder(orderCancellation)
 	switch {
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
@@ -428,16 +422,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
-	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		AccountID:     "1",
-		CurrencyPair:  currencyPair,
-	}
-
-	resp, err := b.CancelAllOrders(orderCancellation)
+	resp, err := b.CancelAllOrders(&order.Cancel{})
 	switch {
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
@@ -581,5 +566,19 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Error("GetDepositAddress error cannot be nil")
 	case mockTests && err != nil:
 		t.Error("GetDepositAddress error", err)
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	t.Parallel()
+
+	tm := parseTime("2019-10-18 01:55:14")
+	if tm.Year() != 2019 ||
+		tm.Month() != 10 ||
+		tm.Day() != 18 ||
+		tm.Hour() != 1 ||
+		tm.Minute() != 55 ||
+		tm.Second() != 14 {
+		t.Error("invalid time values")
 	}
 }

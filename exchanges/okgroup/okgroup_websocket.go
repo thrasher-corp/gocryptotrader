@@ -267,19 +267,21 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
 func (o *OKGroup) WsLogin() error {
 	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	utcTime := time.Now().UTC()
-	unixTime := utcTime.Unix()
+	unixTime := time.Now().UTC().Unix()
 	signPath := "/users/self/verify"
 	hmac := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(fmt.Sprintf("%v", unixTime)+http.MethodGet+signPath),
-		[]byte(o.API.Credentials.Secret))
+		[]byte(strconv.FormatInt(unixTime, 10)+http.MethodGet+signPath),
+		[]byte(o.API.Credentials.Secret),
+	)
 	base64 := crypto.Base64Encode(hmac)
 	request := WebsocketEventRequest{
 		Operation: "login",
-		Arguments: []string{o.API.Credentials.Key,
+		Arguments: []string{
+			o.API.Credentials.Key,
 			o.API.Credentials.ClientID,
-			fmt.Sprintf("%v", unixTime),
-			base64},
+			strconv.FormatInt(unixTime, 10),
+			base64,
+		},
 	}
 	err := o.WebsocketConn.SendMessage(request)
 	if err != nil {
