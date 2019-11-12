@@ -453,7 +453,9 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if o == nil {
 		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
-
+	if _, err := strconv.Atoi(o.ClientID); err != nil {
+		return submitOrderResponse, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
+	}
 	if err := o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
@@ -493,26 +495,24 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, errLookupInstrumentID
 		}
 
-		switch o.OrderType {
-		case order.Limit:
-			APIresponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
-				isBuyOrder, clientIDUint)
-		case order.Market:
-			APIresponse, err = c.NewOrder(currencyID, o.Amount, 0, isBuyOrder,
-				clientIDUint)
-		}
-
-		switch apiResp := APIresponse.(type) {
-		case OrdersBase:
-			orderResult := apiResp
-			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
-		case OrderFilledResponse:
-			orderResult := apiResp
-			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.Order.OrderID)
-		case OrderRejectResponse:
-			orderResult := apiResp
+		APIresponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
+			isBuyOrder, clientIDUint)
+		var hello map[string]interface{}
+		common.JSONDecode(APIresponse.([]byte), &hello)
+		switch hello["reply"].(string) {
+		case "order_rejected":
+			var orderResult OrderRejectResponse
+			common.JSONDecode(APIresponse.([]byte), &orderResult)
 			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
 			err = fmt.Errorf("orderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
+		case "order_filled":
+			var orderResult OrderFilledResponse
+			common.JSONDecode(APIresponse.([]byte), &orderResult)
+			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.Order.OrderID)
+		case "order_accepted":
+			var orderResult OrdersBase
+			common.JSONDecode(APIresponse.([]byte), &orderResult)
+			submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
 		}
 
 		if err == nil {

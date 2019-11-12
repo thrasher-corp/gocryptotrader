@@ -126,17 +126,7 @@ func (c *COINUT) NewOrder(instrumentID int64, quantity, price float64, buy bool,
 	}
 	params["client_ord_id"] = orderID
 
-	err := c.SendHTTPRequest(coinutOrder, params, true, &result)
-	if _, ok := result.(OrderRejectResponse); ok {
-		return result.(OrderRejectResponse), err
-	}
-	if _, ok := result.(OrderFilledResponse); ok {
-		return result.(OrderFilledResponse), err
-	}
-	if _, ok := result.(OrdersBase); ok {
-		return result.(OrdersBase), err
-	}
-	return result, err
+	return result, c.SendHTTPRequest(coinutOrder, params, true, &result)
 }
 
 // NewOrders places multiple orders on the exchange

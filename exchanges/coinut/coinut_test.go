@@ -1,7 +1,9 @@
 package coinut
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -24,19 +26,16 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
+func TestMain(m *testing.M) {
 	c.SetDefaults()
-}
-
-func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("Coinut load config error", err)
+		log.Fatal("Coinut load config error", err)
 	}
 	bConfig, err := cfg.GetExchangeConfig("COINUT")
 	if err != nil {
-		t.Error("Coinut Setup() init error")
+		log.Fatal("Coinut Setup() init error")
 	}
 	bConfig.API.AuthenticatedSupport = true
 	bConfig.API.AuthenticatedWebsocketSupport = true
@@ -45,21 +44,21 @@ func TestSetup(t *testing.T) {
 	bConfig.Verbose = true
 	err = c.Setup(bConfig)
 	if err != nil {
-		t.Fatal("Coinut setup error", err)
+		log.Fatal("Coinut setup error", err)
 	}
 
 	if !c.IsEnabled() || !c.Verbose ||
 		c.Websocket.IsEnabled() || len(c.BaseCurrencies) < 1 {
-		t.Error("Coinut Setup values not set correctly")
+		log.Fatal("Coinut Setup values not set correctly")
 	}
+	os.Exit(m.Run())
 }
 
 func setupWSTestAuth(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	c.SetDefaults()
-	TestSetup(t)
+
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
@@ -84,6 +83,10 @@ func setupWSTestAuth(t *testing.T) {
 		t.Error(err)
 	}
 	wsSetupRan = true
+	_, err = c.WsGetInstruments()
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetInstruments(t *testing.T) {
@@ -130,12 +133,8 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
 	t.Parallel()
-
 	var feeBuilder = setFeeBuilder()
-
 	// CryptocurrencyTradeFee Basic
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Error(err)
@@ -248,7 +247,6 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	c.SetDefaults()
 	expectedResult := exchange.WithdrawCryptoViaWebsiteOnlyText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
 
 	withdrawPermissions := c.FormatWithdrawPermissions()
@@ -259,13 +257,9 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
-
 	_, err := c.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
@@ -273,9 +267,6 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.BTC,
@@ -295,9 +286,6 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -311,7 +299,7 @@ func TestSubmitOrder(t *testing.T) {
 		OrderType: order.Limit,
 		Price:     1,
 		Amount:    1,
-		ClientID:  "meowOrder",
+		ClientID:  "123",
 	}
 	response, err := c.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -322,15 +310,10 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -348,15 +331,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -400,8 +379,6 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
 	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
 		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
 			Amount:      -1,
@@ -422,9 +399,6 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -437,9 +411,6 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -573,7 +544,6 @@ func TestCurrencyMapIsLoaded(t *testing.T) {
 func TestCurrencyMapSeed(t *testing.T) {
 	t.Parallel()
 	var i instrumentMap
-
 	// Test non-seeded lookups
 	if id := i.LookupInstrument(1234); id != "" {
 		t.Error("unexpected result")
