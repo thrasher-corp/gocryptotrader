@@ -1,8 +1,6 @@
 package vm
 
 import (
-	"errors"
-
 	"github.com/gofrs/uuid"
 )
 
@@ -19,7 +17,7 @@ func New() *VM {
 // ShutdownAll shutdown all
 func ShutdownAll() error {
 	for x := range AllVMs {
-		AllVMs[x].S <- struct{}{}
+		_ = AllVMs[x].Shutdown()
 	}
 	return nil
 }
@@ -27,7 +25,7 @@ func ShutdownAll() error {
 // RemoveVM remove VM from list
 func RemoveVM(id uuid.UUID) error {
 	if _, f := AllVMs[id]; !f {
-		return errors.New("no VM found")
+		return ErrNoVMFound
 	}
 	delete(AllVMs, id)
 	return nil

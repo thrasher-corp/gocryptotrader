@@ -808,15 +808,18 @@ func request_GoCryptoTrader_GetAuditEvent_0(ctx context.Context, marshaler runti
 
 }
 
+var (
+	filter_GoCryptoTrader_GCTScriptExecute_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
 func request_GoCryptoTrader_GCTScriptExecute_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GCTScriptExecuteRequest
 	var metadata runtime.ServerMetadata
 
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_GCTScriptExecute_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -859,19 +862,11 @@ func request_GoCryptoTrader_GCTScriptReadScript_0(ctx context.Context, marshaler
 
 }
 
-func request_GoCryptoTrader_GCTScriptRunning_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GCTScriptRunningRequest
+func request_GoCryptoTrader_GCTScriptStatus_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GCTScriptStatusRequest
 	var metadata runtime.ServerMetadata
 
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := client.GCTScriptRunning(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GCTScriptStatus(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -1891,7 +1886,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("POST", pattern_GoCryptoTrader_GCTScriptExecute_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_GoCryptoTrader_GCTScriptExecute_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -1951,7 +1946,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("POST", pattern_GoCryptoTrader_GCTScriptRunning_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_GoCryptoTrader_GCTScriptStatus_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -1960,14 +1955,14 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GoCryptoTrader_GCTScriptRunning_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GoCryptoTrader_GCTScriptStatus_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GoCryptoTrader_GCTScriptRunning_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GoCryptoTrader_GCTScriptStatus_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -2097,9 +2092,9 @@ var (
 
 	pattern_GoCryptoTrader_GCTScriptReadScript_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "gctscript", "read"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GCTScriptRunning_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "gctscript", "running"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_GoCryptoTrader_GCTScriptStatus_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "gctscript", "status"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_GCTScriptStop_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "gctscript", "running"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_GoCryptoTrader_GCTScriptStop_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "gctscript", "stop"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
@@ -2205,7 +2200,7 @@ var (
 
 	forward_GoCryptoTrader_GCTScriptReadScript_0 = runtime.ForwardResponseMessage
 
-	forward_GoCryptoTrader_GCTScriptRunning_0 = runtime.ForwardResponseMessage
+	forward_GoCryptoTrader_GCTScriptStatus_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTrader_GCTScriptStop_0 = runtime.ForwardResponseMessage
 )

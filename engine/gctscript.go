@@ -62,12 +62,15 @@ func (g *gctScriptManager) run() {
 		log.Debugf(log.GCTScriptMgr, "%s %s", name, MsgSubSystemShutdown)
 	}()
 
-	for {
+	for range g.shutdown {
+		return
+	}
+	/*for {
 		select {
 		case <-g.shutdown:
 			return
 		}
-	}
+	}*/
 }
 
 func (g *gctScriptManager) autoLoad() {

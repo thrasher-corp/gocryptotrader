@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -1212,16 +1211,46 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 	return &resp, nil
 }
 
-func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptResponse, error) {
+func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GCTScriptStatusResponse{Status: "error - scripting disabled"}, nil
+	}
+
+	total := len(gctscript.AllVMs)
+
+	if total < 1 {
+		return &gctrpc.GCTScriptStatusResponse{Status: "no scripts running"}, nil
+	}
+
+	resp := &gctrpc.GCTScriptStatusResponse{
+		Status: "ok",
+	}
+
+	for x := range gctscript.AllVMs {
+		resp.Scripts = append(resp.Scripts, &gctrpc.GctScript{
+			Uuid:    gctscript.AllVMs[x].ID.String(),
+			Name:    gctscript.AllVMs[x].Name,
+			NextRun: gctscript.AllVMs[x].NextRun.String(),
+		})
+	}
+
+	return resp, nil
+}
+
+func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
+	}
+
+	if r.Script.Path == "" {
+		r.Script.Path = gctscript.ScriptPath
 	}
 
 	gctVM := gctscript.New()
-	script := filepath.Join(r.ScriptPath, r.ScriptName)
+	script := filepath.Join(r.Script.Path, r.Script.Name)
 	err := gctVM.Load(script)
 	if err != nil {
-		return &gctrpc.GCTScriptResponse{
+		return &gctrpc.GCTScriptGenericResponse{
 			Status: "error",
 			Data:   err.Error(),
 		}, nil
@@ -1229,112 +1258,100 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 
 	go gctVM.CompileAndRun()
 
-	return &gctrpc.GCTScriptResponse{
+	return &gctrpc.GCTScriptGenericResponse{
 		Status: "ok",
+		Data:   r.Script.Name + " executed",
 	}, nil
 }
 
-func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptResponse, error) {
+func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
 	}
 
-	filePath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
-
-	_, err := os.Stat(filePath)
+	UUID, err := uuid.FromString(r.Script.Uuid)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
-	} else if !r.Overwrite {
-		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
+		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
 	}
 
-	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, err
+	if v, f := gctscript.AllVMs[UUID]; f {
+		_ = v.Shutdown()
+		return &gctrpc.GCTScriptGenericResponse{Status: "ok", Data: v.ID.String() + " terminated"}, nil
 	}
-
-	defer file.Close()
-
-	n, err := file.WriteString(r.ScriptData)
-	if err != nil {
-		return nil, err
-	}
-	if n != len(r.ScriptData) {
-		return nil, fmt.Errorf("failed to write all lens expected: %v got %v", len(r.ScriptData), n)
-	}
-
-	return &gctrpc.GCTScriptResponse{
-		Status: "ok",
-		Data:   fmt.Sprintf("script %s written", file.Name()),
-	}, nil
+	return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: "no running script found"}, nil
 }
 
-func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptResponse, error) {
+func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
+	}
+
+	if r.Archived {
+
+	}
+
+	return nil, nil
+}
+
+func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
 	}
 
 	var data []byte
-	UUID, err := uuid.FromString(r.ScriptName)
+	UUID, err := uuid.FromString(r.Script.Uuid)
 	if err != nil {
-		return &gctrpc.GCTScriptResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
 	}
 
 	if v, f := gctscript.AllVMs[UUID]; f {
 		data, err = v.Read()
 		if err != nil {
-			return &gctrpc.GCTScriptResponse{Status: "error", Data: err.Error()}, nil
+			return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
 		}
 	}
 
-	return &gctrpc.GCTScriptResponse{
+	return &gctrpc.GCTScriptGenericResponse{
 		Status: "ok",
 		Data:   string(data),
 	}, nil
 }
 
-func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GCTScriptResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	UUID, err := uuid.FromString(r.Uuid)
-	if err != nil {
-		return &gctrpc.GCTScriptResponse{Status: "error", Data: err.Error()}, nil
-	}
-
-	if v, f := gctscript.AllVMs[UUID]; f {
-		v.S <- struct{}{}
-	}
-
-	return &gctrpc.GCTScriptResponse{Status: "ok", Data: "shutdown"}, nil
-}
-
-func (s *RPCServer) GCTScriptRunning(ctx context.Context, r *gctrpc.GCTScriptRunningRequest) (*gctrpc.GCTScriptRunningReponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptRunningReponse{Status: "error"}, nil
-	}
-
-	total := len(gctscript.AllVMs)
-
-	if total < 1 {
-		return &gctrpc.GCTScriptRunningReponse{Status: "no scripts running"}, nil
-	}
-
-	resp := &gctrpc.GCTScriptRunningReponse{
-		Status: "ok",
-	}
-
-	for x := range gctscript.AllVMs {
-		resp.Scripts = append(resp.Scripts, &gctrpc.ScriptStatus{
-			Id:      gctscript.AllVMs[x].ID.String(),
-			Name:    gctscript.AllVMs[x].Name,
-			Status:  "",
-			NextRun: gctscript.AllVMs[x].NextRun.String(),
-		})
-	}
-
-	return resp, nil
-}
+//
+// func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptResponse, error) {
+// 	if !gctscript.GCTScriptConfig.Enabled {
+// 		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
+// 	}
+//
+// 	filePath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
+//
+// 	_, err := os.Stat(filePath)
+// 	if err != nil {
+// 		if !os.IsNotExist(err) {
+// 			return nil, err
+// 		}
+// 	} else if !r.Overwrite {
+// 		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
+// 	}
+//
+// 	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	defer file.Close()
+//
+// 	n, err := file.WriteString(r.ScriptData)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if n != len(r.ScriptData) {
+// 		return nil, fmt.Errorf("failed to write all lens expected: %v got %v", len(r.ScriptData), n)
+// 	}
+//
+// 	return &gctrpc.GCTScriptResponse{
+// 		Status: "ok",
+// 		Data:   fmt.Sprintf("script %s written", file.Name()),
+// 	}, nil
+// }
+//

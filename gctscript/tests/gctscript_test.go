@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 )
 
-var (
-	testVM = vm.New()
-)
+var ()
 
 func TestMain(m *testing.M) {
 	t := m.Run()
@@ -29,6 +29,7 @@ func TestNewVM(t *testing.T) {
 }
 
 func TestVMLoad(t *testing.T) {
+	testVM := vm.New()
 	vm.GCTScriptConfig = configHelper(true, true, 0)
 	err := testVM.Load("../../testdata/gctscript/test.gctgo")
 	if err != nil {
@@ -45,6 +46,7 @@ func TestVMLoad(t *testing.T) {
 }
 
 func TestVMCompile(t *testing.T) {
+	testVM := vm.New()
 	vm.GCTScriptConfig = configHelper(true, true, 0)
 	err := testVM.Load("../../testdata/gctscript/test.gctgo")
 	if err != nil {
@@ -57,8 +59,28 @@ func TestVMCompile(t *testing.T) {
 	}
 }
 
-func TestVMRunTX(t *testing.T) {
+func TestVMRun(t *testing.T) {
+	testVM := vm.New()
 	vm.GCTScriptConfig = configHelper(true, true, 10000)
+	err := testVM.Load("../../testdata/gctscript/test.gctgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = testVM.Compile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = testVM.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVMRunTX(t *testing.T) {
+	testVM := vm.New()
+	vm.GCTScriptConfig = configHelper(true, true, 600000)
 	err := testVM.Load("../../testdata/gctscript/test.gctgo")
 	if err != nil {
 		t.Fatal(err)
@@ -71,6 +93,87 @@ func TestVMRunTX(t *testing.T) {
 
 	err = testVM.RunCtx()
 	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVMWithRunner(t *testing.T) {
+	vmCount := len(vm.AllVMs)
+
+	VM := vm.New()
+	vm.GCTScriptConfig = configHelper(true, true, 6000000)
+	err := VM.Load("../../testdata/gctscript/runner.gctgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	VM.CompileAndRun()
+
+	if len(vm.AllVMs) == vmCount {
+		t.Fatal("expected VM count to increase")
+	}
+
+	err = VM.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vm.AllVMs) == vmCount-1 {
+		t.Fatal("expected VM count to decrease")
+	}
+}
+
+func TestShutdownAll(t *testing.T) {
+	vmCount := len(vm.AllVMs)
+
+	VM := vm.New()
+	vm.GCTScriptConfig = configHelper(true, true, 6000000)
+	err := VM.Load("../../testdata/gctscript/runner.gctgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	VM.CompileAndRun()
+
+	if len(vm.AllVMs) == vmCount {
+		t.Fatal("expected VM count to increase")
+	}
+
+	err = vm.ShutdownAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(vm.AllVMs) == vmCount-1 {
+		t.Fatal("expected VM count to decrease")
+	}
+}
+
+func TestRead(t *testing.T) {
+	VM := vm.New()
+	vm.GCTScriptConfig = configHelper(true, true, 6000000)
+	err := VM.Load("../../testdata/gctscript/runner.gctgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	VM.CompileAndRun()
+
+	vm.ScriptPath = "../../testdata/gctscript/"
+	data, err := VM.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) < 1 {
+		t.Fatal("expected data to be returned")
+	}
+	_ = VM.Shutdown()
+}
+
+func TestRemoveVM(t *testing.T) {
+	id, _ := uuid.FromString("6f20c907-64a0-48f2-848a-7837dee61672")
+	err := vm.RemoveVM(id)
+
+	if !errors.Is(err, vm.ErrNoVMFound) {
 		t.Fatal(err)
 	}
 }

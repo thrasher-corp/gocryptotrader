@@ -121,7 +121,9 @@ func (vm *VM) CompileAndRun() (err error) {
 		return
 	}
 
-	log.Debugln(log.GCTScriptMgr, "Running script")
+	if GCTScriptConfig.DebugMode {
+		log.Debugln(log.GCTScriptMgr, "Running script")
+	}
 	err = vm.RunCtx()
 	if err != nil {
 		return err
@@ -151,7 +153,10 @@ func (vm *VM) Shutdown() error {
 			Cause:  ErrNoVMLoaded,
 		}
 	}
-
+	if vm.S != nil {
+		vm.S <- struct{}{}
+		close(vm.S)
+	}
 	return RemoveVM(vm.ID)
 }
 

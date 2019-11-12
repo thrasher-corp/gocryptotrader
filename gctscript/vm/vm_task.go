@@ -5,7 +5,7 @@ import (
 )
 
 func (vm *VM) runner() {
-	vm.S = make(chan struct{})
+	vm.S = make(chan struct{}, 1)
 	waitTime := time.NewTicker(vm.T)
 	vm.NextRun = time.Now().Add(vm.T)
 
@@ -19,8 +19,8 @@ func (vm *VM) runner() {
 					return
 				}
 			case <-vm.S:
-				_ = vm.Shutdown()
 				waitTime.Stop()
+				return
 			}
 		}
 	}()

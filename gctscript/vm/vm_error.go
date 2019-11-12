@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 )
@@ -22,3 +23,7 @@ func (e Error) Error() string {
 func (e Error) Unwrap() error {
 	return e.Cause
 }
+
+var (
+	ErrNoVMFound = errors.New("no VM found")
+)

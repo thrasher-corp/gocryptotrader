@@ -272,24 +272,40 @@
       }
     },
     "/v1/gctscript/execute": {
-      "post": {
+      "get": {
         "operationId": "GCTScriptExecute",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptResponse"
+              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
             }
           }
         },
         "parameters": [
           {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptExecuteRequest"
-            }
+            "name": "script.uuid",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.next_run",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -304,7 +320,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptResponse"
+              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
             }
           }
         },
@@ -323,14 +339,30 @@
         ]
       }
     },
-    "/v1/gctscript/running": {
+    "/v1/gctscript/status": {
+      "get": {
+        "operationId": "GCTScriptStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptStatusResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/gctscript/stop": {
       "post": {
         "operationId": "GCTScriptStop",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptResponse"
+              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
             }
           }
         },
@@ -356,7 +388,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptResponse"
+              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
             }
           }
         },
@@ -1568,29 +1600,7 @@
         }
       }
     },
-    "gctrpcGCTScriptExecuteRequest": {
-      "type": "object",
-      "properties": {
-        "script_name": {
-          "type": "string"
-        },
-        "script_path": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcGCTScriptReadScriptRequest": {
-      "type": "object",
-      "properties": {
-        "script_name": {
-          "type": "string"
-        },
-        "script_path": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcGCTScriptResponse": {
+    "gctrpcGCTScriptGenericResponse": {
       "type": "object",
       "properties": {
         "status": {
@@ -1601,7 +1611,15 @@
         }
       }
     },
-    "gctrpcGCTScriptRunningReponse": {
+    "gctrpcGCTScriptReadScriptRequest": {
+      "type": "object",
+      "properties": {
+        "script": {
+          "$ref": "#/definitions/gctrpcgct_script"
+        }
+      }
+    },
+    "gctrpcGCTScriptStatusResponse": {
       "type": "object",
       "properties": {
         "status": {
@@ -1610,19 +1628,16 @@
         "scripts": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/gctrpcscript_status"
+            "$ref": "#/definitions/gctrpcgct_script"
           }
         }
       }
     },
-    "gctrpcGCTScriptRunningRequest": {
-      "type": "object"
-    },
     "gctrpcGCTScriptStopRequest": {
       "type": "object",
       "properties": {
-        "uuid": {
-          "type": "string"
+        "script": {
+          "$ref": "#/definitions/gctrpcgct_script"
         }
       }
     },
@@ -1634,6 +1649,10 @@
         },
         "script_data": {
           "type": "string"
+        },
+        "archived": {
+          "type": "boolean",
+          "format": "boolean"
         },
         "overwrite": {
           "type": "boolean",
@@ -2575,16 +2594,16 @@
         }
       }
     },
-    "gctrpcscript_status": {
+    "gctrpcgct_script": {
       "type": "object",
       "properties": {
-        "id": {
+        "uuid": {
           "type": "string"
         },
         "name": {
           "type": "string"
         },
-        "status": {
+        "path": {
           "type": "string"
         },
         "next_run": {
