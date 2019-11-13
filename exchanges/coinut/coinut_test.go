@@ -64,6 +64,9 @@ func setupWSTestAuth(t *testing.T) {
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
+	if areTestAPIKeysSet() {
+		c.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	}
 	c.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         c.Name,
 		URL:                  coinutWebsocketURL,
@@ -72,6 +75,7 @@ func setupWSTestAuth(t *testing.T) {
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
+
 	var dialer websocket.Dialer
 	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -268,11 +272,12 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
-func TestGetOrderHistory(t *testing.T) {
+func TestGetOrderHistoryWrapper(t *testing.T) {
+	setupWSTestAuth(t)
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.BTC,
-			currency.LTC)},
+			currency.USD)},
 	}
 
 	_, err := c.GetOrderHistory(&getOrdersRequest)
@@ -486,6 +491,7 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 }
 
 // TestWsAuthCancelOrders dials websocket, cancels orders
+// doesn't care about if the order cancellations fail
 func TestWsAuthCancelOrders(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
@@ -499,9 +505,25 @@ func TestWsAuthCancelOrders(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  2,
 	}
-	_, errs := c.wsCancelOrders([]WsCancelOrderParameters{ord, order2})
-	if len(errs) > 0 {
-		t.Error(errs)
+	_, err := c.wsCancelOrders([]WsCancelOrderParameters{ord, order2})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsAuthCancelOrders dials websocket, cancels orders
+// Checks that the wrapper oversight works
+func TestWsAuthCancelOrdersWrapper(t *testing.T) {
+	setupWSTestAuth(t)
+	if !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	orderDetails := order.Cancel{
+		CurrencyPair: currency.NewPair(currency.LTC, currency.BTC),
+	}
+	_, err := c.CancelAllOrders(&orderDetails)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

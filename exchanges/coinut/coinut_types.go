@@ -176,7 +176,7 @@ type CancelOrdersResponse struct {
 	Results []struct {
 		OrderID      int64  `json:"order_id"`
 		Status       string `json:"status"`
-		InstrumentID int    `json:"inst_id"`
+		InstrumentID int64  `json:"inst_id"`
 	} `json:"results"`
 }
 
@@ -535,14 +535,15 @@ type WsOrderFilledResponse struct {
 
 // WsOrderData ws response data
 type WsOrderData struct {
-	ClientOrdID int64   `json:"client_ord_id"`
-	InstID      int64   `json:"inst_id"`
-	OpenQty     float64 `json:"open_qty,string"`
-	OrderID     int64   `json:"order_id"`
-	Price       float64 `json:"price,string"`
-	Qty         float64 `json:"qty,string"`
-	Side        string  `json:"side"`
-	Timestamp   int64   `json:"timestamp"`
+	ClientOrdID int64    `json:"client_ord_id"`
+	InstID      int64    `json:"inst_id"`
+	OpenQty     float64  `json:"open_qty,string"`
+	OrderID     int64    `json:"order_id"`
+	Price       float64  `json:"price,string"`
+	Qty         float64  `json:"qty,string"`
+	Side        string   `json:"side"`
+	Timestamp   int64    `json:"timestamp"`
+	Status      []string `json:"status"`
 }
 
 // WsOrderFilledCommissionData ws response data
