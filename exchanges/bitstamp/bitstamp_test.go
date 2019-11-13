@@ -143,9 +143,11 @@ func TestGetFee(t *testing.T) {
 func TestCalculateTradingFee(t *testing.T) {
 	t.Parallel()
 
-	var newBalance = new(Balances)
-	newBalance.BTCUSDFee = 1
-	newBalance.BTCEURFee = 0
+	newBalance := make(Balances)
+	newBalance["BTC"] = Balance{
+		USDFee: 1,
+		EURFee: 0,
+	}
 
 	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 0, 0, newBalance); resp != 0 {
 		t.Error("GetFee() error")

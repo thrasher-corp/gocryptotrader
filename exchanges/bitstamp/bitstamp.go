@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -121,22 +122,17 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances *Balances) float64 {
+func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
 	var fee float64
-
-	switch base.String() + quote.String() {
-	case currency.BTC.String() + currency.USD.String():
-		fee = balances.BTCUSDFee
-	case currency.BTC.String() + currency.EUR.String():
-		fee = balances.BTCEURFee
-	case currency.XRP.String() + currency.EUR.String():
-		fee = balances.XRPEURFee
-	case currency.XRP.String() + currency.USD.String():
-		fee = balances.XRPUSDFee
-	case currency.EUR.String() + currency.USD.String():
-		fee = balances.EURUSDFee
-	default:
-		fee = 0
+	if v, ok := balances[base.String()]; ok {
+		switch quote {
+		case currency.BTC:
+			fee = v.BTCFee
+		case currency.USD:
+			fee = v.USDFee
+		case currency.EUR:
+			fee = v.EURFee
+		}
 	}
 	return fee * purchasePrice * amount
 }
@@ -259,25 +255,62 @@ func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 }
 
 // GetBalance returns full balance of currency held on the exchange
-func (b *Bitstamp) GetBalance() (*Balances, error) {
-	var balance Balances
-	return &balance,
-		b.SendAuthenticatedHTTPRequest(bitstampAPIBalance, true, nil, &balance)
+func (b *Bitstamp) GetBalance() (Balances, error) {
+	var balance map[string]string
+	err := b.SendAuthenticatedHTTPRequest(bitstampAPIBalance, true, nil, &balance)
+	if err != nil {
+		return nil, err
+	}
+
+	balances := make(map[string]Balance)
+	for k := range balance {
+		curr := k[0:3]
+		_, ok := balances[curr]
+		if !ok {
+			avail, _ := strconv.ParseFloat(balance[curr+"_available"], 64)
+			bal, _ := strconv.ParseFloat(balance[curr+"_balance"], 64)
+			reserved, _ := strconv.ParseFloat(balance[curr+"_reserved"], 64)
+			withdrawalFee, _ := strconv.ParseFloat(balance[curr+"_withdrawal_fee"], 64)
+			currBalance := Balance{
+				Available:     avail,
+				Balance:       bal,
+				Reserved:      reserved,
+				WithdrawalFee: withdrawalFee,
+			}
+			switch strings.ToUpper(curr) {
+			case currency.USD.String():
+				eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
+				currBalance.EURFee = eurFee
+			case currency.EUR.String():
+				usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
+				currBalance.USDFee = usdFee
+			default:
+				btcFee, _ := strconv.ParseFloat(balance[curr+"btc_fee"], 64)
+				currBalance.BTCFee = btcFee
+				eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
+				currBalance.EURFee = eurFee
+				usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
+				currBalance.USDFee = usdFee
+			}
+			balances[strings.ToUpper(curr)] = currBalance
+		}
+	}
+	return balances, nil
 }
 
 // GetUserTransactions returns an array of transactions
 func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions, error) {
 	type Response struct {
-		Date          string  `json:"datetime"`
-		TransactionID int64   `json:"id"`
-		Type          int     `json:"type,string"`
-		USD           float64 `json:"usd,string"`
-		EUR           float64 `json:"eur"`
-		XRP           float64 `json:"xrp"`
-		BTC           float64 `json:"btc,string"`
-		BTCUSD        float64 `json:"btc_usd"`
-		Fee           float64 `json:"fee,string"`
-		OrderID       int64   `json:"order_id"`
+		Date          string      `json:"datetime"`
+		TransactionID int64       `json:"id"`
+		Type          int         `json:"type,string"`
+		USD           interface{} `json:"usd"`
+		EUR           interface{} `json:"eur"`
+		XRP           interface{} `json:"xrp"`
+		BTC           interface{} `json:"btc"`
+		BTCUSD        interface{} `json:"btc_usd"`
+		Fee           float64     `json:"fee,string"`
+		OrderID       int64       `json:"order_id"`
 	}
 	var response []Response
 
@@ -297,19 +330,33 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		}
 	}
 
+	processNumber := func(i interface{}) float64 {
+		if i == nil {
+			return 0
+		}
+		switch reflect.TypeOf(i).String() {
+		case "float64":
+			return i.(float64)
+		case "string":
+			amt, _ := strconv.ParseFloat(i.(string), 64)
+			return amt
+		}
+		return 0
+	}
+
 	var transactions []UserTransactions
-	for _, y := range response {
+	for x := range response {
 		tx := UserTransactions{}
-		tx.Date = y.Date
-		tx.TransactionID = y.TransactionID
-		tx.Type = y.Type
-		tx.EUR = y.EUR
-		tx.XRP = y.XRP
-		tx.USD = y.USD
-		tx.BTC = y.BTC
-		tx.BTCUSD = y.BTCUSD
-		tx.Fee = y.Fee
-		tx.OrderID = y.OrderID
+		tx.Date = response[x].Date
+		tx.TransactionID = response[x].TransactionID
+		tx.Type = response[x].Type
+		tx.EUR = processNumber(response[x].EUR)
+		tx.XRP = processNumber(response[x].XRP)
+		tx.USD = processNumber(response[x].USD)
+		tx.BTC = processNumber(response[x].BTC)
+		tx.BTCUSD = processNumber(response[x].BTCUSD)
+		tx.Fee = response[x].Fee
+		tx.OrderID = response[x].OrderID
 		transactions = append(transactions, tx)
 	}
 

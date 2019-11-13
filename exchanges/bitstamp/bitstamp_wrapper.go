@@ -324,42 +324,13 @@ func (b *Bitstamp) GetAccountInfo() (exchange.AccountInfo, error) {
 		return response, err
 	}
 
-	var currencies = []exchange.AccountCurrencyInfo{
-		{
-			CurrencyName: currency.BTC,
-			TotalValue:   accountBalance.BTCAvailable,
-			Hold:         accountBalance.BTCReserved,
-		},
-		{
-			CurrencyName: currency.BCH,
-			TotalValue:   accountBalance.BCHAvailable,
-			Hold:         accountBalance.BCHReserved,
-		},
-		{
-			CurrencyName: currency.ETH,
-			TotalValue:   accountBalance.ETHAvailable,
-			Hold:         accountBalance.ETHReserved,
-		},
-		{
-			CurrencyName: currency.LTC,
-			TotalValue:   accountBalance.LTCAvailable,
-			Hold:         accountBalance.LTCReserved,
-		},
-		{
-			CurrencyName: currency.XRP,
-			TotalValue:   accountBalance.XRPAvailable,
-			Hold:         accountBalance.XRPReserved,
-		},
-		{
-			CurrencyName: currency.USD,
-			TotalValue:   accountBalance.USDAvailable,
-			Hold:         accountBalance.USDReserved,
-		},
-		{
-			CurrencyName: currency.EUR,
-			TotalValue:   accountBalance.EURAvailable,
-			Hold:         accountBalance.EURReserved,
-		},
+	var currencies []exchange.AccountCurrencyInfo
+	for k, v := range accountBalance {
+		currencies = append(currencies, exchange.AccountCurrencyInfo{
+			CurrencyName: currency.NewCode(k),
+			TotalValue:   v.Available,
+			Hold:         v.Reserved,
+		})
 	}
 	response.Accounts = append(response.Accounts, exchange.Account{
 		Currencies: currencies,

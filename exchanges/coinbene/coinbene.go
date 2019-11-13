@@ -247,9 +247,14 @@ func (c *Coinbene) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, params url.Values, result interface{}) error {
+	if !c.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
+	}
+
 	if params == nil {
 		params = url.Values{}
 	}
+
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
 	var finalBody io.Reader
 	var preSign string

@@ -60,50 +60,19 @@ type EURUSDConversionRate struct {
 	Sell float64 `json:"sell,string"`
 }
 
-// Balances holds full balance information with the supplied APIKEYS
-type Balances struct {
-	USDBalance       float64 `json:"usd_balance,string"`
-	BTCBalance       float64 `json:"btc_balance,string"`
-	EURBalance       float64 `json:"eur_balance,string"`
-	XRPBalance       float64 `json:"xrp_balance,string"`
-	BCHBalance       float64 `json:"bch_balance,string"`
-	ETHBalance       float64 `json:"eth_balance,string"`
-	LTCBalance       float64 `json:"ltc_balance,string"`
-	USDReserved      float64 `json:"usd_reserved,string"`
-	BTCReserved      float64 `json:"btc_reserved,string"`
-	EURReserved      float64 `json:"eur_reserved,string"`
-	XRPReserved      float64 `json:"xrp_reserved,string"`
-	BCHReserved      float64 `json:"bch_reserved,string"`
-	ETHReserved      float64 `json:"eth_reserved,string"`
-	LTCReserved      float64 `json:"ltc_reserved,string"`
-	USDAvailable     float64 `json:"usd_available,string"`
-	BTCAvailable     float64 `json:"btc_available,string"`
-	EURAvailable     float64 `json:"eur_available,string"`
-	XRPAvailable     float64 `json:"xrp_available,string"`
-	BCHAvailable     float64 `json:"bch_available,string"`
-	ETHAvailable     float64 `json:"eth_available,string"`
-	LTCAvailable     float64 `json:"ltc_available,string"`
-	BTCUSDFee        float64 `json:"btcusd_fee,string"`
-	BTCEURFee        float64 `json:"btceur_fee,string"`
-	EURUSDFee        float64 `json:"eurusd_fee,string"`
-	XRPUSDFee        float64 `json:"xrpusd_fee,string"`
-	XRPEURFee        float64 `json:"xrpeur_fee,string"`
-	XRPBTCFee        float64 `json:"xrpbtc_fee,string"`
-	BCHBTCFee        float64 `json:"bchbtc_fee,string"`
-	BCHEURFee        float64 `json:"bcheur_fee,string"`
-	BCHUSDFee        float64 `json:"bchusd_fee,string"`
-	ETHBTCFee        float64 `json:"ethbtc_fee,string"`
-	ETHEURFee        float64 `json:"etheur_fee,string"`
-	ETHUSDFee        float64 `json:"ethusd_fee,string"`
-	LTCBTCFee        float64 `json:"ltcbtc_fee,string"`
-	LTCEURFee        float64 `json:"ltceur_fee,string"`
-	LTCUSDFee        float64 `json:"ltcusd_fee,string"`
-	BCHWithdarwalFee float64 `jaon:"bch_withdrawal_fee,string"`
-	BTCWithdrawalFee float64 `json:"btc_withdrawal_fee,string"`
-	ETHWithdrawalFee float64 `json:"eth_withdrawal_fee,string"`
-	LTCWithdrawalFee float64 `json:"ltc_withdrawal_fee,string"`
-	XRPWithdrawalFee float64 `json:"xrp_withdrawal_fee,string"`
+// Balance stores the balance info
+type Balance struct {
+	Available     float64
+	Balance       float64
+	Reserved      float64
+	WithdrawalFee float64
+	BTCFee        float64 // for cryptocurrency pairs
+	USDFee        float64
+	EURFee        float64
 }
+
+// Balances holds full balance information with the supplied APIKEYS
+type Balances map[string]Balance
 
 // UserTransactions holds user transaction information
 type UserTransactions struct {
