@@ -538,7 +538,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		IsExpressWire:                 false,
 		BankPostalCode:                "2088",
 		IBAN:                          "IT60X0542811101000000123456",
-		IntermediaryBankAccountNumber: "12345",
+		IntermediaryBankAccountNumber: 12345,
 		IntermediaryBankAddress:       "123 Fake St",
 		IntermediaryBankCity:          "Tarry Town",
 		IntermediaryBankCountry:       "AU",
