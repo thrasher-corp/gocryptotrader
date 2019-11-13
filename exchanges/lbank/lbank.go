@@ -473,7 +473,7 @@ func (l *Lbank) GetWithdrawConfig(assetCode string) ([]WithdrawConfigResponse, e
 }
 
 // Withdraw sends a withdrawal request
-func (l *Lbank) Withdraw(account, assetCode, amount, memo, mark string) (WithdrawResponse, error) {
+func (l *Lbank) Withdraw(account, assetCode, amount, memo, mark, withdrawType string) (WithdrawResponse, error) {
 	var resp WithdrawResponse
 	params := url.Values{}
 	params.Set("account", account)
@@ -484,6 +484,9 @@ func (l *Lbank) Withdraw(account, assetCode, amount, memo, mark string) (Withdra
 	}
 	if mark != "" {
 		params.Set("mark", mark)
+	}
+	if withdrawType != "" {
+		params.Set("type", withdrawType)
 	}
 	path := fmt.Sprintf("%s/v%s/%s", l.APIUrl, lbankAPIVersion, lbankWithdraw)
 	err := l.SendAuthHTTPRequest(http.MethodPost, path, params, &resp)
