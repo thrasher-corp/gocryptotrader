@@ -1,9 +1,0 @@
-fmt := import("fmt")
-exch := import("exchange")
-
-load := func() {
-   pairs := exch.accountinfo("BTC Markets")
-   fmt.print(pairs)
-}
-
-load()

@@ -4,23 +4,24 @@ import (
 	"strings"
 
 	"github.com/d5/tengo/objects"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
 var exchangeModule = map[string]objects.Object{
-	"orderbook":   &objects.UserFunction{Name: "orderbook", Value: exchangeOrderbook},
-	"ticker":      &objects.UserFunction{Name: "ticker", Value: exchangeTicker},
-	"exchanges":   &objects.UserFunction{Name: "exchanges", Value: exchangeExchanges},
-	"pairs":       &objects.UserFunction{Name: "pairs", Value: exchangePairs},
-	"accountinfo": &objects.UserFunction{Name: "accountinfo", Value: exchangeAccountInfo},
-	"orderquery":  &objects.UserFunction{Name: "order", Value: exchangeOrderQuery},
-	"ordercancel": &objects.UserFunction{Name: "order", Value: exchangeOrderCancel},
-	"ordersubmit": &objects.UserFunction{Name: "order", Value: exchangeOrderSubmit},
+	"orderbook":   &objects.UserFunction{Name: "orderbook", Value: ExchangeOrderbook},
+	"ticker":      &objects.UserFunction{Name: "ticker", Value: ExchangeTicker},
+	"exchanges":   &objects.UserFunction{Name: "exchanges", Value: ExchangeExchanges},
+	"pairs":       &objects.UserFunction{Name: "pairs", Value: ExchangePairs},
+	"accountinfo": &objects.UserFunction{Name: "accountinfo", Value: ExchangeAccountInfo},
+	"orderquery":  &objects.UserFunction{Name: "order", Value: ExchangeOrderQuery},
+	"ordercancel": &objects.UserFunction{Name: "order", Value: ExchangeOrderCancel},
+	"ordersubmit": &objects.UserFunction{Name: "order", Value: ExchangeOrderSubmit},
 }
 
-func exchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 4 {
 		err = objects.ErrWrongNumArguments
 		return
@@ -69,7 +70,7 @@ func exchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 	return &r, nil
 }
 
-func exchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 4 {
 		err = objects.ErrWrongNumArguments
 		return
@@ -109,7 +110,7 @@ func exchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 	}, nil
 }
 
-func exchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 1 {
 		err = objects.ErrWrongNumArguments
 		return
@@ -126,7 +127,7 @@ func exchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
 	return &r, nil
 }
 
-func exchangePairs(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 3 {
 		err = objects.ErrWrongNumArguments
 		return
@@ -150,7 +151,7 @@ func exchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 	return &r, nil
 }
 
-func exchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 1 {
 		err = objects.ErrWrongNumArguments
 		return
@@ -182,7 +183,7 @@ func exchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error)
 	}, nil
 }
 
-func exchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 2 {
 		err = objects.ErrWrongNumArguments
 		return
@@ -230,7 +231,7 @@ func exchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 	}, nil
 }
 
-func exchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 2 {
 		err = objects.ErrWrongNumArguments
 		return
@@ -247,7 +248,7 @@ func exchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error)
 	return nil, nil
 }
 
-func exchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 2 {
 		err = objects.ErrWrongNumArguments
 		return

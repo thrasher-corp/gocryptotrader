@@ -1286,10 +1286,6 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
 	}
 
-	if r.Archived {
-
-	}
-
 	return nil, nil
 }
 

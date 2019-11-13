@@ -70,40 +70,18 @@ func (vm *VM) Load(file string) error {
 
 // Compile compiles to byte code loaded copy of vm script
 func (vm *VM) Compile() (err error) {
-	if vm == nil {
-		return &Error{
-			Action: "Compile",
-			Cause:  ErrNoVMLoaded,
-		}
-	}
-
 	vm.Compiled = new(script.Compiled)
 	vm.Compiled, err = vm.Script.Compile()
-
 	return
 }
 
 // Run runs byte code
 func (vm *VM) Run() (err error) {
-	if vm == nil {
-		return &Error{
-			Action: "Run",
-			Cause:  ErrNoVMLoaded,
-		}
-	}
-
 	return vm.Compiled.Run()
 }
 
 // RunCtx runs compiled bytecode with context.Context support
 func (vm *VM) RunCtx() (err error) {
-	if vm == nil {
-		return &Error{
-			Action: "RunCtx",
-			Cause:  ErrNoVMLoaded,
-		}
-	}
-
 	if vm.ctx == nil {
 		vm.ctx = context.Background()
 	}
@@ -124,6 +102,7 @@ func (vm *VM) CompileAndRun() (err error) {
 	if GCTScriptConfig.DebugMode {
 		log.Debugln(log.GCTScriptMgr, "Running script")
 	}
+
 	err = vm.RunCtx()
 	if err != nil {
 		return err
@@ -147,12 +126,6 @@ func (vm *VM) CompileAndRun() (err error) {
 
 // Shutdown shuts down current VM
 func (vm *VM) Shutdown() error {
-	if vm == nil {
-		return &Error{
-			Action: "Run",
-			Cause:  ErrNoVMLoaded,
-		}
-	}
 	if vm.S != nil {
 		vm.S <- struct{}{}
 		close(vm.S)

@@ -65,12 +65,6 @@ func (g *gctScriptManager) run() {
 	for range g.shutdown {
 		return
 	}
-	/*for {
-		select {
-		case <-g.shutdown:
-			return
-		}
-	}*/
 }
 
 func (g *gctScriptManager) autoLoad() {

@@ -3,6 +3,7 @@ package loader
 import (
 	"github.com/d5/tengo/objects"
 	"github.com/d5/tengo/stdlib"
+
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
 )
 
@@ -17,7 +18,6 @@ func GetModuleMap() *objects.ModuleMap {
 		if mod := gct.GCTModules[name]; mod != nil {
 			modules.AddBuiltinModule(name, mod)
 		}
-
 	}
 
 	stdLib := stdlib.AllModuleNames()
