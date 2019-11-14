@@ -48,7 +48,7 @@ func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
 func (b *BTCMarkets) SetDefaults() {
 	b.Name = "BTC Markets"
 	b.Enabled = true
-	b.Verbose = false
+	b.Verbose = true
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
