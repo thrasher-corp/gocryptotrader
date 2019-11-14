@@ -98,11 +98,7 @@ When submitting a PR, please abide by our coding guidelines:
 
 + Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
 + Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-<<<<<<< HEAD
 + Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
-=======
-+ Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
->>>>>>> upstrem/master
 + Pull requests need to be based on and opened against the `master` branch.
 
 ## Compiling instructions
@@ -116,11 +112,7 @@ GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Mod
 Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
-<<<<<<< HEAD
 git clone https://github.com/idoall/gocryptotrader.git
-=======
-git clone https://github.com/idoall/gocryptotrader.git
->>>>>>> upstrem/master
 cd gocryptotrader
 go build
 mkdir ~/.gocryptotrader
@@ -130,11 +122,7 @@ cp config_example.json ~/.gocryptotrader/config.json
 ### Windows
 
 ```bash
-<<<<<<< HEAD
 git clone https://github.com/idoall/gocryptotrader.git
-=======
-git clone https://github.com/idoall/gocryptotrader.git
->>>>>>> upstrem/master
 cd gocryptotrader
 go build
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
@@ -145,11 +133,7 @@ copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 
 ## Donations
 
-<<<<<<< HEAD
 <img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
-=======
-<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
->>>>>>> upstrem/master
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
@@ -165,16 +149,10 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-<<<<<<< HEAD
-| thrasher- | https://github.com/idoall | 526 |
-| shazbert | https://github.com/shazbert | 166 |
-| gloriousCode | https://github.com/gloriousCode | 146 |
-=======
 | thrasher- | https://github.com/thrasher- | 548 |
 | shazbert | https://github.com/shazbert | 176 |
 | gloriousCode | https://github.com/gloriousCode | 155 |
 | xtda | https://github.com/xtda | 18 |
->>>>>>> upstrem/master
 | ermalguni | https://github.com/ermalguni | 14 |
 | vadimzhukck | https://github.com/vadimzhukck | 10 |
 | 140am | https://github.com/140am | 8 |

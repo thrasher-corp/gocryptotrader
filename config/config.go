@@ -1193,7 +1193,8 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	log.Warn("Your system time is out of sync, this may cause issues with trading")
+	// log.Warn("Your system time is out of sync, this may cause issues with trading")
+	log.Warn("您的系统时间不同步这可能会导致交易问题")
 	log.Warn("How would you like to show future notifications? (a)lert / (w)arn / (d)isable \n")
 
 	var resp string
@@ -1342,7 +1343,10 @@ func (c *Config) ReadConfig(configPath string) error {
 		return err
 	}
 
+	// 如果未加密
 	if !ConfirmECS(file) {
+
+		// 反解JSON文件
 		err = ConfirmConfigJSON(file, &c)
 		if err != nil {
 			return err

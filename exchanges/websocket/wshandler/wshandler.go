@@ -591,7 +591,7 @@ func (w *Websocket) subscribeToChannels() error {
 				break
 			}
 		}
-		fmt.Println("channelIsSubscribed", channelIsSubscribed)
+
 		// 第一次进入时 channelIsSubscribed is false
 		if !channelIsSubscribed {
 			if w.verbose {

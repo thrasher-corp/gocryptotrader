@@ -232,7 +232,7 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	return result.Data, err
 }
 
-// GetMarketDetailMerged returns the ticker for the specified symbol
+// GetMarketDetailMerged 最近24小时的交易聚合信息
 func (h *HUOBI) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)

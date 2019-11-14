@@ -99,12 +99,16 @@ func (s *Storage) SetDefaults() {
 func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration, filePath string, verbose bool) error {
 	s.mtx.Lock()
 
+	// 判断是否有数据
 	if !settings.Cryptocurrencies.HasData() {
 		s.mtx.Unlock()
 		return errors.New("currency storage error, no cryptocurrencies loaded")
 	}
+
+	// 获取配置文件中的
 	s.cryptocurrencies = settings.Cryptocurrencies
 
+	// 判断是否设置了法币
 	if settings.FiatDisplayCurrency.IsEmpty() {
 		s.mtx.Unlock()
 		return errors.New("currency storage error, no fiat display currency set in config")
@@ -115,7 +119,11 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 	if settings.CryptocurrencyProvider.Enabled {
 		log.Debugf("Setting up currency analysis system with Coinmarketcap...")
 		c := &coinmarketcap.Coinmarketcap{}
+
+		// 设置 CoinMarketCap 的基本信息
 		c.SetDefaults()
+
+		// 根据传入的配置，再次设置  CoinMarketCap 配置
 		err := c.Setup(coinmarketcap.Settings{
 			Name:        settings.CryptocurrencyProvider.Name,
 			Enabled:     true,

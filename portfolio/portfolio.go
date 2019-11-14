@@ -18,14 +18,14 @@ const (
 
 	// PortfolioAddressExchange is a label for an exchange address
 	PortfolioAddressExchange = "Exchange"
-	// PortfolioAddressPersonal is a label for a personal/offline address
+	// PortfolioAddressPersonal is a label for a personal/offline address做为以太坊的标记
 	PortfolioAddressPersonal = "Personal"
 )
 
 // Portfolio is variable store holding an array of portfolioAddress
 var Portfolio Base
 
-// GetEthereumBalance single or multiple address information as
+// GetEthereumBalance 在线获取ETH地址的余额
 // EtherchainBalanceResponse
 func GetEthereumBalance(address string) (EthplorerResponse, error) {
 	valid, _ := common.IsValidCryptoAddress(address, "eth")
@@ -40,9 +40,9 @@ func GetEthereumBalance(address string) (EthplorerResponse, error) {
 	return result, common.SendHTTPGetRequest(urlPath, true, false, &result)
 }
 
-// GetCryptoIDAddress queries CryptoID for an address balance for a
-// specified cryptocurrency
+// GetCryptoIDAddress 在线查询指定加密货币的余额
 func GetCryptoIDAddress(address string, coinType currency.Code) (float64, error) {
+	// 验证地址是否是BTC/LTC/ETH的格式
 	ok, err := common.IsValidCryptoAddress(address, coinType.String())
 	if !ok || err != nil {
 		return 0, errors.New("invalid address")
@@ -182,14 +182,18 @@ func (p *Base) RemoveAddress(address, description string, coinType currency.Code
 
 // UpdatePortfolio adds to the portfolio addresses by coin type
 func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) bool {
+	// 如果是交易所的帐号不更新
 	if common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressExchange) ||
 		common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressPersonal) {
 		return true
 	}
 
 	numErrors := 0
+	// 如果是ETH的地址，去在线查余额
 	if coinType == currency.ETH {
 		for x := range addresses {
+
+			// 在线获取 ETH 地址余额信息
 			result, err := GetEthereumBalance(addresses[x])
 			if err != nil {
 				numErrors++
@@ -200,6 +204,8 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) bool 
 				numErrors++
 				continue
 			}
+
+			// 更新指定帐户余额
 			p.AddAddress(addresses[x],
 				PortfolioAddressPersonal,
 				coinType,
@@ -394,15 +400,23 @@ func (p *Base) SeedPortfolio(port Base) {
 	p.Addresses = port.Addresses
 }
 
-// StartPortfolioWatcher observes the portfolio object
+// StartPortfolioWatcher 监听指定帐户的信息
 func StartPortfolioWatcher() {
+
+	// 配置文件中的交易地址数量
 	addrCount := len(Portfolio.Addresses)
 	log.Debugf(
 		"PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount,
 	)
 	for {
+
+		// 获取配置文件中的帐户信息中，Description不等于Exchange的自定义帐户组
 		data := Portfolio.GetPortfolioGroupedCoin()
+
+		// 循环指定帐户的地址
 		for key, value := range data {
+
+			// 更新指定外部帐户的余额
 			success := Portfolio.UpdatePortfolio(value, key)
 			if success {
 				log.Debugf(

@@ -172,7 +172,7 @@ func ConfirmSalt(file []byte) bool {
 	return bytes.Contains(file, []byte(SaltPrefix))
 }
 
-// ConfirmECS confirms that the encryption confirmation string is found
+// ConfirmECS 确认是否加密文件
 func ConfirmECS(file []byte) bool {
 	return bytes.Contains(file, []byte(EncryptConfirmString))
 }
