@@ -511,6 +511,8 @@ func TestGetOrderInfo(t *testing.T) {
 func TestWsGetBalance(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
+	g.Verbose = true
+
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
@@ -538,6 +540,10 @@ func TestWsGetBalance(t *testing.T) {
 		t.Fatal("Unsuccessful login")
 	}
 	_, err = g.wsGetBalance([]string{"EOS", "BTC"})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = g.wsGetBalance([]string{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -573,7 +579,7 @@ func TestWsGetOrderInfo(t *testing.T) {
 	if resp.Result.Status != "success" {
 		t.Fatal("Unsuccessful login")
 	}
-	_, err = g.wsGetOrderInfo("EOS_USDT", 0, 10)
+	_, err = g.wsGetOrderInfo("EOS_USDT", 0, 1000)
 	if err != nil {
 		t.Error(err)
 	}

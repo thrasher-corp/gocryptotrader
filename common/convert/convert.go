@@ -77,3 +77,15 @@ func UnixMillis(t time.Time) int64 {
 func RecvWindow(d time.Duration) int64 {
 	return int64(d) / int64(time.Millisecond)
 }
+
+// SplitFloatDecimals takes in a float64 and splits
+// the decimals into their own integers
+func SplitFloatDecimals(input float64) (int64, int64, error) {
+	firstNum := int64(input)
+	decStr := fmt.Sprintf("%.8", input)
+	decNum, err := strconv.ParseInt(decStr[2:], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	return firstNum, decNum, nil
+}

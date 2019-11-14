@@ -445,19 +445,19 @@ type WebSocketOrderQueryResult struct {
 
 // WebSocketOrderQueryRecords contains order information from a order.query websocket request
 type WebSocketOrderQueryRecords struct {
-	ID           int     `json:"id"`
+	ID           int64   `json:"id"`
 	Market       string  `json:"market"`
-	User         int     `json:"user"`
+	User         int64   `json:"user"`
 	Ctime        float64 `json:"ctime"`
 	Mtime        float64 `json:"mtime"`
-	Price        string  `json:"price"`
-	Amount       string  `json:"amount"`
-	Left         string  `json:"left"`
-	DealFee      string  `json:"dealFee"`
-	OrderType    int     `json:"orderType"`
-	Type         int     `json:"type"`
-	FilledAmount string  `json:"filledAmount"`
-	FilledTotal  string  `json:"filledTotal"`
+	Price        float64 `json:"price,string"`
+	Amount       float64 `json:"amount,string"`
+	Left         float64 `json:"left,string"`
+	DealFee      float64 `json:"dealFee,string"`
+	OrderType    int64   `json:"orderType"`
+	Type         int64   `json:"type"`
+	FilledAmount float64 `json:"filledAmount,string"`
+	FilledTotal  float64 `json:"filledTotal,string"`
 }
 
 // WebsocketAuthenticationResponse contains the result of a login request
@@ -473,14 +473,14 @@ type WebsocketAuthenticationResponse struct {
 type wsGetBalanceRequest struct {
 	ID     int64    `json:"id"`
 	Method string   `json:"method"`
-	Params []string `json:"params,omitempty"`
+	Params []string `json:"params"`
 }
 
 // WsGetBalanceResponse stores WS GetBalance response
 type WsGetBalanceResponse struct {
-	Error  interface{}                                `json:"error"`
-	Result map[currency.Code]WsGetBalanceResponseData `json:"result,omitempty"`
-	ID     int64                                      `json:"id"`
+	Error  interface{}                         `json:"error"`
+	Result map[string]WsGetBalanceResponseData `json:"result,omitempty"`
+	ID     int64                               `json:"id"`
 }
 
 // WsGetBalanceResponseData contains currency data

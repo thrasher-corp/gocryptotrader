@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -99,6 +100,8 @@ func (g *Gateio) SetDefaults() {
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
+				GetOrder:               true,
+				AccountBalance:         true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -306,61 +309,79 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 // ZB exchange
 func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-
-	balance, err := g.GetBalances()
-	if err != nil {
-		return info, err
-	}
-
 	var balances []exchange.AccountCurrencyInfo
 
-	switch l := balance.Locked.(type) {
-	case map[string]interface{}:
-		for x := range l {
-			lockedF, err := strconv.ParseFloat(l[x].(string), 64)
-			if err != nil {
-				return info, err
-			}
-
-			balances = append(balances, exchange.AccountCurrencyInfo{
-				CurrencyName: currency.NewCode(x),
-				Hold:         lockedF,
+	if g.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+		resp, err := g.wsGetBalance([]string{})
+		if err != nil {
+			return info, err
+		}
+		var currData []exchange.AccountCurrencyInfo
+		for k := range resp.Result {
+			currData = append(currData, exchange.AccountCurrencyInfo{
+				CurrencyName: currency.NewCode(k),
+				TotalValue:   resp.Result[k].Available + resp.Result[k].Freeze,
+				Hold:         resp.Result[k].Freeze,
 			})
 		}
-	default:
-		break
-	}
+		info.Accounts = append(info.Accounts, exchange.Account{
+			Currencies: currData,
+		})
 
-	switch v := balance.Available.(type) {
-	case map[string]interface{}:
-		for x := range v {
-			availAmount, err := strconv.ParseFloat(v[x].(string), 64)
-			if err != nil {
-				return info, err
-			}
+	} else {
+		balance, err := g.GetBalances()
+		if err != nil {
+			return info, err
+		}
 
-			var updated bool
-			for i := range balances {
-				if balances[i].CurrencyName == currency.NewCode(x) {
-					balances[i].TotalValue = balances[i].Hold + availAmount
-					updated = true
-					break
+		switch l := balance.Locked.(type) {
+		case map[string]interface{}:
+			for x := range l {
+				lockedF, err := strconv.ParseFloat(l[x].(string), 64)
+				if err != nil {
+					return info, err
 				}
-			}
-			if !updated {
+
 				balances = append(balances, exchange.AccountCurrencyInfo{
 					CurrencyName: currency.NewCode(x),
-					TotalValue:   availAmount,
+					Hold:         lockedF,
 				})
 			}
+		default:
+			break
 		}
-	default:
-		break
-	}
 
-	info.Accounts = append(info.Accounts, exchange.Account{
-		Currencies: balances,
-	})
+		switch v := balance.Available.(type) {
+		case map[string]interface{}:
+			for x := range v {
+				availAmount, err := strconv.ParseFloat(v[x].(string), 64)
+				if err != nil {
+					return info, err
+				}
+
+				var updated bool
+				for i := range balances {
+					if balances[i].CurrencyName == currency.NewCode(x) {
+						balances[i].TotalValue = balances[i].Hold + availAmount
+						updated = true
+						break
+					}
+				}
+				if !updated {
+					balances = append(balances, exchange.AccountCurrencyInfo{
+						CurrencyName: currency.NewCode(x),
+						TotalValue:   availAmount,
+					})
+				}
+			}
+		default:
+			break
+		}
+
+		info.Accounts = append(info.Accounts, exchange.Account{
+			Currencies: balances,
+		})
+	}
 
 	info.Exchange = g.Name
 
@@ -457,7 +478,6 @@ func (g *Gateio) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 // GetOrderInfo returns information on a current open order
 func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 	var orderDetail order.Detail
-
 	orders, err := g.GetOpenOrders("")
 	if err != nil {
 		return orderDetail, errors.New("failed to get open orders")
@@ -534,40 +554,79 @@ func (g *Gateio) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 
 // GetActiveOrders retrieves any orders that are active/open
 func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	var orders []order.Detail
 	var currPair string
 	if len(req.Currencies) == 1 {
 		currPair = req.Currencies[0].String()
 	}
+	if g.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+		for i := 0; ; i += 100 {
+			resp, err := g.wsGetOrderInfo(req.OrderType.String(), i, 100)
+			if err != nil {
+				return orders, err
+			}
 
-	resp, err := g.GetOpenOrders(currPair)
-	if err != nil {
-		return nil, err
-	}
-
-	var orders []order.Detail
-	for i := range resp.Orders {
-		if resp.Orders[i].Status != "open" {
-			continue
+			for j := range resp.WebSocketOrderQueryRecords {
+				orderSide := order.Buy
+				if resp.WebSocketOrderQueryRecords[j].Type == 1 {
+					orderSide = order.Sell
+				}
+				orderType := order.Market
+				if resp.WebSocketOrderQueryRecords[j].OrderType == 1 {
+					orderType = order.Limit
+				}
+				firstNum, decNum, err := convert.SplitFloatDecimals(resp.WebSocketOrderQueryRecords[j].Ctime)
+				if err != nil {
+					return orders, err
+				}
+				orderDate := time.Unix(firstNum, decNum)
+				orders = append(orders, order.Detail{
+					Exchange:        g.Name,
+					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 64),
+					ID:              strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 64),
+					CurrencyPair:    currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market),
+					OrderSide:       orderSide,
+					OrderType:       orderType,
+					OrderDate:       orderDate,
+					Price:           resp.WebSocketOrderQueryRecords[j].Price,
+					Amount:          resp.WebSocketOrderQueryRecords[j].Amount,
+					ExecutedAmount:  resp.WebSocketOrderQueryRecords[j].FilledAmount,
+					RemainingAmount: resp.WebSocketOrderQueryRecords[j].Left,
+					Fee:             resp.WebSocketOrderQueryRecords[j].DealFee,
+				})
+			}
+			if len(resp.WebSocketOrderQueryRecords) < 100 {
+				break
+			}
+		}
+	} else {
+		resp, err := g.GetOpenOrders(currPair)
+		if err != nil {
+			return nil, err
 		}
 
-		symbol := currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
-			g.GetPairFormat(asset.Spot, false).Delimiter)
-		side := order.Side(strings.ToUpper(resp.Orders[i].Type))
-		orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
+		for i := range resp.Orders {
+			if resp.Orders[i].Status != "open" {
+				continue
+			}
 
-		orders = append(orders, order.Detail{
-			ID:              resp.Orders[i].OrderNumber,
-			Amount:          resp.Orders[i].Amount,
-			Price:           resp.Orders[i].Rate,
-			RemainingAmount: resp.Orders[i].FilledAmount,
-			OrderDate:       orderDate,
-			OrderSide:       side,
-			Exchange:        g.Name,
-			CurrencyPair:    symbol,
-			Status:          order.Status(resp.Orders[i].Status),
-		})
+			symbol := currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
+				g.GetPairFormat(asset.Spot, false).Delimiter)
+			side := order.Side(strings.ToUpper(resp.Orders[i].Type))
+			orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
+			orders = append(orders, order.Detail{
+				ID:              resp.Orders[i].OrderNumber,
+				Amount:          resp.Orders[i].Amount,
+				Price:           resp.Orders[i].Rate,
+				RemainingAmount: resp.Orders[i].FilledAmount,
+				OrderDate:       orderDate,
+				OrderSide:       side,
+				Exchange:        g.Name,
+				CurrencyPair:    symbol,
+				Status:          order.Status(resp.Orders[i].Status),
+			})
+		}
 	}
-
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersBySide(&orders, req.OrderSide)
 	return orders, nil
