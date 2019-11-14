@@ -26,11 +26,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json")
 	if err != nil {
-		log.Fatalf("Test Failed - Lbank Setup() init error:, %v", err)
+		log.Fatal(err)
 	}
 	lbankConfig, err := cfg.GetExchangeConfig("Lbank")
 	if err != nil {
-		log.Fatalf("Test Failed - Lbank Setup() init error: %v", err)
+		log.Fatal(err)
 	}
 	lbankConfig.Websocket = true
 	lbankConfig.AuthenticatedAPISupport = true
@@ -52,7 +52,7 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := l.GetTicker("btc_usdt")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -60,7 +60,7 @@ func TestGetCurrencyPairs(t *testing.T) {
 	t.Parallel()
 	_, err := l.GetCurrencyPairs()
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -80,11 +80,11 @@ func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := l.GetTrades("btc_usdt", "600", fmt.Sprintf("%v", time.Now().Unix()))
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 	a, err := l.GetTrades("btc_usdt", "600", "0")
 	if len(a) != 600 && err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -92,7 +92,7 @@ func TestGetKlines(t *testing.T) {
 	t.Parallel()
 	_, err := l.GetKlines("btc_usdt", "600", "minute1", fmt.Sprintf("%v", time.Now().Unix()))
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -128,15 +128,15 @@ func TestCreateOrder(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.CreateOrder(cp.Lower().String(), "what", 1231, 12314)
 	if err == nil {
-		t.Error("Test Failed - CreateOrder error cannot be nil")
+		t.Error("CreateOrder error cannot be nil")
 	}
 	_, err = l.CreateOrder(cp.Lower().String(), "buy", 0, 0)
 	if err == nil {
-		t.Error("Test Failed - CreateOrder error cannot be nil")
+		t.Error("CreateOrder error cannot be nil")
 	}
 	_, err = l.CreateOrder(cp.Lower().String(), "sell", 1231, 0)
 	if err == nil {
-		t.Error("Test Failed - CreateOrder error cannot be nil")
+		t.Error("CreateOrder error cannot be nil")
 	}
 	_, err = l.CreateOrder(cp.Lower().String(), "buy", 58, 681)
 	if err != nil {
@@ -176,7 +176,7 @@ func TestQueryOrderHistory(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.QueryOrderHistory(cp.Lower().String(), "1", "100")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -285,7 +285,7 @@ func TestSign(t *testing.T) {
 	l.loadPrivKey()
 	_, err := l.sign("hello123")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -297,7 +297,7 @@ func TestSubmitOrder(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.SubmitOrder(cp.Lower(), "BUY", "ANY", 2, 1312, "")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -312,7 +312,7 @@ func TestCancelOrder(t *testing.T) {
 	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -323,7 +323,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -334,7 +334,7 @@ func TestGetAllOpenOrderID(t *testing.T) {
 	}
 	_, err := l.getAllOpenOrderID()
 	if err != nil {
-		t.Errorf("test failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -347,7 +347,7 @@ func TestGetFeeByType(t *testing.T) {
 	input.Pair = cp
 	a, err := l.GetFeeByType(&input)
 	if err != nil {
-		t.Errorf("test failed. couldnt get fee: %v", err)
+		t.Errorf("couldnt get fee: %v", err)
 	}
 	if a != 0.0005 {
 		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)
