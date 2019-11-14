@@ -17,6 +17,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+	BTCtoAUD                = "BTC-AUD"
 )
 
 func TestMain(m *testing.M) {
@@ -24,11 +25,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("BTC Markets load config error", err)
+		log.Fatal(err)
 	}
 	bConfig, err := cfg.GetExchangeConfig("BTC Markets")
 	if err != nil {
-		log.Fatalf("BTC Markets Setup() init error: %v", err)
+		log.Fatal(err)
 	}
 	bConfig.API.Credentials.Key = apiKey
 	bConfig.API.Credentials.Secret = apiSecret
@@ -36,7 +37,7 @@ func TestMain(m *testing.M) {
 
 	err = b.Setup(bConfig)
 	if err != nil {
-		log.Fatal("BTC Markets setup error", err)
+		log.Fatal(err)
 	}
 
 	os.Exit(m.Run())
@@ -47,7 +48,7 @@ func areTestAPIKeysSet() bool {
 		b.API.Credentials.Secret != "" && b.API.Credentials.Secret != "Secret" {
 		return true
 	}
-	return false
+	return b.AllowAuthenticatedRequest()
 }
 
 func TestGetMarkets(t *testing.T) {
@@ -60,7 +61,7 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker("BTC-AUD")
+	_, err := b.GetTicker(BTCtoAUD)
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
 	}
@@ -68,7 +69,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrades("BTC-AUD", 0, 0, 5)
+	_, err := b.GetTrades(BTCtoAUD, 0, 0, 5)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -76,7 +77,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderbook("BTC-AUD", 2)
+	_, err := b.GetOrderbook(BTCtoAUD, 2)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -84,7 +85,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarketCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketCandles("BTC-AUD", "", "", "", 0, 0, 5)
+	_, err := b.GetMarketCandles(BTCtoAUD, "", "", "", 0, 0, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -92,7 +93,8 @@ func TestGetMarketCandles(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTickers("BTC-AUD,LTC-AUD,ETH-AUD")
+	temp := []string{"BTC-AUD", "LTC-AUD", "ETH-AUD"}
+	_, err := b.GetTickers(temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -100,7 +102,8 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetMultipleOrderbooks(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMultipleOrderbooks("BTC-AUD,LTC-AUD,ETH-AUD")
+	temp := []string{"BTC-AUD", "LTC-AUD", "ETH-AUD"}
+	_, err := b.GetMultipleOrderbooks(temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -108,7 +111,7 @@ func TestGetMultipleOrderbooks(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	_, _, err := b.GetServerTime()
+	_, err := b.GetServerTime()
 	if err != nil {
 		t.Error(err)
 	}
@@ -141,7 +144,7 @@ func TestGetTradeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTradeHistory("BTC-AUD", "", "", "", "")
+	_, err := b.GetTradeHistory(BTCtoAUD, "", "", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -152,7 +155,7 @@ func TestNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.NewOrder("BTC-AUD", 100, 1, "Limit", "Bid", 0, 0, "", true, "", "")
+	_, err := b.NewOrder(BTCtoAUD, 100, 1, "Limit", "Bid", 0, 0, "", true, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -174,7 +177,8 @@ func TestCancelOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.CancelOpenOrders("BTC-AUD,LTC-AUD")
+	temp := []string{"BTC-AUD", "LTC-AUD"}
+	_, err := b.CancelOpenOrders(temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -348,10 +352,10 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	var pOrders []placeBatch
-	placeOrders := placeBatch{MarketID: "BTC-AUD",
+	placeOrders := placeBatch{MarketID: BTCtoAUD,
 		Amount:    "11000",
 		Price:     "1",
-		OrderType: "Market",
+		OrderType: "Limit",
 		Side:      "Bid"}
 	pOrders = append(pOrders, placeOrders)
 	_, err := b.BatchPlaceCancelOrders(nil, pOrders)
@@ -365,7 +369,8 @@ func TestGetBatchTrades(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetBatchTrades("4477045999,4477381751,4476769607")
+	temp := []string{"4477045999", "4477381751", "4476769607"}
+	_, err := b.GetBatchTrades(temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -376,7 +381,8 @@ func TestCancelBatchOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.CancelBatchOrders("4477045999,4477381751,4477381751")
+	temp := []string{"4477045999", "4477381751", "4477381751"}
+	_, err := b.CancelBatchOrders(temp)
 	if err != nil {
 		t.Error(err)
 	}

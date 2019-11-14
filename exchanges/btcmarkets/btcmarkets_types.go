@@ -15,23 +15,23 @@ type Market struct {
 
 // Ticker holds ticker information
 type Ticker struct {
-	MarketID  string  `json:"marketId"`
-	BestBID   float64 `json:"bestBid,string"`
-	BestAsk   float64 `json:"bestAsk,string"`
-	LastPrice float64 `json:"lastPrice,string"`
-	Volume    float64 `json:"volume24h,string"`
-	Change24h float64 `json:"price24h,string"`
-	Low24h    float64 `json:"low24h,string"`
-	High24h   float64 `json:"high24h,string"`
-	Timestamp string  `json:"timestamp"`
+	MarketID  string    `json:"marketId"`
+	BestBID   float64   `json:"bestBid,string"`
+	BestAsk   float64   `json:"bestAsk,string"`
+	LastPrice float64   `json:"lastPrice,string"`
+	Volume    float64   `json:"volume24h,string"`
+	Change24h float64   `json:"price24h,string"`
+	Low24h    float64   `json:"low24h,string"`
+	High24h   float64   `json:"high24h,string"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // Trade holds trade information
 type Trade struct {
-	TradeID   string  `json:"id"`
-	Amount    float64 `json:"amount,string"`
-	Price     float64 `json:"price,string"`
-	Timestamp string  `json:"timestamp"`
+	TradeID   string    `json:"id"`
+	Amount    float64   `json:"amount,string"`
+	Price     float64   `json:"price,string"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // tempOrderbook stores orderbook data
@@ -68,7 +68,7 @@ type MarketCandle struct {
 
 // TimeResp stores server time
 type TimeResp struct {
-	Time string `json:"timestamp"`
+	Time time.Time `json:"timestamp"`
 }
 
 // TradingFee 30 day trade volume
@@ -98,7 +98,7 @@ type Order struct {
 	Instrument      string          `json:"instrument"`
 	OrderSide       string          `json:"orderSide"`
 	OrderType       string          `json:"ordertype"`
-	CreationTime    float64         `json:"creationTime"`
+	CreationTime    time.Time       `json:"creationTime"`
 	Status          string          `json:"status"`
 	ErrorMessage    string          `json:"errorMessage"`
 	Price           float64         `json:"price"`
@@ -110,12 +110,12 @@ type Order struct {
 
 // TradeResponse holds trade information
 type TradeResponse struct {
-	ID           int64   `json:"id"`
-	CreationTime float64 `json:"creationTime"`
-	Description  string  `json:"description"`
-	Price        float64 `json:"price"`
-	Volume       float64 `json:"volume"`
-	Fee          float64 `json:"fee"`
+	ID           int64     `json:"id"`
+	CreationTime time.Time `json:"creationTime"`
+	Description  string    `json:"description"`
+	Price        float64   `json:"price"`
+	Volume       float64   `json:"volume"`
+	Fee          float64   `json:"fee"`
 }
 
 // AccountData stores account data
@@ -141,15 +141,15 @@ type TradeHistoryData struct {
 
 // OrderData stores data for new order created
 type OrderData struct {
-	OrderID      string  `json:"orderId"`
-	MarketID     string  `json:"marketId"`
-	Side         string  `json:"side"`
-	Type         string  `json:"type"`
-	CreationTime string  `json:"creationTime"`
-	Price        float64 `json:"price,string"`
-	Amount       float64 `json:"amount,string"`
-	OpenAmount   float64 `json:"openAmount,string"`
-	Status       string  `json:"status"`
+	OrderID      string    `json:"orderId"`
+	MarketID     string    `json:"marketId"`
+	Side         string    `json:"side"`
+	Type         string    `json:"type"`
+	CreationTime time.Time `json:"creationTime"`
+	Price        float64   `json:"price,string"`
+	Amount       float64   `json:"amount,string"`
+	OpenAmount   float64   `json:"openAmount,string"`
+	Status       string    `json:"status"`
 }
 
 // CancelOrderResp stores data for cancelled orders
@@ -169,7 +169,7 @@ type TransferData struct {
 	AssetName      string         `json:"assetName"`
 	Amount         float64        `json:"amount,string"`
 	RequestType    string         `json:"type"`
-	CreationTime   string         `json:"creationTime"`
+	CreationTime   time.Time      `json:"creationTime"`
 	Status         string         `json:"status"`
 	Description    string         `json:"description"`
 	Fee            float64        `json:"fee,string"`
@@ -204,39 +204,39 @@ type AssetData struct {
 
 // TransactionData stores data from past transactions
 type TransactionData struct {
-	ID           string  `json:"id"`
-	CreationTime string  `json:"creationTime"`
-	Description  string  `json:"description"`
-	AssetName    string  `json:"assetName"`
-	Amount       float64 `json:"amount,string"`
-	Balance      float64 `json:"balance,string"`
-	FeeType      string  `json:"type"`
-	RecordType   string  `json:"recordType"`
-	ReferrenceID string  `json:"referrenceId"`
+	ID           string    `json:"id"`
+	CreationTime time.Time `json:"creationTime"`
+	Description  string    `json:"description"`
+	AssetName    string    `json:"assetName"`
+	Amount       float64   `json:"amount,string"`
+	Balance      float64   `json:"balance,string"`
+	FeeType      string    `json:"type"`
+	RecordType   string    `json:"recordType"`
+	ReferrenceID string    `json:"referrenceId"`
 }
 
 // ReportData gets data for a created report
 type ReportData struct {
-	ID           string `json:"id"`
-	ContentURL   string `json:"contentUrl"`
-	CreationTime string `json:"creationTime"`
-	ReportType   string `json:"reportType"`
-	Status       string `json:"status"`
-	Format       string `json:"format"`
+	ID           string    `json:"id"`
+	ContentURL   string    `json:"contentUrl"`
+	CreationTime time.Time `json:"creationTime"`
+	ReportType   string    `json:"reportType"`
+	Status       string    `json:"status"`
+	Format       string    `json:"format"`
 }
 
 // BatchPlaceData stores data for placed batch orders
 type BatchPlaceData struct {
-	OrderID       string  `json:"orderId"`
-	MarketID      string  `json:"marketId"`
-	Side          string  `json:"side"`
-	Type          string  `json:"type"`
-	CreationTime  string  `json:"creationTime"`
-	Price         float64 `json:"price,string"`
-	Amount        float64 `json:"amount,string"`
-	OpenAmount    float64 `json:"openAmount,string"`
-	Status        string  `json:"status"`
-	ClientOrderID string  `json:"clientOrderId"`
+	OrderID       string    `json:"orderId"`
+	MarketID      string    `json:"marketId"`
+	Side          string    `json:"side"`
+	Type          string    `json:"type"`
+	CreationTime  time.Time `json:"creationTime"`
+	Price         float64   `json:"price,string"`
+	Amount        float64   `json:"amount,string"`
+	OpenAmount    float64   `json:"openAmount,string"`
+	Status        string    `json:"status"`
+	ClientOrderID string    `json:"clientOrderId"`
 }
 
 // UnprocessedBatchResp stores data for unprocessed response

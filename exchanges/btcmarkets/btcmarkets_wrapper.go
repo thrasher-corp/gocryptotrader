@@ -2,7 +2,6 @@ package btcmarkets
 
 import (
 	"errors"
-	"strings"
 	"sync"
 	"time"
 
@@ -47,7 +46,7 @@ func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
 func (b *BTCMarkets) SetDefaults() {
 	b.Name = "BTC Markets"
 	b.Enabled = true
-	b.Verbose = false
+	b.Verbose = true
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
@@ -180,25 +179,6 @@ func (b *BTCMarkets) Run() {
 	}
 
 	var forceUpdate bool
-	if common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "CNY") ||
-		common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "CNY") {
-		forceUpdate = true
-	}
-
-	if common.StringDataContains(b.BaseCurrencies.Strings(), "CNY") {
-		cfg := config.GetConfig()
-		exchCfg, err := cfg.GetExchangeConfig(b.Name)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to get exchange config. %s\n",
-				b.Name,
-				err)
-			return
-		}
-		exchCfg.BaseCurrencies = currency.Currencies{currency.USD}
-		b.BaseCurrencies = currency.Currencies{currency.USD}
-	}
-
 	if forceUpdate {
 		enabledPairs := currency.Pairs{currency.Pair{
 			Base:      currency.BTC.Lower(),
@@ -207,13 +187,13 @@ func (b *BTCMarkets) Run() {
 		},
 		}
 		log.Warn(log.ExchangeSys,
-			"Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
+			"Available and enabled pairs for BTC Markets reset due to config upgrade, please enable the ones you would like again")
 
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s Failed to update enabled currencies.\n",
-				b.GetName())
+				b.Name)
 		}
 	}
 
@@ -437,16 +417,11 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return resp, err
 	}
-	var t time.Time
 	resp.Exchange = b.Name
 	resp.ID = orderID
 	resp.CurrencyPair = currency.NewPairFromString(o.MarketID)
-	t, err = time.Parse(time.RFC3339, o.CreationTime)
-	if err != nil {
-		return resp, err
-	}
 	resp.Price = o.Price
-	resp.OrderDate = t
+	resp.OrderDate = o.CreationTime
 	resp.ExecutedAmount = o.Amount - o.OpenAmount
 	resp.OrderSide = order.Bid
 	if o.Side == "Ask" {
@@ -463,6 +438,8 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 		resp.OrderType = order.Stop
 	case "Take Profit":
 		resp.OrderType = order.ImmediateOrCancel
+	default:
+		resp.OrderType = order.Unknown
 	}
 	resp.RemainingAmount = o.OpenAmount
 	switch o.Status {
@@ -480,6 +457,8 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 		resp.Status = order.PartiallyFilled
 	case "Failed":
 		resp.Status = order.Rejected
+	default:
+		resp.Status = order.UnknownStatus
 	}
 	return resp, nil
 }
@@ -562,7 +541,6 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 		if err != nil {
 			return resp, err
 		}
-		var t time.Time
 		for y := range tempData {
 			tempResp.Exchange = b.Name
 			tempResp.CurrencyPair = req.Currencies[x]
@@ -570,11 +548,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			if tempData[y].Side == "Ask" {
 				tempResp.OrderSide = order.Ask
 			}
-			t, err = time.Parse(time.RFC3339, tempData[y].CreationTime)
-			if err != nil {
-				return resp, err
-			}
-			tempResp.OrderDate = t
+			tempResp.OrderDate = tempData[y].CreationTime
 			switch tempData[y].Status {
 			case "Accepted":
 				tempResp.Status = order.Active
@@ -631,9 +605,10 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 			tempArray = append(tempArray, orders[z].OrderID)
 		}
 	}
-	stringIDs := strings.Join(tempArray, ",")
-	tempData, err := b.GetBatchTrades(stringIDs)
-	var t time.Time
+	tempData, err := b.GetBatchTrades(tempArray)
+	if err != nil {
+		return resp, err
+	}
 	for c := range tempData.Orders {
 		tempResp.Exchange = b.Name
 		tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
@@ -641,11 +616,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		if tempData.Orders[c].Side == "Ask" {
 			tempResp.OrderSide = order.Ask
 		}
-		t, err = time.Parse(time.RFC3339, tempData.Orders[c].CreationTime)
-		if err != nil {
-			return resp, err
-		}
-		tempResp.OrderDate = t
+		tempResp.OrderDate = tempData.Orders[c].CreationTime
 		tempResp.Status = order.Filled
 		tempResp.Price = tempData.Orders[c].Price
 		tempResp.ExecutedAmount = tempData.Orders[c].Amount
