@@ -11,23 +11,23 @@ import (
 
 // Websocket functionality list and state consts
 const (
-	NoWebsocketSupport       uint32 = 0
-	WebsocketTickerSupported uint32 = 1 << (iota - 1)
-	WebsocketOrderbookSupported
-	WebsocketKlineSupported
-	WebsocketTradeDataSupported
-	WebsocketAccountSupported
-	WebsocketAllowsRequests
-	WebsocketSubscribeSupported
-	WebsocketUnsubscribeSupported
-	WebsocketAuthenticatedEndpointsSupported
-	WebsocketAccountDataSupported
+	NoWebsocketSupport                       uint32 = 0
+	WebsocketTickerSupported                 uint32 = 1 << (iota - 1) //1
+	WebsocketOrderbookSupported                                       //2
+	WebsocketKlineSupported                                           //4
+	WebsocketTradeDataSupported                                       //8
+	WebsocketAccountSupported                                         //16
+	WebsocketAllowsRequests                                           //32
+	WebsocketSubscribeSupported                                       //64
+	WebsocketUnsubscribeSupported                                     //128
+	WebsocketAuthenticatedEndpointsSupported                          //256
+	WebsocketAccountDataSupported                                     //512
 	WebsocketSubmitOrderSupported
 	WebsocketCancelOrderSupported
 	WebsocketWithdrawSupported
-	WebsocketMessageCorrelationSupported
+	WebsocketMessageCorrelationSupported //8192
 	WebsocketSequenceNumberSupported
-	WebsocketDeadMansSwitchSupported
+	WebsocketDeadMansSwitchSupported //32768
 
 	WebsocketTickerSupportedText                 = "TICKER STREAMING SUPPORTED"
 	WebsocketOrderbookSupportedText              = "ORDERBOOK STREAMING SUPPORTED"

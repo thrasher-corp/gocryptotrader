@@ -113,8 +113,6 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = true
-		// b.BaseAsset = exch.BaseAsset
-		// b.QuoteAsset = exch.QuoteAsset
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
@@ -123,22 +121,21 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) {
 		b.Verbose = exch.Verbose
 		b.HTTPDebugging = exch.HTTPDebugging
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		// b.BaseCurrencies = exch.BaseCurrencies
-		// b.AvailablePairs = exch.AvailablePairs
-		// b.EnabledPairs = exch.EnabledPairs
-		var err error
-		// err := b.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = b.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = b.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
 		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)

@@ -35,7 +35,6 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	h.Setup(getDefaultConfig())
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
 	hConfig, err := cfg.GetExchangeConfig("Huobi")
@@ -47,15 +46,7 @@ func TestSetup(t *testing.T) {
 	hConfig.APIKey = apiKey
 	hConfig.APISecret = apiSecret
 
-	// <<<<<<< HEAD
-	// 	h.Setup(huobiConfig)
-	// >>>>>>> master
-	// =======
-	// 	h.Setup(hConfig)
-	// >>>>>>> upstrem/master
-	// =======
 	h.Setup(&hConfig)
-	// >>>>>>> upstrem/master
 }
 
 func setupWsTests(t *testing.T) {

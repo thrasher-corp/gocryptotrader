@@ -45,19 +45,24 @@ const (
 	rateLimit  = 20
 )
 
-// Instantiates a communications channel between websocket connections
+// comms 实例化websocket连接之间的通信通道
 var comms = make(chan WsMessage, 1)
 
-// WsConnect initiates a new websocket connection
+// WsConnect 初始化 websocket 连接
 func (h *HUOBI) WsConnect() error {
+	// 如果未启用，返回错误
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
+
+	// 设置代理URL，然后连接到websocket，同时异步监听返回消息
 	var dialer websocket.Dialer
 	err := h.wsDial(&dialer)
 	if err != nil {
 		return err
 	}
+
+	// 设置消息认证
 	err = h.wsAuthenticatedDial(&dialer)
 	if err != nil {
 		log.Errorf("%v - authenticated dial failed: %v", h.Name, err)
@@ -67,17 +72,23 @@ func (h *HUOBI) WsConnect() error {
 		log.Errorf("%v - authentication failed: %v", h.Name, err)
 	}
 
+	// 异步接收消息
 	go h.WsHandleData()
 	h.GenerateDefaultSubscriptions()
 
 	return nil
 }
 
+// wsDial 设置代理URL，然后连接到websocket，同时异步监听返回消息
 func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
+
+	// 设置代理URL，然后连接到websocket
 	err := h.WebsocketConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
+
+	// 异步监听 websocket 返回的消息
 	go h.wsMultiConnectionFunnel(h.WebsocketConn, wsMarketURL)
 	return nil
 }
@@ -94,7 +105,7 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 	return nil
 }
 
-// wsMultiConnectionFunnel manages data from multiple endpoints and passes it to a channel
+// wsMultiConnectionFunnel 管理来自多个端点的数据并将其传递给 channel
 func (h *HUOBI) wsMultiConnectionFunnel(ws *wshandler.WebsocketConnection, url string) {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
@@ -322,8 +333,10 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 	h.Websocket.SubscribeToChannels(subscriptions)
 }
 
-// Subscribe sends a websocket message to receive data from the channel
+// Subscribe 发送订阅消息到 websocket
 func (h *HUOBI) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+
+	// 如果包含 订单 和 帐号 请求 websocket 认证
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
@@ -331,7 +344,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 	return h.WebsocketConn.SendMessage(WsRequest{Subscribe: channelToSubscribe.Channel})
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
+// Unsubscribe 发送取消订阅消息到 websocket
 func (h *HUOBI) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
 		common.StringContains(channelToSubscribe.Channel, "accounts") {

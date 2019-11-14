@@ -30,7 +30,7 @@ func New() *Websocket {
 	}
 }
 
-// Setup sets main variables for websocket connection
+// Setup 设置 websocket 的变量和连接
 func (w *Websocket) Setup(connector func() error,
 	subscriber func(channelToSubscribe WebsocketChannelSubscription) error,
 	unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error,
@@ -47,16 +47,27 @@ func (w *Websocket) Setup(connector func() error,
 	w.TrafficAlert = make(chan struct{}, 1)
 	w.verbose = verbose
 
+	// 将交易所的订阅、取消订阅方法传递到 websocket 中
 	w.SetChannelSubscriber(subscriber)
 	w.SetChannelUnsubscriber(unsubscriber)
+
+	// 设置  websocket 连接状态
 	err := w.SetWsStatusAndConnection(wsEnabled)
 	if err != nil {
 		return err
 	}
+
+	// 设置 websocket 的默认 URL
 	w.SetDefaultURL(defaultURL)
+
+	// 设置 websocket
 	w.SetConnector(connector)
 	w.SetWebsocketURL(runningURL)
+
+	// 设置交易所名称
 	w.SetExchangeName(exchangeName)
+
+	// 设置是否支持 websocket 认证
 	w.SetCanUseAuthenticatedEndpoints(authenticatedWebsocketAPISupport)
 
 	w.init = false
@@ -66,7 +77,7 @@ func (w *Websocket) Setup(connector func() error,
 	return nil
 }
 
-// Connect intiates a websocket connection by using a package defined connection
+// Connect 使用包定义的连接初始化websocket连接
 // function
 func (w *Websocket) Connect() error {
 	w.m.Lock()
@@ -76,6 +87,7 @@ func (w *Websocket) Connect() error {
 		return errors.New(WebsocketNotEnabled)
 	}
 
+	// 如果已经连接，那么断开连接
 	if w.connected {
 		w.connecting = false
 		return errors.New("exchange_websocket.go error - already connected, cannot connect again")
@@ -83,6 +95,9 @@ func (w *Websocket) Connect() error {
 
 	w.connecting = true
 	w.ShutdownC = make(chan struct{}, 1)
+
+	// 默认第一次通过 SetWsStatusAndConnection 初始化进来时，err 是 nil
+	// 后面通过 Setup 设置后 会调用 Huobi交易所的 WsConnect() 方法，初始化 WebSocket 连接和订阅参数
 	err := w.connector()
 	if err != nil {
 		w.connecting = false
@@ -103,6 +118,8 @@ func (w *Websocket) Connect() error {
 	if !w.connectionMonitorRunning {
 		go w.connectionMonitor()
 	}
+
+	//
 	go w.manageSubscriptions()
 
 	return nil
@@ -333,7 +350,7 @@ func (w *Websocket) GetWebsocketURL() string {
 	return w.runningURL
 }
 
-// SetWsStatusAndConnection sets if websocket is enabled
+// SetWsStatusAndConnection 如果启用了websocket，则设置 wsstatusandconnection
 // it will also connect/disconnect the websocket connection
 func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
 	w.m.Lock()
@@ -354,6 +371,7 @@ func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
 				return nil
 			}
 			w.m.Unlock()
+			// 建立 websocket 连接
 			return w.Connect()
 		}
 
@@ -428,7 +446,7 @@ func (w *Websocket) GetFunctionality() uint32 {
 	return w.Functionality
 }
 
-// SupportsFunctionality returns if the functionality is supported as a boolean
+// SupportsFunctionality 判断是否支持相关的调用方法
 func (w *Websocket) SupportsFunctionality(f uint32) bool {
 	return w.GetFunctionality()&f == f
 }
@@ -513,8 +531,10 @@ func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscrib
 	w.channelUnsubscriber = unsubscriber
 }
 
-// ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
+// ManageSubscriptions 管理订阅信息
 func (w *Websocket) manageSubscriptions() {
+
+	// 判断是否支持订阅和取消订阅
 	if !w.SupportsFunctionality(WebsocketSubscribeSupported) && !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
 		w.DataHandler <- fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
 		return
@@ -526,6 +546,8 @@ func (w *Websocket) manageSubscriptions() {
 		}
 		w.Wg.Done()
 	}()
+
+	// 持续监听消息订阅
 	for {
 		select {
 		case <-w.ShutdownC:
@@ -556,12 +578,12 @@ func (w *Websocket) manageSubscriptions() {
 	}
 }
 
-// subscribeToChannels compares channelsToSubscribe to subscribedChannels
-// and subscribes to any channels not present in subscribedChannels
+// subscribeToChannels 发布订阅到频道
 func (w *Websocket) subscribeToChannels() error {
 	w.subscriptionLock.Lock()
 	defer w.subscriptionLock.Unlock()
 	for i := 0; i < len(w.channelsToSubscribe); i++ {
+		// 判断要 订阅的数据 和 已订阅的数 是否一致
 		channelIsSubscribed := false
 		for j := 0; j < len(w.subscribedChannels); j++ {
 			if w.subscribedChannels[j].Equal(&w.channelsToSubscribe[i]) {
@@ -569,10 +591,16 @@ func (w *Websocket) subscribeToChannels() error {
 				break
 			}
 		}
+		fmt.Println("channelIsSubscribed", channelIsSubscribed)
+		// 第一次进入时 channelIsSubscribed is false
 		if !channelIsSubscribed {
 			if w.verbose {
+				// [DEBUG]: 2019/11/14 16:05:51 Huobi Subscribing to market.btcusdt.kline.1min BTCUSDT
 				log.Debugf("%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
 			}
+
+			// {Channel:market.nasusdt.kline.1min Currency:NASUSDT Params:map[]}
+			// fmt.Printf("w.channelsToSubscribe[i]:%+v \n", w.channelsToSubscribe[i])
 			err := w.channelSubscriber(w.channelsToSubscribe[i])
 			if err != nil {
 				return err
@@ -713,7 +741,7 @@ func (w *WebsocketConnection) AddResponseWithID(id int64, data []byte) {
 	w.IDResponses[id] = data
 }
 
-// Dial sets proxy urls and then connects to the websocket
+// Dial 设置代理URL，然后连接到websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
 	if w.ProxyURL != "" {
 		proxy, err := url.Parse(w.ProxyURL)
@@ -735,7 +763,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	return nil
 }
 
-// SendMessage the one true message request. Sends message to WS
+// SendMessage 发送一个消息到 websocket
 func (w *WebsocketConnection) SendMessage(data interface{}) error {
 	w.Lock()
 	defer w.Unlock()

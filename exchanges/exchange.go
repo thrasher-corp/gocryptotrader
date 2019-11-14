@@ -29,9 +29,9 @@ const (
 	ErrExchangeNotFound = "exchange not found in dataset"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
-	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
+	// DefaultWebsocketResponseCheckTimeout websocket 响应时的默认延迟
 	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
-	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
+	// DefaultWebsocketResponseMaxLimit websocket 响应的默认最大等待时间
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
@@ -406,7 +406,7 @@ func (e *Base) GetHTTPClientUserAgent() string {
 	return e.HTTPUserAgent
 }
 
-// SetClientProxyAddress sets a proxy address for REST and websocket requests
+// SetClientProxyAddress 设置 URL 和 Websocket 的代理
 func (e *Base) SetClientProxyAddress(addr string) error {
 	if addr != "" {
 		proxy, err := url.Parse(addr)
@@ -431,8 +431,7 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 	return nil
 }
 
-// SetAutoPairDefaults sets the default values for whether or not the exchange
-// supports auto pair updating or not
+// SetAutoPairDefaults 设置是否支持自动更新交易对
 func (e *Base) SetAutoPairDefaults() error {
 	cfg := config.GetConfig()
 	exch, err := cfg.GetExchangeConfig(e.Name)
@@ -441,6 +440,8 @@ func (e *Base) SetAutoPairDefaults() error {
 	}
 
 	update := false
+
+	// 如果支持自动更新交易对
 	if e.SupportsAutoPairUpdating {
 		if !exch.SupportsAutoPairUpdates {
 			exch.SupportsAutoPairUpdates = true
@@ -456,6 +457,7 @@ func (e *Base) SetAutoPairDefaults() error {
 	}
 
 	if update {
+		// 更新交易所的配置
 		return cfg.UpdateExchangeConfig(&exch)
 	}
 	return nil
@@ -473,8 +475,7 @@ func (e *Base) GetLastPairsUpdateTime() int64 {
 	return e.PairsLastUpdated
 }
 
-// SetAssetTypes checks the exchange asset types (whether it supports SPOT,
-// Binary or Futures) and sets it to a default setting if it doesn't exist
+// SetAssetTypes 检查exchange资产类型（是否支持SPOT，二进制或期货）如果不存在，则将其设置为默认设置
 func (e *Base) SetAssetTypes() error {
 	cfg := config.GetConfig()
 	exch, err := cfg.GetExchangeConfig(e.Name)

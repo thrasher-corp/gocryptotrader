@@ -94,7 +94,11 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobiAPIURL
 	h.APIUrl = h.APIUrlDefault
+
+	// 初始化 WebSocket 实例
 	h.Websocket = wshandler.New()
+
+	// 使用位运算符，实际是相加后的结果
 	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
 		wshandler.WebsocketOrderbookSupported |
 		wshandler.WebsocketTradeDataSupported |
@@ -114,8 +118,8 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 		h.SetEnabled(false)
 	} else {
 		h.Enabled = true
-		// h.BaseAsset = exch.BaseAsset
-		// h.QuoteAsset = exch.QuoteAsset
+
+		// 是否允许 API 认证
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
@@ -126,6 +130,8 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.HTTPDebugging = exch.HTTPDebugging
+
+		// 设置 WebSocket 状态，建议连接，发送订阅
 		h.Websocket.SetWsStatusAndConnection(exch.Websocket)
 		h.BaseCurrencies = exch.BaseCurrencies
 		h.AvailablePairs = exch.AvailablePairs
@@ -134,22 +140,32 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// 设置交易类型，是币币还是其他
 		err = h.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// 设置是否支持自动更新交易对
 		err = h.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// 设置请求的 API URL
 		err = h.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// 如果配置了代理，设置 http 和 websocket 使用代理
 		err = h.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// 设置 websocket 的变量和连接
 		err = h.Websocket.Setup(h.WsConnect,
 			h.Subscribe,
 			h.Unsubscribe,
