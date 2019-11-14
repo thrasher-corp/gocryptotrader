@@ -25,6 +25,10 @@ func newVM() *VM {
 		return nil
 	}
 
+	if GCTScriptConfig.DebugMode {
+		log.Debugln(log.GCTScriptMgr, "New GCTScript VM created")
+	}
+
 	return &VM{
 		ID:     newUUID,
 		Script: pool.Get().(*script.Script),
@@ -37,6 +41,10 @@ func (vm *VM) Load(file string) error {
 		return &Error{
 			Cause: ErrScriptingDisabled,
 		}
+	}
+
+	if GCTScriptConfig.DebugMode {
+		log.Debugf(log.GCTScriptMgr, "Loading script: %v", file)
 	}
 
 	f, err := os.Open(file)
@@ -57,11 +65,15 @@ func (vm *VM) Load(file string) error {
 		}
 	}
 
+	vm.file = f.Name()
 	vm.Name = vm.shortName(file)
 	vm.Script = script.New(code)
 	vm.Script.SetImports(loader.GetModuleMap())
 
 	if GCTScriptConfig.AllowImports {
+		if GCTScriptConfig.DebugMode {
+			log.Debugf(log.GCTScriptMgr, "file imports enabled for vm: %v", vm.ID)
+		}
 		vm.Script.EnableFileImport(true)
 	}
 
@@ -100,7 +112,7 @@ func (vm *VM) CompileAndRun() (err error) {
 	}
 
 	if GCTScriptConfig.DebugMode {
-		log.Debugln(log.GCTScriptMgr, "Running script")
+		log.Debugf(log.GCTScriptMgr, "Running script: %v", vm.ID)
 	}
 
 	err = vm.RunCtx()
@@ -130,16 +142,17 @@ func (vm *VM) Shutdown() error {
 		vm.S <- struct{}{}
 		close(vm.S)
 	}
+	if GCTScriptConfig.DebugMode {
+		log.Debugf(log.GCTScriptMgr, "Shutting script: %v", vm.ID)
+	}
 	return RemoveVM(vm.ID)
 }
 
 func (vm *VM) Read() ([]byte, error) {
-	scriptPath := filepath.Join(ScriptPath, vm.Name)
-	data, err := ioutil.ReadFile(scriptPath)
-	if err != nil {
-		return nil, err
+	if GCTScriptConfig.DebugMode {
+		log.Debugf(log.GCTScriptMgr, "Read script: %v", vm.ID)
 	}
-	return data, nil
+	return ioutil.ReadFile(vm.file)
 }
 
 func (vm *VM) shortName(file string) string {

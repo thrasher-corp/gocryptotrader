@@ -11,10 +11,12 @@ import (
 // Wrapper instance of GCT to use for modules
 var Wrapper GCT
 
+// GCT interface requirements
 type GCT interface {
 	Exchange
 }
 
+// Exchange interface requirements
 type Exchange interface {
 	Exchanges(enabledOnly bool) []string
 
@@ -60,7 +62,7 @@ Orderbook - done
 Ticker - done
 Enabled pairs - done
 Enabled exchanges - done
-Submit order
+Submit order - done
 Cancel order - done
 Query Order - done
 Account information (balance etc) - done

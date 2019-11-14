@@ -72,6 +72,7 @@ func (e Exchange) Ticker(exch string, pair currency.Pair, item asset.Item) (*tic
 	return &tx, nil
 }
 
+// Pairs returns either all or enabled currency pairs
 func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error) {
 	x, err := engine.Bot.Config.GetExchangeConfig(exch)
 	if err != nil {
@@ -84,6 +85,7 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (currenc
 	return x.CurrencyPairs.Get(item).Available, nil
 }
 
+// QueryOrder returns details of a valid exchange order
 func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
@@ -98,6 +100,7 @@ func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 	return &r, nil
 }
 
+// SubmitOrder submit new order on exchange
 func (e Exchange) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
@@ -112,6 +115,7 @@ func (e Exchange) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitR
 	return &r, nil
 }
 
+// CancelOrder wrapper to cancel order on exchange
 func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
@@ -137,6 +141,7 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 	return true, nil
 }
 
+// AccountInformation returns account information (balance etc) for requested exchange
 func (e Exchange) AccountInformation(exch string) (modules.AccountInfo, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {

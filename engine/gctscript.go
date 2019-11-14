@@ -70,7 +70,7 @@ func (g *gctScriptManager) run() {
 func (g *gctScriptManager) autoLoad() {
 	for x := range Bot.Config.GCTScript.AutoLoad {
 		temp := vm.New()
-		scriptPath := filepath.Join(vm.ScriptPath, Bot.Config.GCTScript.AutoLoad[x]+".gctgo")
+		scriptPath := filepath.Join(vm.ScriptPath, Bot.Config.GCTScript.AutoLoad[x]+".gct")
 		err := temp.Load(scriptPath)
 		if err != nil {
 			fmt.Println(err)

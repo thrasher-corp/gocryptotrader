@@ -1,12 +1,14 @@
 package gct
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/d5/tengo/objects"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
@@ -240,18 +242,54 @@ func ExchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error)
 	exchangeName, _ := objects.ToString(args[0])
 	orderID, _ := objects.ToString(args[1])
 
-	_, err = modules.Wrapper.CancelOrder(exchangeName, orderID)
+	rtn, err := modules.Wrapper.CancelOrder(exchangeName, orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	if rtn {
+		return objects.TrueValue, nil
+	}
+	return objects.FalseValue, nil
 }
 
 func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error) {
-	if len(args) != 2 {
+	if len(args) != 8 {
 		err = objects.ErrWrongNumArguments
 		return
 	}
+
+	exchangeName, _ := objects.ToString(args[0])
+	currencyPair, _ := objects.ToString(args[1])
+	delimiter, _ := objects.ToString(args[2])
+
+	orderType, _ := objects.ToString(args[3])
+	orderSide, _ := objects.ToString(args[4])
+	orderPrice, _ := objects.ToFloat64(args[5])
+	orderAmount, _ := objects.ToFloat64(args[6])
+	orderClientID, _ := objects.ToString(args[7])
+
+	pair := currency.NewPairDelimiter(currencyPair, delimiter)
+
+	tempSubmit := &order.Submit{
+		Pair:      pair,
+		OrderType: order.Type(orderType),
+		OrderSide: order.Side(orderSide),
+		Price:     orderPrice,
+		Amount:    orderAmount,
+		ClientID:  orderClientID,
+	}
+
+	err = tempSubmit.Validate()
+	if err != nil {
+		return
+	}
+
+	rtn, err := modules.Wrapper.SubmitOrder(exchangeName, tempSubmit)
+	if err != nil {
+		return
+	}
+	fmt.Println(rtn)
+
 	return nil, nil
 }

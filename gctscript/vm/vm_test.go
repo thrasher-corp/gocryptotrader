@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	testScript       = "../../testdata/gctscript/test.gctgo"
-	testScriptRunner = "../../testdata/gctscript/runner.gctgo"
+	testScript       = "../../testdata/gctscript/once.gct"
+	testScriptRunner = "../../testdata/gctscript/timer.gct"
 )
 
 func TestMain(m *testing.M) {
@@ -41,6 +41,18 @@ func TestVMLoad(t *testing.T) {
 	err = testVM.Load(testScript)
 	if err != nil {
 		if !errors.Is(err, ErrScriptingDisabled) {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestVMLoadNoFile(t *testing.T) {
+	testVM := New()
+
+	GCTScriptConfig = configHelper(true, false, 0)
+	err := testVM.Load("missing file")
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
 			t.Fatal(err)
 		}
 	}
@@ -176,6 +188,18 @@ func TestRemoveVM(t *testing.T) {
 
 	if !errors.Is(err, ErrNoVMFound) {
 		t.Fatal(err)
+	}
+}
+
+func TestError_Error(t *testing.T) {
+	x := Error{
+		Script: "noscript.gct",
+		Action: "test",
+		Cause:  errors.New("HELLO ERROR"),
+	}
+
+	if x.Error() != "GCT Script: (ACTION) test (SCRIPT) noscript.gct HELLO ERROR" {
+		t.Fatal(x.Error())
 	}
 }
 

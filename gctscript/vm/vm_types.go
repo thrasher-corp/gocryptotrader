@@ -11,9 +11,9 @@ import (
 
 // VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
 type VM struct {
-	ID   uuid.UUID
-	Name string
-
+	ID       uuid.UUID
+	Name     string
+	file     string
 	Script   *script.Script
 	Compiled *script.Compiled
 

@@ -1,0 +1,142 @@
+# GoCryptoTrader package gctscript
+
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+
+
+[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/portfolio)
+[![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
+
+
+This gctscript package is part of the GoCryptoTrader codebase.
+
+## This is still in active development
+
+You can track ideas, planned features and what's in progress on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
+
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
+
+## Current Features for gctscript package
+
++ Execute scripts
++ Terminate scripts
++ Autoload scripts on bot startup
++ Current Exchange features supported:
+  + Enabled Exchanges
+  + Enabled currency pairs
+  + Account information
+  + Query Order
+  + Submit Order
+  + Cancel Order
+  + Ticker
+  + Orderbook
+
+## How to use
+
+##### Configuration
+
+The database configuration struct is currently: 
+```shell script
+type Config struct {
+	Enabled       bool          `json:"enabled"`
+	ScriptTimeout time.Duration `json:"timeout"`
+	AllowImports  bool          `json:"allow_imports"`
+	AutoLoad      []string      `json:"auto_load"`
+	DebugMode     bool          `json:"debug"`
+}
+```
+
+With an example configuration being:
+
+```sh
+ "gctscript": {
+  "enabled": true,
+  "timeout": 600000000,
+  "allow_imports": true,
+  "auto_load": [],
+  "debug": false
+ },
+```
+##### Script Control
++ You can autoload scripts on bot start up by placing their name in the "auto_load" config entry
+  ```shell script
+  "auto_load": ["one","two"]
+  ```
+  This will look in your GoCryptoTrader data directory in a folder called "scripts" for files one.gct and two.gct and autoload them
++ Manual control of scripts can be done via the gctcli command with support for the following:
+  
+  - Start/Execute:
+  ```shell script
+    gctcli gctscript execute <scriptname> <pathoverride>
+    gctcli gctscript execute "timer.gct" "~/gctscript"
+  
+    {
+      "status": "ok",
+      "data": "timer.gct executed"
+    }
+  ```
+  - Stop:
+  ```shell script
+    gctcli gctscript stop <uuid>
+    gctcli gctscript stop 821bd73e-02b1-4974-9463-874cb49f130d
+  
+    {
+      "status": "ok",
+      "data": "821bd73e-02b1-4974-9463-874cb49f130d terminated"
+    }
+  ```
+  - Status:
+  ```shell script
+    gctcli gctscript status 
+  
+    {
+      "status": "ok",
+      "scripts": [
+        {
+          "uuid": "821bd73e-02b1-4974-9463-874cb49f130d",
+          "name": "timer.gct",
+          "next_run": "2019-11-14 13:11:40.224919456 +1100 AEDT m=+91.062103259"
+        }
+      ]
+    }
+  ```
+  - Read:
+  ```shell script
+    gctcli gctscript read <uuid>
+    gctcli gctscript read 821bd73e-02b1-4974-9463-874cb49f130d
+  
+    fmt := import("fmt")
+    t := import("times")
+
+    name := "run"
+    timer := "5s"
+
+    load := func() {
+	    fmt.printf("5s %s\n",t.now())
+    }
+    load()  
+   ```
+##### Scripting
+
+
+## Contribution
+
+Please feel free to submit any pull requests or suggest any desired features to be added.
+
+When submitting a PR, please abide by our coding guidelines:
+
++ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
++ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
++ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/doc/coding_style.md).
++ Pull requests need to be based on and opened against the `master` branch.
+
+## Donations
+
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+
+If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
+
+***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
+
