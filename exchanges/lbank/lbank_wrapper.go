@@ -192,7 +192,7 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 				Pair:        tickerInfo[j].Symbol,
 				LastUpdated: time.Unix(0, tickerInfo[j].Timestamp),
 			}
-			err = ticker.ProcessTicker(l.GetName(), &tickerPrice, assetType)
+			err = ticker.ProcessTicker(l.Name, &tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -203,7 +203,7 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchTicker returns the ticker for a currency pair
 func (l *Lbank) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(),
+	tickerNew, err := ticker.GetTicker(l.Name,
 		l.FormatExchangeCurrency(p, assetType), assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
@@ -213,7 +213,7 @@ func (l *Lbank) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(l.GetName(), currency, assetType)
+	ob, err := orderbook.Get(l.Name, currency, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(currency, assetType)
 	}
@@ -238,7 +238,7 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 			Amount: a.Bids[i][1]})
 	}
 	orderBook.Pair = p
-	orderBook.ExchangeName = l.GetName()
+	orderBook.ExchangeName = l.Name
 	orderBook.AssetType = assetType
 	err = orderBook.Process()
 	if err != nil {
@@ -278,7 +278,7 @@ func (l *Lbank) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	info.Accounts = append(info.Accounts, account)
-	info.Exchange = l.GetName()
+	info.Exchange = l.Name
 	return info, nil
 }
 
@@ -405,7 +405,7 @@ func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
 			if err != nil {
 				return resp, err
 			}
-			resp.Exchange = l.GetName()
+			resp.Exchange = l.Name
 			resp.CurrencyPair = currency.NewPairFromString(key)
 			if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
 				resp.OrderSide = order.Buy
@@ -451,7 +451,9 @@ func (l *Lbank) GetDepositAddress(cryptocurrency currency.Code, accountID string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *Lbank) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	resp, err := l.Withdraw(withdrawRequest.Address, withdrawRequest.Currency.String(), strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64), "", withdrawRequest.Description)
+	resp, err := l.Withdraw(withdrawRequest.Address, withdrawRequest.Currency.String(),
+		strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64), "",
+		withdrawRequest.Description, "")
 	return resp.WithdrawID, err
 }
 
@@ -487,7 +489,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			if err != nil {
 				return finalResp, err
 			}
-			resp.Exchange = l.GetName()
+			resp.Exchange = l.Name
 			resp.CurrencyPair = currency.NewPairFromString(key)
 			if strings.EqualFold(tempResp.Orders[0].Type, "buy") {
 				resp.OrderSide = order.Buy
@@ -563,7 +565,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				return finalResp, err
 			}
 			for x := 0; x < len(tempResp.Orders); x++ {
-				resp.Exchange = l.GetName()
+				resp.Exchange = l.Name
 				resp.CurrencyPair = currency.NewPairFromString(tempResp.Orders[x].Symbol)
 				if strings.EqualFold(tempResp.Orders[x].Type, "buy") {
 					resp.OrderSide = order.Buy
