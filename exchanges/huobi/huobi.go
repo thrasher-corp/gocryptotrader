@@ -206,7 +206,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
 	}
 }
 
-// GetSpotKline returns kline data
+// GetSpotKline returns K 线数据（蜡烛图)
 // KlinesRequestParams contains symbol, period and size
 func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
