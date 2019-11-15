@@ -23,7 +23,7 @@ type Exchange interface {
 	IsEnabled(exch string) bool
 	Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error)
 	Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
-	Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error)
+	Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error)
 
 	QueryOrder(exch, orderid string) (*order.Detail, error)
 	SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error)

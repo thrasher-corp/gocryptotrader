@@ -73,16 +73,16 @@ func (e Exchange) Ticker(exch string, pair currency.Pair, item asset.Item) (*tic
 }
 
 // Pairs returns either all or enabled currency pairs
-func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (currency.Pairs, error) {
+func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error) {
 	x, err := engine.Bot.Config.GetExchangeConfig(exch)
 	if err != nil {
 		return nil, err
 	}
 
 	if enabledOnly {
-		return x.CurrencyPairs.Get(item).Enabled, nil
+		return &x.CurrencyPairs.Get(item).Enabled, nil
 	}
-	return x.CurrencyPairs.Get(item).Available, nil
+	return &x.CurrencyPairs.Get(item).Available, nil
 }
 
 // QueryOrder returns details of a valid exchange order

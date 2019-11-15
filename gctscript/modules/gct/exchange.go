@@ -1,7 +1,6 @@
 package gct
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/d5/tengo/objects"
@@ -39,7 +38,7 @@ func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 
 	ob, err := modules.Wrapper.Orderbook(exchangeName, pairs, assetType)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	var asks, bids objects.Array
@@ -65,11 +64,9 @@ func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 	data["bids"] = &bids
 	data["asset"] = &objects.String{Value: ob.AssetType.String()}
 
-	r := objects.Map{
+	return &objects.Map{
 		Value: data,
-	}
-
-	return &r, nil
+	}, nil
 }
 
 func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
@@ -88,7 +85,7 @@ func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 
 	tx, err := modules.Wrapper.Ticker(exchangeName, pairs, assetType)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	data := make(map[string]objects.Object, 13)
@@ -142,12 +139,13 @@ func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 
 	rtnValue, err := modules.Wrapper.Pairs(exchangeName, enabledOnly, assetType)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	r := objects.Array{}
-	for x := range rtnValue {
-		r.Value = append(r.Value, &objects.String{Value: rtnValue[x].String()})
+	for x := range *rtnValue {
+		v := *rtnValue
+		r.Value = append(r.Value, &objects.String{Value: v[x].String()})
 	}
 
 	return &r, nil
@@ -162,7 +160,7 @@ func ExchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error)
 	exchangeName, _ := objects.ToString(args[0])
 	rtnValue, err := modules.Wrapper.AccountInformation(exchangeName)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	var funds objects.Array
@@ -196,7 +194,7 @@ func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 
 	orderDetails, err := modules.Wrapper.QueryOrder(exchangeName, orderID)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	var tradeHistory objects.Array
@@ -244,7 +242,7 @@ func ExchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error)
 
 	rtn, err := modules.Wrapper.CancelOrder(exchangeName, orderID)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	if rtn {
@@ -289,7 +287,16 @@ func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error)
 	if err != nil {
 		return
 	}
-	fmt.Println(rtn)
 
-	return nil, nil
+	data := make(map[string]objects.Object, 2)
+	data["orderid"] = &objects.String{Value: rtn.OrderID}
+	if rtn.IsOrderPlaced {
+		data["isorderplaced"] = objects.TrueValue
+	} else {
+		data["isorderplaced"] = objects.FalseValue
+	}
+
+	return &objects.Map{
+		Value: data,
+	}, nil
 }

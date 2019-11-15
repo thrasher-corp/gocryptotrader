@@ -92,7 +92,7 @@ func (vm *VM) Run() (err error) {
 	return vm.Compiled.Run()
 }
 
-// RunCtx runs compiled bytecode with context.Context support
+// RunCtx runs compiled byte code with context.Context support.
 func (vm *VM) RunCtx() (err error) {
 	if vm.ctx == nil {
 		vm.ctx = context.Background()
