@@ -41,6 +41,7 @@ const (
 	bitstampAPIBitcoinWithdrawal  = "bitcoin_withdrawal"
 	bitstampAPILTCWithdrawal      = "ltc_withdrawal"
 	bitstampAPIETHWithdrawal      = "eth_withdrawal"
+	bitstampAPIBCHWithdrawal      = "bch_withdrawal"
 	bitstampAPIBitcoinDeposit     = "bitcoin_deposit_address"
 	bitstampAPILitecoinDeposit    = "ltc_address"
 	bitstampAPIEthereumDeposit    = "eth_address"
@@ -265,7 +266,7 @@ func (b *Bitstamp) GetBalance() (Balances, error) {
 	balances := make(map[string]Balance)
 	for k := range balance {
 		curr := k[0:3]
-		_, ok := balances[curr]
+		_, ok := balances[strings.ToUpper(curr)]
 		if !ok {
 			avail, _ := strconv.ParseFloat(balance[curr+"_available"], 64)
 			bal, _ := strconv.ParseFloat(balance[curr+"_balance"], 64)
@@ -462,22 +463,24 @@ func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag str
 	var endpoint string
 
 	switch strings.ToLower(symbol) {
-	case "btc":
+	case currency.BTC.Lower().String():
 		if instant {
 			req.Add("instant", "1")
 		} else {
 			req.Add("instant", "0")
 		}
 		endpoint = bitstampAPIBitcoinWithdrawal
-	case "ltc":
+	case currency.LTC.Lower().String():
 		endpoint = bitstampAPILTCWithdrawal
-	case "eth":
+	case currency.ETH.Lower().String():
 		endpoint = bitstampAPIETHWithdrawal
-	case "xrp":
+	case currency.XRP.Lower().String():
 		if destTag != "" {
 			req.Add("destination_tag", destTag)
 		}
 		endpoint = bitstampAPIXrpWithdrawal
+	case currency.BCH.Lower().String():
+		endpoint = bitstampAPIBCHWithdrawal
 	default:
 		return resp, errors.New("incorrect symbol")
 	}

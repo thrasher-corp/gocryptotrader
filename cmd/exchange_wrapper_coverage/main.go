@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -70,6 +72,12 @@ func main() {
 func testWrappers(e exchange.IBotExchange) []string {
 	p := currency.NewPair(currency.BTC, currency.USD)
 	assetType := asset.Spot
+	if !e.SupportsAsset(assetType) {
+		assets := e.GetAssetTypes()
+		rand.Seed(time.Now().Unix())
+		assetType = assets[rand.Intn(len(assets))]
+	}
+
 	var funcs []string
 
 	_, err := e.FetchTicker(p, assetType)

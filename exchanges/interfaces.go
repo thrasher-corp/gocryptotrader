@@ -66,4 +66,5 @@ type IBotExchange interface {
 	GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error)
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base
+	SupportsAsset(assetType asset.Item) bool
 }
