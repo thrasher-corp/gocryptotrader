@@ -434,7 +434,7 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 	return h.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
-func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsListResponse, error) {
+func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
 	}
@@ -446,7 +446,6 @@ func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsL
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            wsAccountsList,
-		Symbol:           h.FormatExchangeCurrency(pair, asset.Spot).String(),
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
 	request.Signature = crypto.Base64Encode(hmac)

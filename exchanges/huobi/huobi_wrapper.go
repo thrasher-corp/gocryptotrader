@@ -395,62 +395,80 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
 	info.Exchange = h.Name
-
-	accounts, err := h.GetAccountID()
-	if err != nil {
-		return info, err
-	}
-
-	for i := range accounts {
-		var acc exchange.Account
-		acc.ID = strconv.FormatInt(accounts[i].ID, 10)
-		balances, err := h.GetAccountBalance(acc.ID)
+	if h.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+		resp, err := h.wsGetAccountsList()
 		if err != nil {
 			return info, err
 		}
-
 		var currencyDetails []exchange.AccountCurrencyInfo
-		for j := range balances {
-			var frozen bool
-			if balances[j].Type == "frozen" {
-				frozen = true
+		for i := range resp.Data {
+			currData := exchange.AccountCurrencyInfo{
+				CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
+				TotalValue:   resp.Data[i].List[0].Balance,
+			}
+			if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
+				currData.Hold = resp.Data[i].List[1].Balance
+			}
+			currencyDetails = append(currencyDetails, currData)
+		}
+		var acc exchange.Account
+		acc.Currencies = currencyDetails
+		info.Accounts = append(info.Accounts, acc)
+	} else {
+		accounts, err := h.GetAccountID()
+		if err != nil {
+			return info, err
+		}
+		for i := range accounts {
+			var acc exchange.Account
+			acc.ID = strconv.FormatInt(accounts[i].ID, 10)
+			balances, err := h.GetAccountBalance(acc.ID)
+			if err != nil {
+				return info, err
 			}
 
-			var updated bool
-			for i := range currencyDetails {
-				if currencyDetails[i].CurrencyName == currency.NewCode(balances[j].Currency) {
-					if frozen {
-						currencyDetails[i].Hold = balances[j].Balance
-					} else {
-						currencyDetails[i].TotalValue = balances[j].Balance
+			var currencyDetails []exchange.AccountCurrencyInfo
+			for j := range balances {
+				var frozen bool
+				if balances[j].Type == "frozen" {
+					frozen = true
+				}
+
+				var updated bool
+				for i := range currencyDetails {
+					if currencyDetails[i].CurrencyName == currency.NewCode(balances[j].Currency) {
+						if frozen {
+							currencyDetails[i].Hold = balances[j].Balance
+						} else {
+							currencyDetails[i].TotalValue = balances[j].Balance
+						}
+						updated = true
 					}
-					updated = true
+				}
+
+				if updated {
+					continue
+				}
+
+				if frozen {
+					currencyDetails = append(currencyDetails,
+						exchange.AccountCurrencyInfo{
+							CurrencyName: currency.NewCode(balances[j].Currency),
+							Hold:         balances[j].Balance,
+						})
+				} else {
+					currencyDetails = append(currencyDetails,
+						exchange.AccountCurrencyInfo{
+							CurrencyName: currency.NewCode(balances[j].Currency),
+							TotalValue:   balances[j].Balance,
+						})
 				}
 			}
 
-			if updated {
-				continue
-			}
-
-			if frozen {
-				currencyDetails = append(currencyDetails,
-					exchange.AccountCurrencyInfo{
-						CurrencyName: currency.NewCode(balances[j].Currency),
-						Hold:         balances[j].Balance,
-					})
-			} else {
-				currencyDetails = append(currencyDetails,
-					exchange.AccountCurrencyInfo{
-						CurrencyName: currency.NewCode(balances[j].Currency),
-						TotalValue:   balances[j].Balance,
-					})
-			}
+			acc.Currencies = currencyDetails
+			info.Accounts = append(info.Accounts, acc)
 		}
-
-		acc.Currencies = currencyDetails
-		info.Accounts = append(info.Accounts, acc)
 	}
-
 	return info, nil
 }
 
