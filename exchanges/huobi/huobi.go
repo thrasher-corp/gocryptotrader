@@ -44,7 +44,7 @@ const (
 	huobiOrderCancel           = "order/orders/%s/submitcancel"
 	huobiOrderCancelBatch      = "order/orders/batchcancel"
 	huobiBatchCancelOpenOrders = "order/orders/batchCancelOpenOrders"
-	huobiGetOrder              = "order/orders/%s"
+	huobiGetOrder              = "order/orders/getClientOrder"
 	huobiGetOrderMatch         = "order/orders/%s/matchresults"
 	huobiGetOrders             = "order/orders"
 	huobiGetOpenOrders         = "order/openOrders"
@@ -443,8 +443,9 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 	}
 
 	var result response
-	endpoint := fmt.Sprintf(huobiGetOrder, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, endpoint, url.Values{}, nil, &result)
+	urlVal := url.Values{}
+	urlVal.Set("clientOrderId", strconv.FormatInt(orderID, 10))
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOrder, urlVal, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return result.Order, errors.New(result.ErrorMessage)
@@ -855,8 +856,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		values.Set("PrivateSignature", crypto.Base64Encode(privSig))
 	}
 
-	urlPath := fmt.Sprintf("%s%s", common.EncodeURLValues(h.API.Endpoints.URL, values),
-		endpoint)
+	urlPath := fmt.Sprintf("%s%s", h.API.Endpoints.URL, common.EncodeURLValues(endpoint, values))
 
 	var body []byte
 

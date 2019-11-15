@@ -194,7 +194,7 @@ func TestGetTimestamp(t *testing.T) {
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
 
-	if !h.ValidateAPICredentials() {
+	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
 
@@ -207,7 +207,7 @@ func TestGetAccounts(t *testing.T) {
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 
-	if !h.ValidateAPICredentials() {
+	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
 
@@ -239,7 +239,7 @@ func TestGetAggregatedBalance(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if !h.ValidateAPICredentials() {
+	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
 
@@ -259,8 +259,9 @@ func TestSpotNewOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-
-	_, err := h.CancelExistingOrder(1337)
+	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+		t.Skip()
+	}	_, err := h.CancelExistingOrder(1337)
 	if err == nil {
 		t.Error("Huobi TestCancelExistingOrder Expected error")
 	}
@@ -268,11 +269,12 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-
+	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+		t.Skip()
+	}
 	_, err := h.GetOrder(1337)
-	if err == nil {
-		t.Error("Huobi TestCancelOrder Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -304,7 +306,9 @@ func TestGetMarginAccountBalance(t *testing.T) {
 
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
-
+	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+		t.Skip()
+	}
 	_, err := h.CancelWithdraw(1337)
 	if err == nil {
 		t.Error("Huobi TestCancelWithdraw Expected error")
@@ -649,7 +653,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsGetAccountsList connects to WS, logs in, gets account list
 func TestWsGetAccountsList(t *testing.T) {
 	setupWsTests(t)
-	resp, err := h.wsGetAccountsList(currency.NewPairFromString("ethbtc"))
+	resp, err := h.wsGetAccountsList()
 	if err != nil {
 		t.Fatal(err)
 	}
