@@ -261,7 +261,8 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
-	}	_, err := h.CancelExistingOrder(1337)
+	}
+	_, err := h.CancelExistingOrder(1337)
 	if err == nil {
 		t.Error("Huobi TestCancelExistingOrder Expected error")
 	}
