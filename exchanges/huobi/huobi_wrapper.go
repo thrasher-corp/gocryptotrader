@@ -96,6 +96,8 @@ func (h *HUOBI) SetDefaults() {
 				AuthenticatedEndpoints: true,
 				AccountInfo:            true,
 				MessageCorrelation:     true,
+				GetOrder:               true,
+				GetOrders:              true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -552,7 +554,56 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 // GetOrderInfo returns information on a current open order
 func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	var respData *OrderInfo
+	if h.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+		resp, err := h.wsGetOrderDetails(orderID)
+		if err != nil {
+			return orderDetail, err
+		}
+		respData = &resp.Data
+	} else {
+		oID, err := strconv.ParseInt(orderID, 10, 64)
+		if err != nil {
+			return orderDetail, err
+		}
+		resp, err := h.GetOrder(oID)
+		if err != nil {
+			return orderDetail, err
+		}
+		respData = &resp
+	}
+	if respData.ID == 0 {
+		return orderDetail, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
+	}
+
+	typeDetails := strings.Split(respData.Type, "-")
+	orderSide, err := order.StringToOrderSide(typeDetails[0])
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "%s - orderSide not recognised %s for orderid %v", h.Name, typeDetails[0], respData.ID)
+	}
+	orderType, err := order.StringToOrderType(typeDetails[1])
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "%s - orderType not recognised %s for orderid %v", h.Name, typeDetails[1], respData.ID)
+	}
+	orderStatus, err := order.StringToOrderStatus(respData.State)
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "%s - order status not recognised %s for orderid %v", h.Name, respData.State, respData.ID)
+	}
+	orderDetail = order.Detail{
+		Exchange:       h.Name,
+		ID:             strconv.FormatInt(respData.ID, 64),
+		AccountID:      strconv.FormatInt(respData.AccountID, 64),
+		CurrencyPair:   currency.NewPairFromString(respData.Symbol),
+		OrderType:      orderType,
+		OrderSide:      orderSide,
+		OrderDate:      time.Unix(respData.CreatedAt, 0),
+		Status:         orderStatus,
+		Price:          respData.Price,
+		Amount:         respData.Amount,
+		ExecutedAmount: respData.FilledAmount,
+		Fee:            respData.FilledFees,
+	}
+	return orderDetail, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -608,32 +659,73 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 	var orders []order.Detail
 
-	for i := range req.Currencies {
-		resp, err := h.GetOpenOrders(h.API.Credentials.ClientID,
-			req.Currencies[i].Lower().String(),
-			side,
-			500)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range resp {
-			orderDetail := order.Detail{
-				ID:             strconv.FormatInt(int64(resp[i].ID), 10),
-				Price:          resp[i].Price,
-				Amount:         resp[i].Amount,
-				CurrencyPair:   req.Currencies[i],
-				Exchange:       h.Name,
-				ExecutedAmount: resp[i].FilledAmount,
-				OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
-				Status:         order.Status(resp[i].State),
-				AccountID:      strconv.FormatFloat(resp[i].AccountID, 'f', -1, 64),
-				Fee:            resp[i].FilledFees,
+	if h.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+		for i := range req.Currencies {
+			resp, err := h.wsGetOrdersList(-1, req.Currencies[i])
+			if err != nil {
+				return orders, err
+			}
+			for j := range resp.Data {
+				sideData := strings.Split(resp.Data[j].OrderState, "-")
+				side := sideData[0]
+				orderSide, err := order.StringToOrderSide(side)
+				if err != nil {
+					log.Warnf(log.ExchangeSys, "%s - orderSide not recognised %s for orderid %v", h.Name, side, resp.Data[j].OrderID)
+				}
+				orderType, err := order.StringToOrderType(sideData[1])
+				if err != nil {
+					log.Warnf(log.ExchangeSys, "%s - orderType not recognised %s for orderid %v", h.Name, sideData[1], resp.Data[j].OrderID)
+				}
+				orderStatus, err := order.StringToOrderStatus(resp.Data[j].OrderState)
+				if err != nil {
+					log.Warnf(log.ExchangeSys, "%s - order status not recognised %s for orderid %v", h.Name, resp.Data[j].OrderState, resp.Data[j].OrderID)
+				}
+				orders = append(orders, order.Detail{
+					Exchange:        h.Name,
+					AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 64),
+					ID:              strconv.FormatInt(resp.Data[j].OrderID, 64),
+					CurrencyPair:    req.Currencies[i],
+					OrderType:       orderType,
+					OrderSide:       orderSide,
+					OrderDate:       time.Unix(resp.Data[j].CreatedAt, 0),
+					Status:          orderStatus,
+					Price:           resp.Data[j].Price,
+					Amount:          resp.Data[j].OrderAmount,
+					ExecutedAmount:  resp.Data[j].FilledAmount,
+					RemainingAmount: resp.Data[j].UnfilledAmount,
+					Fee:             resp.Data[j].FilledFees,
+				})
 			}
 
-			setOrderSideAndType(resp[i].Type, &orderDetail)
+		}
+	} else {
+		for i := range req.Currencies {
+			resp, err := h.GetOpenOrders(h.API.Credentials.ClientID,
+				req.Currencies[i].Lower().String(),
+				side,
+				500)
+			if err != nil {
+				return nil, err
+			}
 
-			orders = append(orders, orderDetail)
+			for i := range resp {
+				orderDetail := order.Detail{
+					ID:             strconv.FormatInt(int64(resp[i].ID), 10),
+					Price:          resp[i].Price,
+					Amount:         resp[i].Amount,
+					CurrencyPair:   req.Currencies[i],
+					Exchange:       h.Name,
+					ExecutedAmount: resp[i].FilledAmount,
+					OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
+					Status:         order.Status(resp[i].State),
+					AccountID:      strconv.FormatInt(resp[i].AccountID, 64),
+					Fee:            resp[i].FilledFees,
+				}
+
+				setOrderSideAndType(resp[i].Type, &orderDetail)
+
+				orders = append(orders, orderDetail)
+			}
 		}
 	}
 
@@ -673,7 +765,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 				ExecutedAmount: resp[i].FilledAmount,
 				OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
 				Status:         order.Status(resp[i].State),
-				AccountID:      strconv.FormatFloat(resp[i].AccountID, 'f', -1, 64),
+				AccountID:      strconv.FormatInt(resp[i].AccountID, 64),
 				Fee:            resp[i].FilledFees,
 			}
 

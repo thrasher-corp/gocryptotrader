@@ -1,6 +1,7 @@
 package order
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -298,5 +299,66 @@ func SortOrdersBySide(orders *[]Detail, reverse bool) {
 		sort.Sort(sort.Reverse(ByOrderSide(*orders)))
 	} else {
 		sort.Sort(ByOrderSide(*orders))
+	}
+}
+
+func StringToOrderSide(side string) (Side, error) {
+	switch {
+	case strings.EqualFold(side, Buy.String()):
+		return Buy, nil
+	case strings.EqualFold(side, Sell.String()):
+		return Sell, nil
+	case strings.EqualFold(side, Bid.String()):
+		return Bid, nil
+	case strings.EqualFold(side, Ask.String()):
+		return Ask, nil
+	case strings.EqualFold(side, AnySide.String()):
+		return AnySide, nil
+	default:
+		return Side(""), fmt.Errorf("%s not recognised as side type")
+	}
+}
+
+func StringToOrderType(oType string) (Type, error) {
+	switch {
+	case strings.EqualFold(oType, Limit.String()):
+		return Limit, nil
+	case strings.EqualFold(oType, Market.String()):
+		return Market, nil
+	case strings.EqualFold(oType, ImmediateOrCancel.String()):
+		return ImmediateOrCancel, nil
+	case strings.EqualFold(oType, Stop.String()):
+		return Stop, nil
+	case strings.EqualFold(oType, TrailingStop.String()):
+		return TrailingStop, nil
+	default:
+		return Unknown, fmt.Errorf("%s not recognised as order type")
+	}
+}
+
+func StringToOrderStatus(status string) (Status, error) {
+	switch {
+	case strings.EqualFold(status, AnyStatus.String()):
+		return AnyStatus, nil
+	case strings.EqualFold(status, New.String()):
+		return New, nil
+	case strings.EqualFold(status, Active.String()):
+		return Active, nil
+	case strings.EqualFold(status, PartiallyFilled.String()):
+		return PartiallyFilled, nil
+	case strings.EqualFold(status, Filled.String()):
+		return Filled, nil
+	case strings.EqualFold(status, Cancelled.String()):
+		return Cancelled, nil
+	case strings.EqualFold(status, PendingCancel.String()):
+		return PendingCancel, nil
+	case strings.EqualFold(status, Rejected.String()):
+		return Rejected, nil
+	case strings.EqualFold(status, Expired.String()):
+		return Expired, nil
+	case strings.EqualFold(status, Hidden.String()):
+		return Hidden, nil
+	default:
+		return UnknownStatus, fmt.Errorf("%s not recognised as order STATUS")
 	}
 }
