@@ -168,7 +168,7 @@ func (g *Gateio) WsHandleData() {
 						Timestamp:    time.Now(),
 						CurrencyPair: currency.NewPairFromString(c),
 						AssetType:    asset.Spot,
-						Exchange:     g.GetName(),
+						Exchange:     g.Name,
 						Price:        trades[i].Price,
 						Amount:       trades[i].Amount,
 						Side:         trades[i].Type,
@@ -237,7 +237,7 @@ func (g *Gateio) WsHandleData() {
 					newOrderBook.Bids = bids
 					newOrderBook.AssetType = asset.Spot
 					newOrderBook.Pair = currency.NewPairFromString(c)
-					newOrderBook.ExchangeName = g.GetName()
+					newOrderBook.ExchangeName = g.Name
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 					if err != nil {
@@ -260,7 +260,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     currency.NewPairFromString(c),
 					Asset:    asset.Spot,
-					Exchange: g.GetName(),
+					Exchange: g.Name,
 				}
 
 			case strings.Contains(result.Method, "kline"):
@@ -281,7 +281,7 @@ func (g *Gateio) WsHandleData() {
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(data[7].(string)),
 					AssetType:  asset.Spot,
-					Exchange:   g.GetName(),
+					Exchange:   g.Name,
 					OpenPrice:  open,
 					ClosePrice: closePrice,
 					HighPrice:  high,

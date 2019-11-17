@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 	your_current_exchange_nameConfig.APISecret = apiSecret
 	l.SetDefaults()
 	l.Setup(&your_current_exchange_nameConfig)
-	log.Printf(sharedtestvalues.LiveTesting, l.GetName(), l.APIUrl)
+	log.Printf(sharedtestvalues.LiveTesting, l.Name, l.APIUrl)
 	os.Exit(m.Run())
 }
 ```
@@ -112,7 +112,7 @@ func TestMain(m *testing.M) {
 	g.HTTPClient = newClient
 	g.APIUrl = serverDetails
 
-	log.Printf(sharedtestvalues.MockTesting, l.GetName(), l.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, l.Name, l.APIUrl)
 	os.Exit(m.Run())
 }
 

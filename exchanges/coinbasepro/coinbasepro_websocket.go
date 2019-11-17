@@ -216,7 +216,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	pair := currency.NewPairFromString(snapshot.ProductID)
 	base.AssetType = asset.Spot
 	base.Pair = pair
-	base.ExchangeName = c.GetName()
+	base.ExchangeName = c.Name
 
 	err := c.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
@@ -226,7 +226,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     pair,
 		Asset:    asset.Spot,
-		Exchange: c.GetName(),
+		Exchange: c.Name,
 	}
 
 	return nil
@@ -270,7 +270,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Asset:    asset.Spot,
-		Exchange: c.GetName(),
+		Exchange: c.Name,
 	}
 
 	return nil

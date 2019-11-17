@@ -182,18 +182,18 @@ func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType asset.Item) (tic
 		tp.Last = tick[curr].Avg24h
 		tp.Volume = tick[curr].VolumeBTC
 
-		err = ticker.ProcessTicker(l.GetName(), &tp, assetType)
+		err = ticker.ProcessTicker(l.Name, &tp, assetType)
 		if err != nil {
 			log.Error(log.Ticker, err)
 		}
 	}
 
-	return ticker.GetTicker(l.GetName(), p, assetType)
+	return ticker.GetTicker(l.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (l *LocalBitcoins) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
 	}
@@ -202,7 +202,7 @@ func (l *LocalBitcoins) FetchTicker(p currency.Pair, assetType asset.Item) (tick
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (l *LocalBitcoins) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(l.GetName(), p, assetType)
+	ob, err := orderbook.Get(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
@@ -228,7 +228,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = l.GetName()
+	orderBook.ExchangeName = l.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -243,7 +243,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 // LocalBitcoins exchange
 func (l *LocalBitcoins) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = l.GetName()
+	response.Exchange = l.Name
 	accountBalance, err := l.GetWalletBalance()
 	if err != nil {
 		return response, err
