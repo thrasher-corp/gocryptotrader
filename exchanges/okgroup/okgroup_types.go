@@ -666,14 +666,20 @@ type GetFuturesTransactionDetailsResponse struct {
 
 // GetFuturesContractInformationResponse individual contract details from  GetFuturesContractInformation
 type GetFuturesContractInformationResponse struct {
-	ContractValue   float64 `json:"contract_val,string"`
-	Delivery        string  `json:"delivery"`
-	InstrumentID    string  `json:"instrument_id"`
-	Listing         string  `json:"listing"`
-	QuoteCurrency   string  `json:"quote_currency"`
-	TickSize        float64 `json:"tick_size,string"`
-	TradeIncrement  int64   `json:"trade_increment,string"`
-	UnderlyingIndex string  `json:"underlying_index"`
+	ContractValue         float64 `json:"contract_val,string"`
+	Alias                 string  `json:"alias"`
+	BaseCurrency          string  `json:"base_currency"`
+	SettlementCurrency    string  `json:"settlement_currency"`
+	ContractValueCurrency string  `json:"contract_val_currency"`
+	Delivery              string  `json:"delivery"`
+	InstrumentID          string  `json:"instrument_id"`
+	Listing               string  `json:"listing"`
+	QuoteCurrency         string  `json:"quote_currency"`
+	IsInverse             bool    `json:"is_inverse,string"`
+	TickSize              float64 `json:"tick_size,string"`
+	TradeIncrement        int64   `json:"trade_increment,string"`
+	Underlying            string  `json:"underlying"`
+	UnderlyingIndex       string  `json:"underlying_index"`
 }
 
 // GetFuturesOrderBookRequest request data for GetFuturesOrderBook
