@@ -58,7 +58,7 @@ type Orderbook struct {
 
 // MarketCandle stores candle data for a given pair
 type MarketCandle struct {
-	Time   string
+	Time   time.Time
 	Open   float64
 	Close  float64
 	Low    float64
@@ -128,15 +128,15 @@ type AccountData struct {
 
 // TradeHistoryData stores data of past trades
 type TradeHistoryData struct {
-	ID            string  `json:"id"`
-	MarketID      string  `json:"marketId"`
-	Timestamp     string  `json:"timestamp"`
-	Price         float64 `json:"price,string"`
-	Amount        float64 `json:"amount,string"`
-	Side          string  `json:"side"`
-	Fee           float64 `json:"fee,string"`
-	OrderID       string  `json:"orderId"`
-	LiquidityType string  `json:"liquidityType"`
+	ID            string    `json:"id"`
+	MarketID      string    `json:"marketId"`
+	Timestamp     time.Time `json:"timestamp"`
+	Price         float64   `json:"price,string"`
+	Amount        float64   `json:"amount,string"`
+	Side          string    `json:"side"`
+	Fee           float64   `json:"fee,string"`
+	OrderID       string    `json:"orderId"`
+	LiquidityType string    `json:"liquidityType"`
 }
 
 // OrderData stores data for new order created
