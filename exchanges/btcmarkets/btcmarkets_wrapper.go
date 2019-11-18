@@ -213,6 +213,9 @@ func (b *BTCMarkets) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTCMarkets) FetchTradablePairs(a asset.Item) ([]string, error) {
+	if a != asset.Spot {
+		return []string{""}, errors.New("given asset type is not supported by this exchange")
+	}
 	markets, err := b.GetMarkets()
 	if err != nil {
 		return nil, err
