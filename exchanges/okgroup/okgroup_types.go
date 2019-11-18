@@ -666,7 +666,7 @@ type GetFuturesTransactionDetailsResponse struct {
 
 // GetFuturesContractInformationResponse individual contract details from  GetFuturesContractInformation
 type GetFuturesContractInformationResponse struct {
-	ContractVal     int64   `json:"contract_val,string"`
+	ContractValue   float64 `json:"contract_val,string"`
 	Delivery        string  `json:"delivery"`
 	InstrumentID    string  `json:"instrument_id"`
 	Listing         string  `json:"listing"`
