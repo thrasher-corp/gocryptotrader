@@ -178,8 +178,10 @@ func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow, from, to string, bef
 		return marketCandles, err
 	}
 	var tempData MarketCandle
+	var tempTime int64
 	for x := range temp {
-		tempData.Time = temp[x][0].(string)
+		tempTime, err = strconv.ParseInt(temp[x][0].(string), 10, 64)
+		tempData.Time = time.Unix(tempTime, 0)
 		tempData.Open, err = strconv.ParseFloat(temp[x][1].(string), 64)
 		if err != nil {
 			return marketCandles, err

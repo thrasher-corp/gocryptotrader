@@ -285,8 +285,7 @@ func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (orde
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	strPair := b.FormatExchangeCurrency(p, assetType).String()
-	tempResp, err := b.GetOrderbook(strPair, 2)
+	tempResp, err := b.GetOrderbook(b.FormatExchangeCurrency(p, assetType).String(), 2)
 	if err != nil {
 		return orderBook, err
 	}
