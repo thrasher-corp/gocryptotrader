@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -18,6 +19,9 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	BTCtoAUD                = "BTC-AUD"
+	LTCtoAUD                = "LTC-AUD"
+	ETHtoAUD                = "ETH-AUD"
+	bid                     = "bid"
 )
 
 func TestMain(m *testing.M) {
@@ -44,10 +48,6 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	if b.API.Credentials.Key != "" && b.API.Credentials.Key != "Key" &&
-		b.API.Credentials.Secret != "" && b.API.Credentials.Secret != "Secret" {
-		return true
-	}
 	return b.AllowAuthenticatedRequest()
 }
 
@@ -93,7 +93,7 @@ func TestGetMarketCandles(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	temp := []string{"BTC-AUD", "LTC-AUD", "ETH-AUD"}
+	temp := []string{BTCtoAUD, LTCtoAUD, ETHtoAUD}
 	_, err := b.GetTickers(temp)
 	if err != nil {
 		t.Error(err)
@@ -102,7 +102,7 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetMultipleOrderbooks(t *testing.T) {
 	t.Parallel()
-	temp := []string{"BTC-AUD", "LTC-AUD", "ETH-AUD"}
+	temp := []string{BTCtoAUD, LTCtoAUD, ETHtoAUD}
 	_, err := b.GetMultipleOrderbooks(temp)
 	if err != nil {
 		t.Error(err)
@@ -144,7 +144,7 @@ func TestGetTradeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTradeHistory("ETH-AUD")
+	_, err := b.GetTradeHistory(ETHtoAUD)
 	if err != nil {
 		t.Error(err)
 	}
@@ -155,7 +155,7 @@ func TestNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.NewOrder(BTCtoAUD, 100, 1, "Limit", "Bid", 0, 0, "", true, "", "")
+	_, err := b.NewOrder(BTCtoAUD, 100, 1, limit, bid, 0, 0, "", true, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -166,7 +166,7 @@ func TestGetOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetOrders("LTC-AUD")
+	_, err := b.GetOrders(LTCtoAUD)
 	if err != nil {
 		t.Error(err)
 	}
@@ -177,7 +177,7 @@ func TestCancelOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	temp := []string{"BTC-AUD", "LTC-AUD"}
+	temp := []string{BTCtoAUD, LTCtoAUD}
 	_, err := b.CancelOpenOrders(temp)
 	if err != nil {
 		t.Error(err)
@@ -307,7 +307,7 @@ func TestGetTransactions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTransactions("BTC")
+	_, err := b.GetTransactions(currency.BTC.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -356,7 +356,7 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 		Amount:    11000,
 		Price:     1,
 		OrderType: order.Limit.String(),
-		Side:      "Bid"}
+		Side:      bid}
 	pOrders = append(pOrders, placeOrders)
 	_, err := b.BatchPlaceCancelOrders(nil, pOrders)
 	if err != nil {
@@ -414,8 +414,8 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPairWithDelimiter("BTC", "AUD", "-")
-	_, err := b.UpdateOrderbook(cp, "spot")
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.AUD.String(), "-")
+	_, err := b.UpdateOrderbook(cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -423,8 +423,8 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPairWithDelimiter("BTC", "AUD", "-")
-	_, err := b.UpdateTicker(cp, "spot")
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.AUD.String(), "-")
+	_, err := b.UpdateTicker(cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
