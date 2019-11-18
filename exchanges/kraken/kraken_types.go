@@ -497,29 +497,29 @@ type WsOwnTrade struct {
 }
 
 type WsOpenOrders struct {
-	Cost       float64                `json:"cost,string"`
-	Descr      WsOpenOrderDescription `json:"descr"`
-	Expiretm   float64                `json:"expiretm,string"`
-	Fee        float64                `json:"fee,string"`
-	Limitprice float64                `json:"limitprice,string"`
-	Misc       string                 `json:"misc"`
-	Oflags     string                 `json:"oflags"`
-	Opentm     float64                `json:"opentm,string"`
-	Price      float64                `json:"price,string"`
-	Refid      string                 `json:"refid"`
-	Starttm    time.Time              `json:"starttm"`
-	Status     string                 `json:"status"`
-	Stopprice  float64                `json:"stopprice,string"`
-	Userref    int64                  `json:"userref"`
-	Vol        float64                `json:"vol,string"`
-	VolExec    float64                `json:"vol_exec,string"`
+	Cost           float64                `json:"cost,string"`
+	Description    WsOpenOrderDescription `json:"descr"`
+	ExpireTime     time.Time              `json:"expiretm"`
+	Fee            float64                `json:"fee,string"`
+	LimitPrice     float64                `json:"limitprice,string"`
+	Misc           string                 `json:"misc"`
+	OFlags         string                 `json:"oflags"`
+	OpenTime       time.Time              `json:"opentm,string"`
+	Price          float64                `json:"price,string"`
+	RefID          string                 `json:"refid"`
+	StartTime      time.Time              `json:"starttm"`
+	Status         string                 `json:"status"`
+	StopPrice      float64                `json:"stopprice,string"`
+	UserReference  float64                `json:"userref"`
+	Volume         float64                `json:"vol,string"`
+	ExecutedVolume float64                `json:"vol_exec,string"`
 }
 
 type WsOpenOrderDescription struct {
 	Close     string  `json:"close"`
 	Leverage  string  `json:"leverage"`
 	Order     string  `json:"order"`
-	Ordertype string  `json:"ordertype"`
+	OrderType string  `json:"ordertype"`
 	Pair      string  `json:"pair"`
 	Price     float64 `json:"price,string"`
 	Price2    float64 `json:"price2,string"`

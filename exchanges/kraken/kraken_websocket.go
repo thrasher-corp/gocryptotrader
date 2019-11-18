@@ -340,19 +340,47 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) {
 			ownTrade := data[i].(map[string]interface{})
 			for _, val := range ownTrade {
 				tradeData := val.(map[string]interface{})
+				startTimeConv, err := strconv.ParseFloat(tradeData["starttm"].(string), 64)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
+				startTime, startTimeNano, err := convert.SplitFloatDecimals(startTimeConv)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
+				openTimeConv, err := strconv.ParseFloat(tradeData["opentm"].(string), 64)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
+				openTime, openTimeNano, err := convert.SplitFloatDecimals(openTimeConv)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
+				expireTimeConv, err := strconv.ParseFloat(tradeData["expiretm"].(string), 64)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
+				expireTime, expireTimeNano, err := convert.SplitFloatDecimals(expireTimeConv)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
 				cost, err := strconv.ParseFloat(tradeData["cost"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
-				fee, err := strconv.ParseFloat(tradeData["fee"].(string), 64)
+				executedVolume, err := strconv.ParseFloat(tradeData["vol_exec"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
-				margin, err := strconv.ParseFloat(tradeData["margin"].(string), 64)
+				volume, err := strconv.ParseFloat(tradeData["vol"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
-				vol, err := strconv.ParseFloat(tradeData["vol"].(string), 64)
+				userReference, err := strconv.ParseFloat(tradeData["userref"].(string), 64)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
+				stopPrice, err := strconv.ParseFloat(tradeData["stopprice"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
@@ -360,40 +388,51 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) {
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
-				timeTogether, err := strconv.ParseFloat(tradeData["time"].(string), 64)
+				limitPrice, err := strconv.ParseFloat(tradeData["limitprice"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
-				first, second, err := convert.SplitFloatDecimals(timeTogether)
+				fee, err := strconv.ParseFloat(tradeData["fee"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
+				superButts2000 := tradeData["description"].(map[string]interface{})
+				descriptionPrice, err := strconv.ParseFloat(superButts2000["price"].(string), 64)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
+				descriptionPrice2, err := strconv.ParseFloat(superButts2000["price2"].(string), 64)
+				if err != nil {
+					k.Websocket.DataHandler <- err
+				}
+				description := WsOpenOrderDescription{
+					Close:     superButts2000["close"].(string),
+					Leverage:  superButts2000["close"].(string),
+					Order:     superButts2000["close"].(string),
+					OrderType: superButts2000["close"].(string),
+					Pair:      superButts2000["close"].(string),
+					Price:     descriptionPrice,
+					Price2:    descriptionPrice2,
+					Type:      superButts2000["close"].(string),
+				}
+
 				k.Websocket.DataHandler <- WsOpenOrders{
-					Cost: 0,
-					Descr: WsOpenOrderDescription{
-						Close:     "",
-						Leverage:  "",
-						Order:     "",
-						Ordertype: "",
-						Pair:      "",
-						Price:     0,
-						Price2:    0,
-						Type:      "",
-					},
-					Expiretm:   0,
-					Fee:        0,
-					Limitprice: 0,
-					Misc:       "",
-					Oflags:     "",
-					Opentm:     0,
-					Price:      0,
-					Refid:      "",
-					Starttm:    time.Unix(first, second),
-					Status:     "",
-					Stopprice:  0,
-					Userref:    0,
-					Vol:        0,
-					VolExec:    0,
+					Cost:           cost,
+					ExpireTime:     time.Unix(expireTime, expireTimeNano),
+					Description:    description,
+					Fee:            fee,
+					LimitPrice:     limitPrice,
+					Misc:           tradeData["misc"].(string),
+					OFlags:         tradeData["oflags"].(string),
+					OpenTime:       time.Unix(openTime, openTimeNano),
+					Price:          price,
+					RefID:          tradeData["refid"].(string),
+					StartTime:      time.Unix(startTime, startTimeNano),
+					Status:         tradeData["status"].(string),
+					StopPrice:      stopPrice,
+					UserReference:  userReference,
+					Volume:         volume,
+					ExecutedVolume: executedVolume,
 				}
 			}
 		}
