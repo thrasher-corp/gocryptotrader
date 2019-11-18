@@ -177,18 +177,19 @@ func (b *BTCMarkets) Run() {
 			btcMarketsWSURL)
 		b.PrintEnabledPairs()
 	}
-
-	var forceUpdate bool
+	forceUpdate := false
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
+		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
+		forceUpdate = true
+	}
 	if forceUpdate {
 		enabledPairs := currency.Pairs{currency.Pair{
 			Base:      currency.BTC.Lower(),
-			Quote:     currency.USDT.Lower(),
+			Quote:     currency.AUD.Lower(),
 			Delimiter: "-",
 		},
 		}
-		log.Warn(log.ExchangeSys,
-			"Available and enabled pairs for BTC Markets reset due to config upgrade, please enable the ones you would like again")
-
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -395,7 +396,7 @@ func (b *BTCMarkets) CancelOrder(o *order.Cancel) error {
 func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	tempMap := make(map[string]string)
-	orders, err := b.GetOrders("", "", "", "", "")
+	orders, err := b.GetOrders("")
 	if err != nil {
 		return resp, err
 	}
@@ -428,34 +429,34 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 		resp.OrderSide = order.Ask
 	}
 	switch o.Type {
-	case "Limit":
+	case limit:
 		resp.OrderType = order.Limit
-	case "Market":
+	case market:
 		resp.OrderType = order.Market
-	case "Stop Limit":
+	case stopLimit:
 		resp.OrderType = order.Stop
-	case "Stop":
+	case stop:
 		resp.OrderType = order.Stop
-	case "Take Profit":
+	case takeProfit:
 		resp.OrderType = order.ImmediateOrCancel
 	default:
 		resp.OrderType = order.Unknown
 	}
 	resp.RemainingAmount = o.OpenAmount
 	switch o.Status {
-	case "Accepted":
+	case accepted:
 		resp.Status = order.Active
-	case "Placed":
+	case placed:
 		resp.Status = order.Active
-	case "Partially Matched":
+	case partiallyMatched:
 		resp.Status = order.PartiallyFilled
-	case "FullyMatched":
+	case fullyMatched:
 		resp.Status = order.Filled
-	case "Cancelled":
+	case cancelled:
 		resp.Status = order.Cancelled
-	case "Partially Cancelled":
+	case partiallyCancelled:
 		resp.Status = order.PartiallyFilled
-	case "Failed":
+	case failed:
 		resp.Status = order.Rejected
 	default:
 		resp.Status = order.UnknownStatus
@@ -537,7 +538,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 	}
 	var err error
 	for x := range req.Currencies {
-		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), "", "", "", "")
+		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String())
 		if err != nil {
 			return resp, err
 		}
@@ -550,19 +551,19 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			}
 			tempResp.OrderDate = tempData[y].CreationTime
 			switch tempData[y].Status {
-			case "Accepted":
+			case accepted:
 				tempResp.Status = order.Active
-			case "Placed":
+			case placed:
 				tempResp.Status = order.Active
-			case "Partially Matched":
+			case partiallyMatched:
 				tempResp.Status = order.PartiallyFilled
-			case "FullyMatched":
+			case fullyMatched:
 				tempResp.Status = order.Filled
-			case "Cancelled":
+			case cancelled:
 				tempResp.Status = order.Cancelled
-			case "Partially Cancelled":
+			case partiallyCancelled:
 				tempResp.Status = order.PartiallyFilled
-			case "Failed":
+			case failed:
 				tempResp.Status = order.Rejected
 			}
 			tempResp.Price = tempData[y].Price
@@ -587,7 +588,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	var tempResp order.Detail
 	var tempArray []string
 	if len(req.Currencies) == 0 {
-		orders, err := b.GetOrders("", "", "", "", "")
+		orders, err := b.GetOrders("")
 		if err != nil {
 			return resp, err
 		}
@@ -596,8 +597,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	for y := range req.Currencies {
-		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(),
-			"", "", "", "")
+		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String())
 		if err != nil {
 			return resp, err
 		}
