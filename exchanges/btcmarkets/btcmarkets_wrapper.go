@@ -303,14 +303,13 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
 			Amount: tempResp.Asks[y].Volume,
 			Price:  tempResp.Asks[y].Price})
-		orderBook.Pair = p
-		orderBook.ExchangeName = b.Name
-		orderBook.AssetType = assetType
-
-		err = orderBook.Process()
-		if err != nil {
-			return orderBook, err
-		}
+	}
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.Name
+	orderBook.AssetType = assetType
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }
@@ -446,19 +445,19 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 	resp.RemainingAmount = o.OpenAmount
 	switch o.Status {
-	case accepted:
+	case orderAccepted:
 		resp.Status = order.Active
-	case placed:
+	case orderPlaced:
 		resp.Status = order.Active
-	case partiallyMatched:
+	case orderPartiallyMatched:
 		resp.Status = order.PartiallyFilled
-	case fullyMatched:
+	case orderFullyMatched:
 		resp.Status = order.Filled
-	case cancelled:
+	case orderCancelled:
 		resp.Status = order.Cancelled
-	case partiallyCancelled:
+	case orderPartiallyCancelled:
 		resp.Status = order.PartiallyFilled
-	case failed:
+	case orderFailed:
 		resp.Status = order.Rejected
 	default:
 		resp.Status = order.UnknownStatus
@@ -553,19 +552,19 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			}
 			tempResp.OrderDate = tempData[y].CreationTime
 			switch tempData[y].Status {
-			case accepted:
+			case orderAccepted:
 				tempResp.Status = order.Active
-			case placed:
+			case orderPlaced:
 				tempResp.Status = order.Active
-			case partiallyMatched:
+			case orderPartiallyMatched:
 				tempResp.Status = order.PartiallyFilled
-			case fullyMatched:
+			case orderFullyMatched:
 				tempResp.Status = order.Filled
-			case cancelled:
+			case orderCancelled:
 				tempResp.Status = order.Cancelled
-			case partiallyCancelled:
+			case orderPartiallyCancelled:
 				tempResp.Status = order.PartiallyFilled
-			case failed:
+			case orderFailed:
 				tempResp.Status = order.Rejected
 			}
 			tempResp.Price = tempData[y].Price
