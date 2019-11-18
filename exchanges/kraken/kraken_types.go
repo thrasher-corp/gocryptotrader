@@ -1,6 +1,10 @@
 package kraken
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // TimeResponse type
 type TimeResponse struct {
@@ -391,7 +395,7 @@ type WithdrawStatusResponse struct {
 type WebsocketSubscriptionEventRequest struct {
 	Event        string                    `json:"event"`           // subscribe
 	RequestID    int64                     `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	Pairs        []string                  `json:"pair"`            // Array of currency pairs (pair1,pair2,pair3).
+	Pairs        []string                  `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
 	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
 }
 
@@ -413,6 +417,8 @@ type WebsocketSubscriptionData struct {
 	Name     string `json:"name,omitempty"`     // ticker|ohlc|trade|book|spread|*, * for all (ohlc interval value is 1 if all channels subscribed)
 	Interval int64  `json:"interval,omitempty"` // Optional - Time interval associated with ohlc subscription in minutes. Default 1. Valid Interval values: 1|5|15|30|60|240|1440|10080|21600
 	Depth    int64  `json:"depth,omitempty"`    // Optional - depth associated with book subscription in number of levels each side, default 10. Valid Options are: 10, 25, 100, 500, 1000
+	Token    string `json:"token,omitempty"`    // Optional used for authenticated requests
+
 }
 
 // WebsocketEventResponse holds all data response types
@@ -458,4 +464,64 @@ type WebsocketChannelData struct {
 	Subscription string
 	Pair         currency.Pair
 	ChannelID    int64
+}
+
+type WsTokenResponse struct {
+	Error  []string `json:"error"`
+	Result struct {
+		Expires int64  `json:"expires"`
+		Token   string `json:"token"`
+	} `json:"result"`
+}
+
+type WsAuthenticatedRequest struct {
+	Event        string `json:"event"`
+	Subscription struct {
+		Name  string `json:"name"`
+		Token string `json:"token"`
+	} `json:"subscription"`
+}
+
+type WsOwnTrade struct {
+	Cost               float64   `json:"cost,string"`
+	Fee                float64   `json:"fee,string"`
+	Margin             float64   `json:"margin,string"`
+	OrderTransactionID string    `json:"ordertxid"`
+	OrderType          string    `json:"ordertype"`
+	Pair               string    `json:"pair"`
+	PostTransactionID  string    `json:"postxid"`
+	Price              float64   `json:"price,string"`
+	Time               time.Time `json:"time"`
+	Type               string    `json:"type"`
+	Vol                float64   `json:"vol,string"`
+}
+
+type WsOpenOrders struct {
+	Cost       float64                `json:"cost,string"`
+	Descr      WsOpenOrderDescription `json:"descr"`
+	Expiretm   float64                `json:"expiretm,string"`
+	Fee        float64                `json:"fee,string"`
+	Limitprice float64                `json:"limitprice,string"`
+	Misc       string                 `json:"misc"`
+	Oflags     string                 `json:"oflags"`
+	Opentm     float64                `json:"opentm,string"`
+	Price      float64                `json:"price,string"`
+	Refid      string                 `json:"refid"`
+	Starttm    time.Time              `json:"starttm"`
+	Status     string                 `json:"status"`
+	Stopprice  float64                `json:"stopprice,string"`
+	Userref    int64                  `json:"userref"`
+	Vol        float64                `json:"vol,string"`
+	VolExec    float64                `json:"vol_exec,string"`
+}
+
+type WsOpenOrderDescription struct {
+	Close     string  `json:"close"`
+	Leverage  string  `json:"leverage"`
+	Order     string  `json:"order"`
+	Ordertype string  `json:"ordertype"`
+	Pair      string  `json:"pair"`
+	Price     float64 `json:"price,string"`
+	Price2    float64 `json:"price2,string"`
+	Type      string  `json:"type"`
 }

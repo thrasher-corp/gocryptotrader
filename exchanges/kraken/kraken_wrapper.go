@@ -171,6 +171,16 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
 
+	k.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         k.Name,
+		URL:                  krakenAuthWSURL,
+		ProxyURL:             k.Websocket.GetProxyAddress(),
+		Verbose:              k.Verbose,
+		RateLimit:            krakenWsRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+
 	k.Websocket.Orderbook.Setup(
 		exch.WebsocketOrderbookBufferLimit,
 		true,
@@ -606,5 +616,9 @@ func (k *Kraken) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (k *Kraken) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
+	resp, err := k.GetWebsocketToken()
+	if resp != "" {
+		authToken = resp
+	}
+	return err
 }

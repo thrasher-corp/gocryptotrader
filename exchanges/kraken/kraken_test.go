@@ -3,6 +3,7 @@ package kraken
 import (
 	"log"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -25,13 +26,9 @@ const (
 	canManipulateRealOrders = false
 )
 
-// TestSetDefaults setup func
-func TestSetDefaults(t *testing.T) {
-	k.SetDefaults()
-}
-
 // TestSetup setup func
-func TestSetup(t *testing.T) {
+func TestMain(m *testing.M) {
+	k.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -39,7 +36,7 @@ func TestSetup(t *testing.T) {
 	}
 	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
 	if err != nil {
-		t.Error("kraken Setup() init error", err)
+		log.Fatal("kraken Setup() init error", err)
 	}
 	krakenConfig.API.AuthenticatedSupport = true
 	krakenConfig.API.Credentials.Key = apiKey
@@ -50,8 +47,10 @@ func TestSetup(t *testing.T) {
 
 	err = k.Setup(krakenConfig)
 	if err != nil {
-		t.Fatal("Kraken setup error", err)
+		log.Fatal("Kraken setup error", err)
 	}
+
+	os.Exit(m.Run())
 }
 
 // TestGetServerTime API endpoint test
@@ -290,8 +289,6 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
 	if areTestAPIKeysSet() {
@@ -373,7 +370,6 @@ func TestGetFee(t *testing.T) {
 
 // TestFormatWithdrawPermissions logic test
 func TestFormatWithdrawPermissions(t *testing.T) {
-	k.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.AutoWithdrawFiatWithSetupText + " & " + exchange.WithdrawFiatWith2FAText
 
 	withdrawPermissions := k.FormatWithdrawPermissions()
@@ -385,9 +381,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // TestGetActiveOrders wrapper test
 func TestGetActiveOrders(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -402,9 +395,6 @@ func TestGetActiveOrders(t *testing.T) {
 
 // TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -425,9 +415,6 @@ func areTestAPIKeysSet() bool {
 
 // TestSubmitOrder wrapper test
 func TestSubmitOrder(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -453,9 +440,6 @@ func TestSubmitOrder(t *testing.T) {
 
 // TestCancelExchangeOrder wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -480,9 +464,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 // TestCancelAllExchangeOrders wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -535,9 +516,6 @@ func TestModifyOrder(t *testing.T) {
 
 // TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
 		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
 			Amount:        -1,
@@ -563,9 +541,6 @@ func TestWithdraw(t *testing.T) {
 
 // TestWithdrawFiat wrapper test
 func TestWithdrawFiat(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -590,9 +565,6 @@ func TestWithdrawFiat(t *testing.T) {
 
 // TestWithdrawInternationalBank wrapper test
 func TestWithdrawInternationalBank(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -632,9 +604,6 @@ func TestGetDepositAddress(t *testing.T) {
 
 // TestWithdrawStatus wrapper test
 func TestWithdrawStatus(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() {
 		_, err := k.WithdrawStatus(currency.BTC, "")
 		if err != nil {
@@ -650,8 +619,6 @@ func TestWithdrawStatus(t *testing.T) {
 
 // TestWithdrawCancel wrapper test
 func TestWithdrawCancel(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
 	_, err := k.WithdrawCancel(currency.BTC, "")
 	if areTestAPIKeysSet() && err == nil {
 		t.Error("WithdrawCancel() error cannot be nil")
@@ -666,8 +633,6 @@ func setupWsTests(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	TestSetDefaults(t)
-	TestSetup(t)
 	if !k.Websocket.IsEnabled() && !k.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
@@ -698,5 +663,19 @@ func TestWebsocketSubscribe(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetWSToken(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required, skipping")
+	}
+	resp, err := k.GetWebsocketToken()
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("Token not returned")
 	}
 }
