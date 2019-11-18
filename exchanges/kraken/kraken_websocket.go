@@ -413,13 +413,13 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) {
 				}
 				description := WsOpenOrderDescription{
 					Close:     superButts2000["close"].(string),
-					Leverage:  superButts2000["close"].(string),
-					Order:     superButts2000["close"].(string),
-					OrderType: superButts2000["close"].(string),
-					Pair:      superButts2000["close"].(string),
+					Leverage:  superButts2000["leverage"].(string),
+					Order:     superButts2000["order"].(string),
+					OrderType: superButts2000["ordertype"].(string),
+					Pair:      superButts2000["pair"].(string),
 					Price:     descriptionPrice,
 					Price2:    descriptionPrice2,
-					Type:      superButts2000["close"].(string),
+					Type:      superButts2000["type"].(string),
 				}
 
 				k.Websocket.DataHandler <- WsOpenOrders{
