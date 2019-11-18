@@ -419,7 +419,6 @@ func GetExcludedItems() (Exclusion, error) {
 			if mErr != nil {
 				return excludedList, mErr
 			}
-
 		} else {
 			err = json.Unmarshal(file, &excludedList)
 			if err != nil {

@@ -22,12 +22,12 @@ type Ticker struct {
 
 // TickerResponse is the response type
 type TickerResponse struct {
-	Last        string    `json:"last"`             // Last trade price
-	Ask         string    `json:"ask"`              // Best ask price
-	Bid         string    `json:"bid"`              // Best bid price
-	Timestamp   time.Time `json:"timestamp,string"` // Last update or refresh ticker timestamp
-	Volume      string    `json:"volume"`           // Total trading amount within 24 hours in base currency
-	VolumeQuote string    `json:"volumeQuote"`      // Total trading amount within 24 hours in quote currency
+	Last        string    `json:"last"`        // Last trade price
+	Ask         string    `json:"ask"`         // Best ask price
+	Bid         string    `json:"bid"`         // Best bid price
+	Timestamp   time.Time `json:"timestamp"`   // Last update or refresh ticker timestamp
+	Volume      string    `json:"volume"`      // Total trading amount within 24 hours in base currency
+	VolumeQuote string    `json:"volumeQuote"` // Total trading amount within 24 hours in quote currency
 	Symbol      string    `json:"symbol"`
 	High        string    `json:"high"` // Highest trade price within 24 hours
 	Low         string    `json:"low"`  // Lowest trade price within 24 hours
@@ -75,7 +75,7 @@ type TradeHistory struct {
 
 // ChartData contains chart data
 type ChartData struct {
-	Timestamp   time.Time `json:"timestamp,string"`
+	Timestamp   time.Time `json:"timestamp"`
 	Max         float64   `json:"max,string"`         // Max price
 	Min         float64   `json:"min,string"`         // Min price
 	Open        float64   `json:"open,string"`        // Open price
@@ -88,7 +88,7 @@ type ChartData struct {
 type Currencies struct {
 	ID                 string `json:"id"`                 // Currency identifier.
 	FullName           string `json:"fullName"`           // Currency full name
-	Crypto             bool   `json:"crypto,boolean"`     // Is currency belongs to blockchain (false for ICO and fiat, like EUR)
+	Crypto             bool   `json:"crypto"`             // Is currency belongs to blockchain (false for ICO and fiat, like EUR)
 	PayinEnabled       bool   `json:"payinEnabled"`       // Is allowed for deposit (false for ICO)
 	PayinPaymentID     bool   `json:"payinPaymentId"`     // Is required to provide additional information other than the address for deposit
 	PayinConfirmations int64  `json:"payinConfirmations"` // Blocks confirmations count for deposit
@@ -148,10 +148,10 @@ type Order struct {
 	Quantity    float64   `json:"quantity,string"`    // Order quantity
 	Price       float64   `json:"price,string"`       // Order price
 	CumQuantity float64   `json:"cumQuantity,string"` // Cumulative executed quantity
-	CreatedAt   time.Time `json:"createdAt,string"`
-	UpdatedAt   time.Time `json:"updatedAt,string"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 	StopPrice   float64   `json:"stopPrice,string"`
-	ExpireTime  time.Time `json:"expireTime,string"`
+	ExpireTime  time.Time `json:"expireTime"`
 }
 
 // OpenOrdersResponseAll holds the full open order response
@@ -274,7 +274,7 @@ type LoanOffer struct {
 	Rate      float64 `json:"rate,string"`
 	Amount    float64 `json:"amount,string"`
 	Duration  int     `json:"duration"`
-	AutoRenew bool    `json:"autoRenew,int"`
+	AutoRenew bool    `json:"autoRenew"`
 	Date      string  `json:"date"`
 }
 

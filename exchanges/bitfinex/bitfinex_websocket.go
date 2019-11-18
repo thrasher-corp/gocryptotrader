@@ -201,7 +201,6 @@ func (b *Bitfinex) WsDataHandler() {
 						if status == "OK" {
 							b.Websocket.DataHandler <- eventData
 							b.WsAddSubscriptionChannel(0, "account", "N/A")
-
 						} else if status == "fail" {
 							b.Websocket.DataHandler <- fmt.Errorf("bitfinex.go error - Websocket unable to AUTH. Error code: %s",
 								eventData["code"].(string))

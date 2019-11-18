@@ -803,9 +803,9 @@ var (
 	STQ        = NewCode("STQ")
 	INK        = NewCode("INK")
 	HBZ        = NewCode("HBZ")
-	USDT_ETH   = NewCode("USDT_ETH") // nolint: golint
-	QTUM_ETH   = NewCode("QTUM_ETH") // nolint: golint
-	BTM_ETH    = NewCode("BTM_ETH")  // nolint: golint
+	USDT_ETH   = NewCode("USDT_ETH") // nolint: stylecheck, golint
+	QTUM_ETH   = NewCode("QTUM_ETH") // nolint: stylecheck
+	BTM_ETH    = NewCode("BTM_ETH")  // nolint: stylecheck, golint
 	FIL        = NewCode("FIL")
 	STX        = NewCode("STX")
 	BOT        = NewCode("BOT")
@@ -818,7 +818,7 @@ var (
 	GOD        = NewCode("GOD")
 	SMT        = NewCode("SMT")
 	BTF        = NewCode("BTF")
-	NAS_ETH    = NewCode("NAS_ETH") // nolint: golint
+	NAS_ETH    = NewCode("NAS_ETH") // nolint: stylecheck, golint
 	TSL        = NewCode("TSL")
 	BIFI       = NewCode("BIFI")
 	BNTY       = NewCode("BNTY")
@@ -844,21 +844,21 @@ var (
 	MOBI       = NewCode("MOBI")
 	LEDU       = NewCode("LEDU")
 	DBC        = NewCode("DBC")
-	MKR_OLD    = NewCode("MKR_OLD") // nolint: golint
+	MKR_OLD    = NewCode("MKR_OLD") // nolint: stylecheck, golint
 	DPY        = NewCode("DPY")
 	BCDN       = NewCode("BCDN")
-	EOSDAC     = NewCode("EOSDAC") // nolint: golint
+	EOSDAC     = NewCode("EOSDAC") // nolint: stylecheck
 	TIPS       = NewCode("TIPS")
 	XMC        = NewCode("XMC")
 	PPS        = NewCode("PPS")
 	BOE        = NewCode("BOE")
 	MEDX       = NewCode("MEDX")
-	SMT_ETH    = NewCode("SMT_ETH") // nolint: golint
+	SMT_ETH    = NewCode("SMT_ETH") // nolint: stylecheck, golint
 	CS         = NewCode("CS")
 	MAN        = NewCode("MAN")
 	REM        = NewCode("REM")
 	LYM        = NewCode("LYM")
-	INSTAR     = NewCode("INSTAR") // nolint: golint
+	INSTAR     = NewCode("INSTAR") // nolint: stylecheck
 	BFT        = NewCode("BFT")
 	IHT        = NewCode("IHT")
 	SENC       = NewCode("SENC")
@@ -873,7 +873,7 @@ var (
 	SWTH       = NewCode("SWTH")
 	NKN        = NewCode("NKN")
 	SOUL       = NewCode("SOUL")
-	GALA_NEO   = NewCode("GALA_NEO") // nolint: golint
+	GALA_NEO   = NewCode("GALA_NEO") // nolint: stylecheck, golint
 	LRN        = NewCode("LRN")
 	GSE        = NewCode("GSE")
 	RATING     = NewCode("RATING")
@@ -2098,5 +2098,5 @@ var (
 	YER        = NewCode("YER")
 	ZWD        = NewCode("ZWD")
 	XETH       = NewCode("XETH")
-	FX_BTC     = NewCode("FX_BTC") // nolint: golint
+	FX_BTC     = NewCode("FX_BTC") // nolint: stylecheck, golint
 )

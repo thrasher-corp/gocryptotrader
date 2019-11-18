@@ -36,7 +36,6 @@ func (b *Bitmex) Run() {
 	marketInfo, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
-
 	} else {
 		var exchangeProducts []string
 		for i := range marketInfo {

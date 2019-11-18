@@ -55,7 +55,6 @@ func (l *LocalBitcoins) Run() {
 	if err != nil {
 		log.Errorf("%s failed to update available currencies. Err %s", l.Name, err)
 	}
-
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

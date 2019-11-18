@@ -96,7 +96,6 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
 	} else {
 		var pubKeyData []byte
 		pubKeyData, err = common.ReadFile("publickey.pem")

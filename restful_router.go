@@ -10,7 +10,7 @@ import (
 	"github.com/idoall/gocryptotrader/common"
 	log "github.com/idoall/gocryptotrader/logger"
 
-	_ "net/http/pprof"
+	_ "net/http/pprof" // nolint: gosec
 )
 
 // RESTLogger logs the requests internally

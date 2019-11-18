@@ -175,7 +175,6 @@ func (g *Gemini) GetSymbols() ([]string, error) {
 
 // GetTicker returns information about recent trading activity for the symbol
 func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
-
 	type TickerResponse struct {
 		Ask     float64 `json:"ask,string"`
 		Bid     float64 `json:"bid,string"`

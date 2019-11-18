@@ -241,7 +241,6 @@ func SetupExchanges() {
 				continue
 			}
 			return
-
 		}
 		if !exch.Enabled {
 			log.Debugf("%s: Exchange support: Disabled", exch.Name)

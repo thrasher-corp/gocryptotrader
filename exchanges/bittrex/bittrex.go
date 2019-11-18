@@ -575,5 +575,4 @@ func (b *Bittrex) GetWithdrawalFee(c currency.Code) (float64, error) {
 // calculateTradingFee returns the fee for trading any currency on Bittrex
 func calculateTradingFee(price, amount float64) float64 {
 	return 0.0025 * price * amount
-
 }

@@ -389,5 +389,4 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		}
 	}
 	wg.Wait()
-
 }

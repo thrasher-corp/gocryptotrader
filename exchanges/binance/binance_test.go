@@ -345,7 +345,6 @@ func TestGetFee(t *testing.T) {
 			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
-
 	}
 
 	// CryptocurrencyWithdrawalFee Basic

@@ -66,7 +66,6 @@ func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 	tick, err := b.GetTicker(p.String(), false)
 	if err != nil {
 		return tickerPrice, err
-
 	}
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Ask
@@ -100,7 +99,6 @@ func (b *Bitstamp) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair

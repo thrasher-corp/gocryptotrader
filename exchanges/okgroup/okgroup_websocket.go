@@ -313,7 +313,6 @@ func (o *OKGroup) GetAssetTypeFromTableName(table string) string {
 // WsHandleDataResponse classifies the WS response and sends to appropriate handler
 func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 	switch o.GetWsChannelWithoutOrderType(response.Table) {
-
 	case okGroupWsCandle60s, okGroupWsCandle180s, okGroupWsCandle300s, okGroupWsCandle900s,
 		okGroupWsCandle1800s, okGroupWsCandle3600s, okGroupWsCandle7200s, okGroupWsCandle14400s,
 		okGroupWsCandle21600s, okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:
@@ -502,7 +501,6 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 			Asset:    o.GetAssetTypeFromTableName(tableName),
 			Pair:     instrument,
 		}
-
 	} else {
 		if o.Verbose {
 			log.Debug("Orderbook invalid")
@@ -527,7 +525,6 @@ func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketData
 		}
 		if len(orderbookData.Asks)-1 >= i {
 			askMessage = fmt.Sprintf("%v:%v:", orderbookData.Asks[i][0], orderbookData.Asks[i][1])
-
 		}
 		if checksum == "" {
 			checksum = fmt.Sprintf("%v%v", bidsMessage, askMessage)

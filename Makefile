@@ -1,6 +1,11 @@
 LDFLAGS = -ldflags "-w -s"
+<<<<<<< HEAD
 GCTPKG = github.com/idoall/gocryptotrader
 LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.18.0
+=======
+GCTPKG = github.com/thrasher-corp/gocryptotrader
+LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.20.1
+>>>>>>> upstrem/master
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085

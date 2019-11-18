@@ -40,7 +40,6 @@ func (w *Websocket) Setup(connector func() error,
 	defaultURL,
 	runningURL string,
 	authenticatedWebsocketAPISupport bool) error {
-
 	w.DataHandler = make(chan interface{}, 1)
 	w.Connected = make(chan struct{}, 1)
 	w.Disconnected = make(chan struct{}, 1)

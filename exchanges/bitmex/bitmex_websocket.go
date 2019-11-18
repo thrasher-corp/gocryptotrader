@@ -184,7 +184,6 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 				b.Websocket.DataHandler <- fmt.Errorf("%s websocket error: Unable to subscribe %s",
 					b.Name, decodedResp.Subscribe)
-
 			} else if _, ok := quickCapture["table"]; ok {
 				var decodedResp WebsocketMainResponse
 				err := common.JSONDecode(resp.Raw, &decodedResp)
