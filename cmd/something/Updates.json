@@ -1,0 +1,357 @@
+[
+ {
+  "Name": "Gemini",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h1",
+    "Key": "id",
+    "Val": "revision-history",
+    "TokenDataEnd": "table",
+    "TextTokenData": "td",
+    "DateFormat": "2006/01/02",
+    "RegExp": "^20(\\d){2}/(\\d){2}/(\\d){2}$",
+    "CheckString": "2019/11/18",
+    "Path": "https://docs.gemini.com/rest-api/#revision-history"
+   }
+  }
+ },
+ {
+  "Name": "Huobi",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h1",
+    "Key": "id",
+    "Val": "change-log",
+    "TokenDataEnd": "h2",
+    "TextTokenData": "td",
+    "DateFormat": "2006.01.02 15:04",
+    "RegExp": "^20(\\d){2}.(\\d){2}.(\\d){2} (\\d){2}:(\\d){2}$",
+    "CheckString": "2019.12.05 11:00",
+    "Path": "https://huobiapi.github.io/docs/spot/v1/en/#change-log"
+   }
+  }
+ },
+ {
+  "Name": "Coinbase",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h1",
+    "Key": "id",
+    "Val": "changelog",
+    "TokenDataEnd": "ul",
+    "TextTokenData": "strong",
+    "DateFormat": "01/02/06",
+    "RegExp": "^(\\d){2}/(\\d){2}/(\\d){2}$",
+    "CheckString": "12/16/19",
+    "Path": "https://docs.pro.coinbase.com/#changelog"
+   }
+  }
+ },
+ {
+  "Name": "Binance",
+  "CheckType": "GitHub Sha Check",
+  "Data": {
+   "GitHubData": {
+    "Repo": "binance-exchange/binance-official-api-docs",
+    "Sha": "b5d8ac6c1bb6c9f8e2b40261cbfd4b87d2f62295"
+   }
+  }
+ },
+ {
+  "Name": "Bitthumb",
+  "CheckType": "GitHub Sha Check",
+  "Data": {
+   "GitHubData": {
+    "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
+    "Sha": "72a27532b15fedf8642347e778d5c840c9993312"
+   }
+  }
+ },
+ {
+  "Name": "Bittrex",
+  "CheckType": "GitHub Sha Check",
+  "Data": {
+   "GitHubData": {
+    "Repo": "Bittrex/bittrex.github.io",
+    "Sha": "fc749a8e4b70f84c5a2b56ac7b0583c2b6fdc97b"
+   }
+  }
+ },
+ {
+  "Name": "CoinbeneSpot",
+  "CheckType": "GitHub Sha Check",
+  "Data": {
+   "GitHubData": {
+    "Repo": "Coinbene/API-SPOT-v2-Documents",
+    "Sha": "4f1e522d237cfb8bdab8104f7f1ad6d1d73f5de0"
+   }
+  }
+ },
+ {
+  "Name": "CoinbeneSwap",
+  "CheckType": "GitHub Sha Check",
+  "Data": {
+   "GitHubData": {
+    "Repo": "Coinbene/API-SWAP-Documents",
+    "Sha": "9f8aced70464f2953542c6f5d07470ae10b925b3"
+   }
+  }
+ },
+ {
+  "Name": "Coinnut",
+  "CheckType": "GitHub Sha Check",
+  "Data": {
+   "GitHubData": {
+    "Repo": "coinut/api",
+    "Sha": "6936dab4d2beba3c8245a603aebf3f545ebcf3f9"
+   }
+  }
+ },
+ {
+  "Name": "Gateio",
+  "CheckType": "GitHub Sha Check",
+  "Data": {
+   "GitHubData": {
+    "Repo": "gateio/gateapi-go",
+    "Sha": "483f139f856055c290df5904cf0e53dfd4c350f2"
+   }
+  }
+ },
+ {
+  "Name": "Lbank",
+  "CheckType": "GitHub Sha Check",
+  "Data": {
+   "GitHubData": {
+    "Repo": "LBank-exchange/lbank-official-api-docs",
+    "Sha": "85e7bb83f03d4239c3aad26cabb997a1a2bbb3d1"
+   }
+  }
+ },
+ {
+  "Name": "OkCoin",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h3",
+    "Key": "id",
+    "Val": "change-change",
+    "TokenDataEnd": "section",
+    "TextTokenData": "p",
+    "DateFormat": "2006-01-02",
+    "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
+    "CheckString": "2019-04-28",
+    "Path": "https://www.okcoin.com/docs/en/#change-change"
+   }
+  }
+ },
+ {
+  "Name": "Okex",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h3",
+    "Key": "id",
+    "Val": "change-change",
+    "TokenDataEnd": "table",
+    "TextTokenData": "p",
+    "DateFormat": "2006-01-02",
+    "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
+    "CheckString": "2019-04-28",
+    "Path": "https://www.okex.com/docs/en/#change-change"
+   }
+  }
+ },
+ {
+  "Name": "BTSE",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h1",
+    "Key": "id",
+    "Val": "btse-spot-api",
+    "TokenDataEnd": "blockquote",
+    "TextTokenData": "h1",
+    "RegExp": "^BTSE Spot API v(\\d){1}.(\\d){1}$",
+    "CheckString": "BTSE Spot API v2.2",
+    "Path": "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
+   }
+  }
+ },
+ {
+  "Name": "Bitfinex",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h1",
+    "Key": "class",
+    "Val": "header-scroll",
+    "TokenDataEnd": "p",
+    "DateFormat": "2006-01-02",
+    "RegExp": "section-v-(2\\d{3}-\\d{1,2}-\\d{1,2})",
+    "CheckString": "2019-08-19",
+    "Path": "https://docs.bitfinex.com/docs/changelog"
+   }
+  }
+ },
+ {
+  "Name": "ANX",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "RegExp": "ANX Exchange API v\\d{1}",
+    "CheckString": "ANX Exchange API v3",
+    "Path": "https://anxv3.docs.apiary.io/"
+   }
+  }
+ },
+ {
+  "Name": "Poloniex",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h1",
+    "Key": "id",
+    "Val": "changelog",
+    "TokenDataEnd": "div",
+    "TextTokenData": "h2",
+    "DateFormat": "2006-01-02",
+    "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
+    "CheckString": "2019-11-19",
+    "Path": "https://docs.poloniex.com/#changelog"
+   }
+  }
+ },
+ {
+  "Name": "ItBit",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "a",
+    "Key": "href",
+    "RegExp": "^https://api.itbit.com/v\\d{1}/$",
+    "CheckString": "https://api.itbit.com/v1/",
+    "Path": "https://api.itbit.com/docs"
+   }
+  }
+ },
+ {
+  "Name": "Bitmex",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h4",
+    "Key": "id",
+    "DateFormat": "Jan-2-2006",
+    "RegExp": "([A-Z]{1}[a-z]{2}-\\d{1,2}-2\\d{3})",
+    "CheckString": "Dec-16-2019",
+    "Path": "https://www.bitmex.com/static/md/en-US/apiChangelog"
+   }
+  }
+ },
+ {
+  "Name": "HitBTC",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h1",
+    "Key": "id",
+    "Val": "about-companyname-api",
+    "TokenDataEnd": "h2",
+    "TextTokenData": "p",
+    "RegExp": "newest version \\d{1}.\\d{1}",
+    "CheckString": "newest version 2.0",
+    "Path": "https://api.hitbtc.com/"
+   }
+  }
+ },
+ {
+  "Name": "BTCMarkets",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "RegExp": "^version: \\d{1}.\\d{1}.\\d{1}\\n",
+    "CheckString": "version: 3.0.0\n",
+    "Path": "https://api.btcmarkets.net/openapi/info/index.yaml"
+   }
+  }
+ },
+ {
+  "Name": "Bitflyer",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "p",
+    "TokenDataEnd": "h3",
+    "TextTokenData": "code",
+    "RegExp": "^https://api.bitflyer.com/v\\d{1}/$",
+    "CheckString": "https://api.bitflyer.com/v1/",
+    "Path": "https://lightning.bitflyer.com/docs?lang=en"
+   }
+  }
+ },
+ {
+  "Name": "LakeBTC",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "div",
+    "Key": "class",
+    "Val": "flash-message",
+    "TokenDataEnd": "h2",
+    "TextTokenData": "h1",
+    "RegExp": "APIv\\d{1}",
+    "CheckString": "APIv2",
+    "Path": "https://www.lakebtc.com/s/api_v2"
+   }
+  }
+ },
+ {
+  "Name": "Exmo",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "div",
+    "Key": "class",
+    "Val": "row section_inner content_single",
+    "TokenDataEnd": "p",
+    "TextTokenData": "p",
+    "RegExp": "Last updated on {a",
+    "CheckString": "Last updated on March, 1th, 2019",
+    "Path": "https://exmo.com/en/api/"
+   }
+  }
+ },
+ {
+  "Name": "Kraken",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h3",
+    "TokenDataEnd": "p",
+    "TextTokenData": "p",
+    "RegExp": "URL: https://api.kraken.com/\\d{1}/private/Balance",
+    "CheckString": "URL: https://api.kraken.com/0/private/Balance",
+    "Path": "https://www.kraken.com/features/api"
+   }
+  }
+ },
+ {
+  "Name": "Bitstamp",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h2",
+    "Key": "class",
+    "Val": "text-subtitle mt48",
+    "TokenDataEnd": "h4",
+    "TextTokenData": "p",
+    "RegExp": "refer to the v\\d{1} API for future references.",
+    "CheckString": "refer to the v2 API for future references.",
+    "Path": "https://www.bitstamp.net/api/"
+   }
+  }
+ }
+]
