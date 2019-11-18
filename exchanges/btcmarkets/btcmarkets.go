@@ -48,8 +48,13 @@ const (
 	btcMarketsReports        = "/reports"
 	btcMarketsBatchOrders    = "/batchorders"
 
+<<<<<<< HEAD
 	btcmarketsAuthLimit   = 3
 	btcmarketsUnauthLimit = 50
+=======
+	btcmarketsAuthLimit   = 10
+	btcmarketsUnauthLimit = 25
+>>>>>>> PR Changes
 
 	orderFailed             = "Failed"
 	orderPartiallyCancelled = "Partially Cancelled"
@@ -59,7 +64,10 @@ const (
 	orderPlaced             = "Placed"
 	orderAccepted           = "Accepted"
 
+<<<<<<< HEAD
 	ask        = "ask"
+=======
+>>>>>>> PR Changes
 	limit      = "Limit"
 	market     = "Market"
 	stopLimit  = "Stop Limit"
