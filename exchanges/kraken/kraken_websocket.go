@@ -338,8 +338,14 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) {
 	if data, ok := ownOrders.([]interface{}); ok {
 		for i := range data {
 			ownTrade := data[i].(map[string]interface{})
-			for _, val := range ownTrade {
+			for key, val := range ownTrade {
 				tradeData := val.(map[string]interface{})
+				if len(tradeData) == 1 {
+					// just a status update
+					if status, ok := tradeData["status"].(string); ok {
+						k.Websocket.DataHandler <- "Order " + key + " " + status
+					}
+				}
 				startTimeConv, err := strconv.ParseFloat(tradeData["starttm"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
