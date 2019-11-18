@@ -30,6 +30,7 @@ type Exchange interface {
 	CancelOrder(exch, orderid string) (bool, error)
 
 	AccountInformation(exch string) (AccountInfo, error)
+	DepositAddress(exch string, currencyCode currency.Code, accountID string) (string, error)
 }
 
 // SetModuleWrapper link the wrapper and interface to use for modules
@@ -66,5 +67,6 @@ Submit order - done
 Cancel order - done
 Query Order - done
 Account information (balance etc) - done
-deposit address fetching/withdrawal of crypto/fiat
+deposit address fetching - done
+withdrawal of crypto/fiat
 */

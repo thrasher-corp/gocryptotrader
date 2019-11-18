@@ -166,3 +166,19 @@ func (e Exchange) AccountInformation(exch string) (modules.AccountInfo, error) {
 
 	return accountInfo, nil
 }
+
+func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accountID string) (out string, err error) {
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return
+	}
+
+	if currencyCode.IsEmpty() {
+		return
+	}
+	return ex.GetDepositAddress(currencyCode, accountID)
+}
+
+func (e Exchange) WithdrawalAddress() error {
+	return nil
+}

@@ -118,8 +118,29 @@ With an example configuration being:
     }
     load()  
    ```
-##### Scripting
+##### Scripting & Extending modules
 
+The scripting engine utilises [tengo](https://github.com/d5/tengo) an intro tutorial for it can be found [here](https://github.com/d5/tengo/blob/master/docs/tutorial.md)
+
+Modules have been written so far linking up common exchange features including 
+
+- Orderbook
+- Ticker
+- Order Management
+- Account information
+- Withdraw funds 
+- Get Deposit Addresses
+
+Extending or creating new modules:
+
+Extending an existing module the exchange module for example is simple
+- Open required [module](modules/gct/exchange.go)
+- Add to exchangeModule map
+- Define function with signature ```(args ...objects.Object) (ret objects.Object, err error)```
+
+Similar steps can be taken to add a new module with a few adjustments
+- Open required [GCT](modules/gct/gct_types.go)
+- Add module name to GCTModules map
 
 ## Contribution
 

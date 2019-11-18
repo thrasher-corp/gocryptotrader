@@ -12,14 +12,15 @@ import (
 )
 
 var exchangeModule = map[string]objects.Object{
-	"orderbook":   &objects.UserFunction{Name: "orderbook", Value: ExchangeOrderbook},
-	"ticker":      &objects.UserFunction{Name: "ticker", Value: ExchangeTicker},
-	"exchanges":   &objects.UserFunction{Name: "exchanges", Value: ExchangeExchanges},
-	"pairs":       &objects.UserFunction{Name: "pairs", Value: ExchangePairs},
-	"accountinfo": &objects.UserFunction{Name: "accountinfo", Value: ExchangeAccountInfo},
-	"orderquery":  &objects.UserFunction{Name: "order", Value: ExchangeOrderQuery},
-	"ordercancel": &objects.UserFunction{Name: "order", Value: ExchangeOrderCancel},
-	"ordersubmit": &objects.UserFunction{Name: "order", Value: ExchangeOrderSubmit},
+	"orderbook":      &objects.UserFunction{Name: "orderbook", Value: ExchangeOrderbook},
+	"ticker":         &objects.UserFunction{Name: "ticker", Value: ExchangeTicker},
+	"exchanges":      &objects.UserFunction{Name: "exchanges", Value: ExchangeExchanges},
+	"pairs":          &objects.UserFunction{Name: "pairs", Value: ExchangePairs},
+	"accountinfo":    &objects.UserFunction{Name: "accountinfo", Value: ExchangeAccountInfo},
+	"depositaddress": &objects.UserFunction{Name: "depositaddress", Value: ExchangeDepositAddress},
+	"orderquery":     &objects.UserFunction{Name: "orderquery", Value: ExchangeOrderQuery},
+	"ordercancel":    &objects.UserFunction{Name: "ordercancel", Value: ExchangeOrderCancel},
+	"ordersubmit":    &objects.UserFunction{Name: "ordersubmit", Value: ExchangeOrderSubmit},
 }
 
 func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
@@ -299,4 +300,24 @@ func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error)
 	return &objects.Map{
 		Value: data,
 	}, nil
+}
+
+func ExchangeDepositAddress(args ...objects.Object) (ret objects.Object, err error) {
+	if len(args) != 3 {
+		err = objects.ErrWrongNumArguments
+		return
+	}
+
+	exchangeName, _ := objects.ToString(args[0])
+	currencyCode, _ := objects.ToString(args[1])
+	accountID, _ := objects.ToString(args[2])
+
+	currCode := currency.NewCode(currencyCode)
+
+	rtn, err := modules.Wrapper.DepositAddress(exchangeName, currCode, accountID)
+	if err != nil {
+		return
+	}
+
+	return &objects.String{Value: rtn}, nil
 }

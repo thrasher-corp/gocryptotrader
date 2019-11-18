@@ -34,22 +34,19 @@ var (
 	assetType = &objects.String{
 		Value: "SPOT",
 	}
-	orderId = &objects.String{
+	orderID = &objects.String{
 		Value: "1235",
 	}
 
-	tv = objects.TrueValue
-	fv = objects.FalseValue
+	tv            = objects.TrueValue
+	fv            = objects.FalseValue
 	errTestFailed = errors.New("test failed")
 )
 
 func TestMain(m *testing.M) {
 	modules.SetModuleWrapper(Wrapper{})
-	var t int
-	t = m.Run()
-	os.Exit(t)
+	os.Exit(m.Run())
 }
-
 
 func TestExchangeOrderbook(t *testing.T) {
 	t.Parallel()
@@ -58,12 +55,10 @@ func TestExchangeOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
 	_, err = ExchangeOrderbook(exchError, currencyPair, delimiter, assetType)
 	if err != nil && errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
-
 
 	_, err = ExchangeOrderbook()
 	if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -78,10 +73,9 @@ func TestExchangeTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
 	_, err = ExchangeTicker(exchError, currencyPair, delimiter, assetType)
 	if err != nil && errors.Is(err, errTestFailed) {
-			t.Fatal(err)
+		t.Fatal(err)
 	}
 
 	_, err = ExchangeTicker()
@@ -117,12 +111,10 @@ func TestExchangePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
 	_, err = ExchangePairs(exchError, tv, assetType)
 	if err != nil && errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
-
 
 	_, err = ExchangePairs()
 	if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -138,10 +130,9 @@ func TestAccountInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
 	_, err = ExchangeAccountInfo(exch)
 	if err != nil {
-			t.Fatal(err)
+		t.Fatal(err)
 	}
 
 	_, err = ExchangeAccountInfo(exchError)
@@ -158,13 +149,12 @@ func TestExchangeOrderQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
-	_, err = ExchangeOrderQuery(exch, orderId)
+	_, err = ExchangeOrderQuery(exch, orderID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ExchangeOrderQuery(exchError, orderId)
+	_, err = ExchangeOrderQuery(exchError, orderID)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
@@ -176,7 +166,7 @@ func TestExchangeOrderCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ExchangeOrderCancel(exch, orderId)
+	_, err = ExchangeOrderCancel(exch, orderID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +176,7 @@ func TestExchangeOrderCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ExchangeOrderCancel(exchError, orderId)
+	_, err = ExchangeOrderCancel(exchError, orderID)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
@@ -204,20 +194,19 @@ func TestExchangeOrderSubmit(t *testing.T) {
 	orderAmount := &objects.Float{Value: 1}
 
 	_, err = ExchangeOrderSubmit(exch, currencyPair, delimiter,
-		orderType, orderSide, orderPrice, orderAmount, orderId)
+		orderType, orderSide, orderPrice, orderAmount, orderID)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
 
 	_, err = ExchangeOrderSubmit(exch, currencyPair, delimiter,
-		orderType, orderSide, orderPrice, orderAmount, orderId)
+		orderType, orderSide, orderPrice, orderAmount, orderID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-
 	_, err = ExchangeOrderSubmit(objects.TrueValue, currencyPair, delimiter,
-		orderType, orderSide, orderPrice, orderAmount, orderId)
+		orderType, orderSide, orderPrice, orderAmount, orderID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,6 +218,24 @@ func TestAllModuleNames(t *testing.T) {
 	t.Log(xType)
 	if xType != reflect.Slice {
 		t.Fatalf("AllModuleNames() should return slice instead received: %v", x)
+	}
+}
+
+func TestExchangeDepositAddress(t *testing.T) {
+	_, err := ExchangeDepositAddress()
+	if !errors.Is(err, objects.ErrWrongNumArguments) {
+		t.Fatal(err)
+	}
+
+	currCode := &objects.String{Value: "BTC"}
+	_, err = ExchangeDepositAddress(exch, currCode, orderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ExchangeDepositAddress(exchError, currCode, orderID)
+	if err != nil && !errors.Is(err, errTestFailed) {
+		t.Fatal(err)
 	}
 }
 
@@ -246,9 +253,9 @@ func (w Wrapper) Exchanges(enabledOnly bool) []string {
 	}
 }
 
-func (w Wrapper) IsEnabled(exch string) bool {
+func (w Wrapper) IsEnabled(exch string) (v bool) {
 	if exch == exchError.String() {
-		return false
+		return
 	}
 	return true
 }
@@ -262,13 +269,13 @@ func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*o
 		Bids: []orderbook.Item{
 			{
 				Amount: 1,
-				Price: 1,
+				Price:  1,
 			},
 		},
 		Asks: []orderbook.Item{
 			{
 				Amount: 1,
-				Price: 1,
+				Price:  1,
 			},
 		},
 	}, nil
@@ -291,7 +298,7 @@ func (w Wrapper) Ticker(exch string, pair currency.Pair, item asset.Item) (*tick
 		Close:        10,
 		Pair:         pair,
 		ExchangeName: exch,
-		AssetType:   item,
+		AssetType:    item,
 		LastUpdated:  time.Now(),
 	}, nil
 }
@@ -323,7 +330,7 @@ func (w Wrapper) QueryOrder(exch, orderid string) (*order.Detail, error) {
 		ExecutedAmount:  1,
 		RemainingAmount: 0,
 		Fee:             0,
-		Trades:          []order.TradeHistory{
+		Trades: []order.TradeHistory{
 			{
 				Timestamp:   time.Now(),
 				TID:         0,
@@ -346,7 +353,7 @@ func (w Wrapper) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitRe
 
 	tempOrder := &order.SubmitResponse{
 		IsOrderPlaced: false,
-		OrderID:     exch,
+		OrderID:       exch,
 	}
 
 	if exch == "true" {
@@ -389,11 +396,18 @@ func (w Wrapper) AccountInformation(exch string) (modules.AccountInfo, error) {
 								AssocExchange: nil,
 							},
 						},
-						TotalValue:   100,
-						Hold:         0,
+						TotalValue: 100,
+						Hold:       0,
 					},
 				},
 			},
 		},
 	}, nil
+}
+
+func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code, accountID string) (string, error) {
+	if exch == exchError.String() {
+		return exch, errTestFailed
+	}
+	return exch, nil
 }
